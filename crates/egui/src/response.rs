@@ -39,6 +39,10 @@ pub struct Response {
     pub enabled: bool,
 
     // OUT:
+    /// The pointer is hovering above this widget.
+    #[doc(hidden)]
+    pub contains_pointer: bool,
+
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     #[doc(hidden)]
     pub hovered: bool,
@@ -95,6 +99,7 @@ impl std::fmt::Debug for Response {
             rect,
             sense,
             enabled,
+            contains_pointer,
             hovered,
             highlighted,
             clicked,
@@ -112,6 +117,7 @@ impl std::fmt::Debug for Response {
             .field("rect", rect)
             .field("sense", sense)
             .field("enabled", enabled)
+            .field("contains_pointer", contains_pointer)
             .field("hovered", hovered)
             .field("highlighted", highlighted)
             .field("clicked", clicked)
@@ -142,36 +148,43 @@ impl Response {
     }
 
     /// Returns true if this widget was clicked this frame by the given button.
+    #[inline]
     pub fn clicked_by(&self, button: PointerButton) -> bool {
         self.clicked[button as usize]
     }
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
+    #[inline]
     pub fn secondary_clicked(&self) -> bool {
         self.clicked[PointerButton::Secondary as usize]
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
+    #[inline]
     pub fn middle_clicked(&self) -> bool {
         self.clicked[PointerButton::Middle as usize]
     }
 
     /// Returns true if this widget was double-clicked this frame by the primary button.
+    #[inline]
     pub fn double_clicked(&self) -> bool {
         self.double_clicked[PointerButton::Primary as usize]
     }
 
     /// Returns true if this widget was triple-clicked this frame by the primary button.
+    #[inline]
     pub fn triple_clicked(&self) -> bool {
         self.triple_clicked[PointerButton::Primary as usize]
     }
 
     /// Returns true if this widget was double-clicked this frame by the given button.
+    #[inline]
     pub fn double_clicked_by(&self, button: PointerButton) -> bool {
         self.double_clicked[button as usize]
     }
 
     /// Returns true if this widget was triple-clicked this frame by the given button.
+    #[inline]
     pub fn triple_clicked_by(&self, button: PointerButton) -> bool {
         self.triple_clicked[button as usize]
     }
@@ -212,12 +225,8 @@ impl Response {
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     ///
-    /// This will be `false` whenever some other widget is being dragged.
-    ///
-    /// Note that this is slightly different from [`Self::contains_pointer`].
-    /// For one, the hover rectangle is slightly larger, by half of the current item spacing
-    /// (to make it easier to click things). But `hovered` also checks that no other area
-    /// is covering this response rectangle.
+    /// In contrast to [`Self::contains_pointer`], this will be `false` whenever some other widget is being dragged.
+    /// `hovered` is always `false` for disabled widgets.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
@@ -227,15 +236,19 @@ impl Response {
     ///
     /// In contrast to [`Self::hovered`], this can be `true` even if some other widget is being dragged.
     /// This means it is useful for styling things like drag-and-drop targets.
+    /// `contains_pointer` can also be `true` for disabled widgets.
     ///
-    /// In contrast to [`Self::hovered`], this is true even when dragging some other widget
-    /// onto this one.
+    /// This is slightly different from [`Ui::rect_contains_pointer`] and [`Context::rect_contains_pointer`],
+    /// The rectangle used here is slightly larger, by half of the current item spacing.
+    /// [`Self::contains_pointer`] also checks that no other widget is covering this response rectangle.
+    #[inline(always)]
     pub fn contains_pointer(&self) -> bool {
-        self.ctx.rect_contains_pointer(self.layer_id, self.rect)
+        self.contains_pointer
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
     #[doc(hidden)]
+    #[inline(always)]
     pub fn highlighted(&self) -> bool {
         self.highlighted
     }
@@ -296,21 +309,25 @@ impl Response {
         self.dragged
     }
 
+    #[inline]
     pub fn dragged_by(&self, button: PointerButton) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
     }
 
     /// Did a drag on this widgets begin this frame?
+    #[inline]
     pub fn drag_started(&self) -> bool {
         self.dragged && self.ctx.input(|i| i.pointer.any_pressed())
     }
 
     /// Did a drag on this widgets by the button begin this frame?
+    #[inline]
     pub fn drag_started_by(&self, button: PointerButton) -> bool {
         self.drag_started() && self.ctx.input(|i| i.pointer.button_pressed(button))
     }
 
     /// The widget was being dragged, but now it has been released.
+    #[inline]
     pub fn drag_released(&self) -> bool {
         self.drag_released
     }
@@ -321,6 +338,7 @@ impl Response {
     }
 
     /// If dragged, how many points were we dragged and in what direction?
+    #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
             self.ctx.input(|i| i.pointer.delta())
@@ -331,12 +349,14 @@ impl Response {
 
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
     /// `None` if the widget is not being interacted with.
+    #[inline]
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
         self.interact_pointer_pos
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
     /// None if the pointer is outside the response area.
+    #[inline]
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
             self.ctx.input(|i| i.pointer.hover_pos())
@@ -510,6 +530,7 @@ impl Response {
     }
 
     /// When hovered, use this icon for the mouse cursor.
+    #[inline]
     pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() {
             self.ctx.set_cursor_icon(cursor);
@@ -518,6 +539,7 @@ impl Response {
     }
 
     /// When hovered or dragged, use this icon for the mouse cursor.
+    #[inline]
     pub fn on_hover_and_drag_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() || self.dragged() {
             self.ctx.set_cursor_icon(cursor);
@@ -739,6 +761,7 @@ impl Response {
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             enabled: self.enabled || other.enabled,
+            contains_pointer: self.contains_pointer || other.contains_pointer,
             hovered: self.hovered || other.hovered,
             highlighted: self.highlighted || other.highlighted,
             clicked: [
@@ -774,6 +797,7 @@ impl Response {
 
 impl Response {
     /// Returns a response with a modified [`Self::rect`].
+    #[inline]
     pub fn with_new_rect(self, rect: Rect) -> Self {
         Self { rect, ..self }
     }

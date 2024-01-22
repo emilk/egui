@@ -318,7 +318,13 @@ impl ContextImpl {
                 .native_pixels_per_point
                 .unwrap_or(1.0);
 
-        viewport.layer_rects_prev_frame = std::mem::take(&mut viewport.layer_rects_this_frame);
+        {
+            std::mem::swap(
+                &mut viewport.layer_rects_prev_frame,
+                &mut viewport.layer_rects_this_frame,
+            );
+            viewport.layer_rects_this_frame.clear();
+        }
 
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
@@ -865,91 +871,25 @@ impl Context {
                 .at_most(Vec2::splat(5.0)),
         );
 
-        // Respect clip rectangle when interacting
+        // Respect clip rectangle when interacting:
         let interact_rect = clip_rect.intersect(interact_rect);
-        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
 
-        // This solves the problem of overlapping widgets.
-        // Whichever widget is added LAST (=on top) gets the input:
-        if interact_rect.is_positive() && sense.interactive() {
-            #[cfg(debug_assertions)]
-            if self.style().debug.show_interactive_widgets {
-                Self::layer_painter(self, LayerId::debug()).rect(
-                    interact_rect,
-                    0.0,
-                    Color32::YELLOW.additive().linear_multiply(0.005),
-                    Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
-                );
-            }
+        let contains_pointer = self.widget_contains_pointer(layer_id, id, sense, interact_rect);
 
-            #[cfg(debug_assertions)]
-            let mut show_blocking_widget = None;
-
-            self.write(|ctx| {
-                let viewport = ctx.viewport();
-
-                viewport
-                    .layer_rects_this_frame
-                    .entry(layer_id)
-                    .or_default()
-                    .push(WidgetRect {
-                        id,
-                        rect: interact_rect,
-                        sense,
-                    });
-
-                if hovered {
-                    let pointer_pos = viewport.input.pointer.interact_pos();
-                    if let Some(pointer_pos) = pointer_pos {
-                        if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
-                            for &WidgetRect {
-                                id: prev_id,
-                                rect: prev_rect,
-                                sense: prev_sense,
-                            } in rects.iter().rev()
-                            {
-                                if prev_id == id {
-                                    break; // there is no other interactive widget covering us at the pointer position.
-                                }
-                                // We don't want a click-only button to block drag-events to a `ScrollArea`:
-                                let has_conflicting_sense = (prev_sense.click && sense.click)
-                                    || (prev_sense.drag && sense.drag);
-                                if prev_rect.contains(pointer_pos) && has_conflicting_sense {
-                                    // Another interactive widget is covering us at the pointer position,
-                                    // so we aren't hovered.
-
-                                    #[cfg(debug_assertions)]
-                                    if ctx.memory.options.style.debug.show_blocking_widget {
-                                        // Store the rects to use them outside the write() call to
-                                        // avoid deadlock
-                                        show_blocking_widget = Some((interact_rect, prev_rect));
-                                    }
-
-                                    hovered = false;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            #[cfg(debug_assertions)]
-            if let Some((interact_rect, prev_rect)) = show_blocking_widget {
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    interact_rect,
-                    Color32::GREEN,
-                    "Covered",
-                );
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    prev_rect,
-                    Color32::LIGHT_BLUE,
-                    "On top",
-                );
-            }
+        #[cfg(debug_assertions)]
+        if sense.interactive()
+            && interact_rect.is_positive()
+            && self.style().debug.show_interactive_widgets
+        {
+            Self::layer_painter(self, LayerId::debug()).rect(
+                interact_rect,
+                0.0,
+                Color32::YELLOW.additive().linear_multiply(0.005),
+                Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
+            );
         }
 
-        self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
+        self.interact_with_hovered(layer_id, id, rect, sense, enabled, contains_pointer)
     }
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
@@ -960,9 +900,9 @@ impl Context {
         rect: Rect,
         sense: Sense,
         enabled: bool,
-        hovered: bool,
+        contains_pointer: bool,
     ) -> Response {
-        let hovered = hovered && enabled; // can't even hover disabled widgets
+        let hovered = contains_pointer && enabled; // can't even hover disabled widgets
 
         let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
 
@@ -973,6 +913,7 @@ impl Context {
             rect,
             sense,
             enabled,
+            contains_pointer,
             hovered,
             highlighted,
             clicked: Default::default(),
@@ -988,10 +929,11 @@ impl Context {
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(id));
-            return response;
         }
 
-        self.check_for_id_clash(id, rect, "widget");
+        if sense.interactive() || sense.focusable {
+            self.check_for_id_clash(id, rect, "widget");
+        }
 
         #[cfg(feature = "accesskit")]
         if sense.focusable {
@@ -1019,12 +961,10 @@ impl Context {
             }
 
             #[cfg(feature = "accesskit")]
+            if sense.click
+                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
             {
-                if sense.click
-                    && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
-                {
-                    response.clicked[PointerButton::Primary as usize] = true;
-                }
+                response.clicked[PointerButton::Primary as usize] = true;
             }
 
             if sense.click || sense.drag {
@@ -1091,8 +1031,9 @@ impl Context {
                 response.interact_pointer_pos = input.pointer.interact_pos();
             }
 
-            if input.pointer.any_down() {
-                response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
+            if input.pointer.any_down() && !response.is_pointer_button_down_on {
+                // We don't hover widgets while interacting with *other* widgets:
+                response.hovered = false;
             }
 
             if memory.has_focus(response.id) && clicked_elsewhere {
@@ -2028,15 +1969,123 @@ impl Context {
         self.memory(|mem| mem.areas().top_layer_id(Order::Middle))
     }
 
-    pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        rect.is_positive() && {
-            let pointer_pos = self.input(|i| i.pointer.interact_pos());
-            if let Some(pointer_pos) = pointer_pos {
-                rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
-            } else {
-                false
+    /// Does the given rectangle contain the mouse pointer?
+    ///
+    /// Will return false if some other area is covering the given layer.
+    ///
+    /// See also [`Response::contains_pointer`].
+    pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+        if !rect.is_positive() {
+            return false;
+        }
+
+        let pointer_pos = self.input(|i| i.pointer.interact_pos());
+        let Some(pointer_pos) = pointer_pos else {
+            return false;
+        };
+
+        if !rect.contains(pointer_pos) {
+            return false;
+        }
+
+        if self.layer_id_at(pointer_pos) != Some(layer_id) {
+            return false;
+        }
+
+        true
+    }
+
+    /// Does the given widget contain the mouse pointer?
+    ///
+    /// Will return false if some other area is covering the given layer.
+    ///
+    /// If another widget is covering us and is listening for the same input (click and/or drag),
+    /// this will return false.
+    ///
+    /// See also [`Response::contains_pointer`].
+    pub fn widget_contains_pointer(
+        &self,
+        layer_id: LayerId,
+        id: Id,
+        sense: Sense,
+        rect: Rect,
+    ) -> bool {
+        let contains_pointer = self.rect_contains_pointer(layer_id, rect);
+
+        let mut blocking_widget = None;
+
+        self.write(|ctx| {
+            let viewport = ctx.viewport();
+
+            // We add all widgets here, even non-interactive ones,
+            // because we need this list not only for checking for blocking widgets,
+            // but also to know when we have reach the widget we are checking for cover.
+            viewport
+                .layer_rects_this_frame
+                .entry(layer_id)
+                .or_default()
+                .push(WidgetRect { id, rect, sense });
+
+            // Check if any other widget is covering us.
+            // Whichever widget is added LAST (=on top) gets the input.
+            if contains_pointer {
+                let pointer_pos = viewport.input.pointer.interact_pos();
+                if let Some(pointer_pos) = pointer_pos {
+                    if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
+                        for blocking in rects.iter().rev() {
+                            if blocking.id == id {
+                                // There are no earlier widgets before this one,
+                                // which means there are no widgets covering us.
+                                break;
+                            }
+                            if !blocking.rect.contains(pointer_pos) {
+                                continue;
+                            }
+                            if sense.interactive() && !blocking.sense.interactive() {
+                                // Only interactive widgets can block other interactive widgets.
+                                continue;
+                            }
+
+                            // The `prev` widget is covering us - do we care?
+                            // We don't want a click-only button to block drag-events to a `ScrollArea`:
+
+                            let sense_only_drags = sense.drag && !sense.click;
+                            if sense_only_drags && !blocking.sense.drag {
+                                continue;
+                            }
+                            let sense_only_clicks = sense.click && !sense.drag;
+                            if sense_only_clicks && !blocking.sense.click {
+                                continue;
+                            }
+
+                            if blocking.sense.interactive() {
+                                // Another widget is covering us at the pointer position
+                                blocking_widget = Some(blocking.rect);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        #[cfg(debug_assertions)]
+        if let Some(blocking_rect) = blocking_widget {
+            if sense.interactive() && self.memory(|m| m.options.style.debug.show_blocking_widget) {
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    rect,
+                    Color32::GREEN,
+                    "Covered",
+                );
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    blocking_rect,
+                    Color32::LIGHT_BLUE,
+                    "On top",
+                );
             }
         }
+
+        contains_pointer && blocking_widget.is_none()
     }
 
     // ---------------------------------------------------------------------
