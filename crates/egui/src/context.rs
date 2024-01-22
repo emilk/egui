@@ -1076,7 +1076,7 @@ impl Context {
     /// ```
     /// # let ctx = egui::Context::default();
     /// # let state = true;
-    /// ctx.debug_text(format!("State: {state;?}"));
+    /// ctx.debug_text(format!("State: {state:?}"));
     /// ```
     #[track_caller]
     pub fn debug_text(&self, text: impl Into<WidgetText>) {
