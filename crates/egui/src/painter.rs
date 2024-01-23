@@ -197,11 +197,11 @@ impl Painter {
     /// Access all shapes added this frame.
     pub fn for_each_shape(&self, mut reader: impl FnMut(ShapeIdx, &Shape)) {
         self.ctx.graphics(|g| {
-            g.existing_list(self.layer_id).map(|l| {
-                for (i, s) in l.all_entries() {
+            if let Some(list) = g.existing_list(self.layer_id) {
+                for (i, s) in list.all_entries() {
                     reader(i, s);
                 }
-            })
+            }
         });
     }
 }
