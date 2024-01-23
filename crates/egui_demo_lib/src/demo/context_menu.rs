@@ -149,7 +149,11 @@ impl ContextMenus {
             .width(self.width)
             .height(self.height)
             .data_aspect(1.0)
-            .show(ui, |plot_ui| plot_ui.line(line))
+            .show(ui, |plot_ui_builder| {
+                let mut plot_ui = plot_ui_builder.into_plot_ui();
+                plot_ui.line(line);
+                ((), plot_ui)
+            })
             .response
     }
 

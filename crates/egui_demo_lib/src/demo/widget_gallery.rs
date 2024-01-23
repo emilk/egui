@@ -269,7 +269,11 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
         .height(32.0)
         .show_axes(false)
         .data_aspect(1.0)
-        .show(ui, |plot_ui| plot_ui.line(line))
+        .show(ui, |plot_ui_builder| {
+            let mut plot_ui = plot_ui_builder.into_plot_ui();
+            plot_ui.line(line);
+            ((), plot_ui)
+        })
         .response
 }
 
