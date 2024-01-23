@@ -1,8 +1,16 @@
 //! Simple plotting library for [`egui`](https://github.com/emilk/egui).
 //!
+//! Check out [`Plot`] for how to get started.
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
+
+mod axis;
+mod items;
+mod legend;
+mod memory;
+mod transform;
 
 use std::{ops::RangeInclusive, sync::Arc};
 
@@ -26,11 +34,7 @@ pub use transform::{PlotBounds, PlotTransform};
 use items::{horizontal_line, rulers_color, vertical_line};
 
 pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
-
-mod axis;
-mod items;
-mod legend;
-mod transform;
+pub use memory::PlotMemory;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
@@ -76,44 +80,6 @@ impl Default for CoordinatesFormatter {
 // ----------------------------------------------------------------------------
 
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
-
-/// Information about the plot that has to persist between frames.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone)]
-struct PlotMemory {
-    /// Indicates if the plot uses automatic bounds. This is disengaged whenever the user modifies
-    /// the bounds, for example by moving or zooming.
-    auto_bounds: Vec2b,
-
-    hovered_entry: Option<String>,
-    hidden_items: ahash::HashSet<String>,
-    last_plot_transform: PlotTransform,
-
-    /// Allows to remember the first click position when performing a boxed zoom
-    last_click_pos_for_zoom: Option<Pos2>,
-}
-
-#[cfg(feature = "serde")]
-impl PlotMemory {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| d.get_persisted(id))
-    }
-
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data_mut(|d| d.insert_persisted(id, self));
-    }
-}
-
-#[cfg(not(feature = "serde"))]
-impl PlotMemory {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| d.get_temp(id))
-    }
-
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data_mut(|d| d.insert_temp(id, self));
-    }
-}
 
 // ----------------------------------------------------------------------------
 
@@ -166,6 +132,7 @@ pub struct PlotResponse<R> {
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// use egui_plot::{Line, Plot, PlotPoints};
+///
 /// let sin: PlotPoints = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     [x, x.sin()]
@@ -176,6 +143,7 @@ pub struct PlotResponse<R> {
 /// ```
 pub struct Plot {
     id_source: Id,
+    id: Option<Id>,
 
     center_axis: Vec2b,
     allow_zoom: Vec2b,
@@ -218,6 +186,7 @@ impl Plot {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
+            id: None,
 
             center_axis: false.into(),
             allow_zoom: true.into(),
@@ -254,6 +223,17 @@ impl Plot {
             sharp_grid_lines: true,
             clamp_grid: false,
         }
+    }
+
+    /// Set an explicit (global) id for the plot.
+    ///
+    /// This will override the id set by [`Self::new`].
+    ///
+    /// This is the same `Id` that can be used for [`PlotMemory::load`].
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
     }
 
     /// width / height ratio of the data.
@@ -716,6 +696,7 @@ impl Plot {
     ) -> PlotResponse<R> {
         let Self {
             id_source,
+            id,
             center_axis,
             allow_zoom,
             allow_drag,
@@ -850,7 +831,7 @@ impl Plot {
         let rect = plot_rect;
 
         // Load or initialize the memory.
-        let plot_id = ui.make_persistent_id(id_source);
+        let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let memory = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
@@ -865,22 +846,17 @@ impl Plot {
         }
         .unwrap_or_else(|| PlotMemory {
             auto_bounds: default_auto_bounds,
-            hovered_entry: None,
+            hovered_item: None,
             hidden_items: Default::default(),
-            last_plot_transform: PlotTransform::new(
-                rect,
-                min_auto_bounds,
-                center_axis.x,
-                center_axis.y,
-            ),
+            transform: PlotTransform::new(rect, min_auto_bounds, center_axis.x, center_axis.y),
             last_click_pos_for_zoom: None,
         });
 
         let PlotMemory {
             mut auto_bounds,
-            mut hovered_entry,
+            mut hovered_item,
             mut hidden_items,
-            last_plot_transform,
+            transform: last_plot_transform,
             mut last_click_pos_for_zoom,
         } = memory;
 
@@ -919,14 +895,14 @@ impl Plot {
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
         // Don't show hover cursor when hovering over legend.
-        if hovered_entry.is_some() {
+        if hovered_item.is_some() {
             show_x = false;
             show_y = false;
         }
         // Remove the deselected items.
         items.retain(|item| !hidden_items.contains(item.name()));
         // Highlight the hovered items.
-        if let Some(hovered_name) = &hovered_entry {
+        if let Some(hovered_name) = &hovered_item {
             items
                 .iter_mut()
                 .filter(|entry| entry.name() == hovered_name)
@@ -1211,7 +1187,7 @@ impl Plot {
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
             hidden_items = legend.hidden_items();
-            hovered_entry = legend.hovered_entry_name();
+            hovered_item = legend.hovered_item_name();
         }
 
         if let Some((id, _)) = linked_cursors.as_ref() {
@@ -1242,9 +1218,9 @@ impl Plot {
 
         let memory = PlotMemory {
             auto_bounds,
-            hovered_entry,
+            hovered_item,
             hidden_items,
-            last_plot_transform: transform,
+            transform,
             last_click_pos_for_zoom,
         };
         memory.store(ui.ctx(), plot_id);
