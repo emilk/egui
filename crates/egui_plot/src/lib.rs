@@ -1419,8 +1419,8 @@ pub fn uniform_grid_spacer(spacer: impl Fn(GridInput) -> [f64; 3] + 'static) -> 
 
 // ----------------------------------------------------------------------------
 
-struct PreparedPlot {
-    items: Vec<Box<dyn PlotItem>>,
+struct PreparedPlot<'a> {
+    items: Vec<Box<dyn PlotItem + 'a>>,
     show_x: bool,
     show_y: bool,
     label_formatter: LabelFormatter,
@@ -1437,8 +1437,10 @@ struct PreparedPlot {
     clamp_grid: bool,
 }
 
-impl PreparedPlot {
-    fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
+impl<'a> PreparedPlot<'a> {
+    fn ui(&self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
+        let items = &self.items;
+
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
@@ -1451,13 +1453,14 @@ impl PreparedPlot {
         // Sort the axes by strength so that those with higher strength are drawn in front.
         axes_shapes.sort_by(|(_, strength1), (_, strength2)| strength1.total_cmp(strength2));
 
-        let mut shapes = axes_shapes.into_iter().map(|(shape, _)| shape).collect();
+        let mut shapes: Vec<_> = axes_shapes.into_iter().map(|(shape, _)| shape).collect();
 
         let transform = &self.transform;
 
         let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
         plot_ui.set_clip_rect(*transform.frame());
-        for item in &self.items {
+
+        for item in items {
             item.shapes(&mut plot_ui, transform, &mut shapes);
         }
 
