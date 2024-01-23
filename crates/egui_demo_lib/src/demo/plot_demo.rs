@@ -769,7 +769,20 @@ struct InteractionDemo {}
 impl InteractionDemo {
     #[allow(clippy::unused_self)]
     fn ui(&mut self, ui: &mut Ui) -> Response {
-        let plot = Plot::new("interaction_demo").height(300.0);
+        let id = ui.make_persistent_id("interaction_demo");
+
+        // This demonstrates how to read info about the plot _before_ showing it:
+        let plot_memory = egui_plot::PlotMemory::load(ui.ctx(), id);
+        if let Some(plot_memory) = plot_memory {
+            let bounds = plot_memory.bounds();
+            ui.label(format!(
+                "plot bounds: min: {:.02?}, max: {:.02?}",
+                bounds.min(),
+                bounds.max()
+            ));
+        }
+
+        let plot = Plot::new("interaction_demo").id(id).height(300.0);
 
         let PlotResponse {
             response,
