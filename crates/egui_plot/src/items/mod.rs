@@ -862,12 +862,20 @@ impl Points<PlotPoints> {
             stems: None,
         }
     }
+}
 
+impl<T> Points<T> {
     /// Set the shape of the markers.
     #[inline]
     pub fn shape(mut self, shape: MarkerShape) -> Self {
         self.shape = shape;
         self
+    }
+
+    /// Set the shape of the markers.
+    #[inline]
+    pub fn shape_mut(&mut self, shape: MarkerShape) {
+        self.shape = shape;
     }
 
     /// Highlight these points in the plot by scaling up their markers.
@@ -877,11 +885,23 @@ impl Points<PlotPoints> {
         self
     }
 
+    /// Highlight these points in the plot by scaling up their markers.
+    #[inline]
+    pub fn highlight_mut(&mut self, highlight: bool) {
+        self.highlight = highlight;
+    }
+
     /// Set the marker's color.
     #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
         self
+    }
+
+    /// Set the marker's color.
+    #[inline]
+    pub fn color_mut(&mut self, color: impl Into<Color32>) {
+        self.color = color.into();
     }
 
     /// Whether to fill the marker.
@@ -891,6 +911,12 @@ impl Points<PlotPoints> {
         self
     }
 
+    /// Whether to fill the marker.
+    #[inline]
+    pub fn filled_mut(&mut self, filled: bool) {
+        self.filled = filled;
+    }
+
     /// Whether to add stems between the markers and a horizontal reference line.
     #[inline]
     pub fn stems(mut self, y_reference: impl Into<f32>) -> Self {
@@ -898,11 +924,23 @@ impl Points<PlotPoints> {
         self
     }
 
+    /// Whether to add stems between the markers and a horizontal reference line.
+    #[inline]
+    pub fn stems_mut(&mut self, y_reference: impl Into<f32>) {
+        self.stems = Some(y_reference.into());
+    }
+
     /// Set the maximum extent of the marker around its position.
     #[inline]
     pub fn radius(mut self, radius: impl Into<f32>) -> Self {
         self.radius = radius.into();
         self
+    }
+
+    /// Set the maximum extent of the marker around its position.
+    #[inline]
+    pub fn radius_mut(&mut self, radius: impl Into<f32>) {
+        self.radius = radius.into();
     }
 
     /// Name of this set of points.
@@ -919,7 +957,7 @@ impl Points<PlotPoints> {
     }
 }
 
-impl PlotItem for Points {
+impl PlotItem for Points<PlotPoints> {
     fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3_f32.sqrt();
         let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
