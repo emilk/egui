@@ -882,8 +882,7 @@ impl Plot {
         } = memory;
 
         // Call the plot build function.
-        let mut plot_ui = PlotUi {
-            items: Vec::new(),
+        let builder = PlotUiBuilder {
             next_auto_color_idx: 0,
             last_plot_transform,
             last_auto_bounds: auto_bounds,
@@ -891,7 +890,9 @@ impl Plot {
             bounds_modifications: Vec::new(),
             ctx: ui.ctx().clone(),
         };
-        let inner = build_fn(&mut plot_ui);
+
+        let (inner, plot_ui) = build_fn(builder);
+
         let PlotUi {
             mut items,
             mut response,
