@@ -179,12 +179,16 @@ pub(super) struct LegendWidget {
 impl LegendWidget {
     /// Create a new legend from items, the names of items that are hidden and the style of the
     /// text. Returns `None` if the legend has no entries.
-    pub(super) fn try_new(
+    pub(super) fn try_new<'a, 'b, I>(
         rect: Rect,
         config: Legend,
-        items: &[Box<dyn PlotItem>],
+        items: I,
         hidden_items: &ahash::HashSet<String>, // Existing hiddent items in the plot memory.
-    ) -> Option<Self> {
+    ) -> Option<Self>
+    where
+        'b: 'a,
+        I: Iterator<Item = &'a Box<dyn PlotItem + 'b>>,
+    {
         // If `config.hidden_items` is not `None`, it is used.
         let hidden_items = config.hidden_items.as_ref().unwrap_or(hidden_items);
 
@@ -192,7 +196,7 @@ impl LegendWidget {
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
         let mut entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
         items
-            .iter()
+            .into_iter()
             .filter(|item| !item.name().is_empty())
             .for_each(|item| {
                 entries
