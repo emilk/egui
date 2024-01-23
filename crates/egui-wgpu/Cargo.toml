@@ -45,7 +45,7 @@ bytemuck = "1.7"
 log = { version = "0.4", features = ["std"] }
 thiserror.workspace = true
 type-map = "0.5.0"
-wgpu.workspace = true
+wgpu = { workspace = true, features = ["wgsl"] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
