@@ -430,13 +430,10 @@ impl WinitApp for GlowWinitApp {
 
                 let running = if let Some(running) = &mut self.running {
                     // Not the first resume event. Create all outstanding windows.
-                    {
-                        let glutin = &mut running.glutin.borrow_mut();
-                        #[cfg(target_os = "android")]
-                        glutin.on_resume(self.native_options.viewport.clone(), event_loop)?;
-                        #[cfg(not(target_os = "android"))]
-                        glutin.initialize_all_windows(event_loop);
-                    }
+                    running
+                        .glutin
+                        .borrow_mut()
+                        .initialize_all_windows(event_loop);
 
                     running
                 } else {
@@ -511,9 +508,7 @@ impl GlowWinitRunning {
 
         {
             let glutin = self.glutin.borrow();
-            let Some(viewport) = glutin.viewports.get(&viewport_id) else {
-                return EventResult::Wait;
-            };
+            let viewport = &glutin.viewports[&viewport_id];
             let is_immediate = viewport.viewport_ui_cb.is_none();
             if is_immediate && viewport_id != ViewportId::ROOT {
                 // This will only happen if this is an immediate viewport.
@@ -530,10 +525,10 @@ impl GlowWinitRunning {
         let (raw_input, viewport_ui_cb) = {
             let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
-            let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
+            let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
+            let Some(window) = viewport.window.as_ref() else {
                 return EventResult::Wait;
             };
-            let window = viewport.window.as_ref().unwrap();
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window);
 
             let egui_winit = viewport.egui_winit.as_mut().unwrap();
@@ -1120,8 +1115,6 @@ impl GlutinWindowContext {
             viewport.gl_surface = None;
             viewport.window = None;
         }
-        #[cfg(target_os = "android")]
-        self.viewports.clear();
 
         if let Some(current) = self.current_gl_context.take() {
             log::debug!("context is current, so making it non-current");
@@ -1129,46 +1122,6 @@ impl GlutinWindowContext {
         } else {
             log::debug!("context is already not current??? could be duplicate suspend event");
         }
-        Ok(())
-    }
-
-    #[cfg(target_os = "android")]
-    /// only applies for android. but we basically recreate root viewport
-    fn on_resume(
-        &mut self,
-        builder: ViewportBuilder,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-    ) -> Result<()> {
-        log::debug!("received resume event. initializing new viewport");
-        let GlutinWindowContext {
-            egui_ctx,
-            viewports,
-            ..
-        } = self;
-
-        initialize_or_update_viewport(
-            egui_ctx,
-            viewports,
-            ViewportIdPair::ROOT,
-            ViewportClass::Root,
-            builder,
-            None,
-            None,
-        );
-
-        self.initialize_window(ViewportId::ROOT, event_loop)?;
-
-        if let Some(not_current) = self.not_current_gl_context.take() {
-            log::debug!("context is non-current, so making it current");
-            let surface = self.viewports[&ViewportId::ROOT]
-                .gl_surface
-                .as_ref()
-                .unwrap();
-            self.current_gl_context = Some(not_current.make_current(surface)?);
-        } else {
-            log::debug!("context is already current??? could be duplicate resume event");
-        }
-
         Ok(())
     }
 
