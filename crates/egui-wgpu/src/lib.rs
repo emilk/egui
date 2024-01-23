@@ -233,7 +233,9 @@ pub struct WgpuConfiguration {
     /// Use `1` for low-latency, and `2` for high-throughput.
     ///
     /// See [`wgpu::SurfaceConfiguration::desired_num_frames`] for details.
-    pub desired_maximum_frame_latency: u32,
+    ///
+    /// `None` = `wgpu` default.
+    pub desired_maximum_frame_latency: Option<u32>,
 
     /// Power preference for the adapter.
     pub power_preference: wgpu::PowerPreference,
@@ -293,7 +295,7 @@ impl Default for WgpuConfiguration {
 
             present_mode: wgpu::PresentMode::AutoVsync,
 
-            desired_maximum_frame_latency: 1, // 1 = low-latency; good for GUIs.
+            desired_maximum_frame_latency: None,
 
             power_preference: wgpu::util::power_preference_from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
