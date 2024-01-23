@@ -831,6 +831,25 @@ pub struct Points<T> {
 }
 
 impl<T> Points<T>
+where
+    T: GenericPlotPoints,
+{
+    pub fn new_generic(t: T) -> Self {
+        Self {
+            series: t,
+            shape: MarkerShape::Circle,
+            color: Color32::TRANSPARENT,
+            filled: true,
+            radius: 1.0,
+            name: Default::default(),
+            highlight: false,
+            stems: None,
+        }
+    }
+}
+
+
+impl Points<PlotPoints> {
     pub fn new(series: impl Into<PlotPoints>) -> Self {
         Self {
             series: series.into(),
