@@ -809,8 +809,8 @@ impl PlotItem for Text {
 }
 
 /// A set of points.
-pub struct Points {
-    pub(super) series: PlotPoints,
+pub struct Points<T> {
+    pub(super) series: T,
 
     pub(super) shape: MarkerShape,
 
@@ -830,7 +830,7 @@ pub struct Points {
     pub(super) stems: Option<f32>,
 }
 
-impl Points {
+impl<T> Points<T>
     pub fn new(series: impl Into<PlotPoints>) -> Self {
         Self {
             series: series.into(),
