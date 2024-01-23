@@ -20,7 +20,7 @@ pub use items::{
     Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
-use plot_ui::{PlotUi, PlotUiBuilder};
+pub use plot_ui::{PlotUi, PlotUiBuilder};
 pub use transform::{PlotBounds, PlotTransform};
 
 use items::{horizontal_line, rulers_color, vertical_line};
