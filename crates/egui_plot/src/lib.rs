@@ -915,7 +915,8 @@ impl Plot {
 
         // --- Legend ---
         let legend = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
+            .and_then(|config| LegendWidget::try_new(rect, config, items.iter(), &hidden_items));
+
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
             show_x = false;
