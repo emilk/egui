@@ -368,6 +368,11 @@ pub(crate) enum PlotGeometry<'a> {
     // Has currently no data, as it would require copying rects or iterating a list of pointers.
     // Instead, geometry-based functions are directly implemented in the respective PlotItem impl.
     Rects,
+
+    /// Generic points
+    // Has no data, as without additional info it is not possible to efficiently index into the generic data.
+    // Instead, geometry-based functions are directly implemented in the respective PlotItem impl.
+    GenericPoints,
 }
 
 // ----------------------------------------------------------------------------
