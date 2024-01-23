@@ -311,7 +311,7 @@ impl Response {
 
     /// The Widget is being decidedly dragged.
     ///
-    /// This helper function checks both the output of [`dragged`] and [`crate::PointerState::is_decidedly_dragging`].
+    /// This helper function checks both the output of [`Self::dragged`] and [`crate::PointerState::is_decidedly_dragging`].
     #[inline]
     pub fn decidedly_dragged(&self) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.is_decidedly_dragging())
