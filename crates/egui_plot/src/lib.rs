@@ -846,22 +846,17 @@ impl Plot {
         }
         .unwrap_or_else(|| PlotMemory {
             auto_bounds: default_auto_bounds,
-            hovered_entry: None,
+            hovered_item: None,
             hidden_items: Default::default(),
-            last_plot_transform: PlotTransform::new(
-                rect,
-                min_auto_bounds,
-                center_axis.x,
-                center_axis.y,
-            ),
+            transform: PlotTransform::new(rect, min_auto_bounds, center_axis.x, center_axis.y),
             last_click_pos_for_zoom: None,
         });
 
         let PlotMemory {
             mut auto_bounds,
-            mut hovered_entry,
+            mut hovered_item,
             mut hidden_items,
-            last_plot_transform,
+            transform: last_plot_transform,
             mut last_click_pos_for_zoom,
         } = memory;
 
@@ -900,14 +895,14 @@ impl Plot {
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
         // Don't show hover cursor when hovering over legend.
-        if hovered_entry.is_some() {
+        if hovered_item.is_some() {
             show_x = false;
             show_y = false;
         }
         // Remove the deselected items.
         items.retain(|item| !hidden_items.contains(item.name()));
         // Highlight the hovered items.
-        if let Some(hovered_name) = &hovered_entry {
+        if let Some(hovered_name) = &hovered_item {
             items
                 .iter_mut()
                 .filter(|entry| entry.name() == hovered_name)
@@ -1192,7 +1187,7 @@ impl Plot {
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
             hidden_items = legend.hidden_items();
-            hovered_entry = legend.hovered_entry_name();
+            hovered_item = legend.hovered_item_name();
         }
 
         if let Some((id, _)) = linked_cursors.as_ref() {
@@ -1223,9 +1218,9 @@ impl Plot {
 
         let memory = PlotMemory {
             auto_bounds,
-            hovered_entry,
+            hovered_item,
             hidden_items,
-            last_plot_transform: transform,
+            transform,
             last_click_pos_for_zoom,
         };
         memory.store(ui.ctx(), plot_id);

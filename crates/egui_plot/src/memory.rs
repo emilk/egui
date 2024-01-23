@@ -13,13 +13,13 @@ pub struct PlotMemory {
     pub auto_bounds: Vec2b,
 
     /// Which item is hovered?
-    pub hovered_entry: Option<String>,
+    pub hovered_item: Option<String>,
 
     /// Which items _not_ to show?
     pub hidden_items: ahash::HashSet<String>,
 
     /// The transform from last frame.
-    pub(crate) last_plot_transform: PlotTransform,
+    pub(crate) transform: PlotTransform,
 
     /// Allows to remember the first click position when performing a boxed zoom
     pub(crate) last_click_pos_for_zoom: Option<Pos2>,
@@ -28,24 +28,24 @@ pub struct PlotMemory {
 impl PlotMemory {
     #[inline]
     pub fn transform(&self) -> PlotTransform {
-        self.last_plot_transform
+        self.transform
     }
 
     #[inline]
     pub fn set_transform(&mut self, t: PlotTransform) {
-        self.last_plot_transform = t;
+        self.transform = t;
     }
 
     /// Plot-space bounds.
     #[inline]
     pub fn bounds(&self) -> &PlotBounds {
-        self.last_plot_transform.bounds()
+        self.transform.bounds()
     }
 
     /// Plot-space bounds.
     #[inline]
     pub fn set_bounds(&mut self, bounds: PlotBounds) {
-        self.last_plot_transform.set_bounds(bounds);
+        self.transform.set_bounds(bounds);
     }
 }
 
