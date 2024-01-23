@@ -4,6 +4,12 @@
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
+mod axis;
+mod items;
+mod legend;
+mod memory;
+mod transform;
+
 use std::{ops::RangeInclusive, sync::Arc};
 
 use egui::ahash::HashMap;
@@ -26,11 +32,7 @@ pub use transform::{PlotBounds, PlotTransform};
 use items::{horizontal_line, rulers_color, vertical_line};
 
 pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
-
-mod axis;
-mod items;
-mod legend;
-mod transform;
+pub use memory::PlotMemory;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
@@ -76,44 +78,6 @@ impl Default for CoordinatesFormatter {
 // ----------------------------------------------------------------------------
 
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
-
-/// Information about the plot that has to persist between frames.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone)]
-struct PlotMemory {
-    /// Indicates if the plot uses automatic bounds. This is disengaged whenever the user modifies
-    /// the bounds, for example by moving or zooming.
-    auto_bounds: Vec2b,
-
-    hovered_entry: Option<String>,
-    hidden_items: ahash::HashSet<String>,
-    last_plot_transform: PlotTransform,
-
-    /// Allows to remember the first click position when performing a boxed zoom
-    last_click_pos_for_zoom: Option<Pos2>,
-}
-
-#[cfg(feature = "serde")]
-impl PlotMemory {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| d.get_persisted(id))
-    }
-
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data_mut(|d| d.insert_persisted(id, self));
-    }
-}
-
-#[cfg(not(feature = "serde"))]
-impl PlotMemory {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| d.get_temp(id))
-    }
-
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data_mut(|d| d.insert_temp(id, self));
-    }
-}
 
 // ----------------------------------------------------------------------------
 
