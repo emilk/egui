@@ -1,9 +1,9 @@
 use egui::{epaint::Hsva, Color32, Context, Pos2, Response, Vec2, Vec2b};
 
 use crate::{
-    items::PlotItem,
+    items::{GenericPlotPoints, PlotItem},
     Arrows, BarChart, BoundsModification, BoxPlot, PlotPoint, HLine, Line, PlotBounds, PlotImage,
-    PlotTransform, Points, Polygon, Text, VLine,
+    PlotPoints, PlotTransform, Points, Polygon, Text, VLine,
 };
 
 pub struct PlotUiBuilder {
@@ -94,15 +94,19 @@ impl<'a> PlotUi<'a> {
     }
 
     /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
-    pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) {
+    pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) -> &mut Self {
         self.bounds_modifications
             .push(BoundsModification::Set(plot_bounds));
+
+        self
     }
 
     /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
-    pub fn translate_bounds(&mut self, delta_pos: Vec2) {
+    pub fn translate_bounds(&mut self, delta_pos: Vec2) -> &mut Self {
         self.bounds_modifications
             .push(BoundsModification::Translate(delta_pos));
+
+        self
     }
 
     /// Whether the plot axes were in auto-bounds mode in the last frame. If called on the first
@@ -112,9 +116,11 @@ impl<'a> PlotUi<'a> {
     }
 
     /// Set the auto-bounds mode for the plot axes.
-    pub fn set_auto_bounds(&mut self, auto_bounds: Vec2b) {
+    pub fn set_auto_bounds(&mut self, auto_bounds: Vec2b) -> &mut Self {
         self.bounds_modifications
             .push(BoundsModification::AutoBounds(auto_bounds));
+
+        self
     }
 
     /// Can be used to check if the plot was hovered or clicked.
@@ -129,9 +135,11 @@ impl<'a> PlotUi<'a> {
     /// The plot bounds are divided by `zoom_factor`, therefore:
     /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
     /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
-    pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+    pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint) -> &mut Self {
         self.bounds_modifications
             .push(BoundsModification::Zoom(zoom_factor, center));
+
+        self
     }
 
     /// Scale the plot bounds around the hovered position, if any.
@@ -141,9 +149,11 @@ impl<'a> PlotUi<'a> {
     /// The plot bounds are divided by `zoom_factor`, therefore:
     /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
     /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
-    pub fn zoom_bounds_around_hovered(&mut self, zoom_factor: Vec2) {
+    pub fn zoom_bounds_around_hovered(&mut self, zoom_factor: Vec2) -> &mut Self {
         if let Some(hover_pos) = self.pointer_coordinate() {
-            self.zoom_bounds(zoom_factor, hover_pos);
+            self.zoom_bounds(zoom_factor, hover_pos)
+        } else {
+            self
         }
     }
 
@@ -178,9 +188,9 @@ impl<'a> PlotUi<'a> {
     }
 
     /// Add a data line.
-    pub fn line(&mut self, mut line: Line) {
+    pub fn line(&mut self, mut line: Line) -> &mut Self {
         if line.series.is_empty() {
-            return;
+            return self;
         };
 
         // Give the stroke an automatic color if no color has been assigned.
@@ -188,12 +198,13 @@ impl<'a> PlotUi<'a> {
             line.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(line));
+        self
     }
 
     /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(&mut self, mut polygon: Polygon) {
+    pub fn polygon(&mut self, mut polygon: Polygon) -> &mut Self {
         if polygon.series.is_empty() {
-            return;
+            return self;
         };
 
         // Give the stroke an automatic color if no color has been assigned.
@@ -201,34 +212,48 @@ impl<'a> PlotUi<'a> {
             polygon.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(polygon));
+        self
     }
 
     /// Add a text.
-    pub fn text(&mut self, text: Text) {
+    pub fn text(&mut self, text: Text) -> &mut Self {
         if text.text.is_empty() {
-            return;
+            return self;
         };
 
         self.items.push(Box::new(text));
+        self
     }
 
     /// Add data points.
-    pub fn points(&mut self, mut points: Points) {
-        if points.series.is_empty() {
-            return;
-        };
-
+    pub fn owned_points(&mut self, mut points: Points<PlotPoints>) -> &mut Self {
         // Give the points an automatic color if no color has been assigned.
         if points.color == Color32::TRANSPARENT {
             points.color = self.auto_color();
         }
         self.items.push(Box::new(points));
+
+        self
+    }
+
+    /// Add data points.
+    pub fn borrowed_points<'b, T: 'a>(&mut self, mut points: Points<T>) -> &mut Self
+    where
+        T: GenericPlotPoints<Item = &'b PlotPoint>,
+    {
+        // Give the points an automatic color if no color has been assigned.
+        if points.color == Color32::TRANSPARENT {
+            points.color = self.auto_color();
+        }
+        self.items.push(Box::new(points));
+
+        self
     }
 
     /// Add arrows.
-    pub fn arrows(&mut self, mut arrows: Arrows) {
+    pub fn arrows(&mut self, mut arrows: Arrows) -> &mut Self {
         if arrows.origins.is_empty() || arrows.tips.is_empty() {
-            return;
+            return self;
         };
 
         // Give the arrows an automatic color if no color has been assigned.
@@ -236,37 +261,45 @@ impl<'a> PlotUi<'a> {
             arrows.color = self.auto_color();
         }
         self.items.push(Box::new(arrows));
+
+        self
     }
 
     /// Add an image.
-    pub fn image(&mut self, image: PlotImage) {
+    pub fn image(&mut self, image: PlotImage) -> &mut Self {
         self.items.push(Box::new(image));
+
+        self
     }
 
     /// Add a horizontal line.
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full width of the plot.
-    pub fn hline(&mut self, mut hline: HLine) {
+    pub fn hline(&mut self, mut hline: HLine) -> &mut Self {
         if hline.stroke.color == Color32::TRANSPARENT {
             hline.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(hline));
+
+        self
     }
 
     /// Add a vertical line.
     /// Can be useful e.g. to show min/max bounds or similar.
     /// Always fills the full height of the plot.
-    pub fn vline(&mut self, mut vline: VLine) {
+    pub fn vline(&mut self, mut vline: VLine) -> &mut Self {
         if vline.stroke.color == Color32::TRANSPARENT {
             vline.stroke.color = self.auto_color();
         }
         self.items.push(Box::new(vline));
+
+        self
     }
 
     /// Add a box plot diagram.
-    pub fn box_plot(&mut self, mut box_plot: BoxPlot) {
+    pub fn box_plot(&mut self, mut box_plot: BoxPlot) -> &mut Self {
         if box_plot.boxes.is_empty() {
-            return;
+            return self;
         }
 
         // Give the elements an automatic color if no color has been assigned.
@@ -274,12 +307,14 @@ impl<'a> PlotUi<'a> {
             box_plot = box_plot.color(self.auto_color());
         }
         self.items.push(Box::new(box_plot));
+
+        self
     }
 
     /// Add a bar chart.
-    pub fn bar_chart(&mut self, mut chart: BarChart) {
+    pub fn bar_chart(&mut self, mut chart: BarChart) -> &mut Self {
         if chart.bars.is_empty() {
-            return;
+            return self;
         }
 
         // Give the elements an automatic color if no color has been assigned.
@@ -287,5 +322,7 @@ impl<'a> PlotUi<'a> {
             chart = chart.color(self.auto_color());
         }
         self.items.push(Box::new(chart));
+
+        self
     }
 }
