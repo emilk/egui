@@ -8,7 +8,6 @@ use std::{ops::RangeInclusive, sync::Arc};
 
 use egui::ahash::HashMap;
 use epaint::util::FloatOrd;
-use epaint::Hsva;
 
 use axis::AxisWidget;
 use items::PlotItem;
@@ -21,6 +20,7 @@ pub use items::{
     Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
+use plot_ui::{PlotUi, PlotUiBuilder};
 pub use transform::{PlotBounds, PlotTransform};
 
 use items::{horizontal_line, rulers_color, vertical_line};
@@ -30,6 +30,7 @@ pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
 mod axis;
 mod items;
 mod legend;
+mod plot_ui;
 mod transform;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
