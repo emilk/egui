@@ -63,17 +63,17 @@ impl From<PlotUiBuilder> for PlotUi<'_> {
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
-pub struct PlotUi {
-    items: Vec<Box<dyn PlotItem>>,
-    next_auto_color_idx: usize,
-    last_plot_transform: PlotTransform,
-    last_auto_bounds: Vec2b,
-    response: Response,
-    bounds_modifications: Vec<BoundsModification>,
-    ctx: Context,
+pub struct PlotUi<'a> {
+    pub(crate) items: Vec<Box<dyn PlotItem + 'a>>,
+    pub(crate) next_auto_color_idx: usize,
+    pub(crate) last_plot_transform: PlotTransform,
+    pub(crate) last_auto_bounds: Vec2b,
+    pub(crate) response: Response,
+    pub(crate) bounds_modifications: Vec<BoundsModification>,
+    pub(crate) ctx: Context,
 }
 
-impl PlotUi {
+impl<'a> PlotUi<'a> {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
