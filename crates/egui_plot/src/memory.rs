@@ -1,33 +1,72 @@
-use epaint::Pos2;
+use egui::{ahash, Context, Id, Pos2, Vec2b};
 
-use crate::{Context, Id};
-
-use super::{transform::ScreenTransform, AxisBools};
+use crate::{PlotBounds, PlotTransform};
 
 /// Information about the plot that has to persist between frames.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
-pub(super) struct PlotMemory {
-    /// Indicates if the user has modified the bounds, for example by moving or zooming,
-    /// or if the bounds should be calculated based by included point or auto bounds.
-    pub(super) bounds_modified: AxisBools,
+pub struct PlotMemory {
+    /// Indicates if the plot uses automatic bounds.
+    ///
+    /// This is set to `false` whenever the user modifies
+    /// the bounds, for example by moving or zooming.
+    pub auto_bounds: Vec2b,
 
-    pub(super) hovered_entry: Option<String>,
+    /// Which item is hovered?
+    pub hovered_item: Option<String>,
 
-    pub(super) hidden_items: ahash::HashSet<String>,
+    /// Which items _not_ to show?
+    pub hidden_items: ahash::HashSet<String>,
 
-    pub(super) last_screen_transform: ScreenTransform,
+    /// The transform from last frame.
+    pub(crate) transform: PlotTransform,
 
     /// Allows to remember the first click position when performing a boxed zoom
-    pub(super) last_click_pos_for_zoom: Option<Pos2>,
+    pub(crate) last_click_pos_for_zoom: Option<Pos2>,
 }
 
 impl PlotMemory {
+    #[inline]
+    pub fn transform(&self) -> PlotTransform {
+        self.transform
+    }
+
+    #[inline]
+    pub fn set_transform(&mut self, t: PlotTransform) {
+        self.transform = t;
+    }
+
+    /// Plot-space bounds.
+    #[inline]
+    pub fn bounds(&self) -> &PlotBounds {
+        self.transform.bounds()
+    }
+
+    /// Plot-space bounds.
+    #[inline]
+    pub fn set_bounds(&mut self, bounds: PlotBounds) {
+        self.transform.set_bounds(bounds);
+    }
+}
+
+#[cfg(feature = "serde")]
+impl PlotMemory {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+        ctx.data_mut(|d| d.insert_persisted(id, self));
+    }
+}
+
+#[cfg(not(feature = "serde"))]
+impl PlotMemory {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.data_mut(|d| d.get_temp(id))
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.data_mut(|d| d.insert_temp(id, self));
     }
 }

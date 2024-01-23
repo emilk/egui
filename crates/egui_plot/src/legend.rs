@@ -226,7 +226,7 @@ impl LegendWidget {
     }
 
     // Get the name of the hovered items.
-    pub fn hovered_entry_name(&self) -> Option<String> {
+    pub fn hovered_item_name(&self) -> Option<String> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.hovered)
