@@ -172,7 +172,12 @@ pub struct PlotResponse<R> {
 ///     [x, x.sin()]
 /// }).collect();
 /// let line = Line::new(sin);
-/// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
+/// Plot::new("my_plot").view_aspect(2.0).show(ui, |builder| {
+///     let mut plot_ui = builder.into_plot_ui();
+///     plot_ui.line(line);
+///
+///     ((), plot_ui)
+/// });
 /// # });
 /// ```
 pub struct Plot {
