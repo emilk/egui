@@ -176,6 +176,7 @@ pub struct PlotResponse<R> {
 /// ```
 pub struct Plot {
     id_source: Id,
+    id: Option<Id>,
 
     center_axis: Vec2b,
     allow_zoom: Vec2b,
@@ -218,6 +219,7 @@ impl Plot {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
+            id: None,
 
             center_axis: false.into(),
             allow_zoom: true.into(),
@@ -254,6 +256,17 @@ impl Plot {
             sharp_grid_lines: true,
             clamp_grid: false,
         }
+    }
+
+    /// Set an explicit (global) id for the plot.
+    ///
+    /// This will override the id set by [`Self::new`].
+    ///
+    /// This is the same `Id` that can be used for [`PlotMemory::load`].
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
     }
 
     /// width / height ratio of the data.
@@ -716,6 +729,7 @@ impl Plot {
     ) -> PlotResponse<R> {
         let Self {
             id_source,
+            id,
             center_axis,
             allow_zoom,
             allow_drag,
@@ -850,7 +864,7 @@ impl Plot {
         let rect = plot_rect;
 
         // Load or initialize the memory.
-        let plot_id = ui.make_persistent_id(id_source);
+        let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let memory = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
