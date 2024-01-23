@@ -195,11 +195,11 @@ impl Painter {
     }
 
     /// Access all shapes added this frame.
-    pub fn for_each_shape(&self, mut reader: impl FnMut(ShapeIdx, &Shape)) {
+    pub fn for_each_shape(&self, mut reader: impl FnMut(&crate::epaint::ClippedShape)) {
         self.ctx.graphics(|g| {
-            if let Some(list) = g.existing_list(self.layer_id) {
-                for (i, s) in list.all_entries() {
-                    reader(i, s);
+            if let Some(list) = g.get(self.layer_id) {
+                for c in list.all_entries() {
+                    reader(c);
                 }
             }
         });

@@ -111,7 +111,7 @@ impl LayerId {
 
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct ShapeIdx(usize);
+pub struct ShapeIdx(pub usize);
 
 /// A list of [`Shape`]s paired with a clip rectangle.
 #[derive(Clone, Default)]
@@ -160,11 +160,8 @@ impl PaintList {
     }
 
     /// Read-only access to all held shapes.
-    pub fn all_entries(&self) -> impl Iterator<Item = (ShapeIdx, &Shape)> {
-        self.0
-            .iter()
-            .enumerate()
-            .map(|(i, clipped)| (ShapeIdx(i), &clipped.shape))
+    pub fn all_entries(&self) -> impl ExactSizeIterator<Item = &ClippedShape> {
+        self.0.iter()
     }
 }
 
@@ -178,7 +175,7 @@ impl GraphicLayers {
             .or_default()
     }
 
-    pub fn existing_list(&self, layer_id: LayerId) -> Option<&PaintList> {
+    pub fn get(&self, layer_id: LayerId) -> Option<&PaintList> {
         self.0[layer_id.order as usize].get(&layer_id.id)
     }
 
