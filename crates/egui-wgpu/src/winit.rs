@@ -142,7 +142,7 @@ impl Painter {
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
-        present_mode: wgpu::PresentMode,
+        config: &WgpuConfiguration,
     ) {
         crate::profile_function!();
 
@@ -158,10 +158,10 @@ impl Painter {
         surface_state.surface.configure(
             &render_state.device,
             &wgpu::SurfaceConfiguration {
-                // TODO(emilk): expose `desired_maximum_frame_latency` to eframe users
                 usage,
                 format: render_state.target_format,
-                present_mode,
+                present_mode: config.present_mode,
+                desired_maximum_frame_latency: config.desired_maximum_frame_latency,
                 alpha_mode: surface_state.alpha_mode,
                 view_formats: vec![render_state.target_format],
                 ..surface_state
@@ -328,7 +328,7 @@ impl Painter {
         surface_state.width = width;
         surface_state.height = height;
 
-        Self::configure_surface(surface_state, render_state, self.configuration.present_mode);
+        Self::configure_surface(surface_state, render_state, &self.configuration);
 
         if let Some(depth_format) = self.depth_format {
             self.depth_texture_view.insert(
@@ -525,11 +525,7 @@ impl Painter {
             Ok(frame) => frame,
             Err(err) => match (*self.configuration.on_surface_error)(err) {
                 SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(
-                        surface_state,
-                        render_state,
-                        self.configuration.present_mode,
-                    );
+                    Self::configure_surface(surface_state, render_state, &self.configuration);
                     return None;
                 }
                 SurfaceErrorAction::SkipFrame => {
