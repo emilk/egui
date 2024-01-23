@@ -112,6 +112,42 @@ pub(super) trait PlotItem {
 
 // ----------------------------------------------------------------------------
 
+/// Trait shared by structs that are plot points.
+/// This abstracts behaviour away from owned, generated and borrowed plot points
+
+pub trait GenericPlotPoints {
+    type Item;
+    type Iter: Iterator<Item = Self::Item> + Clone;
+
+    fn points(&self) -> Self::Iter;
+
+    fn bounds(&self) -> PlotBounds;
+
+    fn initialize(&mut self, _: RangeInclusive<f64>) {}
+}
+
+impl<'a, T> GenericPlotPoints for T
+where
+    T: Iterator<Item = &'a PlotPoint> + Clone,
+{
+    type Item = &'a PlotPoint;
+    type Iter = Self;
+
+    fn points(&self) -> Self::Iter {
+        self.clone()
+    }
+
+    fn bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
+        for point in self.clone() {
+            bounds.extend_with(point);
+        }
+        bounds
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A horizontal line in a plot, filling the full width
 #[derive(Clone, Debug, PartialEq)]
 pub struct HLine {
