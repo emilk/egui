@@ -1,6 +1,6 @@
 use egui::{ahash, Context, Id, Pos2, Vec2b};
 
-use crate::PlotTransform;
+use crate::{PlotBounds, PlotTransform};
 
 /// Information about the plot that has to persist between frames.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -34,6 +34,18 @@ impl PlotMemory {
     #[inline]
     pub fn set_transform(&mut self, t: PlotTransform) {
         self.last_plot_transform = t;
+    }
+
+    /// Plot-space bounds.
+    #[inline]
+    pub fn bounds(&self) -> &PlotBounds {
+        self.last_plot_transform.bounds()
+    }
+
+    /// Plot-space bounds.
+    #[inline]
+    pub fn set_bounds(&mut self, bounds: PlotBounds) {
+        self.last_plot_transform.set_bounds(bounds);
     }
 }
 
