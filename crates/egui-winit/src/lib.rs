@@ -174,6 +174,26 @@ impl State {
         self.egui_input.max_texture_side = Some(max_texture_side);
     }
 
+    /// Fetches text from the clipboard and returns it.
+    pub fn clipboard_text(&mut self) -> Option<String> {
+        self.clipboard.get()
+    }
+
+    /// Places the text onto the clipboard.
+    pub fn set_clipboard_text(&mut self, text: String) {
+        self.clipboard.set(text);
+    }
+
+    /// Returns [`false`] or the last value that [`Window::set_ime_allowed()`] was called with, used for debouncing.
+    pub fn allow_ime(&self) -> bool {
+        self.allow_ime
+    }
+
+    /// Set the last value that [`Window::set_ime_allowed()`] was called with.
+    pub fn set_allow_ime(&mut self, allow: bool) {
+        self.allow_ime = allow;
+    }
+
     #[inline]
     pub fn egui_ctx(&self) -> &egui::Context {
         &self.egui_ctx
