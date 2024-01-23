@@ -6,6 +6,61 @@ use crate::{
     PlotTransform, Points, Polygon, Text, VLine,
 };
 
+pub struct PlotUiBuilder {
+    pub(crate) next_auto_color_idx: usize,
+    pub(crate) last_plot_transform: PlotTransform,
+    pub(crate) last_auto_bounds: Vec2b,
+    pub(crate) response: Response,
+    pub(crate) bounds_modifications: Vec<BoundsModification>,
+    pub(crate) ctx: Context,
+}
+
+impl PlotUiBuilder {
+    pub fn into_plot_ui<'a>(self) -> PlotUi<'a> {
+        let Self {
+            next_auto_color_idx,
+            last_plot_transform,
+            last_auto_bounds,
+            response,
+            bounds_modifications,
+            ctx,
+        } = self;
+
+        PlotUi {
+            items: Vec::new(),
+            next_auto_color_idx,
+            last_plot_transform,
+            last_auto_bounds,
+            response,
+            bounds_modifications,
+            ctx,
+        }
+    }
+}
+
+impl From<PlotUiBuilder> for PlotUi<'_> {
+    fn from(value: PlotUiBuilder) -> Self {
+        let PlotUiBuilder {
+            next_auto_color_idx,
+            last_plot_transform,
+            last_auto_bounds,
+            response,
+            bounds_modifications,
+            ctx,
+        } = value;
+
+        PlotUi {
+            items: Vec::new(),
+            next_auto_color_idx,
+            last_plot_transform,
+            last_auto_bounds,
+            response,
+            bounds_modifications,
+            ctx,
+        }
+    }
+}
+
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
 pub struct PlotUi {
