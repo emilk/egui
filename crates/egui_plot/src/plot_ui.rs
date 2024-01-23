@@ -2,7 +2,7 @@ use egui::{epaint::Hsva, Color32, Context, Pos2, Response, Vec2, Vec2b};
 
 use crate::{
     items::{GenericPlotPoints, PlotItem},
-    Arrows, BarChart, BoundsModification, BoxPlot, PlotPoint, HLine, Line, PlotBounds, PlotImage,
+    Arrows, BarChart, BoundsModification, BoxPlot, HLine, Line, PlotBounds, PlotImage, PlotPoint,
     PlotPoints, PlotTransform, Points, Polygon, Text, VLine,
 };
 

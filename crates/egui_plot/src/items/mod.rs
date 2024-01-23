@@ -856,7 +856,6 @@ where
     }
 }
 
-
 impl Points<PlotPoints> {
     pub fn new(series: impl Into<PlotPoints>) -> Self {
         Self {

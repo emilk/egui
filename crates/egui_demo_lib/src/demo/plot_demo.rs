@@ -4,9 +4,9 @@ use std::ops::RangeInclusive;
 use egui::*;
 
 use egui_plot::{
-    Arrows, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, PlotPoint,
-    CoordinatesFormatter, Corner, GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape,
-    Plot, PlotImage, PlotPoints, PlotResponse, PlotUi, Points, Polygon, Text, VLine,
+    Arrows, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner,
+    GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, PlotPoint,
+    PlotPoints, PlotResponse, PlotUi, Points, Polygon, Text, VLine,
 };
 
 // ----------------------------------------------------------------------------
