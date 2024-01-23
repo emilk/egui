@@ -1,5 +1,7 @@
 //! Simple plotting library for [`egui`](https://github.com/emilk/egui).
 //!
+//! Check out [`Plot`] for how to get started.
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
@@ -130,6 +132,7 @@ pub struct PlotResponse<R> {
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// use egui_plot::{Line, Plot, PlotPoints};
+///
 /// let sin: PlotPoints = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     [x, x.sin()]
