@@ -232,7 +232,7 @@ pub struct WgpuConfiguration {
     ///
     /// Use `1` for low-latency, and `2` for high-throughput.
     ///
-    /// See [`wgpu::SurfaceConfiguration::desired_num_frames`] for details.
+    /// See [`wgpu::SurfaceConfiguration::desired_maximum_frame_latency`] for details.
     ///
     /// `None` = `wgpu` default.
     pub desired_maximum_frame_latency: Option<u32>,
