@@ -706,15 +706,11 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
-        self.show_dyn(ui, Box::new(build_fn))
-    }
 
-    fn show_dyn<'a, R>(
-        self,
-        ui: &mut Ui,
-        build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
-    ) -> PlotResponse<R> {
+    pub fn show<'a, F, R>(self, ui: &mut Ui, build_fn: F) -> PlotResponse<R>
+    where
+        F: FnOnce(PlotUiBuilder) -> (R, PlotUi<'a>),
+    {
         let Self {
             id_source,
             center_axis,
