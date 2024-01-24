@@ -1,6 +1,8 @@
 //! Different types of text cursors, i.e. ways to point into a [`super::Galley`].
 
-/// Character cursor
+/// Character cursor.
+///
+/// The default cursor is zero.
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CCursor {
@@ -110,9 +112,12 @@ impl PartialEq for PCursor {
 }
 
 /// All different types of cursors together.
+///
 /// They all point to the same place, but in their own different ways.
 /// pcursor/rcursor can also point to after the end of the paragraph/row.
 /// Does not implement `PartialEq` because you must think which cursor should be equivalent.
+///
+/// The default cursor is the zero-cursor, to the first character.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Cursor {

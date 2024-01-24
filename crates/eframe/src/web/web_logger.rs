@@ -19,6 +19,21 @@ impl WebLogger {
 
 impl log::Log for WebLogger {
     fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+        /// Never log anything less serious than a `INFO` from these crates.
+        const CRATES_AT_INFO_LEVEL: &[&str] = &[
+            // wgpu crates spam a lot on debug level, which is really annoying
+            "naga",
+            "wgpu_core",
+            "wgpu_hal",
+        ];
+
+        if CRATES_AT_INFO_LEVEL
+            .iter()
+            .any(|crate_name| metadata.target().starts_with(crate_name))
+        {
+            return metadata.level() <= log::LevelFilter::Info;
+        }
+
         metadata.level() <= self.filter
     }
 

@@ -34,12 +34,8 @@ impl Widget for Link {
         let Self { text } = self;
         let label = Label::new(text).sense(Sense::click());
 
-        let (pos, galley, response) = label.layout_in_ui(ui);
+        let (galley_pos, galley, response) = label.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, galley.text()));
-
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
-        }
 
         if ui.is_rect_visible(response.rect) {
             let color = ui.visuals().hyperlink_color;
@@ -51,8 +47,18 @@ impl Widget for Link {
                 Stroke::NONE
             };
 
-            ui.painter()
-                .add(epaint::TextShape::new(pos, galley, color).with_underline(underline));
+            ui.painter().add(
+                epaint::TextShape::new(galley_pos, galley.clone(), color).with_underline(underline),
+            );
+
+            let selectable = ui.style().interaction.selectable_labels;
+            if selectable {
+                crate::text_selection::label_text_selection(ui, &response, galley_pos, &galley);
+            }
+
+            if response.hovered() {
+                ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+            }
         }
 
         response

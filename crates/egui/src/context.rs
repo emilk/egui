@@ -68,6 +68,28 @@ impl Default for WrappedTextureManager {
 
 /// Repaint-logic
 impl ContextImpl {
+    /// This is where we update the repaint logic.
+    fn begin_frame_repaint_logic(&mut self, viewport_id: ViewportId) {
+        let viewport = self.viewports.entry(viewport_id).or_default();
+
+        viewport.repaint.prev_frame_paint_delay = viewport.repaint.repaint_delay;
+
+        if viewport.repaint.outstanding == 0 {
+            // We are repainting now, so we can wait a while for the next repaint.
+            viewport.repaint.repaint_delay = Duration::MAX;
+        } else {
+            viewport.repaint.repaint_delay = Duration::ZERO;
+            viewport.repaint.outstanding -= 1;
+            if let Some(callback) = &self.request_repaint_callback {
+                (callback)(RequestRepaintInfo {
+                    viewport_id,
+                    delay: Duration::ZERO,
+                    current_frame_nr: viewport.repaint.frame_nr,
+                });
+            }
+        }
+    }
+
     fn request_repaint(&mut self, viewport_id: ViewportId) {
         self.request_repaint_after(Duration::ZERO, viewport_id);
     }
@@ -79,13 +101,13 @@ impl ContextImpl {
         // This solves some corner-cases of missing repaints on frame-delayed responses.
         viewport.repaint.outstanding = 1;
 
-        if let Some(callback) = &self.request_repaint_callback {
-            // We save some CPU time by only calling the callback if we need to.
-            // If the new delay is greater or equal to the previous lowest,
-            // it means we have already called the callback, and don't need to do it again.
-            if delay < viewport.repaint.repaint_delay {
-                viewport.repaint.repaint_delay = delay;
+        // We save some CPU time by only calling the callback if we need to.
+        // If the new delay is greater or equal to the previous lowest,
+        // it means we have already called the callback, and don't need to do it again.
+        if delay < viewport.repaint.repaint_delay {
+            viewport.repaint.repaint_delay = delay;
 
+            if let Some(callback) = &self.request_repaint_callback {
                 (callback)(RequestRepaintInfo {
                     viewport_id,
                     delay,
@@ -96,10 +118,10 @@ impl ContextImpl {
     }
 
     #[must_use]
-    fn requested_repaint_last_frame(&self, viewport_id: &ViewportId) -> bool {
-        self.viewports
-            .get(viewport_id)
-            .map_or(false, |v| v.repaint.requested_last_frame)
+    fn requested_immediate_repaint_prev_frame(&self, viewport_id: &ViewportId) -> bool {
+        self.viewports.get(viewport_id).map_or(false, |v| {
+            v.repaint.requested_immediate_repaint_prev_frame()
+        })
     }
 
     #[must_use]
@@ -111,6 +133,14 @@ impl ContextImpl {
 }
 
 // ----------------------------------------------------------------------------
+
+/// Used to store each widgets [Id], [Rect] and [Sense] each frame.
+/// Used to check for overlaps between widgets when handling events.
+struct WidgetRect {
+    id: Id,
+    rect: Rect,
+    sense: Sense,
+}
 
 /// State stored per viewport
 #[derive(Default)]
@@ -138,10 +168,10 @@ struct ViewportState {
     used: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_this_frame: HashMap<LayerId, Vec<WidgetRect>>,
 
     /// Read
-    layer_rects_prev_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_prev_frame: HashMap<LayerId, Vec<WidgetRect>>,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -170,8 +200,11 @@ struct ViewportRepaintInfo {
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
     outstanding: u8,
 
-    /// Did we?
-    requested_last_frame: bool,
+    /// What was the output of `repaint_delay` on the previous frame?
+    ///
+    /// If this was zero, we are repaining as quickly as possible
+    /// (as far as we know).
+    prev_frame_paint_delay: Duration,
 }
 
 impl Default for ViewportRepaintInfo {
@@ -185,12 +218,23 @@ impl Default for ViewportRepaintInfo {
             // Let's run a couple of frames at the start, because why not.
             outstanding: 1,
 
-            requested_last_frame: false,
+            prev_frame_paint_delay: Duration::MAX,
         }
     }
 }
 
+impl ViewportRepaintInfo {
+    pub fn requested_immediate_repaint_prev_frame(&self) -> bool {
+        self.prev_frame_paint_delay == Duration::ZERO
+    }
+}
+
 // ----------------------------------------------------------------------------
+
+struct DebugText {
+    location: String,
+    text: WidgetText,
+}
 
 #[derive(Default)]
 struct ContextImpl {
@@ -239,6 +283,8 @@ struct ContextImpl {
     accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
+
+    debug_texts: Vec<DebugText>,
 }
 
 impl ContextImpl {
@@ -253,22 +299,10 @@ impl ContextImpl {
 
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
-        let viewport = self.viewports.entry(viewport_id).or_default();
 
-        if viewport.repaint.outstanding == 0 {
-            // We are repainting now, so we can wait a while for the next repaint.
-            viewport.repaint.repaint_delay = Duration::MAX;
-        } else {
-            viewport.repaint.repaint_delay = Duration::ZERO;
-            viewport.repaint.outstanding -= 1;
-            if let Some(callback) = &self.request_repaint_callback {
-                (callback)(RequestRepaintInfo {
-                    viewport_id,
-                    delay: Duration::ZERO,
-                    current_frame_nr: viewport.repaint.frame_nr,
-                });
-            }
-        }
+        self.begin_frame_repaint_logic(viewport_id);
+
+        let viewport = self.viewports.entry(viewport_id).or_default();
 
         if is_outermost_viewport {
             if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
@@ -291,7 +325,13 @@ impl ContextImpl {
                 .native_pixels_per_point
                 .unwrap_or(1.0);
 
-        viewport.layer_rects_prev_frame = std::mem::take(&mut viewport.layer_rects_this_frame);
+        {
+            std::mem::swap(
+                &mut viewport.layer_rects_prev_frame,
+                &mut viewport.layer_rects_this_frame,
+            );
+            viewport.layer_rects_this_frame.clear();
+        }
 
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
@@ -302,7 +342,7 @@ impl ContextImpl {
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
-            viewport.repaint.requested_last_frame,
+            viewport.repaint.requested_immediate_repaint_prev_frame(),
             pixels_per_point,
         );
 
@@ -363,7 +403,7 @@ impl ContextImpl {
             .entry(pixels_per_point.into())
             .or_insert_with(|| {
                 #[cfg(feature = "log")]
-                log::debug!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+                log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
 
                 is_new = true;
                 crate::profile_scope!("Fonts::new");
@@ -838,79 +878,25 @@ impl Context {
                 .at_most(Vec2::splat(5.0)),
         );
 
-        // Respect clip rectangle when interacting
+        // Respect clip rectangle when interacting:
         let interact_rect = clip_rect.intersect(interact_rect);
-        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
 
-        // This solves the problem of overlapping widgets.
-        // Whichever widget is added LAST (=on top) gets the input:
-        if interact_rect.is_positive() && sense.interactive() {
-            #[cfg(debug_assertions)]
-            if self.style().debug.show_interactive_widgets {
-                Self::layer_painter(self, LayerId::debug()).rect(
-                    interact_rect,
-                    0.0,
-                    Color32::YELLOW.additive().linear_multiply(0.005),
-                    Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
-                );
-            }
+        let contains_pointer = self.widget_contains_pointer(layer_id, id, sense, interact_rect);
 
-            #[cfg(debug_assertions)]
-            let mut show_blocking_widget = None;
-
-            self.write(|ctx| {
-                let viewport = ctx.viewport();
-
-                viewport
-                    .layer_rects_this_frame
-                    .entry(layer_id)
-                    .or_default()
-                    .push((id, interact_rect));
-
-                if hovered {
-                    let pointer_pos = viewport.input.pointer.interact_pos();
-                    if let Some(pointer_pos) = pointer_pos {
-                        if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
-                            for &(prev_id, prev_rect) in rects.iter().rev() {
-                                if prev_id == id {
-                                    break; // there is no other interactive widget covering us at the pointer position.
-                                }
-                                if prev_rect.contains(pointer_pos) {
-                                    // Another interactive widget is covering us at the pointer position,
-                                    // so we aren't hovered.
-
-                                    #[cfg(debug_assertions)]
-                                    if ctx.memory.options.style.debug.show_blocking_widget {
-                                        // Store the rects to use them outside the write() call to
-                                        // avoid deadlock
-                                        show_blocking_widget = Some((interact_rect, prev_rect));
-                                    }
-
-                                    hovered = false;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            #[cfg(debug_assertions)]
-            if let Some((interact_rect, prev_rect)) = show_blocking_widget {
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    interact_rect,
-                    Color32::GREEN,
-                    "Covered",
-                );
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    prev_rect,
-                    Color32::LIGHT_BLUE,
-                    "On top",
-                );
-            }
+        #[cfg(debug_assertions)]
+        if sense.interactive()
+            && interact_rect.is_positive()
+            && self.style().debug.show_interactive_widgets
+        {
+            Self::layer_painter(self, LayerId::debug()).rect(
+                interact_rect,
+                0.0,
+                Color32::YELLOW.additive().linear_multiply(0.005),
+                Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
+            );
         }
 
-        self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
+        self.interact_with_hovered(layer_id, id, rect, sense, enabled, contains_pointer)
     }
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
@@ -921,9 +907,9 @@ impl Context {
         rect: Rect,
         sense: Sense,
         enabled: bool,
-        hovered: bool,
+        contains_pointer: bool,
     ) -> Response {
-        let hovered = hovered && enabled; // can't even hover disabled widgets
+        let hovered = contains_pointer && enabled; // can't even hover disabled widgets
 
         let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
 
@@ -934,6 +920,7 @@ impl Context {
             rect,
             sense,
             enabled,
+            contains_pointer,
             hovered,
             highlighted,
             clicked: Default::default(),
@@ -949,10 +936,11 @@ impl Context {
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(id));
-            return response;
         }
 
-        self.check_for_id_clash(id, rect, "widget");
+        if sense.interactive() || sense.focusable {
+            self.check_for_id_clash(id, rect, "widget");
+        }
 
         #[cfg(feature = "accesskit")]
         if sense.focusable {
@@ -980,12 +968,10 @@ impl Context {
             }
 
             #[cfg(feature = "accesskit")]
+            if sense.click
+                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
             {
-                if sense.click
-                    && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
-                {
-                    response.clicked[PointerButton::Primary as usize] = true;
-                }
+                response.clicked[PointerButton::Primary as usize] = true;
             }
 
             if sense.click || sense.drag {
@@ -1042,6 +1028,7 @@ impl Context {
                                         clicked && click.is_triple();
                                 }
                             }
+                            response.is_pointer_button_down_on = false;
                         }
                     }
                 }
@@ -1051,8 +1038,9 @@ impl Context {
                 response.interact_pointer_pos = input.pointer.interact_pos();
             }
 
-            if input.pointer.any_down() {
-                response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
+            if input.pointer.any_down() && !response.is_pointer_button_down_on {
+                // We don't hover widgets while interacting with *other* widgets:
+                response.hovered = false;
             }
 
             if memory.has_focus(response.id) && clicked_elsewhere {
@@ -1077,6 +1065,31 @@ impl Context {
     /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
+    }
+
+    /// Print this text next to the cursor at the end of the frame.
+    ///
+    /// If you call this multiple times, the text will be appended.
+    ///
+    /// This only works if compiled with `debug_assertions`.
+    ///
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let state = true;
+    /// ctx.debug_text(format!("State: {state:?}"));
+    /// ```
+    #[track_caller]
+    pub fn debug_text(&self, text: impl Into<WidgetText>) {
+        if cfg!(debug_assertions) {
+            let location = std::panic::Location::caller();
+            let location = format!("{}:{}", location.file(), location.line());
+            self.write(|c| {
+                c.debug_texts.push(DebugText {
+                    location,
+                    text: text.into(),
+                });
+            });
+        }
     }
 
     /// What operating system are we running on?
@@ -1292,7 +1305,7 @@ impl Context {
     /// Was a repaint requested last frame for the given viewport?
     #[must_use]
     pub fn requested_repaint_last_frame_for(&self, viewport_id: &ViewportId) -> bool {
-        self.read(|ctx| ctx.requested_repaint_last_frame(viewport_id))
+        self.read(|ctx| ctx.requested_immediate_repaint_prev_frame(viewport_id))
     }
 
     /// Has a repaint been requested for the current viewport?
@@ -1597,6 +1610,63 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        let debug_texts = self.write(|ctx| std::mem::take(&mut ctx.debug_texts));
+        if !debug_texts.is_empty() {
+            // Show debug-text next to the cursor.
+            let mut pos = self
+                .input(|i| i.pointer.latest_pos())
+                .unwrap_or_else(|| self.screen_rect().center())
+                + 8.0 * Vec2::Y;
+
+            let painter = self.debug_painter();
+            let where_to_put_background = painter.add(Shape::Noop);
+
+            let mut bounding_rect = Rect::from_points(&[pos]);
+
+            let color = Color32::GRAY;
+            let font_id = FontId::new(10.0, FontFamily::Proportional);
+
+            for DebugText { location, text } in debug_texts {
+                {
+                    // Paint location to left of `pos`:
+                    let location_galley =
+                        self.fonts(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
+                    let location_rect =
+                        Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
+                    painter.galley(location_rect.min, location_galley, color);
+                    bounding_rect = bounding_rect.union(location_rect);
+                }
+
+                {
+                    // Paint `text` to right of `pos`:
+                    let wrap = true;
+                    let available_width = self.screen_rect().max.x - pos.x;
+                    let galley = text.into_galley_impl(
+                        self,
+                        &self.style(),
+                        wrap,
+                        available_width,
+                        font_id.clone().into(),
+                        Align::TOP,
+                    );
+                    let rect = Align2::LEFT_TOP.anchor_size(pos, galley.size());
+                    painter.galley(rect.min, galley, color);
+                    bounding_rect = bounding_rect.union(rect);
+                }
+
+                pos.y = bounding_rect.max.y + 4.0;
+            }
+
+            painter.set(
+                where_to_put_background,
+                Shape::rect_filled(
+                    bounding_rect.expand(4.0),
+                    2.0,
+                    Color32::from_black_alpha(192),
+                ),
+            );
+        }
+
         self.write(|ctx| ctx.end_frame())
     }
 }
@@ -1770,7 +1840,7 @@ impl ContextImpl {
                 true
             } else {
                 #[cfg(feature = "log")]
-                log::debug!(
+                log::trace!(
                     "Freeing Fonts with pixels_per_point={} because it is no longer needed",
                     pixels_per_point.into_inner()
                 );
@@ -1988,15 +2058,123 @@ impl Context {
         self.memory(|mem| mem.areas().top_layer_id(Order::Middle))
     }
 
-    pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        rect.is_positive() && {
-            let pointer_pos = self.input(|i| i.pointer.interact_pos());
-            if let Some(pointer_pos) = pointer_pos {
-                rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
-            } else {
-                false
+    /// Does the given rectangle contain the mouse pointer?
+    ///
+    /// Will return false if some other area is covering the given layer.
+    ///
+    /// See also [`Response::contains_pointer`].
+    pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+        if !rect.is_positive() {
+            return false;
+        }
+
+        let pointer_pos = self.input(|i| i.pointer.interact_pos());
+        let Some(pointer_pos) = pointer_pos else {
+            return false;
+        };
+
+        if !rect.contains(pointer_pos) {
+            return false;
+        }
+
+        if self.layer_id_at(pointer_pos) != Some(layer_id) {
+            return false;
+        }
+
+        true
+    }
+
+    /// Does the given widget contain the mouse pointer?
+    ///
+    /// Will return false if some other area is covering the given layer.
+    ///
+    /// If another widget is covering us and is listening for the same input (click and/or drag),
+    /// this will return false.
+    ///
+    /// See also [`Response::contains_pointer`].
+    pub fn widget_contains_pointer(
+        &self,
+        layer_id: LayerId,
+        id: Id,
+        sense: Sense,
+        rect: Rect,
+    ) -> bool {
+        let contains_pointer = self.rect_contains_pointer(layer_id, rect);
+
+        let mut blocking_widget = None;
+
+        self.write(|ctx| {
+            let viewport = ctx.viewport();
+
+            // We add all widgets here, even non-interactive ones,
+            // because we need this list not only for checking for blocking widgets,
+            // but also to know when we have reach the widget we are checking for cover.
+            viewport
+                .layer_rects_this_frame
+                .entry(layer_id)
+                .or_default()
+                .push(WidgetRect { id, rect, sense });
+
+            // Check if any other widget is covering us.
+            // Whichever widget is added LAST (=on top) gets the input.
+            if contains_pointer {
+                let pointer_pos = viewport.input.pointer.interact_pos();
+                if let Some(pointer_pos) = pointer_pos {
+                    if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
+                        for blocking in rects.iter().rev() {
+                            if blocking.id == id {
+                                // There are no earlier widgets before this one,
+                                // which means there are no widgets covering us.
+                                break;
+                            }
+                            if !blocking.rect.contains(pointer_pos) {
+                                continue;
+                            }
+                            if sense.interactive() && !blocking.sense.interactive() {
+                                // Only interactive widgets can block other interactive widgets.
+                                continue;
+                            }
+
+                            // The `prev` widget is covering us - do we care?
+                            // We don't want a click-only button to block drag-events to a `ScrollArea`:
+
+                            let sense_only_drags = sense.drag && !sense.click;
+                            if sense_only_drags && !blocking.sense.drag {
+                                continue;
+                            }
+                            let sense_only_clicks = sense.click && !sense.drag;
+                            if sense_only_clicks && !blocking.sense.click {
+                                continue;
+                            }
+
+                            if blocking.sense.interactive() {
+                                // Another widget is covering us at the pointer position
+                                blocking_widget = Some(blocking.rect);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        #[cfg(debug_assertions)]
+        if let Some(blocking_rect) = blocking_widget {
+            if sense.interactive() && self.memory(|m| m.options.style.debug.show_blocking_widget) {
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    rect,
+                    Color32::GREEN,
+                    "Covered",
+                );
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    blocking_rect,
+                    Color32::LIGHT_BLUE,
+                    "On top",
+                );
             }
         }
+
+        contains_pointer && blocking_widget.is_none()
     }
 
     // ---------------------------------------------------------------------

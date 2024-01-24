@@ -640,23 +640,32 @@ impl Ui {
     /// Check for clicks, and drags on a specific region that is hovered.
     /// This can be used once you have checked that some shape you are painting has been hovered,
     /// and want to check for clicks and drags on hovered items this frame.
+    ///
     /// The given [`Rect`] should approximately be where the thing is,
-    /// as it is just where warnings will be painted if there is an [`Id`] clash.
+    /// as will be the rectangle for the returned [`Response::rect`].
     pub fn interact_with_hovered(
         &self,
         rect: Rect,
-        hovered: bool,
+        contains_pointer: bool,
         id: Id,
         sense: Sense,
     ) -> Response {
-        self.ctx()
-            .interact_with_hovered(self.layer_id(), id, rect, sense, self.enabled, hovered)
+        self.ctx().interact_with_hovered(
+            self.layer_id(),
+            id,
+            rect,
+            sense,
+            self.enabled,
+            contains_pointer,
+        )
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
     ///
     /// The `clip_rect` and layer of this [`Ui`] will be respected, so, for instance,
     /// if this [`Ui`] is behind some other window, this will always return `false`.
+    ///
+    /// However, this will NOT check if any other _widget_ in the same layer is covering this widget. For that, use [`Response::contains_pointer`] instead.
     pub fn rect_contains_pointer(&self, rect: Rect) -> bool {
         self.ctx()
             .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))

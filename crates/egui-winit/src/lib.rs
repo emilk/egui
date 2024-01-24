@@ -22,7 +22,7 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
-use raw_window_handle::HasRawDisplayHandle;
+use raw_window_handle::HasDisplayHandle;
 
 #[allow(unused_imports)]
 pub(crate) use profiling_scopes::*;
@@ -106,7 +106,7 @@ impl State {
     pub fn new(
         egui_ctx: egui::Context,
         viewport_id: ViewportId,
-        display_target: &dyn HasRawDisplayHandle,
+        display_target: &dyn HasDisplayHandle,
         native_pixels_per_point: Option<f32>,
         max_texture_side: Option<usize>,
     ) -> Self {
@@ -126,7 +126,9 @@ impl State {
             any_pointer_button_down: false,
             current_cursor_icon: None,
 
-            clipboard: clipboard::Clipboard::new(display_target),
+            clipboard: clipboard::Clipboard::new(
+                display_target.display_handle().ok().map(|h| h.as_raw()),
+            ),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
@@ -170,6 +172,26 @@ impl State {
     /// that egui will use.
     pub fn set_max_texture_side(&mut self, max_texture_side: usize) {
         self.egui_input.max_texture_side = Some(max_texture_side);
+    }
+
+    /// Fetches text from the clipboard and returns it.
+    pub fn clipboard_text(&mut self) -> Option<String> {
+        self.clipboard.get()
+    }
+
+    /// Places the text onto the clipboard.
+    pub fn set_clipboard_text(&mut self, text: String) {
+        self.clipboard.set(text);
+    }
+
+    /// Returns [`false`] or the last value that [`Window::set_ime_allowed()`] was called with, used for debouncing.
+    pub fn allow_ime(&self) -> bool {
+        self.allow_ime
+    }
+
+    /// Set the last value that [`Window::set_ime_allowed()`] was called with.
+    pub fn set_allow_ime(&mut self, allow: bool) {
+        self.allow_ime = allow;
     }
 
     #[inline]
@@ -341,9 +363,10 @@ impl State {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                self.on_keyboard_input(event);
+
                 // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                let consumed = self.on_keyboard_input(event)
-                    || self.egui_ctx.wants_keyboard_input()
+                let consumed = self.egui_ctx.wants_keyboard_input()
                     || event.logical_key
                         == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
                 EventResponse {
@@ -653,7 +676,7 @@ impl State {
         }
     }
 
-    fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) -> bool {
+    fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) {
         let winit::event::KeyEvent {
             // Represents the position of a key independent of the currently active layout.
             //
@@ -702,10 +725,10 @@ impl State {
             if pressed {
                 if is_cut_command(self.egui_input.modifiers, logical_key) {
                     self.egui_input.events.push(egui::Event::Cut);
-                    return true;
+                    return;
                 } else if is_copy_command(self.egui_input.modifiers, logical_key) {
                     self.egui_input.events.push(egui::Event::Copy);
-                    return true;
+                    return;
                 } else if is_paste_command(self.egui_input.modifiers, logical_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
@@ -713,7 +736,7 @@ impl State {
                             self.egui_input.events.push(egui::Event::Paste(contents));
                         }
                     }
-                    return true;
+                    return;
                 }
             }
 
@@ -744,8 +767,6 @@ impl State {
                 }
             }
         }
-
-        false
     }
 
     /// Call with the output given by `egui`.
@@ -919,12 +940,12 @@ pub fn update_viewport_info(
     viewport_info.outer_rect = outer_rect;
     viewport_info.title = Some(window.title());
 
-    if false {
+    if cfg!(target_os = "windows") {
         // It's tempting to do this, but it leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
         viewport_info.maximized = Some(window.is_maximized());
-        viewport_info.minimized = window.is_minimized().or(viewport_info.minimized);
+        viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
 }
 
@@ -996,7 +1017,6 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
     Some(match named_key {
         NamedKey::Enter => Key::Enter,
         NamedKey::Tab => Key::Tab,
-        NamedKey::Space => Key::Space,
         NamedKey::ArrowDown => Key::ArrowDown,
         NamedKey::ArrowLeft => Key::ArrowLeft,
         NamedKey::ArrowRight => Key::ArrowRight,
@@ -1012,6 +1032,9 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Cut => Key::Cut,
         NamedKey::Copy => Key::Copy,
         NamedKey::Paste => Key::Paste,
+
+        NamedKey::Space => Key::Space,
+
         NamedKey::F1 => Key::F1,
         NamedKey::F2 => Key::F2,
         NamedKey::F3 => Key::F3,
@@ -1053,7 +1076,6 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::Tab => Key::Tab,
         KeyCode::Backspace => Key::Backspace,
         KeyCode::Enter | KeyCode::NumpadEnter => Key::Enter,
-        KeyCode::Space => Key::Space,
 
         KeyCode::Insert => Key::Insert,
         KeyCode::Delete => Key::Delete,
@@ -1062,11 +1084,14 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
 
+        // Punctuation
+        KeyCode::Space => Key::Space,
         KeyCode::Comma => Key::Comma,
         KeyCode::Period => Key::Period,
         // KeyCode::Colon => Key::Colon, // NOTE: there is no physical colon key on an american keyboard
         KeyCode::Semicolon => Key::Semicolon,
         KeyCode::Backslash => Key::Backslash,
+        KeyCode::Slash | KeyCode::NumpadDivide => Key::Slash,
         KeyCode::BracketLeft => Key::OpenBracket,
         KeyCode::BracketRight => Key::CloseBracket,
         KeyCode::Backquote => Key::Backtick,
@@ -1074,9 +1099,7 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::Cut => Key::Cut,
         KeyCode::Copy => Key::Copy,
         KeyCode::Paste => Key::Paste,
-
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
-
         KeyCode::NumpadAdd => Key::Plus,
         KeyCode::Equal => Key::Equals,
 
@@ -1335,10 +1358,8 @@ fn process_viewport_command(
             egui::viewport::WindowLevel::Normal => WindowLevel::Normal,
         }),
         ViewportCommand::Icon(icon) => {
-            window.set_window_icon(icon.map(|icon| {
-                winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
-                    .expect("Invalid ICON data!")
-            }));
+            let winit_icon = icon.and_then(|icon| to_winit_icon(&icon));
+            window.set_window_icon(winit_icon);
         }
         ViewportCommand::IMERect(rect) => {
             window.set_ime_cursor_area(
@@ -1543,10 +1564,8 @@ pub fn create_winit_window_builder<T>(
     }
 
     if let Some(icon) = icon {
-        window_builder = window_builder.with_window_icon(Some(
-            winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
-                .expect("Invalid Icon Data!"),
-        ));
+        let winit_icon = to_winit_icon(&icon);
+        window_builder = window_builder.with_window_icon(winit_icon);
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
@@ -1572,6 +1591,21 @@ pub fn create_winit_window_builder<T>(
     }
 
     window_builder
+}
+
+fn to_winit_icon(icon: &egui::IconData) -> Option<winit::window::Icon> {
+    if icon.is_empty() {
+        None
+    } else {
+        crate::profile_function!();
+        match winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height) {
+            Ok(winit_icon) => Some(winit_icon),
+            Err(err) => {
+                log::warn!("Invalid IconData: {err}");
+                None
+            }
+        }
+    }
 }
 
 /// Applies what `create_winit_window_builder` couldn't

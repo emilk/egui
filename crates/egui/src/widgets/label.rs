@@ -23,6 +23,7 @@ pub struct Label {
     wrap: Option<bool>,
     truncate: bool,
     sense: Option<Sense>,
+    selectable: Option<bool>,
 }
 
 impl Label {
@@ -32,6 +33,7 @@ impl Label {
             wrap: None,
             truncate: false,
             sense: None,
+            selectable: None,
         }
     }
 
@@ -73,6 +75,15 @@ impl Label {
         self
     }
 
+    /// Can the user select the text with the mouse?
+    ///
+    /// Overrides [`crate::style::Interaction::selectable_labels`].
+    #[inline]
+    pub fn selectable(mut self, selectable: bool) -> Self {
+        self.selectable = Some(selectable);
+        self
+    }
+
     /// Make the label respond to clicks and/or drags.
     ///
     /// By default, a label is inert and does not respond to click or drags.
@@ -97,14 +108,35 @@ impl Label {
 impl Label {
     /// Do layout and position the galley in the ui, without painting it or adding widget info.
     pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, Arc<Galley>, Response) {
-        let sense = self.sense.unwrap_or_else(|| {
-            // We only want to focus labels if the screen reader is on.
+        let selectable = self
+            .selectable
+            .unwrap_or_else(|| ui.style().interaction.selectable_labels);
+
+        let mut sense = self.sense.unwrap_or_else(|| {
             if ui.memory(|mem| mem.options.screen_reader) {
+                // We only want to focus labels if the screen reader is on.
                 Sense::focusable_noninteractive()
             } else {
                 Sense::hover()
             }
         });
+
+        if selectable {
+            // On touch screens (e.g. mobile in `eframe` web), should
+            // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
+            // Since currently copying selected text in not supported on `eframe` web,
+            // we prioritize touch-scrolling:
+            let allow_drag_to_select = ui.input(|i| !i.any_touches());
+
+            let select_sense = if allow_drag_to_select {
+                Sense::click_and_drag()
+            } else {
+                Sense::click()
+            };
+
+            sense = sense.union(select_sense);
+        }
+
         if let WidgetText::Galley(galley) = self.text {
             // If the user said "use this specific galley", then just use it:
             let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
@@ -178,28 +210,39 @@ impl Label {
 
             let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
             let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
-            let pos = match galley.job.halign {
+            let galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
                 Align::RIGHT => rect.right_top(),
             };
-            (pos, galley, response)
+            (galley_pos, galley, response)
         }
     }
 }
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (pos, galley, mut response) = self.layout_in_ui(ui);
+        // Interactive = the uses asked to sense interaction.
+        // We DON'T want to have the color respond just because the text is selectable;
+        // the cursor is enough to communicate that.
+        let interactive = self.sense.map_or(false, |sense| sense != Sense::hover());
+
+        let selectable = self.selectable;
+
+        let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
 
-        if galley.elided {
-            // Show the full (non-elided) text on hover:
-            response = response.on_hover_text(galley.text());
-        }
-
         if ui.is_rect_visible(response.rect) {
-            let response_color = ui.style().interact(&response).text_color();
+            if galley.elided {
+                // Show the full (non-elided) text on hover:
+                response = response.on_hover_text(galley.text());
+            }
+
+            let response_color = if interactive {
+                ui.style().interact(&response).text_color()
+            } else {
+                ui.style().visuals.text_color()
+            };
 
             let underline = if response.has_focus() || response.highlighted() {
                 Stroke::new(1.0, response_color)
@@ -207,8 +250,15 @@ impl Widget for Label {
                 Stroke::NONE
             };
 
-            ui.painter()
-                .add(epaint::TextShape::new(pos, galley, response_color).with_underline(underline));
+            ui.painter().add(
+                epaint::TextShape::new(galley_pos, galley.clone(), response_color)
+                    .with_underline(underline),
+            );
+
+            let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
+            if selectable {
+                crate::text_selection::label_text_selection(ui, &response, galley_pos, &galley);
+            }
         }
 
         response

@@ -66,7 +66,7 @@ fn run_and_return(
 ) -> Result<()> {
     use winit::{event_loop::ControlFlow, platform::run_on_demand::EventLoopExtRunOnDemand};
 
-    log::debug!("Entering the winit event loop (run_on_demand)…");
+    log::trace!("Entering the winit event loop (run_on_demand)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
@@ -231,7 +231,7 @@ fn run_and_exit(
     mut winit_app: impl WinitApp + 'static,
 ) -> Result<()> {
     use winit::event_loop::ControlFlow;
-    log::debug!("Entering the winit event loop (run)…");
+    log::trace!("Entering the winit event loop (run)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();

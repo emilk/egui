@@ -11,23 +11,11 @@ use egui::text::LayoutJob;
 pub fn code_view_ui(
     ui: &mut egui::Ui,
     theme: &CodeTheme,
-    mut code: &str,
+    code: &str,
     language: &str,
 ) -> egui::Response {
-    let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), theme, string, language);
-        // layout_job.wrap.max_width = wrap_width; // no wrapping
-        ui.fonts(|f| f.layout_job(layout_job))
-    };
-
-    ui.add(
-        egui::TextEdit::multiline(&mut code)
-            .font(egui::TextStyle::Monospace) // for cursor height
-            .code_editor()
-            .desired_rows(1)
-            .lock_focus(true)
-            .layouter(&mut layouter),
-    )
+    let layout_job = highlight(ui.ctx(), theme, code, language);
+    ui.add(egui::Label::new(layout_job).selectable(true))
 }
 
 /// Add syntax highlighting to a code string.

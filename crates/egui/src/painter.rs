@@ -219,7 +219,9 @@ impl Painter {
         self.debug_text(pos, Align2::LEFT_TOP, color, format!("🔥 {text}"))
     }
 
-    /// text with a background
+    /// Text with a background.
+    ///
+    /// See also [`Context::debug_text`].
     #[allow(clippy::needless_pass_by_value)]
     pub fn debug_text(
         &self,
@@ -229,7 +231,7 @@ impl Painter {
         text: impl ToString,
     ) -> Rect {
         let galley = self.layout_no_wrap(text.to_string(), FontId::monospace(12.0), color);
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
+        let rect = anchor.anchor_size(pos, galley.size());
         let frame_rect = rect.expand(2.0);
         self.add(Shape::rect_filled(
             frame_rect,
@@ -378,7 +380,7 @@ impl Painter {
         text_color: Color32,
     ) -> Rect {
         let galley = self.layout_no_wrap(text.to_string(), font_id, text_color);
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
+        let rect = anchor.anchor_size(pos, galley.size());
         self.galley(rect.min, galley, text_color);
         rect
     }

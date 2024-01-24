@@ -245,10 +245,27 @@ pub fn load_svg_bytes_with_size(
     let mut size = rtree.size.to_int_size();
     match size_hint {
         None => (),
-        Some(SizeHint::Size(w, h)) => size = size.scale_to(IntSize::from_wh(w, h).unwrap()),
-        Some(SizeHint::Height(h)) => size = size.scale_to_height(h).unwrap(),
-        Some(SizeHint::Width(w)) => size = size.scale_to_width(w).unwrap(),
-        Some(SizeHint::Scale(z)) => size = size.scale_by(z.into_inner()).unwrap(),
+        Some(SizeHint::Size(w, h)) => {
+            size = size.scale_to(
+                IntSize::from_wh(w, h).ok_or_else(|| format!("Failed to scale SVG to {w}x{h}"))?,
+            );
+        }
+        Some(SizeHint::Height(h)) => {
+            size = size
+                .scale_to_height(h)
+                .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?;
+        }
+        Some(SizeHint::Width(w)) => {
+            size = size
+                .scale_to_width(w)
+                .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?;
+        }
+        Some(SizeHint::Scale(z)) => {
+            let z_inner = z.into_inner();
+            size = size
+                .scale_by(z_inner)
+                .ok_or_else(|| format!("Failed to scale SVG by {z_inner}"))?;
+        }
     };
     let (w, h) = (size.width(), size.height());
 
