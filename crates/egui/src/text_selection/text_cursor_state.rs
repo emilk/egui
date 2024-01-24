@@ -300,18 +300,42 @@ pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     // number of multi byte chars.
     // We need to know the char index to be able to correctly set the cursor
     // later.
-    let chars_count = text.chars().count();
+    let mut char_line_indexes: Vec<usize> = create_char_line_indexes(text);
+    let line_start_index = get_line_start_index(&mut char_line_indexes, current_index.index);
 
-    let position = text
-        .chars()
-        .rev()
-        .skip(chars_count - current_index.index)
-        .position(|x| x == '\n');
+    CCursor::new(line_start_index)
+}
 
-    match position {
-        Some(pos) => CCursor::new(current_index.index - pos),
-        None => CCursor::new(0),
+pub fn create_char_line_indexes(text: &str) -> Vec<usize> {
+    let mut line_indexes = vec![0];
+
+    let mut count = 0;
+    for (_i, c) in text.chars().enumerate() {
+        count += 1;
+        if c == '\n' {
+            line_indexes.push(count);
+        }
     }
+    line_indexes.push(count);
+
+    line_indexes
+}
+
+pub fn get_line_start_index(line_indexes: &mut [usize], index: usize) -> usize {
+    let (_current_line, line_start) = get_line_and_start_index(line_indexes, index);
+    line_start
+}
+
+pub fn get_line_and_start_index(line_indexes: &mut [usize], index: usize) -> (usize, usize) {
+    let mut current_line = 1;
+    for (i, line_start) in line_indexes.iter().enumerate() {
+        current_line = i;
+        if *line_start > index {
+            break;
+        }
+    }
+
+    (current_line, line_indexes[current_line - 1])
 }
 
 pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
