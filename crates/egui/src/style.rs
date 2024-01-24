@@ -720,6 +720,12 @@ pub struct Interaction {
 
     /// Can you select the text on a [`crate::Label`] by default?
     pub selectable_labels: bool,
+
+    /// Can the user select text that span multiple labels?
+    ///
+    /// The default is `true`, but text seelction can be slightly glitchy,
+    /// so you may want to disable it.
+    pub multi_widget_text_select: bool,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -1120,6 +1126,7 @@ impl Default for Interaction {
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.0,
             selectable_labels: true,
+            multi_widget_text_select: true,
         }
     }
 }
@@ -1580,6 +1587,7 @@ impl Interaction {
             show_tooltips_only_when_still,
             tooltip_delay,
             selectable_labels,
+            multi_widget_text_select,
         } = self;
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
@@ -1590,7 +1598,16 @@ impl Interaction {
             "Only show tooltips if mouse is still",
         );
         ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
-        ui.checkbox(selectable_labels, "Selectable text in labels");
+
+        ui.horizontal(|ui| {
+            ui.checkbox(selectable_labels, "Selectable text in labels");
+            if *selectable_labels {
+                ui.checkbox(
+                    multi_widget_text_select,
+                    "Selectable text across multiple widgets",
+                );
+            }
+        });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

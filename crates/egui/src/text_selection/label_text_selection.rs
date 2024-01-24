@@ -119,9 +119,6 @@ pub struct LabelSelectionState {
     /// Have we reached the widget containing the secondary selection?
     has_reached_secondary: bool,
 
-    /// Did we reach the primary cursor before the secondary?
-    reached_primary_first: bool, // TODO: remove this
-
     /// Accumulated text to copy.
     text_to_copy: String,
     last_copied_galley_rect: Option<Rect>,
@@ -140,7 +137,6 @@ impl Default for LabelSelectionState {
             is_dragging: Default::default(),
             has_reached_primary: Default::default(),
             has_reached_secondary: Default::default(),
-            reached_primary_first: Default::default(),
             text_to_copy: Default::default(),
             last_copied_galley_rect: Default::default(),
             painted_shape_idx: Default::default(),
@@ -172,7 +168,6 @@ impl LabelSelectionState {
         state.selection_bbox_this_frame = Rect::NOTHING;
 
         state.any_hovered = false;
-        state.reached_primary_first = false;
         state.has_reached_primary = false;
         state.has_reached_secondary = false;
         state.text_to_copy.clear();
@@ -312,7 +307,12 @@ impl LabelSelectionState {
             return TextCursorState::default();
         }
 
-        if self.is_dragging {
+        let multi_widget_text_select = ui.style().interaction.multi_widget_text_select;
+
+        let may_select_widget =
+            multi_widget_text_select || selection.primary.widget_id == response.id;
+
+        if self.is_dragging && may_select_widget {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 let galley_rect = Rect::from_min_size(galley_pos, galley.size());
                 let galley_rect = galley_rect.intersect(ui.clip_rect());
@@ -321,10 +321,14 @@ impl LabelSelectionState {
                     .x_range()
                     .intersects(self.selection_bbox_last_frame.x_range());
 
+                let has_reached_primary =
+                    self.has_reached_primary || response.id == selection.primary.widget_id;
+                let has_reached_secondary =
+                    self.has_reached_secondary || response.id == selection.secondary.widget_id;
+
                 let new_primary = if response.contains_pointer() {
                     // Dragging into this widget - easy case:
-                    let cursor = galley.cursor_from_pos(pointer_pos - galley_pos);
-                    Some(cursor)
+                    Some(galley.cursor_from_pos(pointer_pos - galley_pos))
                 } else if is_in_same_column
                     && !self.has_reached_primary
                     && selection.primary.pos.y <= selection.secondary.pos.y
@@ -338,8 +342,8 @@ impl LabelSelectionState {
                     }
                     Some(galley.begin())
                 } else if is_in_same_column
-                    && self.has_reached_secondary
-                    && self.has_reached_primary
+                    && has_reached_secondary
+                    && has_reached_primary
                     && selection.secondary.pos.y <= selection.primary.pos.y
                     && selection.secondary.pos.y <= galley_rect.bottom()
                     && galley_rect.bottom() <= pointer_pos.y
@@ -415,7 +419,6 @@ impl LabelSelectionState {
                     galley.begin().ccursor
                 } else {
                     // Select everything from the cursor onward:
-                    self.reached_primary_first = true;
                     galley.end().ccursor
                 };
                 TextCursorState::from(CCursorRange { primary, secondary })
@@ -473,9 +476,12 @@ impl LabelSelectionState {
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             if response.contains_pointer() {
-                // Handle start-if-drag and double-click-to-select:
                 let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - galley_pos);
-                cursor_state.pointer_interaction(ui, response, cursor_at_pointer, galley, false);
+
+                // This is where we handle start-of-drag and double-click-to-select.
+                // Actual drag-to-select happens elsewhere.
+                let dragged = false;
+                cursor_state.pointer_interaction(ui, response, cursor_at_pointer, galley, dragged);
             }
         }
 
@@ -483,8 +489,11 @@ impl LabelSelectionState {
             let galley_rect = Rect::from_min_size(galley_pos, galley.size());
             self.selection_bbox_this_frame = self.selection_bbox_this_frame.union(galley_rect);
 
-            // TODO: only if we contain primary cursor!
-            process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range);
+            if let Some(selection) = &self.selection {
+                if selection.primary.widget_id == response.id {
+                    process_selection_key_events(ui.ctx(), galley, response.id, &mut cursor_range);
+                }
+            }
 
             if got_copy_event(ui.ctx()) {
                 self.copy_text(galley_pos, galley, &cursor_range);
@@ -506,13 +515,16 @@ impl LabelSelectionState {
                 let secondary_changed = Some(range.secondary) != old_range.map(|r| r.secondary);
 
                 selection.layer_id = response.layer_id;
-                if primary_changed {
+
+                if primary_changed || !ui.style().interaction.multi_widget_text_select {
                     selection.primary =
                         WidgetTextCursor::new(widget_id, range.primary, galley_pos, galley);
+                    self.has_reached_primary = true;
                 }
-                if secondary_changed {
+                if secondary_changed || !ui.style().interaction.multi_widget_text_select {
                     selection.secondary =
                         WidgetTextCursor::new(widget_id, range.secondary, galley_pos, galley);
+                    self.has_reached_secondary = true;
                 }
             } else {
                 // Start of a new selection
