@@ -314,6 +314,93 @@ pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     }
 }
 
+pub fn create_char_line_indexes(text: &str) -> Vec<usize> {
+    let mut line_indexes = vec![0];
+
+    let mut count = 0;
+    for (_i, c) in text.chars().enumerate() {
+        count += 1;
+        if c == '\n' {
+            line_indexes.push(count);
+        }
+    }
+    line_indexes.push(count);
+
+    line_indexes
+}
+
+pub fn get_line_start_index(line_indexes: &mut [usize], index: usize) -> usize {
+    let (_current_line, line_start) = get_line_and_start_index(line_indexes, index);
+    line_start
+}
+
+pub fn get_line_and_start_index(line_indexes: &mut [usize], index: usize) -> (usize, usize) {
+    let mut current_line = 1;
+    for (i, line_start) in line_indexes.iter().enumerate() {
+        current_line = i;
+        if *line_start > index {
+            break;
+        }
+    }
+
+    (current_line, line_indexes[current_line - 1])
+}
+
+pub fn get_current_column(text: &str, line_indexes: &mut [usize], index: usize) -> usize {
+    let (current_column, _total_column) =
+        get_current_column_total_column(text, line_indexes, index);
+    current_column
+}
+
+pub fn get_current_column_total_column(
+    text: &str,
+    line_indexes: &mut [usize],
+    index: usize,
+) -> (usize, usize) {
+    let (current_column, total_column, _total_line) =
+        get_current_column_total_column_total_line(text, line_indexes, index);
+    (current_column, total_column)
+}
+
+pub fn get_current_column_total_column_total_line(
+    text: &str,
+    line_indexes: &mut [usize],
+    index: usize,
+) -> (usize, usize, usize) {
+    let line_start_index = get_line_start_index(line_indexes, index);
+
+    let total_lines = line_indexes.len() - 1;
+
+    let mut i: usize = line_start_index;
+    let mut current_column: usize = 1;
+    let mut total_columns: usize = 0;
+    while let Some(c) = text.chars().nth(i) {
+        if c == '\n' {
+            break;
+        } else if c == '\t' {
+            total_columns += text::TAB_SIZE;
+        } else {
+            // The simple( not exact ) width :
+            // let width = match c.len_utf8() > 2 {
+            //     true => 2,
+            //     false => 1,
+            // };
+
+            // The exact width :
+            let width = unicode_width::UnicodeWidthChar::width_cjk(c).unwrap_or(2);
+
+            total_columns += width;
+        }
+
+        if i < index {
+            current_column = total_columns + 1;
+        }
+        i += 1;
+    }
+
+    (current_column, total_columns, total_lines)
+}
+
 pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
     for (ci, (bi, _)) in s.char_indices().enumerate() {
         if ci == char_index {
