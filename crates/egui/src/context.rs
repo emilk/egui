@@ -697,13 +697,13 @@ impl Context {
 
     /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
-    pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
+    pub fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().graphics))
     }
 
     /// Read-only access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
-    pub(crate) fn graphics<R>(&self, reader: impl FnOnce(&GraphicLayers) -> R) -> R {
+    pub fn graphics<R>(&self, reader: impl FnOnce(&GraphicLayers) -> R) -> R {
         self.write(move |ctx| reader(&ctx.viewport().graphics))
     }
 
@@ -2041,7 +2041,7 @@ impl Context {
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
-            self.graphics_mut(|g| g.list(layer_id).translate(delta));
+            self.graphics_mut(|g| g.entry(layer_id).translate(delta));
         }
     }
 
