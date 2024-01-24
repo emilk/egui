@@ -33,7 +33,10 @@ pub struct InputState {
     /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
-    /// How many points the user scrolled.
+    /// Used for smoothing the scroll delta.
+    unprocessed_scroll_delta: Vec2,
+
+    /// The raw input of how many points the user scrolled.
     ///
     /// The delta dictates how the _content_ should move.
     ///
@@ -42,7 +45,24 @@ pub struct InputState {
     ///
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    pub scroll_delta: Vec2,
+    ///
+    /// When using a notched scroll-wheel this will spike very large for one frame,
+    /// then drop to zero. For a smoother experience, use [`Self::smooth_scroll_delta`].
+    pub raw_scroll_delta: Vec2,
+
+    /// How many points the user scrolled, smoothed over a few frames.
+    ///
+    /// The delta dictates how the _content_ should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// [`crate::ScrollArea`] will both read and write to this field, so that
+    /// at the end of the frame this will be zero if a scroll-area consumed the delta.
+    pub smooth_scroll_delta: Vec2,
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     ///
@@ -125,7 +145,9 @@ impl Default for InputState {
             raw: Default::default(),
             pointer: Default::default(),
             touch_states: Default::default(),
-            scroll_delta: Vec2::ZERO,
+            unprocessed_scroll_delta: Vec2::ZERO,
+            raw_scroll_delta: Vec2::ZERO,
+            smooth_scroll_delta: Vec2::ZERO,
             zoom_factor_delta: 1.0,
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -171,7 +193,7 @@ impl InputState {
         let pointer = self.pointer.begin_frame(time, &new);
 
         let mut keys_down = self.keys_down;
-        let mut scroll_delta = Vec2::ZERO;
+        let mut raw_scroll_delta = Vec2::ZERO;
         let mut zoom_factor_delta = 1.0;
         for event in &mut new.events {
             match event {
@@ -189,13 +211,29 @@ impl InputState {
                     }
                 }
                 Event::Scroll(delta) => {
-                    scroll_delta += *delta;
+                    raw_scroll_delta += *delta;
                 }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
                 }
                 _ => {}
             }
+        }
+
+        let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
+
+        let smooth_scroll_delta;
+
+        {
+            // Mouse wheels often go very large steps.
+            // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
+            // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
+            unprocessed_scroll_delta += raw_scroll_delta;
+            let dt = stable_dt.at_most(0.1);
+            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO: parameterize
+
+            smooth_scroll_delta = t * unprocessed_scroll_delta;
+            unprocessed_scroll_delta -= smooth_scroll_delta;
         }
 
         let mut modifiers = new.modifiers;
@@ -215,7 +253,9 @@ impl InputState {
         Self {
             pointer,
             touch_states: self.touch_states,
-            scroll_delta,
+            unprocessed_scroll_delta,
+            raw_scroll_delta,
+            smooth_scroll_delta,
             zoom_factor_delta,
             screen_rect,
             pixels_per_point,
@@ -282,8 +322,11 @@ impl InputState {
         )
     }
 
+    /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
     pub fn wants_repaint(&self) -> bool {
-        self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
+        self.pointer.wants_repaint()
+            || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
+            || !self.events.is_empty()
     }
 
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
@@ -1007,7 +1050,11 @@ impl InputState {
             raw,
             pointer,
             touch_states,
-            scroll_delta,
+
+            unprocessed_scroll_delta,
+            raw_scroll_delta,
+            smooth_scroll_delta,
+
             zoom_factor_delta,
             screen_rect,
             pixels_per_point,
@@ -1042,7 +1089,15 @@ impl InputState {
             });
         }
 
-        ui.label(format!("scroll_delta: {scroll_delta:?} points"));
+        if cfg!(debug_assertions) {
+            ui.label(format!(
+                "unprocessed_scroll_delta: {unprocessed_scroll_delta:?} points"
+            ));
+        }
+        ui.label(format!("raw_scroll_delta: {raw_scroll_delta:?} points"));
+        ui.label(format!(
+            "smooth_scroll_delta: {smooth_scroll_delta:?} points"
+        ));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!(
