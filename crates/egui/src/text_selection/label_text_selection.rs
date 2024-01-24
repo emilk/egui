@@ -10,16 +10,6 @@ use super::{
 /// Turn on to help debug this
 const DEBUG: bool = false; // TODO: don't merge this while `true`
 
-/// Handle text selection state for a label or similar widget.
-///
-/// Make sure the widget senses clicks and drags.
-///
-/// This should be called after painting the text, because this will also
-/// paint the text cursor/selection on top.
-pub fn label_text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, galley: &Galley) {
-    LabelSelectionState::label_text_selection(ui, response, galley_pos, galley);
-}
-
 fn paint_selection(
     ui: &Ui,
     _response: &Response,
@@ -238,6 +228,14 @@ impl LabelSelectionState {
         state.store(ctx);
     }
 
+    pub fn has_selection(&self) -> bool {
+        self.selection.is_some()
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.selection = None;
+    }
+
     fn copy_text(&mut self, galley_pos: Pos2, galley: &Galley, cursor_range: &CursorRange) {
         let new_galley_rect = Rect::from_min_size(galley_pos, galley.size());
         let new_text = selected_text(galley, cursor_range);
@@ -285,6 +283,12 @@ impl LabelSelectionState {
         self.last_copied_galley_rect = Some(new_galley_rect);
     }
 
+    /// Handle text selection state for a label or similar widget.
+    ///
+    /// Make sure the widget senses clicks and drags.
+    ///
+    /// This should be called after painting the text, because this will also
+    /// paint the text cursor/selection on top.
     pub fn label_text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, galley: &Galley) {
         let mut state = Self::load(ui.ctx());
         state.on_label(ui, response, galley_pos, galley);
