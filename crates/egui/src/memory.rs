@@ -703,6 +703,12 @@ impl Memory {
         self.interaction().drag_id == Some(id)
     }
 
+    /// Get the id of the widget being dragged, if any.
+    #[inline(always)]
+    pub fn dragged_id(&self) -> Option<Id> {
+        self.interaction().drag_id
+    }
+
     /// Set which widget is being dragged.
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
