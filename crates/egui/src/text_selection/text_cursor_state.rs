@@ -300,18 +300,10 @@ pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     // number of multi byte chars.
     // We need to know the char index to be able to correctly set the cursor
     // later.
-    let chars_count = text.chars().count();
+    let mut char_line_indexes: Vec<usize> = create_char_line_indexes(text);
+    let line_start_index = get_line_start_index(&mut char_line_indexes, current_index.index);
 
-    let position = text
-        .chars()
-        .rev()
-        .skip(chars_count - current_index.index)
-        .position(|x| x == '\n');
-
-    match position {
-        Some(pos) => CCursor::new(current_index.index - pos),
-        None => CCursor::new(0),
-    }
+    CCursor::new(line_start_index)
 }
 
 pub fn create_char_line_indexes(text: &str) -> Vec<usize> {
