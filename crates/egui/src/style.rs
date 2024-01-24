@@ -1602,10 +1602,7 @@ impl Interaction {
         ui.horizontal(|ui| {
             ui.checkbox(selectable_labels, "Selectable text in labels");
             if *selectable_labels {
-                ui.checkbox(
-                    multi_widget_text_select,
-                    "Selectable text across multiple widgets",
-                );
+                ui.checkbox(multi_widget_text_select, "Across multiple labels");
             }
         });
 
