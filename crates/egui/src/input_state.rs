@@ -840,6 +840,7 @@ impl PointerState {
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?
+    ///
     /// This can sometimes return `true` even if `any_down() == false`
     /// because a press can be shorted than one frame.
     pub fn any_pressed(&self) -> bool {

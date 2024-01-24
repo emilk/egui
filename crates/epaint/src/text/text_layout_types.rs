@@ -426,6 +426,9 @@ impl TextWrapping {
 ///   from `egui::InputState` and can change at any time.
 /// - The atlas has become full. This can happen any time a new glyph is added
 ///   to the atlas, which in turn can happen any time new text is laid out.
+///
+/// The name comes from typography, where a "galley" is a metal tray
+/// containing a column of set type, usually the size of a page of text.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
@@ -673,6 +676,11 @@ impl Galley {
     }
 
     /// Returns a 0-width Rect.
+    pub fn pos_from_cursor(&self, cursor: &Cursor) -> Rect {
+        self.pos_from_pcursor(cursor.pcursor) // pcursor is what TextEdit stores
+    }
+
+    /// Returns a 0-width Rect.
     pub fn pos_from_pcursor(&self, pcursor: PCursor) -> Rect {
         let mut it = PCursor::default();
 
@@ -708,8 +716,13 @@ impl Galley {
     }
 
     /// Returns a 0-width Rect.
-    pub fn pos_from_cursor(&self, cursor: &Cursor) -> Rect {
-        self.pos_from_pcursor(cursor.pcursor) // pcursor is what TextEdit stores
+    pub fn pos_from_ccursor(&self, ccursor: CCursor) -> Rect {
+        self.pos_from_cursor(&self.from_ccursor(ccursor))
+    }
+
+    /// Returns a 0-width Rect.
+    pub fn pos_from_rcursor(&self, rcursor: RCursor) -> Rect {
+        self.pos_from_cursor(&self.from_rcursor(rcursor))
     }
 
     /// Cursor at the given position within the galley.

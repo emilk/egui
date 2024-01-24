@@ -625,7 +625,7 @@ impl Context {
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
-
+        crate::text_selection::LabelSelectionState::begin_frame(self);
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 }
@@ -697,13 +697,13 @@ impl Context {
 
     /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
-    pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
+    pub fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().graphics))
     }
 
     /// Read-only access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
-    pub(crate) fn graphics<R>(&self, reader: impl FnOnce(&GraphicLayers) -> R) -> R {
+    pub fn graphics<R>(&self, reader: impl FnOnce(&GraphicLayers) -> R) -> R {
         self.write(move |ctx| reader(&ctx.viewport().graphics))
     }
 
@@ -1616,6 +1616,8 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        crate::text_selection::LabelSelectionState::end_frame(self);
+
         let debug_texts = self.write(|ctx| std::mem::take(&mut ctx.debug_texts));
         if !debug_texts.is_empty() {
             // Show debug-text next to the cursor.
@@ -2041,7 +2043,7 @@ impl Context {
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
-            self.graphics_mut(|g| g.list(layer_id).translate(delta));
+            self.graphics_mut(|g| g.entry(layer_id).translate(delta));
         }
     }
 
@@ -2351,6 +2353,15 @@ impl Context {
             .show(ui, |ui| {
                 let font_image_size = self.fonts(|f| f.font_image_size());
                 crate::introspection::font_texture_ui(ui, font_image_size);
+            });
+
+        CollapsingHeader::new("Label text selection state")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label(format!(
+                    "{:#?}",
+                    crate::text_selection::LabelSelectionState::load(ui.ctx())
+                ));
             });
     }
 
