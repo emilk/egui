@@ -7,7 +7,7 @@ use crate::{
 };
 use epaint::{
     text::{Fonts, Galley},
-    CircleShape, RectShape, Rounding, Shape, Stroke,
+    CircleShape, ClippedShape, RectShape, Rounding, Shape, Stroke,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -192,6 +192,17 @@ impl Painter {
         let mut shape = shape.into();
         self.transform_shape(&mut shape);
         self.paint_list(|l| l.set(idx, self.clip_rect, shape));
+    }
+
+    /// Access all shapes added this frame.
+    pub fn for_each_shape(&self, mut reader: impl FnMut(&ClippedShape)) {
+        self.ctx.graphics(|g| {
+            if let Some(list) = g.get(self.layer_id) {
+                for c in list.all_entries() {
+                    reader(c);
+                }
+            }
+        });
     }
 }
 

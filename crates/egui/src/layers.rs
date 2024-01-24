@@ -111,7 +111,7 @@ impl LayerId {
 
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct ShapeIdx(usize);
+pub struct ShapeIdx(pub usize);
 
 /// A list of [`Shape`]s paired with a clip rectangle.
 #[derive(Clone, Default)]
@@ -158,6 +158,11 @@ impl PaintList {
             shape.translate(delta);
         }
     }
+
+    /// Read-only access to all held shapes.
+    pub fn all_entries(&self) -> impl ExactSizeIterator<Item = &ClippedShape> {
+        self.0.iter()
+    }
 }
 
 #[derive(Clone, Default)]
@@ -168,6 +173,10 @@ impl GraphicLayers {
         self.0[layer_id.order as usize]
             .entry(layer_id.id)
             .or_default()
+    }
+
+    pub fn get(&self, layer_id: LayerId) -> Option<&PaintList> {
+        self.0[layer_id.order as usize].get(&layer_id.id)
     }
 
     pub fn drain(&mut self, area_order: &[LayerId]) -> Vec<ClippedShape> {
