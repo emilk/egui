@@ -142,7 +142,7 @@ impl Painter {
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
-        present_mode: wgpu::PresentMode,
+        config: &WgpuConfiguration,
     ) {
         crate::profile_function!();
 
@@ -155,21 +155,25 @@ impl Painter {
         let width = surface_state.width;
         let height = surface_state.height;
 
-        surface_state.surface.configure(
-            &render_state.device,
-            &wgpu::SurfaceConfiguration {
-                // TODO(emilk): expose `desired_maximum_frame_latency` to eframe users
-                usage,
-                format: render_state.target_format,
-                present_mode,
-                alpha_mode: surface_state.alpha_mode,
-                view_formats: vec![render_state.target_format],
-                ..surface_state
-                    .surface
-                    .get_default_config(&render_state.adapter, width, height)
-                    .expect("The surface isn't supported by this adapter")
-            },
-        );
+        let mut surf_config = wgpu::SurfaceConfiguration {
+            usage,
+            format: render_state.target_format,
+            present_mode: config.present_mode,
+            alpha_mode: surface_state.alpha_mode,
+            view_formats: vec![render_state.target_format],
+            ..surface_state
+                .surface
+                .get_default_config(&render_state.adapter, width, height)
+                .expect("The surface isn't supported by this adapter")
+        };
+
+        if let Some(desired_maximum_frame_latency) = config.desired_maximum_frame_latency {
+            surf_config.desired_maximum_frame_latency = desired_maximum_frame_latency;
+        }
+
+        surface_state
+            .surface
+            .configure(&render_state.device, &surf_config);
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
@@ -328,7 +332,7 @@ impl Painter {
         surface_state.width = width;
         surface_state.height = height;
 
-        Self::configure_surface(surface_state, render_state, self.configuration.present_mode);
+        Self::configure_surface(surface_state, render_state, &self.configuration);
 
         if let Some(depth_format) = self.depth_format {
             self.depth_texture_view.insert(
@@ -525,11 +529,7 @@ impl Painter {
             Ok(frame) => frame,
             Err(err) => match (*self.configuration.on_surface_error)(err) {
                 SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(
-                        surface_state,
-                        render_state,
-                        self.configuration.present_mode,
-                    );
+                    Self::configure_surface(surface_state, render_state, &self.configuration);
                     return None;
                 }
                 SurfaceErrorAction::SkipFrame => {
