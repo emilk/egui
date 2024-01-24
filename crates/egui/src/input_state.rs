@@ -60,7 +60,7 @@ pub struct InputState {
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     ///
-    /// [`egui::ScrollArea`] will both read and write to this field, so that
+    /// [`crate::ScrollArea`] will both read and write to this field, so that
     /// at the end of the frame this will be zero if a scroll-area consumed the delta.
     pub smooth_scroll_delta: Vec2,
 
@@ -322,7 +322,7 @@ impl InputState {
         )
     }
 
-    /// The [`Context`] will call this at the end of each frame to see if we need a repaint.
+    /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
     pub fn wants_repaint(&self) -> bool {
         self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
