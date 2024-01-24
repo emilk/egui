@@ -834,10 +834,9 @@ impl Galley {
 
     pub fn end_rcursor(&self) -> RCursor {
         if let Some(last_row) = self.rows.last() {
-            crate::epaint_assert!(!last_row.ends_with_newline);
             RCursor {
                 row: self.rows.len() - 1,
-                column: last_row.char_count_excluding_newline(),
+                column: last_row.char_count_including_newline(),
             }
         } else {
             Default::default()
