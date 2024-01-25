@@ -2127,6 +2127,7 @@ impl Ui {
     ///
     /// In contrast to [`Response::dnd_set_drag_payload`],
     /// this function will paint the widget at the mouse cursor while the user is dragging.
+    #[doc(alias = "drag and drop")]
     pub fn dnd_drag_source<T, R>(
         &mut self,
         id: Id,

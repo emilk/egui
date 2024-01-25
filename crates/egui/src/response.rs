@@ -328,6 +328,7 @@ impl Response {
     }
 
     /// If the user started dragging this widget this frame, store the payload for drag-and-drop.
+    #[doc(alias = "drag and drop")]
     pub fn dnd_set_drag_payload<T: Any + Send + Sync>(&self, payload: T) {
         if self.drag_started() {
             crate::DragAndDrop::set_payload(&self.ctx, payload);
@@ -344,6 +345,7 @@ impl Response {
     ///
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// and the user is drag-dropping something of this type.
+    #[doc(alias = "drag and drop")]
     pub fn dnd_hover_payload<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
         // `hovered` is always false when another widget is being dragged.
@@ -358,6 +360,7 @@ impl Response {
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// the user is drag-dropping something of this type,
     /// and they released it this frame
+    #[doc(alias = "drag and drop")]
     pub fn dnd_release_payload<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
         // `hovered` is always false when another widget is being dragged.

@@ -3,6 +3,9 @@ use std::{any::Any, sync::Arc};
 use crate::{Context, CursorIcon, Id};
 
 /// Helpers for drag-and-drop in egui.
+///
+/// See [this example](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/drag_and_drop.rs).
+#[doc(alias = "drag and drop")]
 #[derive(Clone, Default)]
 pub struct DragAndDrop {
     /// If set, something is currently being dragged
