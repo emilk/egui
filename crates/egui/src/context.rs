@@ -66,6 +66,46 @@ impl Default for WrappedTextureManager {
 
 // ----------------------------------------------------------------------------
 
+/// Generic event callback.
+pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
+
+#[derive(Clone)]
+struct NamedContextCallback {
+    debug_name: &'static str,
+    callback: ContextCallback,
+}
+
+/// Callbacks that users can register
+#[derive(Clone, Default)]
+struct Plugins {
+    pub on_begin_frame: Vec<NamedContextCallback>,
+    pub on_end_frame: Vec<NamedContextCallback>,
+}
+
+impl Plugins {
+    fn call(ctx: &Context, cb_name: &str, callbacks: &[NamedContextCallback]) {
+        crate::profile_scope!("plugins", cb_name);
+        for NamedContextCallback {
+            debug_name,
+            callback,
+        } in callbacks
+        {
+            crate::profile_scope!(debug_name);
+            (callback)(ctx);
+        }
+    }
+
+    fn on_begin_frame(&self, ctx: &Context) {
+        Self::call(ctx, "on_begin_frame", &self.on_begin_frame);
+    }
+
+    fn on_end_frame(&self, ctx: &Context) {
+        Self::call(ctx, "on_end_frame", &self.on_end_frame);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Repaint-logic
 impl ContextImpl {
     /// This is where we update the repaint logic.
@@ -231,11 +271,6 @@ impl ViewportRepaintInfo {
 
 // ----------------------------------------------------------------------------
 
-struct DebugText {
-    location: String,
-    text: WidgetText,
-}
-
 #[derive(Default)]
 struct ContextImpl {
     /// Since we could have multiple viewport across multiple monitors with
@@ -248,6 +283,8 @@ struct ContextImpl {
 
     memory: Memory,
     animation_manager: AnimationManager,
+
+    plugins: Plugins,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -283,8 +320,6 @@ struct ContextImpl {
     accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
-
-    debug_texts: Vec<DebugText>,
 }
 
 impl ContextImpl {
@@ -556,11 +591,16 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        let ctx = ContextImpl {
+        let ctx_impl = ContextImpl {
             embed_viewports: true,
             ..Default::default()
         };
-        Self(Arc::new(RwLock::new(ctx)))
+        let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
+
+        // Register built-in plugins:
+        crate::debug_text::register(&ctx);
+
+        ctx
     }
 }
 
@@ -626,6 +666,7 @@ impl Context {
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
         crate::text_selection::LabelSelectionState::begin_frame(self);
+        self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 }
@@ -1084,18 +1125,11 @@ impl Context {
     /// # let state = true;
     /// ctx.debug_text(format!("State: {state:?}"));
     /// ```
+    ///
+    /// This is just a convenience for calling [`crate::debug_text::print`].
     #[track_caller]
     pub fn debug_text(&self, text: impl Into<WidgetText>) {
-        if cfg!(debug_assertions) {
-            let location = std::panic::Location::caller();
-            let location = format!("{}:{}", location.file(), location.line());
-            self.write(|c| {
-                c.debug_texts.push(DebugText {
-                    location,
-                    text: text.into(),
-                });
-            });
-        }
+        crate::debug_text::print(self, text);
     }
 
     /// What operating system are we running on?
@@ -1338,7 +1372,37 @@ impl Context {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
     }
+}
 
+/// Callbacks
+impl Context {
+    /// Call the given callback at the start of each frame
+    /// of each viewport.
+    ///
+    /// This can be used for egui _plugins_.
+    /// See [`crate::debug_text`] for an example.
+    pub fn on_begin_frame(&self, debug_name: &'static str, cb: ContextCallback) {
+        let named_cb = NamedContextCallback {
+            debug_name,
+            callback: cb,
+        };
+        self.write(|ctx| ctx.plugins.on_begin_frame.push(named_cb));
+    }
+    /// Call the given callback at the end of each frame
+    /// of each viewport.
+    ///
+    /// This can be used for egui _plugins_.
+    /// See [`crate::debug_text`] for an example.
+    pub fn on_end_frame(&self, debug_name: &'static str, cb: ContextCallback) {
+        let named_cb = NamedContextCallback {
+            debug_name,
+            callback: cb,
+        };
+        self.write(|ctx| ctx.plugins.on_end_frame.push(named_cb));
+    }
+}
+
+impl Context {
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
@@ -1617,63 +1681,7 @@ impl Context {
         }
 
         crate::text_selection::LabelSelectionState::end_frame(self);
-
-        let debug_texts = self.write(|ctx| std::mem::take(&mut ctx.debug_texts));
-        if !debug_texts.is_empty() {
-            // Show debug-text next to the cursor.
-            let mut pos = self
-                .input(|i| i.pointer.latest_pos())
-                .unwrap_or_else(|| self.screen_rect().center())
-                + 8.0 * Vec2::Y;
-
-            let painter = self.debug_painter();
-            let where_to_put_background = painter.add(Shape::Noop);
-
-            let mut bounding_rect = Rect::from_points(&[pos]);
-
-            let color = Color32::GRAY;
-            let font_id = FontId::new(10.0, FontFamily::Proportional);
-
-            for DebugText { location, text } in debug_texts {
-                {
-                    // Paint location to left of `pos`:
-                    let location_galley =
-                        self.fonts(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
-                    let location_rect =
-                        Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
-                    painter.galley(location_rect.min, location_galley, color);
-                    bounding_rect = bounding_rect.union(location_rect);
-                }
-
-                {
-                    // Paint `text` to right of `pos`:
-                    let wrap = true;
-                    let available_width = self.screen_rect().max.x - pos.x;
-                    let galley = text.into_galley_impl(
-                        self,
-                        &self.style(),
-                        wrap,
-                        available_width,
-                        font_id.clone().into(),
-                        Align::TOP,
-                    );
-                    let rect = Align2::LEFT_TOP.anchor_size(pos, galley.size());
-                    painter.galley(rect.min, galley, color);
-                    bounding_rect = bounding_rect.union(rect);
-                }
-
-                pos.y = bounding_rect.max.y + 4.0;
-            }
-
-            painter.set(
-                where_to_put_background,
-                Shape::rect_filled(
-                    bounding_rect.expand(4.0),
-                    2.0,
-                    Color32::from_black_alpha(192),
-                ),
-            );
-        }
+        self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
         self.write(|ctx| ctx.end_frame())
     }
