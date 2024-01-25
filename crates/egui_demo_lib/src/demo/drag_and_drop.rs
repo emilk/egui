@@ -3,19 +3,14 @@ use egui::*;
 fn drop_zone<R>(
     ui: &mut Ui,
     can_accept_what_is_being_dragged: bool,
-    add_content: impl FnOnce(&mut Ui) -> R,
+    add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<R> {
     let is_anything_being_dragged = DragAndDrop::has_any_payload(ui.ctx());
 
-    let margin = Vec2::splat(4.0);
-
-    let outer_rect_bounds = ui.available_rect_before_wrap();
-    let inner_rect = outer_rect_bounds.shrink2(margin);
-    let where_to_put_background = ui.painter().add(Shape::Noop);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
-    let ret = add_content(&mut content_ui);
-    let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
-    let (rect, response) = ui.allocate_at_least(outer_rect.size(), Sense::hover());
+    let frame = Frame::default().inner_margin(4.0);
+    let mut frame = frame.begin(ui);
+    let ret = add_contents(&mut frame.content_ui);
+    let response = frame.allocate_space(ui);
 
     // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
     // `hovered` is always false when another widget is being dragged.
@@ -37,10 +32,10 @@ fn drop_zone<R>(
         stroke.color = ui.visuals().gray_out(stroke.color);
     }
 
-    ui.painter().set(
-        where_to_put_background,
-        epaint::RectShape::new(rect, style.rounding, fill, stroke),
-    );
+    frame.frame.fill = fill;
+    frame.frame.stroke = stroke;
+
+    frame.paint(ui);
 
     InnerResponse::new(ret, response)
 }
