@@ -36,11 +36,7 @@ use items::{horizontal_line, rulers_color, vertical_line};
 pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
 pub use memory::PlotMemory;
 
-mod axis;
-mod items;
-mod legend;
 mod plot_ui;
-mod transform;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
