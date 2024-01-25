@@ -970,6 +970,7 @@ impl Context {
             clicked: Default::default(),
             double_clicked: Default::default(),
             triple_clicked: Default::default(),
+            drag_started: false,
             dragged: false,
             drag_released: false,
             is_pointer_button_down_on: false,
@@ -1020,17 +1021,31 @@ impl Context {
             if sense.click || sense.drag {
                 let interaction = memory.interaction_mut();
 
-                interaction.click_interest |= res.hovered && sense.click;
-                interaction.drag_interest |= res.hovered && sense.drag;
+                interaction.click_interest |= contains_pointer && sense.click;
+                interaction.drag_interest |= contains_pointer && sense.drag;
 
-                res.dragged = interaction.drag_id == Some(id);
-                res.is_pointer_button_down_on = interaction.click_id == Some(id) || res.dragged;
+                res.is_pointer_button_down_on =
+                    interaction.click_id == Some(id) || interaction.drag_id == Some(id);
+
+                if sense.click && sense.drag {
+                    // This widget is sensitive to both clicks and drags.
+                    // When the mouse first is pressed, it could be either,
+                    // so we postpone the decision until we know.
+                    res.dragged =
+                        interaction.drag_id == Some(id) && input.pointer.is_decidedly_dragging();
+                    res.drag_started = res.dragged && input.pointer.started_decidedly_dragging;
+                } else if sense.drag {
+                    // We are just sensitive to drags, so we can mark ourself as dragged right away:
+                    res.dragged = interaction.drag_id == Some(id);
+                    // res.drag_started will be filled below if applicable
+                }
 
                 for pointer_event in &input.pointer.pointer_events {
                     match pointer_event {
                         PointerEvent::Moved(_) => {}
+
                         PointerEvent::Pressed { .. } => {
-                            if res.hovered {
+                            if contains_pointer {
                                 let interaction = memory.interaction_mut();
 
                                 if sense.click && interaction.click_id.is_none() {
@@ -1051,11 +1066,21 @@ impl Context {
                                     interaction.drag_id = Some(id);
                                     interaction.drag_is_window = false;
                                     memory.set_window_interaction(None); // HACK: stop moving windows (if any)
+
                                     res.is_pointer_button_down_on = true;
-                                    res.dragged = true;
+
+                                    // Again, only if we are ONLY sensitive to drags can we decide that this is a drag now.
+                                    if sense.click {
+                                        res.dragged = false;
+                                        res.drag_started = false;
+                                    } else {
+                                        res.dragged = true;
+                                        res.drag_started = true;
+                                    }
                                 }
                             }
                         }
+
                         PointerEvent::Released { click, button } => {
                             res.drag_released = res.dragged;
                             res.dragged = false;

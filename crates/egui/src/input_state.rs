@@ -638,6 +638,9 @@ pub struct PointerState {
     /// for it to be registered as a click.
     pub(crate) has_moved_too_much_for_a_click: bool,
 
+    /// Did [`Self::is_decidedly_dragging`] go from `false` to `true` this frame?
+    pub(crate) started_decidedly_dragging: bool,
+
     /// When did the pointer get click last?
     /// Used to check for double-clicks.
     last_click_time: f64,
@@ -667,6 +670,7 @@ impl Default for PointerState {
             press_origin: None,
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
+            started_decidedly_dragging: false,
             last_click_time: std::f64::NEG_INFINITY,
             last_last_click_time: std::f64::NEG_INFINITY,
             last_move_time: std::f64::NEG_INFINITY,
@@ -678,6 +682,8 @@ impl Default for PointerState {
 impl PointerState {
     #[must_use]
     pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> Self {
+        let was_decidedly_dragging = self.is_decidedly_dragging();
+
         self.time = time;
 
         self.pointer_events.clear();
@@ -797,6 +803,8 @@ impl PointerState {
         if self.velocity != Vec2::ZERO {
             self.last_move_time = time;
         }
+
+        self.started_decidedly_dragging = self.is_decidedly_dragging() && !was_decidedly_dragging;
 
         self
     }
@@ -1137,6 +1145,7 @@ impl PointerState {
             press_origin,
             press_start_time,
             has_moved_too_much_for_a_click,
+            started_decidedly_dragging,
             last_click_time,
             last_last_click_time,
             pointer_events,
@@ -1155,6 +1164,9 @@ impl PointerState {
         ui.label(format!("press_start_time: {press_start_time:?} s"));
         ui.label(format!(
             "has_moved_too_much_for_a_click: {has_moved_too_much_for_a_click}"
+        ));
+        ui.label(format!(
+            "started_decidedly_dragging: {started_decidedly_dragging}"
         ));
         ui.label(format!("last_click_time: {last_click_time:#?}"));
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
