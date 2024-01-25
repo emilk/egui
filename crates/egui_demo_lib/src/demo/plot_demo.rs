@@ -644,7 +644,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn configure_plot<'a>(plot_ui: &mut egui_plot::PlotUi<'a>) {
+    fn configure_plot(plot_ui: &mut egui_plot::PlotUi<'_>) {
         plot_ui
             .line(Self::line_with_slope(0.5))
             .line(Self::line_with_slope(1.0))
