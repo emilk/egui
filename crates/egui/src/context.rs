@@ -600,6 +600,7 @@ impl Default for Context {
         // Register built-in plugins:
         crate::debug_text::register(&ctx);
         crate::text_selection::LabelSelectionState::register(&ctx);
+        crate::DragAndDrop::register(&ctx);
 
         ctx
     }

@@ -1,6 +1,6 @@
 use egui::*;
 
-pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
+pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) -> egui::Response {
     let is_being_dragged = ui.memory(|mem| mem.is_being_dragged(id));
 
     if !is_being_dragged {
@@ -11,9 +11,8 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         if response.hovered() {
             ui.ctx().set_cursor_icon(CursorIcon::Grab);
         }
+        response
     } else {
-        ui.ctx().set_cursor_icon(CursorIcon::Grabbing);
-
         // Paint the body to a new layer:
         let layer_id = LayerId::new(Order::Tooltip, id);
         let response = ui.with_layer_id(layer_id, body).response;
@@ -29,6 +28,8 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
             let delta = pointer_pos - response.rect.center();
             ui.ctx().translate_layer(layer_id, delta);
         }
+
+        response
     }
 }
 
@@ -111,23 +112,29 @@ impl super::Demo for DragAndDropDemo {
     }
 }
 
+struct DragInfo {
+    col_idx: usize,
+    row_idx: usize,
+}
+
 impl super::View for DragAndDropDemo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("This is a proof-of-concept of drag-and-drop in egui.");
         ui.label("Drag items between columns.");
 
         let id_source = "my_drag_and_drop_demo";
-        let mut source_col_row = None;
-        let mut drop_col = None;
+
         ui.columns(self.columns.len(), |uis| {
             for (col_idx, column) in self.columns.clone().into_iter().enumerate() {
                 let ui = &mut uis[col_idx];
-                let can_accept_what_is_being_dragged = true; // We accept anything being dragged (for now) ¯\_(ツ)_/¯
+                let can_accept_what_is_being_dragged =
+                    DragAndDrop::has_payload::<DragInfo>(ui.ctx());
+
                 let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
                     ui.set_min_size(vec2(64.0, 100.0));
                     for (row_idx, item) in column.iter().enumerate() {
                         let item_id = Id::new(id_source).with(col_idx).with(row_idx);
-                        drag_source(ui, item_id, |ui| {
+                        let response = drag_source(ui, item_id, |ui| {
                             let response = ui.add(Label::new(item).sense(Sense::click()));
                             response.context_menu(|ui| {
                                 if ui.button("Remove").clicked() {
@@ -137,8 +144,8 @@ impl super::View for DragAndDropDemo {
                             });
                         });
 
-                        if ui.memory(|mem| mem.is_being_dragged(item_id)) {
-                            source_col_row = Some((col_idx, row_idx));
+                        if response.drag_started() {
+                            DragAndDrop::set_payload(ui.ctx(), DragInfo { col_idx, row_idx });
                         }
                     }
                 })
@@ -151,27 +158,16 @@ impl super::View for DragAndDropDemo {
                     }
                 });
 
-                let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
                 // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
                 // `hovered` is always false when another widget is being dragged.
-                if is_being_dragged
-                    && can_accept_what_is_being_dragged
-                    && response.contains_pointer()
-                {
-                    drop_col = Some(col_idx);
+                if response.contains_pointer() && ui.input(|i| i.pointer.any_released()) {
+                    if let Some(source) = DragAndDrop::payload::<DragInfo>(ui.ctx()) {
+                        let item = self.columns[source.col_idx].remove(source.row_idx);
+                        self.columns[col_idx].push(item);
+                    }
                 }
             }
         });
-
-        if let Some((source_col, source_row)) = source_col_row {
-            if let Some(drop_col) = drop_col {
-                if ui.input(|i| i.pointer.any_released()) {
-                    // do the drop:
-                    let item = self.columns[source_col].remove(source_row);
-                    self.columns[drop_col].push(item);
-                }
-            }
-        }
 
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
