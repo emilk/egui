@@ -80,9 +80,7 @@ impl eframe::App for PlotExample {
                 .allow_drag(false)
                 .allow_scroll(false)
                 .legend(Legend::default())
-                .show(ui, |plot_ui_builder| {
-                    let mut plot_ui = plot_ui_builder.into_plot_ui();
-
+                .show(ui, |plot_ui| {
                     if let Some(mut scroll) = scroll {
                         if modifiers.ctrl == self.ctrl_to_zoom {
                             scroll = Vec2::splat(scroll.x + scroll.y);
@@ -124,8 +122,6 @@ impl eframe::App for PlotExample {
 
                     let sine_points = PlotPoints::from_explicit_callback(|x| x.sin(), .., 5000);
                     plot_ui.line(Line::new(sine_points).name("Sine"));
-
-                    ((), plot_ui)
                 });
         });
     }

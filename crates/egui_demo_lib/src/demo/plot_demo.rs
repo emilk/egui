@@ -6,7 +6,7 @@ use egui::*;
 use egui_plot::{
     Arrows, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner,
     GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, PlotPoint,
-    PlotPoints, PlotResponse, PlotUi, Points, Polygon, Text, VLine,
+    PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
 };
 
 // ----------------------------------------------------------------------------
@@ -289,13 +289,11 @@ impl LineDemo {
         if self.coordinates {
             plot = plot.coordinates_formatter(Corner::LeftBottom, CoordinatesFormatter::default());
         }
-        plot.show(ui, |plot_ui_builder| {
-            let mut plot_ui = plot_ui_builder.into_plot_ui();
+        plot.show(ui, |plot_ui| {
             plot_ui
                 .line(self.circle())
                 .line(self.sin())
                 .line(self.thingy());
-            ((), plot_ui)
         })
         .response
     }
@@ -369,12 +367,10 @@ impl MarkerDemo {
             .data_aspect(1.0)
             .legend(Legend::default());
         markers_plot
-            .show(ui, |plot_ui_builder| {
-                let mut plot_ui = plot_ui_builder.into_plot_ui();
+            .show(ui, |plot_ui| {
                 for marker in self.markers() {
                     plot_ui.owned_points(marker);
                 }
-                ((), plot_ui)
             })
             .response
     }
@@ -446,17 +442,13 @@ impl LegendDemo {
             .legend(config.clone())
             .data_aspect(1.0);
         legend_plot
-            .show(ui, |plot_ui_builder| {
-                let mut plot_ui = plot_ui_builder.into_plot_ui();
-
+            .show(ui, |plot_ui| {
                 plot_ui
                     .line(Self::line_with_slope(0.5).name("lines"))
                     .line(Self::line_with_slope(1.0).name("lines"))
                     .line(Self::line_with_slope(2.0).name("lines"))
                     .line(Self::sin().name("sin(x)"))
                     .line(Self::cos().name("cos(x)"));
-
-                ((), plot_ui)
             })
             .response
     }
@@ -593,10 +585,8 @@ impl CustomAxesDemo {
             .custom_y_axes(y_axes)
             .x_grid_spacer(Self::x_grid)
             .label_formatter(label_fmt)
-            .show(ui, |plot_ui_builder| {
-                let mut plot_ui = plot_ui_builder.into_plot_ui();
+            .show(ui, |plot_ui| {
                 plot_ui.line(Self::logistic_fn());
-                ((), plot_ui)
             })
             .response
     }
@@ -648,15 +638,13 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn configure_plot<'a>(plot_ui_builder: egui_plot::PlotUiBuilder) -> ((), PlotUi<'a>) {
-        let mut plot_ui = plot_ui_builder.into_plot_ui();
+    fn configure_plot<'a>(plot_ui: &mut egui_plot::PlotUi<'a>) {
         plot_ui
             .line(Self::line_with_slope(0.5))
             .line(Self::line_with_slope(1.0))
             .line(Self::line_with_slope(2.0))
             .line(Self::sin())
             .line(Self::cos());
-        ((), plot_ui)
     }
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
@@ -757,9 +745,7 @@ impl ItemsDemo {
             .show_x(false)
             .show_y(false)
             .data_aspect(1.0);
-        plot.show(ui, |plot_ui_builder| {
-            let mut plot_ui = plot_ui_builder.into_plot_ui();
-
+        plot.show(ui, |plot_ui| {
             plot_ui
                 .hline(HLine::new(9.0).name("Lines horizontal"))
                 .hline(HLine::new(-9.0).name("Lines horizontal"))
@@ -774,8 +760,6 @@ impl ItemsDemo {
                 .text(Text::new(PlotPoint::new(2.5, -2.0), "such plot").name("Text"))
                 .image(image.name("Image"))
                 .arrows(arrows.name("Arrows"));
-
-            ((), plot_ui)
         })
         .response
     }
@@ -808,9 +792,7 @@ impl InteractionDemo {
             response,
             inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
             ..
-        } = plot.show(ui, |plot_ui_builder| {
-            let plot_ui = plot_ui_builder.into_plot_ui();
-
+        } = plot.show(ui, |plot_ui| {
             let return_value = (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
@@ -819,7 +801,7 @@ impl InteractionDemo {
                 plot_ui.response().hovered(),
             );
 
-            (return_value, plot_ui)
+            return_value
         });
 
         ui.label(format!(
@@ -950,9 +932,7 @@ impl ChartsDemo {
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
             .show(ui, |plot_ui| {
-                let mut plot_ui = plot_ui.into_plot_ui();
                 plot_ui.bar_chart(chart);
-                ((), plot_ui)
             })
             .response
     }
@@ -1012,16 +992,12 @@ impl ChartsDemo {
             .legend(Legend::default())
             .data_aspect(1.0)
             .allow_drag(self.allow_drag)
-            .show(ui, |plot_ui_builder| {
-                let mut plot_ui = plot_ui_builder.into_plot_ui();
-
+            .show(ui, |plot_ui| {
                 plot_ui
                     .bar_chart(chart1)
                     .bar_chart(chart2)
                     .bar_chart(chart3)
                     .bar_chart(chart4);
-
-                ((), plot_ui)
             })
             .response
     }
@@ -1062,11 +1038,8 @@ impl ChartsDemo {
             .legend(Legend::default())
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
-            .show(ui, |plot_uit_builder| {
-                let mut plot_ui = plot_uit_builder.into_plot_ui();
+            .show(ui, |plot_ui| {
                 plot_ui.box_plot(box1).box_plot(box2).box_plot(box3);
-
-                ((), plot_ui)
             })
             .response
     }
