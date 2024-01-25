@@ -140,11 +140,8 @@ pub struct PlotResponse<R> {
 ///     [x, x.sin()]
 /// }).collect();
 /// let line = Line::new(sin);
-/// Plot::new("my_plot").view_aspect(2.0).show(ui, |builder| {
-///     let mut plot_ui = builder.into_plot_ui();
+/// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| {
 ///     plot_ui.line(line);
-///
-///     ((), plot_ui)
 /// });
 /// # });
 /// ```
@@ -398,7 +395,9 @@ impl<'a> Plot<'a> {
     ///         "".to_owned()
     ///     }
     /// })
-    /// .show(ui, |plot_ui| plot_ui.line(line));
+    /// .show(ui, |plot_ui| {
+    ///    plot_ui.line(line);
+    /// });
     /// # });
     /// ```
     pub fn label_formatter(
