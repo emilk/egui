@@ -1,45 +1,5 @@
 use egui::*;
 
-fn drop_zone<R>(
-    ui: &mut Ui,
-    can_accept_what_is_being_dragged: bool,
-    add_contents: impl FnOnce(&mut Ui) -> R,
-) -> InnerResponse<R> {
-    let is_anything_being_dragged = DragAndDrop::has_any_payload(ui.ctx());
-
-    let frame = Frame::default().inner_margin(4.0);
-    let mut frame = frame.begin(ui);
-    let ret = add_contents(&mut frame.content_ui);
-    let response = frame.allocate_space(ui);
-
-    // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
-    // `hovered` is always false when another widget is being dragged.
-    let style = if is_anything_being_dragged
-        && can_accept_what_is_being_dragged
-        && response.contains_pointer()
-    {
-        ui.visuals().widgets.active
-    } else {
-        ui.visuals().widgets.inactive
-    };
-
-    let mut fill = style.bg_fill;
-    let mut stroke = style.bg_stroke;
-
-    if is_anything_being_dragged && !can_accept_what_is_being_dragged {
-        // When dragging something else, show that it can't be dropped here.
-        fill = ui.visuals().gray_out(fill);
-        stroke.color = ui.visuals().gray_out(stroke.color);
-    }
-
-    frame.frame.fill = fill;
-    frame.frame.stroke = stroke;
-
-    frame.paint(ui);
-
-    InnerResponse::new(ret, response)
-}
-
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DragAndDropDemo {
@@ -119,4 +79,45 @@ impl super::View for DragAndDropDemo {
             ui.add(crate::egui_github_link_file!());
         });
     }
+}
+
+/// Paint a drop-zone which changes colors when you can drop something onto it.
+fn drop_zone<R>(
+    ui: &mut Ui,
+    can_accept_what_is_being_dragged: bool,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<R> {
+    let is_anything_being_dragged = DragAndDrop::has_any_payload(ui.ctx());
+
+    let frame = Frame::default().inner_margin(4.0);
+    let mut frame = frame.begin(ui);
+    let ret = add_contents(&mut frame.content_ui);
+    let response = frame.allocate_space(ui);
+
+    // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+    // `hovered` is always false when another widget is being dragged.
+    let style = if is_anything_being_dragged
+        && can_accept_what_is_being_dragged
+        && response.contains_pointer()
+    {
+        ui.visuals().widgets.active
+    } else {
+        ui.visuals().widgets.inactive
+    };
+
+    let mut fill = style.bg_fill;
+    let mut stroke = style.bg_stroke;
+
+    if is_anything_being_dragged && !can_accept_what_is_being_dragged {
+        // When dragging something else, show that it can't be dropped here.
+        fill = ui.visuals().gray_out(fill);
+        stroke.color = ui.visuals().gray_out(stroke.color);
+    }
+
+    frame.frame.fill = fill;
+    frame.frame.stroke = stroke;
+
+    frame.paint(ui);
+
+    InnerResponse::new(ret, response)
 }
