@@ -21,6 +21,7 @@ enum Panel {
     Interaction,
     CustomAxes,
     LinkedAxes,
+    ScatterPlot,
 }
 
 impl Default for Panel {
@@ -41,6 +42,7 @@ pub struct PlotDemo {
     interaction_demo: InteractionDemo,
     custom_axes_demo: CustomAxesDemo,
     linked_axes_demo: LinkedAxesDemo,
+    scatter_plot: ScatterPlot,
     open_panel: Panel,
 }
 
@@ -87,6 +89,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
             ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut self.open_panel, Panel::ScatterPlot, "Scatter Plot");
         });
         ui.separator();
 
@@ -114,6 +117,9 @@ impl super::View for PlotDemo {
             }
             Panel::LinkedAxes => {
                 self.linked_axes_demo.ui(ui);
+            }
+            Panel::ScatterPlot => {
+                self.scatter_plot.ui(ui);
             }
         }
     }
@@ -687,6 +693,97 @@ impl LinkedAxesDemo {
             .link_axis(link_group_id, self.link_x, self.link_y)
             .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
             .show(ui, Self::configure_plot)
+            .response
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+struct ScatterPlot {
+    points: Vec<PlotPoint>,
+    step: usize,
+    point_radius: f32,
+    fill_points: bool,
+}
+
+impl PartialEq for ScatterPlot {
+    fn eq(&self, other: &Self) -> bool {
+        self.point_radius == other.point_radius && self.fill_points == other.fill_points
+    }
+}
+
+impl Default for ScatterPlot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ScatterPlot {
+    fn new() -> Self {
+        Self {
+            points: Self::calculate_points(),
+            step: 1,
+            point_radius: 1.5,
+            fill_points: true,
+        }
+    }
+
+    fn calculate_points() -> Vec<PlotPoint> {
+        (0..50_000)
+            .zip((-10..10).cycle())
+            .filter_map(|(x, offset)| {
+                if offset != 0 {
+                    let x = x as f64 / 1000.0;
+                    let y = x * 1.5 + offset as f64;
+                    Some(PlotPoint::new(x, y))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn ui(&mut self, ui: &mut Ui) -> Response {
+        ui.label("Plot iterators!");
+        ui.add(
+            egui::DragValue::new(&mut self.step)
+                .speed(1)
+                .clamp_range(1..=100)
+                .prefix("Filter point step: "),
+        );
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.fill_points, "Fill");
+            ui.add(
+                egui::DragValue::new(&mut self.point_radius)
+                    .speed(0.1)
+                    .clamp_range(0.0..=f64::INFINITY)
+                    .prefix("Radius: "),
+            );
+        });
+
+        Plot::new("scatter_plot")
+            .legend(Legend::default().position(Corner::LeftTop))
+            .y_axis_width(4)
+            .show_axes(true)
+            .show_grid(true)
+            // .view_aspect(1.0)
+            // .data_aspect(1.0)
+            .show(ui, |plot_ui| {
+                let points = Points::new_generic(self.points.iter().step_by(self.step))
+                    .name("Points")
+                    .filled(self.fill_points)
+                    .radius(self.point_radius);
+
+                plot_ui.borrowed_points(points).line(
+                    Line::new(PlotPoints::from_explicit_callback(
+                        |x| x * 1.5,
+                        0.0..=50.0,
+                        100,
+                    ))
+                    .name("Line")
+                    .width(self.point_radius * 1.5),
+                );
+            })
             .response
     }
 }
