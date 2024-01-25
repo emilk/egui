@@ -83,14 +83,14 @@ struct Plugins {
 }
 
 impl Plugins {
-    fn call(ctx: &Context, cb_name: &str, callbacks: &[NamedContextCallback]) {
-        crate::profile_scope!("plugins", cb_name);
+    fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
+        crate::profile_scope!("plugins", _cb_name);
         for NamedContextCallback {
-            debug_name,
+            debug_name: _name,
             callback,
         } in callbacks
         {
-            crate::profile_scope!(debug_name);
+            crate::profile_scope!(_name);
             (callback)(ctx);
         }
     }
