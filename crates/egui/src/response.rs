@@ -288,6 +288,8 @@ impl Response {
     /// or the user has pressed down for long enough.
     /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
     ///
+    /// If you want to avoid the delay, use [`Self::is_pointer_button_down_on`] instead.
+    ///
     /// If the widget is NOT sensitive to drags, this will always be `false`.
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
@@ -296,6 +298,7 @@ impl Response {
         self.dragged
     }
 
+    /// See [`Self::dragged`].
     #[inline]
     pub fn dragged_by(&self, button: PointerButton) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
