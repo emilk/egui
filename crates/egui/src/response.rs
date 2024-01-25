@@ -164,7 +164,7 @@ impl Response {
                 // self.rect. See Context::interact.
                 // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
                 // hence the extra complexity here.
-                if self.hovered() {
+                if self.contains_pointer() {
                     false
                 } else if let Some(pos) = pointer.interact_pos() {
                     !self.rect.contains(pos)
