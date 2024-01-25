@@ -549,10 +549,14 @@ impl<'t> TextEdit<'t> {
                     paint_cursor(&painter, ui.visuals(), cursor_rect);
                 }
 
-                let did_interact =
-                    state
-                        .cursor
-                        .pointer_interaction(ui, &response, cursor_at_pointer, &galley);
+                let is_being_dragged = ui.ctx().memory(|m| m.is_being_dragged(response.id));
+                let did_interact = state.cursor.pointer_interaction(
+                    ui,
+                    &response,
+                    cursor_at_pointer,
+                    &galley,
+                    is_being_dragged,
+                );
 
                 if did_interact {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
@@ -661,6 +665,7 @@ impl<'t> TextEdit<'t> {
                         galley_pos,
                         &galley,
                         &cursor_range,
+                        None,
                     );
 
                     let primary_cursor_rect =

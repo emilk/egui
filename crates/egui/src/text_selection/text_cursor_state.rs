@@ -99,6 +99,7 @@ impl TextCursorState {
         response: &Response,
         cursor_at_pointer: Cursor,
         galley: &Galley,
+        is_being_dragged: bool,
     ) -> bool {
         let text = galley.text();
 
@@ -120,6 +121,7 @@ impl TextCursorState {
             true
         } else if response.sense.drag {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
+                // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
                     if let Some(mut cursor_range) = self.range(galley) {
                         cursor_range.primary = cursor_at_pointer;
@@ -131,8 +133,8 @@ impl TextCursorState {
                     self.set_range(Some(CursorRange::one(cursor_at_pointer)));
                 }
                 true
-            } else if ui.input(|i| i.pointer.any_down()) && response.is_pointer_button_down_on() {
-                // drag to select text:
+            } else if is_being_dragged {
+                // Drag to select text:
                 if let Some(mut cursor_range) = self.range(galley) {
                     cursor_range.primary = cursor_at_pointer;
                     self.set_range(Some(cursor_range));
