@@ -1060,7 +1060,7 @@ impl Context {
                             res.drag_released = res.dragged;
                             res.dragged = false;
 
-                            if res.hovered && res.is_pointer_button_down_on {
+                            if sense.click && res.hovered && res.is_pointer_button_down_on {
                                 if let Some(click) = click {
                                     let clicked = res.hovered && res.is_pointer_button_down_on;
                                     res.clicked[*button as usize] = clicked;
@@ -1070,6 +1070,7 @@ impl Context {
                                         clicked && click.is_triple();
                                 }
                             }
+
                             res.is_pointer_button_down_on = false;
                         }
                     }
