@@ -738,6 +738,8 @@ impl Response {
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
+    /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).
+    ///
     /// ```
     /// # use egui::{Label, Sense};
     /// # egui::__run_test_ui(|ui| {
