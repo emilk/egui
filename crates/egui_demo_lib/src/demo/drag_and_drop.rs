@@ -38,7 +38,7 @@ pub fn drop_target<R>(
     can_accept_what_is_being_dragged: bool,
     body: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<R> {
-    let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
+    let is_being_dragged = DragAndDrop::has_any_payload(ui.ctx());
 
     let margin = Vec2::splat(4.0);
 
@@ -128,7 +128,7 @@ impl super::View for DragAndDropDemo {
             for (col_idx, column) in self.columns.clone().into_iter().enumerate() {
                 let ui = &mut uis[col_idx];
                 let can_accept_what_is_being_dragged =
-                    DragAndDrop::has_payload::<DragInfo>(ui.ctx());
+                    DragAndDrop::has_payload_of_type::<DragInfo>(ui.ctx());
 
                 let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
                     ui.set_min_size(vec2(64.0, 100.0));
@@ -145,13 +145,9 @@ impl super::View for DragAndDropDemo {
                 })
                 .response;
 
-                // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
-                // `hovered` is always false when another widget is being dragged.
-                if response.contains_pointer() && ui.input(|i| i.pointer.any_released()) {
-                    if let Some(source) = DragAndDrop::payload::<DragInfo>(ui.ctx()) {
-                        let item = self.columns[source.col_idx].remove(source.row_idx);
-                        self.columns[col_idx].push(item);
-                    }
+                if let Some(source) = response.dnd_release_payload::<DragInfo>() {
+                    let item = self.columns[source.col_idx].remove(source.row_idx);
+                    self.columns[col_idx].push(item);
                 }
             }
         });

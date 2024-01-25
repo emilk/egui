@@ -1,3 +1,5 @@
+use std::{any::Any, sync::Arc};
+
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
     menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
@@ -322,6 +324,34 @@ impl Response {
             self.ctx.input(|i| i.pointer.delta())
         } else {
             Vec2::ZERO
+        }
+    }
+
+    /// Drag-and-Drop: Return what the is being held over this widget, if any.
+    ///
+    /// Only returns something if [`Self::contains_pointer`] is true,
+    /// and the user is drag-dropping something of this type.
+    pub fn drag_drop_hover_payload<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        if self.contains_pointer() {
+            crate::DragAndDrop::payload::<T>(&self.ctx)
+        } else {
+            None
+        }
+    }
+    /// Drag-and-Drop: Return what the is being dropped onto this widget, if any.
+    ///
+    /// Only returns something if [`Self::contains_pointer`] is true,
+    /// the user is drag-dropping something of this type,
+    /// and they released it this frame
+    pub fn dnd_release_payload<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        if self.contains_pointer() && self.ctx.input(|i| i.pointer.any_released()) {
+            crate::DragAndDrop::payload::<T>(&self.ctx)
+        } else {
+            None
         }
     }
 

@@ -68,10 +68,21 @@ impl DragAndDrop {
     ///
     /// Returns `true` both during a drag and on the frame the pointer is released
     /// (if there is a payload).
-    pub fn has_payload<T>(ctx: &Context) -> bool
+    pub fn has_payload_of_type<T>(ctx: &Context) -> bool
     where
         T: Any + Send + Sync,
     {
         Self::payload::<T>(ctx).is_some()
+    }
+
+    /// Are we carrying a payload?
+    ///
+    /// Returns `true` both during a drag and on the frame the pointer is released
+    /// (if there is a payload).
+    pub fn has_any_payload(ctx: &Context) -> bool {
+        ctx.data(|data| {
+            let state = data.get_temp::<Self>(Id::NULL);
+            state.map_or(false, |state| state.payload.is_some())
+        })
     }
 }
