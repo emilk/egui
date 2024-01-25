@@ -26,7 +26,7 @@ pub(crate) fn register(ctx: &Context) {
 /// ```
 /// # let ctx = egui::Context::default();
 /// # let state = true;
-/// egui::debug_text::print(format!("State: {state:?}"));
+/// egui::debug_text::print(ctx, format!("State: {state:?}"));
 /// ```
 #[track_caller]
 pub fn print(ctx: &Context, text: impl Into<WidgetText>) {
