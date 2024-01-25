@@ -1,11 +1,11 @@
 use egui::*;
 
-pub fn drop_target<R>(
+fn drop_zone<R>(
     ui: &mut Ui,
     can_accept_what_is_being_dragged: bool,
-    body: impl FnOnce(&mut Ui) -> R,
+    add_content: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<R> {
-    let is_being_dragged = DragAndDrop::has_any_payload(ui.ctx());
+    let is_anything_being_dragged = DragAndDrop::has_any_payload(ui.ctx());
 
     let margin = Vec2::splat(4.0);
 
@@ -13,22 +13,26 @@ pub fn drop_target<R>(
     let inner_rect = outer_rect_bounds.shrink2(margin);
     let where_to_put_background = ui.painter().add(Shape::Noop);
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
-    let ret = body(&mut content_ui);
+    let ret = add_content(&mut content_ui);
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), Sense::hover());
 
     // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
     // `hovered` is always false when another widget is being dragged.
-    let style =
-        if is_being_dragged && can_accept_what_is_being_dragged && response.contains_pointer() {
-            ui.visuals().widgets.active
-        } else {
-            ui.visuals().widgets.inactive
-        };
+    let style = if is_anything_being_dragged
+        && can_accept_what_is_being_dragged
+        && response.contains_pointer()
+    {
+        ui.visuals().widgets.active
+    } else {
+        ui.visuals().widgets.inactive
+    };
 
     let mut fill = style.bg_fill;
     let mut stroke = style.bg_stroke;
-    if is_being_dragged && !can_accept_what_is_being_dragged {
+
+    if is_anything_being_dragged && !can_accept_what_is_being_dragged {
+        // When dragging something else, show that it can't be dropped here.
         fill = ui.visuals().gray_out(fill);
         stroke.color = ui.visuals().gray_out(stroke.color);
     }
@@ -86,7 +90,7 @@ struct DragInfo {
 
 impl super::View for DragAndDropDemo {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.label("This is a proof-of-concept of drag-and-drop in egui.");
+        ui.label("This is a simple example of drag-and-drop in egui.");
         ui.label("Drag items between columns.");
 
         let id_source = "my_drag_and_drop_demo";
@@ -97,7 +101,7 @@ impl super::View for DragAndDropDemo {
                 let can_accept_what_is_being_dragged =
                     DragAndDrop::has_payload_of_type::<DragInfo>(ui.ctx());
 
-                let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
+                let response = drop_zone(ui, can_accept_what_is_being_dragged, |ui| {
                     ui.set_min_size(vec2(64.0, 100.0));
                     for (row_idx, item) in column.iter().enumerate() {
                         let item_id = Id::new(id_source).with(col_idx).with(row_idx);
