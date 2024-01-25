@@ -135,13 +135,7 @@ impl super::View for DragAndDropDemo {
                     for (row_idx, item) in column.iter().enumerate() {
                         let item_id = Id::new(id_source).with(col_idx).with(row_idx);
                         let response = drag_source(ui, item_id, |ui| {
-                            let response = ui.add(Label::new(item).sense(Sense::click()));
-                            response.context_menu(|ui| {
-                                if ui.button("Remove").clicked() {
-                                    self.columns[col_idx].remove(row_idx);
-                                    ui.close_menu();
-                                }
-                            });
+                            ui.add(Label::new(item).sense(Sense::click()));
                         });
 
                         if response.drag_started() {
@@ -150,13 +144,6 @@ impl super::View for DragAndDropDemo {
                     }
                 })
                 .response;
-
-                let response = response.context_menu(|ui| {
-                    if ui.button("New Item").clicked() {
-                        self.columns[col_idx].push("New Item".to_owned());
-                        ui.close_menu();
-                    }
-                });
 
                 // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
                 // `hovered` is always false when another widget is being dragged.
