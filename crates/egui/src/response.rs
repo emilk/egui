@@ -341,7 +341,7 @@ impl Response {
         }
     }
 
-    /// Drag-and-Drop: Return what the is being held over this widget, if any.
+    /// Drag-and-Drop: Return what is being held over this widget, if any.
     ///
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// and the user is drag-dropping something of this type.
@@ -356,7 +356,7 @@ impl Response {
         }
     }
 
-    /// Drag-and-Drop: Return what the is being dropped onto this widget, if any.
+    /// Drag-and-Drop: Return what is being dropped onto this widget, if any.
     ///
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// the user is drag-dropping something of this type,
