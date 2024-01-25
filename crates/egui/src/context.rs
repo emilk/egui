@@ -956,11 +956,8 @@ impl Context {
         enabled: bool,
         contains_pointer: bool,
     ) -> Response {
-        let hovered = contains_pointer && enabled; // can't even hover disabled widgets
-
-        let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
-
-        let mut response = Response {
+        // This is the start - we'll fill in the fields below:
+        let mut res = Response {
             ctx: self.clone(),
             layer_id,
             id,
@@ -968,11 +965,12 @@ impl Context {
             sense,
             enabled,
             contains_pointer,
-            hovered,
-            highlighted,
+            hovered: contains_pointer && enabled,
+            highlighted: self.frame_state(|fs| fs.highlight_this_frame.contains(&id)),
             clicked: Default::default(),
             double_clicked: Default::default(),
             triple_clicked: Default::default(),
+            drag_started: false,
             dragged: false,
             drag_released: false,
             is_pointer_button_down_on: false,
@@ -994,10 +992,10 @@ impl Context {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            self.accesskit_node_builder(id, |builder| response.fill_accesskit_node_common(builder));
+            self.accesskit_node_builder(id, |builder| res.fill_accesskit_node_common(builder));
         }
 
-        let clicked_elsewhere = response.clicked_elsewhere();
+        let clicked_elsewhere = res.clicked_elsewhere();
         self.write(|ctx| {
             let input = &ctx.viewports.entry(ctx.viewport_id()).or_default().input;
             let memory = &mut ctx.memory;
@@ -1007,41 +1005,53 @@ impl Context {
             }
 
             if sense.click
-                && memory.has_focus(response.id)
+                && memory.has_focus(res.id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                response.clicked[PointerButton::Primary as usize] = true;
+                res.clicked[PointerButton::Primary as usize] = true;
             }
 
             #[cfg(feature = "accesskit")]
-            if sense.click
-                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
+            if sense.click && input.has_accesskit_action_request(res.id, accesskit::Action::Default)
             {
-                response.clicked[PointerButton::Primary as usize] = true;
+                res.clicked[PointerButton::Primary as usize] = true;
             }
 
             if sense.click || sense.drag {
                 let interaction = memory.interaction_mut();
 
-                interaction.click_interest |= hovered && sense.click;
-                interaction.drag_interest |= hovered && sense.drag;
+                interaction.click_interest |= contains_pointer && sense.click;
+                interaction.drag_interest |= contains_pointer && sense.drag;
 
-                response.dragged = interaction.drag_id == Some(id);
-                response.is_pointer_button_down_on =
-                    interaction.click_id == Some(id) || response.dragged;
+                res.is_pointer_button_down_on =
+                    interaction.click_id == Some(id) || interaction.drag_id == Some(id);
+
+                if sense.click && sense.drag {
+                    // This widget is sensitive to both clicks and drags.
+                    // When the mouse first is pressed, it could be either,
+                    // so we postpone the decision until we know.
+                    res.dragged =
+                        interaction.drag_id == Some(id) && input.pointer.is_decidedly_dragging();
+                    res.drag_started = res.dragged && input.pointer.started_decidedly_dragging;
+                } else if sense.drag {
+                    // We are just sensitive to drags, so we can mark ourself as dragged right away:
+                    res.dragged = interaction.drag_id == Some(id);
+                    // res.drag_started will be filled below if applicable
+                }
 
                 for pointer_event in &input.pointer.pointer_events {
                     match pointer_event {
                         PointerEvent::Moved(_) => {}
+
                         PointerEvent::Pressed { .. } => {
-                            if hovered {
+                            if contains_pointer {
                                 let interaction = memory.interaction_mut();
 
                                 if sense.click && interaction.click_id.is_none() {
                                     // potential start of a click
                                     interaction.click_id = Some(id);
-                                    response.is_pointer_button_down_on = true;
+                                    res.is_pointer_button_down_on = true;
                                 }
 
                                 // HACK: windows have low priority on dragging.
@@ -1056,51 +1066,62 @@ impl Context {
                                     interaction.drag_id = Some(id);
                                     interaction.drag_is_window = false;
                                     memory.set_window_interaction(None); // HACK: stop moving windows (if any)
-                                    response.is_pointer_button_down_on = true;
-                                    response.dragged = true;
+
+                                    res.is_pointer_button_down_on = true;
+
+                                    // Again, only if we are ONLY sensitive to drags can we decide that this is a drag now.
+                                    if sense.click {
+                                        res.dragged = false;
+                                        res.drag_started = false;
+                                    } else {
+                                        res.dragged = true;
+                                        res.drag_started = true;
+                                    }
                                 }
                             }
                         }
-                        PointerEvent::Released { click, button } => {
-                            response.drag_released = response.dragged;
-                            response.dragged = false;
 
-                            if hovered && response.is_pointer_button_down_on {
+                        PointerEvent::Released { click, button } => {
+                            res.drag_released = res.dragged;
+                            res.dragged = false;
+
+                            if sense.click && res.hovered && res.is_pointer_button_down_on {
                                 if let Some(click) = click {
-                                    let clicked = hovered && response.is_pointer_button_down_on;
-                                    response.clicked[*button as usize] = clicked;
-                                    response.double_clicked[*button as usize] =
+                                    let clicked = res.hovered && res.is_pointer_button_down_on;
+                                    res.clicked[*button as usize] = clicked;
+                                    res.double_clicked[*button as usize] =
                                         clicked && click.is_double();
-                                    response.triple_clicked[*button as usize] =
+                                    res.triple_clicked[*button as usize] =
                                         clicked && click.is_triple();
                                 }
                             }
-                            response.is_pointer_button_down_on = false;
+
+                            res.is_pointer_button_down_on = false;
                         }
                     }
                 }
             }
 
-            if response.is_pointer_button_down_on {
-                response.interact_pointer_pos = input.pointer.interact_pos();
+            if res.is_pointer_button_down_on {
+                res.interact_pointer_pos = input.pointer.interact_pos();
             }
 
-            if input.pointer.any_down() && !response.is_pointer_button_down_on {
+            if input.pointer.any_down() && !res.is_pointer_button_down_on {
                 // We don't hover widgets while interacting with *other* widgets:
-                response.hovered = false;
+                res.hovered = false;
             }
 
-            if memory.has_focus(response.id) && clicked_elsewhere {
+            if memory.has_focus(res.id) && clicked_elsewhere {
                 memory.surrender_focus(id);
             }
 
-            if response.dragged() && !memory.has_focus(response.id) {
+            if res.dragged() && !memory.has_focus(res.id) {
                 // e.g.: remove focus from a widget when you drag something else
                 memory.stop_text_input();
             }
         });
 
-        response
+        res
     }
 
     /// Get a full-screen painter for a new or existing layer

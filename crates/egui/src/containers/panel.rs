@@ -718,9 +718,9 @@ impl TopBottomPanel {
                 if ui.input(|i| i.pointer.any_pressed() && i.pointer.any_down())
                     && mouse_over_resize_line
                 {
-                    ui.memory_mut(|mem| mem.interaction_mut().drag_id = Some(resize_id));
+                    ui.memory_mut(|mem| mem.set_dragged_id(resize_id));
                 }
-                is_resizing = ui.memory(|mem| mem.interaction().drag_id == Some(resize_id));
+                is_resizing = ui.memory(|mem| mem.is_being_dragged(resize_id));
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
                     let height =
