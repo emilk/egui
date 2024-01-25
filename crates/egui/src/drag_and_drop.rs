@@ -67,6 +67,23 @@ impl DragAndDrop {
         })
     }
 
+    /// Retrieve and clear the payload, if any.
+    ///
+    /// Returns `None` if there is no payload, or if it is not of the requested type.
+    ///
+    /// Returns `Some` both during a drag and on the frame the pointer is released
+    /// (if there is a payload).
+    pub fn take_payload<Payload>(ctx: &Context) -> Option<Arc<Payload>>
+    where
+        Payload: Any + Send + Sync,
+    {
+        ctx.data_mut(|data| {
+            let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
+            let payload = state.payload.take()?;
+            payload.downcast().ok()
+        })
+    }
+
     /// Are we carrying a payload of the given type?
     ///
     /// Returns `true` both during a drag and on the frame the pointer is released

@@ -366,7 +366,7 @@ impl Response {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
         // `hovered` is always false when another widget is being dragged.
         if self.contains_pointer() && self.ctx.input(|i| i.pointer.any_released()) {
-            crate::DragAndDrop::payload::<Payload>(&self.ctx)
+            crate::DragAndDrop::take_payload::<Payload>(&self.ctx)
         } else {
             None
         }
