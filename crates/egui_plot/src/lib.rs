@@ -12,7 +12,7 @@ mod legend;
 mod memory;
 mod transform;
 
-use std::{ops::RangeInclusive, sync::Arc};
+use std::{marker::PhantomData, ops::RangeInclusive, sync::Arc};
 
 use egui::ahash::HashMap;
 use epaint::util::FloatOrd;
@@ -152,7 +152,7 @@ pub struct PlotResponse<R> {
 /// });
 /// # });
 /// ```
-pub struct Plot {
+pub struct Plot<'a> {
     id_source: Id,
     id: Option<Id>,
 
@@ -190,9 +190,11 @@ pub struct Plot {
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
+
+    phantom_plot_ui: std::marker::PhantomData<PlotUi<'a>>,
 }
 
-impl Plot {
+impl<'a> Plot<'a> {
     /// Give a unique id for each plot within the same [`Ui`].
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
@@ -233,6 +235,8 @@ impl Plot {
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
+
+            phantom_plot_ui: PhantomData,
         }
     }
 
@@ -697,9 +701,9 @@ impl Plot {
 
     /// Interact with and add items to the plot and finally draw it.
 
-    pub fn show<'a, F, R>(self, ui: &mut Ui, build_fn: F) -> PlotResponse<R>
+    pub fn show<F, R>(self, ui: &mut Ui, build_fn: F) -> PlotResponse<R>
     where
-        F: FnOnce(PlotUiBuilder) -> (R, PlotUi<'a>),
+        F: FnOnce(&mut PlotUi<'a>) -> R,
     {
         let Self {
             id_source,
@@ -736,6 +740,8 @@ impl Plot {
             clamp_grid,
             grid_spacers,
             sharp_grid_lines,
+
+            phantom_plot_ui: _,
         } = self;
 
         // Determine position of widget.
@@ -868,7 +874,8 @@ impl Plot {
         } = memory;
 
         // Call the plot build function.
-        let builder = PlotUiBuilder {
+        let mut plot_ui = PlotUi {
+            items: Vec::new(),
             next_auto_color_idx: 0,
             last_plot_transform,
             last_auto_bounds: auto_bounds,
@@ -877,7 +884,7 @@ impl Plot {
             ctx: ui.ctx().clone(),
         };
 
-        let (inner, plot_ui) = build_fn(builder);
+        let inner = build_fn(&mut plot_ui);
 
         let PlotUi {
             mut items,
