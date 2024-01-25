@@ -145,6 +145,14 @@ impl Default for LabelSelectionState {
 }
 
 impl LabelSelectionState {
+    pub(crate) fn register(ctx: &Context) {
+        ctx.on_begin_frame(
+            "LabelSelectionState",
+            std::sync::Arc::new(Self::begin_frame),
+        );
+        ctx.on_end_frame("LabelSelectionState", std::sync::Arc::new(Self::end_frame));
+    }
+
     pub fn load(ctx: &Context) -> Self {
         ctx.data(|data| data.get_temp::<Self>(Id::NULL))
             .unwrap_or_default()
@@ -156,7 +164,7 @@ impl LabelSelectionState {
         });
     }
 
-    pub fn begin_frame(ctx: &Context) {
+    fn begin_frame(ctx: &Context) {
         let mut state = Self::load(ctx);
 
         if ctx.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
@@ -177,7 +185,7 @@ impl LabelSelectionState {
         state.store(ctx);
     }
 
-    pub fn end_frame(ctx: &Context) {
+    fn end_frame(ctx: &Context) {
         let mut state = Self::load(ctx);
 
         if state.is_dragging {

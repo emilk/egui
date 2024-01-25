@@ -599,6 +599,7 @@ impl Default for Context {
 
         // Register built-in plugins:
         crate::debug_text::register(&ctx);
+        crate::text_selection::LabelSelectionState::register(&ctx);
 
         ctx
     }
@@ -665,7 +666,6 @@ impl Context {
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
-        crate::text_selection::LabelSelectionState::begin_frame(self);
         self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
@@ -1680,7 +1680,6 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
-        crate::text_selection::LabelSelectionState::end_frame(self);
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
         self.write(|ctx| ctx.end_frame())
