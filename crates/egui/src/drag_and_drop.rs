@@ -40,9 +40,9 @@ impl DragAndDrop {
     /// Set a drag-and-drop payload.
     ///
     /// This can be read by [`Self::payload`] until the pointer is released.
-    pub fn set_payload<T>(ctx: &Context, payload: T)
+    pub fn set_payload<Payload>(ctx: &Context, payload: Payload)
     where
-        T: Any + Send + Sync,
+        Payload: Any + Send + Sync,
     {
         ctx.data_mut(|data| {
             let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
@@ -56,9 +56,9 @@ impl DragAndDrop {
     ///
     /// Returns `Some` both during a drag and on the frame the pointer is released
     /// (if there is a payload).
-    pub fn payload<T>(ctx: &Context) -> Option<Arc<T>>
+    pub fn payload<Payload>(ctx: &Context) -> Option<Arc<Payload>>
     where
-        T: Any + Send + Sync,
+        Payload: Any + Send + Sync,
     {
         ctx.data(|data| {
             let state = data.get_temp::<Self>(Id::NULL)?;
@@ -71,11 +71,11 @@ impl DragAndDrop {
     ///
     /// Returns `true` both during a drag and on the frame the pointer is released
     /// (if there is a payload).
-    pub fn has_payload_of_type<T>(ctx: &Context) -> bool
+    pub fn has_payload_of_type<Payload>(ctx: &Context) -> bool
     where
-        T: Any + Send + Sync,
+        Payload: Any + Send + Sync,
     {
-        Self::payload::<T>(ctx).is_some()
+        Self::payload::<Payload>(ctx).is_some()
     }
 
     /// Are we carrying a payload?
