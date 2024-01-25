@@ -21,7 +21,22 @@ use epaint::*;
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// let frame = egui::Frame::default().inner_margin(4.0).begin(ui);
+/// let mut frame = egui::Frame::default().inner_margin(4.0).begin(ui);
+/// {
+///     let response = frame.content_ui.label("Inside the frame");
+///     if response.hovered() {
+///         frame.frame.fill = egui::Color32::RED;
+///     }
+/// }
+/// frame.end(ui); // Will "close" the frame.
+/// # });
+/// ```
+///
+/// You can also respond to the hovering of the frame itself:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// let mut frame = egui::Frame::default().inner_margin(4.0).begin(ui);
 /// {
 ///     frame.content_ui.label("Inside the frame");
 ///     frame.content_ui.label("This too");
@@ -35,6 +50,7 @@ use epaint::*;
 /// ```
 ///
 /// Note that you cannot change the margins after calling `begin`.
+#[doc(alias = "border")]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[must_use = "You should call .show()"]
 pub struct Frame {
