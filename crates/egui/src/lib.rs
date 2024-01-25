@@ -347,6 +347,7 @@ mod animation_manager;
 pub mod containers;
 mod context;
 mod data;
+pub mod debug_text;
 mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
