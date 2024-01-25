@@ -7,7 +7,7 @@ use crate::{
 };
 use epaint::{
     text::{Fonts, Galley},
-    CircleShape, RectShape, Rounding, Shape, Stroke,
+    CircleShape, ClippedShape, RectShape, Rounding, Shape, Stroke,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -144,7 +144,7 @@ impl Painter {
 impl Painter {
     #[inline]
     fn paint_list<R>(&self, writer: impl FnOnce(&mut PaintList) -> R) -> R {
-        self.ctx.graphics_mut(|g| writer(g.list(self.layer_id)))
+        self.ctx.graphics_mut(|g| writer(g.entry(self.layer_id)))
     }
 
     fn transform_shape(&self, shape: &mut Shape) {
@@ -192,6 +192,17 @@ impl Painter {
         let mut shape = shape.into();
         self.transform_shape(&mut shape);
         self.paint_list(|l| l.set(idx, self.clip_rect, shape));
+    }
+
+    /// Access all shapes added this frame.
+    pub fn for_each_shape(&self, mut reader: impl FnMut(&ClippedShape)) {
+        self.ctx.graphics(|g| {
+            if let Some(list) = g.get(self.layer_id) {
+                for c in list.all_entries() {
+                    reader(c);
+                }
+            }
+        });
     }
 }
 
@@ -246,21 +257,21 @@ impl Painter {
 /// # Paint different primitives
 impl Painter {
     /// Paints a line from the first point to the second.
-    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) {
+    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) -> ShapeIdx {
         self.add(Shape::LineSegment {
             points,
             stroke: stroke.into(),
-        });
+        })
     }
 
     /// Paints a horizontal line.
-    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) {
-        self.add(Shape::hline(x, y, stroke));
+    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> ShapeIdx {
+        self.add(Shape::hline(x, y, stroke))
     }
 
     /// Paints a vertical line.
-    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) {
-        self.add(Shape::vline(x, y, stroke));
+    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> ShapeIdx {
+        self.add(Shape::vline(x, y, stroke))
     }
 
     pub fn circle(
@@ -269,31 +280,36 @@ impl Painter {
         radius: f32,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
-    ) {
+    ) -> ShapeIdx {
         self.add(CircleShape {
             center,
             radius,
             fill: fill_color.into(),
             stroke: stroke.into(),
-        });
+        })
     }
 
-    pub fn circle_filled(&self, center: Pos2, radius: f32, fill_color: impl Into<Color32>) {
+    pub fn circle_filled(
+        &self,
+        center: Pos2,
+        radius: f32,
+        fill_color: impl Into<Color32>,
+    ) -> ShapeIdx {
         self.add(CircleShape {
             center,
             radius,
             fill: fill_color.into(),
             stroke: Default::default(),
-        });
+        })
     }
 
-    pub fn circle_stroke(&self, center: Pos2, radius: f32, stroke: impl Into<Stroke>) {
+    pub fn circle_stroke(&self, center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> ShapeIdx {
         self.add(CircleShape {
             center,
             radius,
             fill: Default::default(),
             stroke: stroke.into(),
-        });
+        })
     }
 
     pub fn rect(
@@ -302,8 +318,8 @@ impl Painter {
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
-    ) {
-        self.add(RectShape::new(rect, rounding, fill_color, stroke));
+    ) -> ShapeIdx {
+        self.add(RectShape::new(rect, rounding, fill_color, stroke))
     }
 
     pub fn rect_filled(
@@ -311,8 +327,8 @@ impl Painter {
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
-    ) {
-        self.add(RectShape::filled(rect, rounding, fill_color));
+    ) -> ShapeIdx {
+        self.add(RectShape::filled(rect, rounding, fill_color))
     }
 
     pub fn rect_stroke(
@@ -320,8 +336,8 @@ impl Painter {
         rect: Rect,
         rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
-    ) {
-        self.add(RectShape::stroke(rect, rounding, stroke));
+    ) -> ShapeIdx {
+        self.add(RectShape::stroke(rect, rounding, stroke))
     }
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
@@ -355,8 +371,14 @@ impl Painter {
     ///     .paint_at(ui, rect);
     /// # });
     /// ```
-    pub fn image(&self, texture_id: epaint::TextureId, rect: Rect, uv: Rect, tint: Color32) {
-        self.add(Shape::image(texture_id, rect, uv, tint));
+    pub fn image(
+        &self,
+        texture_id: epaint::TextureId,
+        rect: Rect,
+        uv: Rect,
+        tint: Color32,
+    ) -> ShapeIdx {
+        self.add(Shape::image(texture_id, rect, uv, tint))
     }
 }
 

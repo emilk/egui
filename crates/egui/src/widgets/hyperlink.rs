@@ -1,5 +1,7 @@
 use crate::*;
 
+use self::text_selection::LabelSelectionState;
+
 /// Clickable text, that looks like a hyperlink.
 ///
 /// To link to a web page, use [`Hyperlink`], [`Ui::hyperlink`] or [`Ui::hyperlink_to`].
@@ -53,7 +55,7 @@ impl Widget for Link {
 
             let selectable = ui.style().interaction.selectable_labels;
             if selectable {
-                crate::text_selection::label_text_selection(ui, &response, galley_pos, &galley);
+                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &galley);
             }
 
             if response.hovered() {

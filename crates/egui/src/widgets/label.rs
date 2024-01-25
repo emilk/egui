@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use crate::*;
 
+use self::text_selection::LabelSelectionState;
+
 /// Static text.
 ///
 /// Usually it is more convenient to use [`Ui::label`].
@@ -257,7 +259,7 @@ impl Widget for Label {
 
             let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {
-                crate::text_selection::label_text_selection(ui, &response, galley_pos, &galley);
+                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &galley);
             }
         }
 
