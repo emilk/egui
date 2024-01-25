@@ -1388,6 +1388,7 @@ impl Context {
         };
         self.write(|ctx| ctx.plugins.on_begin_frame.push(named_cb));
     }
+
     /// Call the given callback at the end of each frame
     /// of each viewport.
     ///

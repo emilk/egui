@@ -37,6 +37,9 @@ pub fn print(ctx: &Context, text: impl Into<WidgetText>) {
     let location = std::panic::Location::caller();
     let location = format!("{}:{}", location.file(), location.line());
     ctx.data_mut(|data| {
+        // We use `Id::NULL` as the id, since we only have one instance of this plugin.
+        // We use the `temp` version instead of `persisted` since we don't want to
+        // persist state on disk when the egui app is closed.
         let state = data.get_temp_mut_or_default::<State>(Id::NULL);
         state.entries.push(Entry {
             location,
@@ -51,7 +54,7 @@ struct Entry {
     text: WidgetText,
 }
 
-/// A pluging for easily showing debug-text on-screen.
+/// A plugin for easily showing debug-text on-screen.
 ///
 /// This is a built-in plugin in egui.
 #[derive(Clone, Default)]
@@ -69,9 +72,9 @@ impl State {
     }
 
     fn paint(self, ctx: &Context) {
-        let Self { entries: entires } = self;
+        let Self { entries } = self;
 
-        if entires.is_empty() {
+        if entries.is_empty() {
             return;
         }
 
@@ -89,7 +92,7 @@ impl State {
         let color = Color32::GRAY;
         let font_id = FontId::new(10.0, FontFamily::Proportional);
 
-        for Entry { location, text } in entires {
+        for Entry { location, text } in entries {
             {
                 // Paint location to left of `pos`:
                 let location_galley =
