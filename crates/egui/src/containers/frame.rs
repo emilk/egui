@@ -21,20 +21,20 @@ use epaint::*;
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// let frame = Frame::default().inner_margin(4.0).begin(ui);
+/// let frame = egui::Frame::default().inner_margin(4.0).begin(ui);
 /// {
 ///     frame.content_ui.label("Inside the frame");
 ///     frame.content_ui.label("This too");
 /// }
 /// let response = frame.allocate_space(ui);
 /// if response.hovered() {
-///     frame.frame.stroke = Stroke::new(2.0, Color32::WHITE);
+///     frame.frame.fill = egui::Color32::RED;
 /// }
 /// frame.paint(ui);
 /// # });
+/// ```
 ///
 /// Note that you cannot change the margins after calling `begin`.
-/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[must_use = "You should call .show()"]
 pub struct Frame {
