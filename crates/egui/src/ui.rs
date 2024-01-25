@@ -2128,14 +2128,14 @@ impl Ui {
     /// In contrast to [`Response::dnd_set_drag_payload`],
     /// this function will paint the widget at the mouse cursor while the user is dragging.
     #[doc(alias = "drag and drop")]
-    pub fn dnd_drag_source<T, R>(
+    pub fn dnd_drag_source<Payload, R>(
         &mut self,
         id: Id,
-        payload: T,
+        payload: Payload,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R>
     where
-        T: Any + Send + Sync,
+        Payload: Any + Send + Sync,
     {
         let is_being_dragged = self.memory(|mem| mem.is_being_dragged(id));
 
@@ -2167,6 +2167,59 @@ impl Ui {
 
             InnerResponse::new(inner, dnd_response | response)
         }
+    }
+
+    /// Surround the given ui with a frame which
+    /// changes colors when you can drop something onto it.
+    ///
+    /// Returns the dropped item, if it was released this frame.
+    ///
+    /// The given frame is used for its margins, but it color is ignored.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_drop_zone<Payload>(
+        &mut self,
+        frame: Frame,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> (Response, Option<Arc<Payload>>)
+    where
+        Payload: Any + Send + Sync,
+    {
+        let is_anything_being_dragged = DragAndDrop::has_any_payload(self.ctx());
+        let can_accept_what_is_being_dragged =
+            DragAndDrop::has_payload_of_type::<Payload>(self.ctx());
+
+        let mut frame = frame.begin(self);
+        add_contents(&mut frame.content_ui);
+        let response = frame.allocate_space(self);
+
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        let style = if is_anything_being_dragged
+            && can_accept_what_is_being_dragged
+            && response.contains_pointer()
+        {
+            self.visuals().widgets.active
+        } else {
+            self.visuals().widgets.inactive
+        };
+
+        let mut fill = style.bg_fill;
+        let mut stroke = style.bg_stroke;
+
+        if is_anything_being_dragged && !can_accept_what_is_being_dragged {
+            // When dragging something else, show that it can't be dropped here:
+            fill = self.visuals().gray_out(fill);
+            stroke.color = self.visuals().gray_out(stroke.color);
+        }
+
+        frame.frame.fill = fill;
+        frame.frame.stroke = stroke;
+
+        frame.paint(self);
+
+        let payload = response.dnd_release_payload::<Payload>();
+
+        (response, payload)
     }
 
     /// Close the menu we are in (including submenus), if any.
