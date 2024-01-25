@@ -327,11 +327,24 @@ impl Response {
         }
     }
 
+    /// If the user started dragging this widget this frame, store the payload for drag-and-drop.
+    pub fn dnd_set_drag_payload<T: Any + Send + Sync>(&self, payload: T) {
+        if self.drag_started() {
+            crate::DragAndDrop::set_payload(&self.ctx, payload);
+        }
+
+        if self.hovered() && !self.sense.click {
+            // Things that can be drag-dropped should use the Grab cursor icon,
+            // but if the thing is _also_ clickable, that can be annoying.
+            self.ctx.set_cursor_icon(CursorIcon::Grab);
+        }
+    }
+
     /// Drag-and-Drop: Return what the is being held over this widget, if any.
     ///
     /// Only returns something if [`Self::contains_pointer`] is true,
     /// and the user is drag-dropping something of this type.
-    pub fn drag_drop_hover_payload<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
+    pub fn dnd_hover_payload<T: Any + Send + Sync>(&self) -> Option<Arc<T>> {
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
         // `hovered` is always false when another widget is being dragged.
         if self.contains_pointer() {

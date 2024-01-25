@@ -1,8 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
-use std::hash::Hash;
-use std::sync::Arc;
+use std::{any::Any, hash::Hash, sync::Arc};
 
 use epaint::mutex::RwLock;
 
@@ -2119,6 +2118,54 @@ impl Ui {
         let size = vec2(self.available_width().max(total_required_width), max_height);
         self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
         result
+    }
+
+    /// Create something that can be drag-and-dropped.
+    ///
+    /// The `id` needs to be globally unique.
+    /// The payload is what will be dropped if the user starts dragging.
+    ///
+    /// In contrast to [`Response::dnd_set_drag_payload`],
+    /// this function will paint the widget at the mouse cursor while the user is dragging.
+    pub fn dnd_drag_source<T, R>(
+        &mut self,
+        id: Id,
+        payload: T,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R>
+    where
+        T: Any + Send + Sync,
+    {
+        let is_being_dragged = self.memory(|mem| mem.is_being_dragged(id));
+
+        if is_being_dragged {
+            // Paint the body to a new layer:
+            let layer_id = LayerId::new(Order::Tooltip, id);
+            let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
+
+            // Now we move the visuals of the body to where the mouse is.
+            // Normally you need to decide a location for a widget first,
+            // because otherwise that widget cannot interact with the mouse.
+            // However, a dragged component cannot be interacted with anyway
+            // (anything with `Order::Tooltip` always gets an empty [`Response`])
+            // So this is fine!
+
+            if let Some(pointer_pos) = self.ctx().pointer_interact_pos() {
+                let delta = pointer_pos - response.rect.center();
+                self.ctx().translate_layer(layer_id, delta);
+            }
+
+            InnerResponse::new(inner, response)
+        } else {
+            let InnerResponse { inner, response } = self.scope(add_contents);
+
+            // Check for drags:
+            let dnd_response = self.interact(response.rect, id, Sense::drag());
+
+            dnd_response.dnd_set_drag_payload(payload);
+
+            InnerResponse::new(inner, dnd_response | response)
+        }
     }
 
     /// Close the menu we are in (including submenus), if any.
