@@ -19,6 +19,7 @@ pub mod misc_demo_window;
 pub mod multi_touch;
 pub mod paint_bezier;
 pub mod painting;
+pub mod panels;
 pub mod password;
 pub mod plot_demo;
 pub mod scrolling;
@@ -31,7 +32,6 @@ pub mod text_layout;
 pub mod toggle_switch;
 pub mod widget_gallery;
 pub mod window_options;
-pub mod window_with_panels;
 
 pub use {
     about::About, demo_app_windows::DemoWindows, misc_demo_window::MiscDemoWindow,
