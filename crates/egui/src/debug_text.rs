@@ -24,7 +24,7 @@ pub(crate) fn register(ctx: &Context) {
 /// This only works if compiled with `debug_assertions`.
 ///
 /// ```
-/// # let ctx = egui::Context::default();
+/// # let ctx = &egui::Context::default();
 /// # let state = true;
 /// egui::debug_text::print(ctx, format!("State: {state:?}"));
 /// ```
