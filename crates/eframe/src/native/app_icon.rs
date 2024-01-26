@@ -2,7 +2,6 @@
 //!
 //! TODO(emilk): port this to [`winit`].
 
-use cocoa::appkit::NSEventModifierFlags;
 use std::sync::Arc;
 
 use egui::IconData;
@@ -204,7 +203,7 @@ fn set_title_and_icon_mac(_title: &str, icon_data: Option<&IconData>) -> AppIcon
     use crate::icon_data::IconDataExt as _;
     crate::profile_function!();
     use cocoa::{
-        appkit::{NSApp, NSApplication, NSImage, NSMenu, NSMenuItem},
+        appkit::{NSApp, NSApplication, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
         base::{nil, selector},
         foundation::{NSAutoreleasePool, NSData, NSProcessInfo, NSString},
     };
