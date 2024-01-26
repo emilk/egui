@@ -157,7 +157,7 @@ impl WebPainterWgpu {
                     instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                         backends,
                         ..Default::default()
-                    })
+                    });
                 } else {
                     return Err(
                         "Failed to create WebGPU adapter and WebGL was not enabled.".to_owned()
