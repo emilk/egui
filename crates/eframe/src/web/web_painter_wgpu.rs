@@ -127,12 +127,9 @@ impl WebPainterWgpu {
         // Therefore, we have to first check if it's possible to create a WebGPU adapter,
         // and if it is not, start over with a WebGL instance.
         //
-        // Note that we also might end up here if wgpu didn't detect WebGPU support,
-        // moved on to create a wgpu-core instance and then failed to create a WebGL adapter.
-        // To detect this we'd need to check what kind of instance wgpu created,
-        // but this is currently not easily possible. See https://github.com/gfx-rs/wgpu/issues/5142
-        // In that case we'd be trying the same thing again which isn't ideal, but we're in a
-        // pretty bad situation anyway.
+        // Note that we also might needlessly try this here if wgpu already determined that there's no
+        // WebGPU support in the first place. This is not a huge problem since it fails very fast, but
+        // it would be nice to avoid this. See https://github.com/gfx-rs/wgpu/issues/5142
         if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
             log::debug!("Attempting to create WebGPU adapter to check for support.");
             if let Some(adapter) = instance
