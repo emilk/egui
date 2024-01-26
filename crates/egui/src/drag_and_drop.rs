@@ -50,6 +50,14 @@ impl DragAndDrop {
         });
     }
 
+    /// Clears the payload, setting it to `None`.
+    pub fn clear_poayload(ctx: &Context) {
+        ctx.data_mut(|data| {
+            let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
+            state.payload = None;
+        });
+    }
+
     /// Retrieve the payload, if any.
     ///
     /// Returns `None` if there is no payload, or if it is not of the requested type.
