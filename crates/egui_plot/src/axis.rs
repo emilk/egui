@@ -83,7 +83,7 @@ pub struct AxisHints {
     pub(super) formatter: Arc<AxisFormatterFn>,
     pub(super) digits: usize,
     pub(super) placement: Placement,
-    pub(super) distance_fade_range: Rangef,
+    pub(super) spacing: Rangef,
 }
 
 // TODO: this just a guess. It might cease to work if a user changes font size.
@@ -111,7 +111,7 @@ impl AxisHints {
             formatter: Arc::new(Self::default_formatter),
             digits: 5,
             placement: Placement::LeftBottom,
-            distance_fade_range: match axis {
+            spacing: match axis {
                 Axis::X => Rangef::new(50.0, 100.0), // labels can get pretty wide
                 Axis::Y => Rangef::new(20.0, 30.0),  // text isn't very high
             },
@@ -177,13 +177,15 @@ impl AxisHints {
         self
     }
 
-    /// Fade in labels over this distance range.
+    /// Set the minimum spacing between labels
     ///
-    /// When labels get closer together than this min, then they become invisible.
+    /// When labels get closer together than the given minimum, then they become invisible.
     /// When they get further apart than the max, they are at full opacity.
+    ///
+    /// Labels can never be closer together than the [`Plot::grid_spacing`] setting.
     #[inline]
-    pub fn distance_fade_range(mut self, range: impl Into<Rangef>) -> Self {
-        self.distance_fade_range = range.into();
+    pub fn spacing(mut self, range: impl Into<Rangef>) -> Self {
+        self.spacing = range.into();
         self
     }
 
@@ -290,7 +292,7 @@ impl AxisWidget {
             return response;
         };
 
-        let distance_fade_range = self.hints.distance_fade_range;
+        let spacing_range = self.hints.spacing;
 
         for step in self.steps.iter() {
             let text = (self.hints.formatter)(*step, self.hints.digits, &self.range);
@@ -298,13 +300,13 @@ impl AxisWidget {
                 let spacing_in_points =
                     (transform.dpos_dvalue()[usize::from(axis)] * step.step_size).abs() as f32;
 
-                if spacing_in_points <= distance_fade_range.min {
+                if spacing_in_points <= spacing_range.min {
                     // Labels are too close together - don't paint them.
                     continue;
                 }
 
                 // Fade in labels as they get further apart:
-                let strength = remap_clamp(spacing_in_points, distance_fade_range, 0.0..=1.0);
+                let strength = remap_clamp(spacing_in_points, spacing_range, 0.0..=1.0);
 
                 let text_color = super::color_from_strength(ui, strength);
                 let galley = ui
