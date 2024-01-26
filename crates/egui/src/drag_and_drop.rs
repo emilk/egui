@@ -92,14 +92,6 @@ impl DragAndDrop {
         })
     }
 
-    /// Clear the payload, if any.
-    pub fn clear_payload(ctx: &Context) {
-        ctx.data_mut(|data| {
-            let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
-            state.payload = None;
-        });
-    }
-
     /// Are we carrying a payload of the given type?
     ///
     /// Returns `true` both during a drag and on the frame the pointer is released
