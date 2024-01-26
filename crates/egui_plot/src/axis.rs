@@ -112,8 +112,8 @@ impl AxisHints {
             digits: 5,
             placement: Placement::LeftBottom,
             spacing: match axis {
-                Axis::X => Rangef::new(50.0, 100.0), // labels can get pretty wide
-                Axis::Y => Rangef::new(20.0, 30.0),  // text isn't very high
+                Axis::X => Rangef::new(60.0, 80.0), // labels can get pretty wide
+                Axis::Y => Rangef::new(20.0, 30.0), // text isn't very high
             },
         }
     }
