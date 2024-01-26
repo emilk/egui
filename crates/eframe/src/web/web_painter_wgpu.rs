@@ -106,6 +106,8 @@ impl WebPainterWgpu {
             }
         }
 
+        log::debug!("Creating wgpu instance with backends {:?}", backends);
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends,
             ..Default::default()
@@ -117,7 +119,9 @@ impl WebPainterWgpu {
             RenderState::create(wgpu_options, &instance, &surface, depth_format, 1).await;
 
         if let Err(egui_wgpu::WgpuError::NoSuitableAdapterFound) = &render_state_result {
-            if backends == wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL {
+            if backends.contains(wgpu::Backends::BROWSER_WEBGPU)
+                && backends.contains(wgpu::Backends::GL)
+            {
                 // It can happen that a browser advertises WebGPU support, but then fails to create a
                 // suitable adapter. As of writing this happens for example on Linux with Chrome 121.
                 //
@@ -130,6 +134,8 @@ impl WebPainterWgpu {
                 // but this is currently not easily possible. See https://github.com/gfx-rs/wgpu/issues/5142
                 // In that case we'd be trying the same thing again which isn't ideal, but we're in a
                 // pretty bad situation anyway.
+                log::info!("Failed to create adapter, trying to use WebGL explicitly instead.");
+
                 let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                     backends: wgpu::Backends::GL,
                     ..Default::default()
