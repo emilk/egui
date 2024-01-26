@@ -1,3 +1,13 @@
+//! Support for drag-and-drop in egui.
+//!
+//! This module implements the low-level drag-and-drop API with support for manually saving, retrieving, and clearing
+//! drag-and-drop payloads. This enables the maximum flexibility for complex drag-and-drop interactions.
+//!
+//! For a higher-level API, see:
+//! - [`crate::Ui::dnd_drag_source`],
+//! - [`crate::Ui::dnd_drop_zone`],
+//! - and the drag-related functions in [`crate::Response`].
+
 use std::{any::Any, sync::Arc};
 
 use crate::{Context, CursorIcon, Id};
