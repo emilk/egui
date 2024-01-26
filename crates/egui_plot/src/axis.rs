@@ -14,10 +14,10 @@ pub(super) type AxisFormatterFn = dyn Fn(GridMark, usize, &RangeInclusive<f64>) 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Axis {
     /// Horizontal X-Axis
-    X,
+    X = 0,
 
     /// Vertical Y-axis
-    Y,
+    Y = 1,
 }
 
 impl From<Axis> for usize {
@@ -308,8 +308,8 @@ impl AxisWidget {
                         .painter()
                         .layout_no_wrap(text, font_id.clone(), text_color);
 
-                    if galley.size().x > spacing_in_points {
-                        continue;
+                    if spacing_in_points < galley.size()[axis as usize] {
+                        continue; // the galley won't fit
                     }
 
                     let text_pos = match axis {
