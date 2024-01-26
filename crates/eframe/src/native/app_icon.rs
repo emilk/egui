@@ -253,6 +253,43 @@ fn set_title_and_icon_mac(_title: &str, icon_data: Option<&IconData>) -> AppIcon
 
         // create Application menu
         let app_menu = NSMenu::new(nil).autorelease();
+
+        let about_prefix = NSString::alloc(nil).init_str("About ");
+        let about_title =
+            about_prefix.stringByAppendingString_(NSProcessInfo::processInfo(nil).processName());
+        let about_action = selector("orderFrontStandardAboutPanel:");
+        let about_key = NSString::alloc(nil).init_str("");
+        let about_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(about_title, about_action, about_key)
+            .autorelease();
+        app_menu.addItem_(about_item);
+
+        let hide_prefix = NSString::alloc(nil).init_str("Hide ");
+        let hide_title =
+            hide_prefix.stringByAppendingString_(NSProcessInfo::processInfo(nil).processName());
+        let hide_action = selector("hideApp:");
+        let hide_key = NSString::alloc(nil).init_str("h");
+        let hide_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(hide_title, hide_action, hide_key)
+            .autorelease();
+        app_menu.addItem_(hide_item);
+
+        let hide_others_title = NSString::alloc(nil).init_str("Hide Others");
+        let hide_others_action = selector("hideOthers:");
+        let hide_others_key = NSString::alloc(nil).init_str("");
+        let hide_others_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(hide_others_title, hide_others_action, hide_others_key)
+            .autorelease();
+        app_menu.addItem_(hide_others_item);
+
+        let show_all_title = NSString::alloc(nil).init_str("Show All");
+        let show_all_action = selector("showAll:");
+        let show_all_key = NSString::alloc(nil).init_str("");
+        let show_all_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(show_all_title, show_all_action, show_all_key)
+            .autorelease();
+        app_menu.addItem_(show_all_item);
+
         let quit_prefix = NSString::alloc(nil).init_str("Quit ");
         let quit_title =
             quit_prefix.stringByAppendingString_(NSProcessInfo::processInfo(nil).processName());
@@ -262,6 +299,7 @@ fn set_title_and_icon_mac(_title: &str, icon_data: Option<&IconData>) -> AppIcon
             .initWithTitle_action_keyEquivalent_(quit_title, quit_action, quit_key)
             .autorelease();
         app_menu.addItem_(quit_item);
+
         app_menu_item.setSubmenu_(app_menu);
 
         // The title in the Dock apparently can't be changed.
