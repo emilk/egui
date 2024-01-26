@@ -567,15 +567,15 @@ impl CustomAxesDemo {
         ui.label("Zoom in on the X-axis to see hours and minutes");
 
         let x_axes = vec![
-            AxisHints::default().label("Time").formatter(x_fmt),
-            AxisHints::default().label("Value"),
+            AxisHints::new_x().label("Time").formatter(x_fmt),
+            AxisHints::new_x().label("Value"),
         ];
         let y_axes = vec![
-            AxisHints::default()
+            AxisHints::new_y()
                 .label("Percent")
                 .formatter(y_fmt)
                 .max_digits(4),
-            AxisHints::default()
+            AxisHints::new_y()
                 .label("Absolute")
                 .placement(egui_plot::HPlacement::Right),
         ];

@@ -79,7 +79,7 @@ impl Default for CoordinatesFormatter {
 
 // ----------------------------------------------------------------------------
 
-const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
+const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0;
 
 // ----------------------------------------------------------------------------
 
@@ -175,7 +175,9 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: Vec2b,
+
     show_grid: Vec2b,
+    grid_fade_range: Rangef,
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
@@ -218,7 +220,9 @@ impl Plot {
             legend_config: None,
             show_background: true,
             show_axes: true.into(),
+
             show_grid: true.into(),
+            grid_fade_range: Rangef::new(MIN_LINE_SPACING_IN_POINTS as f32, 300.0),
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
@@ -450,6 +454,17 @@ impl Plot {
     #[inline]
     pub fn y_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
         self.grid_spacers[1] = Box::new(spacer);
+        self
+    }
+
+    /// Set when the grid starts showing.
+    ///
+    /// When grid lines are closer than the given minimum, they will be hidden.
+    /// When they get further apart they will fade in, until the reaches the given maximum,
+    /// at which point they are fully opaque.
+    #[inline]
+    pub fn grid_spacing(mut self, grid_fade_range: impl Into<Rangef>) -> Self {
+        self.grid_fade_range = grid_fade_range.into();
         self
     }
 
@@ -723,6 +738,7 @@ impl Plot {
             show_background,
             show_axes,
             show_grid,
+            grid_fade_range,
             linked_axes,
             linked_cursors,
 
@@ -1168,6 +1184,7 @@ impl Plot {
             label_formatter,
             coordinates_formatter,
             show_grid,
+            grid_fade_range,
             transform,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
@@ -1634,6 +1651,7 @@ struct PreparedPlot {
     // axis_formatters: [AxisFormatter; 2],
     transform: PlotTransform,
     show_grid: Vec2b,
+    grid_fade_range: Rangef,
     grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
@@ -1648,10 +1666,10 @@ impl PreparedPlot {
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
-            self.paint_grid(ui, &mut axes_shapes, Axis::X);
+            self.paint_grid(ui, &mut axes_shapes, Axis::X, self.grid_fade_range);
         }
         if self.show_grid.y {
-            self.paint_grid(ui, &mut axes_shapes, Axis::Y);
+            self.paint_grid(ui, &mut axes_shapes, Axis::Y, self.grid_fade_range);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
@@ -1728,7 +1746,7 @@ impl PreparedPlot {
         cursors
     }
 
-    fn paint_grid(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>, axis: Axis) {
+    fn paint_grid(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>, axis: Axis, fade_range: Rangef) {
         #![allow(clippy::collapsible_else_if)]
         let Self {
             transform,
@@ -1746,7 +1764,7 @@ impl PreparedPlot {
 
         let input = GridInput {
             bounds: (bounds.min[iaxis], bounds.max[iaxis]),
-            base_step_size: transform.dvalue_dpos()[iaxis] * MIN_LINE_SPACING_IN_POINTS,
+            base_step_size: transform.dvalue_dpos()[iaxis] * fade_range.min as f64,
         };
         let steps = (grid_spacers[iaxis])(input);
 
@@ -1786,44 +1804,42 @@ impl PreparedPlot {
             let pos_in_gui = transform.position_from_point(&value);
             let spacing_in_points = (transform.dpos_dvalue()[iaxis] * step.step_size).abs() as f32;
 
-            if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
-                let line_strength = remap_clamp(
-                    spacing_in_points,
-                    MIN_LINE_SPACING_IN_POINTS as f32..=300.0,
-                    0.0..=1.0,
-                );
+            if spacing_in_points <= fade_range.min {
+                continue; // Too close together
+            }
 
-                let line_color = color_from_strength(ui, line_strength);
+            let line_strength = remap_clamp(spacing_in_points, fade_range, 0.0..=1.0);
 
-                let mut p0 = pos_in_gui;
-                let mut p1 = pos_in_gui;
-                p0[1 - iaxis] = transform.frame().min[1 - iaxis];
-                p1[1 - iaxis] = transform.frame().max[1 - iaxis];
+            let line_color = color_from_strength(ui, line_strength);
 
-                if let Some(clamp_range) = clamp_range {
-                    match axis {
-                        Axis::X => {
-                            p0.y = transform.position_from_point_y(clamp_range.min[1]);
-                            p1.y = transform.position_from_point_y(clamp_range.max[1]);
-                        }
-                        Axis::Y => {
-                            p0.x = transform.position_from_point_x(clamp_range.min[0]);
-                            p1.x = transform.position_from_point_x(clamp_range.max[0]);
-                        }
+            let mut p0 = pos_in_gui;
+            let mut p1 = pos_in_gui;
+            p0[1 - iaxis] = transform.frame().min[1 - iaxis];
+            p1[1 - iaxis] = transform.frame().max[1 - iaxis];
+
+            if let Some(clamp_range) = clamp_range {
+                match axis {
+                    Axis::X => {
+                        p0.y = transform.position_from_point_y(clamp_range.min[1]);
+                        p1.y = transform.position_from_point_y(clamp_range.max[1]);
+                    }
+                    Axis::Y => {
+                        p0.x = transform.position_from_point_x(clamp_range.min[0]);
+                        p1.x = transform.position_from_point_x(clamp_range.max[0]);
                     }
                 }
-
-                if self.sharp_grid_lines {
-                    // Round to avoid aliasing
-                    p0 = ui.painter().round_pos_to_pixels(p0);
-                    p1 = ui.painter().round_pos_to_pixels(p1);
-                }
-
-                shapes.push((
-                    Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)),
-                    line_strength,
-                ));
             }
+
+            if self.sharp_grid_lines {
+                // Round to avoid aliasing
+                p0 = ui.painter().round_pos_to_pixels(p0);
+                p1 = ui.painter().round_pos_to_pixels(p1);
+            }
+
+            shapes.push((
+                Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)),
+                line_strength,
+            ));
         }
     }
 
