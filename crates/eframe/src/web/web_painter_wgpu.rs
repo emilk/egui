@@ -83,46 +83,95 @@ impl WebPainterWgpu {
         })
     }
 
-    #[allow(unused)] // only used if `wgpu` is the only active feature.
-    pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
-        log::debug!("Creating wgpu painter");
-
-        {
+    pub async fn init_wgpu_and_create_render_state(
+        mut backends: wgpu::Backends,
+        wgpu_options: &egui_wgpu::WgpuConfiguration,
+        depth_format: Option<wgpu::TextureFormat>,
+        canvas: &HtmlCanvasElement,
+    ) -> Result<(RenderState, wgpu::Surface<'static>), String> {
+        // Don't try WebGPU if we're not in a secure context.
+        if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
             let is_secure_context = web_sys::window().map_or(false, |w| w.is_secure_context());
             if !is_secure_context {
                 log::info!(
-                    "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost"
+                    "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
                 );
+
+                // Don't try WebGPU since we established now that it will fail.
+                backends.remove(wgpu::Backends::BROWSER_WEBGPU);
+
+                if backends.is_empty() {
+                    return Err("No available supported graphics backends.".to_owned());
+                }
             }
         }
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: options.wgpu_options.supported_backends,
+            backends,
             ..Default::default()
         });
-
-        let canvas = super::canvas_element_or_die(canvas_id);
-
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
+        let render_state_result =
+            RenderState::create(wgpu_options, &instance, &surface, depth_format, 1).await;
 
+        if let Err(egui_wgpu::WgpuError::NoSuitableAdapterFound) = &render_state_result {
+            if backends == wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL {
+                // It can happen that a browser advertises WebGPU support, but then fails to create a
+                // suitable adapter. As of writing this happens for example on Linux with Chrome 121.
+                //
+                // Since WebGPU is handled in a special way in wgpu, we have to recreate the instance
+                // if we instead want to try with WebGL.
+                //
+                // Note that we also might end up here if wgpu didn't detect WebGPU support,
+                // moved on to create a wgpu-core instance and then failed to create a WebGL adapter.
+                // To detect this we'd need to check what kind of instance wgpu created,
+                // but this is currently not easily possible. See https://github.com/gfx-rs/wgpu/issues/5142
+                // In that case we'd be trying the same thing again which isn't ideal, but we're in a
+                // pretty bad situation anyway.
+                let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                    backends: wgpu::Backends::GL,
+                    ..Default::default()
+                });
+                let surface = instance
+                    .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
+                    .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
+                let render_state =
+                    RenderState::create(wgpu_options, &instance, &surface, depth_format, 1)
+                        .await
+                        .map_err(|err| err.to_string())?;
+
+                return Ok((render_state, surface));
+            }
+        }
+
+        let render_state = render_state_result.map_err(|err| err.to_string())?;
+
+        Ok((render_state, surface))
+    }
+
+    #[allow(unused)] // only used if `wgpu` is the only active feature.
+    pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
+        log::debug!("Creating wgpu painter");
+
+        let canvas = super::canvas_element_or_die(canvas_id);
         let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
-        let render_state =
-            RenderState::create(&options.wgpu_options, &instance, &surface, depth_format, 1)
-                .await
-                .map_err(|err| err.to_string())?;
 
-        let (width, height) = (0, 0);
+        let (render_state, surface) = Self::init_wgpu_and_create_render_state(
+            options.wgpu_options.supported_backends,
+            &options.wgpu_options,
+            depth_format,
+            &canvas,
+        )
+        .await?;
 
         let surface_configuration = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
             present_mode: options.wgpu_options.present_mode,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
             ..surface
-                .get_default_config(&render_state.adapter, width, height)
+                .get_default_config(&render_state.adapter, 0, 0) // Width/height is set later.
                 .ok_or("The surface isn't supported by this adapter")?
         };
 
