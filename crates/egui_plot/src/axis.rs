@@ -231,117 +231,119 @@ impl AxisWidget {
     pub fn ui(self, ui: &mut Ui, axis: Axis) -> Response {
         let response = ui.allocate_rect(self.rect, Sense::hover());
 
-        if ui.is_rect_visible(response.rect) {
-            let visuals = ui.style().visuals.clone();
-            let text = self.hints.label;
-            let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Body);
-            let text_color = visuals
-                .override_text_color
-                .unwrap_or_else(|| ui.visuals().text_color());
-            let angle: f32 = match axis {
-                Axis::X => 0.0,
-                Axis::Y => -std::f32::consts::TAU * 0.25,
-            };
-            // select text_pos and angle depending on placement and orientation of widget
-            let text_pos = match self.hints.placement {
-                Placement::LeftBottom => match axis {
-                    Axis::X => {
-                        let pos = response.rect.center_bottom();
-                        Pos2 {
-                            x: pos.x - galley.size().x / 2.0,
-                            y: pos.y - galley.size().y * 1.25,
-                        }
+        if !ui.is_rect_visible(response.rect) {
+            return response;
+        }
+
+        let visuals = ui.style().visuals.clone();
+        let text = self.hints.label;
+        let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Body);
+        let text_color = visuals
+            .override_text_color
+            .unwrap_or_else(|| ui.visuals().text_color());
+        let angle: f32 = match axis {
+            Axis::X => 0.0,
+            Axis::Y => -std::f32::consts::TAU * 0.25,
+        };
+        // select text_pos and angle depending on placement and orientation of widget
+        let text_pos = match self.hints.placement {
+            Placement::LeftBottom => match axis {
+                Axis::X => {
+                    let pos = response.rect.center_bottom();
+                    Pos2 {
+                        x: pos.x - galley.size().x / 2.0,
+                        y: pos.y - galley.size().y * 1.25,
                     }
-                    Axis::Y => {
-                        let pos = response.rect.left_center();
-                        Pos2 {
-                            x: pos.x,
-                            y: pos.y + galley.size().x / 2.0,
-                        }
-                    }
-                },
-                Placement::RightTop => match axis {
-                    Axis::X => {
-                        let pos = response.rect.center_top();
-                        Pos2 {
-                            x: pos.x - galley.size().x / 2.0,
-                            y: pos.y + galley.size().y * 0.25,
-                        }
-                    }
-                    Axis::Y => {
-                        let pos = response.rect.right_center();
-                        Pos2 {
-                            x: pos.x - galley.size().y * 1.5,
-                            y: pos.y + galley.size().x / 2.0,
-                        }
-                    }
-                },
-            };
-
-            ui.painter()
-                .add(TextShape::new(text_pos, galley, text_color).with_angle(angle));
-
-            // --- add ticks ---
-            let font_id = TextStyle::Body.resolve(ui.style());
-            let Some(transform) = self.transform else {
-                return response;
-            };
-
-            let distance_fade_range = self.hints.distance_fade_range;
-
-            for step in self.steps.iter() {
-                let text = (self.hints.formatter)(*step, self.hints.digits, &self.range);
-                if !text.is_empty() {
-                    let spacing_in_points =
-                        (transform.dpos_dvalue()[usize::from(axis)] * step.step_size).abs() as f32;
-
-                    if spacing_in_points <= distance_fade_range.min {
-                        // Labels are too close together - don't paint them.
-                        continue;
-                    }
-
-                    // Fade in labels as they get further apart:
-                    let strength = remap_clamp(spacing_in_points, distance_fade_range, 0.0..=1.0);
-
-                    let text_color = super::color_from_strength(ui, strength);
-                    let galley = ui
-                        .painter()
-                        .layout_no_wrap(text, font_id.clone(), text_color);
-
-                    if spacing_in_points < galley.size()[axis as usize] {
-                        continue; // the galley won't fit
-                    }
-
-                    let text_pos = match axis {
-                        Axis::X => {
-                            let y = match self.hints.placement {
-                                Placement::LeftBottom => self.rect.min.y,
-                                Placement::RightTop => self.rect.max.y - galley.size().y,
-                            };
-                            let projected_point = super::PlotPoint::new(step.value, 0.0);
-                            Pos2 {
-                                x: transform.position_from_point(&projected_point).x
-                                    - galley.size().x / 2.0,
-                                y,
-                            }
-                        }
-                        Axis::Y => {
-                            let x = match self.hints.placement {
-                                Placement::LeftBottom => self.rect.max.x - galley.size().x,
-                                Placement::RightTop => self.rect.min.x,
-                            };
-                            let projected_point = super::PlotPoint::new(0.0, step.value);
-                            Pos2 {
-                                x,
-                                y: transform.position_from_point(&projected_point).y
-                                    - galley.size().y / 2.0,
-                            }
-                        }
-                    };
-
-                    ui.painter()
-                        .add(Shape::galley(text_pos, galley, text_color));
                 }
+                Axis::Y => {
+                    let pos = response.rect.left_center();
+                    Pos2 {
+                        x: pos.x,
+                        y: pos.y + galley.size().x / 2.0,
+                    }
+                }
+            },
+            Placement::RightTop => match axis {
+                Axis::X => {
+                    let pos = response.rect.center_top();
+                    Pos2 {
+                        x: pos.x - galley.size().x / 2.0,
+                        y: pos.y + galley.size().y * 0.25,
+                    }
+                }
+                Axis::Y => {
+                    let pos = response.rect.right_center();
+                    Pos2 {
+                        x: pos.x - galley.size().y * 1.5,
+                        y: pos.y + galley.size().x / 2.0,
+                    }
+                }
+            },
+        };
+
+        ui.painter()
+            .add(TextShape::new(text_pos, galley, text_color).with_angle(angle));
+
+        // --- add ticks ---
+        let font_id = TextStyle::Body.resolve(ui.style());
+        let Some(transform) = self.transform else {
+            return response;
+        };
+
+        let distance_fade_range = self.hints.distance_fade_range;
+
+        for step in self.steps.iter() {
+            let text = (self.hints.formatter)(*step, self.hints.digits, &self.range);
+            if !text.is_empty() {
+                let spacing_in_points =
+                    (transform.dpos_dvalue()[usize::from(axis)] * step.step_size).abs() as f32;
+
+                if spacing_in_points <= distance_fade_range.min {
+                    // Labels are too close together - don't paint them.
+                    continue;
+                }
+
+                // Fade in labels as they get further apart:
+                let strength = remap_clamp(spacing_in_points, distance_fade_range, 0.0..=1.0);
+
+                let text_color = super::color_from_strength(ui, strength);
+                let galley = ui
+                    .painter()
+                    .layout_no_wrap(text, font_id.clone(), text_color);
+
+                if spacing_in_points < galley.size()[axis as usize] {
+                    continue; // the galley won't fit
+                }
+
+                let text_pos = match axis {
+                    Axis::X => {
+                        let y = match self.hints.placement {
+                            Placement::LeftBottom => self.rect.min.y,
+                            Placement::RightTop => self.rect.max.y - galley.size().y,
+                        };
+                        let projected_point = super::PlotPoint::new(step.value, 0.0);
+                        Pos2 {
+                            x: transform.position_from_point(&projected_point).x
+                                - galley.size().x / 2.0,
+                            y,
+                        }
+                    }
+                    Axis::Y => {
+                        let x = match self.hints.placement {
+                            Placement::LeftBottom => self.rect.max.x - galley.size().x,
+                            Placement::RightTop => self.rect.min.x,
+                        };
+                        let projected_point = super::PlotPoint::new(0.0, step.value);
+                        Pos2 {
+                            x,
+                            y: transform.position_from_point(&projected_point).y
+                                - galley.size().y / 2.0,
+                        }
+                    }
+                };
+
+                ui.painter()
+                    .add(Shape::galley(text_pos, galley, text_color));
             }
         }
 
