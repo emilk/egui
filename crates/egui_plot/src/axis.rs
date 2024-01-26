@@ -1,9 +1,10 @@
 use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 
-use egui::emath::{remap_clamp, round_to_decimals, Pos2, Rect};
-use egui::epaint::{Shape, TextShape};
-
-use crate::{Response, Sense, TextStyle, Ui, WidgetText};
+use egui::{
+    emath::{remap_clamp, round_to_decimals},
+    epaint::TextShape,
+    Pos2, Rangef, Rect, Response, Sense, Shape, TextStyle, Ui, WidgetText,
+};
 
 use super::{transform::PlotTransform, GridMark};
 
@@ -82,28 +83,41 @@ pub struct AxisHints {
     pub(super) formatter: Arc<AxisFormatterFn>,
     pub(super) digits: usize,
     pub(super) placement: Placement,
+    pub(super) distance_fade_range: Rangef,
 }
 
 // TODO: this just a guess. It might cease to work if a user changes font size.
 const LINE_HEIGHT: f32 = 12.0;
 
-impl Default for AxisHints {
+impl AxisHints {
+    /// Initializes a default axis configuration for the X axis.
+    pub fn new_x() -> Self {
+        Self::new(Axis::X)
+    }
+
+    /// Initializes a default axis configuration for the X axis.
+    pub fn new_y() -> Self {
+        Self::new(Axis::Y)
+    }
+
     /// Initializes a default axis configuration for the specified axis.
     ///
     /// `label` is empty.
     /// `formatter` is default float to string formatter.
     /// maximum `digits` on tick label is 5.
-    fn default() -> Self {
+    pub fn new(axis: Axis) -> Self {
         Self {
             label: Default::default(),
             formatter: Arc::new(Self::default_formatter),
             digits: 5,
             placement: Placement::LeftBottom,
+            distance_fade_range: match axis {
+                Axis::X => Rangef::new(50.0, 100.0), // labels can get pretty wide
+                Axis::Y => Rangef::new(20.0, 30.0),  // text isn't very high
+            },
         }
     }
-}
 
-impl AxisHints {
     /// Specify custom formatter for ticks.
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
@@ -160,6 +174,16 @@ impl AxisHints {
     #[inline]
     pub fn placement(mut self, placement: impl Into<Placement>) -> Self {
         self.placement = placement.into();
+        self
+    }
+
+    /// Fade in labels over this distance range.
+    ///
+    /// When labels get closer together than this min, then they become invisible.
+    /// When they get further apart than the max, they are at full opacity.
+    #[inline]
+    pub fn distance_fade_range(mut self, range: impl Into<Rangef>) -> Self {
+        self.distance_fade_range = range.into();
         self
     }
 
@@ -263,27 +287,30 @@ impl AxisWidget {
                 return response;
             };
 
+            let distance_fade_range = self.hints.distance_fade_range;
+
             for step in self.steps.iter() {
                 let text = (self.hints.formatter)(*step, self.hints.digits, &self.range);
                 if !text.is_empty() {
-                    const MIN_TEXT_SPACING: f32 = 20.0;
-                    const FULL_CONTRAST_SPACING: f32 = 40.0;
                     let spacing_in_points =
                         (transform.dpos_dvalue()[usize::from(axis)] * step.step_size).abs() as f32;
 
-                    if spacing_in_points <= MIN_TEXT_SPACING {
+                    if spacing_in_points <= distance_fade_range.min {
+                        // Labels are too close together - don't paint them.
                         continue;
                     }
-                    let line_strength = remap_clamp(
-                        spacing_in_points,
-                        MIN_TEXT_SPACING..=FULL_CONTRAST_SPACING,
-                        0.0..=1.0,
-                    );
 
-                    let line_color = super::color_from_strength(ui, line_strength);
+                    // Fade in labels as they get further apart:
+                    let strength = remap_clamp(spacing_in_points, distance_fade_range, 0.0..=1.0);
+
+                    let text_color = super::color_from_strength(ui, strength);
                     let galley = ui
                         .painter()
-                        .layout_no_wrap(text, font_id.clone(), line_color);
+                        .layout_no_wrap(text, font_id.clone(), text_color);
+
+                    if galley.size().x > spacing_in_points {
+                        continue;
+                    }
 
                     let text_pos = match axis {
                         Axis::X => {
