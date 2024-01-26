@@ -182,7 +182,7 @@ impl AxisHints {
     /// When labels get closer together than the given minimum, then they become invisible.
     /// When they get further apart than the max, they are at full opacity.
     ///
-    /// Labels can never be closer together than the [`Plot::grid_spacing`] setting.
+    /// Labels can never be closer together than the [`crate::Plot::grid_spacing`] setting.
     #[inline]
     pub fn spacing(mut self, range: impl Into<Rangef>) -> Self {
         self.spacing = range.into();
