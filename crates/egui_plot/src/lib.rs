@@ -1946,12 +1946,6 @@ pub fn format_number(number: f64, num_decimals: usize) -> String {
 
 /// Determine a color from a 0-1 strength value.
 pub fn color_from_strength(ui: &Ui, strength: f32) -> Color32 {
-    let bg = ui.visuals().extreme_bg_color;
-    let fg = ui.visuals().widgets.open.fg_stroke.color;
-    let mix = 0.5 * strength.sqrt();
-    Color32::from_rgb(
-        lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
-        lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
-        lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
-    )
+    let base_color = ui.visuals().text_color();
+    base_color.gamma_multiply(strength.sqrt())
 }
