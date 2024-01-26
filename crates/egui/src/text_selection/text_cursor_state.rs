@@ -312,7 +312,7 @@ pub fn create_char_line_indexes(text: &str) -> Vec<usize> {
     let mut line_indexes = vec![0];
 
     let mut count = 0;
-    for (_i, c) in text.chars().enumerate() {
+    for c in text.chars() {
         count += 1;
         if c == '\n' {
             line_indexes.push(count);
