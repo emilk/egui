@@ -1147,7 +1147,7 @@ impl Plot {
         let x_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[0], bounds.max[0]),
-                base_step_size: transform.dvalue_dpos()[0] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                base_step_size: transform.dvalue_dpos()[0].abs() * MIN_LINE_SPACING_IN_POINTS * 2.0,
             };
             (grid_spacers[0])(input)
         });
@@ -1155,7 +1155,7 @@ impl Plot {
         let y_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[1], bounds.max[1]),
-                base_step_size: transform.dvalue_dpos()[1] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                base_step_size: transform.dvalue_dpos()[1].abs() * MIN_LINE_SPACING_IN_POINTS * 2.0,
             };
             (grid_spacers[1])(input)
         });
@@ -1582,6 +1582,8 @@ pub struct GridInput {
     ///
     /// Computed as the ratio between the diagram's bounds (in plot coordinates) and the viewport
     /// (in frame/window coordinates), scaled up to represent the minimal possible step.
+    ///
+    /// Always positive.
     pub base_step_size: f64,
 }
 
@@ -1764,7 +1766,7 @@ impl PreparedPlot {
 
         let input = GridInput {
             bounds: (bounds.min[iaxis], bounds.max[iaxis]),
-            base_step_size: transform.dvalue_dpos()[iaxis] * fade_range.min as f64,
+            base_step_size: transform.dvalue_dpos()[iaxis].abs() * fade_range.min as f64,
         };
         let steps = (grid_spacers[iaxis])(input);
 
