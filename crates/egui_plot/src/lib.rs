@@ -79,10 +79,6 @@ impl Default for CoordinatesFormatter {
 
 // ----------------------------------------------------------------------------
 
-const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0;
-
-// ----------------------------------------------------------------------------
-
 /// Indicates a vertical or horizontal cursor line in plot coordinates.
 #[derive(Copy, Clone, PartialEq)]
 enum Cursor {
@@ -222,7 +218,7 @@ impl Plot {
             show_axes: true.into(),
 
             show_grid: true.into(),
-            grid_fade_range: Rangef::new(MIN_LINE_SPACING_IN_POINTS as f32, 300.0),
+            grid_fade_range: Rangef::new(8.0, 300.0),
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
@@ -1147,7 +1143,7 @@ impl Plot {
         let x_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[0], bounds.max[0]),
-                base_step_size: transform.dvalue_dpos()[0].abs() * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                base_step_size: transform.dvalue_dpos()[0].abs() * grid_fade_range.min as f64,
             };
             (grid_spacers[0])(input)
         });
@@ -1155,7 +1151,7 @@ impl Plot {
         let y_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[1], bounds.max[1]),
-                base_step_size: transform.dvalue_dpos()[1].abs() * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                base_step_size: transform.dvalue_dpos()[1].abs() * grid_fade_range.min as f64,
             };
             (grid_spacers[1])(input)
         });
