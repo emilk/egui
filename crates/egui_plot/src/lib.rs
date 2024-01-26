@@ -173,7 +173,7 @@ pub struct Plot {
     show_axes: Vec2b,
 
     show_grid: Vec2b,
-    grid_fade_range: Rangef,
+    grid_spacing: Rangef,
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
@@ -218,7 +218,7 @@ impl Plot {
             show_axes: true.into(),
 
             show_grid: true.into(),
-            grid_fade_range: Rangef::new(8.0, 300.0),
+            grid_spacing: Rangef::new(8.0, 300.0),
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
@@ -459,8 +459,8 @@ impl Plot {
     /// When they get further apart they will fade in, until the reaches the given maximum,
     /// at which point they are fully opaque.
     #[inline]
-    pub fn grid_spacing(mut self, grid_fade_range: impl Into<Rangef>) -> Self {
-        self.grid_fade_range = grid_fade_range.into();
+    pub fn grid_spacing(mut self, grid_spacing: impl Into<Rangef>) -> Self {
+        self.grid_spacing = grid_spacing.into();
         self
     }
 
@@ -734,7 +734,7 @@ impl Plot {
             show_background,
             show_axes,
             show_grid,
-            grid_fade_range,
+            grid_spacing,
             linked_axes,
             linked_cursors,
 
@@ -1143,7 +1143,7 @@ impl Plot {
         let x_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[0], bounds.max[0]),
-                base_step_size: transform.dvalue_dpos()[0].abs() * grid_fade_range.min as f64,
+                base_step_size: transform.dvalue_dpos()[0].abs() * grid_spacing.min as f64,
             };
             (grid_spacers[0])(input)
         });
@@ -1151,7 +1151,7 @@ impl Plot {
         let y_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[1], bounds.max[1]),
-                base_step_size: transform.dvalue_dpos()[1].abs() * grid_fade_range.min as f64,
+                base_step_size: transform.dvalue_dpos()[1].abs() * grid_spacing.min as f64,
             };
             (grid_spacers[1])(input)
         });
@@ -1180,7 +1180,7 @@ impl Plot {
             label_formatter,
             coordinates_formatter,
             show_grid,
-            grid_fade_range,
+            grid_spacing,
             transform,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
@@ -1649,7 +1649,7 @@ struct PreparedPlot {
     // axis_formatters: [AxisFormatter; 2],
     transform: PlotTransform,
     show_grid: Vec2b,
-    grid_fade_range: Rangef,
+    grid_spacing: Rangef,
     grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
@@ -1664,10 +1664,10 @@ impl PreparedPlot {
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
-            self.paint_grid(ui, &mut axes_shapes, Axis::X, self.grid_fade_range);
+            self.paint_grid(ui, &mut axes_shapes, Axis::X, self.grid_spacing);
         }
         if self.show_grid.y {
-            self.paint_grid(ui, &mut axes_shapes, Axis::Y, self.grid_fade_range);
+            self.paint_grid(ui, &mut axes_shapes, Axis::Y, self.grid_spacing);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
