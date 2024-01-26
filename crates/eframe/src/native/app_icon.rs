@@ -205,7 +205,7 @@ fn set_title_and_icon_mac(_title: &str, icon_data: Option<&IconData>) -> AppIcon
     use cocoa::{
         appkit::{NSApp, NSApplication, NSImage, NSMenu, NSMenuItem},
         base::{nil, selector},
-        foundation::{NSData, NSString, NSAutoreleasePool, NSProcessInfo},
+        foundation::{NSAutoreleasePool, NSData, NSProcessInfo, NSString},
     };
 
     let png_bytes = if let Some(icon_data) = icon_data {
@@ -278,7 +278,11 @@ fn set_title_and_icon_mac(_title: &str, icon_data: Option<&IconData>) -> AppIcon
         let hide_others_action = selector("hideOthers:");
         let hide_others_key = NSString::alloc(nil).init_str("");
         let hide_others_item = NSMenuItem::alloc(nil)
-            .initWithTitle_action_keyEquivalent_(hide_others_title, hide_others_action, hide_others_key)
+            .initWithTitle_action_keyEquivalent_(
+                hide_others_title,
+                hide_others_action,
+                hide_others_key,
+            )
             .autorelease();
         app_menu.addItem_(hide_others_item);
 
