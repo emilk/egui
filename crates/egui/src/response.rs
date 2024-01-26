@@ -70,7 +70,7 @@ pub struct Response {
     #[doc(hidden)]
     pub drag_started: bool,
 
-    /// The widgets is being dragged.
+    /// The widget is being dragged.
     #[doc(hidden)]
     pub dragged: bool,
 
@@ -281,7 +281,7 @@ impl Response {
         self.drag_started() && self.ctx.input(|i| i.pointer.button_down(button))
     }
 
-    /// The widgets is being dragged.
+    /// The widget is being dragged.
     ///
     /// To find out which button(s), use [`Self::dragged_by`].
     ///
