@@ -7,7 +7,7 @@ use crate::{Response, Sense, TextStyle, Ui, WidgetText};
 
 use super::{transform::PlotTransform, GridMark};
 
-pub(super) type AxisFormatterFn = dyn Fn(f64, usize, &RangeInclusive<f64>) -> String;
+pub(super) type AxisFormatterFn = dyn Fn(GridMark, usize, &RangeInclusive<f64>) -> String;
 
 /// X or Y axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,13 +111,19 @@ impl AxisHints {
     /// The second parameter of `formatter` is the currently shown range on this axis.
     pub fn formatter(
         mut self,
-        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
     ) -> Self {
         self.formatter = Arc::new(fmt);
         self
     }
 
-    fn default_formatter(tick: f64, max_digits: usize, _range: &RangeInclusive<f64>) -> String {
+    fn default_formatter(
+        mark: GridMark,
+        max_digits: usize,
+        _range: &RangeInclusive<f64>,
+    ) -> String {
+        let tick = mark.value;
+
         if tick.abs() > 10.0_f64.powf(max_digits as f64) {
             let tick_rounded = tick as isize;
             return format!("{tick_rounded:+e}");
@@ -258,7 +264,7 @@ impl AxisWidget {
             };
 
             for step in self.steps.iter() {
-                let text = (self.hints.formatter)(step.value, self.hints.digits, &self.range);
+                let text = (self.hints.formatter)(*step, self.hints.digits, &self.range);
                 if !text.is_empty() {
                     const MIN_TEXT_SPACING: f32 = 20.0;
                     const FULL_CONTRAST_SPACING: f32 = 40.0;

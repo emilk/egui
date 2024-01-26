@@ -624,12 +624,12 @@ impl Plot {
     /// Specify custom formatter for ticks on the main X-axis.
     ///
     /// Arguments of `fmt`:
-    /// * raw tick value as `f64`.
+    /// * the grid mark to format
     /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn x_axis_formatter(
         mut self,
-        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
     ) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -640,12 +640,12 @@ impl Plot {
     /// Specify custom formatter for ticks on the main Y-axis.
     ///
     /// Arguments of `fmt`:
-    /// * raw tick value as `f64`.
+    /// * the grid mark to format
     /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn y_axis_formatter(
         mut self,
-        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
     ) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.formatter = Arc::new(fmt);

@@ -530,7 +530,8 @@ impl CustomAxesDemo {
             100.0 * y
         }
 
-        let x_fmt = |x, _digits, _range: &RangeInclusive<f64>| {
+        let x_fmt = |x: GridMark, _digits, _range: &RangeInclusive<f64>| {
+            let x = x.value;
             if x < 0.0 * MINS_PER_DAY || x >= 5.0 * MINS_PER_DAY {
                 // No labels outside value bounds
                 String::new()
@@ -543,7 +544,8 @@ impl CustomAxesDemo {
             }
         };
 
-        let y_fmt = |y, _digits, _range: &RangeInclusive<f64>| {
+        let y_fmt = |y: GridMark, _digits, _range: &RangeInclusive<f64>| {
+            let y = y.value;
             // Display only integer percentages
             if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
                 format!("{:.0}%", percent(y))
