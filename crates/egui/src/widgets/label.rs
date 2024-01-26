@@ -33,7 +33,7 @@ impl Label {
         Self {
             text: text.into(),
             wrap: None,
-            truncate: false,
+            truncate: true,
             sense: None,
             selectable: None,
         }
