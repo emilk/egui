@@ -2,8 +2,8 @@
 //!
 //! TODO(emilk): port this to [`winit`].
 
-use std::sync::Arc;
 use cocoa::appkit::NSEventModifierFlags;
+use std::sync::Arc;
 
 use egui::IconData;
 
@@ -279,9 +279,15 @@ fn set_title_and_icon_mac(_title: &str, icon_data: Option<&IconData>) -> AppIcon
         let hide_others_action = selector("hideOtherApplications:");
         let hide_others_key = NSString::alloc(nil).init_str("h");
         let hide_others_item = NSMenuItem::alloc(nil)
-            .initWithTitle_action_keyEquivalent_(hide_others_title, hide_others_action, hide_others_key)
+            .initWithTitle_action_keyEquivalent_(
+                hide_others_title,
+                hide_others_action,
+                hide_others_key,
+            )
             .autorelease();
-        hide_others_item.setKeyEquivalentModifierMask_(NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSAlternateKeyMask);
+        hide_others_item.setKeyEquivalentModifierMask_(
+            NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSAlternateKeyMask,
+        );
         app_menu.addItem_(hide_others_item);
 
         let show_all_title = NSString::alloc(nil).init_str("Show All");
