@@ -839,7 +839,7 @@ impl Plot {
         }
 
         // Allocate the plot window.
-        let response = ui.allocate_rect(plot_rect, Sense::drag());
+        let response = ui.allocate_rect(plot_rect, Sense::click_and_drag());
         let rect = plot_rect;
 
         // Load or initialize the memory.
