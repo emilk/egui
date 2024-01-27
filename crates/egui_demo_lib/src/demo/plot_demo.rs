@@ -530,23 +530,27 @@ impl CustomAxesDemo {
             100.0 * y
         }
 
-        let x_fmt = |x, _digits, _range: &RangeInclusive<f64>| {
-            if x < 0.0 * MINS_PER_DAY || x >= 5.0 * MINS_PER_DAY {
+        let time_formatter = |mark: GridMark, _digits, _range: &RangeInclusive<f64>| {
+            let minutes = mark.value;
+            if minutes < 0.0 || 5.0 * MINS_PER_DAY <= minutes {
                 // No labels outside value bounds
                 String::new()
-            } else if is_approx_integer(x / MINS_PER_DAY) {
+            } else if is_approx_integer(minutes / MINS_PER_DAY) {
                 // Days
-                format!("Day {}", day(x))
+                format!("Day {}", day(minutes))
             } else {
                 // Hours and minutes
-                format!("{h}:{m:02}", h = hour(x), m = minute(x))
+                format!("{h}:{m:02}", h = hour(minutes), m = minute(minutes))
             }
         };
 
-        let y_fmt = |y, _digits, _range: &RangeInclusive<f64>| {
-            // Display only integer percentages
-            if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
-                format!("{:.0}%", percent(y))
+        let percentage_formatter = |mark: GridMark, _digits, _range: &RangeInclusive<f64>| {
+            let percent = 100.0 * mark.value;
+            if is_approx_zero(percent) {
+                String::new() // skip zero
+            } else if is_approx_integer(percent) {
+                // Display only integer percentages
+                format!("{percent:.0}%")
             } else {
                 String::new()
             }
@@ -565,15 +569,15 @@ impl CustomAxesDemo {
         ui.label("Zoom in on the X-axis to see hours and minutes");
 
         let x_axes = vec![
-            AxisHints::default().label("Time").formatter(x_fmt),
-            AxisHints::default().label("Value"),
+            AxisHints::new_x().label("Time").formatter(time_formatter),
+            AxisHints::new_x().label("Value"),
         ];
         let y_axes = vec![
-            AxisHints::default()
+            AxisHints::new_y()
                 .label("Percent")
-                .formatter(y_fmt)
+                .formatter(percentage_formatter)
                 .max_digits(4),
-            AxisHints::default()
+            AxisHints::new_y()
                 .label("Absolute")
                 .placement(egui_plot::HPlacement::Right),
         ];
@@ -769,7 +773,20 @@ struct InteractionDemo {}
 impl InteractionDemo {
     #[allow(clippy::unused_self)]
     fn ui(&mut self, ui: &mut Ui) -> Response {
-        let plot = Plot::new("interaction_demo").height(300.0);
+        let id = ui.make_persistent_id("interaction_demo");
+
+        // This demonstrates how to read info about the plot _before_ showing it:
+        let plot_memory = egui_plot::PlotMemory::load(ui.ctx(), id);
+        if let Some(plot_memory) = plot_memory {
+            let bounds = plot_memory.bounds();
+            ui.label(format!(
+                "plot bounds: min: {:.02?}, max: {:.02?}",
+                bounds.min(),
+                bounds.max()
+            ));
+        }
+
+        let plot = Plot::new("interaction_demo").id(id).height(300.0);
 
         let PlotResponse {
             response,

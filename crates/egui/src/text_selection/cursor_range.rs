@@ -234,10 +234,10 @@ impl CCursorRange {
     }
 
     #[inline]
-    pub fn two(min: CCursor, max: CCursor) -> Self {
+    pub fn two(min: impl Into<CCursor>, max: impl Into<CCursor>) -> Self {
         Self {
-            primary: max,
-            secondary: min,
+            primary: max.into(),
+            secondary: min.into(),
         }
     }
 

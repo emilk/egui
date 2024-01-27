@@ -39,18 +39,6 @@ use super::{
     *,
 };
 
-// Note: that the current Glutin API design tightly couples the GL context with
-// the Window which means it's not practically possible to just destroy the
-// window and re-create a new window while continuing to use the same GL context.
-//
-// For now this means it's not possible to support Android as well as we can with
-// wgpu because we're basically forced to destroy and recreate _everything_ when
-// the application suspends and resumes.
-//
-// There is work in progress to improve the Glutin API so it has a separate Surface
-// API that would allow us to just destroy a Window/Surface when suspending, see:
-// https://github.com/rust-windowing/glutin/pull/1435
-
 // ----------------------------------------------------------------------------
 // Types:
 
@@ -525,7 +513,9 @@ impl GlowWinitRunning {
             let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
             let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
-            let window = viewport.window.as_ref().unwrap();
+            let Some(window) = viewport.window.as_ref() else {
+                return EventResult::Wait;
+            };
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window);
 
             let egui_winit = viewport.egui_winit.as_mut().unwrap();

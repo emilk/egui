@@ -1,8 +1,16 @@
 //! Simple plotting library for [`egui`](https://github.com/emilk/egui).
 //!
+//! Check out [`Plot`] for how to get started.
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
+
+mod axis;
+mod items;
+mod legend;
+mod memory;
+mod transform;
 
 use std::{ops::RangeInclusive, sync::Arc};
 
@@ -26,11 +34,7 @@ pub use transform::{PlotBounds, PlotTransform};
 use items::{horizontal_line, rulers_color, vertical_line};
 
 pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
-
-mod axis;
-mod items;
-mod legend;
-mod transform;
+pub use memory::PlotMemory;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
@@ -70,48 +74,6 @@ impl CoordinatesFormatter {
 impl Default for CoordinatesFormatter {
     fn default() -> Self {
         Self::with_decimals(3)
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
-
-/// Information about the plot that has to persist between frames.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone)]
-struct PlotMemory {
-    /// Indicates if the plot uses automatic bounds. This is disengaged whenever the user modifies
-    /// the bounds, for example by moving or zooming.
-    auto_bounds: Vec2b,
-
-    hovered_entry: Option<String>,
-    hidden_items: ahash::HashSet<String>,
-    last_plot_transform: PlotTransform,
-
-    /// Allows to remember the first click position when performing a boxed zoom
-    last_click_pos_for_zoom: Option<Pos2>,
-}
-
-#[cfg(feature = "serde")]
-impl PlotMemory {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| d.get_persisted(id))
-    }
-
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data_mut(|d| d.insert_persisted(id, self));
-    }
-}
-
-#[cfg(not(feature = "serde"))]
-impl PlotMemory {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| d.get_temp(id))
-    }
-
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data_mut(|d| d.insert_temp(id, self));
     }
 }
 
@@ -166,6 +128,7 @@ pub struct PlotResponse<R> {
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// use egui_plot::{Line, Plot, PlotPoints};
+///
 /// let sin: PlotPoints = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     [x, x.sin()]
@@ -176,6 +139,7 @@ pub struct PlotResponse<R> {
 /// ```
 pub struct Plot {
     id_source: Id,
+    id: Option<Id>,
 
     center_axis: Vec2b,
     allow_zoom: Vec2b,
@@ -207,7 +171,9 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: Vec2b,
+
     show_grid: Vec2b,
+    grid_spacing: Rangef,
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
@@ -218,6 +184,7 @@ impl Plot {
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
             id_source: Id::new(id_source),
+            id: None,
 
             center_axis: false.into(),
             allow_zoom: true.into(),
@@ -244,16 +211,29 @@ impl Plot {
             show_y: true,
             label_formatter: None,
             coordinates_formatter: None,
-            x_axes: vec![Default::default()],
-            y_axes: vec![Default::default()],
+            x_axes: vec![AxisHints::new(Axis::X)],
+            y_axes: vec![AxisHints::new(Axis::Y)],
             legend_config: None,
             show_background: true,
             show_axes: true.into(),
+
             show_grid: true.into(),
+            grid_spacing: Rangef::new(8.0, 300.0),
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
         }
+    }
+
+    /// Set an explicit (global) id for the plot.
+    ///
+    /// This will override the id set by [`Self::new`].
+    ///
+    /// This is the same `Id` that can be used for [`PlotMemory::load`].
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
     }
 
     /// width / height ratio of the data.
@@ -473,6 +453,17 @@ impl Plot {
         self
     }
 
+    /// Set when the grid starts showing.
+    ///
+    /// When grid lines are closer than the given minimum, they will be hidden.
+    /// When they get further apart they will fade in, until the reaches the given maximum,
+    /// at which point they are fully opaque.
+    #[inline]
+    pub fn grid_spacing(mut self, grid_spacing: impl Into<Rangef>) -> Self {
+        self.grid_spacing = grid_spacing.into();
+        self
+    }
+
     /// Clamp the grid to only be visible at the range of data where we have values.
     ///
     /// Default: `false`.
@@ -644,12 +635,12 @@ impl Plot {
     /// Specify custom formatter for ticks on the main X-axis.
     ///
     /// Arguments of `fmt`:
-    /// * raw tick value as `f64`.
+    /// * the grid mark to format
     /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn x_axis_formatter(
         mut self,
-        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
     ) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -660,12 +651,12 @@ impl Plot {
     /// Specify custom formatter for ticks on the main Y-axis.
     ///
     /// Arguments of `fmt`:
-    /// * raw tick value as `f64`.
+    /// * the grid mark to format
     /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn y_axis_formatter(
         mut self,
-        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
     ) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -716,6 +707,7 @@ impl Plot {
     ) -> PlotResponse<R> {
         let Self {
             id_source,
+            id,
             center_axis,
             allow_zoom,
             allow_drag,
@@ -742,6 +734,7 @@ impl Plot {
             show_background,
             show_axes,
             show_grid,
+            grid_spacing,
             linked_axes,
             linked_cursors,
 
@@ -846,11 +839,11 @@ impl Plot {
         }
 
         // Allocate the plot window.
-        let response = ui.allocate_rect(plot_rect, Sense::drag());
+        let response = ui.allocate_rect(plot_rect, Sense::click_and_drag());
         let rect = plot_rect;
 
         // Load or initialize the memory.
-        let plot_id = ui.make_persistent_id(id_source);
+        let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let memory = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
@@ -865,22 +858,17 @@ impl Plot {
         }
         .unwrap_or_else(|| PlotMemory {
             auto_bounds: default_auto_bounds,
-            hovered_entry: None,
+            hovered_item: None,
             hidden_items: Default::default(),
-            last_plot_transform: PlotTransform::new(
-                rect,
-                min_auto_bounds,
-                center_axis.x,
-                center_axis.y,
-            ),
+            transform: PlotTransform::new(rect, min_auto_bounds, center_axis.x, center_axis.y),
             last_click_pos_for_zoom: None,
         });
 
         let PlotMemory {
             mut auto_bounds,
-            mut hovered_entry,
+            mut hovered_item,
             mut hidden_items,
-            last_plot_transform,
+            transform: last_plot_transform,
             mut last_click_pos_for_zoom,
         } = memory;
 
@@ -919,14 +907,14 @@ impl Plot {
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
         // Don't show hover cursor when hovering over legend.
-        if hovered_entry.is_some() {
+        if hovered_item.is_some() {
             show_x = false;
             show_y = false;
         }
         // Remove the deselected items.
         items.retain(|item| !hidden_items.contains(item.name()));
         // Highlight the hovered items.
-        if let Some(hovered_name) = &hovered_entry {
+        if let Some(hovered_name) = &hovered_item {
             items
                 .iter_mut()
                 .filter(|entry| entry.name() == hovered_name)
@@ -1139,7 +1127,7 @@ impl Plot {
                 }
             }
             if allow_scroll {
-                let scroll_delta = ui.input(|i| i.scroll_delta);
+                let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);
                     auto_bounds = false.into();
@@ -1155,7 +1143,7 @@ impl Plot {
         let x_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[0], bounds.max[0]),
-                base_step_size: transform.dvalue_dpos()[0] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                base_step_size: transform.dvalue_dpos()[0].abs() * grid_spacing.min as f64,
             };
             (grid_spacers[0])(input)
         });
@@ -1163,7 +1151,7 @@ impl Plot {
         let y_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[1], bounds.max[1]),
-                base_step_size: transform.dvalue_dpos()[1] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                base_step_size: transform.dvalue_dpos()[1].abs() * grid_spacing.min as f64,
             };
             (grid_spacers[1])(input)
         });
@@ -1192,6 +1180,7 @@ impl Plot {
             label_formatter,
             coordinates_formatter,
             show_grid,
+            grid_spacing,
             transform,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
@@ -1211,7 +1200,7 @@ impl Plot {
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
             hidden_items = legend.hidden_items();
-            hovered_entry = legend.hovered_entry_name();
+            hovered_item = legend.hovered_item_name();
         }
 
         if let Some((id, _)) = linked_cursors.as_ref() {
@@ -1242,9 +1231,9 @@ impl Plot {
 
         let memory = PlotMemory {
             auto_bounds,
-            hovered_entry,
+            hovered_item,
             hidden_items,
-            last_plot_transform: transform,
+            transform,
             last_click_pos_for_zoom,
         };
         memory.store(ui.ctx(), plot_id);
@@ -1589,6 +1578,8 @@ pub struct GridInput {
     ///
     /// Computed as the ratio between the diagram's bounds (in plot coordinates) and the viewport
     /// (in frame/window coordinates), scaled up to represent the minimal possible step.
+    ///
+    /// Always positive.
     pub base_step_size: f64,
 }
 
@@ -1658,6 +1649,7 @@ struct PreparedPlot {
     // axis_formatters: [AxisFormatter; 2],
     transform: PlotTransform,
     show_grid: Vec2b,
+    grid_spacing: Rangef,
     grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
@@ -1672,10 +1664,10 @@ impl PreparedPlot {
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
-            self.paint_grid(ui, &mut axes_shapes, Axis::X);
+            self.paint_grid(ui, &mut axes_shapes, Axis::X, self.grid_spacing);
         }
         if self.show_grid.y {
-            self.paint_grid(ui, &mut axes_shapes, Axis::Y);
+            self.paint_grid(ui, &mut axes_shapes, Axis::Y, self.grid_spacing);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
@@ -1752,7 +1744,7 @@ impl PreparedPlot {
         cursors
     }
 
-    fn paint_grid(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>, axis: Axis) {
+    fn paint_grid(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>, axis: Axis, fade_range: Rangef) {
         #![allow(clippy::collapsible_else_if)]
         let Self {
             transform,
@@ -1770,7 +1762,7 @@ impl PreparedPlot {
 
         let input = GridInput {
             bounds: (bounds.min[iaxis], bounds.max[iaxis]),
-            base_step_size: transform.dvalue_dpos()[iaxis] * MIN_LINE_SPACING_IN_POINTS,
+            base_step_size: transform.dvalue_dpos()[iaxis].abs() * fade_range.min as f64,
         };
         let steps = (grid_spacers[iaxis])(input);
 
@@ -1810,44 +1802,42 @@ impl PreparedPlot {
             let pos_in_gui = transform.position_from_point(&value);
             let spacing_in_points = (transform.dpos_dvalue()[iaxis] * step.step_size).abs() as f32;
 
-            if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
-                let line_strength = remap_clamp(
-                    spacing_in_points,
-                    MIN_LINE_SPACING_IN_POINTS as f32..=300.0,
-                    0.0..=1.0,
-                );
+            if spacing_in_points <= fade_range.min {
+                continue; // Too close together
+            }
 
-                let line_color = color_from_strength(ui, line_strength);
+            let line_strength = remap_clamp(spacing_in_points, fade_range, 0.0..=1.0);
 
-                let mut p0 = pos_in_gui;
-                let mut p1 = pos_in_gui;
-                p0[1 - iaxis] = transform.frame().min[1 - iaxis];
-                p1[1 - iaxis] = transform.frame().max[1 - iaxis];
+            let line_color = color_from_strength(ui, line_strength);
 
-                if let Some(clamp_range) = clamp_range {
-                    match axis {
-                        Axis::X => {
-                            p0.y = transform.position_from_point_y(clamp_range.min[1]);
-                            p1.y = transform.position_from_point_y(clamp_range.max[1]);
-                        }
-                        Axis::Y => {
-                            p0.x = transform.position_from_point_x(clamp_range.min[0]);
-                            p1.x = transform.position_from_point_x(clamp_range.max[0]);
-                        }
+            let mut p0 = pos_in_gui;
+            let mut p1 = pos_in_gui;
+            p0[1 - iaxis] = transform.frame().min[1 - iaxis];
+            p1[1 - iaxis] = transform.frame().max[1 - iaxis];
+
+            if let Some(clamp_range) = clamp_range {
+                match axis {
+                    Axis::X => {
+                        p0.y = transform.position_from_point_y(clamp_range.min[1]);
+                        p1.y = transform.position_from_point_y(clamp_range.max[1]);
+                    }
+                    Axis::Y => {
+                        p0.x = transform.position_from_point_x(clamp_range.min[0]);
+                        p1.x = transform.position_from_point_x(clamp_range.max[0]);
                     }
                 }
-
-                if self.sharp_grid_lines {
-                    // Round to avoid aliasing
-                    p0 = ui.painter().round_pos_to_pixels(p0);
-                    p1 = ui.painter().round_pos_to_pixels(p1);
-                }
-
-                shapes.push((
-                    Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)),
-                    line_strength,
-                ));
             }
+
+            if self.sharp_grid_lines {
+                // Round to avoid aliasing
+                p0 = ui.painter().round_pos_to_pixels(p0);
+                p1 = ui.painter().round_pos_to_pixels(p1);
+            }
+
+            shapes.push((
+                Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)),
+                line_strength,
+            ));
         }
     }
 
@@ -1956,12 +1946,6 @@ pub fn format_number(number: f64, num_decimals: usize) -> String {
 
 /// Determine a color from a 0-1 strength value.
 pub fn color_from_strength(ui: &Ui, strength: f32) -> Color32 {
-    let bg = ui.visuals().extreme_bg_color;
-    let fg = ui.visuals().widgets.open.fg_stroke.color;
-    let mix = 0.5 * strength.sqrt();
-    Color32::from_rgb(
-        lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
-        lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
-        lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
-    )
+    let base_color = ui.visuals().text_color();
+    base_color.gamma_multiply(strength.sqrt())
 }

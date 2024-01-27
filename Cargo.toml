@@ -53,7 +53,7 @@ glow = "0.13"
 puffin = "0.18"
 raw-window-handle = "0.6.0"
 thiserror = "1.0.37"
-wgpu = { version = "0.19", features = [
+wgpu = { version = "0.19.1", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
 ] }

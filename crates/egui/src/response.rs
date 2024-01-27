@@ -49,7 +49,7 @@ bitflags::bitflags! {
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
 // TODO(emilk): we should be using bit sets instead of so many bools
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Response {
     // CONTEXT:
     /// Used for optionally showing a tooltip and checking for more interactions.
@@ -91,34 +91,6 @@ pub struct Response {
     /// `None` if the widget is not being interacted with.
     #[doc(hidden)]
     pub interact_pointer_pos: Option<Pos2>,
-}
-
-impl std::fmt::Debug for Response {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            ctx: _,
-            layer_id,
-            id,
-            rect,
-            sense,
-            state,
-            clicked,
-            double_clicked,
-            triple_clicked,
-            interact_pointer_pos,
-        } = self;
-        f.debug_struct("Response")
-            .field("layer_id", layer_id)
-            .field("id", id)
-            .field("rect", rect)
-            .field("sense", sense)
-            .field("state", state)
-            .field("clicked", clicked)
-            .field("double_clicked", double_clicked)
-            .field("triple_clicked", triple_clicked)
-            .field("interact_pointer_pos", interact_pointer_pos)
-            .finish()
-    }
 }
 
 impl Response {
@@ -284,14 +256,39 @@ impl Response {
         self.ctx.memory_mut(|mem| mem.surrender_focus(self.id));
     }
 
+    /// Did a drag on this widgets begin this frame?
+    ///
+    /// This is only true if the widget sense drags.
+    /// If the widget also senses clicks, this will only become true if the pointer has moved a bit.
+    ///
+    /// This will only be true for a single frame.
+    #[inline]
+    pub fn drag_started(&self) -> bool {
+        self.drag_started
+    }
+
+    /// Did a drag on this widgets by the button begin this frame?
+    ///
+    /// This is only true if the widget sense drags.
+    /// If the widget also senses clicks, this will only become true if the pointer has moved a bit.
+    ///
+    /// This will only be true for a single frame.
+    #[inline]
+    pub fn drag_started_by(&self, button: PointerButton) -> bool {
+        self.drag_started() && self.ctx.input(|i| i.pointer.button_down(button))
+    }
+
     /// The widgets is being dragged.
     ///
-    /// To find out which button(s), query [`crate::PointerState::button_down`]
-    /// (`ui.input(|i| i.pointer.button_down(…))`).
+    /// To find out which button(s), use [`Self::dragged_by`].
     ///
-    /// Note that the widget must be sensing drags with [`Sense::drag`].
+    /// If the widget is only sensitive to drags, this is `true` as soon as the pointer presses down on it.
+    /// If the widget is also sensitive to drags, this won't be true until the pointer has moved a bit,
+    /// or the user has pressed down for long enough.
+    /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
+    ///
+    /// If the widget is NOT sensitive to drags, this will always be `false`.
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
-    ///
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn dragged(&self) -> bool {
@@ -301,18 +298,6 @@ impl Response {
     #[inline]
     pub fn dragged_by(&self, button: PointerButton) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
-    }
-
-    /// Did a drag on this widgets begin this frame?
-    #[inline]
-    pub fn drag_started(&self) -> bool {
-        self.dragged() && self.ctx.input(|i| i.pointer.any_pressed())
-    }
-
-    /// Did a drag on this widgets by the button begin this frame?
-    #[inline]
-    pub fn drag_started_by(&self, button: PointerButton) -> bool {
-        self.drag_started() && self.ctx.input(|i| i.pointer.button_pressed(button))
     }
 
     /// The widget was being dragged, but now it has been released.
@@ -337,6 +322,7 @@ impl Response {
     }
 
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
+    ///
     /// `None` if the widget is not being interacted with.
     #[inline]
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
@@ -344,6 +330,7 @@ impl Response {
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
+    ///
     /// None if the pointer is outside the response area.
     #[inline]
     pub fn hover_pos(&self) -> Option<Pos2> {
@@ -355,7 +342,11 @@ impl Response {
     }
 
     /// Is the pointer button currently down on this widget?
-    /// This is true if the pointer is pressing down or dragging a widget
+    ///
+    /// This is true if the pointer is pressing down or dragging a widget,
+    /// even when dragging outside the widget.
+    ///
+    /// This could also be thought of as "is this widget being interacted with?".
     #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.state

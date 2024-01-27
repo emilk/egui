@@ -66,6 +66,46 @@ impl Default for WrappedTextureManager {
 
 // ----------------------------------------------------------------------------
 
+/// Generic event callback.
+pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
+
+#[derive(Clone)]
+struct NamedContextCallback {
+    debug_name: &'static str,
+    callback: ContextCallback,
+}
+
+/// Callbacks that users can register
+#[derive(Clone, Default)]
+struct Plugins {
+    pub on_begin_frame: Vec<NamedContextCallback>,
+    pub on_end_frame: Vec<NamedContextCallback>,
+}
+
+impl Plugins {
+    fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
+        crate::profile_scope!("plugins", _cb_name);
+        for NamedContextCallback {
+            debug_name: _name,
+            callback,
+        } in callbacks
+        {
+            crate::profile_scope!(_name);
+            (callback)(ctx);
+        }
+    }
+
+    fn on_begin_frame(&self, ctx: &Context) {
+        Self::call(ctx, "on_begin_frame", &self.on_begin_frame);
+    }
+
+    fn on_end_frame(&self, ctx: &Context) {
+        Self::call(ctx, "on_end_frame", &self.on_end_frame);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Repaint-logic
 impl ContextImpl {
     /// This is where we update the repaint logic.
@@ -231,11 +271,6 @@ impl ViewportRepaintInfo {
 
 // ----------------------------------------------------------------------------
 
-struct DebugText {
-    location: String,
-    text: WidgetText,
-}
-
 #[derive(Default)]
 struct ContextImpl {
     /// Since we could have multiple viewport across multiple monitors with
@@ -248,6 +283,8 @@ struct ContextImpl {
 
     memory: Memory,
     animation_manager: AnimationManager,
+
+    plugins: Plugins,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -283,8 +320,6 @@ struct ContextImpl {
     accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
-
-    debug_texts: Vec<DebugText>,
 }
 
 impl ContextImpl {
@@ -556,11 +591,17 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        let ctx = ContextImpl {
+        let ctx_impl = ContextImpl {
             embed_viewports: true,
             ..Default::default()
         };
-        Self(Arc::new(RwLock::new(ctx)))
+        let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
+
+        // Register built-in plugins:
+        crate::debug_text::register(&ctx);
+        crate::text_selection::LabelSelectionState::register(&ctx);
+
+        ctx
     }
 }
 
@@ -625,7 +666,7 @@ impl Context {
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
-
+        self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 }
@@ -697,8 +738,14 @@ impl Context {
 
     /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
-    pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
+    pub fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().graphics))
+    }
+
+    /// Read-only access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
+    #[inline]
+    pub fn graphics<R>(&self, reader: impl FnOnce(&GraphicLayers) -> R) -> R {
+        self.write(move |ctx| reader(&ctx.viewport().graphics))
     }
 
     /// Read-only access to [`PlatformOutput`].
@@ -909,17 +956,14 @@ impl Context {
         enabled: bool,
         contains_pointer: bool,
     ) -> Response {
-        let hovered = contains_pointer && enabled; // can't even hover disabled widgets
-
-        let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
-
         let mut state = ResponseState::empty();
         state.set(ResponseState::ENABLED, enabled);
         state.set(ResponseState::CONTAINS_POINTER, contains_pointer);
-        state.set(ResponseState::HOVERED, hovered);
-        state.set(ResponseState::HIGHLIGHTED, highlighted);
+        state.set(ResponseState::HOVERED, contains_pointer && enabled);
+        state.set(ResponseState::HIGHLIGHTED, self.frame_state(|fs| fs.highlight_this_frame.contains(&id)));
 
-        let mut response = Response {
+        // This is the start - we'll fill in the fields below:
+        let mut res = Response {
             ctx: self.clone(),
             layer_id,
             id,
@@ -946,10 +990,10 @@ impl Context {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            self.accesskit_node_builder(id, |builder| response.fill_accesskit_node_common(builder));
+            self.accesskit_node_builder(id, |builder| res.fill_accesskit_node_common(builder));
         }
 
-        let clicked_elsewhere = response.clicked_elsewhere();
+        let clicked_elsewhere = res.clicked_elsewhere();
         self.write(|ctx| {
             let input = &ctx.viewports.entry(ctx.viewport_id()).or_default().input;
             let memory = &mut ctx.memory;
@@ -959,45 +1003,52 @@ impl Context {
             }
 
             if sense.click
-                && memory.has_focus(response.id)
+                && memory.has_focus(res.id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                response.clicked[PointerButton::Primary as usize] = true;
+                res.clicked[PointerButton::Primary as usize] = true;
             }
 
             #[cfg(feature = "accesskit")]
-            if sense.click
-                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
+            if sense.click && input.has_accesskit_action_request(res.id, accesskit::Action::Default)
             {
-                response.clicked[PointerButton::Primary as usize] = true;
+                res.clicked[PointerButton::Primary as usize] = true;
             }
 
             if sense.click || sense.drag {
                 let interaction = memory.interaction_mut();
 
-                interaction.click_interest |= hovered && sense.click;
-                interaction.drag_interest |= hovered && sense.drag;
+                interaction.click_interest |= contains_pointer && sense.click;
+                interaction.drag_interest |= contains_pointer && sense.drag;
 
-                response
-                    .state
-                    .set(ResponseState::DRAGGED, interaction.drag_id == Some(id));
-                response.state.set(
-                    ResponseState::IS_POINTER_BUTTON_DOWN_ON,
-                    interaction.click_id == Some(id) || response.dragged(),
-                );
+                res.state.set(ResponseState::IS_POINTER_BUTTON_DOWN_ON, interaction.click_id == Some(id) || interaction.drag_id == Some(id));
+
+                if sense.click && sense.drag {
+                    // This widget is sensitive to both clicks and drags.
+                    // When the mouse first is pressed, it could be either,
+                    // so we postpone the decision until we know.
+                    res.state.set(ResponseState::DRAGGED, interaction.drag_id == Some(id) && input.pointer.is_decidedly_dragging());
+                    res.state.set(ResponseState::DRAG_STARTED, res.dragged() && input.pointer.started_decidedly_dragging);
+                } else if sense.drag {
+                    // We are just sensitive to drags, so we can mark ourself as dragged right away:
+                    res.state.set(ResponseState::DRAGGED, interaction.drag_id == Some(id));
+                    // res.drag_started will be filled below if applicable
+                }
+
 
                 for pointer_event in &input.pointer.pointer_events {
                     match pointer_event {
                         PointerEvent::Moved(_) => {}
+
                         PointerEvent::Pressed { .. } => {
-                            if hovered {
+                            if contains_pointer {
                                 let interaction = memory.interaction_mut();
 
                                 if sense.click && interaction.click_id.is_none() {
                                     // potential start of a click
                                     interaction.click_id = Some(id);
-                                    response
+                                    res
                                         .state
                                         .insert(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
                                 }
@@ -1017,28 +1068,40 @@ impl Context {
                                     response
                                         .state
                                         .insert(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
-                                    response.state.insert(ResponseState::DRAGGED);
+
+                                    // Again, only if we are ONLY sensitive to drags can we decide that this is a drag now.
+                                    if sense.click {
+                                        res.state.remove(ResponseState::DRAGGED);
+                                        res.state.remove(ResponseState::DRAG_STARTED);
+                                    } else {
+                                        res.state.insert(ResponseState::DRAGGED);
+                                        res.state.insert(ResponseState::DRAG_STARTED);
+                                    }
                                 }
                             }
                         }
+
                         PointerEvent::Released { click, button } => {
-                            response
+                            res.drag_released = res.dragged;
+                            res.dragged = false;
+                            res
                                 .state
                                 .set(ResponseState::DRAG_RELEASED, response.dragged());
-                            response.state.remove(ResponseState::DRAGGED);
+                            res.state.remove(ResponseState::DRAGGED);
 
-                            if hovered && response.is_pointer_button_down_on() {
+
+                            if sense.click && res.hovered() && res.is_pointer_button_down_on() {
                                 if let Some(click) = click {
-                                    let clicked = hovered && response.is_pointer_button_down_on();
-                                    response.clicked[*button as usize] = clicked;
-                                    response.double_clicked[*button as usize] =
+                                    let clicked = res.hovered() && res.is_pointer_button_down_on();
+                                    res.clicked[*button as usize] = clicked;
+                                    res.double_clicked[*button as usize] =
                                         clicked && click.is_double();
-                                    response.triple_clicked[*button as usize] =
+                                    res.triple_clicked[*button as usize] =
                                         clicked && click.is_triple();
                                 }
                             }
 
-                            response
+                            res
                                 .state
                                 .remove(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
                         }
@@ -1046,26 +1109,26 @@ impl Context {
                 }
             }
 
-            if response.is_pointer_button_down_on() {
-                response.interact_pointer_pos = input.pointer.interact_pos();
+            if res.is_pointer_button_down_on() {
+                res.interact_pointer_pos = input.pointer.interact_pos();
             }
 
-            if input.pointer.any_down() && !response.is_pointer_button_down_on() {
+            if input.pointer.any_down() && !res.is_pointer_button_down_on() {
                 // We don't hover widgets while interacting with *other* widgets:
-                response.state.remove(ResponseState::HOVERED);
+                res.state.remove(ResponseState::HOVERED);
             }
 
-            if memory.has_focus(response.id) && clicked_elsewhere {
+            if memory.has_focus(res.id) && clicked_elsewhere {
                 memory.surrender_focus(id);
             }
 
-            if response.dragged() && !memory.has_focus(response.id) {
+            if res.dragged() && !memory.has_focus(res.id) {
                 // e.g.: remove focus from a widget when you drag something else
                 memory.stop_text_input();
             }
         });
 
-        response
+        res
     }
 
     /// Get a full-screen painter for a new or existing layer
@@ -1090,18 +1153,11 @@ impl Context {
     /// # let state = true;
     /// ctx.debug_text(format!("State: {state:?}"));
     /// ```
+    ///
+    /// This is just a convenience for calling [`crate::debug_text::print`].
     #[track_caller]
     pub fn debug_text(&self, text: impl Into<WidgetText>) {
-        if cfg!(debug_assertions) {
-            let location = std::panic::Location::caller();
-            let location = format!("{}:{}", location.file(), location.line());
-            self.write(|c| {
-                c.debug_texts.push(DebugText {
-                    location,
-                    text: text.into(),
-                });
-            });
-        }
+        crate::debug_text::print(self, text);
     }
 
     /// What operating system are we running on?
@@ -1344,7 +1400,38 @@ impl Context {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
     }
+}
 
+/// Callbacks
+impl Context {
+    /// Call the given callback at the start of each frame
+    /// of each viewport.
+    ///
+    /// This can be used for egui _plugins_.
+    /// See [`crate::debug_text`] for an example.
+    pub fn on_begin_frame(&self, debug_name: &'static str, cb: ContextCallback) {
+        let named_cb = NamedContextCallback {
+            debug_name,
+            callback: cb,
+        };
+        self.write(|ctx| ctx.plugins.on_begin_frame.push(named_cb));
+    }
+
+    /// Call the given callback at the end of each frame
+    /// of each viewport.
+    ///
+    /// This can be used for egui _plugins_.
+    /// See [`crate::debug_text`] for an example.
+    pub fn on_end_frame(&self, debug_name: &'static str, cb: ContextCallback) {
+        let named_cb = NamedContextCallback {
+            debug_name,
+            callback: cb,
+        };
+        self.write(|ctx| ctx.plugins.on_end_frame.push(named_cb));
+    }
+}
+
+impl Context {
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
@@ -1622,62 +1709,7 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
-        let debug_texts = self.write(|ctx| std::mem::take(&mut ctx.debug_texts));
-        if !debug_texts.is_empty() {
-            // Show debug-text next to the cursor.
-            let mut pos = self
-                .input(|i| i.pointer.latest_pos())
-                .unwrap_or_else(|| self.screen_rect().center())
-                + 8.0 * Vec2::Y;
-
-            let painter = self.debug_painter();
-            let where_to_put_background = painter.add(Shape::Noop);
-
-            let mut bounding_rect = Rect::from_points(&[pos]);
-
-            let color = Color32::GRAY;
-            let font_id = FontId::new(10.0, FontFamily::Proportional);
-
-            for DebugText { location, text } in debug_texts {
-                {
-                    // Paint location to left of `pos`:
-                    let location_galley =
-                        self.fonts(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
-                    let location_rect =
-                        Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
-                    painter.galley(location_rect.min, location_galley, color);
-                    bounding_rect = bounding_rect.union(location_rect);
-                }
-
-                {
-                    // Paint `text` to right of `pos`:
-                    let wrap = true;
-                    let available_width = self.screen_rect().max.x - pos.x;
-                    let galley = text.into_galley_impl(
-                        self,
-                        &self.style(),
-                        wrap,
-                        available_width,
-                        font_id.clone().into(),
-                        Align::TOP,
-                    );
-                    let rect = Align2::LEFT_TOP.anchor_size(pos, galley.size());
-                    painter.galley(rect.min, galley, color);
-                    bounding_rect = bounding_rect.union(rect);
-                }
-
-                pos.y = bounding_rect.max.y + 4.0;
-            }
-
-            painter.set(
-                where_to_put_background,
-                Shape::rect_filled(
-                    bounding_rect.expand(4.0),
-                    2.0,
-                    Color32::from_black_alpha(192),
-                ),
-            );
-        }
+        self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
         self.write(|ctx| ctx.end_frame())
     }
@@ -2047,7 +2079,7 @@ impl Context {
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
-            self.graphics_mut(|g| g.list(layer_id).translate(delta));
+            self.graphics_mut(|g| g.entry(layer_id).translate(delta));
         }
     }
 
@@ -2357,6 +2389,15 @@ impl Context {
             .show(ui, |ui| {
                 let font_image_size = self.fonts(|f| f.font_image_size());
                 crate::introspection::font_texture_ui(ui, font_image_size);
+            });
+
+        CollapsingHeader::new("Label text selection state")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label(format!(
+                    "{:#?}",
+                    crate::text_selection::LabelSelectionState::load(ui.ctx())
+                ));
             });
     }
 
