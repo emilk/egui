@@ -718,8 +718,8 @@ impl Response {
     /// ```
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
-    pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) {
-        menu::context_menu(&self, add_contents);
+    pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
+        menu::context_menu(&self, add_contents)
     }
 }
 
