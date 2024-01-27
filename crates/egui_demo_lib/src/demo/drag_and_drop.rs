@@ -27,7 +27,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             let delta = pointer_pos - response.rect.center();
-            ui.ctx().translate_layer(layer_id, delta);
+            ui.ctx().transform_layer(layer_id, delta);
         }
     }
 }

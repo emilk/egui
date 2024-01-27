@@ -1,5 +1,7 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
+use ahash::HashMap;
+
 use crate::{
     area, vec2,
     window::{self, WindowInteraction},
@@ -88,7 +90,7 @@ pub struct Memory {
     // -------------------------------------------------
     // Per-viewport:
     areas: ViewportIdMap<Areas>,
-
+    layer_transforms: HashMap<LayerId, LayerTransform>,
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interactions: ViewportIdMap<Interaction>,
 
@@ -107,6 +109,7 @@ impl Default for Memory {
             viewport_id: Default::default(),
             window_interactions: Default::default(),
             areas: Default::default(),
+            layer_transforms: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
         };
@@ -148,6 +151,30 @@ impl FocusDirection {
 
             Self::Previous | Self::Next | Self::None => false,
         }
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct LayerTransform {
+    pub translation: Vec2,
+    pub scale: f32,
+}
+
+impl Default for LayerTransform {
+    fn default() -> Self {
+        Self {
+            translation: Vec2::default(),
+            scale: 1.0,
+        }
+    }
+}
+
+impl LayerTransform {
+    pub(crate) fn apply(&self, rect: Rect) -> Rect {
+        Rect::from_center_size(
+            (rect.center() + self.translation) * self.scale,
+            rect.size() * self.scale,
+        )
     }
 }
 
@@ -605,9 +632,18 @@ impl Memory {
         self.areas.entry(self.viewport_id).or_default()
     }
 
+    pub fn layer_transforms(&self) -> &HashMap<LayerId, LayerTransform> {
+        &self.layer_transforms
+    }
+
+    pub fn layer_transforms_mut(&mut self) -> &mut HashMap<LayerId, LayerTransform> {
+        &mut self.layer_transforms
+    }
+
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
-        self.areas().layer_id_at(pos, resize_interact_radius_side)
+        self.areas()
+            .layer_id_at(pos, resize_interact_radius_side, &self.layer_transforms)
     }
 
     /// An iterator over all layers. Back-to-front. Top is last.
@@ -883,7 +919,12 @@ impl Areas {
     }
 
     /// Top-most layer at the given position.
-    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
+    pub fn layer_id_at(
+        &self,
+        pos: Pos2,
+        resize_interact_radius_side: f32,
+        layer_transforms: &HashMap<LayerId, LayerTransform>,
+    ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
@@ -892,6 +933,10 @@ impl Areas {
                         if state.edges_padded_for_resize {
                             // Allow us to resize by dragging just outside the window:
                             rect = rect.expand(resize_interact_radius_side);
+                        }
+
+                        if let Some(transform) = layer_transforms.get(&layer) {
+                            rect = transform.apply(rect);
                         }
 
                         if rect.contains(pos) {

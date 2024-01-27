@@ -12,7 +12,7 @@ use crate::{
     input_state::*,
     layers::GraphicLayers,
     load::{Bytes, Loaders, SizedTexture},
-    memory::Options,
+    memory::{LayerTransform, Options},
     os::OperatingSystem,
     output::FullOutput,
     util::IdTypeMap,
@@ -2070,9 +2070,14 @@ impl Context {
     /// Move all the graphics at the given layer.
     ///
     /// Can be used to implement drag-and-drop (see relevant demo).
-    pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
+    pub fn transform_layer(&self, layer_id: LayerId, delta: Vec2, scale: f32) {
         if delta != Vec2::ZERO {
-            self.graphics_mut(|g| g.entry(layer_id).translate(delta));
+            let transform = LayerTransform {
+                translation: delta,
+                scale,
+            };
+            self.graphics_mut(|g| g.entry(layer_id).transform(&transform));
+            self.memory_mut(|m| m.layer_transforms_mut().insert(layer_id, transform));
         }
     }
 
@@ -2101,6 +2106,10 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+        let transform = self
+            .memory(|m| m.layer_transforms().get(&layer_id).cloned())
+            .unwrap_or_default();
+        let rect = transform.apply(rect);
         if !rect.is_positive() {
             return false;
         }
@@ -2141,6 +2150,12 @@ impl Context {
         let mut blocking_widget = None;
 
         self.write(|ctx| {
+            let transform = ctx
+                .memory
+                .layer_transforms()
+                .get(&layer_id)
+                .cloned()
+                .unwrap_or_default();
             let viewport = ctx.viewport();
 
             // We add all widgets here, even non-interactive ones,
@@ -2164,7 +2179,7 @@ impl Context {
                                 // which means there are no widgets covering us.
                                 break;
                             }
-                            if !blocking.rect.contains(pointer_pos) {
+                            if !transform.apply(blocking.rect).contains(pointer_pos) {
                                 continue;
                             }
                             if sense.interactive() && !blocking.sense.interactive() {

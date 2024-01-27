@@ -428,7 +428,7 @@ fn drag_source<R>(
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             let delta = pointer_pos - res.response.rect.center();
-            ui.ctx().translate_layer(layer_id, delta);
+            ui.ctx().transform_layer(layer_id, delta);
         }
 
         res

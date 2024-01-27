@@ -269,9 +269,10 @@ impl Mesh {
     }
 
     /// Translate location by this much, in-place
-    pub fn translate(&mut self, delta: Vec2) {
+    pub fn transform(&mut self, delta: Vec2, scale: f32) {
         for v in &mut self.vertices {
             v.pos += delta;
+            v.pos = (v.pos.to_vec2() * scale).to_pos2();
         }
     }
 

@@ -1,7 +1,7 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{Id, *};
+use crate::{memory::LayerTransform, Id, *};
 use epaint::{ClippedShape, Shape};
 
 /// Different layer categories
@@ -159,10 +159,10 @@ impl PaintList {
     }
 
     /// Translate each [`Shape`] and clip rectangle by this much, in-place
-    pub fn translate(&mut self, delta: Vec2) {
+    pub fn transform(&mut self, transform: &LayerTransform) {
         for ClippedShape { clip_rect, shape } in &mut self.0 {
-            *clip_rect = clip_rect.translate(delta);
-            shape.translate(delta);
+            *clip_rect = transform.apply(*clip_rect);
+            shape.transform(transform.translation, transform.scale);
         }
     }
 
