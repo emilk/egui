@@ -1527,7 +1527,7 @@ impl Ui {
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
             *radians = degrees.to_radians();
-            response.state.set(ResponseState::CHANGED, true);
+            response.state.insert(ResponseState::CHANGED);
         }
 
         response
@@ -1550,7 +1550,7 @@ impl Ui {
         // only touch `*radians` if we actually changed the value
         if taus != *radians / TAU {
             *radians = taus * TAU;
-            response.state.set(ResponseState::CHANGED, true);
+            response.state.insert(ResponseState::CHANGED);
         }
 
         response

@@ -999,7 +999,7 @@ impl Context {
                                     interaction.click_id = Some(id);
                                     response
                                         .state
-                                        .set(ResponseState::IS_POINTER_BUTTON_DOWN_ON, true);
+                                        .insert(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
                                 }
 
                                 // HACK: windows have low priority on dragging.
@@ -1016,8 +1016,8 @@ impl Context {
                                     memory.set_window_interaction(None); // HACK: stop moving windows (if any)
                                     response
                                         .state
-                                        .set(ResponseState::IS_POINTER_BUTTON_DOWN_ON, true);
-                                    response.state.set(ResponseState::DRAGGED, true);
+                                        .insert(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
+                                    response.state.insert(ResponseState::DRAGGED);
                                 }
                             }
                         }
@@ -1025,7 +1025,7 @@ impl Context {
                             response
                                 .state
                                 .set(ResponseState::DRAG_RELEASED, response.dragged());
-                            response.state.set(ResponseState::DRAGGED, false);
+                            response.state.remove(ResponseState::DRAGGED);
 
                             if hovered && response.is_pointer_button_down_on() {
                                 if let Some(click) = click {
@@ -1040,7 +1040,7 @@ impl Context {
 
                             response
                                 .state
-                                .set(ResponseState::IS_POINTER_BUTTON_DOWN_ON, false);
+                                .remove(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
                         }
                     }
                 }
@@ -1052,7 +1052,7 @@ impl Context {
 
             if input.pointer.any_down() && !response.is_pointer_button_down_on() {
                 // We don't hover widgets while interacting with *other* widgets:
-                response.state.set(ResponseState::HOVERED, false);
+                response.state.remove(ResponseState::HOVERED);
             }
 
             if memory.has_focus(response.id) && clicked_elsewhere {
