@@ -868,7 +868,9 @@ impl<'a> Slider<'a> {
         self.slider_ui(ui, &response);
 
         let value = self.get_value();
-        response.changed = value != old_value;
+        response
+            .state
+            .set(ResponseState::CHANGED, value != old_value);
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]

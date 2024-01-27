@@ -424,7 +424,7 @@ pub use {
     load::SizeHint,
     memory::{Memory, Options},
     painter::Painter,
-    response::{InnerResponse, Response},
+    response::{InnerResponse, Response, ResponseState},
     sense::Sense,
     style::{FontSelection, Margin, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},

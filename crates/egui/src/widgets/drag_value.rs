@@ -582,7 +582,9 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        response.changed = get(&mut get_set_value) != old_value;
+        response
+            .state
+            .set(ResponseState::CHANGED, get(&mut get_set_value) != old_value);
 
         response.widget_info(|| WidgetInfo::drag_value(value));
 

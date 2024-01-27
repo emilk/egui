@@ -16,7 +16,7 @@ pub fn label_text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, gall
     let mut cursor_state = LabelSelectionState::load(ui.ctx(), response.id);
     let original_cursor = cursor_state.range(galley);
 
-    if response.hovered {
+    if response.hovered() {
         ui.ctx().set_cursor_icon(CursorIcon::Text);
     } else if !cursor_state.is_empty() && ui.input(|i| i.pointer.any_pressed()) {
         // We clicked somewhere else - deselect this label.
