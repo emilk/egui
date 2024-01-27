@@ -1065,7 +1065,7 @@ impl Context {
                                     interaction.drag_id = Some(id);
                                     interaction.drag_is_window = false;
                                     memory.set_window_interaction(None); // HACK: stop moving windows (if any)
-                                    response
+                                    res
                                         .state
                                         .insert(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
 
@@ -1082,13 +1082,10 @@ impl Context {
                         }
 
                         PointerEvent::Released { click, button } => {
-                            res.drag_released = res.dragged;
-                            res.dragged = false;
                             res
                                 .state
-                                .set(ResponseState::DRAG_RELEASED, response.dragged());
+                                .set(ResponseState::DRAG_RELEASED, res.dragged());
                             res.state.remove(ResponseState::DRAGGED);
-
 
                             if sense.click && res.hovered() && res.is_pointer_button_down_on() {
                                 if let Some(click) = click {

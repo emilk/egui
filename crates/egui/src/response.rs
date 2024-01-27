@@ -9,7 +9,7 @@ use crate::{
 bitflags::bitflags! {
     /// The state of a widget.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct ResponseState: u8 {
+    pub struct ResponseState: u16 {
         /// Was the widget enabled?
         /// If `false`, there was no interaction attempted (not even hover).
         const ENABLED = 1;
@@ -23,21 +23,24 @@ bitflags::bitflags! {
         /// The widget is highlighted via a call to [`Response::highlight`] or [`Context::highlight_widget`].
         const HIGHLIGHTED = 1 << 3;
 
+        /// The widget started being dragged this frame.
+        const DRAG_STARTED = 1 << 4;
+
         /// The widgets is being dragged
-        const DRAGGED = 1 << 4;
+        const DRAGGED = 1 << 5;
 
         /// The widget was being dragged, but now it has been released.
-        const DRAG_RELEASED = 1 << 5;
+        const DRAG_RELEASED = 1 << 6;
 
         /// Is the pointer button currently down on this widget?
         /// This is true if the pointer is pressing down or dragging a widget
-        const IS_POINTER_BUTTON_DOWN_ON = 1 << 6;
+        const IS_POINTER_BUTTON_DOWN_ON = 1 << 7;
 
         /// Was the underlying data changed?
         ///
         /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
         /// Always `false` for something like a [`Button`](crate::Button).
-        const CHANGED = 1 << 7;
+        const CHANGED = 1 << 8;
     }
 }
 
@@ -264,7 +267,7 @@ impl Response {
     /// This will only be true for a single frame.
     #[inline]
     pub fn drag_started(&self) -> bool {
-        self.drag_started
+        self.state.contains(ResponseState::DRAG_STARTED)
     }
 
     /// Did a drag on this widgets by the button begin this frame?
