@@ -91,6 +91,7 @@ pub struct Memory {
     // Per-viewport:
     areas: ViewportIdMap<Areas>,
     layer_transforms: HashMap<LayerId, LayerTransform>,
+
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interactions: ViewportIdMap<Interaction>,
 
@@ -154,7 +155,9 @@ impl FocusDirection {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 pub struct LayerTransform {
     pub translation: Vec2,
     pub scale: f32,
@@ -632,10 +635,12 @@ impl Memory {
         self.areas.entry(self.viewport_id).or_default()
     }
 
+    /// Access layer transformations.
     pub fn layer_transforms(&self) -> &HashMap<LayerId, LayerTransform> {
         &self.layer_transforms
     }
 
+    /// Access layer transformations.
     pub fn layer_transforms_mut(&mut self) -> &mut HashMap<LayerId, LayerTransform> {
         &mut self.layer_transforms
     }
@@ -935,7 +940,7 @@ impl Areas {
                             rect = rect.expand(resize_interact_radius_side);
                         }
 
-                        if let Some(transform) = layer_transforms.get(&layer) {
+                        if let Some(transform) = layer_transforms.get(layer) {
                             rect = transform.apply(rect);
                         }
 

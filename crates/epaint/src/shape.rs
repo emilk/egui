@@ -389,7 +389,7 @@ impl Shape {
             Self::Text(text_shape) => {
                 transform_point(&mut text_shape.pos);
                 let mut galley = (*text_shape.galley).clone();
-                for row in galley.rows.iter_mut() {
+                for row in &mut galley.rows {
                     row.visuals.mesh.transform(Vec2::ZERO, scale);
                 }
 
