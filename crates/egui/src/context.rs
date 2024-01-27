@@ -682,7 +682,7 @@ impl Context {
     /// ```
     /// # let mut ctx = egui::Context::default();
     /// ctx.input(|i| {
-    ///     // ⚠️ Using `ctx` (even from other `Arc` reference) again here will lead to a dead-lock!
+    ///     // ⚠️ Using `ctx` (even from other `Arc` reference) again here will lead to a deadlock!
     /// });
     ///
     /// if let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) {
@@ -1338,18 +1338,18 @@ impl Context {
     /// redraws when the app is not in focus. But sometimes the GUI of the app might become stale
     /// and outdated if it is not updated for too long.
     ///
-    /// Lets say, something like a stop watch widget that displays the time in seconds. You would waste
+    /// Let's say, something like a stopwatch widget that displays the time in seconds. You would waste
     /// resources repainting multiple times within the same second (when you have no input),
     /// just calculate the difference of duration between current time and next second change,
     /// and call this function, to make sure that you are displaying the latest updated time, but
     /// not wasting resources on needless repaints within the same second.
     ///
     /// ### Quirk:
-    /// Duration begins at the next frame. lets say for example that its a very inefficient app
+    /// Duration begins at the next frame. Let's say for example that it's a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
-    /// So, its not that we are requesting repaint within X duration. We are rather timing out
+    /// So, it's not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the specified viewport
@@ -2887,12 +2887,12 @@ impl Context {
 
     /// For integrations: Set this to render a sync viewport.
     ///
-    /// This will only be set the callback for the current thread,
+    /// This will only set the callback for the current thread,
     /// which most likely should be the main thread.
     ///
     /// When an immediate viewport is created with [`Self::show_viewport_immediate`] it will be rendered by this function.
     ///
-    /// When called, the integration need to:
+    /// When called, the integration needs to:
     /// * Check if there already is a window for this viewport id, and if not open one
     /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
     /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
@@ -2930,7 +2930,7 @@ impl Context {
         self.send_viewport_cmd_to(self.viewport_id(), command);
     }
 
-    /// Send a command to a speicfic viewport.
+    /// Send a command to a specific viewport.
     ///
     /// This lets you affect another viewport, e.g. resizing its window.
     pub fn send_viewport_cmd_to(&self, id: ViewportId, command: ViewportCommand) {
