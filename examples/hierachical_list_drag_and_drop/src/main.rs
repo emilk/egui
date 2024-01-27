@@ -15,6 +15,6 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "My egui App",
         options,
-        Box::new(|cc| Box::<HierarchicalDragAndDrop>::default()),
+        Box::new(|_cc| Box::<HierarchicalDragAndDrop>::default()),
     )
 }

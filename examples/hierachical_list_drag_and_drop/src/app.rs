@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+//! This demo is a stripped-down version of the drag-and-drop implementation in the
+//! [rerun viewer](https://github.com/rerun-io/rerun).
+
+use std::collections::HashMap;
 
 use eframe::{egui, egui::NumExt as _};
 
@@ -30,12 +33,6 @@ enum Item {
 
 #[derive(Debug)]
 enum Command {
-    /// Set the selection to the given item.
-    SetSelection(ItemId),
-
-    /// Toggle the selected state of the given item.
-    ToggleSelected(ItemId),
-
     /// Move the currently dragged item to the given container and position.
     MoveItem {
         moved_item_id: ItemId,
@@ -43,7 +40,7 @@ enum Command {
         target_position_index: usize,
     },
 
-    /// Specify the currently identifed target container to be highlighted.
+    /// Specify the currently identified target container to be highlighted.
     HighlightTargetContainer(ItemId),
 }
 
@@ -53,9 +50,6 @@ pub struct HierarchicalDragAndDrop {
 
     /// Id of the root item (not displayed in the UI)
     root_id: ItemId,
-
-    /// Set of all selected items
-    selected_items: HashSet<ItemId>,
 
     /// If a drag is ongoing, this is the id of the destination container (if any was identified)
     ///
@@ -79,7 +73,6 @@ impl Default for HierarchicalDragAndDrop {
         let mut res = Self {
             items: std::iter::once((root_id, root_item)).collect(),
             root_id,
-            selected_items: HashSet::new(),
             target_container: None,
             command_receiver,
             command_sender,
@@ -227,10 +220,6 @@ impl HierarchicalDragAndDrop {
         }
     }
 
-    fn selected(&self, id: ItemId) -> bool {
-        self.selected_items.contains(&id)
-    }
-
     fn send_command(&self, command: Command) {
         // The only way this can fail is if the receiver has been dropped.
         self.command_sender.send(command).ok();
@@ -252,17 +241,6 @@ impl HierarchicalDragAndDrop {
         while let Ok(command) = self.command_receiver.try_recv() {
             //println!("Received command: {command:?}");
             match command {
-                Command::SetSelection(item_id) => {
-                    self.selected_items.clear();
-                    self.selected_items.insert(item_id);
-                }
-                Command::ToggleSelected(item_id) => {
-                    if self.selected_items.contains(&item_id) {
-                        self.selected_items.remove(&item_id);
-                    } else {
-                        self.selected_items.insert(item_id);
-                    }
-                }
                 Command::MoveItem {
                     moved_item_id,
                     target_container_id,
@@ -276,7 +254,7 @@ impl HierarchicalDragAndDrop {
     }
 
     fn container_ui(&self, ui: &mut egui::Ui, item_id: ItemId, children: &Vec<ItemId>) {
-        let (_, header_resp, body_resp) =
+        let (response, head_response, body_resp) =
             egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
                 item_id.into(),
@@ -293,11 +271,11 @@ impl HierarchicalDragAndDrop {
                 self.container_children_ui(ui, children);
             });
 
-        self.handle_interaction(
+        self.handle_drag_and_drop_interaction(
             ui,
             item_id,
             true,
-            &header_resp.inner,
+            &head_response.inner.union(response),
             body_resp.as_ref().map(|r| &r.response),
         );
     }
@@ -322,16 +300,11 @@ impl HierarchicalDragAndDrop {
                 .selectable(false)
                 .sense(egui::Sense::drag()),
         );
-        // let response = re_ui
-        //     .list_item(label)
-        //     .selected(self.selected(item_id))
-        //     .draggable(true)
-        //     .show(ui);
 
-        self.handle_interaction(ui, item_id, false, &response, None);
+        self.handle_drag_and_drop_interaction(ui, item_id, false, &response, None);
     }
 
-    fn handle_interaction(
+    fn handle_drag_and_drop_interaction(
         &self,
         ui: &egui::Ui,
         item_id: ItemId,
@@ -340,31 +313,15 @@ impl HierarchicalDragAndDrop {
         body_response: Option<&egui::Response>,
     ) {
         //
-        // basic selection management
-        //
-
-        if response.clicked() {
-            if ui.input(|i| i.modifiers.command) {
-                self.send_command(Command::ToggleSelected(item_id));
-            } else {
-                self.send_command(Command::SetSelection(item_id));
-            }
-        }
-
-        //
-        // handle drag
+        // handle start of drag
         //
 
         if response.drag_started() {
-            // Here, we support dragging a single item at a time, so we set the selection to the dragged item
-            // if/when we're dragging it proper.
-            self.send_command(Command::SetSelection(item_id));
-
             egui::DragAndDrop::set_payload(ui.ctx(), item_id);
         }
 
         //
-        // handle drop
+        // handle candidate drop
         //
 
         // find the item being dragged
@@ -397,11 +354,28 @@ impl HierarchicalDragAndDrop {
             previous_container_id,
         };
 
+        //
+        // compute the drag target areas based on the item and body responses
+        //
+
+        // adjust the drop target to account for the spacing between items
+        let item_rect = response
+            .rect
+            .expand2(egui::Vec2::new(0.0, ui.spacing().item_spacing.y / 2.0));
+        let body_rect = body_response.map(|r| {
+            r.rect
+                .expand2(egui::Vec2::new(0.0, ui.spacing().item_spacing.y))
+        });
+
+        //
+        // find the candidate drop target
+        //
+
         let drop_target = crate::drag_and_drop::find_drop_target(
             ui,
             &item_desc,
-            response.rect,
-            body_response.map(|r| r.rect),
+            item_rect,
+            body_rect,
             response.rect.height(),
         );
 
@@ -413,10 +387,13 @@ impl HierarchicalDragAndDrop {
                 return;
             }
 
+            // extend the cursor to the right of the enclosing container
+            let mut span_x = drop_target.indicator_span_x;
+            span_x.max = ui.cursor().right();
+
             ui.painter().hline(
-                drop_target.indicator_span_x,
+                span_x,
                 drop_target.indicator_position_y,
-                //TODO: use style
                 (2.0, egui::Color32::BLACK),
             );
 

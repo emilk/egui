@@ -211,7 +211,7 @@ pub fn find_drop_target<ItemId: Copy>(
             );
             ui.ctx().debug_painter().debug_rect(
                 body_insert_after_me_area,
-                egui::Color32::YELLOW,
+                egui::Color32::BLUE.gamma_multiply(0.5),
                 "bdy",
             );
         }
