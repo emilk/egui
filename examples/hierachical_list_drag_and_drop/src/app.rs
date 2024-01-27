@@ -33,6 +33,9 @@ enum Item {
 
 #[derive(Debug)]
 enum Command {
+    /// Set the selected item
+    SetSelectedItem(Option<ItemId>),
+
     /// Move the currently dragged item to the given container and position.
     MoveItem {
         moved_item_id: ItemId,
@@ -50,6 +53,9 @@ pub struct HierarchicalDragAndDrop {
 
     /// Id of the root item (not displayed in the UI)
     root_id: ItemId,
+
+    /// Selected item, if any
+    selected_item: Option<ItemId>,
 
     /// If a drag is ongoing, this is the id of the destination container (if any was identified)
     ///
@@ -73,6 +79,7 @@ impl Default for HierarchicalDragAndDrop {
         let mut res = Self {
             items: std::iter::once((root_id, root_item)).collect(),
             root_id,
+            selected_item: None,
             target_container: None,
             command_receiver,
             command_sender,
@@ -235,12 +242,25 @@ impl HierarchicalDragAndDrop {
             self.container_children_ui(ui, top_level_items);
         }
 
+        // deselect by clicking in the empty space
+        if ui
+            .interact(
+                ui.available_rect_before_wrap(),
+                "empty_space".into(),
+                egui::Sense::click(),
+            )
+            .clicked()
+        {
+            self.send_command(Command::SetSelectedItem(None));
+        }
+
         // always reset the target container
         self.target_container = None;
 
         while let Ok(command) = self.command_receiver.try_recv() {
-            //println!("Received command: {command:?}");
+            println!("Received command: {command:?}");
             match command {
+                Command::SetSelectedItem(item_id) => self.selected_item = item_id,
                 Command::MoveItem {
                     moved_item_id,
                     target_container_id,
@@ -264,12 +284,24 @@ impl HierarchicalDragAndDrop {
                 ui.add(
                     egui::Label::new(format!("Container {item_id:?}"))
                         .selectable(false)
-                        .sense(egui::Sense::drag()),
+                        .sense(egui::Sense::click_and_drag()),
                 )
             })
             .body(|ui| {
                 self.container_children_ui(ui, children);
             });
+
+        if head_response.inner.clicked() {
+            self.send_command(Command::SetSelectedItem(Some(item_id)));
+        }
+
+        if self.target_container == Some(item_id) {
+            ui.painter().rect_stroke(
+                head_response.inner.rect,
+                2.0,
+                (1.0, ui.visuals().selection.bg_fill),
+            );
+        }
 
         self.handle_drag_and_drop_interaction(
             ui,
@@ -282,6 +314,13 @@ impl HierarchicalDragAndDrop {
 
     fn container_children_ui(&self, ui: &mut egui::Ui, children: &Vec<ItemId>) {
         for child_id in children {
+            // check if the item is selected
+            ui.visuals_mut().override_text_color = if Some(*child_id) == self.selected_item {
+                Some(ui.visuals().selection.bg_fill)
+            } else {
+                None
+            };
+
             match self.items.get(child_id) {
                 Some(Item::Container(children)) => {
                     self.container_ui(ui, *child_id, children);
@@ -298,8 +337,12 @@ impl HierarchicalDragAndDrop {
         let response = ui.add(
             egui::Label::new(label)
                 .selectable(false)
-                .sense(egui::Sense::drag()),
+                .sense(egui::Sense::click_and_drag()),
         );
+
+        if response.clicked() {
+            self.send_command(Command::SetSelectedItem(Some(item_id)));
+        }
 
         self.handle_drag_and_drop_interaction(ui, item_id, false, &response, None);
     }
@@ -318,6 +361,9 @@ impl HierarchicalDragAndDrop {
 
         if response.drag_started() {
             egui::DragAndDrop::set_payload(ui.ctx(), item_id);
+
+            // force selection to the dragged item
+            self.send_command(Command::SetSelectedItem(Some(item_id)));
         }
 
         //
