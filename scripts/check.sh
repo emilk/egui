@@ -35,10 +35,23 @@ cargo test  --quiet --all-targets --all-features
 cargo test  --quiet --doc # slow - checks all doc-tests
 
 cargo check --quiet -p eframe --no-default-features --features "glow"
-cargo check --quiet -p eframe --no-default-features --features "wgpu"
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  cargo check --quiet -p eframe --no-default-features --features "wgpu","x11"
+  cargo check --quiet -p eframe --no-default-features --features "wgpu","wayland"
+else
+  cargo check --quiet -p eframe --no-default-features --features "wgpu"
+fi
+
 cargo check --quiet -p egui --no-default-features --features "serde"
-cargo check --quiet -p egui_demo_app --no-default-features --features "glow"
-cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu"
+cargo check --quiet -p egui_demo_app --no-default-features --features "glow","x11"
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","x11"
+  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","wayland"
+else
+  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu"
+fi
+
 cargo check --quiet -p egui_demo_lib --no-default-features
 cargo check --quiet -p egui_extras --no-default-features
 cargo check --quiet -p egui_glow --no-default-features
