@@ -43,7 +43,7 @@ else
 fi
 
 cargo check --quiet -p egui --no-default-features --features "serde"
-cargo check --quiet -p egui_demo_app --no-default-features --features "glow","x11"
+cargo check --quiet -p egui_demo_app --no-default-features --features "glow"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
   cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","x11"
