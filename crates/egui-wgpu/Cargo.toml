@@ -25,6 +25,7 @@ include = [
 
 [package.metadata.docs.rs]
 all-features = true
+features = ["winit/x11", "winit/wayland"]
 
 
 [features]
