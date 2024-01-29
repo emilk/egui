@@ -572,7 +572,7 @@ impl Painter {
 
         let output_frame = {
             crate::profile_scope!("get_current_texture");
-            // This is where vsnc happens:
+            // This is what vsync-waiting happens on my Mac.
             let start = web_time::Instant::now();
             let output_frame = surface_state.surface.get_current_texture();
             vsync_sec += start.elapsed().as_secs_f32();
@@ -669,9 +669,12 @@ impl Painter {
         // Submit the commands: both the main buffer and user-defined ones.
         {
             crate::profile_scope!("Queue::submit");
+            // wgpu doesn't document where vsync can happen. Maybe here?
+            let start = web_time::Instant::now();
             render_state
                 .queue
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
+            vsync_sec += start.elapsed().as_secs_f32();
         };
 
         let screenshot = if capture {
@@ -686,7 +689,10 @@ impl Painter {
 
         {
             crate::profile_scope!("present");
+            // wgpu doesn't document where vsync can happen. Maybe here?
+            let start = web_time::Instant::now();
             output_frame.present();
+            vsync_sec += start.elapsed().as_secs_f32();
         }
 
         (vsync_sec, screenshot)
