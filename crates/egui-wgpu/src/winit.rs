@@ -563,7 +563,7 @@ impl Painter {
 
         let output_frame = {
             crate::profile_scope!("get_current_texture");
-            // This is what vsync-waiting happens, at least on Mac.
+            // This is what vsync-waiting happens everywhere except DX12
             surface_state.surface.get_current_texture()
         };
 
@@ -668,6 +668,7 @@ impl Painter {
 
         {
             crate::profile_scope!("present");
+            // This is where vsync happens in DX12
             output_frame.present();
         }
         screenshot
