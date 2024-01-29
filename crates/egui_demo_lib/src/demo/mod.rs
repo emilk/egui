@@ -19,6 +19,7 @@ pub mod misc_demo_window;
 pub mod multi_touch;
 pub mod paint_bezier;
 pub mod painting;
+pub mod pan_zoom;
 pub mod panels;
 pub mod password;
 pub mod plot_demo;
