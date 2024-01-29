@@ -1,7 +1,6 @@
 //! Common tools used by [`super::glow_integration`] and [`super::wgpu_integration`].
 
-use std::time::Instant;
-
+use web_time::Instant;
 use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -259,7 +258,6 @@ impl EpiIntegration {
     }
 
     pub fn pre_update(&mut self) {
-        self.frame_start = Instant::now();
         self.app_icon_setter.update();
     }
 
@@ -304,9 +302,8 @@ impl EpiIntegration {
         std::mem::take(&mut self.pending_full_output)
     }
 
-    pub fn post_update(&mut self) {
-        let frame_time = self.frame_start.elapsed().as_secs_f64() as f32;
-        self.frame.info.cpu_usage = Some(frame_time);
+    pub fn report_frame_time(&mut self, seconds: f32) {
+        self.frame.info.cpu_usage = Some(seconds);
     }
 
     pub fn post_rendering(&mut self, window: &winit::window::Window) {

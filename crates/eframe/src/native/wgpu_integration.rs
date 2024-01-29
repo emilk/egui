@@ -528,6 +528,9 @@ impl WgpuWinitRunning {
             shared,
         } = self;
 
+        let mut frame_timer = crate::stopwatch::Stopwatch::new();
+        frame_timer.start();
+
         let (viewport_ui_cb, raw_input) = {
             crate::profile_scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
@@ -628,8 +631,6 @@ impl WgpuWinitRunning {
             return EventResult::Wait;
         };
 
-        integration.post_update();
-
         let FullOutput {
             platform_output,
             textures_delta,
@@ -640,27 +641,25 @@ impl WgpuWinitRunning {
 
         egui_winit.handle_platform_output(window, platform_output);
 
-        {
-            let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+        let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
-            let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
-            let screenshot = painter.paint_and_update_textures(
-                viewport_id,
-                pixels_per_point,
-                app.clear_color(&egui_ctx.style().visuals),
-                &clipped_primitives,
-                &textures_delta,
-                screenshot_requested,
-            );
-            if let Some(screenshot) = screenshot {
-                egui_winit
-                    .egui_input_mut()
-                    .events
-                    .push(egui::Event::Screenshot {
-                        viewport_id,
-                        image: screenshot.into(),
-                    });
-            }
+        let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
+        let (vsync_secs, screenshot) = painter.paint_and_update_textures(
+            viewport_id,
+            pixels_per_point,
+            app.clear_color(&egui_ctx.style().visuals),
+            &clipped_primitives,
+            &textures_delta,
+            screenshot_requested,
+        );
+        if let Some(screenshot) = screenshot {
+            egui_winit
+                .egui_input_mut()
+                .events
+                .push(egui::Event::Screenshot {
+                    viewport_id,
+                    image: screenshot.into(),
+                });
         }
 
         integration.post_rendering(window);
@@ -683,6 +682,8 @@ impl WgpuWinitRunning {
             .get(&window_id)
             .and_then(|id| viewports.get(id))
             .and_then(|vp| vp.window.as_ref());
+
+        integration.report_frame_time(frame_timer.total_time_sec() - vsync_secs); // don't count auto-save time as part of regular frame time
 
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 

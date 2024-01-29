@@ -1206,6 +1206,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time",
  "wgpu",
  "winapi",
  "winit",
@@ -1239,6 +1240,7 @@ dependencies = [
  "puffin",
  "thiserror",
  "type-map",
+ "web-time",
  "wgpu",
  "winit",
 ]

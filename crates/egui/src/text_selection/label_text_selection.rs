@@ -372,16 +372,18 @@ impl LabelSelectionState {
                     selection.primary =
                         WidgetTextCursor::new(response.id, new_primary, galley_pos, galley);
 
-                    if response.drag_started() {
+                    // We don't want the latency of `drag_started`.
+                    let drag_started = ui.input(|i| i.pointer.any_pressed());
+                    if drag_started {
                         if selection.layer_id == response.layer_id {
                             if ui.input(|i| i.modifiers.shift) {
-                                // A continuation of a previous selection?
+                                // A continuation of a previous selection.
                             } else {
-                                // A new selection.
+                                // A new selection in the same layer.
                                 selection.secondary = selection.primary;
                             }
                         } else {
-                            // A new selection.
+                            // A new selection in a new layer.
                             selection.layer_id = response.layer_id;
                             selection.secondary = selection.primary;
                         }
@@ -474,7 +476,7 @@ impl LabelSelectionState {
         }
 
         self.any_hovered |= response.hovered();
-        self.is_dragging |= response.dragged();
+        self.is_dragging |= response.is_pointer_button_down_on(); // we don't want the initial latency of drag vs click decision
 
         let old_selection = self.selection;
 

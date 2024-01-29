@@ -757,7 +757,13 @@ pub struct IntegrationInfo {
     /// `None` means "don't know".
     pub system_theme: Option<Theme>,
 
-    /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
+    /// Seconds of cpu usage (in seconds) on the previous frame.
+    ///
+    /// This includes [`App::update`] as well as rendering (except for vsync waiting).
+    ///
+    /// For a more detailed view of cpu usage, use the [`puffin`](https://crates.io/crates/puffin)
+    /// profiler together with the `puffin` feature of `eframe`.
+    ///
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
 }

@@ -348,6 +348,7 @@ pub mod containers;
 mod context;
 mod data;
 pub mod debug_text;
+mod drag_and_drop;
 mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
@@ -417,6 +418,7 @@ pub use {
         },
         Key,
     },
+    drag_and_drop::DragAndDrop,
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},

@@ -1,8 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
-use std::hash::Hash;
-use std::sync::Arc;
+use std::{any::Any, hash::Hash, sync::Arc};
 
 use epaint::mutex::RwLock;
 
@@ -2119,6 +2118,108 @@ impl Ui {
         let size = vec2(self.available_width().max(total_required_width), max_height);
         self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
         result
+    }
+
+    /// Create something that can be drag-and-dropped.
+    ///
+    /// The `id` needs to be globally unique.
+    /// The payload is what will be dropped if the user starts dragging.
+    ///
+    /// In contrast to [`Response::dnd_set_drag_payload`],
+    /// this function will paint the widget at the mouse cursor while the user is dragging.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_drag_source<Payload, R>(
+        &mut self,
+        id: Id,
+        payload: Payload,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R>
+    where
+        Payload: Any + Send + Sync,
+    {
+        let is_being_dragged = self.memory(|mem| mem.is_being_dragged(id));
+
+        if is_being_dragged {
+            // Paint the body to a new layer:
+            let layer_id = LayerId::new(Order::Tooltip, id);
+            let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
+
+            // Now we move the visuals of the body to where the mouse is.
+            // Normally you need to decide a location for a widget first,
+            // because otherwise that widget cannot interact with the mouse.
+            // However, a dragged component cannot be interacted with anyway
+            // (anything with `Order::Tooltip` always gets an empty [`Response`])
+            // So this is fine!
+
+            if let Some(pointer_pos) = self.ctx().pointer_interact_pos() {
+                let delta = pointer_pos - response.rect.center();
+                self.ctx().transform_layer(layer_id, delta, 1.0);
+            }
+
+            InnerResponse::new(inner, response)
+        } else {
+            let InnerResponse { inner, response } = self.scope(add_contents);
+
+            // Check for drags:
+            let dnd_response = self.interact(response.rect, id, Sense::drag());
+
+            dnd_response.dnd_set_drag_payload(payload);
+
+            InnerResponse::new(inner, dnd_response | response)
+        }
+    }
+
+    /// Surround the given ui with a frame which
+    /// changes colors when you can drop something onto it.
+    ///
+    /// Returns the dropped item, if it was released this frame.
+    ///
+    /// The given frame is used for its margins, but it color is ignored.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_drop_zone<Payload>(
+        &mut self,
+        frame: Frame,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> (Response, Option<Arc<Payload>>)
+    where
+        Payload: Any + Send + Sync,
+    {
+        let is_anything_being_dragged = DragAndDrop::has_any_payload(self.ctx());
+        let can_accept_what_is_being_dragged =
+            DragAndDrop::has_payload_of_type::<Payload>(self.ctx());
+
+        let mut frame = frame.begin(self);
+        add_contents(&mut frame.content_ui);
+        let response = frame.allocate_space(self);
+
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        let style = if is_anything_being_dragged
+            && can_accept_what_is_being_dragged
+            && response.contains_pointer()
+        {
+            self.visuals().widgets.active
+        } else {
+            self.visuals().widgets.inactive
+        };
+
+        let mut fill = style.bg_fill;
+        let mut stroke = style.bg_stroke;
+
+        if is_anything_being_dragged && !can_accept_what_is_being_dragged {
+            // When dragging something else, show that it can't be dropped here:
+            fill = self.visuals().gray_out(fill);
+            stroke.color = self.visuals().gray_out(stroke.color);
+        }
+
+        frame.frame.fill = fill;
+        frame.frame.stroke = stroke;
+
+        frame.paint(self);
+
+        let payload = response.dnd_release_payload::<Payload>();
+
+        (response, payload)
     }
 
     /// Close the menu we are in (including submenus), if any.
