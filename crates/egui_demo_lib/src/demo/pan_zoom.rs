@@ -1,5 +1,3 @@
-use egui::{Area, Sense};
-
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PanZoom {
@@ -57,7 +55,7 @@ impl super::View for PanZoom {
         }
 
         let current_size = ui.min_rect();
-        let layer_ids = [
+        [
             (
                 current_size.left_top() + egui::Vec2::new(10.0, 10.0),
                 "top left!",
@@ -77,7 +75,7 @@ impl super::View for PanZoom {
         ]
         .iter()
         .map(|(pos, msg)| {
-            Area::new(*msg)
+            egui::Area::new(*msg)
                 .default_pos(*pos)
                 // Need to cover up the pan_zoom demo window,
                 // but may also cover over other windows.
