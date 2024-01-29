@@ -370,7 +370,7 @@ impl Line {
     pub fn new(series: impl Into<PlotPoints>) -> Self {
         Self {
             series: series.into(),
-            stroke: Stroke::new(1.0, Color32::TRANSPARENT),
+            stroke: Stroke::new(1.5, Color32::TRANSPARENT), // Note: a stroke of 1.0 (or less) can look bad on low-dpi-screens
             name: Default::default(),
             highlight: false,
             fill: None,
