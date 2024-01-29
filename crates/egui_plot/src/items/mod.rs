@@ -66,6 +66,11 @@ pub(super) trait PlotItem {
             PlotGeometry::Rects => {
                 panic!("If the PlotItem is made of rects, it should implement find_closest()")
             }
+            PlotGeometry::GenericPoints => {
+                panic!(
+                    "If the PlotItem is made of Generic points, it should implement find_closest()"
+                )
+            }
         }
     }
 
@@ -84,6 +89,9 @@ pub(super) trait PlotItem {
             }
             PlotGeometry::Rects => {
                 panic!("If the PlotItem is made of rects, it should implement on_hover()")
+            }
+            PlotGeometry::GenericPoints => {
+                panic!("If the PlotItem is made of generic points, it should implement on_hover()")
             }
         };
 
@@ -107,6 +115,42 @@ pub(super) trait PlotItem {
             cursors,
             label_formatter,
         );
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Trait shared by structs that are plot points.
+/// This abstracts behaviour away from owned, generated and borrowed plot points
+
+pub trait GenericPlotPoints {
+    type Item;
+    type Iter: Iterator<Item = Self::Item> + Clone;
+
+    fn points(&self) -> Self::Iter;
+
+    fn bounds(&self) -> PlotBounds;
+
+    fn initialize(&mut self, _: RangeInclusive<f64>) {}
+}
+
+impl<'a, T> GenericPlotPoints for T
+where
+    T: Iterator<Item = &'a PlotPoint> + Clone,
+{
+    type Item = &'a PlotPoint;
+    type Iter = Self;
+
+    fn points(&self) -> Self::Iter {
+        self.clone()
+    }
+
+    fn bounds(&self) -> PlotBounds {
+        let mut bounds = PlotBounds::NOTHING;
+        for point in self.clone() {
+            bounds.extend_with(point);
+        }
+        bounds
     }
 }
 
@@ -771,8 +815,8 @@ impl PlotItem for Text {
 }
 
 /// A set of points.
-pub struct Points {
-    pub(super) series: PlotPoints,
+pub struct Points<T> {
+    pub(super) series: T,
 
     pub(super) shape: MarkerShape,
 
@@ -792,7 +836,25 @@ pub struct Points {
     pub(super) stems: Option<f32>,
 }
 
-impl Points {
+impl<T> Points<T>
+where
+    T: GenericPlotPoints,
+{
+    pub fn new_generic(t: T) -> Self {
+        Self {
+            series: t,
+            shape: MarkerShape::Circle,
+            color: Color32::TRANSPARENT,
+            filled: true,
+            radius: 1.0,
+            name: Default::default(),
+            highlight: false,
+            stems: None,
+        }
+    }
+}
+
+impl Points<PlotPoints> {
     pub fn new(series: impl Into<PlotPoints>) -> Self {
         Self {
             series: series.into(),
@@ -805,12 +867,20 @@ impl Points {
             stems: None,
         }
     }
+}
 
+impl<T> Points<T> {
     /// Set the shape of the markers.
     #[inline]
     pub fn shape(mut self, shape: MarkerShape) -> Self {
         self.shape = shape;
         self
+    }
+
+    /// Set the shape of the markers.
+    #[inline]
+    pub fn shape_mut(&mut self, shape: MarkerShape) {
+        self.shape = shape;
     }
 
     /// Highlight these points in the plot by scaling up their markers.
@@ -820,11 +890,23 @@ impl Points {
         self
     }
 
+    /// Highlight these points in the plot by scaling up their markers.
+    #[inline]
+    pub fn highlight_mut(&mut self, highlight: bool) {
+        self.highlight = highlight;
+    }
+
     /// Set the marker's color.
     #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
         self
+    }
+
+    /// Set the marker's color.
+    #[inline]
+    pub fn color_mut(&mut self, color: impl Into<Color32>) {
+        self.color = color.into();
     }
 
     /// Whether to fill the marker.
@@ -834,6 +916,12 @@ impl Points {
         self
     }
 
+    /// Whether to fill the marker.
+    #[inline]
+    pub fn filled_mut(&mut self, filled: bool) {
+        self.filled = filled;
+    }
+
     /// Whether to add stems between the markers and a horizontal reference line.
     #[inline]
     pub fn stems(mut self, y_reference: impl Into<f32>) -> Self {
@@ -841,11 +929,23 @@ impl Points {
         self
     }
 
+    /// Whether to add stems between the markers and a horizontal reference line.
+    #[inline]
+    pub fn stems_mut(&mut self, y_reference: impl Into<f32>) {
+        self.stems = Some(y_reference.into());
+    }
+
     /// Set the maximum extent of the marker around its position.
     #[inline]
     pub fn radius(mut self, radius: impl Into<f32>) -> Self {
         self.radius = radius.into();
         self
+    }
+
+    /// Set the maximum extent of the marker around its position.
+    #[inline]
+    pub fn radius_mut(&mut self, radius: impl Into<f32>) {
+        self.radius = radius.into();
     }
 
     /// Name of this set of points.
@@ -862,7 +962,7 @@ impl Points {
     }
 }
 
-impl PlotItem for Points {
+impl PlotItem for Points<PlotPoints> {
     fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3_f32.sqrt();
         let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
@@ -1013,6 +1113,209 @@ impl PlotItem for Points {
 
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.series.points())
+    }
+
+    fn bounds(&self) -> PlotBounds {
+        self.series.bounds()
+    }
+}
+
+impl<'a, T> PlotItem for Points<T>
+where
+    T: GenericPlotPoints<Item = &'a PlotPoint>,
+{
+    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+        let sqrt_3 = 3_f32.sqrt();
+        let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
+        let frac_1_sqrt_2 = 1.0 / 2_f32.sqrt();
+
+        let Self {
+            series,
+            shape,
+            color,
+            filled,
+            mut radius,
+            highlight,
+            stems,
+            ..
+        } = self;
+
+        let stroke_size = radius / 5.0;
+
+        let default_stroke = Stroke::new(stroke_size, *color);
+        let mut stem_stroke = default_stroke;
+        let (fill, stroke) = if *filled {
+            (*color, Stroke::NONE)
+        } else {
+            (Color32::TRANSPARENT, default_stroke)
+        };
+
+        if *highlight {
+            radius *= 2f32.sqrt();
+            stem_stroke.width *= 2.0;
+        }
+
+        let y_reference = stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y);
+
+        series
+            .points()
+            .map(|value| transform.position_from_point(value))
+            .for_each(|center| {
+                let tf = |dx: f32, dy: f32| -> Pos2 { center + radius * vec2(dx, dy) };
+
+                if let Some(y) = y_reference {
+                    let stem = Shape::line_segment([center, pos2(center.x, y)], stem_stroke);
+                    shapes.push(stem);
+                }
+
+                match shape {
+                    MarkerShape::Circle => {
+                        shapes.push(Shape::Circle(epaint::CircleShape {
+                            center,
+                            radius,
+                            fill,
+                            stroke,
+                        }));
+                    }
+                    MarkerShape::Diamond => {
+                        let points = vec![
+                            tf(0.0, 1.0),  // bottom
+                            tf(-1.0, 0.0), // left
+                            tf(0.0, -1.0), // top
+                            tf(1.0, 0.0),  // right
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Square => {
+                        let points = vec![
+                            tf(-frac_1_sqrt_2, frac_1_sqrt_2),
+                            tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, frac_1_sqrt_2),
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Cross => {
+                        let diagonal1 = [
+                            tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, frac_1_sqrt_2),
+                        ];
+                        let diagonal2 = [
+                            tf(frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(-frac_1_sqrt_2, frac_1_sqrt_2),
+                        ];
+                        shapes.push(Shape::line_segment(diagonal1, default_stroke));
+                        shapes.push(Shape::line_segment(diagonal2, default_stroke));
+                    }
+                    MarkerShape::Plus => {
+                        let horizontal = [tf(-1.0, 0.0), tf(1.0, 0.0)];
+                        let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
+                        shapes.push(Shape::line_segment(horizontal, default_stroke));
+                        shapes.push(Shape::line_segment(vertical, default_stroke));
+                    }
+                    MarkerShape::Up => {
+                        let points =
+                            vec![tf(0.0, -1.0), tf(0.5 * sqrt_3, 0.5), tf(-0.5 * sqrt_3, 0.5)];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Down => {
+                        let points = vec![
+                            tf(0.0, 1.0),
+                            tf(-0.5 * sqrt_3, -0.5),
+                            tf(0.5 * sqrt_3, -0.5),
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Left => {
+                        let points =
+                            vec![tf(-1.0, 0.0), tf(0.5, -0.5 * sqrt_3), tf(0.5, 0.5 * sqrt_3)];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Right => {
+                        let points = vec![
+                            tf(1.0, 0.0),
+                            tf(-0.5, 0.5 * sqrt_3),
+                            tf(-0.5, -0.5 * sqrt_3),
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Asterisk => {
+                        let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
+                        let diagonal1 = [tf(-frac_sqrt_3_2, 0.5), tf(frac_sqrt_3_2, -0.5)];
+                        let diagonal2 = [tf(-frac_sqrt_3_2, -0.5), tf(frac_sqrt_3_2, 0.5)];
+                        shapes.push(Shape::line_segment(vertical, default_stroke));
+                        shapes.push(Shape::line_segment(diagonal1, default_stroke));
+                        shapes.push(Shape::line_segment(diagonal2, default_stroke));
+                    }
+                }
+            });
+    }
+
+    fn initialize(&mut self, x_range: RangeInclusive<f64>) {
+        self.series.initialize(x_range);
+    }
+
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn color(&self) -> Color32 {
+        self.color
+    }
+
+    fn highlight(&mut self) {
+        self.highlight = true;
+    }
+
+    fn highlighted(&self) -> bool {
+        self.highlight
+    }
+
+    fn geometry(&self) -> PlotGeometry<'_> {
+        PlotGeometry::GenericPoints
+    }
+
+    fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
+        self.series
+            .points()
+            .enumerate()
+            .map(|(index, value)| {
+                let pos = transform.position_from_point(value);
+                let dist_sq = point.distance_sq(pos);
+                ClosestElem { index, dist_sq }
+            })
+            .min_by_key(|e| e.dist_sq.ord())
+    }
+
+    fn on_hover(
+        &self,
+        elem: ClosestElem,
+        shapes: &mut Vec<Shape>,
+        cursors: &mut Vec<Cursor>,
+        plot: &PlotConfig<'_>,
+        label_formatter: &LabelFormatter,
+    ) {
+        let line_color = if plot.ui.visuals().dark_mode {
+            Color32::from_gray(100).additive()
+        } else {
+            Color32::from_black_alpha(180)
+        };
+
+        // this method is only called, if the value is in the result set of find_closest()
+        if let Some(value) = self.series.points().nth(elem.index) {
+            let pointer = plot.transform.position_from_point(value);
+            shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
+
+            rulers_at_value(
+                pointer,
+                *value,
+                self.name(),
+                plot,
+                shapes,
+                cursors,
+                label_formatter,
+            );
+        }
     }
 
     fn bounds(&self) -> PlotBounds {

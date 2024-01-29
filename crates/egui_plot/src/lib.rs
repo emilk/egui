@@ -12,11 +12,10 @@ mod legend;
 mod memory;
 mod transform;
 
-use std::{ops::RangeInclusive, sync::Arc};
+use std::{marker::PhantomData, ops::RangeInclusive, sync::Arc};
 
 use egui::ahash::HashMap;
 use epaint::util::FloatOrd;
-use epaint::Hsva;
 
 use axis::AxisWidget;
 use items::PlotItem;
@@ -29,12 +28,15 @@ pub use items::{
     Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
+pub use plot_ui::{PlotUi, PlotUiBuilder};
 pub use transform::{PlotBounds, PlotTransform};
 
 use items::{horizontal_line, rulers_color, vertical_line};
 
 pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
 pub use memory::PlotMemory;
+
+mod plot_ui;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
@@ -134,10 +136,12 @@ pub struct PlotResponse<R> {
 ///     [x, x.sin()]
 /// }).collect();
 /// let line = Line::new(sin);
-/// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
+/// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| {
+///     plot_ui.line(line);
+/// });
 /// # });
 /// ```
-pub struct Plot {
+pub struct Plot<'a> {
     id_source: Id,
     id: Option<Id>,
 
@@ -177,9 +181,11 @@ pub struct Plot {
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
+
+    phantom_plot_ui: std::marker::PhantomData<PlotUi<'a>>,
 }
 
-impl Plot {
+impl<'a> Plot<'a> {
     /// Give a unique id for each plot within the same [`Ui`].
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
@@ -222,6 +228,8 @@ impl Plot {
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
+
+            phantom_plot_ui: PhantomData,
         }
     }
 
@@ -387,7 +395,9 @@ impl Plot {
     ///         "".to_owned()
     ///     }
     /// })
-    /// .show(ui, |plot_ui| plot_ui.line(line));
+    /// .show(ui, |plot_ui| {
+    ///    plot_ui.line(line);
+    /// });
     /// # });
     /// ```
     pub fn label_formatter(
@@ -696,15 +706,11 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
-        self.show_dyn(ui, Box::new(build_fn))
-    }
 
-    fn show_dyn<'a, R>(
-        self,
-        ui: &mut Ui,
-        build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
-    ) -> PlotResponse<R> {
+    pub fn show<F, R>(self, ui: &mut Ui, build_fn: F) -> PlotResponse<R>
+    where
+        F: FnOnce(&mut PlotUi<'a>) -> R,
+    {
         let Self {
             id_source,
             id,
@@ -741,6 +747,8 @@ impl Plot {
             clamp_grid,
             grid_spacers,
             sharp_grid_lines,
+
+            phantom_plot_ui: _,
         } = self;
 
         // Determine position of widget.
@@ -882,7 +890,9 @@ impl Plot {
             bounds_modifications: Vec::new(),
             ctx: ui.ctx().clone(),
         };
+
         let inner = build_fn(&mut plot_ui);
+
         let PlotUi {
             mut items,
             mut response,
@@ -905,7 +915,8 @@ impl Plot {
 
         // --- Legend ---
         let legend = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
+            .and_then(|config| LegendWidget::try_new(rect, config, items.iter(), &hidden_items));
+
         // Don't show hover cursor when hovering over legend.
         if hovered_item.is_some() {
             show_x = false;
@@ -1334,235 +1345,6 @@ enum BoundsModification {
     Zoom(Vec2, PlotPoint),
 }
 
-/// Provides methods to interact with a plot while building it. It is the single argument of the closure
-/// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
-pub struct PlotUi {
-    items: Vec<Box<dyn PlotItem>>,
-    next_auto_color_idx: usize,
-    last_plot_transform: PlotTransform,
-    last_auto_bounds: Vec2b,
-    response: Response,
-    bounds_modifications: Vec<BoundsModification>,
-    ctx: Context,
-}
-
-impl PlotUi {
-    fn auto_color(&mut self) -> Color32 {
-        let i = self.next_auto_color_idx;
-        self.next_auto_color_idx += 1;
-        let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-        let h = i as f32 * golden_ratio;
-        Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO(emilk): OkLab or some other perspective color space
-    }
-
-    pub fn ctx(&self) -> &Context {
-        &self.ctx
-    }
-
-    /// The plot bounds as they were in the last frame. If called on the first frame and the bounds were not
-    /// further specified in the plot builder, this will return bounds centered on the origin. The bounds do
-    /// not change until the plot is drawn.
-    pub fn plot_bounds(&self) -> PlotBounds {
-        *self.last_plot_transform.bounds()
-    }
-
-    /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
-    pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) {
-        self.bounds_modifications
-            .push(BoundsModification::Set(plot_bounds));
-    }
-
-    /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
-    pub fn translate_bounds(&mut self, delta_pos: Vec2) {
-        self.bounds_modifications
-            .push(BoundsModification::Translate(delta_pos));
-    }
-
-    /// Whether the plot axes were in auto-bounds mode in the last frame. If called on the first
-    /// frame, this is the [`Plot`]'s default auto-bounds mode.
-    pub fn auto_bounds(&self) -> Vec2b {
-        self.last_auto_bounds
-    }
-
-    /// Set the auto-bounds mode for the plot axes.
-    pub fn set_auto_bounds(&mut self, auto_bounds: Vec2b) {
-        self.bounds_modifications
-            .push(BoundsModification::AutoBounds(auto_bounds));
-    }
-
-    /// Can be used to check if the plot was hovered or clicked.
-    pub fn response(&self) -> &Response {
-        &self.response
-    }
-
-    /// Scale the plot bounds around a position in screen coordinates.
-    ///
-    /// Can be useful for implementing alternative plot navigation methods.
-    ///
-    /// The plot bounds are divided by `zoom_factor`, therefore:
-    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
-    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
-    pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint) {
-        self.bounds_modifications
-            .push(BoundsModification::Zoom(zoom_factor, center));
-    }
-
-    /// Scale the plot bounds around the hovered position, if any.
-    ///
-    /// Can be useful for implementing alternative plot navigation methods.
-    ///
-    /// The plot bounds are divided by `zoom_factor`, therefore:
-    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
-    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
-    pub fn zoom_bounds_around_hovered(&mut self, zoom_factor: Vec2) {
-        if let Some(hover_pos) = self.pointer_coordinate() {
-            self.zoom_bounds(zoom_factor, hover_pos);
-        }
-    }
-
-    /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
-    pub fn pointer_coordinate(&self) -> Option<PlotPoint> {
-        // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
-        let last_pos = self.ctx().input(|i| i.pointer.latest_pos())? - self.response.drag_delta();
-        let value = self.plot_from_screen(last_pos);
-        Some(value)
-    }
-
-    /// The pointer drag delta in plot coordinates.
-    pub fn pointer_coordinate_drag_delta(&self) -> Vec2 {
-        let delta = self.response.drag_delta();
-        let dp_dv = self.last_plot_transform.dpos_dvalue();
-        Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
-    }
-
-    /// Read the transform between plot coordinates and screen coordinates.
-    pub fn transform(&self) -> &PlotTransform {
-        &self.last_plot_transform
-    }
-
-    /// Transform the plot coordinates to screen coordinates.
-    pub fn screen_from_plot(&self, position: PlotPoint) -> Pos2 {
-        self.last_plot_transform.position_from_point(&position)
-    }
-
-    /// Transform the screen coordinates to plot coordinates.
-    pub fn plot_from_screen(&self, position: Pos2) -> PlotPoint {
-        self.last_plot_transform.value_from_position(position)
-    }
-
-    /// Add a data line.
-    pub fn line(&mut self, mut line: Line) {
-        if line.series.is_empty() {
-            return;
-        };
-
-        // Give the stroke an automatic color if no color has been assigned.
-        if line.stroke.color == Color32::TRANSPARENT {
-            line.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(line));
-    }
-
-    /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(&mut self, mut polygon: Polygon) {
-        if polygon.series.is_empty() {
-            return;
-        };
-
-        // Give the stroke an automatic color if no color has been assigned.
-        if polygon.stroke.color == Color32::TRANSPARENT {
-            polygon.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(polygon));
-    }
-
-    /// Add a text.
-    pub fn text(&mut self, text: Text) {
-        if text.text.is_empty() {
-            return;
-        };
-
-        self.items.push(Box::new(text));
-    }
-
-    /// Add data points.
-    pub fn points(&mut self, mut points: Points) {
-        if points.series.is_empty() {
-            return;
-        };
-
-        // Give the points an automatic color if no color has been assigned.
-        if points.color == Color32::TRANSPARENT {
-            points.color = self.auto_color();
-        }
-        self.items.push(Box::new(points));
-    }
-
-    /// Add arrows.
-    pub fn arrows(&mut self, mut arrows: Arrows) {
-        if arrows.origins.is_empty() || arrows.tips.is_empty() {
-            return;
-        };
-
-        // Give the arrows an automatic color if no color has been assigned.
-        if arrows.color == Color32::TRANSPARENT {
-            arrows.color = self.auto_color();
-        }
-        self.items.push(Box::new(arrows));
-    }
-
-    /// Add an image.
-    pub fn image(&mut self, image: PlotImage) {
-        self.items.push(Box::new(image));
-    }
-
-    /// Add a horizontal line.
-    /// Can be useful e.g. to show min/max bounds or similar.
-    /// Always fills the full width of the plot.
-    pub fn hline(&mut self, mut hline: HLine) {
-        if hline.stroke.color == Color32::TRANSPARENT {
-            hline.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(hline));
-    }
-
-    /// Add a vertical line.
-    /// Can be useful e.g. to show min/max bounds or similar.
-    /// Always fills the full height of the plot.
-    pub fn vline(&mut self, mut vline: VLine) {
-        if vline.stroke.color == Color32::TRANSPARENT {
-            vline.stroke.color = self.auto_color();
-        }
-        self.items.push(Box::new(vline));
-    }
-
-    /// Add a box plot diagram.
-    pub fn box_plot(&mut self, mut box_plot: BoxPlot) {
-        if box_plot.boxes.is_empty() {
-            return;
-        }
-
-        // Give the elements an automatic color if no color has been assigned.
-        if box_plot.default_color == Color32::TRANSPARENT {
-            box_plot = box_plot.color(self.auto_color());
-        }
-        self.items.push(Box::new(box_plot));
-    }
-
-    /// Add a bar chart.
-    pub fn bar_chart(&mut self, mut chart: BarChart) {
-        if chart.bars.is_empty() {
-            return;
-        }
-
-        // Give the elements an automatic color if no color has been assigned.
-        if chart.default_color == Color32::TRANSPARENT {
-            chart = chart.color(self.auto_color());
-        }
-        self.items.push(Box::new(chart));
-    }
-}
-
 // ----------------------------------------------------------------------------
 // Grid
 
@@ -1640,8 +1422,8 @@ pub fn uniform_grid_spacer(spacer: impl Fn(GridInput) -> [f64; 3] + 'static) -> 
 
 // ----------------------------------------------------------------------------
 
-struct PreparedPlot {
-    items: Vec<Box<dyn PlotItem>>,
+struct PreparedPlot<'a> {
+    items: Vec<Box<dyn PlotItem + 'a>>,
     show_x: bool,
     show_y: bool,
     label_formatter: LabelFormatter,
@@ -1659,8 +1441,10 @@ struct PreparedPlot {
     clamp_grid: bool,
 }
 
-impl PreparedPlot {
-    fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
+impl<'a> PreparedPlot<'a> {
+    fn ui(&self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
+        let items = &self.items;
+
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
@@ -1673,13 +1457,14 @@ impl PreparedPlot {
         // Sort the axes by strength so that those with higher strength are drawn in front.
         axes_shapes.sort_by(|(_, strength1), (_, strength2)| strength1.total_cmp(strength2));
 
-        let mut shapes = axes_shapes.into_iter().map(|(shape, _)| shape).collect();
+        let mut shapes: Vec<_> = axes_shapes.into_iter().map(|(shape, _)| shape).collect();
 
         let transform = &self.transform;
 
         let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
         plot_ui.set_clip_rect(*transform.frame());
-        for item in &self.items {
+
+        for item in items {
             item.shapes(&mut plot_ui, transform, &mut shapes);
         }
 
