@@ -572,7 +572,7 @@ impl Painter {
 
         let output_frame = {
             crate::profile_scope!("get_current_texture");
-            // This is what vsync-waiting happens everywhere except DX12
+            // This is where vsnc happens:
             let start = web_time::Instant::now();
             let output_frame = surface_state.surface.get_current_texture();
             vsync_sec += start.elapsed().as_secs_f32();
@@ -669,11 +669,9 @@ impl Painter {
         // Submit the commands: both the main buffer and user-defined ones.
         {
             crate::profile_scope!("Queue::submit");
-            let start = web_time::Instant::now();
             render_state
                 .queue
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
-            vsync_sec += start.elapsed().as_secs_f32(); // Maybe vsync happens here too sometimes?
         };
 
         let screenshot = if capture {
@@ -688,10 +686,7 @@ impl Painter {
 
         {
             crate::profile_scope!("present");
-            // This is where vsync happens in DX12
-            let start = web_time::Instant::now();
             output_frame.present();
-            vsync_sec += start.elapsed().as_secs_f32();
         }
 
         (vsync_sec, screenshot)
