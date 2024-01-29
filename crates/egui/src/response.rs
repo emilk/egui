@@ -1,3 +1,5 @@
+use std::{any::Any, sync::Arc};
+
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
     menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
@@ -68,7 +70,7 @@ pub struct Response {
     #[doc(hidden)]
     pub drag_started: bool,
 
-    /// The widgets is being dragged.
+    /// The widget is being dragged.
     #[doc(hidden)]
     pub dragged: bool,
 
@@ -164,7 +166,7 @@ impl Response {
                 // self.rect. See Context::interact.
                 // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
                 // hence the extra complexity here.
-                if self.hovered() {
+                if self.contains_pointer() {
                     false
                 } else if let Some(pos) = pointer.interact_pos() {
                     !self.rect.contains(pos)
@@ -279,7 +281,7 @@ impl Response {
         self.drag_started() && self.ctx.input(|i| i.pointer.button_down(button))
     }
 
-    /// The widgets is being dragged.
+    /// The widget is being dragged.
     ///
     /// To find out which button(s), use [`Self::dragged_by`].
     ///
@@ -287,6 +289,8 @@ impl Response {
     /// If the widget is also sensitive to drags, this won't be true until the pointer has moved a bit,
     /// or the user has pressed down for long enough.
     /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
+    ///
+    /// If you want to avoid the delay, use [`Self::is_pointer_button_down_on`] instead.
     ///
     /// If the widget is NOT sensitive to drags, this will always be `false`.
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
@@ -296,6 +300,7 @@ impl Response {
         self.dragged
     }
 
+    /// See [`Self::dragged`].
     #[inline]
     pub fn dragged_by(&self, button: PointerButton) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
@@ -319,6 +324,51 @@ impl Response {
             self.ctx.input(|i| i.pointer.delta())
         } else {
             Vec2::ZERO
+        }
+    }
+
+    /// If the user started dragging this widget this frame, store the payload for drag-and-drop.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_set_drag_payload<Payload: Any + Send + Sync>(&self, payload: Payload) {
+        if self.drag_started() {
+            crate::DragAndDrop::set_payload(&self.ctx, payload);
+        }
+
+        if self.hovered() && !self.sense.click {
+            // Things that can be drag-dropped should use the Grab cursor icon,
+            // but if the thing is _also_ clickable, that can be annoying.
+            self.ctx.set_cursor_icon(CursorIcon::Grab);
+        }
+    }
+
+    /// Drag-and-Drop: Return what is being held over this widget, if any.
+    ///
+    /// Only returns something if [`Self::contains_pointer`] is true,
+    /// and the user is drag-dropping something of this type.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_hover_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        if self.contains_pointer() {
+            crate::DragAndDrop::payload::<Payload>(&self.ctx)
+        } else {
+            None
+        }
+    }
+
+    /// Drag-and-Drop: Return what is being dropped onto this widget, if any.
+    ///
+    /// Only returns something if [`Self::contains_pointer`] is true,
+    /// the user is drag-dropping something of this type,
+    /// and they released it this frame
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_release_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        if self.contains_pointer() && self.ctx.input(|i| i.pointer.any_released()) {
+            crate::DragAndDrop::take_payload::<Payload>(&self.ctx)
+        } else {
+            None
         }
     }
 
@@ -704,6 +754,8 @@ impl Response {
     }
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.
+    ///
+    /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).
     ///
     /// ```
     /// # use egui::{Label, Sense};
