@@ -56,6 +56,7 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             underline,
             fallback_color,
             override_text_color,
+            opacity_factor: _,
             angle: _,
         }) => {
             adjust_color(&mut underline.color);

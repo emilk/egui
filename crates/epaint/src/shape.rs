@@ -288,6 +288,19 @@ impl Shape {
             .into()
     }
 
+    /// The entire [`Galley`] will be rendered with the given opacity.
+    #[inline]
+    pub fn galley_with_opacity_factor(
+        pos: Pos2,
+        galley: Arc<Galley>,
+        opacity_factor: f32,
+        fallback_color: Color32,
+    ) -> Self {
+        TextShape::new(pos, galley, fallback_color)
+            .with_opacity_factor(opacity_factor)
+            .into()
+    }
+
     #[inline]
     #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
     pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
@@ -745,6 +758,10 @@ pub struct TextShape {
     /// This only affects the glyphs and will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
 
+    /// If set, the text will be rendered with the given opacity in gamma space
+    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    pub opacity_factor: f32,
+
     /// Rotate text by this many radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
     pub angle: f32,
@@ -762,6 +779,7 @@ impl TextShape {
             underline: Stroke::NONE,
             fallback_color,
             override_text_color: None,
+            opacity_factor: 1.0,
             angle: 0.0,
         }
     }
@@ -790,6 +808,13 @@ impl TextShape {
     #[inline]
     pub fn with_angle(mut self, angle: f32) -> Self {
         self.angle = angle;
+        self
+    }
+
+    /// Render text with this opacity in gamma space
+    #[inline]
+    pub fn with_opacity_factor(mut self, opacity_factor: f32) -> Self {
+        self.opacity_factor = opacity_factor;
         self
     }
 }
