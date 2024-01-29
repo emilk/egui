@@ -1239,6 +1239,7 @@ dependencies = [
  "puffin",
  "thiserror",
  "type-map",
+ "web-time",
  "wgpu",
  "winit",
 ]

@@ -504,7 +504,10 @@ impl Painter {
         })
     }
 
-    // Returns a vector with the frame's pixel data if it was requested.
+    /// Returns two things:
+    ///
+    /// The approximate number of seconds spent on vsync-waiting (if any),
+    /// and the captures captured screenshot if it was requested.
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -513,11 +516,17 @@ impl Painter {
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
         capture: bool,
-    ) -> Option<epaint::ColorImage> {
+    ) -> (f32, Option<epaint::ColorImage>) {
         crate::profile_function!();
 
-        let render_state = self.render_state.as_mut()?;
-        let surface_state = self.surfaces.get(&viewport_id)?;
+        let mut vsync_sec = 0.0;
+
+        let Some(render_state) = self.render_state.as_mut() else {
+            return (vsync_sec, None);
+        };
+        let Some(surface_state) = self.surfaces.get(&viewport_id) else {
+            return (vsync_sec, None);
+        };
 
         let mut encoder =
             render_state
@@ -564,7 +573,10 @@ impl Painter {
         let output_frame = {
             crate::profile_scope!("get_current_texture");
             // This is what vsync-waiting happens everywhere except DX12
-            surface_state.surface.get_current_texture()
+            let start = web_time::Instant::now();
+            let output_frame = surface_state.surface.get_current_texture();
+            vsync_sec += start.elapsed().as_secs_f32();
+            output_frame
         };
 
         let output_frame = match output_frame {
@@ -572,10 +584,10 @@ impl Painter {
             Err(err) => match (*self.configuration.on_surface_error)(err) {
                 SurfaceErrorAction::RecreateSurface => {
                     Self::configure_surface(surface_state, render_state, &self.configuration);
-                    return None;
+                    return (vsync_sec, None);
                 }
                 SurfaceErrorAction::SkipFrame => {
-                    return None;
+                    return (vsync_sec, None);
                 }
             },
         };
@@ -657,9 +669,11 @@ impl Painter {
         // Submit the commands: both the main buffer and user-defined ones.
         {
             crate::profile_scope!("Queue::submit");
+            let start = web_time::Instant::now();
             render_state
                 .queue
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
+            vsync_sec += start.elapsed().as_secs_f32(); // Maybe vsync happens here too sometimes?
         };
 
         let screenshot = if capture {
@@ -675,9 +689,12 @@ impl Painter {
         {
             crate::profile_scope!("present");
             // This is where vsync happens in DX12
+            let start = web_time::Instant::now();
             output_frame.present();
+            vsync_sec += start.elapsed().as_secs_f32();
         }
-        screenshot
+
+        (vsync_sec, screenshot)
     }
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {

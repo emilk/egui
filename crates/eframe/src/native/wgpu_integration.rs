@@ -644,7 +644,7 @@ impl WgpuWinitRunning {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
             let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
-            let screenshot = painter.paint_and_update_textures(
+            let (_vsync_secs, screenshot) = painter.paint_and_update_textures(
                 viewport_id,
                 pixels_per_point,
                 app.clear_color(&egui_ctx.style().visuals),
