@@ -130,6 +130,7 @@ parking_lot = "0.12"
 raw-window-handle.workspace = true
 static_assertions = "1.1.0"
 thiserror.workspace = true
+web-time.workspace = true
 
 #! ### Optional dependencies
 ## Enable this when generating docs.

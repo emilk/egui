@@ -93,12 +93,6 @@ impl eframe::App for MyApp {
                 .store(show_deferred_viewport, Ordering::Relaxed);
         });
 
-        {
-            // Sleep a bit to emulate some work:
-            puffin::profile_scope!("small_sleep");
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
-
         if self.show_immediate_viewport {
             ctx.show_viewport_immediate(
                 egui::ViewportId::from_hash_of("immediate_viewport"),
@@ -120,12 +114,6 @@ impl eframe::App for MyApp {
                     if ctx.input(|i| i.viewport().close_requested()) {
                         // Tell parent viewport that we should not show next frame:
                         self.show_immediate_viewport = false;
-                    }
-
-                    {
-                        // Sleep a bit to emulate some work:
-                        puffin::profile_scope!("small_sleep");
-                        std::thread::sleep(std::time::Duration::from_millis(10));
                     }
                 },
             );
@@ -152,12 +140,6 @@ impl eframe::App for MyApp {
                     if ctx.input(|i| i.viewport().close_requested()) {
                         // Tell parent to close us.
                         show_deferred_viewport.store(false, Ordering::Relaxed);
-                    }
-
-                    {
-                        // Sleep a bit to emulate some work:
-                        puffin::profile_scope!("small_sleep");
-                        std::thread::sleep(std::time::Duration::from_millis(10));
                     }
                 },
             );

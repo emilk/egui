@@ -150,6 +150,8 @@ mod epi;
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;
 
+pub(crate) mod stopwatch;
+
 // ----------------------------------------------------------------------------
 // When compiling for web
 

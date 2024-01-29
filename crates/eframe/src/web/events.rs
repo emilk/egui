@@ -30,11 +30,16 @@ fn paint_if_needed(runner: &mut AppRunner) {
             // running the logic, as the logic could cause it to be set again.
             runner.needs_repaint.clear();
 
+            let mut stopwatch = crate::stopwatch::Stopwatch::new();
+            stopwatch.start();
+
             // Run user code…
             runner.logic();
 
             // …and paint the result.
             runner.paint();
+
+            runner.report_frame_time(stopwatch.total_time_sec());
         }
     }
     runner.auto_save_if_needed();

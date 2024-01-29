@@ -179,8 +179,6 @@ impl AppRunner {
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
-        let frame_start = now_sec();
-
         super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
         let canvas_size = super::canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
@@ -211,8 +209,6 @@ impl AppRunner {
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
         self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
-
-        self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
     }
 
     /// Paint the results of the last call to [`Self::logic`].
@@ -230,6 +226,10 @@ impl AppRunner {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));
             }
         }
+    }
+
+    pub fn report_frame_time(&mut self, cpu_usage_seconds: f32) {
+        self.frame.info.cpu_usage = Some(cpu_usage_seconds);
     }
 
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
