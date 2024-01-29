@@ -589,8 +589,11 @@ impl Painter {
                     render_state,
                 );
                 self.screen_capture_state
-                    .as_ref()?
-                    .texture
+                    .as_ref()
+                    .map_or_else(
+                        || &output_frame.texture,
+                        |capture_state| &capture_state.texture,
+                    )
                     .create_view(&wgpu::TextureViewDescriptor::default())
             } else {
                 output_frame
@@ -660,8 +663,11 @@ impl Painter {
         };
 
         let screenshot = if capture {
-            let screen_capture_state = self.screen_capture_state.as_ref()?;
-            Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+            self.screen_capture_state
+                .as_ref()
+                .and_then(|screen_capture_state| {
+                    Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+                })
         } else {
             None
         };
