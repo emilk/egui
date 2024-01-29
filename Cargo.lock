@@ -1218,6 +1218,7 @@ dependencies = [
  "accesskit",
  "ahash",
  "backtrace",
+ "bitflags 2.4.0",
  "document-features",
  "epaint",
  "log",

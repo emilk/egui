@@ -956,6 +956,15 @@ impl Context {
         enabled: bool,
         contains_pointer: bool,
     ) -> Response {
+        let mut state = ResponseState::empty();
+        state.set(ResponseState::ENABLED, enabled);
+        state.set(ResponseState::CONTAINS_POINTER, contains_pointer);
+        state.set(ResponseState::HOVERED, contains_pointer && enabled);
+        state.set(
+            ResponseState::HIGHLIGHTED,
+            self.frame_state(|fs| fs.highlight_this_frame.contains(&id)),
+        );
+
         // This is the start - we'll fill in the fields below:
         let mut res = Response {
             ctx: self.clone(),
@@ -963,19 +972,11 @@ impl Context {
             id,
             rect,
             sense,
-            enabled,
-            contains_pointer,
-            hovered: contains_pointer && enabled,
-            highlighted: self.frame_state(|fs| fs.highlight_this_frame.contains(&id)),
+            state,
             clicked: Default::default(),
             double_clicked: Default::default(),
             triple_clicked: Default::default(),
-            drag_started: false,
-            dragged: false,
-            drag_released: false,
-            is_pointer_button_down_on: false,
             interact_pointer_pos: None,
-            changed: false, // must be set by the widget itself
         };
 
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
@@ -1024,19 +1025,27 @@ impl Context {
                 interaction.click_interest |= contains_pointer && sense.click;
                 interaction.drag_interest |= contains_pointer && sense.drag;
 
-                res.is_pointer_button_down_on =
-                    interaction.click_id == Some(id) || interaction.drag_id == Some(id);
+                res.state.set(
+                    ResponseState::IS_POINTER_BUTTON_DOWN_ON,
+                    interaction.click_id == Some(id) || interaction.drag_id == Some(id),
+                );
 
                 if sense.click && sense.drag {
                     // This widget is sensitive to both clicks and drags.
                     // When the mouse first is pressed, it could be either,
                     // so we postpone the decision until we know.
-                    res.dragged =
-                        interaction.drag_id == Some(id) && input.pointer.is_decidedly_dragging();
-                    res.drag_started = res.dragged && input.pointer.started_decidedly_dragging;
+                    res.state.set(
+                        ResponseState::DRAGGED,
+                        interaction.drag_id == Some(id) && input.pointer.is_decidedly_dragging(),
+                    );
+                    res.state.set(
+                        ResponseState::DRAG_STARTED,
+                        res.dragged() && input.pointer.started_decidedly_dragging,
+                    );
                 } else if sense.drag {
                     // We are just sensitive to drags, so we can mark ourself as dragged right away:
-                    res.dragged = interaction.drag_id == Some(id);
+                    res.state
+                        .set(ResponseState::DRAGGED, interaction.drag_id == Some(id));
                     // res.drag_started will be filled below if applicable
                 }
 
@@ -1051,7 +1060,7 @@ impl Context {
                                 if sense.click && interaction.click_id.is_none() {
                                     // potential start of a click
                                     interaction.click_id = Some(id);
-                                    res.is_pointer_button_down_on = true;
+                                    res.state.insert(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
                                 }
 
                                 // HACK: windows have low priority on dragging.
@@ -1067,27 +1076,27 @@ impl Context {
                                     interaction.drag_is_window = false;
                                     memory.set_window_interaction(None); // HACK: stop moving windows (if any)
 
-                                    res.is_pointer_button_down_on = true;
+                                    res.state.insert(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
 
                                     // Again, only if we are ONLY sensitive to drags can we decide that this is a drag now.
                                     if sense.click {
-                                        res.dragged = false;
-                                        res.drag_started = false;
+                                        res.state.remove(ResponseState::DRAGGED);
+                                        res.state.remove(ResponseState::DRAG_STARTED);
                                     } else {
-                                        res.dragged = true;
-                                        res.drag_started = true;
+                                        res.state.insert(ResponseState::DRAGGED);
+                                        res.state.insert(ResponseState::DRAG_STARTED);
                                     }
                                 }
                             }
                         }
 
                         PointerEvent::Released { click, button } => {
-                            res.drag_released = res.dragged;
-                            res.dragged = false;
+                            res.state.set(ResponseState::DRAG_RELEASED, res.dragged());
+                            res.state.remove(ResponseState::DRAGGED);
 
-                            if sense.click && res.hovered && res.is_pointer_button_down_on {
+                            if sense.click && res.hovered() && res.is_pointer_button_down_on() {
                                 if let Some(click) = click {
-                                    let clicked = res.hovered && res.is_pointer_button_down_on;
+                                    let clicked = res.hovered() && res.is_pointer_button_down_on();
                                     res.clicked[*button as usize] = clicked;
                                     res.double_clicked[*button as usize] =
                                         clicked && click.is_double();
@@ -1096,19 +1105,19 @@ impl Context {
                                 }
                             }
 
-                            res.is_pointer_button_down_on = false;
+                            res.state.remove(ResponseState::IS_POINTER_BUTTON_DOWN_ON);
                         }
                     }
                 }
             }
 
-            if res.is_pointer_button_down_on {
+            if res.is_pointer_button_down_on() {
                 res.interact_pointer_pos = input.pointer.interact_pos();
             }
 
-            if input.pointer.any_down() && !res.is_pointer_button_down_on {
+            if input.pointer.any_down() && !res.is_pointer_button_down_on() {
                 // We don't hover widgets while interacting with *other* widgets:
-                res.hovered = false;
+                res.state.remove(ResponseState::HOVERED);
             }
 
             if memory.has_focus(res.id) && clicked_elsewhere {
@@ -2491,7 +2500,7 @@ impl Context {
                     // TODO(emilk): `Sense::hover_highlight()`
                     if ui
                         .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
-                        .hovered
+                        .hovered()
                         && is_visible
                     {
                         ui.ctx()
