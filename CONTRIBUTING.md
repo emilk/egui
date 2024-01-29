@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`egui` has been an on-and-off weekend project of mine since late 2018. I am grateful to any help I can get, but bare in mind that sometimes I can be slow to respond because I am busy with other things!
+`egui` has been an on-and-off weekend project of mine since late 2018. I am grateful to any help I can get, but bear in mind that sometimes I can be slow to respond because I am busy with other things!
 
 / Emil
 
