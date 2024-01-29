@@ -288,7 +288,7 @@ impl Shape {
             .into()
     }
 
-    /// The entire [`Galley`] will be rendered with the given opacity.
+    /// The entire [`Galley`] will be rendered with the given opacity in gamma space.
     #[inline]
     pub fn galley_with_opacity_factor(
         pos: Pos2,
