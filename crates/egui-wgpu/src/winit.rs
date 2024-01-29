@@ -519,25 +519,6 @@ impl Painter {
         let render_state = self.render_state.as_mut()?;
         let surface_state = self.surfaces.get(&viewport_id)?;
 
-        let output_frame = {
-            crate::profile_scope!("get_current_texture");
-            // This is what vsync-waiting happens, at least on Mac.
-            surface_state.surface.get_current_texture()
-        };
-
-        let output_frame = match output_frame {
-            Ok(frame) => frame,
-            Err(err) => match (*self.configuration.on_surface_error)(err) {
-                SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(surface_state, render_state, &self.configuration);
-                    return None;
-                }
-                SurfaceErrorAction::SkipFrame => {
-                    return None;
-                }
-            },
-        };
-
         let mut encoder =
             render_state
                 .device
@@ -578,6 +559,25 @@ impl Painter {
                 log::error!("The active render surface doesn't support taking screenshots.");
                 false
             }
+        };
+
+        let output_frame = {
+            crate::profile_scope!("get_current_texture");
+            // This is what vsync-waiting happens, at least on Mac.
+            surface_state.surface.get_current_texture()
+        };
+
+        let output_frame = match output_frame {
+            Ok(frame) => frame,
+            Err(err) => match (*self.configuration.on_surface_error)(err) {
+                SurfaceErrorAction::RecreateSurface => {
+                    Self::configure_surface(surface_state, render_state, &self.configuration);
+                    return None;
+                }
+                SurfaceErrorAction::SkipFrame => {
+                    return None;
+                }
+            },
         };
 
         {
