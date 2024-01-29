@@ -20,7 +20,7 @@
 //! These are created with [`Context::show_viewport_deferred`].
 //! Deferred viewports take a closure that is called by the integration at a later time, perhaps multiple times.
 //! Deferred viewports are repainted independenantly of the parent viewport.
-//! This means communication with them need to done via channels, or `Arc/Mutex`.
+//! This means communication with them needs to be done via channels, or `Arc/Mutex`.
 //!
 //! This is the most performant type of child viewport, though a bit more cumbersome to work with compared to immediate viewports.
 //!
@@ -33,7 +33,7 @@
 //! In short: immediate viewports are simpler to use, but can waste a lot of CPU time.
 //!
 //! ### Embedded viewports
-//! These are not real, independenant viewports, but is a fallback mode for when the integration does not support real viewports. In your callback is called with [`ViewportClass::Embedded`] it means you need to create an [`crate::Window`] to wrap your ui in, which will then be embedded in the parent viewport, unable to escape it.
+//! These are not real, independent viewports, but is a fallback mode for when the integration does not support real viewports. In your callback is called with [`ViewportClass::Embedded`] it means you need to create a [`crate::Window`] to wrap your ui in, which will then be embedded in the parent viewport, unable to escape it.
 //!
 //!
 //! ## Using the viewports
@@ -94,7 +94,7 @@ pub enum ViewportClass {
     ///
     /// This is the easier type of viewport to use, but it is less performant
     /// at it requires both parent and child to repaint if any one of them needs repainting,
-    /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
+    /// which effectively produces double work for two viewports, and triple work for three viewports, etc.
     ///
     /// Create these with [`crate::Context::show_viewport_immediate`].
     Immediate,
@@ -367,7 +367,7 @@ impl ViewportBuilder {
     /// buffer.
     ///
     /// The default is `false`.
-    /// If this is not working is because the graphic context dozen't support transparency,
+    /// If this is not working, it's because the graphic context doesn't support transparency,
     /// you will need to set the transparency in the eframe!
     #[inline]
     pub fn with_transparent(mut self, transparent: bool) -> Self {
@@ -550,7 +550,7 @@ impl ViewportBuilder {
         self
     }
 
-    /// Control if window i always-on-top, always-on-bottom, or neither.
+    /// Control if window is always-on-top, always-on-bottom, or neither.
     #[inline]
     pub fn with_window_level(mut self, level: WindowLevel) -> Self {
         self.window_level = Some(level);
@@ -574,7 +574,7 @@ impl ViewportBuilder {
     }
 
     /// Update this `ViewportBuilder` with a delta,
-    /// returning a list of commands and a bool intdicating if the window needs to be recreated.
+    /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
     pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
         let Self {
@@ -841,7 +841,7 @@ pub enum ViewportCommand {
     /// For other viewports, the [`crate::ViewportInfo::close_requested`] flag will be set.
     Close,
 
-    /// Calcel the closing that was signaled by [`crate::ViewportInfo::close_requested`].
+    /// Cancel the closing that was signaled by [`crate::ViewportInfo::close_requested`].
     CancelClose,
 
     /// Set the window title.
@@ -1004,9 +1004,9 @@ pub struct ViewportOutput {
     /// Commands to change the viewport, e.g. window title and size.
     pub commands: Vec<ViewportCommand>,
 
-    /// Schedulare a repaint of this viewport after this delay.
+    /// Schedule a repaint of this viewport after this delay.
     ///
-    /// It is preferably to instead install a [`Context::set_request_repaint_callback`],
+    /// It is preferable to instead install a [`Context::set_request_repaint_callback`],
     /// but if you haven't, you can use this instead.
     ///
     /// If the duration is zero, schedule a repaint immediately.
