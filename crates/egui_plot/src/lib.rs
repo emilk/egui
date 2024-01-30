@@ -768,75 +768,15 @@ impl Plot {
                 .at_least(min_size.y);
             vec2(width, height)
         };
+
         // Determine complete rect of widget.
         let complete_rect = Rect {
             min: pos,
             max: pos + size,
         };
-        // Next we want to create this layout.
-        // Indices are only examples.
-        //
-        //  left                     right
-        //  +---+---------x----------+   +
-        //  |   |      X-axis 3      |
-        //  |   +--------------------+    top
-        //  |   |      X-axis 2      |
-        //  +-+-+--------------------+-+-+
-        //  |y|y|                    |y|y|
-        //  |-|-|                    |-|-|
-        //  |A|A|                    |A|A|
-        // y|x|x|    Plot Window     |x|x|
-        //  |i|i|                    |i|i|
-        //  |s|s|                    |s|s|
-        //  |1|0|                    |2|3|
-        //  +-+-+--------------------+-+-+
-        //      |      X-axis 0      |   |
-        //      +--------------------+   | bottom
-        //      |      X-axis 1      |   |
-        //  +   +--------------------+---+
-        //
 
-        let mut plot_rect: Rect = {
-            // Calcuclate the space needed for each axis labels.
-            let mut margin = Margin::ZERO;
-            if show_axes.x {
-                for cfg in &x_axes {
-                    match cfg.placement {
-                        axis::Placement::LeftBottom => {
-                            margin.bottom += cfg.thickness(Axis::X);
-                        }
-                        axis::Placement::RightTop => {
-                            margin.top += cfg.thickness(Axis::X);
-                        }
-                    }
-                }
-            }
-            if show_axes.y {
-                for cfg in &y_axes {
-                    match cfg.placement {
-                        axis::Placement::LeftBottom => {
-                            margin.left += cfg.thickness(Axis::Y);
-                        }
-                        axis::Placement::RightTop => {
-                            margin.right += cfg.thickness(Axis::Y);
-                        }
-                    }
-                }
-            }
-
-            // determine plot rectangle
-            margin.shrink_rect(complete_rect)
-        };
-
-        let [mut x_axis_widgets, mut y_axis_widgets] =
-            axis_widgets(show_axes, plot_rect, [&x_axes, &y_axes]);
-
-        // If too little space, remove axis widgets
-        if plot_rect.width() <= 0.0 || plot_rect.height() <= 0.0 {
-            y_axis_widgets.clear();
-            x_axis_widgets.clear();
-            plot_rect = complete_rect;
-        }
+        let ([x_axis_widgets, y_axis_widgets], plot_rect) =
+            axis_widgets(show_axes, complete_rect, [&x_axes, &y_axes]);
 
         // Allocate the plot window.
         let response = ui.allocate_rect(plot_rect, Sense::click_and_drag());
@@ -1252,77 +1192,104 @@ impl Plot {
     }
 }
 
+/// Returns the rect left after adding axes.
 fn axis_widgets(
     show_axes: Vec2b,
-    plot_rect: Rect,
+    complete_rect: Rect,
     [x_axes, y_axes]: [&[AxisHints]; 2],
-) -> [Vec<AxisWidget>; 2] {
+) -> ([Vec<AxisWidget>; 2], Rect) {
+    // Next we want to create this layout.
+    // Indices are only examples.
+    //
+    //  left                     right
+    //  +---+---------x----------+   +
+    //  |   |      X-axis 3      |
+    //  |   +--------------------+    top
+    //  |   |      X-axis 2      |
+    //  +-+-+--------------------+-+-+
+    //  |y|y|                    |y|y|
+    //  |-|-|                    |-|-|
+    //  |A|A|                    |A|A|
+    // y|x|x|    Plot Window     |x|x|
+    //  |i|i|                    |i|i|
+    //  |s|s|                    |s|s|
+    //  |1|0|                    |2|3|
+    //  +-+-+--------------------+-+-+
+    //      |      X-axis 0      |   |
+    //      +--------------------+   | bottom
+    //      |      X-axis 1      |   |
+    //  +   +--------------------+---+
+    //
+
     let mut x_axis_widgets = Vec::<AxisWidget>::new();
     let mut y_axis_widgets = Vec::<AxisWidget>::new();
 
-    // Widget count per border of plot in order left, top, right, bottom
-    struct NumWidgets {
-        left: usize,
-        top: usize,
-        right: usize,
-        bottom: usize,
-    }
-    let mut num_widgets = NumWidgets {
-        left: 0,
-        top: 0,
-        right: 0,
-        bottom: 0,
-    };
+    // Will shrink as we add more axes.
+    let mut rect_left = complete_rect;
+
     if show_axes.x {
-        for cfg in x_axes {
-            let size_y = Vec2::new(0.0, cfg.thickness(Axis::X));
+        // We will fix this later, once we know how much space the y axes take up.
+        let initial_x_range = complete_rect.x_range();
+
+        for cfg in x_axes.iter().rev() {
+            let height = cfg.thickness(Axis::X);
             let rect = match VPlacement::from(cfg.placement) {
                 VPlacement::Bottom => {
-                    let off = num_widgets.bottom as f32;
-                    num_widgets.bottom += 1;
-                    Rect {
-                        min: plot_rect.left_bottom() + size_y * off,
-                        max: plot_rect.right_bottom() + size_y * (off + 1.0),
-                    }
+                    let bottom = rect_left.bottom();
+                    *rect_left.bottom_mut() -= height;
+                    let top = rect_left.bottom();
+                    Rect::from_x_y_ranges(initial_x_range, top..=bottom)
                 }
                 VPlacement::Top => {
-                    let off = num_widgets.top as f32;
-                    num_widgets.top += 1;
-                    Rect {
-                        min: plot_rect.left_top() - size_y * (off + 1.0),
-                        max: plot_rect.right_top() - size_y * off,
-                    }
+                    let top = rect_left.top();
+                    *rect_left.top_mut() += height;
+                    let bottom = rect_left.top();
+                    Rect::from_x_y_ranges(initial_x_range, top..=bottom)
                 }
             };
             x_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
         }
     }
     if show_axes.y {
-        for cfg in y_axes {
-            let size_x = Vec2::new(cfg.thickness(Axis::Y), 0.0);
+        // We know this, since we've already allocated space for the x axes.
+        let plot_y_range = rect_left.y_range();
+
+        for cfg in y_axes.iter().rev() {
+            let width = cfg.thickness(Axis::Y);
             let rect = match HPlacement::from(cfg.placement) {
                 HPlacement::Left => {
-                    let off = num_widgets.left as f32;
-                    num_widgets.left += 1;
-                    Rect {
-                        min: plot_rect.left_top() - size_x * (off + 1.0),
-                        max: plot_rect.left_bottom() - size_x * off,
-                    }
+                    let left = rect_left.left();
+                    *rect_left.left_mut() += width;
+                    let right = rect_left.left();
+                    Rect::from_x_y_ranges(left..=right, plot_y_range)
                 }
                 HPlacement::Right => {
-                    let off = num_widgets.right as f32;
-                    num_widgets.right += 1;
-                    Rect {
-                        min: plot_rect.right_top() + size_x * off,
-                        max: plot_rect.right_bottom() + size_x * (off + 1.0),
-                    }
+                    let right = rect_left.right();
+                    *rect_left.right_mut() -= width;
+                    let left = rect_left.right();
+                    Rect::from_x_y_ranges(left..=right, plot_y_range)
                 }
             };
             y_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
         }
     }
 
-    [x_axis_widgets, y_axis_widgets]
+    let mut plot_rect = rect_left;
+
+    // If too little space, remove axis widgets
+    if plot_rect.width() <= 0.0 || plot_rect.height() <= 0.0 {
+        y_axis_widgets.clear();
+        x_axis_widgets.clear();
+        plot_rect = complete_rect;
+    }
+
+    // Bow that we know the final x_range of the plot_rect,
+    // assign it to the x_axis_widgets (they are currently too wide):
+    for widget in &mut x_axis_widgets {
+        widget.rect = Rect::from_x_y_ranges(plot_rect.x_range(), widget.rect.y_range());
+    }
+
+    ([x_axis_widgets, y_axis_widgets], plot_rect)
 }
 
 /// User-requested modifications to the plot bounds. We collect them in the plot build function to later apply
