@@ -1,9 +1,9 @@
 use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 
 use egui::{
-    emath::{remap_clamp, round_to_decimals},
+    emath::{remap_clamp, round_to_decimals, Rot2},
     epaint::TextShape,
-    Pos2, Rangef, Rect, Response, Sense, TextStyle, Ui, WidgetText,
+    Pos2, Rangef, Rect, Response, Sense, TextStyle, Ui, Vec2, WidgetText,
 };
 
 use super::{transform::PlotTransform, GridMark};
@@ -233,6 +233,8 @@ impl AxisHints {
 pub(super) struct AxisWidget {
     pub(super) range: RangeInclusive<f64>,
     pub(super) hints: AxisHints,
+
+    /// The region where we draw the axis labels.
     pub(super) rect: Rect,
     pub(super) transform: Option<PlotTransform>,
     pub(super) steps: Arc<Vec<GridMark>>,
@@ -342,24 +344,47 @@ impl AxisWidget {
 
                 match axis {
                     Axis::X => {
+                        let projected_point = super::PlotPoint::new(step.value, 0.0);
+                        let center_x = transform.position_from_point(&projected_point).x;
                         let y = match VPlacement::from(self.hints.placement) {
                             VPlacement::Bottom => self.rect.min.y,
                             VPlacement::Top => self.rect.max.y - galley.size().y,
                         };
-                        let projected_point = super::PlotPoint::new(step.value, 0.0);
-                        let center_x = transform.position_from_point(&projected_point).x;
                         let pos = Pos2::new(center_x - galley.size().x / 2.0, y);
                         ui.painter().add(TextShape::new(pos, galley, text_color));
                     }
                     Axis::Y => {
-                        let x = match HPlacement::from(self.hints.placement) {
-                            HPlacement::Left => self.rect.max.x - galley.size().x,
-                            HPlacement::Right => self.rect.min.x,
-                        };
                         let projected_point = super::PlotPoint::new(0.0, step.value);
                         let center_y = transform.position_from_point(&projected_point).y;
-                        let pos = Pos2::new(x, center_y - galley.size().y / 2.0);
-                        ui.painter().add(TextShape::new(pos, galley, text_color));
+
+                        match HPlacement::from(self.hints.placement) {
+                            HPlacement::Left => {
+                                let angle = 0.0; // TODO: allow users to rotate text
+
+                                if angle == 0.0 {
+                                    let x = self.rect.max.x - galley.size().x;
+                                    let pos = Pos2::new(x, center_y - galley.size().y / 2.0);
+                                    ui.painter().add(TextShape::new(pos, galley, text_color));
+                                } else {
+                                    let right = Pos2::new(
+                                        self.rect.max.x,
+                                        center_y - galley.size().y / 2.0,
+                                    );
+                                    let width = galley.size().x;
+                                    let left =
+                                        right - Rot2::from_angle(angle) * Vec2::new(width, 0.0);
+
+                                    ui.painter().add(
+                                        TextShape::new(left, galley, text_color).with_angle(angle),
+                                    );
+                                }
+                            }
+                            HPlacement::Right => {
+                                let x = self.rect.min.x;
+                                let pos = Pos2::new(x, center_y - galley.size().y / 2.0);
+                                ui.painter().add(TextShape::new(pos, galley, text_color));
+                            }
+                        };
                     }
                 };
             }
