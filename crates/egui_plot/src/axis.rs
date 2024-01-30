@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 use egui::{
     emath::{remap_clamp, round_to_decimals},
     epaint::TextShape,
-    Pos2, Rangef, Rect, Response, Sense, Shape, TextStyle, Ui, WidgetText,
+    Pos2, Rangef, Rect, Response, Sense, TextStyle, Ui, WidgetText,
 };
 
 use super::{transform::PlotTransform, GridMark};
@@ -64,12 +64,32 @@ impl From<HPlacement> for Placement {
     }
 }
 
+impl From<Placement> for HPlacement {
+    #[inline]
+    fn from(placement: Placement) -> Self {
+        match placement {
+            Placement::LeftBottom => Self::Left,
+            Placement::RightTop => Self::Right,
+        }
+    }
+}
+
 impl From<VPlacement> for Placement {
     #[inline]
     fn from(placement: VPlacement) -> Self {
         match placement {
             VPlacement::Top => Self::RightTop,
             VPlacement::Bottom => Self::LeftBottom,
+        }
+    }
+}
+
+impl From<Placement> for VPlacement {
+    #[inline]
+    fn from(placement: Placement) -> Self {
+        match placement {
+            Placement::LeftBottom => Self::Bottom,
+            Placement::RightTop => Self::Top,
         }
     }
 }
@@ -238,53 +258,56 @@ impl AxisWidget {
         }
 
         let visuals = ui.style().visuals.clone();
-        let text = self.hints.label;
-        let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Body);
-        let text_color = visuals
-            .override_text_color
-            .unwrap_or_else(|| ui.visuals().text_color());
-        let angle: f32 = match axis {
-            Axis::X => 0.0,
-            Axis::Y => -std::f32::consts::TAU * 0.25,
-        };
-        // select text_pos and angle depending on placement and orientation of widget
-        let text_pos = match self.hints.placement {
-            Placement::LeftBottom => match axis {
-                Axis::X => {
-                    let pos = response.rect.center_bottom();
-                    Pos2 {
-                        x: pos.x - galley.size().x / 2.0,
-                        y: pos.y - galley.size().y * 1.25,
-                    }
-                }
-                Axis::Y => {
-                    let pos = response.rect.left_center();
-                    Pos2 {
-                        x: pos.x,
-                        y: pos.y + galley.size().x / 2.0,
-                    }
-                }
-            },
-            Placement::RightTop => match axis {
-                Axis::X => {
-                    let pos = response.rect.center_top();
-                    Pos2 {
-                        x: pos.x - galley.size().x / 2.0,
-                        y: pos.y + galley.size().y * 0.25,
-                    }
-                }
-                Axis::Y => {
-                    let pos = response.rect.right_center();
-                    Pos2 {
-                        x: pos.x - galley.size().y * 1.5,
-                        y: pos.y + galley.size().x / 2.0,
-                    }
-                }
-            },
-        };
 
-        ui.painter()
-            .add(TextShape::new(text_pos, galley, text_color).with_angle(angle));
+        {
+            let text = self.hints.label;
+            let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Body);
+            let text_color = visuals
+                .override_text_color
+                .unwrap_or_else(|| ui.visuals().text_color());
+            let angle: f32 = match axis {
+                Axis::X => 0.0,
+                Axis::Y => -std::f32::consts::TAU * 0.25,
+            };
+            // select text_pos and angle depending on placement and orientation of widget
+            let text_pos = match self.hints.placement {
+                Placement::LeftBottom => match axis {
+                    Axis::X => {
+                        let pos = response.rect.center_bottom();
+                        Pos2 {
+                            x: pos.x - galley.size().x / 2.0,
+                            y: pos.y - galley.size().y * 1.25,
+                        }
+                    }
+                    Axis::Y => {
+                        let pos = response.rect.left_center();
+                        Pos2 {
+                            x: pos.x,
+                            y: pos.y + galley.size().x / 2.0,
+                        }
+                    }
+                },
+                Placement::RightTop => match axis {
+                    Axis::X => {
+                        let pos = response.rect.center_top();
+                        Pos2 {
+                            x: pos.x - galley.size().x / 2.0,
+                            y: pos.y + galley.size().y * 0.25,
+                        }
+                    }
+                    Axis::Y => {
+                        let pos = response.rect.right_center();
+                        Pos2 {
+                            x: pos.x - galley.size().y * 1.5,
+                            y: pos.y + galley.size().x / 2.0,
+                        }
+                    }
+                },
+            };
+
+            ui.painter()
+                .add(TextShape::new(text_pos, galley, text_color).with_angle(angle));
+        }
 
         // --- add ticks ---
         let font_id = TextStyle::Body.resolve(ui.style());
@@ -314,38 +337,31 @@ impl AxisWidget {
                     .layout_no_wrap(text, font_id.clone(), text_color);
 
                 if spacing_in_points < galley.size()[axis as usize] {
-                    continue; // the galley won't fit
+                    continue; // the galley won't fit (likely too wide on the X axis).
                 }
 
-                let text_pos = match axis {
+                match axis {
                     Axis::X => {
-                        let y = match self.hints.placement {
-                            Placement::LeftBottom => self.rect.min.y,
-                            Placement::RightTop => self.rect.max.y - galley.size().y,
+                        let y = match VPlacement::from(self.hints.placement) {
+                            VPlacement::Bottom => self.rect.min.y,
+                            VPlacement::Top => self.rect.max.y - galley.size().y,
                         };
                         let projected_point = super::PlotPoint::new(step.value, 0.0);
-                        Pos2 {
-                            x: transform.position_from_point(&projected_point).x
-                                - galley.size().x / 2.0,
-                            y,
-                        }
+                        let center_x = transform.position_from_point(&projected_point).x;
+                        let pos = Pos2::new(center_x - galley.size().x / 2.0, y);
+                        ui.painter().add(TextShape::new(pos, galley, text_color));
                     }
                     Axis::Y => {
-                        let x = match self.hints.placement {
-                            Placement::LeftBottom => self.rect.max.x - galley.size().x,
-                            Placement::RightTop => self.rect.min.x,
+                        let x = match HPlacement::from(self.hints.placement) {
+                            HPlacement::Left => self.rect.max.x - galley.size().x,
+                            HPlacement::Right => self.rect.min.x,
                         };
                         let projected_point = super::PlotPoint::new(0.0, step.value);
-                        Pos2 {
-                            x,
-                            y: transform.position_from_point(&projected_point).y
-                                - galley.size().y / 2.0,
-                        }
+                        let center_y = transform.position_from_point(&projected_point).y;
+                        let pos = Pos2::new(x, center_y - galley.size().y / 2.0);
+                        ui.painter().add(TextShape::new(pos, galley, text_color));
                     }
                 };
-
-                ui.painter()
-                    .add(Shape::galley(text_pos, galley, text_color));
             }
         }
 
