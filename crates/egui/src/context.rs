@@ -113,13 +113,13 @@ impl ContextImpl {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
         viewport.repaint.prev_frame_paint_delay = viewport.repaint.repaint_delay;
+        viewport.repaint.outstanding = viewport.repaint.outstanding.saturating_sub(1);
 
         if viewport.repaint.outstanding == 0 {
             // We are repainting now, so we can wait a while for the next repaint.
             viewport.repaint.repaint_delay = Duration::MAX;
         } else {
             viewport.repaint.repaint_delay = Duration::ZERO;
-            viewport.repaint.outstanding -= 1;
             if let Some(callback) = &self.request_repaint_callback {
                 (callback)(RequestRepaintInfo {
                     viewport_id,
