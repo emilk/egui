@@ -785,7 +785,7 @@ impl Plot {
         // Load or initialize the memory.
         let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
-        let memory = if reset {
+        let mut mem = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
                 ui.data_mut(|data| {
                     let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::NULL);
@@ -804,20 +804,14 @@ impl Plot {
             last_click_pos_for_zoom: None,
         });
 
-        let PlotMemory {
-            mut auto_bounds,
-            mut hovered_item,
-            mut hidden_items,
-            transform: last_plot_transform,
-            mut last_click_pos_for_zoom,
-        } = memory;
+        let last_plot_transform = mem.transform;
 
         // Call the plot build function.
         let mut plot_ui = PlotUi {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_plot_transform,
-            last_auto_bounds: auto_bounds,
+            last_auto_bounds: mem.auto_bounds,
             response,
             bounds_modifications: Vec::new(),
             ctx: ui.ctx().clone(),
@@ -845,16 +839,16 @@ impl Plot {
 
         // --- Legend ---
         let legend = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
+            .and_then(|config| LegendWidget::try_new(rect, config, &items, &mem.hidden_items));
         // Don't show hover cursor when hovering over legend.
-        if hovered_item.is_some() {
+        if mem.hovered_item.is_some() {
             show_x = false;
             show_y = false;
         }
         // Remove the deselected items.
-        items.retain(|item| !hidden_items.contains(item.name()));
+        items.retain(|item| !mem.hidden_items.contains(item.name()));
         // Highlight the hovered items.
-        if let Some(hovered_name) = &hovered_item {
+        if let Some(hovered_name) = &mem.hovered_item {
             items
                 .iter_mut()
                 .filter(|entry| entry.name() == hovered_name)
@@ -901,11 +895,11 @@ impl Plot {
                 if let Some(linked_bounds) = link_groups.0.get(id) {
                     if axes.x {
                         bounds.set_x(&linked_bounds.bounds);
-                        auto_bounds.x = linked_bounds.auto_bounds.x;
+                        mem.auto_bounds.x = linked_bounds.auto_bounds.x;
                     }
                     if axes.y {
                         bounds.set_y(&linked_bounds.bounds);
-                        auto_bounds.y = linked_bounds.auto_bounds.y;
+                        mem.auto_bounds.y = linked_bounds.auto_bounds.y;
                     }
                 };
             });
@@ -913,7 +907,7 @@ impl Plot {
 
         // Allow double-clicking to reset to the initial bounds.
         if allow_double_click_reset && response.double_clicked() {
-            auto_bounds = true.into();
+            mem.auto_bounds = true.into();
         }
 
         // Apply bounds modifications.
@@ -921,30 +915,32 @@ impl Plot {
             match modification {
                 BoundsModification::Set(new_bounds) => {
                     bounds = new_bounds;
-                    auto_bounds = false.into();
+                    mem.auto_bounds = false.into();
                 }
                 BoundsModification::Translate(delta) => {
                     bounds.translate(delta);
-                    auto_bounds = false.into();
+                    mem.auto_bounds = false.into();
                 }
-                BoundsModification::AutoBounds(new_auto_bounds) => auto_bounds = new_auto_bounds,
+                BoundsModification::AutoBounds(new_auto_bounds) => {
+                    mem.auto_bounds = new_auto_bounds;
+                }
                 BoundsModification::Zoom(zoom_factor, center) => {
                     bounds.zoom(zoom_factor, center);
-                    auto_bounds = false.into();
+                    mem.auto_bounds = false.into();
                 }
             }
         }
 
         // Reset bounds to initial bounds if they haven't been modified.
-        if auto_bounds.x {
+        if mem.auto_bounds.x {
             bounds.set_x(&min_auto_bounds);
         }
-        if auto_bounds.y {
+        if mem.auto_bounds.y {
             bounds.set_y(&min_auto_bounds);
         }
 
-        let auto_x = auto_bounds.x && (!min_auto_bounds.is_valid_x() || default_auto_bounds.x);
-        let auto_y = auto_bounds.y && (!min_auto_bounds.is_valid_y() || default_auto_bounds.y);
+        let auto_x = mem.auto_bounds.x && (!min_auto_bounds.is_valid_x() || default_auto_bounds.x);
+        let auto_y = mem.auto_bounds.y && (!min_auto_bounds.is_valid_y() || default_auto_bounds.y);
 
         // Set bounds automatically based on content.
         if auto_x || auto_y {
@@ -967,17 +963,19 @@ impl Plot {
             }
         }
 
-        let mut transform = PlotTransform::new(rect, bounds, center_axis.x, center_axis.y);
+        mem.transform = PlotTransform::new(rect, bounds, center_axis.x, center_axis.y);
 
         // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
             if let Some((_, linked_axes)) = &linked_axes {
                 let change_x = linked_axes.y && !linked_axes.x;
-                transform.set_aspect_by_changing_axis(data_aspect as f64, change_x);
+                mem.transform
+                    .set_aspect_by_changing_axis(data_aspect as f64, change_x);
             } else if default_auto_bounds.any() {
-                transform.set_aspect_by_expanding(data_aspect as f64);
+                mem.transform.set_aspect_by_expanding(data_aspect as f64);
             } else {
-                transform.set_aspect_by_changing_axis(data_aspect as f64, false);
+                mem.transform
+                    .set_aspect_by_changing_axis(data_aspect as f64, false);
             }
         }
 
@@ -991,8 +989,8 @@ impl Plot {
             if !allow_drag.y {
                 delta.y = 0.0;
             }
-            transform.translate_bounds(delta);
-            auto_bounds = !allow_drag;
+            mem.transform.translate_bounds(delta);
+            mem.auto_bounds = !allow_drag;
         }
 
         // Zooming
@@ -1001,9 +999,9 @@ impl Plot {
             // Save last click to allow boxed zooming
             if response.drag_started() && response.dragged_by(boxed_zoom_pointer_button) {
                 // it would be best for egui that input has a memory of the last click pos because it's a common pattern
-                last_click_pos_for_zoom = response.hover_pos();
+                mem.last_click_pos_for_zoom = response.hover_pos();
             }
-            let box_start_pos = last_click_pos_for_zoom;
+            let box_start_pos = mem.last_click_pos_for_zoom;
             let box_end_pos = response.hover_pos();
             if let (Some(box_start_pos), Some(box_end_pos)) = (box_start_pos, box_end_pos) {
                 // while dragging prepare a Shape and draw it later on top of the plot
@@ -1025,8 +1023,8 @@ impl Plot {
                 }
                 // when the click is release perform the zoom
                 if response.drag_released() {
-                    let box_start_pos = transform.value_from_position(box_start_pos);
-                    let box_end_pos = transform.value_from_position(box_end_pos);
+                    let box_start_pos = mem.transform.value_from_position(box_start_pos);
+                    let box_end_pos = mem.transform.value_from_position(box_end_pos);
                     let new_bounds = PlotBounds {
                         min: [
                             box_start_pos.x.min(box_end_pos.x),
@@ -1038,11 +1036,11 @@ impl Plot {
                         ],
                     };
                     if new_bounds.is_valid() {
-                        transform.set_bounds(new_bounds);
-                        auto_bounds = false.into();
+                        mem.transform.set_bounds(new_bounds);
+                        mem.auto_bounds = false.into();
                     }
                     // reset the boxed zoom state
-                    last_click_pos_for_zoom = None;
+                    mem.last_click_pos_for_zoom = None;
                 }
             }
         }
@@ -1062,15 +1060,15 @@ impl Plot {
                     zoom_factor.y = 1.0;
                 }
                 if zoom_factor != Vec2::splat(1.0) {
-                    transform.zoom(zoom_factor, hover_pos);
-                    auto_bounds = !allow_zoom;
+                    mem.transform.zoom(zoom_factor, hover_pos);
+                    mem.auto_bounds = !allow_zoom;
                 }
             }
             if allow_scroll {
                 let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
                 if scroll_delta != Vec2::ZERO {
-                    transform.translate_bounds(-scroll_delta);
-                    auto_bounds = false.into();
+                    mem.transform.translate_bounds(-scroll_delta);
+                    mem.auto_bounds = false.into();
                 }
             }
         }
@@ -1078,12 +1076,12 @@ impl Plot {
         // --- transform initialized
 
         // Add legend widgets to plot
-        let bounds = transform.bounds();
+        let bounds = mem.transform.bounds();
         let x_axis_range = bounds.range_x();
         let x_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[0], bounds.max[0]),
-                base_step_size: transform.dvalue_dpos()[0].abs() * grid_spacing.min as f64,
+                base_step_size: mem.transform.dvalue_dpos()[0].abs() * grid_spacing.min as f64,
             };
             (grid_spacers[0])(input)
         });
@@ -1091,26 +1089,26 @@ impl Plot {
         let y_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[1], bounds.max[1]),
-                base_step_size: transform.dvalue_dpos()[1].abs() * grid_spacing.min as f64,
+                base_step_size: mem.transform.dvalue_dpos()[1].abs() * grid_spacing.min as f64,
             };
             (grid_spacers[1])(input)
         });
         for mut widget in x_axis_widgets {
             widget.range = x_axis_range.clone();
-            widget.transform = Some(transform);
+            widget.transform = Some(mem.transform);
             widget.steps = x_steps.clone();
             widget.ui(ui, Axis::X);
         }
         for mut widget in y_axis_widgets {
             widget.range = y_axis_range.clone();
-            widget.transform = Some(transform);
+            widget.transform = Some(mem.transform);
             widget.steps = y_steps.clone();
             widget.ui(ui, Axis::Y);
         }
 
         // Initialize values from functions.
         for item in &mut items {
-            item.initialize(transform.bounds().range_x());
+            item.initialize(mem.transform.bounds().range_x());
         }
 
         let prepared = PreparedPlot {
@@ -1121,7 +1119,7 @@ impl Plot {
             coordinates_formatter,
             show_grid,
             grid_spacing,
-            transform,
+            transform: mem.transform,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
             draw_cursors,
@@ -1139,8 +1137,8 @@ impl Plot {
 
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
-            hidden_items = legend.hidden_items();
-            hovered_item = legend.hovered_item_name();
+            mem.hidden_items = legend.hidden_items();
+            mem.hovered_item = legend.hovered_item_name();
         }
 
         if let Some((id, _)) = linked_cursors.as_ref() {
@@ -1162,28 +1160,24 @@ impl Plot {
                 link_groups.0.insert(
                     *id,
                     LinkedBounds {
-                        bounds: *transform.bounds(),
-                        auto_bounds,
+                        bounds: *mem.transform.bounds(),
+                        auto_bounds: mem.auto_bounds,
                     },
                 );
             });
         }
 
-        let memory = PlotMemory {
-            auto_bounds,
-            hovered_item,
-            hidden_items,
-            transform,
-            last_click_pos_for_zoom,
-        };
-        memory.store(ui.ctx(), plot_id);
+        let transform = mem.transform;
+        mem.store(ui.ctx(), plot_id);
 
         let response = if show_x || show_y {
             response.on_hover_cursor(CursorIcon::Crosshair)
         } else {
             response
         };
+
         ui.advance_cursor_after_rect(complete_rect);
+
         PlotResponse {
             inner,
             response,
