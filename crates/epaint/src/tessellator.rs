@@ -1553,7 +1553,7 @@ impl Tessellator {
                             color = *fallback_color;
                         }
 
-                        if *opacity_factor <= 1.0 {
+                        if *opacity_factor < 1.0 {
                             color = color.gamma_multiply(*opacity_factor);
                         }
 

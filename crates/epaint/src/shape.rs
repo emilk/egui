@@ -288,19 +288,6 @@ impl Shape {
             .into()
     }
 
-    /// The entire [`Galley`] will be rendered with the given opacity in gamma space.
-    #[inline]
-    pub fn galley_with_opacity_factor(
-        pos: Pos2,
-        galley: Arc<Galley>,
-        opacity_factor: f32,
-        fallback_color: Color32,
-    ) -> Self {
-        TextShape::new(pos, galley, fallback_color)
-            .with_opacity_factor(opacity_factor)
-            .into()
-    }
-
     #[inline]
     #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
     pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {

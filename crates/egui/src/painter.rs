@@ -469,29 +469,6 @@ impl Painter {
         }
     }
 
-    /// Paint text that has already been laid out in a [`Galley`].
-    ///
-    /// You can create the [`Galley`] with [`Self::layout`].
-    ///
-    /// The entire [`Galley`] will be rendered with the given opacity in gamma space.
-    #[inline]
-    pub fn galley_with_opacity_factor(
-        &self,
-        pos: Pos2,
-        galley: Arc<Galley>,
-        opacity_factor: f32,
-        fallback_color: Color32,
-    ) {
-        if !galley.is_empty() && opacity_factor > 0.0 {
-            self.add(Shape::galley_with_opacity_factor(
-                pos,
-                galley,
-                opacity_factor,
-                fallback_color,
-            ));
-        }
-    }
-
     #[deprecated = "Use `Painter::galley` or `Painter::galley_with_override_text_color` instead"]
     #[inline]
     pub fn galley_with_color(&self, pos: Pos2, galley: Arc<Galley>, text_color: Color32) {
