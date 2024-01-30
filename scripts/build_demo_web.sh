@@ -8,7 +8,7 @@ cd "$script_path/.."
 # This is required to enable the web_sys clipboard API which eframe web uses
 # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
 # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
-export RUSTFLAGS="--cfg=web_sys_unstable_apis"
+export RUSTFLAGS=--cfg=web_sys_unstable_apis
 
 CRATE_NAME="egui_demo_app"
 
