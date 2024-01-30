@@ -775,15 +775,21 @@ impl Plot {
             max: pos + size,
         };
 
-        let ([x_axis_widgets, y_axis_widgets], plot_rect) =
-            axis_widgets(show_axes, complete_rect, [&x_axes, &y_axes]);
+        let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
+
+        let ([x_axis_widgets, y_axis_widgets], plot_rect) = axis_widgets(
+            PlotMemory::load(ui.ctx(), plot_id).as_ref(), // TODO: avoid loading plot memory twice
+            show_axes,
+            complete_rect,
+            [&x_axes, &y_axes],
+        );
 
         // Allocate the plot window.
         let response = ui.allocate_rect(plot_rect, Sense::click_and_drag());
 
         // Load or initialize the memory.
-        let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
         ui.ctx().check_for_id_clash(plot_id, plot_rect, "Plot");
+
         let mut mem = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
                 ui.data_mut(|data| {
@@ -801,6 +807,8 @@ impl Plot {
             hidden_items: Default::default(),
             transform: PlotTransform::new(plot_rect, min_auto_bounds, center_axis.x, center_axis.y),
             last_click_pos_for_zoom: None,
+            x_axis_thickness: Default::default(),
+            y_axis_thickness: Default::default(),
         });
 
         let last_plot_transform = mem.transform;
@@ -1092,17 +1100,19 @@ impl Plot {
             };
             (grid_spacers[1])(input)
         });
-        for mut widget in x_axis_widgets {
+        for (i, mut widget) in x_axis_widgets.into_iter().enumerate() {
             widget.range = x_axis_range.clone();
             widget.transform = Some(mem.transform);
             widget.steps = x_steps.clone();
-            widget.ui(ui, Axis::X);
+            let (_response, thickness) = widget.ui(ui, Axis::X);
+            mem.x_axis_thickness.insert(i, thickness);
         }
-        for mut widget in y_axis_widgets {
+        for (i, mut widget) in y_axis_widgets.into_iter().enumerate() {
             widget.range = y_axis_range.clone();
             widget.transform = Some(mem.transform);
             widget.steps = y_steps.clone();
-            widget.ui(ui, Axis::Y);
+            let (_response, thickness) = widget.ui(ui, Axis::Y);
+            mem.y_axis_thickness.insert(i, thickness);
         }
 
         // Initialize values from functions.
@@ -1191,6 +1201,7 @@ impl Plot {
 
 /// Returns the rect left after adding axes.
 fn axis_widgets(
+    mem: Option<&PlotMemory>,
     show_axes: Vec2b,
     complete_rect: Rect,
     [x_axes, y_axes]: [&[AxisHints]; 2],
@@ -1228,8 +1239,13 @@ fn axis_widgets(
         // We will fix this later, once we know how much space the y axes take up.
         let initial_x_range = complete_rect.x_range();
 
-        for cfg in x_axes.iter().rev() {
-            let height = cfg.thickness(Axis::X);
+        for (i, cfg) in x_axes.iter().enumerate().rev() {
+            let mut height = cfg.thickness(Axis::X);
+            if let Some(mem) = mem {
+                // If the labels took up too much space the previous frame, give them more space now:
+                height = height.max(mem.x_axis_thickness.get(&i).copied().unwrap_or_default());
+            }
+
             let rect = match VPlacement::from(cfg.placement) {
                 VPlacement::Bottom => {
                     let bottom = rect_left.bottom();
@@ -1251,8 +1267,13 @@ fn axis_widgets(
         // We know this, since we've already allocated space for the x axes.
         let plot_y_range = rect_left.y_range();
 
-        for cfg in y_axes.iter().rev() {
-            let width = cfg.thickness(Axis::Y);
+        for (i, cfg) in y_axes.iter().enumerate().rev() {
+            let mut width = cfg.thickness(Axis::Y);
+            if let Some(mem) = mem {
+                // If the labels took up too much space the previous frame, give them more space now:
+                width = width.max(mem.y_axis_thickness.get(&i).copied().unwrap_or_default());
+            }
+
             let rect = match HPlacement::from(cfg.placement) {
                 HPlacement::Left => {
                     let left = rect_left.left();

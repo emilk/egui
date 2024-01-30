@@ -231,18 +231,18 @@ impl AxisHints {
 
 #[derive(Clone)]
 pub(super) struct AxisWidget {
-    pub(super) range: RangeInclusive<f64>,
-    pub(super) hints: AxisHints,
+    pub range: RangeInclusive<f64>,
+    pub hints: AxisHints,
 
     /// The region where we draw the axis labels.
-    pub(super) rect: Rect,
-    pub(super) transform: Option<PlotTransform>,
-    pub(super) steps: Arc<Vec<GridMark>>,
+    pub rect: Rect,
+    pub transform: Option<PlotTransform>,
+    pub steps: Arc<Vec<GridMark>>,
 }
 
 impl AxisWidget {
     /// if `rect` as width or height == 0, is will be automatically calculated from ticks and text.
-    pub(super) fn new(hints: AxisHints, rect: Rect) -> Self {
+    pub fn new(hints: AxisHints, rect: Rect) -> Self {
         Self {
             range: (0.0..=0.0),
             hints,
@@ -252,11 +252,12 @@ impl AxisWidget {
         }
     }
 
-    pub fn ui(self, ui: &mut Ui, axis: Axis) -> Response {
+    /// Returns the actual thickness of the axis.
+    pub fn ui(self, ui: &mut Ui, axis: Axis) -> (Response, f32) {
         let response = ui.allocate_rect(self.rect, Sense::hover());
 
         if !ui.is_rect_visible(response.rect) {
-            return response;
+            return (response, 0.0);
         }
 
         let visuals = ui.style().visuals.clone();
@@ -311,14 +312,16 @@ impl AxisWidget {
                 .add(TextShape::new(text_pos, galley, text_color).with_angle(angle));
         }
 
-        // --- add ticks ---
         let font_id = TextStyle::Body.resolve(ui.style());
         let Some(transform) = self.transform else {
-            return response;
+            return (response, 0.0);
         };
 
         let label_spacing = self.hints.label_spacing;
 
+        let mut thickness: f32 = 0.0;
+
+        // Add tick labels:
         for step in self.steps.iter() {
             let text = (self.hints.formatter)(*step, self.hints.digits, &self.range);
             if !text.is_empty() {
@@ -344,6 +347,8 @@ impl AxisWidget {
 
                 match axis {
                     Axis::X => {
+                        thickness = thickness.max(galley.size().y);
+
                         let projected_point = super::PlotPoint::new(step.value, 0.0);
                         let center_x = transform.position_from_point(&projected_point).x;
                         let y = match VPlacement::from(self.hints.placement) {
@@ -354,6 +359,8 @@ impl AxisWidget {
                         ui.painter().add(TextShape::new(pos, galley, text_color));
                     }
                     Axis::Y => {
+                        thickness = thickness.max(galley.size().x);
+
                         let projected_point = super::PlotPoint::new(0.0, step.value);
                         let center_y = transform.position_from_point(&projected_point).y;
 
@@ -390,6 +397,6 @@ impl AxisWidget {
             }
         }
 
-        response
+        (response, thickness)
     }
 }
