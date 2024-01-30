@@ -780,11 +780,10 @@ impl Plot {
 
         // Allocate the plot window.
         let response = ui.allocate_rect(plot_rect, Sense::click_and_drag());
-        let rect = plot_rect;
 
         // Load or initialize the memory.
         let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
-        ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
+        ui.ctx().check_for_id_clash(plot_id, plot_rect, "Plot");
         let mut mem = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
                 ui.data_mut(|data| {
@@ -800,7 +799,7 @@ impl Plot {
             auto_bounds: default_auto_bounds,
             hovered_item: None,
             hidden_items: Default::default(),
-            transform: PlotTransform::new(rect, min_auto_bounds, center_axis.x, center_axis.y),
+            transform: PlotTransform::new(plot_rect, min_auto_bounds, center_axis.x, center_axis.y),
             last_click_pos_for_zoom: None,
         });
 
@@ -828,9 +827,9 @@ impl Plot {
         // Background
         if show_background {
             ui.painter()
-                .with_clip_rect(rect)
+                .with_clip_rect(plot_rect)
                 .add(epaint::RectShape::new(
-                    rect,
+                    plot_rect,
                     Rounding::same(2.0),
                     ui.visuals().extreme_bg_color,
                     ui.visuals().widgets.noninteractive.bg_stroke,
@@ -839,7 +838,7 @@ impl Plot {
 
         // --- Legend ---
         let legend = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &items, &mem.hidden_items));
+            .and_then(|config| LegendWidget::try_new(plot_rect, config, &items, &mem.hidden_items));
         // Don't show hover cursor when hovering over legend.
         if mem.hovered_item.is_some() {
             show_x = false;
@@ -963,7 +962,7 @@ impl Plot {
             }
         }
 
-        mem.transform = PlotTransform::new(rect, bounds, center_axis.x, center_axis.y);
+        mem.transform = PlotTransform::new(plot_rect, bounds, center_axis.x, center_axis.y);
 
         // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
@@ -1131,8 +1130,12 @@ impl Plot {
         let plot_cursors = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
-            ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.0);
-            ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.1);
+            ui.painter()
+                .with_clip_rect(plot_rect)
+                .add(boxed_zoom_rect.0);
+            ui.painter()
+                .with_clip_rect(plot_rect)
+                .add(boxed_zoom_rect.1);
         }
 
         if let Some(mut legend) = legend {
