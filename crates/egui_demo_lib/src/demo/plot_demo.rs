@@ -800,6 +800,7 @@ impl InteractionDemo {
                     ..,
                     100,
                 ))
+                .color(Color32::RED)
                 .id(egui::Id::new("sin")),
             );
             plot_ui.line(
@@ -808,6 +809,7 @@ impl InteractionDemo {
                     ..,
                     100,
                 ))
+                .color(Color32::BLUE)
                 .id(egui::Id::new("cos")),
             );
 
@@ -841,7 +843,15 @@ impl InteractionDemo {
             pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
         );
         ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
-        ui.label(format!("hovered plot item: {hovered_plot_item:?}"));
+
+        let hovered_item = if hovered_plot_item == Some(egui::Id::new("sin")) {
+            "red sin"
+        } else if hovered_plot_item == Some(egui::Id::new("cos")) {
+            "blue cos"
+        } else {
+            "none"
+        };
+        ui.label(format!("hovered plot item: {hovered_item}"));
 
         response
     }
