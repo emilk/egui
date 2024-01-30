@@ -117,6 +117,11 @@ pub struct PlotResponse<R> {
 
     /// The transform between screen coordinates and plot coordinates.
     pub transform: PlotTransform,
+
+    /// The id of a currently hovered item if any.
+    ///
+    /// This is `None` if either no item was hovered, or the hovered item didn't provide an id.
+    pub hovered_plot_item: Option<Id>,
 }
 
 // ----------------------------------------------------------------------------
@@ -803,7 +808,7 @@ impl Plot {
         }
         .unwrap_or_else(|| PlotMemory {
             auto_bounds: default_auto_bounds,
-            hovered_item: None,
+            hovered_legend_item: None,
             hidden_items: Default::default(),
             transform: PlotTransform::new(plot_rect, min_auto_bounds, center_axis.x, center_axis.y),
             last_click_pos_for_zoom: None,
@@ -848,14 +853,14 @@ impl Plot {
         let legend = legend_config
             .and_then(|config| LegendWidget::try_new(plot_rect, config, &items, &mem.hidden_items));
         // Don't show hover cursor when hovering over legend.
-        if mem.hovered_item.is_some() {
+        if mem.hovered_legend_item.is_some() {
             show_x = false;
             show_y = false;
         }
         // Remove the deselected items.
         items.retain(|item| !mem.hidden_items.contains(item.name()));
         // Highlight the hovered items.
-        if let Some(hovered_name) = &mem.hovered_item {
+        if let Some(hovered_name) = &mem.hovered_legend_item {
             items
                 .iter_mut()
                 .filter(|entry| entry.name() == hovered_name)
@@ -1137,7 +1142,7 @@ impl Plot {
             clamp_grid,
         };
 
-        let plot_cursors = prepared.ui(ui, &response);
+        let (plot_cursors, hovered_plot_item) = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
             ui.painter()
@@ -1151,7 +1156,7 @@ impl Plot {
         if let Some(mut legend) = legend {
             ui.add(&mut legend);
             mem.hidden_items = legend.hidden_items();
-            mem.hovered_item = legend.hovered_item_name();
+            mem.hovered_legend_item = legend.hovered_item_name();
         }
 
         if let Some((id, _)) = linked_cursors.as_ref() {
@@ -1195,6 +1200,7 @@ impl Plot {
             inner,
             response,
             transform,
+            hovered_plot_item,
         }
     }
 }
@@ -1645,7 +1651,7 @@ struct PreparedPlot {
 }
 
 impl PreparedPlot {
-    fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
+    fn ui(self, ui: &mut Ui, response: &Response) -> (Vec<Cursor>, Option<Id>) {
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
@@ -1669,10 +1675,10 @@ impl PreparedPlot {
         }
 
         let hover_pos = response.hover_pos();
-        let cursors = if let Some(pointer) = hover_pos {
+        let (cursors, hovered_item_id) = if let Some(pointer) = hover_pos {
             self.hover(ui, pointer, &mut shapes)
         } else {
-            Vec::new()
+            (Vec::new(), None)
         };
 
         // Draw cursors
@@ -1726,7 +1732,7 @@ impl PreparedPlot {
             }
         }
 
-        cursors
+        (cursors, hovered_item_id)
     }
 
     fn paint_grid(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>, axis: Axis, fade_range: Rangef) {
@@ -1826,7 +1832,7 @@ impl PreparedPlot {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> Vec<Cursor> {
+    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> (Vec<Cursor>, Option<Id>) {
         let Self {
             transform,
             show_x,
@@ -1837,7 +1843,7 @@ impl PreparedPlot {
         } = self;
 
         if !show_x && !show_y {
-            return Vec::new();
+            return (Vec::new(), None);
         }
 
         let interact_radius_sq = (16.0_f32).powi(2);
@@ -1853,8 +1859,6 @@ impl PreparedPlot {
             .min_by_key(|(_, elem)| elem.dist_sq.ord())
             .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq);
 
-        let mut cursors = Vec::new();
-
         let plot = items::PlotConfig {
             ui,
             transform,
@@ -1862,8 +1866,11 @@ impl PreparedPlot {
             show_y: *show_y,
         };
 
-        if let Some((item, elem)) = closest {
+        let mut cursors = Vec::new();
+
+        let hovered_plot_item_id = if let Some((item, elem)) = closest {
             item.on_hover(elem, shapes, &mut cursors, &plot, label_formatter);
+            item.id()
         } else {
             let value = transform.value_from_position(pointer);
             items::rulers_at_value(
@@ -1875,9 +1882,10 @@ impl PreparedPlot {
                 &mut cursors,
                 label_formatter,
             );
-        }
+            None
+        };
 
-        cursors
+        (cursors, hovered_plot_item_id)
     }
 }
 
