@@ -1276,8 +1276,8 @@ fn axis_widgets(
     if show_axes.x {
         for cfg in x_axes {
             let size_y = Vec2::new(0.0, cfg.thickness(Axis::X));
-            let rect = match cfg.placement {
-                axis::Placement::LeftBottom => {
+            let rect = match VPlacement::from(cfg.placement) {
+                VPlacement::Bottom => {
                     let off = num_widgets.bottom as f32;
                     num_widgets.bottom += 1;
                     Rect {
@@ -1285,7 +1285,7 @@ fn axis_widgets(
                         max: plot_rect.right_bottom() + size_y * (off + 1.0),
                     }
                 }
-                axis::Placement::RightTop => {
+                VPlacement::Top => {
                     let off = num_widgets.top as f32;
                     num_widgets.top += 1;
                     Rect {
@@ -1300,8 +1300,8 @@ fn axis_widgets(
     if show_axes.y {
         for cfg in y_axes {
             let size_x = Vec2::new(cfg.thickness(Axis::Y), 0.0);
-            let rect = match cfg.placement {
-                axis::Placement::LeftBottom => {
+            let rect = match HPlacement::from(cfg.placement) {
+                HPlacement::Left => {
                     let off = num_widgets.left as f32;
                     num_widgets.left += 1;
                     Rect {
@@ -1309,7 +1309,7 @@ fn axis_widgets(
                         max: plot_rect.left_bottom() - size_x * off,
                     }
                 }
-                axis::Placement::RightTop => {
+                HPlacement::Right => {
                     let off = num_widgets.right as f32;
                     num_widgets.right += 1;
                     Rect {
