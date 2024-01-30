@@ -30,6 +30,8 @@ syntect = ["egui_demo_lib/syntect"]
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck", "dep:wgpu"]
+wayland = ["eframe/wayland"]
+x11 = ["eframe/x11"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = [
