@@ -1474,10 +1474,15 @@ impl Tessellator {
             underline,
             override_text_color,
             fallback_color,
+            opacity_factor,
             angle,
         } = text_shape;
 
         if galley.is_empty() {
+            return;
+        }
+
+        if *opacity_factor <= 0.0 {
             return;
         }
 
@@ -1546,6 +1551,10 @@ impl Tessellator {
                             }
                         } else if color == Color32::PLACEHOLDER {
                             color = *fallback_color;
+                        }
+
+                        if *opacity_factor < 1.0 {
+                            color = color.gamma_multiply(*opacity_factor);
                         }
 
                         crate::epaint_assert!(color != Color32::PLACEHOLDER, "A placeholder color made it to the tessellator. You forgot to set a fallback color.");
