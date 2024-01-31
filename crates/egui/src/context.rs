@@ -176,11 +176,49 @@ impl ContextImpl {
 
 /// Used to store each widgets [Id], [Rect] and [Sense] each frame.
 /// Used to check for overlaps between widgets when handling events.
-struct WidgetRect {
-    id: Id,
-    rect: Rect,
-    sense: Sense,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WidgetRect {
+    /// Where the widget is.
+    pub rect: Rect,
+
+    /// The globally unique widget id.
+    ///
+    /// For interactive widgets, this better be globally unique.
+    /// If not there will get weird bugs,
+    /// and also big red warning test on the screen in debug builds
+    /// (see [`Options::warn_on_id_clash`]).
+    ///
+    /// You can ensure globally unqiue ids using [`Ui::push_id`].
+    pub id: Id,
+
+    /// How the widget responds to interaction.
+    pub sense: Sense,
 }
+
+/// Stores the positions of all widgets generated during a single egui update/frame.
+///
+/// Acgtually, only those that are on screen.
+#[derive(Default, Clone)]
+pub struct WidgetRects {
+    /// All widgets, in painting order.
+    pub by_layer: HashMap<LayerId, Vec<WidgetRect>>,
+}
+
+impl WidgetRects {
+    /// Clear the contents while retaining allocated memory.
+    pub fn clear(&mut self) {
+        for rects in self.by_layer.values_mut() {
+            rects.clear();
+        }
+    }
+
+    /// Insert the given widget rect in the given layer.
+    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
+        self.by_layer.entry(layer_id).or_default().push(widget_rect);
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// State stored per viewport
 #[derive(Default)]
@@ -208,10 +246,10 @@ struct ViewportState {
     used: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: HashMap<LayerId, Vec<WidgetRect>>,
+    layer_rects_this_frame: WidgetRects,
 
     /// Read
-    layer_rects_prev_frame: HashMap<LayerId, Vec<WidgetRect>>,
+    layer_rects_prev_frame: WidgetRects,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -843,19 +881,21 @@ impl Context {
 
         // it is ok to reuse the same ID for e.g. a frame around a widget,
         // or to check for interaction with the same widget twice:
-        if prev_rect.expand(0.1).contains_rect(new_rect)
-            || new_rect.expand(0.1).contains_rect(prev_rect)
-        {
+        let is_same_rect = prev_rect.expand(0.1).contains_rect(new_rect)
+            || new_rect.expand(0.1).contains_rect(prev_rect);
+        if is_same_rect {
             return;
         }
 
         let show_error = |widget_rect: Rect, text: String| {
+            let screen_rect = self.screen_rect();
+
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color));
 
-            let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+            let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
 
             let text_rect = if below {
                 painter.debug_text(
@@ -2149,16 +2189,14 @@ impl Context {
             // but also to know when we have reach the widget we are checking for cover.
             viewport
                 .layer_rects_this_frame
-                .entry(layer_id)
-                .or_default()
-                .push(WidgetRect { id, rect, sense });
+                .insert(layer_id, WidgetRect { id, rect, sense });
 
             // Check if any other widget is covering us.
             // Whichever widget is added LAST (=on top) gets the input.
             if contains_pointer {
                 let pointer_pos = viewport.input.pointer.interact_pos();
                 if let Some(pointer_pos) = pointer_pos {
-                    if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
+                    if let Some(rects) = viewport.layer_rects_prev_frame.by_layer.get(&layer_id) {
                         for blocking in rects.iter().rev() {
                             if blocking.id == id {
                                 // There are no earlier widgets before this one,

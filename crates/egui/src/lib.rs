@@ -410,7 +410,7 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::{Context, RequestRepaintInfo},
+    context::{Context, RequestRepaintInfo, WidgetRect, WidgetRects},
     data::{
         input::*,
         output::{
