@@ -41,16 +41,16 @@ impl Drop for FileStorage {
 
 impl FileStorage {
     /// Store the state in this .ron file.
-    fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
+    pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Option<Self> {
         crate::profile_function!();
         let ron_filepath: PathBuf = ron_filepath.into();
         log::debug!("Loading app state from {:?}…", ron_filepath);
-        Self {
-            kv: read_ron(&ron_filepath).unwrap_or_default(),
+        Some(Self {
+            kv: read_ron(&ron_filepath)?,
             ron_filepath,
             dirty: false,
             last_save_join_handle: None,
-        }
+        })
     }
 
     /// Find a good place to put the files that the OS likes.
@@ -65,7 +65,7 @@ impl FileStorage {
                 );
                 None
             } else {
-                Some(Self::from_ron_filepath(data_dir.join("app.ron")))
+                Self::from_ron_filepath(data_dir.join("app.ron"))
             }
         } else {
             log::warn!("Saving disabled: Failed to find path to data_dir.");
