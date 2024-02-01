@@ -158,7 +158,7 @@ impl PaintList {
         self.0[idx.0].shape = Shape::Noop;
     }
 
-    /// Translate each [`Shape`] and clip rectangle by this much, in-place
+    /// Transform each [`Shape`] and clip rectangle by this much, in-place
     pub fn transform(&mut self, transform: TSTransform) {
         for ClippedShape { clip_rect, shape } in &mut self.0 {
             *clip_rect = transform.mul_rect(*clip_rect);
