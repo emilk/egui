@@ -654,6 +654,9 @@ pub struct TessellationOptions {
 
     /// The default value will be 1.0e-5, it will be used during float compare.
     pub epsilon: f32,
+
+    /// If `rayon` feature is activated, should we parallelize tessellation?
+    pub parallel_tessellation: bool,
 }
 
 impl Default for TessellationOptions {
@@ -669,6 +672,7 @@ impl Default for TessellationOptions {
             debug_ignore_clip_rects: false,
             bezier_tolerance: 0.1,
             epsilon: 1.0e-5,
+            parallel_tessellation: true,
         }
     }
 }
@@ -1065,6 +1069,7 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 /// For performance reasons it is smart to reuse the same [`Tessellator`].
 ///
 /// See also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
+#[derive(Clone)]
 pub struct Tessellator {
     pixels_per_point: f32,
     options: TessellationOptions,
@@ -1696,11 +1701,21 @@ impl Tessellator {
     ///
     /// ## Returns
     /// A list of clip rectangles with matching [`Mesh`].
-    pub fn tessellate_shapes(&mut self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+    #[allow(unused_mut)]
+    pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        #[cfg(feature = "rayon")]
+        if self.options.parallel_tessellation {
+            self.parallel_tessellation_of_large_shapes(&mut shapes);
+        }
+
         let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
 
-        for clipped_shape in shapes {
-            self.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
+        {
+            crate::profile_scope!("tessellate");
+            for clipped_shape in shapes {
+                crate::profile_scope!("shape");
+                self.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
+            }
         }
 
         if self.options.debug_paint_clip_rects {
@@ -1728,6 +1743,55 @@ impl Tessellator {
         }
 
         clipped_primitives
+    }
+
+    /// Find large shapes and throw them on the rayon thread pool,
+    /// then replace the original shape with their tessellated meshes.
+    #[cfg(feature = "rayon")]
+    fn parallel_tessellation_of_large_shapes(&self, shapes: &mut [ClippedShape]) {
+        crate::profile_function!();
+
+        use rayon::prelude::*;
+
+        // We only parallelize large/slow stuff, because each tessellation job
+        // will allocate a new Mesh, and so it creates a lot of extra memory framentation
+        // and callocations that is only worth it for large shapes.
+        fn should_parallelize(shape: &Shape) -> bool {
+            match shape {
+                Shape::Vec(shapes) => 4 < shapes.len() || shapes.iter().any(should_parallelize),
+
+                Shape::Path(path_shape) => 32 < path_shape.points.len(),
+
+                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) => true,
+
+                Shape::Noop
+                | Shape::Text(_)
+                | Shape::Circle(_)
+                | Shape::Mesh(_)
+                | Shape::LineSegment { .. }
+                | Shape::Rect(_)
+                | Shape::Callback(_) => false,
+            }
+        }
+
+        let tessellated: Vec<(usize, Mesh)> = shapes
+            .par_iter()
+            .enumerate()
+            .filter(|(_, clipped_shape)| should_parallelize(&clipped_shape.shape))
+            .map(|(index, clipped_shape)| {
+                crate::profile_scope!("tessellate_big_shape");
+                // TODO: reuse tesselator in a thread local
+                let mut tessellator = (*self).clone();
+                let mut mesh = Mesh::default();
+                tessellator.tessellate_shape(clipped_shape.shape.clone(), &mut mesh);
+                (index, mesh)
+            })
+            .collect();
+
+        crate::profile_scope!("distribute results", tessellated.len().to_string());
+        for (index, mesh) in tessellated {
+            shapes[index].shape = Shape::Mesh(mesh);
+        }
     }
 
     fn add_clip_rects(

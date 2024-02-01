@@ -146,6 +146,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 debug_ignore_clip_rects,
                 bezier_tolerance,
                 epsilon: _,
+                parallel_tessellation,
             } = self;
 
             ui.checkbox(feathering, "Feathering (antialias)")
@@ -176,6 +177,10 @@ impl Widget for &mut epaint::TessellationOptions {
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
                 ui.checkbox(debug_paint_text_rects, "Paint text bounds");
             });
+
+            ui.add_enabled(epaint::HAS_RAYON, crate::Checkbox::new(parallel_tessellation, "Parallelize tessellation")
+                ).on_hover_text("Only available if epaint was compiled with the rayon feature")
+                .on_disabled_hover_text("epaint was not compiled with the rayon feature");
         })
         .response
     }
