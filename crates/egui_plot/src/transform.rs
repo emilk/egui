@@ -359,22 +359,22 @@ impl PlotTransform {
         rect
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in the X axis in "plot space"
     pub fn dpos_dvalue_x(&self) -> f64 {
         self.frame.width() as f64 / self.bounds.width()
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in the Y axis in "plot space"
     pub fn dpos_dvalue_y(&self) -> f64 {
         -self.frame.height() as f64 / self.bounds.height() // negated y axis!
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in "plot space"
     pub fn dpos_dvalue(&self) -> [f64; 2] {
         [self.dpos_dvalue_x(), self.dpos_dvalue_y()]
     }
 
-    /// delta value / delta position
+    /// delta value / delta position = how much ground do we cover in "plot space" per ui point?
     pub fn dvalue_dpos(&self) -> [f64; 2] {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }

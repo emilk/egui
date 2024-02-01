@@ -814,7 +814,7 @@ impl Renderer {
         };
 
         if index_count > 0 {
-            crate::profile_scope!("indices");
+            crate::profile_scope!("indices", index_count.to_string());
 
             self.index_buffer.slices.clear();
             let required_index_buffer_size = (std::mem::size_of::<u32>() * index_count) as u64;
@@ -848,7 +848,7 @@ impl Renderer {
             }
         }
         if vertex_count > 0 {
-            crate::profile_scope!("vertices");
+            crate::profile_scope!("vertices", vertex_count.to_string());
 
             self.vertex_buffer.slices.clear();
             let required_vertex_buffer_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
