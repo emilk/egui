@@ -84,6 +84,8 @@ impl Mesh {
 
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
+        crate::profile_function!();
+
         if let Ok(n) = u32::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
         } else {
@@ -106,6 +108,7 @@ impl Mesh {
 
     /// Append all the indices and vertices of `other` to `self`.
     pub fn append(&mut self, other: Self) {
+        crate::profile_function!();
         crate::epaint_assert!(other.is_valid());
 
         if self.is_empty() {

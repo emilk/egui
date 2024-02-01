@@ -79,6 +79,8 @@ impl<'a> DragValue<'a> {
     }
 
     /// How much the value changes when dragged one point (logical pixel).
+    ///
+    /// Should be finite and greater than zero.
     #[inline]
     pub fn speed(mut self, speed: impl Into<f64>) -> Self {
         self.speed = speed.into();

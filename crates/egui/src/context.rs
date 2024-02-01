@@ -178,11 +178,49 @@ impl ContextImpl {
 
 /// Used to store each widgets [Id], [Rect] and [Sense] each frame.
 /// Used to check for overlaps between widgets when handling events.
-struct WidgetRect {
-    id: Id,
-    rect: Rect,
-    sense: Sense,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WidgetRect {
+    /// Where the widget is.
+    pub rect: Rect,
+
+    /// The globally unique widget id.
+    ///
+    /// For interactive widgets, this better be globally unique.
+    /// If not there will get weird bugs,
+    /// and also big red warning test on the screen in debug builds
+    /// (see [`Options::warn_on_id_clash`]).
+    ///
+    /// You can ensure globally unique ids using [`Ui::push_id`].
+    pub id: Id,
+
+    /// How the widget responds to interaction.
+    pub sense: Sense,
 }
+
+/// Stores the positions of all widgets generated during a single egui update/frame.
+///
+/// Acgtually, only those that are on screen.
+#[derive(Default, Clone, PartialEq, Eq)]
+pub struct WidgetRects {
+    /// All widgets, in painting order.
+    pub by_layer: HashMap<LayerId, Vec<WidgetRect>>,
+}
+
+impl WidgetRects {
+    /// Clear the contents while retaining allocated memory.
+    pub fn clear(&mut self) {
+        for rects in self.by_layer.values_mut() {
+            rects.clear();
+        }
+    }
+
+    /// Insert the given widget rect in the given layer.
+    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
+        self.by_layer.entry(layer_id).or_default().push(widget_rect);
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 /// State stored per viewport
 #[derive(Default)]
@@ -210,10 +248,10 @@ struct ViewportState {
     used: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: HashMap<LayerId, Vec<WidgetRect>>,
+    layer_rects_this_frame: WidgetRects,
 
     /// Read
-    layer_rects_prev_frame: HashMap<LayerId, Vec<WidgetRect>>,
+    layer_rects_prev_frame: WidgetRects,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -361,14 +399,6 @@ impl ContextImpl {
                 .viewport()
                 .native_pixels_per_point
                 .unwrap_or(1.0);
-
-        {
-            std::mem::swap(
-                &mut viewport.layer_rects_prev_frame,
-                &mut viewport.layer_rects_this_frame,
-            );
-            viewport.layer_rects_this_frame.clear();
-        }
 
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
@@ -609,12 +639,12 @@ impl Default for Context {
 }
 
 impl Context {
-    // Do read-only (shared access) transaction on Context
+    /// Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
         reader(&self.0.read())
     }
 
-    // Do read-write (exclusive access) transaction on Context
+    /// Do read-write (exclusive access) transaction on Context
     fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
         writer(&mut self.0.write())
     }
@@ -845,19 +875,21 @@ impl Context {
 
         // it is ok to reuse the same ID for e.g. a frame around a widget,
         // or to check for interaction with the same widget twice:
-        if prev_rect.expand(0.1).contains_rect(new_rect)
-            || new_rect.expand(0.1).contains_rect(prev_rect)
-        {
+        let is_same_rect = prev_rect.expand(0.1).contains_rect(new_rect)
+            || new_rect.expand(0.1).contains_rect(prev_rect);
+        if is_same_rect {
             return;
         }
 
         let show_error = |widget_rect: Rect, text: String| {
+            let screen_rect = self.screen_rect();
+
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color));
 
-            let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+            let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
 
             let text_rect = if below {
                 painter.debug_text(
@@ -1784,7 +1816,24 @@ impl ContextImpl {
             .graphics
             .drain(self.memory.areas().order(), &self.memory.layer_transforms);
 
-        if viewport.input.wants_repaint() {
+        let mut repaint_needed = false;
+
+        {
+            if self.memory.options.repaint_on_widget_change {
+                crate::profile_function!("compare-widget-rects");
+                if viewport.layer_rects_prev_frame != viewport.layer_rects_this_frame {
+                    repaint_needed = true; // Some widget has moved
+                }
+            }
+
+            std::mem::swap(
+                &mut viewport.layer_rects_prev_frame,
+                &mut viewport.layer_rects_this_frame,
+            );
+            viewport.layer_rects_this_frame.clear();
+        }
+
+        if repaint_needed || viewport.input.wants_repaint() {
             self.request_repaint(ended_viewport_id);
         }
 
@@ -1932,13 +1981,13 @@ impl Context {
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {
                 crate::profile_scope!("tessellator::tessellate_shapes");
-                tessellator::tessellate_shapes(
+                tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
                     font_tex_size,
                     prepared_discs,
-                    shapes,
                 )
+                .tessellate_shapes(shapes)
             };
             ctx.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
             clipped_primitives
@@ -2110,6 +2159,8 @@ impl Context {
     ///
     /// Will return false if some other area is covering the given layer.
     ///
+    /// The given rectangle is assumed to have been clipped by its parent clip rect.
+    ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
         let rect =
@@ -2145,6 +2196,8 @@ impl Context {
     /// If another widget is covering us and is listening for the same input (click and/or drag),
     /// this will return false.
     ///
+    /// The given rectangle is assumed to have been clipped by its parent clip rect.
+    ///
     /// See also [`Response::contains_pointer`].
     pub fn widget_contains_pointer(
         &self,
@@ -2153,6 +2206,10 @@ impl Context {
         sense: Sense,
         rect: Rect,
     ) -> bool {
+        if !rect.is_positive() {
+            return false; // don't even remember this widget
+        }
+
         let contains_pointer = self.rect_contains_pointer(layer_id, rect);
 
         let mut blocking_widget = None;
@@ -2168,12 +2225,10 @@ impl Context {
 
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
-            // but also to know when we have reach the widget we are checking for cover.
+            // but also to know when we have reached the widget we are checking for cover.
             viewport
                 .layer_rects_this_frame
-                .entry(layer_id)
-                .or_default()
-                .push(WidgetRect { id, rect, sense });
+                .insert(layer_id, WidgetRect { id, rect, sense });
 
             // Check if any other widget is covering us.
             // Whichever widget is added LAST (=on top) gets the input.
@@ -2182,7 +2237,7 @@ impl Context {
                 if let Some(pointer_pos) = pointer_pos {
                     // Apply the inverse transformation of this layer to the pointer pos.
                     let pointer_pos = transform.inverse() * pointer_pos;
-                    if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
+                    if let Some(rects) = viewport.layer_rects_prev_frame.by_layer.get(&layer_id) {
                         for blocking in rects.iter().rev() {
                             if blocking.id == id {
                                 // There are no earlier widgets before this one,
@@ -2317,25 +2372,14 @@ impl Context {
 impl Context {
     /// Show a ui for settings (style and tessellation options).
     pub fn settings_ui(&self, ui: &mut Ui) {
-        use crate::containers::*;
+        let prev_options = self.options(|o| o.clone());
+        let mut options = prev_options.clone();
 
-        CollapsingHeader::new("🎑 Style")
-            .default_open(true)
-            .show(ui, |ui| {
-                self.style_ui(ui);
-            });
+        options.ui(ui);
 
-        CollapsingHeader::new("✒ Painting")
-            .default_open(true)
-            .show(ui, |ui| {
-                let prev_tessellation_options = self.tessellation_options(|o| *o);
-                let mut tessellation_options = prev_tessellation_options;
-                tessellation_options.ui(ui);
-                ui.vertical_centered(|ui| reset_button(ui, &mut tessellation_options));
-                if tessellation_options != prev_tessellation_options {
-                    self.tessellation_options_mut(move |o| *o = tessellation_options);
-                }
-            });
+        if options != prev_options {
+            self.options_mut(move |o| *o = options);
+        }
     }
 
     /// Show the state of egui, including its input and output.

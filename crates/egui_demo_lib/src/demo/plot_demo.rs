@@ -791,8 +791,28 @@ impl InteractionDemo {
         let PlotResponse {
             response,
             inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            hovered_plot_item,
             ..
         } = plot.show(ui, |plot_ui| {
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.sin(),
+                    ..,
+                    100,
+                ))
+                .color(Color32::RED)
+                .id(egui::Id::new("sin")),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.cos(),
+                    ..,
+                    100,
+                ))
+                .color(Color32::BLUE)
+                .id(egui::Id::new("cos")),
+            );
+
             (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
@@ -823,6 +843,15 @@ impl InteractionDemo {
             pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
         );
         ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
+
+        let hovered_item = if hovered_plot_item == Some(egui::Id::new("sin")) {
+            "red sin"
+        } else if hovered_plot_item == Some(egui::Id::new("cos")) {
+            "blue cos"
+        } else {
+            "none"
+        };
+        ui.label(format!("hovered plot item: {hovered_item}"));
 
         response
     }

@@ -39,8 +39,14 @@ links = ["egui-winit?/links"]
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
 
-## Enable [`winit`](https://docs.rs/winit) integration.
+## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["egui-winit", "dep:winit"]
+
+## Enables Wayland support for winit.
+wayland = ["winit?/wayland"]
+
+## Enables x11 support for winit.
+x11 = ["winit?/x11"]
 
 
 [dependencies]

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use egui::{ahash, Context, Id, Pos2, Vec2b};
 
 use crate::{PlotBounds, PlotTransform};
@@ -12,8 +14,8 @@ pub struct PlotMemory {
     /// the bounds, for example by moving or zooming.
     pub auto_bounds: Vec2b,
 
-    /// Which item is hovered?
-    pub hovered_item: Option<String>,
+    /// Display string of the hovered legend item if any.
+    pub hovered_legend_item: Option<String>,
 
     /// Which items _not_ to show?
     pub hidden_items: ahash::HashSet<String>,
@@ -23,6 +25,13 @@ pub struct PlotMemory {
 
     /// Allows to remember the first click position when performing a boxed zoom
     pub(crate) last_click_pos_for_zoom: Option<Pos2>,
+
+    /// The thickness of each of the axes the previous frame.
+    ///
+    /// This is used in the next frame to make the axes thicker
+    /// in order to fit the labels, if necessary.
+    pub(crate) x_axis_thickness: BTreeMap<usize, f32>,
+    pub(crate) y_axis_thickness: BTreeMap<usize, f32>,
 }
 
 impl PlotMemory {

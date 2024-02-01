@@ -49,6 +49,8 @@ pub(super) trait PlotItem {
 
     fn bounds(&self) -> PlotBounds;
 
+    fn id(&self) -> Option<Id>;
+
     fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
         match self.geometry() {
             PlotGeometry::None => None,
@@ -120,6 +122,7 @@ pub struct HLine {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl HLine {
@@ -130,6 +133,7 @@ impl HLine {
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -178,6 +182,13 @@ impl HLine {
     #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// Set the line's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 }
@@ -232,6 +243,10 @@ impl PlotItem for HLine {
         bounds.max[1] = self.y;
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A vertical line in a plot, filling the full width
@@ -242,6 +257,7 @@ pub struct VLine {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl VLine {
@@ -252,6 +268,7 @@ impl VLine {
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -300,6 +317,13 @@ impl VLine {
     #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// Set the line's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 }
@@ -354,6 +378,10 @@ impl PlotItem for VLine {
         bounds.max[0] = self.x;
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A series of values forming a path.
@@ -364,6 +392,7 @@ pub struct Line {
     pub(super) highlight: bool,
     pub(super) fill: Option<f32>,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl Line {
@@ -375,6 +404,7 @@ impl Line {
             highlight: false,
             fill: None,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -430,6 +460,13 @@ impl Line {
     #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// Set the line's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 }
@@ -528,6 +565,10 @@ impl PlotItem for Line {
     fn bounds(&self) -> PlotBounds {
         self.series.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A convex polygon.
@@ -538,6 +579,7 @@ pub struct Polygon {
     pub(super) highlight: bool,
     pub(super) fill_color: Option<Color32>,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl Polygon {
@@ -549,6 +591,7 @@ impl Polygon {
             highlight: false,
             fill_color: None,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -598,6 +641,13 @@ impl Polygon {
     #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// Set the polygon's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 }
@@ -654,6 +704,10 @@ impl PlotItem for Polygon {
     fn bounds(&self) -> PlotBounds {
         self.series.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// Text inside the plot.
@@ -665,6 +719,7 @@ pub struct Text {
     pub(super) highlight: bool,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
+    id: Option<Id>,
 }
 
 impl Text {
@@ -676,6 +731,7 @@ impl Text {
             highlight: false,
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
+            id: None,
         }
     }
 
@@ -710,6 +766,13 @@ impl Text {
     #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// Set the text's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 }
@@ -768,6 +831,10 @@ impl PlotItem for Text {
         bounds.extend_with(&self.position);
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A set of points.
@@ -790,6 +857,7 @@ pub struct Points {
     pub(super) highlight: bool,
 
     pub(super) stems: Option<f32>,
+    id: Option<Id>,
 }
 
 impl Points {
@@ -803,6 +871,7 @@ impl Points {
             name: Default::default(),
             highlight: false,
             stems: None,
+            id: None,
         }
     }
 
@@ -858,6 +927,13 @@ impl Points {
     #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// Set the points' id which is used to identify them in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 }
@@ -1018,6 +1094,10 @@ impl PlotItem for Points {
     fn bounds(&self) -> PlotBounds {
         self.series.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A set of arrows.
@@ -1028,6 +1108,7 @@ pub struct Arrows {
     pub(super) color: Color32,
     pub(super) name: String,
     pub(super) highlight: bool,
+    id: Option<Id>,
 }
 
 impl Arrows {
@@ -1039,6 +1120,7 @@ impl Arrows {
             color: Color32::TRANSPARENT,
             name: Default::default(),
             highlight: false,
+            id: None,
         }
     }
 
@@ -1073,6 +1155,13 @@ impl Arrows {
     #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// Set the arrows' id which is used to identify them in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 }
@@ -1150,6 +1239,10 @@ impl PlotItem for Arrows {
     fn bounds(&self) -> PlotBounds {
         self.origins.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// An image in the plot.
@@ -1164,6 +1257,7 @@ pub struct PlotImage {
     pub(super) tint: Color32,
     pub(super) highlight: bool,
     pub(super) name: String,
+    id: Option<Id>,
 }
 
 impl PlotImage {
@@ -1183,6 +1277,7 @@ impl PlotImage {
             rotation: 0.0,
             bg_fill: Default::default(),
             tint: Color32::WHITE,
+            id: None,
         }
     }
 
@@ -1330,6 +1425,10 @@ impl PlotItem for PlotImage {
         bounds.extend_with(&right_bottom);
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1344,6 +1443,7 @@ pub struct BarChart {
     pub(super) element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
 
     highlight: bool,
+    id: Option<Id>,
 }
 
 impl BarChart {
@@ -1355,6 +1455,7 @@ impl BarChart {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            id: None,
         }
     }
 
@@ -1454,6 +1555,13 @@ impl BarChart {
         }
         self
     }
+
+    /// Set the bar chart's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for BarChart {
@@ -1512,6 +1620,10 @@ impl PlotItem for BarChart {
         bar.add_shapes(plot.transform, true, shapes);
         bar.add_rulers_and_text(self, plot, shapes, cursors);
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A diagram containing a series of [`BoxElem`] elements.
@@ -1524,6 +1636,7 @@ pub struct BoxPlot {
     pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
 
     highlight: bool,
+    id: Option<Id>,
 }
 
 impl BoxPlot {
@@ -1535,6 +1648,7 @@ impl BoxPlot {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            id: None,
         }
     }
 
@@ -1602,6 +1716,13 @@ impl BoxPlot {
         self.element_formatter = Some(formatter);
         self
     }
+
+    /// Set the box plot's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for BoxPlot {
@@ -1659,6 +1780,10 @@ impl PlotItem for BoxPlot {
 
         box_plot.add_shapes(plot.transform, true, shapes);
         box_plot.add_rulers_and_text(self, plot, shapes, cursors);
+    }
+
+    fn id(&self) -> Option<Id> {
+        self.id
     }
 }
 
