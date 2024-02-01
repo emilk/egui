@@ -88,10 +88,12 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
+    /// Transforms per layer
+    pub layer_transforms: HashMap<LayerId, TSTransform>,
+
     // -------------------------------------------------
     // Per-viewport:
     areas: ViewportIdMap<Areas>,
-    layer_transforms: HashMap<LayerId, TSTransform>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interactions: ViewportIdMap<Interaction>,
@@ -608,16 +610,6 @@ impl Memory {
     /// Access memory of the [`Area`](crate::containers::area::Area)s, such as `Window`s.
     pub fn areas_mut(&mut self) -> &mut Areas {
         self.areas.entry(self.viewport_id).or_default()
-    }
-
-    /// Access layer transformations.
-    pub fn layer_transforms(&self) -> &HashMap<LayerId, TSTransform> {
-        &self.layer_transforms
-    }
-
-    /// Access layer transformations.
-    pub fn layer_transforms_mut(&mut self) -> &mut HashMap<LayerId, TSTransform> {
-        &mut self.layer_transforms
     }
 
     /// Top-most layer at the given position.

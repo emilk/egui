@@ -1782,7 +1782,7 @@ impl ContextImpl {
 
         let shapes = viewport
             .graphics
-            .drain(self.memory.areas().order(), self.memory.layer_transforms());
+            .drain(self.memory.areas().order(), &self.memory.layer_transforms);
 
         if viewport.input.wants_repaint() {
             self.request_repaint(ended_viewport_id);
@@ -2078,7 +2078,13 @@ impl Context {
     ///
     /// Can be used to implement pan and zoom (see relevant demo).
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
-        self.memory_mut(|m| m.layer_transforms_mut().insert(layer_id, transform));
+        self.memory_mut(|m| {
+            if transform == TSTransform::IDENTITY {
+                m.layer_transforms.remove(&layer_id)
+            } else {
+                m.layer_transforms.insert(layer_id, transform)
+            }
+        });
     }
 
     /// Top-most layer at the given position.
@@ -2106,13 +2112,12 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let rect = if let Some(transform) =
-            self.memory(|m| m.layer_transforms().get(&layer_id).cloned())
-        {
-            transform * rect
-        } else {
-            rect
-        };
+        let rect =
+            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).cloned()) {
+                transform * rect
+            } else {
+                rect
+            };
         if !rect.is_positive() {
             return false;
         }
@@ -2155,7 +2160,7 @@ impl Context {
         self.write(|ctx| {
             let transform = ctx
                 .memory
-                .layer_transforms()
+                .layer_transforms
                 .get(&layer_id)
                 .cloned()
                 .unwrap_or_default();

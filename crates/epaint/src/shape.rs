@@ -384,9 +384,10 @@ impl Shape {
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
                 let mut galley = (*text_shape.galley).clone();
-                let scale_transform = TSTransform::from_scaling(transform.scaling);
                 for row in &mut galley.rows {
-                    row.visuals.mesh.transform(scale_transform);
+                    for v in &mut row.visuals.mesh.vertices {
+                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                    }
                 }
 
                 text_shape.galley = Arc::new(galley);
