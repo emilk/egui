@@ -130,11 +130,12 @@ impl Label {
             // we prioritize touch-scrolling:
             let allow_drag_to_select = ui.input(|i| !i.any_touches());
 
-            let select_sense = if allow_drag_to_select {
+            let mut select_sense = if allow_drag_to_select {
                 Sense::click_and_drag()
             } else {
                 Sense::click()
             };
+            select_sense.focusable = false; // Don't move focus to labels with TAB key.
 
             sense = sense.union(select_sense);
         }
