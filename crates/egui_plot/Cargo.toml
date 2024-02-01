@@ -32,7 +32,7 @@ serde = ["dep:serde", "egui/serde"]
 
 
 [dependencies]
-egui = { path = "../egui", default-features = false }
+egui = { workspace = true, default-features = false }
 
 
 #! ### Optional dependencies

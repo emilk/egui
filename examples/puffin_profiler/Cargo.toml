@@ -13,7 +13,7 @@ wgpu = ["eframe/wgpu"]
 
 
 [dependencies]
-eframe = { path = "../../crates/eframe", features = [
+eframe = { workspace = true, features = [
     "puffin",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
