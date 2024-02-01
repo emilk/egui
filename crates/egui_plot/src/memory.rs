@@ -58,6 +58,7 @@ impl PlotMemory {
     }
 }
 
+#[cfg(feature = "serde")]
 impl PlotMemory {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
         ctx.data_mut(|d| d.get_persisted(id))
@@ -65,5 +66,16 @@ impl PlotMemory {
 
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
+    }
+}
+
+#[cfg(not(feature = "serde"))]
+impl PlotMemory {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.data_mut(|d| d.get_temp(id))
+    }
+
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.data_mut(|d| d.insert_temp(id, self));
     }
 }
