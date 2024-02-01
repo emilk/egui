@@ -44,7 +44,8 @@ impl super::View for PanZoom {
                 // Keep mouse centered.
                 let pan_delta = pointer / new_zoom - pointer / original_zoom;
                 // Handle scrolling.
-                let pan_delta = pan_delta + ui.ctx().input(|i| i.raw_scroll_delta) / original_zoom;
+                let pan_delta =
+                    pan_delta + ui.ctx().input(|i| i.smooth_scroll_delta) / original_zoom;
 
                 self.transform.scaling = new_zoom;
                 self.transform.translation += pan_delta;
