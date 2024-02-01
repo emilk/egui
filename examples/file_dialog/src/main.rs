@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
+use eframe::egui::{self, KeyboardShortcut};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -28,7 +28,9 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Drag-and-drop files onto the window!");
 
-            if ui.button("Open file…").clicked() {
+            let cmd_o = KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::O);
+
+            if ui.button("Open file…").clicked() || ui.input_mut(|i| i.consume_shortcut(&cmd_o)) {
                 if let Some(path) = rfd::FileDialog::new().pick_file() {
                     self.picked_path = Some(path.display().to_string());
                 }
