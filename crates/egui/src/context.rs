@@ -2140,6 +2140,8 @@ impl Context {
     ///
     /// Will return false if some other area is covering the given layer.
     ///
+    /// The given rectangle is assumed to have been clipped by its parent clip rect.
+    ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
         if !rect.is_positive() {
@@ -2169,6 +2171,8 @@ impl Context {
     /// If another widget is covering us and is listening for the same input (click and/or drag),
     /// this will return false.
     ///
+    /// The given rectangle is assumed to have been clipped by its parent clip rect.
+    ///
     /// See also [`Response::contains_pointer`].
     pub fn widget_contains_pointer(
         &self,
@@ -2177,6 +2181,10 @@ impl Context {
         sense: Sense,
         rect: Rect,
     ) -> bool {
+        if !rect.is_positive() {
+            return false; // don't even remember this widget
+        }
+
         let contains_pointer = self.rect_contains_pointer(layer_id, rect);
 
         let mut blocking_widget = None;
