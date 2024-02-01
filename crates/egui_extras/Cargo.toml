@@ -60,9 +60,7 @@ syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
-  "serde",
-] }
+egui = { path = "../egui", default-features = false, features = ["serde"] }
 enum-map = { version = "2", features = ["serde"] }
 log = { version = "0.4", features = ["std"] }
 serde = { version = "1", features = ["derive"] }
