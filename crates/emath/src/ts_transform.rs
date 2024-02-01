@@ -57,28 +57,13 @@ impl TSTransform {
     /// let p1 = pos2(2.0, 3.0);
     /// let p2 = pos2(12.0, 5.0);
     /// let ts = TSTransform::new(vec2(2.0, 3.0), 2.0);
-    /// assert_eq!(ts.invert_pos(p1), pos2(0.0, 0.0));
-    /// assert_eq!(ts.invert_pos(p2), pos2(5.0, 1.0));
+    /// let inv = ts.inverse();
+    /// assert_eq!(inv.mul_pos(p1), pos2(0.0, 0.0));
+    /// assert_eq!(inv.mul_pos(p2), pos2(5.0, 1.0));
     /// ```
     #[inline]
-    pub fn invert_pos(&self, pos: Pos2) -> Pos2 {
-        // First, reverse translation, then reverse scaling.
-        (pos - self.translation) / self.scaling
-    }
-
-    /// Reverses the transformation from screen space to layer space.
-    ///
-    /// ```
-    /// # use emath::{pos2, vec2, Rect, TSTransform};
-    /// let rect = Rect::from_min_max(pos2(16.0, 15.0), pos2(46.0, 30.0));
-    /// let ts = TSTransform::new(vec2(1.0, 0.0), 3.0);
-    /// let inverted = ts.invert_rect(rect);
-    /// assert_eq!(inverted.min, pos2(5.0, 5.0));
-    /// assert_eq!(inverted.max, pos2(15.0, 10.0));
-    /// ```
-    #[inline]
-    pub fn invert_rect(&self, rect: Rect) -> Rect {
-        Rect::from_min_max(self.invert_pos(rect.min), self.invert_pos(rect.max))
+    pub fn inverse(&self) -> Self {
+        Self::new(-self.translation / self.scaling, 1.0 / self.scaling)
     }
 
     /// Transforms the given coordinate by translation then scaling.

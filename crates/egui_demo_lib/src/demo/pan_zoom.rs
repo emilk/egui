@@ -42,7 +42,7 @@ impl super::View for PanZoom {
                 let original_zoom = self.transform.scaling;
                 let new_zoom = original_zoom * ui.ctx().input(|i| i.zoom_delta());
 
-                let layer_pos = self.transform.invert_pos(pointer);
+                let layer_pos = self.transform.inverse() * pointer;
                 let new_transform = TSTransform::new(self.transform.translation, new_zoom);
                 let new_pos = new_transform * layer_pos;
 
@@ -83,7 +83,7 @@ impl super::View for PanZoom {
                 // but may also cover over other windows.
                 .order(egui::Order::Foreground)
                 .show(ui.ctx(), |ui| {
-                    ui.set_clip_rect(self.transform.invert_rect(rect));
+                    ui.set_clip_rect(self.transform.inverse() * rect);
                     egui::Frame::default()
                         .rounding(egui::Rounding::same(4.0))
                         .inner_margin(egui::Margin::same(8.0))

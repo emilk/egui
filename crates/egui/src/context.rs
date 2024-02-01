@@ -2181,7 +2181,7 @@ impl Context {
                 let pointer_pos = viewport.input.pointer.interact_pos();
                 if let Some(pointer_pos) = pointer_pos {
                     // Apply the inverse transformation of this layer to the pointer pos.
-                    let pointer_pos = transform.invert_pos(pointer_pos);
+                    let pointer_pos = transform.inverse() * pointer_pos;
                     if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
                         for blocking in rects.iter().rev() {
                             if blocking.id == id {
