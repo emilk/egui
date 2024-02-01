@@ -90,7 +90,7 @@ impl Plugins {
             callback,
         } in callbacks
         {
-            crate::profile_scope!(_name);
+            crate::profile_scope!("plugin", _name);
             (callback)(ctx);
         }
     }
