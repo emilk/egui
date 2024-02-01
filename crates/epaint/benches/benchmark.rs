@@ -60,14 +60,14 @@ fn tessellate_circles(c: &mut Criterion) {
         let prepared_discs = atlas.prepared_discs();
 
         b.iter(|| {
-            let clipped_primitive = tessellate_shapes(
+            let mut tessellator = Tessellator::new(
                 pixels_per_point,
                 options,
                 font_tex_size,
                 prepared_discs.clone(),
-                clipped_shapes.clone(),
             );
-            black_box(clipped_primitive);
+            let clipped_primitives = tessellator.tessellate_shapes(clipped_shapes.clone());
+            black_box(clipped_primitives);
         });
     });
 }
