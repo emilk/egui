@@ -11,6 +11,7 @@ use crate::{Pos2, Rect, Vec2};
 pub struct TSTransform {
     /// Translation amount.
     pub translation: Vec2,
+
     /// Scaling amount after translation, scaled around (0, 0).
     pub scaling: f32,
 }
@@ -20,7 +21,7 @@ impl Eq for TSTransform {}
 impl Default for TSTransform {
     #[inline]
     fn default() -> Self {
-        TSTransform {
+        Self {
             translation: Vec2::ZERO,
             scaling: 1.0,
         }
