@@ -268,6 +268,13 @@ impl Mesh {
         output
     }
 
+    /// Translate location by this much, in-place
+    pub fn translate(&mut self, delta: Vec2) {
+        for v in &mut self.vertices {
+            v.pos += delta;
+        }
+    }
+
     /// Transform the mesh in-place with the given transform.
     pub fn transform(&mut self, transform: TSTransform) {
         for v in &mut self.vertices {

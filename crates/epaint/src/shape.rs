@@ -383,6 +383,8 @@ impl Shape {
             }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
+
+                // Scale text:
                 let mut galley = (*text_shape.galley).clone();
                 for row in &mut galley.rows {
                     for v in &mut row.visuals.mesh.vertices {
