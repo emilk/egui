@@ -2348,25 +2348,14 @@ impl Context {
 impl Context {
     /// Show a ui for settings (style and tessellation options).
     pub fn settings_ui(&self, ui: &mut Ui) {
-        use crate::containers::*;
+        let prev_options = self.options(|o| o.clone());
+        let mut options = prev_options.clone();
 
-        CollapsingHeader::new("🎑 Style")
-            .default_open(true)
-            .show(ui, |ui| {
-                self.style_ui(ui);
-            });
+        options.ui(ui);
 
-        CollapsingHeader::new("✒ Painting")
-            .default_open(true)
-            .show(ui, |ui| {
-                let prev_tessellation_options = self.tessellation_options(|o| *o);
-                let mut tessellation_options = prev_tessellation_options;
-                tessellation_options.ui(ui);
-                ui.vertical_centered(|ui| reset_button(ui, &mut tessellation_options));
-                if tessellation_options != prev_tessellation_options {
-                    self.tessellation_options_mut(move |o| *o = tessellation_options);
-                }
-            });
+        if options != prev_options {
+            self.options_mut(move |o| *o = options);
+        }
     }
 
     /// Show the state of egui, including its input and output.

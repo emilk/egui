@@ -229,6 +229,56 @@ impl Default for Options {
     }
 }
 
+impl Options {
+    /// Show the options in the ui.
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            style,          // covered above
+            zoom_factor: _, // TODO
+            zoom_with_keyboard,
+            tessellation_options,
+            repaint_on_widget_change,
+            screen_reader: _, // needs to come from the integration
+            preload_font_glyphs: _,
+            warn_on_id_clash,
+        } = self;
+
+        use crate::Widget as _;
+
+        CollapsingHeader::new("⚙ Options")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.checkbox(
+                    repaint_on_widget_change,
+                    "Repaint if any widget moves or changes id",
+                );
+
+                ui.checkbox(
+                    zoom_with_keyboard,
+                    "Zoom with keyboard (Cmd +, Cmd -, Cmd 0)",
+                );
+
+                ui.checkbox(warn_on_id_clash, "Warn if two widgets have the same Id");
+            });
+
+        use crate::containers::*;
+        CollapsingHeader::new("🎑 Style")
+            .default_open(true)
+            .show(ui, |ui| {
+                std::sync::Arc::make_mut(style).ui(ui);
+            });
+
+        CollapsingHeader::new("✒ Painting")
+            .default_open(true)
+            .show(ui, |ui| {
+                tessellation_options.ui(ui);
+                ui.vertical_centered(|ui| crate::reset_button(ui, tessellation_options));
+            });
+
+        ui.vertical_centered(|ui| crate::reset_button(ui, self));
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Say there is a button in a scroll area.
