@@ -1205,6 +1205,8 @@ impl Tessellator {
     /// * `shape`: the shape to tessellate.
     /// * `out`: triangles are appended to this.
     pub fn tessellate_shape(&mut self, shape: Shape, out: &mut Mesh) {
+        crate::profile_function!();
+
         match shape {
             Shape::Noop => {}
             Shape::Vec(vec) => {
@@ -1371,6 +1373,8 @@ impl Tessellator {
         {
             return;
         }
+
+        crate::profile_function!();
 
         let PathShape {
             points,
@@ -1726,7 +1730,6 @@ impl Tessellator {
         {
             crate::profile_scope!("tessellate");
             for clipped_shape in shapes {
-                crate::profile_scope!("shape");
                 self.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
             }
         }
