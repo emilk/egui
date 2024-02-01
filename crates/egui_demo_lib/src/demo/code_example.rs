@@ -45,11 +45,11 @@ impl CodeExample {
         show_code(
             ui,
             r#"
-            if ui.button("Click each year").clicked() {
+            if ui.button("Increment").clicked() {
                 self.age += 1;
             }"#,
         );
-        if ui.button("Click each year").clicked() {
+        if ui.button("Increment").clicked() {
             self.age += 1;
         }
         ui.end_row();

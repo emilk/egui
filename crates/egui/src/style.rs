@@ -455,7 +455,7 @@ impl ScrollStyle {
     pub fn thin() -> Self {
         Self {
             floating: true,
-            bar_width: 12.0,
+            bar_width: 10.0,
             floating_allocated_width: 6.0,
             foreground_color: false,
 
@@ -479,7 +479,7 @@ impl ScrollStyle {
     pub fn floating() -> Self {
         Self {
             floating: true,
-            bar_width: 12.0,
+            bar_width: 10.0,
             foreground_color: true,
             floating_allocated_width: 0.0,
             dormant_background_opacity: 0.0,
