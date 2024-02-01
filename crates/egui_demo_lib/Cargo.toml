@@ -38,9 +38,9 @@ syntect = ["egui_extras/syntect"]
 
 
 [dependencies]
-egui = { workspace = true, default-features = false }
-egui_extras.workspace = true
-egui_plot.workspace = true
+egui = { path = "../egui", default-features = false }
+egui_extras = { path = "../egui_extras" }
+egui_plot = { path = "../egui_plot" }
 log = { version = "0.4", features = ["std"] }
 unicode_names2 = { version = "0.6.0", default-features = false } # this old version has fewer dependencies
 

@@ -42,8 +42,10 @@ x11 = ["winit?/x11"]
 
 
 [dependencies]
-egui = { workspace = true, default-features = false }
-epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
+egui = { path = "../egui", default-features = false }
+epaint = { path = "../epaint", default-features = false, features = [
+  "bytemuck",
+] }
 
 bytemuck = "1.7"
 log = { version = "0.4", features = ["std"] }
