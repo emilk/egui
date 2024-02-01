@@ -1977,13 +1977,13 @@ impl Context {
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {
                 crate::profile_scope!("tessellator::tessellate_shapes");
-                tessellator::tessellate_shapes(
+                tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
                     font_tex_size,
                     prepared_discs,
-                    shapes,
                 )
+                .tessellate_shapes(shapes)
             };
             ctx.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
             clipped_primitives

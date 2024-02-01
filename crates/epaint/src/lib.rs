@@ -52,12 +52,15 @@ pub use {
     },
     stats::PaintStats,
     stroke::Stroke,
-    tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
+    tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
 };
+
+#[allow(deprecated)]
+pub use tessellator::tessellate_shapes;
 
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};

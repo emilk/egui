@@ -1086,6 +1086,9 @@ pub struct Tessellator {
 impl Tessellator {
     /// Create a new [`Tessellator`].
     ///
+    /// * `pixels_per_point`: number of physical pixels to each logical point
+    /// * `options`: tessellation quality
+    /// * `shapes`: what to tessellate
     /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
     /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
     pub fn new(
@@ -1674,21 +1677,7 @@ impl Tessellator {
     }
 }
 
-/// Turns [`Shape`]:s into sets of triangles.
-///
-/// The given shapes will tessellated in the same order as they are given.
-/// They will be batched together by clip rectangle.
-///
-/// * `pixels_per_point`: number of physical pixels to each logical point
-/// * `options`: tessellation quality
-/// * `shapes`: what to tessellate
-/// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
-/// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
-///
-/// The implementation uses a [`Tessellator`].
-///
-/// ## Returns
-/// A list of clip rectangles with matching [`Mesh`].
+#[deprecated = "Use `Tessellator::new(…).tessellate_shapes(…)` instead"]
 pub fn tessellate_shapes(
     pixels_per_point: f32,
     options: TessellationOptions,
@@ -1696,67 +1685,86 @@ pub fn tessellate_shapes(
     prepared_discs: Vec<PreparedDisc>,
     shapes: Vec<ClippedShape>,
 ) -> Vec<ClippedPrimitive> {
-    let mut tessellator =
-        Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs);
-
-    let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
-
-    for clipped_shape in shapes {
-        tessellator.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
-    }
-
-    if options.debug_paint_clip_rects {
-        clipped_primitives = add_clip_rects(&mut tessellator, clipped_primitives);
-    }
-
-    if options.debug_ignore_clip_rects {
-        for clipped_primitive in &mut clipped_primitives {
-            clipped_primitive.clip_rect = Rect::EVERYTHING;
-        }
-    }
-
-    clipped_primitives.retain(|p| {
-        p.clip_rect.is_positive()
-            && match &p.primitive {
-                Primitive::Mesh(mesh) => !mesh.is_empty(),
-                Primitive::Callback(_) => true,
-            }
-    });
-
-    for clipped_primitive in &clipped_primitives {
-        if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
-            crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
-        }
-    }
-
-    clipped_primitives
+    Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs)
+        .tessellate_shapes(shapes)
 }
 
-fn add_clip_rects(
-    tessellator: &mut Tessellator,
-    clipped_primitives: Vec<ClippedPrimitive>,
-) -> Vec<ClippedPrimitive> {
-    tessellator.clip_rect = Rect::EVERYTHING;
-    let stroke = Stroke::new(2.0, Color32::from_rgb(150, 255, 150));
+impl Tessellator {
+    /// Turns [`Shape`]:s into sets of triangles.
+    ///
+    /// The given shapes will tessellated in the same order as they are given.
+    /// They will be batched together by clip rectangle.
+    ///
+    /// * `pixels_per_point`: number of physical pixels to each logical point
+    /// * `options`: tessellation quality
+    /// * `shapes`: what to tessellate
+    /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
+    /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
+    ///
+    /// The implementation uses a [`Tessellator`].
+    ///
+    /// ## Returns
+    /// A list of clip rectangles with matching [`Mesh`].
+    pub fn tessellate_shapes(&mut self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
 
-    clipped_primitives
-        .into_iter()
-        .flat_map(|clipped_primitive| {
-            let mut clip_rect_mesh = Mesh::default();
-            tessellator.tessellate_shape(
-                Shape::rect_stroke(clipped_primitive.clip_rect, 0.0, stroke),
-                &mut clip_rect_mesh,
-            );
+        for clipped_shape in shapes {
+            self.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
+        }
 
-            [
-                clipped_primitive,
-                ClippedPrimitive {
-                    clip_rect: Rect::EVERYTHING, // whatever
-                    primitive: Primitive::Mesh(clip_rect_mesh),
-                },
-            ]
-        })
-        .collect()
+        if self.options.debug_paint_clip_rects {
+            clipped_primitives = self.add_clip_rects(clipped_primitives);
+        }
+
+        if self.options.debug_ignore_clip_rects {
+            for clipped_primitive in &mut clipped_primitives {
+                clipped_primitive.clip_rect = Rect::EVERYTHING;
+            }
+        }
+
+        clipped_primitives.retain(|p| {
+            p.clip_rect.is_positive()
+                && match &p.primitive {
+                    Primitive::Mesh(mesh) => !mesh.is_empty(),
+                    Primitive::Callback(_) => true,
+                }
+        });
+
+        for clipped_primitive in &clipped_primitives {
+            if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
+                crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
+            }
+        }
+
+        clipped_primitives
+    }
+
+    fn add_clip_rects(
+        &mut self,
+        clipped_primitives: Vec<ClippedPrimitive>,
+    ) -> Vec<ClippedPrimitive> {
+        self.clip_rect = Rect::EVERYTHING;
+        let stroke = Stroke::new(2.0, Color32::from_rgb(150, 255, 150));
+
+        clipped_primitives
+            .into_iter()
+            .flat_map(|clipped_primitive| {
+                let mut clip_rect_mesh = Mesh::default();
+                self.tessellate_shape(
+                    Shape::rect_stroke(clipped_primitive.clip_rect, 0.0, stroke),
+                    &mut clip_rect_mesh,
+                );
+
+                [
+                    clipped_primitive,
+                    ClippedPrimitive {
+                        clip_rect: Rect::EVERYTHING, // whatever
+                        primitive: Primitive::Mesh(clip_rect_mesh),
+                    },
+                ]
+            })
+            .collect()
+    }
 }
 
 #[test]
@@ -1785,12 +1793,8 @@ fn test_tessellator() {
     let font_tex_size = [1024, 1024]; // unused
     let prepared_discs = vec![]; // unused
 
-    let primitives = tessellate_shapes(
-        1.0,
-        Default::default(),
-        font_tex_size,
-        prepared_discs,
-        clipped_shapes,
-    );
+    let primitives = Tessellator::new(1.0, Default::default(), font_tex_size, prepared_discs)
+        .tessellate_shapes(clipped_shapes);
+
     assert_eq!(primitives.len(), 2);
 }
