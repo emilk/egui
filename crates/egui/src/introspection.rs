@@ -147,6 +147,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 bezier_tolerance,
                 epsilon: _,
                 parallel_tessellation,
+                validate_meshes,
             } = self;
 
             ui.checkbox(feathering, "Feathering (antialias)")
@@ -181,6 +182,8 @@ impl Widget for &mut epaint::TessellationOptions {
             ui.add_enabled(epaint::HAS_RAYON, crate::Checkbox::new(parallel_tessellation, "Parallelize tessellation")
                 ).on_hover_text("Only available if epaint was compiled with the rayon feature")
                 .on_disabled_hover_text("epaint was not compiled with the rayon feature");
+
+            ui.checkbox(validate_meshes, "Validate meshes").on_hover_text("Check that incoming meshes are valid, i.e. that all indices are in range, etc.");
         })
         .response
     }

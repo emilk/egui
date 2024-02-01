@@ -657,6 +657,12 @@ pub struct TessellationOptions {
 
     /// If `rayon` feature is activated, should we parallelize tessellation?
     pub parallel_tessellation: bool,
+
+    /// If `true`, invalid meshes will be silently ignored.
+    /// If `false`, invalid meshes will cause a panic.
+    ///
+    /// The default is `false` to save performance.
+    pub validate_meshes: bool,
 }
 
 impl Default for TessellationOptions {
@@ -673,6 +679,7 @@ impl Default for TessellationOptions {
             bezier_tolerance: 0.1,
             epsilon: 1.0e-5,
             parallel_tessellation: true,
+            validate_meshes: false,
         }
     }
 }
@@ -1209,16 +1216,20 @@ impl Tessellator {
                 self.tessellate_circle(circle, out);
             }
             Shape::Mesh(mesh) => {
-                if !mesh.is_valid() {
+                crate::profile_scope!("mesh");
+
+                if self.options.validate_meshes && !mesh.is_valid() {
                     crate::epaint_assert!(false, "Invalid Mesh in Shape::Mesh");
                     return;
                 }
+                // note: `append` still checks if the mesh is valid if extra asserts are enabled.
 
                 if self.options.coarse_tessellation_culling
                     && !self.clip_rect.intersects(mesh.calc_bounds())
                 {
                     return;
                 }
+
                 out.append(mesh);
             }
             Shape::LineSegment { points, stroke } => self.tessellate_line(points, stroke, out),
@@ -1703,6 +1714,8 @@ impl Tessellator {
     /// A list of clip rectangles with matching [`Mesh`].
     #[allow(unused_mut)]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        crate::profile_function!();
+
         #[cfg(feature = "rayon")]
         if self.options.parallel_tessellation {
             self.parallel_tessellation_of_large_shapes(&mut shapes);
