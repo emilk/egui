@@ -66,7 +66,12 @@ persistence = ["serde", "epaint/serde", "ron"]
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 ##
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin"]
+puffin = ["dep:puffin", "epaint/puffin"]
+
+## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
+##
+## This can help performance for graphics-intense applications.
+rayon = ["epaint/rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
