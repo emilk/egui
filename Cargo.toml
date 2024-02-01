@@ -50,7 +50,8 @@ opt-level = 2
 [workspace.dependencies]
 criterion = { version = "0.5.1", default-features = false }
 glow = "0.13"
-puffin = "0.18"
+puffin = "0.19"
+puffin_http = "0.16"
 raw-window-handle = "0.6.0"
 thiserror = "1.0.37"
 web-time = "0.2" # Timekeeping for native and web
