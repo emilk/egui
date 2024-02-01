@@ -80,8 +80,8 @@ serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 unity = []
 
 [dependencies]
-emath.workspace = true
-ecolor.workspace = true
+emath = { version = "0.25.0", path = "../emath" }
+ecolor = { version = "0.25.0", path = "../ecolor" }
 
 ab_glyph = "0.2.11"
 ahash = { version = "0.8.1", default-features = false, features = [

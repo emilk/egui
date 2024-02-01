@@ -38,16 +38,20 @@ chrono = { version = "0.4", default-features = false, features = [
   "js-sys",
   "wasmbind",
 ] }
-eframe = { workspace = true, default-features = false, features = [
+eframe = { version = "0.25.0", path = "../eframe", default-features = false, features = [
   "web_screen_reader",
 ] }
-egui = { workspace = true, features = [
+egui = { version = "0.25.0", path = "../egui", features = [
   "callstack",
   "extra_debug_asserts",
   "log",
 ] }
-egui_demo_lib = { workspace = true, features = ["chrono"] }
-egui_extras = { workspace = true, features = ["image"] }
+egui_demo_lib = { version = "0.25.0", path = "../egui_demo_lib", features = [
+  "chrono",
+] }
+egui_extras = { version = "0.25.0", path = "../egui_extras", features = [
+  "image",
+] }
 log = { version = "0.4", features = ["std"] }
 
 # Optional dependencies:
