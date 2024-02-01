@@ -2072,7 +2072,9 @@ impl Context {
 }
 
 impl Context {
-    /// Transform the graphics at the given layer.
+    /// Transform the graphics of the given layer.
+    ///
+    /// This is a sticky setting, remembered from one frame to the next.
     ///
     /// Can be used to implement pan and zoom (see relevant demo).
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
