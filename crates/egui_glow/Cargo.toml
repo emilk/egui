@@ -50,7 +50,9 @@ x11 = ["winit?/x11"]
 
 
 [dependencies]
-egui = { path = "../egui", default-features = false, features = ["bytemuck"] }
+egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
+  "bytemuck",
+] }
 
 bytemuck = "1.7"
 glow.workspace = true
@@ -67,7 +69,7 @@ document-features = { version = "0.2", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { path = "../egui-winit", optional = true, default-features = false }
+egui-winit = { version = "0.25.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { workspace = true, optional = true }
 winit = { workspace = true, optional = true, default-features = false, features = [
   "rwh_05", # glutin stuck on old version of raw-window-handle
