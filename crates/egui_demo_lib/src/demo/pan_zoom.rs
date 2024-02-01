@@ -41,8 +41,14 @@ impl super::View for PanZoom {
             if response.hovered() {
                 let original_zoom = self.transform.scaling;
                 let new_zoom = original_zoom * ui.ctx().input(|i| i.zoom_delta());
+
+                let layer_pos = self.transform.invert_pos(pointer);
+                let new_transform = TSTransform::new(self.transform.translation, new_zoom);
+                let new_pos = new_transform * layer_pos;
+
                 // Keep mouse centered.
-                let pan_delta = pointer / new_zoom - pointer / original_zoom;
+                let pan_delta = pointer - new_pos;
+
                 // Handle scrolling.
                 let pan_delta =
                     pan_delta + ui.ctx().input(|i| i.smooth_scroll_delta) / original_zoom;
