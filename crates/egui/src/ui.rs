@@ -97,17 +97,19 @@ impl Ui {
         id_source: impl Hash,
     ) -> Self {
         crate::egui_assert!(!max_rect.any_nan());
-        let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
+        let child_id = self.id.with(id_source);
+        let child_next_auto_id_source = child_id.with(self.next_auto_id_source).value();
+
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
-        let menu_state = self.menu_state();
+
         Ui {
-            id: self.id.with(id_source),
-            next_auto_id_source,
+            id: child_id,
+            next_auto_id_source: child_next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
-            menu_state,
+            menu_state: self.menu_state.clone(),
         }
     }
 
@@ -2230,10 +2232,6 @@ impl Ui {
             menu_state.write().close();
         }
         self.menu_state = None;
-    }
-
-    pub(crate) fn menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
-        self.menu_state.clone()
     }
 
     pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
