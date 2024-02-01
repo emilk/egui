@@ -1135,31 +1135,22 @@ impl Tessellator {
         clipped_shape: ClippedShape,
         out_primitives: &mut Vec<ClippedPrimitive>,
     ) {
-        let ClippedShape {
-            clip_rect: new_clip_rect,
-            shape: new_shape,
-        } = clipped_shape;
+        let ClippedShape { clip_rect, shape } = clipped_shape;
 
-        if !new_clip_rect.is_positive() {
+        if !clip_rect.is_positive() {
             return; // skip empty clip rectangles
         }
 
-        if let Shape::Vec(shapes) = new_shape {
+        if let Shape::Vec(shapes) = shape {
             for shape in shapes {
-                self.tessellate_clipped_shape(
-                    ClippedShape {
-                        clip_rect: new_clip_rect,
-                        shape,
-                    },
-                    out_primitives,
-                );
+                self.tessellate_clipped_shape(ClippedShape { clip_rect, shape }, out_primitives);
             }
             return;
         }
 
-        if let Shape::Callback(callback) = new_shape {
+        if let Shape::Callback(callback) = shape {
             out_primitives.push(ClippedPrimitive {
-                clip_rect: new_clip_rect,
+                clip_rect,
                 primitive: Primitive::Callback(callback),
             });
             return;
@@ -1168,10 +1159,10 @@ impl Tessellator {
         let start_new_mesh = match out_primitives.last() {
             None => true,
             Some(output_clipped_primitive) => {
-                output_clipped_primitive.clip_rect != new_clip_rect
+                output_clipped_primitive.clip_rect != clip_rect
                     || match &output_clipped_primitive.primitive {
                         Primitive::Mesh(output_mesh) => {
-                            output_mesh.texture_id != new_shape.texture_id()
+                            output_mesh.texture_id != shape.texture_id()
                         }
                         Primitive::Callback(_) => true,
                     }
@@ -1180,7 +1171,7 @@ impl Tessellator {
 
         if start_new_mesh {
             out_primitives.push(ClippedPrimitive {
-                clip_rect: new_clip_rect,
+                clip_rect,
                 primitive: Primitive::Mesh(Mesh::default()),
             });
         }
@@ -1188,8 +1179,8 @@ impl Tessellator {
         let out = out_primitives.last_mut().unwrap();
 
         if let Primitive::Mesh(out_mesh) = &mut out.primitive {
-            self.clip_rect = new_clip_rect;
-            self.tessellate_shape(new_shape, out_mesh);
+            self.clip_rect = clip_rect;
+            self.tessellate_shape(shape, out_mesh);
         } else {
             unreachable!();
         }
