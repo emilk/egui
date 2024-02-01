@@ -154,7 +154,7 @@ impl FocusDirection {
 // ----------------------------------------------------------------------------
 
 /// Some global options that you can read and write.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
@@ -183,6 +183,11 @@ pub struct Options {
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
+
+    /// If any widget moves or changes id, repaint everything.
+    ///
+    /// This is `true` by default.
+    pub repaint_on_widget_change: bool,
 
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     ///
@@ -216,10 +221,61 @@ impl Default for Options {
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
+            repaint_on_widget_change: true,
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
         }
+    }
+}
+
+impl Options {
+    /// Show the options in the ui.
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            style,          // covered above
+            zoom_factor: _, // TODO
+            zoom_with_keyboard,
+            tessellation_options,
+            repaint_on_widget_change,
+            screen_reader: _, // needs to come from the integration
+            preload_font_glyphs: _,
+            warn_on_id_clash,
+        } = self;
+
+        use crate::Widget as _;
+
+        CollapsingHeader::new("⚙ Options")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.checkbox(
+                    repaint_on_widget_change,
+                    "Repaint if any widget moves or changes id",
+                );
+
+                ui.checkbox(
+                    zoom_with_keyboard,
+                    "Zoom with keyboard (Cmd +, Cmd -, Cmd 0)",
+                );
+
+                ui.checkbox(warn_on_id_clash, "Warn if two widgets have the same Id");
+            });
+
+        use crate::containers::*;
+        CollapsingHeader::new("🎑 Style")
+            .default_open(true)
+            .show(ui, |ui| {
+                std::sync::Arc::make_mut(style).ui(ui);
+            });
+
+        CollapsingHeader::new("✒ Painting")
+            .default_open(true)
+            .show(ui, |ui| {
+                tessellation_options.ui(ui);
+                ui.vertical_centered(|ui| crate::reset_button(ui, tessellation_options));
+            });
+
+        ui.vertical_centered(|ui| crate::reset_button(ui, self));
     }
 }
 
