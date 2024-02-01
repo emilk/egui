@@ -154,7 +154,7 @@ impl FocusDirection {
 // ----------------------------------------------------------------------------
 
 /// Some global options that you can read and write.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
@@ -183,6 +183,11 @@ pub struct Options {
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
+
+    /// If any widget moves or changes id, repaint everything.
+    ///
+    /// This is `true` by default.
+    pub repaint_on_widget_change: bool,
 
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     ///
@@ -216,6 +221,7 @@ impl Default for Options {
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
+            repaint_on_widget_change: true,
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
