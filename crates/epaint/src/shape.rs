@@ -356,60 +356,56 @@ impl Shape {
     }
 
     /// Move the shape by this many points, in-place.
-    pub fn transform(&mut self, delta: Vec2, scale: f32) {
-        let transform_point = |p: &mut Pos2| *p = ((*p + delta).to_vec2() * scale).to_pos2();
-        let transform_rect = |r: &mut Rect| {
-            transform_point(&mut r.min);
-            transform_point(&mut r.max);
-        };
+    pub fn transform(&mut self, transform: TSTransform) {
         match self {
             Self::Noop => {}
             Self::Vec(shapes) => {
                 for shape in shapes {
-                    shape.transform(delta, scale);
+                    shape.transform(transform);
                 }
             }
             Self::Circle(circle_shape) => {
-                transform_point(&mut circle_shape.center);
-                circle_shape.radius *= scale;
+                circle_shape.center = transform * circle_shape.center;
+                circle_shape.radius *= transform.scaling;
             }
             Self::LineSegment { points, .. } => {
                 for p in points {
-                    transform_point(p);
+                    *p = transform * *p;
                 }
             }
             Self::Path(path_shape) => {
                 for p in &mut path_shape.points {
-                    transform_point(p);
+                    *p = transform * *p;
                 }
             }
             Self::Rect(rect_shape) => {
-                transform_rect(&mut rect_shape.rect);
+                rect_shape.rect = transform * rect_shape.rect;
             }
             Self::Text(text_shape) => {
-                transform_point(&mut text_shape.pos);
+                text_shape.pos = transform * text_shape.pos;
                 let mut galley = (*text_shape.galley).clone();
+                let scale_transform = TSTransform::from_scaling(transform.scaling);
                 for row in &mut galley.rows {
-                    row.visuals.mesh.transform(Vec2::ZERO, scale);
+                    row.visuals.mesh.transform(scale_transform);
                 }
 
                 text_shape.galley = Arc::new(galley);
             }
             Self::Mesh(mesh) => {
-                mesh.transform(delta, scale);
+                mesh.transform(transform);
             }
             Self::QuadraticBezier(bezier_shape) => {
-                transform_point(&mut bezier_shape.points[0]);
-                transform_point(&mut bezier_shape.points[1]);
-                transform_point(&mut bezier_shape.points[2]);
+                bezier_shape.points[0] = transform * bezier_shape.points[0];
+                bezier_shape.points[1] = transform * bezier_shape.points[1];
+                bezier_shape.points[2] = transform * bezier_shape.points[2];
             }
             Self::CubicBezier(cubic_curve) => {
                 for p in &mut cubic_curve.points {
-                    transform_point(p);
+                    *p = transform * *p;
                 }
             }
             Self::Callback(shape) => {
-                transform_rect(&mut shape.rect);
+                shape.rect = transform * shape.rect;
             }
         }
     }

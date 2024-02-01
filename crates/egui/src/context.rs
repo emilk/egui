@@ -3,7 +3,9 @@
 use std::{borrow::Cow, cell::RefCell, sync::Arc, time::Duration};
 
 use ahash::HashMap;
-use epaint::{mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *};
+use epaint::{
+    emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
+};
 
 use crate::{
     animation_manager::AnimationManager,
@@ -12,7 +14,7 @@ use crate::{
     input_state::*,
     layers::GraphicLayers,
     load::{Bytes, Loaders, SizedTexture},
-    memory::{LayerTransform, Options},
+    memory::Options,
     os::OperatingSystem,
     output::FullOutput,
     util::IdTypeMap,
@@ -1778,7 +1780,9 @@ impl ContextImpl {
             }
         }
 
-        let shapes = viewport.graphics.drain(self.memory.areas().order());
+        let shapes = viewport
+            .graphics
+            .drain(self.memory.areas().order(), self.memory.layer_transforms());
 
         if viewport.input.wants_repaint() {
             self.request_repaint(ended_viewport_id);
@@ -2068,18 +2072,11 @@ impl Context {
 }
 
 impl Context {
-    /// Move all the graphics at the given layer.
+    /// Transform the graphics at the given layer.
     ///
-    /// Can be used to implement drag-and-drop (see relevant demo).
-    pub fn transform_layer(&self, layer_id: LayerId, delta: Vec2, scale: f32) {
-        if delta != Vec2::ZERO {
-            let transform = LayerTransform {
-                translation: delta,
-                scale,
-            };
-            self.graphics_mut(|g| g.entry(layer_id).transform(&transform));
-            self.memory_mut(|m| m.layer_transforms_mut().insert(layer_id, transform));
-        }
+    /// Can be used to implement pan and zoom (see relevant demo).
+    pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
+        self.memory_mut(|m| m.layer_transforms_mut().insert(layer_id, transform));
     }
 
     /// Top-most layer at the given position.
@@ -2107,10 +2104,13 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let transform = self
-            .memory(|m| m.layer_transforms().get(&layer_id).cloned())
-            .unwrap_or_default();
-        let rect = transform.apply(rect);
+        let rect = if let Some(transform) =
+            self.memory(|m| m.layer_transforms().get(&layer_id).cloned())
+        {
+            transform * rect
+        } else {
+            rect
+        };
         if !rect.is_positive() {
             return false;
         }
@@ -2173,6 +2173,8 @@ impl Context {
             if contains_pointer {
                 let pointer_pos = viewport.input.pointer.interact_pos();
                 if let Some(pointer_pos) = pointer_pos {
+                    // Apply the inverse transformation of this layer to the pointer pos.
+                    let pointer_pos = transform.invert_pos(pointer_pos);
                     if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
                         for blocking in rects.iter().rev() {
                             if blocking.id == id {
@@ -2180,7 +2182,7 @@ impl Context {
                                 // which means there are no widgets covering us.
                                 break;
                             }
-                            if !transform.apply(blocking.rect).contains(pointer_pos) {
+                            if !blocking.rect.contains(pointer_pos) {
                                 continue;
                             }
                             if sense.interactive() && !blocking.sense.interactive() {

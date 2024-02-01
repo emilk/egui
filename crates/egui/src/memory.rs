@@ -1,6 +1,7 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
 use ahash::HashMap;
+use epaint::emath::TSTransform;
 
 use crate::{
     area, vec2,
@@ -90,7 +91,7 @@ pub struct Memory {
     // -------------------------------------------------
     // Per-viewport:
     areas: ViewportIdMap<Areas>,
-    layer_transforms: HashMap<LayerId, LayerTransform>,
+    layer_transforms: HashMap<LayerId, TSTransform>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interactions: ViewportIdMap<Interaction>,
@@ -152,32 +153,6 @@ impl FocusDirection {
 
             Self::Previous | Self::Next | Self::None => false,
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
-pub struct LayerTransform {
-    pub translation: Vec2,
-    pub scale: f32,
-}
-
-impl Default for LayerTransform {
-    fn default() -> Self {
-        Self {
-            translation: Vec2::default(),
-            scale: 1.0,
-        }
-    }
-}
-
-impl LayerTransform {
-    pub(crate) fn apply(&self, rect: Rect) -> Rect {
-        Rect::from_center_size(
-            (rect.center() + self.translation) * self.scale,
-            rect.size() * self.scale,
-        )
     }
 }
 
@@ -636,12 +611,12 @@ impl Memory {
     }
 
     /// Access layer transformations.
-    pub fn layer_transforms(&self) -> &HashMap<LayerId, LayerTransform> {
+    pub fn layer_transforms(&self) -> &HashMap<LayerId, TSTransform> {
         &self.layer_transforms
     }
 
     /// Access layer transformations.
-    pub fn layer_transforms_mut(&mut self) -> &mut HashMap<LayerId, LayerTransform> {
+    pub fn layer_transforms_mut(&mut self) -> &mut HashMap<LayerId, TSTransform> {
         &mut self.layer_transforms
     }
 
@@ -928,7 +903,7 @@ impl Areas {
         &self,
         pos: Pos2,
         resize_interact_radius_side: f32,
-        layer_transforms: &HashMap<LayerId, LayerTransform>,
+        layer_transforms: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
@@ -941,7 +916,7 @@ impl Areas {
                         }
 
                         if let Some(transform) = layer_transforms.get(layer) {
-                            rect = transform.apply(rect);
+                            rect = *transform * rect;
                         }
 
                         if rect.contains(pos) {
