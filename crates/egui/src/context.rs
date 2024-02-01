@@ -188,7 +188,7 @@ pub struct WidgetRect {
     /// and also big red warning test on the screen in debug builds
     /// (see [`Options::warn_on_id_clash`]).
     ///
-    /// You can ensure globally unqiue ids using [`Ui::push_id`].
+    /// You can ensure globally unique ids using [`Ui::push_id`].
     pub id: Id,
 
     /// How the widget responds to interaction.
