@@ -1,6 +1,6 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{borrow::Cow, cell::RefCell, sync::Arc, time::Duration};
+use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use ahash::HashMap;
 use epaint::{mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *};
@@ -112,6 +112,12 @@ impl ContextImpl {
     fn begin_frame_repaint_logic(&mut self, viewport_id: ViewportId) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
+        std::mem::swap(
+            &mut viewport.repaint.prev_causes,
+            &mut viewport.repaint.causes,
+        );
+        viewport.repaint.causes.clear();
+
         viewport.repaint.prev_frame_paint_delay = viewport.repaint.repaint_delay;
 
         if viewport.repaint.outstanding == 0 {
@@ -130,16 +136,23 @@ impl ContextImpl {
         }
     }
 
-    fn request_repaint(&mut self, viewport_id: ViewportId) {
-        self.request_repaint_after(Duration::ZERO, viewport_id);
+    fn request_repaint(&mut self, viewport_id: ViewportId, cause: RepaintCause) {
+        self.request_repaint_after(Duration::ZERO, viewport_id, cause);
     }
 
-    fn request_repaint_after(&mut self, delay: Duration, viewport_id: ViewportId) {
+    fn request_repaint_after(
+        &mut self,
+        delay: Duration,
+        viewport_id: ViewportId,
+        cause: RepaintCause,
+    ) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
         // Each request results in two repaints, just to give some things time to settle.
         // This solves some corner-cases of missing repaints on frame-delayed responses.
         viewport.repaint.outstanding = 1;
+
+        viewport.repaint.causes.push(cause);
 
         // We save some CPU time by only calling the callback if we need to.
         // If the new delay is greater or equal to the previous lowest,
@@ -262,6 +275,35 @@ struct ViewportState {
     commands: Vec<ViewportCommand>,
 }
 
+/// What called [`Context::request_repaint`]?
+#[derive(Clone, Debug)]
+pub struct RepaintCause {
+    /// What file had the call that requested the repaint?
+    pub file: String,
+
+    /// What line number of the the call that requested the repaint?
+    pub line: u32,
+}
+
+impl RepaintCause {
+    /// Capture the file and line number of the call site.
+    #[allow(clippy::new_without_default)]
+    #[track_caller]
+    pub fn new() -> Self {
+        let caller = Location::caller();
+        Self {
+            file: caller.file().to_owned(),
+            line: caller.line(),
+        }
+    }
+}
+
+impl std::fmt::Display for RepaintCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.file, self.line)
+    }
+}
+
 /// Per-viewport state related to repaint scheduling.
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
@@ -277,6 +319,13 @@ struct ViewportRepaintInfo {
 
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
     outstanding: u8,
+
+    /// What caused repaints during this frame?
+    causes: Vec<RepaintCause>,
+
+    /// What triggered a repaint the previous frame?
+    /// (i.e: why are we updating now?)
+    prev_causes: Vec<RepaintCause>,
 
     /// What was the output of `repaint_delay` on the previous frame?
     ///
@@ -295,6 +344,9 @@ impl Default for ViewportRepaintInfo {
 
             // Let's run a couple of frames at the start, because why not.
             outstanding: 1,
+
+            causes: Default::default(),
+            prev_causes: Default::default(),
 
             prev_frame_paint_delay: Duration::MAX,
         }
@@ -1306,6 +1358,7 @@ impl Context {
     /// (this will work on `eframe`).
     ///
     /// This will repaint the current viewport.
+    #[track_caller]
     pub fn request_repaint(&self) {
         self.request_repaint_of(self.viewport_id());
     }
@@ -1322,8 +1375,10 @@ impl Context {
     /// (this will work on `eframe`).
     ///
     /// This will repaint the specified viewport.
+    #[track_caller]
     pub fn request_repaint_of(&self, id: ViewportId) {
-        self.write(|ctx| ctx.request_repaint(id));
+        let cause = RepaintCause::new();
+        self.write(|ctx| ctx.request_repaint(id, cause));
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1354,6 +1409,7 @@ impl Context {
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the current viewport
+    #[track_caller]
     pub fn request_repaint_after(&self, duration: Duration) {
         self.request_repaint_after_for(duration, self.viewport_id());
     }
@@ -1386,8 +1442,10 @@ impl Context {
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the specified viewport
+    #[track_caller]
     pub fn request_repaint_after_for(&self, duration: Duration, id: ViewportId) {
-        self.write(|ctx| ctx.request_repaint_after(duration, id));
+        let cause = RepaintCause::new();
+        self.write(|ctx| ctx.request_repaint_after(duration, id, cause));
     }
 
     /// Was a repaint requested last frame for the current viewport?
@@ -1412,6 +1470,18 @@ impl Context {
     #[must_use]
     pub fn has_requested_repaint_for(&self, viewport_id: &ViewportId) -> bool {
         self.read(|ctx| ctx.has_requested_repaint(viewport_id))
+    }
+
+    /// Why are we repainting?
+    ///
+    /// This can be helpful in debugging why egui is constantly repainting.
+    pub fn repaint_causes(&self) -> Vec<RepaintCause> {
+        self.read(|ctx| {
+            ctx.viewports
+                .get(&ctx.viewport_id())
+                .map(|v| v.repaint.causes.clone())
+        })
+        .unwrap_or_default()
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`] or [`Self::request_repaint_after`].
@@ -1579,11 +1649,12 @@ impl Context {
     /// [`Options::zoom_factor`].
     #[inline(always)]
     pub fn set_zoom_factor(&self, zoom_factor: f32) {
+        let cause = RepaintCause::new();
         self.write(|ctx| {
             if ctx.memory.options.zoom_factor != zoom_factor {
                 ctx.new_zoom_factor = Some(zoom_factor);
-                for id in ctx.all_viewport_ids() {
-                    ctx.request_repaint(id);
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
                 }
             }
         });
@@ -1830,7 +1901,7 @@ impl ContextImpl {
         }
 
         if repaint_needed || viewport.input.wants_repaint() {
-            self.request_repaint(ended_viewport_id);
+            self.request_repaint(ended_viewport_id, RepaintCause::new());
         }
 
         //  -------------------
@@ -2296,12 +2367,14 @@ impl Context {
     /// The function will call [`Self::request_repaint()`] when appropriate.
     ///
     /// The animation time is taken from [`Style::animation_time`].
+    #[track_caller] // To track repaint cause
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
         self.animate_bool_with_time(id, value, animation_time)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
+    #[track_caller] // To track repaint cause
     pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_bool(
@@ -2322,6 +2395,7 @@ impl Context {
     ///
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
+    #[track_caller] // To track repaint cause
     pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_value(
@@ -2401,6 +2475,18 @@ impl Context {
         ))
         .on_hover_text("This is approximately the number of text strings on screen");
         ui.add_space(16.0);
+
+        CollapsingHeader::new("🔃 Repaint Causes")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.set_min_height(120.0);
+                ui.label("What caused egui to reapint:");
+                ui.add_space(8.0);
+                let causes = ui.ctx().repaint_causes();
+                for cause in causes {
+                    ui.label(cause.to_string());
+                }
+            });
 
         CollapsingHeader::new("📥 Input")
             .default_open(false)
