@@ -357,7 +357,7 @@ impl MarkerShape {
 // ----------------------------------------------------------------------------
 
 /// Query the points of the plot, for geometric relations like closest checks
-pub(crate) enum PlotGeometry<'a> {
+pub enum PlotGeometry<'a> {
     /// No geometry based on single elements (examples: text, image, horizontal/vertical line)
     None,
 
@@ -425,7 +425,7 @@ impl ExplicitGenerator {
 // ----------------------------------------------------------------------------
 
 /// Result of [`super::PlotItem::find_closest()`] search, identifies an element inside the item for immediate use
-pub(crate) struct ClosestElem {
+pub struct ClosestElem {
     /// Position of hovered-over value (or bar/box-plot/...) in PlotItem
     pub index: usize,
 

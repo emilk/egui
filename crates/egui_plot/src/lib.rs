@@ -16,20 +16,14 @@ mod transform;
 use std::{ops::RangeInclusive, sync::Arc};
 
 use egui::ahash::HashMap;
-use epaint::util::FloatOrd;
-use epaint::Hsva;
-
-use axis::AxisWidget;
-use items::PlotItem;
-use legend::LegendWidget;
-
 use egui::*;
+use epaint::{util::FloatOrd, Hsva};
 
 pub use crate::{
     axis::{Axis, AxisHints, HPlacement, Placement, VPlacement},
     items::{
         Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
-        Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
+        Orientation, PlotImage, PlotItem, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
     },
     legend::{Corner, Legend},
     memory::PlotMemory,
@@ -37,10 +31,12 @@ pub use crate::{
     transform::{PlotBounds, PlotTransform},
 };
 
+use axis::AxisWidget;
 use items::{horizontal_line, rulers_color, vertical_line};
+use legend::LegendWidget;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
-type LabelFormatter = Option<Box<LabelFormatterFn>>;
+pub type LabelFormatter = Option<Box<LabelFormatterFn>>;
 
 type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
 type GridSpacer = Box<GridSpacerFn>;
@@ -84,7 +80,7 @@ impl Default for CoordinatesFormatter {
 
 /// Indicates a vertical or horizontal cursor line in plot coordinates.
 #[derive(Copy, Clone, PartialEq)]
-enum Cursor {
+pub enum Cursor {
     Horizontal { y: f64 },
     Vertical { x: f64 },
 }
