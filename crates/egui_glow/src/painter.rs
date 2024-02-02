@@ -565,6 +565,7 @@ impl Painter {
                 glow::TEXTURE_MIN_FILTER,
                 options.minification.glow_code() as i32,
             );
+
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_S,
