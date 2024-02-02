@@ -379,7 +379,9 @@ impl PlotTransform {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
-    /// width / height aspect ratio
+    /// scale.x/scale.y ratio.
+    ///
+    /// If 1.0, it means the scale factor is the same in both axes.
     fn aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;
@@ -408,7 +410,7 @@ impl PlotTransform {
     }
 
     /// Sets the aspect ratio by changing either the X or Y axis (callers choice).
-    pub(crate) fn set_aspect_by_changing_axis(&mut self, aspect: f64, change_x: bool) {
+    pub(crate) fn set_aspect_by_changing_axis(&mut self, aspect: f64, axis: Axis) {
         let current_aspect = self.aspect();
 
         let epsilon = 1e-5;
@@ -417,12 +419,15 @@ impl PlotTransform {
             return;
         }
 
-        if change_x {
-            self.bounds
-                .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
-        } else {
-            self.bounds
-                .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+        match axis {
+            Axis::X => {
+                self.bounds
+                    .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
+            }
+            Axis::Y => {
+                self.bounds
+                    .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+            }
         }
     }
 }
