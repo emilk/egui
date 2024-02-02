@@ -33,6 +33,19 @@ impl TextureFilterExt for egui::TextureFilter {
         }
     }
 }
+trait TextureWrapModeExt {
+    fn glow_code(&self) -> u32;
+}
+
+impl TextureWrapModeExt for egui::TextureWrapMode {
+    fn glow_code(&self) -> u32 {
+        match self {
+            Self::ClampToEdge => glow::CLAMP_TO_EDGE,
+            Self::Repeat => glow::REPEAT,
+            Self::MirroredRepeat => glow::MIRRORED_REPEAT,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct PainterError(String);
@@ -551,16 +564,15 @@ impl Painter {
                 glow::TEXTURE_MIN_FILTER,
                 options.minification.glow_code() as i32,
             );
-
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_S,
-                glow::CLAMP_TO_EDGE as i32,
+                options.wrap_mode.glow_code() as i32,
             );
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_T,
-                glow::CLAMP_TO_EDGE as i32,
+                options.wrap_mode.glow_code() as i32,
             );
             check_for_gl_error!(&self.gl, "tex_parameter");
 

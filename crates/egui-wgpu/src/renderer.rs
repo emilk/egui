@@ -923,12 +923,19 @@ fn create_sampler(
         epaint::textures::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
         epaint::textures::TextureFilter::Linear => wgpu::FilterMode::Linear,
     };
+    let address_mode = match options.wrap_mode {
+        epaint::textures::TextureWrapMode::ClampToEdge => wgpu::AddressMode::ClampToEdge,
+        epaint::textures::TextureWrapMode::Repeat => wgpu::AddressMode::Repeat,
+        epaint::textures::TextureWrapMode::MirroredRepeat => wgpu::AddressMode::MirrorRepeat,
+    };
     device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some(&format!(
             "egui sampler (mag: {mag_filter:?}, min {min_filter:?})"
         )),
         mag_filter,
         min_filter,
+        address_mode_u: address_mode,
+        address_mode_v: address_mode,
         ..Default::default()
     })
 }
