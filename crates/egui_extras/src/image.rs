@@ -190,6 +190,8 @@ impl RetainedImage {
 
 // ----------------------------------------------------------------------------
 
+#[cfg(feature = "image")]
+use egui::load::Bytes;
 use egui::ColorImage;
 
 /// Load a (non-svg) image.
@@ -209,6 +211,26 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, String> 
     Ok(egui::ColorImage::from_rgba_unmultiplied(
         size,
         pixels.as_slice(),
+    ))
+}
+#[cfg(feature = "image")]
+pub fn load_rgba(image_bytes: &[u8]) -> Result<egui::ColorImage, String> {
+    crate::profile_function!();
+    let size_of_usize = std::mem::size_of::<usize>();
+    if image_bytes.len() < std::mem::size_of::<usize>() * 2 {
+        return Err("Not enough bytes for image".to_string());
+    }
+
+    let width = usize::from_le_bytes(image_bytes[0..size_of_usize].try_into().unwrap());
+    let height = usize::from_le_bytes(
+        image_bytes[size_of_usize..size_of_usize * 2]
+            .try_into()
+            .unwrap(),
+    );
+    let size = [width, height];
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        &image_bytes[size_of_usize * 2..],
     ))
 }
 
@@ -278,4 +300,26 @@ pub fn load_svg_bytes_with_size(
     let image = egui::ColorImage::from_rgba_unmultiplied([w as _, h as _], pixmap.data());
 
     Ok(image)
+}
+
+#[cfg(feature = "image")]
+pub fn convert_image_to_bytes(image: image::DynamicImage) -> Bytes {
+    let image_buffer = image.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    let mut result: Vec<u8> = Vec::new();
+    result.extend_from_slice(&(image.width() as usize).to_le_bytes());
+    result.extend_from_slice(&(image.height() as usize).to_le_bytes());
+    result.extend_from_slice(pixels.as_slice());
+    result.into()
+}
+
+#[cfg(feature = "image")]
+#[macro_export]
+macro_rules! include_dynamic_image {
+    ($uri: literal, $image: expr) => {
+        egui::ImageSource::Bytes {
+            uri: ::std::borrow::Cow::Borrowed(concat!("rgba8://", $uri)),
+            bytes: $crate::image::convert_image_to_bytes($image),
+        }
+    };
 }

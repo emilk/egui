@@ -78,6 +78,14 @@ pub fn install_image_loaders(ctx: &egui::Context) {
         log::trace!("installed ImageCrateLoader");
     }
 
+    #[cfg(feature = "image")]
+    if !ctx.is_loader_installed(self::raw_image_loader::Rgba8ImageLoader::ID) {
+        ctx.add_image_loader(std::sync::Arc::new(
+            self::raw_image_loader::Rgba8ImageLoader::default(),
+        ));
+        log::trace!("installed ImageCrateLoader");
+    }
+
     #[cfg(feature = "svg")]
     if !ctx.is_loader_installed(self::svg_loader::SvgLoader::ID) {
         ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
@@ -103,6 +111,9 @@ mod ehttp_loader;
 
 #[cfg(feature = "image")]
 mod image_loader;
+
+#[cfg(feature = "image")]
+mod raw_image_loader;
 
 #[cfg(feature = "svg")]
 mod svg_loader;
