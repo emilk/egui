@@ -980,13 +980,15 @@ impl Plot {
         if let Some(data_aspect) = data_aspect {
             if let Some((_, linked_axes)) = &linked_axes {
                 let change_x = linked_axes.y && !linked_axes.x;
-                mem.transform
-                    .set_aspect_by_changing_axis(data_aspect as f64, change_x);
+                mem.transform.set_aspect_by_changing_axis(
+                    data_aspect as f64,
+                    if change_x { Axis::X } else { Axis::Y },
+                );
             } else if default_auto_bounds.any() {
                 mem.transform.set_aspect_by_expanding(data_aspect as f64);
             } else {
                 mem.transform
-                    .set_aspect_by_changing_axis(data_aspect as f64, false);
+                    .set_aspect_by_changing_axis(data_aspect as f64, Axis::Y);
             }
         }
 
