@@ -33,6 +33,7 @@ impl TextureFilterExt for egui::TextureFilter {
         }
     }
 }
+
 trait TextureWrapModeExt {
     fn glow_code(&self) -> u32;
 }
