@@ -218,7 +218,7 @@ pub fn load_rgba(image_bytes: &[u8]) -> Result<egui::ColorImage, String> {
     crate::profile_function!();
     let size_of_usize = std::mem::size_of::<usize>();
     if image_bytes.len() < std::mem::size_of::<usize>() * 2 {
-        return Err("Not enough bytes for image".to_string());
+        return Err("Not enough bytes for image".to_owned());
     }
 
     let width = usize::from_le_bytes(image_bytes[0..size_of_usize].try_into().unwrap());
@@ -303,7 +303,7 @@ pub fn load_svg_bytes_with_size(
 }
 
 #[cfg(feature = "image")]
-pub fn convert_image_to_bytes(image: image::DynamicImage) -> Bytes {
+pub fn convert_image_to_bytes(image: &image::DynamicImage) -> Bytes {
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
     let mut result: Vec<u8> = Vec::new();
