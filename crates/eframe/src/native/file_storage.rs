@@ -52,9 +52,10 @@ impl FileStorage {
         let ron_filepath: PathBuf = ron_filepath.into();
         log::debug!("Loading app state from {:?}…", ron_filepath);
         let kv = read_ron(&ron_filepath);
+        let properly_read = kv.is_some();
         Self {
             kv: kv.unwrap_or_default(),
-            properly_read: kv.is_some(),
+            properly_read,
             last_save_success: None,
             ron_filepath,
             dirty: false,
@@ -97,7 +98,7 @@ impl FileStorage {
     /// - [`Self::was_properly_read()`] returns false,
     /// - [`Self::attempt_reinit()`] is used and returns `Some(true)`.
     pub const fn last_save_success(&self) -> Option<bool> {
-        self.last_save_success.as_ref().copied()
+        self.last_save_success
     }
 
     /// Attempts to re-initialize this store, if [`Self::was_properly_read()`] returns false.
