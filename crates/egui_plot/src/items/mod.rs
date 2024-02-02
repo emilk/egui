@@ -910,7 +910,7 @@ impl Points {
         self
     }
 
-    /// Set the maximum extent of the marker around its position.
+    /// Set the maximum extent of the marker around its position, in ui points.
     #[inline]
     pub fn radius(mut self, radius: impl Into<f32>) -> Self {
         self.radius = radius.into();

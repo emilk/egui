@@ -379,7 +379,9 @@ impl PlotTransform {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
-    /// width / height aspect ratio
+    /// scale.x/scale.y ratio.
+    ///
+    /// If 1.0, it means the scale factor is the same in both axes.
     fn aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;
