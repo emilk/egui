@@ -86,6 +86,7 @@ impl FileStorage {
     ///Returns true, if the contents of this store were
     ///properly read during initialisation, or if the
     ///contents of this store are empty.
+    #[allow(dead_code)] //part of api
     pub const fn was_properly_read(&self) -> bool {
         self.properly_read
     }
@@ -108,6 +109,7 @@ impl FileStorage {
     /// if this function fails to properly read the app-state `Some(false)` is returned.
     /// if this function can properly read the app-state from the given path `Some(true)` is returned,
     /// and [`Self::last_save_success()`] is reset
+    #[allow(dead_code)] //part of api
     pub fn attempt_reinit(&mut self, ron_filepath: impl Into<PathBuf>) -> Option<bool> {
         if self.was_properly_read() {
             None
