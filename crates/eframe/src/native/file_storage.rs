@@ -106,10 +106,10 @@ impl FileStorage {
     /// if this function fails to properly read the app-state `Some(false)` is returned.
     /// if this function can properly read the app-state from the given path `Some(true)` is returned,
     /// and [`Self::last_save_success()`] is reset
-    pub fn attempt_reinit(&mut self, ron_filepath: impl Into<PathBuf>) -> Option<bool>{
+    pub fn attempt_reinit(&mut self, ron_filepath: impl Into<PathBuf>) -> Option<bool> {
         if self.properly_read {
             None
-        }else {
+        } else {
             crate::profile_function!();
             let ron_filepath: PathBuf = ron_filepath.into();
             log::debug!("Attempting to re-load app state from {:?} instead of from {:?}, because the last attempt to read the app-state failed.", ron_filepath, self.ron_filepath);
