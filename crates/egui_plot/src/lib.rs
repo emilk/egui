@@ -1445,7 +1445,7 @@ impl PreparedPlot {
         let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
         plot_ui.set_clip_rect(*transform.frame());
         for item in &self.items {
-            item.shapes(&mut plot_ui, transform, &mut shapes);
+            item.shapes(&plot_ui, transform, &mut shapes);
         }
 
         let hover_pos = response.hover_pos();
