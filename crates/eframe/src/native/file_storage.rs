@@ -97,6 +97,7 @@ impl FileStorage {
     /// This will get reset to `None`, if all the following criteria are met:
     /// - [`Self::was_properly_read()`] returns false,
     /// - [`Self::attempt_reinit()`] is used and returns `Some(true)`.
+    #[allow(dead_code)] //part of api
     pub const fn last_save_success(&self) -> Option<bool> {
         self.last_save_success
     }
@@ -108,7 +109,7 @@ impl FileStorage {
     /// if this function can properly read the app-state from the given path `Some(true)` is returned,
     /// and [`Self::last_save_success()`] is reset
     pub fn attempt_reinit(&mut self, ron_filepath: impl Into<PathBuf>) -> Option<bool> {
-        if self.properly_read {
+        if self.was_properly_read() {
             None
         } else {
             crate::profile_function!();
