@@ -18,7 +18,7 @@ all-features = true
 
 
 [features]
-default = ["clipboard", "links", "wayland", "winit/default", "x11"]
+default = ["links", "wayland", "winit/default", "x11"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["accesskit_winit", "egui/accesskit"]
@@ -35,9 +35,8 @@ android-native-activity = ["winit/android-native-activity"]
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
 bytemuck = ["egui/bytemuck"]
 
-## Enable cut/copy/paste to OS clipboard.
-## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["arboard", "smithay-clipboard"]
+## Deprecated, clipboard is automatically enabled when x11 or wayland is selected
+clipboard = []
 
 ## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
@@ -49,10 +48,10 @@ puffin = ["dep:puffin", "egui/puffin"]
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland", "bytemuck"]
+wayland = ["winit/wayland", "bytemuck", "smithay-clipboard"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11", "bytemuck"]
+x11 = ["winit/x11", "bytemuck", "arboard"]
 
 [dependencies]
 egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
