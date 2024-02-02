@@ -21,10 +21,6 @@ fn is_supported_uri(uri: &str) -> bool {
     uri.starts_with("rgba8://")
 }
 
-fn is_unsupported_mime(mime: &str) -> bool {
-    mime.contains("svg")
-}
-
 impl ImageLoader for Rgba8ImageLoader {
     fn id(&self) -> &str {
         Self::ID
@@ -47,7 +43,7 @@ impl ImageLoader for Rgba8ImageLoader {
             }
         } else {
             match ctx.try_load_bytes(uri) {
-                Ok(BytesPoll::Ready { bytes, mime, .. }) => {
+                Ok(BytesPoll::Ready { bytes, .. }) => {
                     log::trace!("started loading {uri:?}");
                     let result = crate::image::load_rgba(&bytes).map(Arc::new);
                     log::trace!("finished loading {uri:?}");
