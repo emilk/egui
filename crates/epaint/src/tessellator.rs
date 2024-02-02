@@ -1205,8 +1205,6 @@ impl Tessellator {
     /// * `shape`: the shape to tessellate.
     /// * `out`: triangles are appended to this.
     pub fn tessellate_shape(&mut self, shape: Shape, out: &mut Mesh) {
-        crate::profile_function!();
-
         match shape {
             Shape::Noop => {}
             Shape::Vec(vec) => {
