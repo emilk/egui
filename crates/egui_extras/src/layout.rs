@@ -145,7 +145,6 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let response = self.ui.allocate_rect(max_rect, self.sense);
         let used_rect = self.cell(flags, max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
@@ -156,7 +155,7 @@ impl<'l> StripLayout<'l> {
             max_rect.union(used_rect)
         };
 
-        let response = response.with_new_rect(allocation_rect);
+        let response = self.ui.allocate_rect(allocation_rect, self.sense);
 
         (used_rect, response)
     }
