@@ -28,6 +28,11 @@ pub struct Painter {
     /// If set, all shapes will have their colors modified to be closer to this.
     /// This is used to implement grayed out interfaces.
     fade_to_color: Option<Color32>,
+
+    /// If set, all shapes will have their colors modified with [`Color32::gamma_multiply`] with
+    /// this value as the factor.
+    /// This is used to make interfaces semi-transparent.
+    opacity: Option<f32>,
 }
 
 impl Painter {
@@ -38,6 +43,7 @@ impl Painter {
             layer_id,
             clip_rect,
             fade_to_color: None,
+            opacity: None,
         }
     }
 
@@ -49,6 +55,7 @@ impl Painter {
             layer_id,
             clip_rect: self.clip_rect,
             fade_to_color: None,
+            opacity: None,
         }
     }
 
@@ -62,6 +69,7 @@ impl Painter {
             layer_id: self.layer_id,
             clip_rect: rect.intersect(self.clip_rect),
             fade_to_color: self.fade_to_color,
+            opacity: self.opacity,
         }
     }
 
@@ -73,6 +81,10 @@ impl Painter {
     /// If set, colors will be modified to look like this
     pub(crate) fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
         self.fade_to_color = fade_to_color;
+    }
+
+    pub(crate) fn set_opacity(&mut self, opacity: Option<f32>) {
+        self.opacity = opacity.filter(|f| f.is_finite()).map(|f| f.clamp(0.0, 1.0));
     }
 
     pub(crate) fn is_visible(&self) -> bool {
@@ -151,6 +163,9 @@ impl Painter {
         if let Some(fade_to_color) = self.fade_to_color {
             tint_shape_towards(shape, fade_to_color);
         }
+        if let Some(opacity) = self.opacity {
+            set_shape_opacity(shape, opacity);
+        }
     }
 
     /// It is up to the caller to make sure there is room for this.
@@ -170,18 +185,17 @@ impl Painter {
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
     pub fn extend<I: IntoIterator<Item = Shape>>(&self, shapes: I) {
-        if self.fade_to_color == Some(Color32::TRANSPARENT) {
-            return;
+        match (self.fade_to_color, self.opacity) {
+            (None, None) => self.paint_list(|l| l.extend(self.clip_rect, shapes)),
+            (Some(Color32::TRANSPARENT), _) => (),
+            (_, Some(_)) | (Some(_), _) => {
+                let shapes = shapes.into_iter().map(|mut shape| {
+                    self.transform_shape(&mut shape);
+                    shape
+                });
+                self.paint_list(|l| l.extend(self.clip_rect, shapes));
+            }
         }
-        if self.fade_to_color.is_some() {
-            let shapes = shapes.into_iter().map(|mut shape| {
-                self.transform_shape(&mut shape);
-                shape
-            });
-            self.paint_list(|l| l.extend(self.clip_rect, shapes));
-        } else {
-            self.paint_list(|l| l.extend(self.clip_rect, shapes));
-        };
     }
 
     /// Modify an existing [`Shape`].
@@ -493,6 +507,14 @@ fn tint_shape_towards(shape: &mut Shape, target: Color32) {
     epaint::shape_transform::adjust_colors(shape, &|color| {
         if *color != Color32::PLACEHOLDER {
             *color = crate::ecolor::tint_color_towards(*color, target);
+        }
+    });
+}
+
+fn set_shape_opacity(shape: &mut Shape, opacity: f32) {
+    epaint::shape_transform::adjust_colors(shape, &|color| {
+        if *color != Color32::PLACEHOLDER {
+            *color = color.gamma_multiply(opacity);
         }
     });
 }
