@@ -198,6 +198,11 @@ impl<'l> StripLayout<'l> {
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
         }
 
+        if flags.selected {
+            let stroke_color = child_ui.style().visuals.selection.stroke.color;
+            child_ui.style_mut().visuals.override_text_color = Some(stroke_color);
+        }
+
         add_cell_contents(&mut child_ui);
         child_ui.min_rect()
     }
