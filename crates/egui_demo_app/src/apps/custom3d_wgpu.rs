@@ -2,7 +2,7 @@ use std::num::NonZeroU64;
 
 use eframe::{
     egui_wgpu::wgpu::util::DeviceExt,
-    egui_wgpu::{self, render::ScreenDescriptor, wgpu},
+    egui_wgpu::{self, renderer::ScreenDescriptor, wgpu},
 };
 
 pub struct Custom3d {
