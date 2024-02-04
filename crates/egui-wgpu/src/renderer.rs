@@ -81,6 +81,7 @@ pub trait CallbackTrait: Send + Sync {
         _queue: &wgpu::Queue,
         _egui_encoder: &mut wgpu::CommandEncoder,
         _callback_resources: &mut CallbackResources,
+        _screen_descriptor: &ScreenDescriptor,
     ) -> Vec<wgpu::CommandBuffer> {
         Vec::new()
     }
@@ -892,6 +893,7 @@ impl Renderer {
                     queue,
                     encoder,
                     &mut self.callback_resources,
+                    screen_descriptor,
                 ));
             }
         }
