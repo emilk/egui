@@ -395,7 +395,7 @@ pub use emath::{
 pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
-    textures::{TextureFilter, TextureOptions, TexturesDelta},
+    textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
     ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
     Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
