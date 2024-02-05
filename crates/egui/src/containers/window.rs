@@ -726,12 +726,8 @@ fn window_interaction(
     id: Id,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    {
-        let drag_id = ctx.memory(|mem| mem.interaction().drag_id);
-
-        if drag_id.is_some() && drag_id != Some(id) {
-            return None;
-        }
+    if ctx.memory(|mem| mem.dragging_something_else(id)) {
+        return None;
     }
 
     let mut window_interaction = ctx.memory(|mem| mem.window_interaction());

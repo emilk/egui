@@ -1,3 +1,5 @@
+use std::{any::Any, sync::Arc};
+
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
     menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
@@ -14,7 +16,7 @@ use crate::{
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
 // TODO(emilk): we should be using bit sets instead of so many bools
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Response {
     // CONTEXT:
     /// Used for optionally showing a tooltip and checking for more interactions.
@@ -64,7 +66,11 @@ pub struct Response {
     #[doc(hidden)]
     pub triple_clicked: [bool; NUM_POINTER_BUTTONS],
 
-    /// The widgets is being dragged
+    /// The widget started being dragged this frame.
+    #[doc(hidden)]
+    pub drag_started: bool,
+
+    /// The widget is being dragged.
     #[doc(hidden)]
     pub dragged: bool,
 
@@ -88,48 +94,6 @@ pub struct Response {
     /// Always `false` for something like a [`Button`](crate::Button).
     #[doc(hidden)]
     pub changed: bool,
-}
-
-impl std::fmt::Debug for Response {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self {
-            ctx: _,
-            layer_id,
-            id,
-            rect,
-            sense,
-            enabled,
-            contains_pointer,
-            hovered,
-            highlighted,
-            clicked,
-            double_clicked,
-            triple_clicked,
-            dragged,
-            drag_released,
-            is_pointer_button_down_on,
-            interact_pointer_pos,
-            changed,
-        } = self;
-        f.debug_struct("Response")
-            .field("layer_id", layer_id)
-            .field("id", id)
-            .field("rect", rect)
-            .field("sense", sense)
-            .field("enabled", enabled)
-            .field("contains_pointer", contains_pointer)
-            .field("hovered", hovered)
-            .field("highlighted", highlighted)
-            .field("clicked", clicked)
-            .field("double_clicked", double_clicked)
-            .field("triple_clicked", triple_clicked)
-            .field("dragged", dragged)
-            .field("drag_released", drag_released)
-            .field("is_pointer_button_down_on", is_pointer_button_down_on)
-            .field("interact_pointer_pos", interact_pointer_pos)
-            .field("changed", changed)
-            .finish()
-    }
 }
 
 impl Response {
@@ -202,7 +166,7 @@ impl Response {
                 // self.rect. See Context::interact.
                 // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
                 // hence the extra complexity here.
-                if self.hovered() {
+                if self.contains_pointer() {
                     false
                 } else if let Some(pos) = pointer.interact_pos() {
                     !self.rect.contains(pos)
@@ -295,43 +259,51 @@ impl Response {
         self.ctx.memory_mut(|mem| mem.surrender_focus(self.id));
     }
 
-    /// The widgets is being dragged.
+    /// Did a drag on this widgets begin this frame?
     ///
-    /// To find out which button(s), query [`crate::PointerState::button_down`]
-    /// (`ui.input(|i| i.pointer.button_down(…))`).
+    /// This is only true if the widget sense drags.
+    /// If the widget also senses clicks, this will only become true if the pointer has moved a bit.
     ///
-    /// Note that the widget must be sensing drags with [`Sense::drag`].
+    /// This will only be true for a single frame.
+    #[inline]
+    pub fn drag_started(&self) -> bool {
+        self.drag_started
+    }
+
+    /// Did a drag on this widgets by the button begin this frame?
+    ///
+    /// This is only true if the widget sense drags.
+    /// If the widget also senses clicks, this will only become true if the pointer has moved a bit.
+    ///
+    /// This will only be true for a single frame.
+    #[inline]
+    pub fn drag_started_by(&self, button: PointerButton) -> bool {
+        self.drag_started() && self.ctx.input(|i| i.pointer.button_down(button))
+    }
+
+    /// The widget is being dragged.
+    ///
+    /// To find out which button(s), use [`Self::dragged_by`].
+    ///
+    /// If the widget is only sensitive to drags, this is `true` as soon as the pointer presses down on it.
+    /// If the widget is also sensitive to drags, this won't be true until the pointer has moved a bit,
+    /// or the user has pressed down for long enough.
+    /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
+    ///
+    /// If you want to avoid the delay, use [`Self::is_pointer_button_down_on`] instead.
+    ///
+    /// If the widget is NOT sensitive to drags, this will always be `false`.
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
-    ///
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn dragged(&self) -> bool {
         self.dragged
     }
 
-    /// The Widget is being decidedly dragged.
-    ///
-    /// This helper function checks both the output of [`Self::dragged`] and [`crate::PointerState::is_decidedly_dragging`].
-    #[inline]
-    pub fn decidedly_dragged(&self) -> bool {
-        self.dragged() && self.ctx.input(|i| i.pointer.is_decidedly_dragging())
-    }
-
+    /// See [`Self::dragged`].
     #[inline]
     pub fn dragged_by(&self, button: PointerButton) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
-    }
-
-    /// Did a drag on this widgets begin this frame?
-    #[inline]
-    pub fn drag_started(&self) -> bool {
-        self.dragged && self.ctx.input(|i| i.pointer.any_pressed())
-    }
-
-    /// Did a drag on this widgets by the button begin this frame?
-    #[inline]
-    pub fn drag_started_by(&self, button: PointerButton) -> bool {
-        self.drag_started() && self.ctx.input(|i| i.pointer.button_pressed(button))
     }
 
     /// The widget was being dragged, but now it has been released.
@@ -355,7 +327,53 @@ impl Response {
         }
     }
 
+    /// If the user started dragging this widget this frame, store the payload for drag-and-drop.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_set_drag_payload<Payload: Any + Send + Sync>(&self, payload: Payload) {
+        if self.drag_started() {
+            crate::DragAndDrop::set_payload(&self.ctx, payload);
+        }
+
+        if self.hovered() && !self.sense.click {
+            // Things that can be drag-dropped should use the Grab cursor icon,
+            // but if the thing is _also_ clickable, that can be annoying.
+            self.ctx.set_cursor_icon(CursorIcon::Grab);
+        }
+    }
+
+    /// Drag-and-Drop: Return what is being held over this widget, if any.
+    ///
+    /// Only returns something if [`Self::contains_pointer`] is true,
+    /// and the user is drag-dropping something of this type.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_hover_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        if self.contains_pointer() {
+            crate::DragAndDrop::payload::<Payload>(&self.ctx)
+        } else {
+            None
+        }
+    }
+
+    /// Drag-and-Drop: Return what is being dropped onto this widget, if any.
+    ///
+    /// Only returns something if [`Self::contains_pointer`] is true,
+    /// the user is drag-dropping something of this type,
+    /// and they released it this frame
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_release_payload<Payload: Any + Send + Sync>(&self) -> Option<Arc<Payload>> {
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        if self.contains_pointer() && self.ctx.input(|i| i.pointer.any_released()) {
+            crate::DragAndDrop::take_payload::<Payload>(&self.ctx)
+        } else {
+            None
+        }
+    }
+
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
+    ///
     /// `None` if the widget is not being interacted with.
     #[inline]
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
@@ -363,6 +381,7 @@ impl Response {
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
+    ///
     /// None if the pointer is outside the response area.
     #[inline]
     pub fn hover_pos(&self) -> Option<Pos2> {
@@ -374,7 +393,11 @@ impl Response {
     }
 
     /// Is the pointer button currently down on this widget?
-    /// This is true if the pointer is pressing down or dragging a widget
+    ///
+    /// This is true if the pointer is pressing down or dragging a widget,
+    /// even when dragging outside the widget.
+    ///
+    /// This could also be thought of as "is this widget being interacted with?".
     #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
         self.is_pointer_button_down_on
@@ -732,6 +755,8 @@ impl Response {
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.
     ///
+    /// Make sure the widget senses clicks (e.g. [`crate::Button`] does, [`crate::Label`] does not).
+    ///
     /// ```
     /// # use egui::{Label, Sense};
     /// # egui::__run_test_ui(|ui| {
@@ -745,9 +770,8 @@ impl Response {
     /// ```
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
-    pub fn context_menu(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        menu::context_menu(&self, add_contents);
-        self
+    pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
+        menu::context_menu(self, add_contents)
     }
 }
 
@@ -793,6 +817,7 @@ impl Response {
                 self.triple_clicked[3] || other.triple_clicked[3],
                 self.triple_clicked[4] || other.triple_clicked[4],
             ],
+            drag_started: self.drag_started || other.drag_started,
             dragged: self.dragged || other.dragged,
             drag_released: self.drag_released || other.drag_released,
             is_pointer_button_down_on: self.is_pointer_button_down_on

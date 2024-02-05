@@ -1,8 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
-use std::hash::Hash;
-use std::sync::Arc;
+use std::{any::Any, hash::Hash, sync::Arc};
 
 use epaint::mutex::RwLock;
 
@@ -31,6 +30,7 @@ use crate::{
 /// ```
 pub struct Ui {
     /// ID of this ui.
+    ///
     /// Generated based on id of parent ui together with
     /// another source of child identity (e.g. window title).
     /// Acts like a namespace for child uis.
@@ -39,6 +39,7 @@ pub struct Ui {
     id: Id,
 
     /// This is used to create a unique interact ID for some widgets.
+    ///
     /// This value is based on where in the hierarchy of widgets this Ui is in,
     /// and the value is increment with each added child widget.
     /// This works as an Id source only as long as new widgets aren't added or removed.
@@ -100,7 +101,6 @@ impl Ui {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
-        let menu_state = self.menu_state();
         Ui {
             id: self.id.with(id_source),
             next_auto_id_source,
@@ -108,7 +108,7 @@ impl Ui {
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
-            menu_state,
+            menu_state: self.menu_state.clone(),
         }
     }
 
@@ -2121,6 +2121,108 @@ impl Ui {
         result
     }
 
+    /// Create something that can be drag-and-dropped.
+    ///
+    /// The `id` needs to be globally unique.
+    /// The payload is what will be dropped if the user starts dragging.
+    ///
+    /// In contrast to [`Response::dnd_set_drag_payload`],
+    /// this function will paint the widget at the mouse cursor while the user is dragging.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_drag_source<Payload, R>(
+        &mut self,
+        id: Id,
+        payload: Payload,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R>
+    where
+        Payload: Any + Send + Sync,
+    {
+        let is_being_dragged = self.memory(|mem| mem.is_being_dragged(id));
+
+        if is_being_dragged {
+            // Paint the body to a new layer:
+            let layer_id = LayerId::new(Order::Tooltip, id);
+            let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
+
+            // Now we move the visuals of the body to where the mouse is.
+            // Normally you need to decide a location for a widget first,
+            // because otherwise that widget cannot interact with the mouse.
+            // However, a dragged component cannot be interacted with anyway
+            // (anything with `Order::Tooltip` always gets an empty [`Response`])
+            // So this is fine!
+
+            if let Some(pointer_pos) = self.ctx().pointer_interact_pos() {
+                let delta = pointer_pos - response.rect.center();
+                self.ctx().translate_layer(layer_id, delta);
+            }
+
+            InnerResponse::new(inner, response)
+        } else {
+            let InnerResponse { inner, response } = self.scope(add_contents);
+
+            // Check for drags:
+            let dnd_response = self.interact(response.rect, id, Sense::drag());
+
+            dnd_response.dnd_set_drag_payload(payload);
+
+            InnerResponse::new(inner, dnd_response | response)
+        }
+    }
+
+    /// Surround the given ui with a frame which
+    /// changes colors when you can drop something onto it.
+    ///
+    /// Returns the dropped item, if it was released this frame.
+    ///
+    /// The given frame is used for its margins, but it color is ignored.
+    #[doc(alias = "drag and drop")]
+    pub fn dnd_drop_zone<Payload>(
+        &mut self,
+        frame: Frame,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> (Response, Option<Arc<Payload>>)
+    where
+        Payload: Any + Send + Sync,
+    {
+        let is_anything_being_dragged = DragAndDrop::has_any_payload(self.ctx());
+        let can_accept_what_is_being_dragged =
+            DragAndDrop::has_payload_of_type::<Payload>(self.ctx());
+
+        let mut frame = frame.begin(self);
+        add_contents(&mut frame.content_ui);
+        let response = frame.allocate_space(self);
+
+        // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+        // `hovered` is always false when another widget is being dragged.
+        let style = if is_anything_being_dragged
+            && can_accept_what_is_being_dragged
+            && response.contains_pointer()
+        {
+            self.visuals().widgets.active
+        } else {
+            self.visuals().widgets.inactive
+        };
+
+        let mut fill = style.bg_fill;
+        let mut stroke = style.bg_stroke;
+
+        if is_anything_being_dragged && !can_accept_what_is_being_dragged {
+            // When dragging something else, show that it can't be dropped here:
+            fill = self.visuals().gray_out(fill);
+            stroke.color = self.visuals().gray_out(stroke.color);
+        }
+
+        frame.frame.fill = fill;
+        frame.frame.stroke = stroke;
+
+        frame.paint(self);
+
+        let payload = response.dnd_release_payload::<Payload>();
+
+        (response, payload)
+    }
+
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
@@ -2129,10 +2231,6 @@ impl Ui {
             menu_state.write().close();
         }
         self.menu_state = None;
-    }
-
-    pub(crate) fn menu_state(&self) -> Option<Arc<RwLock<MenuState>>> {
-        self.menu_state.clone()
     }
 
     pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {

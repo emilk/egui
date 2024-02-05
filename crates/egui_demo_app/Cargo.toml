@@ -30,33 +30,32 @@ syntect = ["egui_demo_lib/syntect"]
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck", "dep:wgpu"]
+wayland = ["eframe/wayland"]
+x11 = ["eframe/x11"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = [
   "js-sys",
   "wasmbind",
 ] }
-eframe = { version = "0.25.0", path = "../eframe", default-features = false, features = [
+eframe = { workspace = true, default-features = false, features = [
   "web_screen_reader",
 ] }
-egui = { version = "0.25.0", path = "../egui", features = [
+egui = { workspace = true, features = [
   "callstack",
+  "default",
   "extra_debug_asserts",
   "log",
 ] }
-egui_demo_lib = { version = "0.25.0", path = "../egui_demo_lib", features = [
-  "chrono",
-] }
-egui_extras = { version = "0.25.0", path = "../egui_extras", features = [
-  "image",
-] }
-log = { version = "0.4", features = ["std"] }
+egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
+egui_extras = { workspace = true, features = ["default", "image"] }
+log.workspace = true
 
 # Optional dependencies:
 
 bytemuck = { version = "1.7.1", optional = true }
-puffin = { version = "0.18", optional = true }
-puffin_http = { version = "0.15", optional = true }
+puffin = { workspace = true, optional = true }
+puffin_http = { workspace = true, optional = true }
 # Enable both WebGL & WebGPU when targeting the web (these features have no effect when not targeting wasm32)
 wgpu = { workspace = true, features = ["webgpu", "webgl"], optional = true }
 

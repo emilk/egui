@@ -23,7 +23,7 @@ mod values;
 const DEFAULT_FILL_ALPHA: f32 = 0.05;
 
 /// Container to pass-through several parameters related to plot visualization
-pub(super) struct PlotConfig<'a> {
+pub struct PlotConfig<'a> {
     pub ui: &'a Ui,
     pub transform: &'a PlotTransform,
     pub show_x: bool,
@@ -31,8 +31,8 @@ pub(super) struct PlotConfig<'a> {
 }
 
 /// Trait shared by things that can be drawn in the plot.
-pub(super) trait PlotItem {
-    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>);
+pub trait PlotItem {
+    fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>);
 
     /// For plot-items which are generated based on x values (plotting functions).
     fn initialize(&mut self, x_range: RangeInclusive<f64>);
@@ -48,6 +48,8 @@ pub(super) trait PlotItem {
     fn geometry(&self) -> PlotGeometry<'_>;
 
     fn bounds(&self) -> PlotBounds;
+
+    fn id(&self) -> Option<Id>;
 
     fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
         match self.geometry() {
@@ -120,6 +122,7 @@ pub struct HLine {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl HLine {
@@ -130,6 +133,7 @@ impl HLine {
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -180,10 +184,17 @@ impl HLine {
         self.name = name.to_string();
         self
     }
+
+    /// Set the line's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for HLine {
-    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             y,
             stroke,
@@ -232,6 +243,10 @@ impl PlotItem for HLine {
         bounds.max[1] = self.y;
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A vertical line in a plot, filling the full width
@@ -242,6 +257,7 @@ pub struct VLine {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl VLine {
@@ -252,6 +268,7 @@ impl VLine {
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -302,10 +319,17 @@ impl VLine {
         self.name = name.to_string();
         self
     }
+
+    /// Set the line's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for VLine {
-    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             x,
             stroke,
@@ -354,6 +378,10 @@ impl PlotItem for VLine {
         bounds.max[0] = self.x;
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A series of values forming a path.
@@ -364,17 +392,19 @@ pub struct Line {
     pub(super) highlight: bool,
     pub(super) fill: Option<f32>,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl Line {
     pub fn new(series: impl Into<PlotPoints>) -> Self {
         Self {
             series: series.into(),
-            stroke: Stroke::new(1.0, Color32::TRANSPARENT),
+            stroke: Stroke::new(1.5, Color32::TRANSPARENT), // Note: a stroke of 1.0 (or less) can look bad on low-dpi-screens
             name: Default::default(),
             highlight: false,
             fill: None,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -432,6 +462,13 @@ impl Line {
         self.name = name.to_string();
         self
     }
+
+    /// Set the line's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 /// Returns the x-coordinate of a possible intersection between a line segment from `p1` to `p2` and
@@ -442,7 +479,7 @@ fn y_intersection(p1: &Pos2, p2: &Pos2, y: f32) -> Option<f32> {
 }
 
 impl PlotItem for Line {
-    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
             stroke,
@@ -528,6 +565,10 @@ impl PlotItem for Line {
     fn bounds(&self) -> PlotBounds {
         self.series.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A convex polygon.
@@ -538,6 +579,7 @@ pub struct Polygon {
     pub(super) highlight: bool,
     pub(super) fill_color: Option<Color32>,
     pub(super) style: LineStyle,
+    id: Option<Id>,
 }
 
 impl Polygon {
@@ -549,6 +591,7 @@ impl Polygon {
             highlight: false,
             fill_color: None,
             style: LineStyle::Solid,
+            id: None,
         }
     }
 
@@ -600,10 +643,17 @@ impl Polygon {
         self.name = name.to_string();
         self
     }
+
+    /// Set the polygon's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for Polygon {
-    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
             stroke,
@@ -654,6 +704,10 @@ impl PlotItem for Polygon {
     fn bounds(&self) -> PlotBounds {
         self.series.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// Text inside the plot.
@@ -665,6 +719,7 @@ pub struct Text {
     pub(super) highlight: bool,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
+    id: Option<Id>,
 }
 
 impl Text {
@@ -676,6 +731,7 @@ impl Text {
             highlight: false,
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
+            id: None,
         }
     }
 
@@ -712,10 +768,17 @@ impl Text {
         self.name = name.to_string();
         self
     }
+
+    /// Set the text's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for Text {
-    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let color = if self.color == Color32::TRANSPARENT {
             ui.style().visuals.text_color()
         } else {
@@ -768,6 +831,10 @@ impl PlotItem for Text {
         bounds.extend_with(&self.position);
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A set of points.
@@ -790,6 +857,7 @@ pub struct Points {
     pub(super) highlight: bool,
 
     pub(super) stems: Option<f32>,
+    id: Option<Id>,
 }
 
 impl Points {
@@ -803,6 +871,7 @@ impl Points {
             name: Default::default(),
             highlight: false,
             stems: None,
+            id: None,
         }
     }
 
@@ -841,7 +910,7 @@ impl Points {
         self
     }
 
-    /// Set the maximum extent of the marker around its position.
+    /// Set the maximum extent of the marker around its position, in ui points.
     #[inline]
     pub fn radius(mut self, radius: impl Into<f32>) -> Self {
         self.radius = radius.into();
@@ -860,10 +929,17 @@ impl Points {
         self.name = name.to_string();
         self
     }
+
+    /// Set the points' id which is used to identify them in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for Points {
-    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3_f32.sqrt();
         let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
         let frac_1_sqrt_2 = 1.0 / 2_f32.sqrt();
@@ -1018,6 +1094,10 @@ impl PlotItem for Points {
     fn bounds(&self) -> PlotBounds {
         self.series.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A set of arrows.
@@ -1028,6 +1108,7 @@ pub struct Arrows {
     pub(super) color: Color32,
     pub(super) name: String,
     pub(super) highlight: bool,
+    id: Option<Id>,
 }
 
 impl Arrows {
@@ -1039,6 +1120,7 @@ impl Arrows {
             color: Color32::TRANSPARENT,
             name: Default::default(),
             highlight: false,
+            id: None,
         }
     }
 
@@ -1075,10 +1157,17 @@ impl Arrows {
         self.name = name.to_string();
         self
     }
+
+    /// Set the arrows' id which is used to identify them in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for Arrows {
-    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         use crate::emath::*;
         let Self {
             origins,
@@ -1150,6 +1239,10 @@ impl PlotItem for Arrows {
     fn bounds(&self) -> PlotBounds {
         self.origins.bounds()
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// An image in the plot.
@@ -1164,6 +1257,7 @@ pub struct PlotImage {
     pub(super) tint: Color32,
     pub(super) highlight: bool,
     pub(super) name: String,
+    id: Option<Id>,
 }
 
 impl PlotImage {
@@ -1183,6 +1277,7 @@ impl PlotImage {
             rotation: 0.0,
             bg_fill: Default::default(),
             tint: Color32::WHITE,
+            id: None,
         }
     }
 
@@ -1236,7 +1331,7 @@ impl PlotImage {
 }
 
 impl PlotItem for PlotImage {
-    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             position,
             rotation,
@@ -1330,6 +1425,10 @@ impl PlotItem for PlotImage {
         bounds.extend_with(&right_bottom);
         bounds
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1344,6 +1443,7 @@ pub struct BarChart {
     pub(super) element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
 
     highlight: bool,
+    id: Option<Id>,
 }
 
 impl BarChart {
@@ -1355,6 +1455,7 @@ impl BarChart {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            id: None,
         }
     }
 
@@ -1454,10 +1555,17 @@ impl BarChart {
         }
         self
     }
+
+    /// Set the bar chart's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for BarChart {
-    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         for b in &self.bars {
             b.add_shapes(transform, self.highlight, shapes);
         }
@@ -1512,6 +1620,10 @@ impl PlotItem for BarChart {
         bar.add_shapes(plot.transform, true, shapes);
         bar.add_rulers_and_text(self, plot, shapes, cursors);
     }
+
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
 }
 
 /// A diagram containing a series of [`BoxElem`] elements.
@@ -1524,6 +1636,7 @@ pub struct BoxPlot {
     pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
 
     highlight: bool,
+    id: Option<Id>,
 }
 
 impl BoxPlot {
@@ -1535,6 +1648,7 @@ impl BoxPlot {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            id: None,
         }
     }
 
@@ -1602,10 +1716,17 @@ impl BoxPlot {
         self.element_formatter = Some(formatter);
         self
     }
+
+    /// Set the box plot's id which is used to identify it in the plot's response.
+    #[inline]
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
+        self
+    }
 }
 
 impl PlotItem for BoxPlot {
-    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         for b in &self.boxes {
             b.add_shapes(transform, self.highlight, shapes);
         }
@@ -1659,6 +1780,10 @@ impl PlotItem for BoxPlot {
 
         box_plot.add_shapes(plot.transform, true, shapes);
         box_plot.add_rulers_and_text(self, plot, shapes, cursors);
+    }
+
+    fn id(&self) -> Option<Id> {
+        self.id
     }
 }
 

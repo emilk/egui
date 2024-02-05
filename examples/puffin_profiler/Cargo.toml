@@ -13,7 +13,8 @@ wgpu = ["eframe/wgpu"]
 
 
 [dependencies]
-eframe = { path = "../../crates/eframe", features = [
+eframe = { workspace = true, features = [
+    "default",
     "puffin",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
@@ -21,5 +22,5 @@ env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",
 ] }
-puffin = "0.18"
-puffin_http = "0.15"
+puffin = "0.19"
+puffin_http = "0.16"

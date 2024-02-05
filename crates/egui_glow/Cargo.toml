@@ -39,18 +39,22 @@ links = ["egui-winit?/links"]
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
 
-## Enable [`winit`](https://docs.rs/winit) integration.
+## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["egui-winit", "dep:winit"]
+
+## Enables Wayland support for winit.
+wayland = ["winit?/wayland"]
+
+## Enables x11 support for winit.
+x11 = ["winit?/x11"]
 
 
 [dependencies]
-egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
-  "bytemuck",
-] }
+egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 bytemuck = "1.7"
 glow.workspace = true
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 memoffset = "0.7"
 # glutin stuck on old version of raw-window-handle:
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
@@ -59,11 +63,11 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.25.0", path = "../egui-winit", optional = true, default-features = false }
+egui-winit = { workspace = true, optional = true, default-features = false }
 puffin = { workspace = true, optional = true }
 winit = { workspace = true, optional = true, default-features = false, features = [
   "rwh_05", # glutin stuck on old version of raw-window-handle

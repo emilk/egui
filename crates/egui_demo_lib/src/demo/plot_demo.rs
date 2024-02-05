@@ -530,23 +530,27 @@ impl CustomAxesDemo {
             100.0 * y
         }
 
-        let x_fmt = |x, _digits, _range: &RangeInclusive<f64>| {
-            if x < 0.0 * MINS_PER_DAY || x >= 5.0 * MINS_PER_DAY {
+        let time_formatter = |mark: GridMark, _digits, _range: &RangeInclusive<f64>| {
+            let minutes = mark.value;
+            if minutes < 0.0 || 5.0 * MINS_PER_DAY <= minutes {
                 // No labels outside value bounds
                 String::new()
-            } else if is_approx_integer(x / MINS_PER_DAY) {
+            } else if is_approx_integer(minutes / MINS_PER_DAY) {
                 // Days
-                format!("Day {}", day(x))
+                format!("Day {}", day(minutes))
             } else {
                 // Hours and minutes
-                format!("{h}:{m:02}", h = hour(x), m = minute(x))
+                format!("{h}:{m:02}", h = hour(minutes), m = minute(minutes))
             }
         };
 
-        let y_fmt = |y, _digits, _range: &RangeInclusive<f64>| {
-            // Display only integer percentages
-            if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
-                format!("{:.0}%", percent(y))
+        let percentage_formatter = |mark: GridMark, _digits, _range: &RangeInclusive<f64>| {
+            let percent = 100.0 * mark.value;
+            if is_approx_zero(percent) {
+                String::new() // skip zero
+            } else if is_approx_integer(percent) {
+                // Display only integer percentages
+                format!("{percent:.0}%")
             } else {
                 String::new()
             }
@@ -565,15 +569,15 @@ impl CustomAxesDemo {
         ui.label("Zoom in on the X-axis to see hours and minutes");
 
         let x_axes = vec![
-            AxisHints::default().label("Time").formatter(x_fmt),
-            AxisHints::default().label("Value"),
+            AxisHints::new_x().label("Time").formatter(time_formatter),
+            AxisHints::new_x().label("Value"),
         ];
         let y_axes = vec![
-            AxisHints::default()
+            AxisHints::new_y()
                 .label("Percent")
-                .formatter(y_fmt)
+                .formatter(percentage_formatter)
                 .max_digits(4),
-            AxisHints::default()
+            AxisHints::new_y()
                 .label("Absolute")
                 .placement(egui_plot::HPlacement::Right),
         ];
@@ -787,8 +791,28 @@ impl InteractionDemo {
         let PlotResponse {
             response,
             inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            hovered_plot_item,
             ..
         } = plot.show(ui, |plot_ui| {
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.sin(),
+                    ..,
+                    100,
+                ))
+                .color(Color32::RED)
+                .id(egui::Id::new("sin")),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.cos(),
+                    ..,
+                    100,
+                ))
+                .color(Color32::BLUE)
+                .id(egui::Id::new("cos")),
+            );
+
             (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
@@ -819,6 +843,15 @@ impl InteractionDemo {
             pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
         );
         ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
+
+        let hovered_item = if hovered_plot_item == Some(egui::Id::new("sin")) {
+            "red sin"
+        } else if hovered_plot_item == Some(egui::Id::new("cos")) {
+            "blue cos"
+        } else {
+            "none"
+        };
+        ui.label(format!("hovered plot item: {hovered_item}"));
 
         response
     }

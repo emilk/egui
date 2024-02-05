@@ -90,7 +90,7 @@ impl LayerId {
     pub fn background() -> Self {
         Self {
             order: Order::Background,
-            id: Id::background(),
+            id: Id::new("background"),
         }
     }
 

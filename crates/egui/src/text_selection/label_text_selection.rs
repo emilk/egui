@@ -145,6 +145,14 @@ impl Default for LabelSelectionState {
 }
 
 impl LabelSelectionState {
+    pub(crate) fn register(ctx: &Context) {
+        ctx.on_begin_frame(
+            "LabelSelectionState",
+            std::sync::Arc::new(Self::begin_frame),
+        );
+        ctx.on_end_frame("LabelSelectionState", std::sync::Arc::new(Self::end_frame));
+    }
+
     pub fn load(ctx: &Context) -> Self {
         ctx.data(|data| data.get_temp::<Self>(Id::NULL))
             .unwrap_or_default()
@@ -156,7 +164,7 @@ impl LabelSelectionState {
         });
     }
 
-    pub fn begin_frame(ctx: &Context) {
+    fn begin_frame(ctx: &Context) {
         let mut state = Self::load(ctx);
 
         if ctx.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
@@ -177,7 +185,7 @@ impl LabelSelectionState {
         state.store(ctx);
     }
 
-    pub fn end_frame(ctx: &Context) {
+    fn end_frame(ctx: &Context) {
         let mut state = Self::load(ctx);
 
         if state.is_dragging {
@@ -364,16 +372,18 @@ impl LabelSelectionState {
                     selection.primary =
                         WidgetTextCursor::new(response.id, new_primary, galley_pos, galley);
 
-                    if response.drag_started() {
+                    // We don't want the latency of `drag_started`.
+                    let drag_started = ui.input(|i| i.pointer.any_pressed());
+                    if drag_started {
                         if selection.layer_id == response.layer_id {
                             if ui.input(|i| i.modifiers.shift) {
-                                // A continuation of a previous selection?
+                                // A continuation of a previous selection.
                             } else {
-                                // A new selection.
+                                // A new selection in the same layer.
                                 selection.secondary = selection.primary;
                             }
                         } else {
-                            // A new selection.
+                            // A new selection in a new layer.
                             selection.layer_id = response.layer_id;
                             selection.secondary = selection.primary;
                         }
@@ -466,7 +476,7 @@ impl LabelSelectionState {
         }
 
         self.any_hovered |= response.hovered();
-        self.is_dragging |= response.dragged();
+        self.is_dragging |= response.is_pointer_button_down_on(); // we don't want the initial latency of drag vs click decision
 
         let old_selection = self.selection;
 

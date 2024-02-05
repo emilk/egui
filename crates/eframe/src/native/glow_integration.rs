@@ -493,6 +493,9 @@ impl GlowWinitRunning {
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
 
+        let mut frame_timer = crate::stopwatch::Stopwatch::new();
+        frame_timer.start();
+
         {
             let glutin = self.glutin.borrow();
             let viewport = &glutin.viewports[&viewport_id];
@@ -556,7 +559,11 @@ impl GlowWinitRunning {
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-            change_gl_context(current_gl_context, gl_surface);
+            {
+                frame_timer.pause();
+                change_gl_context(current_gl_context, gl_surface);
+                frame_timer.resume();
+            }
 
             self.painter
                 .borrow()
@@ -600,17 +607,20 @@ impl GlowWinitRunning {
 
         let viewport = viewports.get_mut(&viewport_id).unwrap();
         viewport.info.events.clear(); // they should have been processed
-        let window = viewport.window.as_ref().unwrap();
+        let window = viewport.window.clone().unwrap();
         let gl_surface = viewport.gl_surface.as_ref().unwrap();
         let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-        integration.post_update();
-        egui_winit.handle_platform_output(window, platform_output);
+        egui_winit.handle_platform_output(&window, platform_output);
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
-        // We may need to switch contexts again, because of immediate viewports:
-        change_gl_context(current_gl_context, gl_surface);
+        {
+            // We may need to switch contexts again, because of immediate viewports:
+            frame_timer.pause();
+            change_gl_context(current_gl_context, gl_surface);
+            frame_timer.resume();
+        }
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
@@ -637,10 +647,12 @@ impl GlowWinitRunning {
                         image: screenshot.into(),
                     });
             }
-            integration.post_rendering(window);
+            integration.post_rendering(&window);
         }
 
         {
+            // vsync - don't count as frame-time:
+            frame_timer.pause();
             crate::profile_scope!("swap_buffers");
             if let Err(err) = gl_surface.swap_buffers(
                 current_gl_context
@@ -649,6 +661,7 @@ impl GlowWinitRunning {
             ) {
                 log::error!("swap_buffers failed: {err}");
             }
+            frame_timer.resume();
         }
 
         // give it time to settle:
@@ -659,7 +672,11 @@ impl GlowWinitRunning {
             }
         }
 
-        integration.maybe_autosave(app.as_mut(), Some(window));
+        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, viewport_output);
+
+        integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
+
+        integration.maybe_autosave(app.as_mut(), Some(&window));
 
         if window.is_minimized() == Some(true) {
             // On Mac, a minimized Window uses up all CPU:
@@ -667,8 +684,6 @@ impl GlowWinitRunning {
             crate::profile_scope!("minimized_sleep");
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-
-        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, viewport_output);
 
         if integration.should_close() {
             EventResult::Exit

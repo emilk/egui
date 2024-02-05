@@ -365,7 +365,15 @@ fn combo_box_dyn<'c, R>(
         |ui| {
             ScrollArea::vertical()
                 .max_height(height)
-                .show(ui, menu_contents)
+                .show(ui, |ui| {
+                    // Often the button is very narrow, which means this popup
+                    // is also very narrow. Having wrapping on would therefore
+                    // result in labels that wrap very early.
+                    // Instead, we turn it off by default so that the labels
+                    // expand the width of the menu.
+                    ui.style_mut().wrap = Some(false);
+                    menu_contents(ui)
+                })
                 .inner
         },
     );

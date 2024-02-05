@@ -60,11 +60,10 @@ syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
-  "serde",
-] }
+egui = { workspace = true, default-features = false, features = ["serde"] }
+
 enum-map = { version = "2", features = ["serde"] }
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 serde = { version = "1", features = ["derive"] }
 
 #! ### Optional dependencies
@@ -78,7 +77,7 @@ chrono = { version = "0.4", optional = true, default-features = false, features 
 ] }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 image = { version = "0.24", optional = true, default-features = false }
 

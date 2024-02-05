@@ -79,6 +79,7 @@ pub trait CallbackTrait: Send + Sync {
         &self,
         _device: &wgpu::Device,
         _queue: &wgpu::Queue,
+        _screen_descriptor: &ScreenDescriptor,
         _egui_encoder: &mut wgpu::CommandEncoder,
         _callback_resources: &mut CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
@@ -814,7 +815,7 @@ impl Renderer {
         };
 
         if index_count > 0 {
-            crate::profile_scope!("indices");
+            crate::profile_scope!("indices", index_count.to_string());
 
             self.index_buffer.slices.clear();
             let required_index_buffer_size = (std::mem::size_of::<u32>() * index_count) as u64;
@@ -848,7 +849,7 @@ impl Renderer {
             }
         }
         if vertex_count > 0 {
-            crate::profile_scope!("vertices");
+            crate::profile_scope!("vertices", vertex_count.to_string());
 
             self.vertex_buffer.slices.clear();
             let required_vertex_buffer_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
@@ -890,6 +891,7 @@ impl Renderer {
                 user_cmd_bufs.extend(callback.prepare(
                     device,
                     queue,
+                    screen_descriptor,
                     encoder,
                     &mut self.callback_resources,
                 ));
@@ -923,12 +925,19 @@ fn create_sampler(
         epaint::textures::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
         epaint::textures::TextureFilter::Linear => wgpu::FilterMode::Linear,
     };
+    let address_mode = match options.wrap_mode {
+        epaint::textures::TextureWrapMode::ClampToEdge => wgpu::AddressMode::ClampToEdge,
+        epaint::textures::TextureWrapMode::Repeat => wgpu::AddressMode::Repeat,
+        epaint::textures::TextureWrapMode::MirroredRepeat => wgpu::AddressMode::MirrorRepeat,
+    };
     device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some(&format!(
             "egui sampler (mag: {mag_filter:?}, min {min_filter:?})"
         )),
         mag_filter,
         min_filter,
+        address_mode_u: address_mode,
+        address_mode_v: address_mode,
         ..Default::default()
     })
 }
