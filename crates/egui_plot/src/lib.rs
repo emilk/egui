@@ -1441,7 +1441,7 @@ impl PreparedPlot {
         let transform = &self.transform;
 
         let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
-        plot_ui.set_clip_rect(*transform.frame());
+        plot_ui.set_clip_rect(transform.frame().intersect(ui.clip_rect()));
         for item in &self.items {
             item.shapes(&plot_ui, transform, &mut shapes);
         }
