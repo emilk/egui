@@ -49,6 +49,7 @@ opt-level = 2
 
 [workspace.dependencies]
 criterion = { version = "0.5.1", default-features = false }
+document-features = "0.2"
 glow = "0.13"
 puffin = "0.19"
 puffin_http = "0.16"

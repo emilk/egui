@@ -37,6 +37,6 @@ egui = { version = "0.25.0", path = "../egui", default-features = false }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 serde = { version = "1", optional = true, features = ["derive"] }

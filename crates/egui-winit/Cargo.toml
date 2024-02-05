@@ -69,7 +69,7 @@ winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 accesskit_winit = { version = "0.16.0", optional = true }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 puffin = { workspace = true, optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }

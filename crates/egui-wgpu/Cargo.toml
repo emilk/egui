@@ -56,7 +56,7 @@ wgpu = { workspace = true, features = ["wgsl"] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 winit = { workspace = true, optional = true, default-features = false, features = [
   "rwh_06",

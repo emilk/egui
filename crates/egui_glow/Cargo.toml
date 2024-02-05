@@ -65,7 +65,7 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

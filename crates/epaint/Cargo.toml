@@ -95,7 +95,7 @@ parking_lot = "0.12" # Using parking_lot over std::sync::Mutex gives 50% speedup
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 log = { version = "0.4", optional = true, features = ["std"] }
 puffin = { workspace = true, optional = true }
