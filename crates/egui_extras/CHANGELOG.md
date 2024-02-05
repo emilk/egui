@@ -5,6 +5,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.0 - 2024-02-05
+* Remove `unwrap`s in SVG scaling [#3826](https://github.com/emilk/egui/pull/3826) (thanks [@amPerl](https://github.com/amPerl)!)
+* Update to ehttp 0.4 [#3834](https://github.com/emilk/egui/pull/3834)
+* Fix `StripBuilder` not allocating its used space [#3957](https://github.com/emilk/egui/pull/3957) (thanks [@IVAN-MK7](https://github.com/IVAN-MK7)!)
+* Override text color with stroke selection color for selected cells [#3968](https://github.com/emilk/egui/pull/3968) (thanks [@njust](https://github.com/njust)!)
+
+
 ## 0.25.0 - 2024-01-08
 * Implement table row selection and hover highlighting [#3347](https://github.com/emilk/egui/pull/3347) (thanks [@laurooyen](https://github.com/laurooyen)!)
 * Fix `egui_extras::Table` scrolling bug [#3690](https://github.com/emilk/egui/pull/3690) (thanks [@abey79](https://github.com/abey79)!)
