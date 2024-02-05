@@ -1498,7 +1498,7 @@ pub fn create_winit_window_builder<T>(
 
         // Windows:
         drag_and_drop: _drag_and_drop,
-        skip_taskbar: _skip_taskbar,
+        taskbar: _taskbar,
 
         // wayland:
         app_id: _app_id,
@@ -1581,8 +1581,8 @@ pub fn create_winit_window_builder<T>(
         if let Some(enable) = _drag_and_drop {
             window_builder = window_builder.with_drag_and_drop(enable);
         }
-        if let Some(skip) = _skip_taskbar {
-            window_builder = window_builder.with_skip_taskbar(skip);
+        if let Some(show) = _taskbar {
+            window_builder = window_builder.with_skip_taskbar(!show);
         }
     }
 

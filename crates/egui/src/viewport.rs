@@ -292,7 +292,7 @@ pub struct ViewportBuilder {
 
     // windows:
     pub drag_and_drop: Option<bool>,
-    pub skip_taskbar: Option<bool>,
+    pub taskbar: Option<bool>,
 
     pub close_button: Option<bool>,
     pub minimize_button: Option<bool>,
@@ -447,8 +447,8 @@ impl ViewportBuilder {
 
     /// windows: Whether show or hide the window icon in the taskbar.
     #[inline]
-    pub fn with_skip_taskbar(mut self, skip: bool) -> Self {
-        self.skip_taskbar = Some(skip);
+    pub fn with_taskbar(mut self, show: bool) -> Self {
+        self.taskbar = Some(show);
         self
     }
 
@@ -612,7 +612,7 @@ impl ViewportBuilder {
             maximize_button: new_maximize_button,
             window_level: new_window_level,
             mouse_passthrough: new_mouse_passthrough,
-            skip_taskbar: new_skip_taskbar,
+            taskbar: new_taskbar,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -769,8 +769,8 @@ impl ViewportBuilder {
             recreate_window = true;
         }
 
-        if new_skip_taskbar.is_some() && self.skip_taskbar != new_skip_taskbar {
-            self.skip_taskbar = new_skip_taskbar;
+        if new_taskbar.is_some() && self.taskbar != new_taskbar {
+            self.taskbar = new_taskbar;
             recreate_window = true;
         }
 
