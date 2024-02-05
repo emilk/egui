@@ -48,6 +48,7 @@ opt-level = 2
 
 
 [workspace.dependencies]
+#TODO(emilk): make more things workspace dependencies
 ahash = { version = "0.8.6", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
@@ -55,6 +56,7 @@ ahash = { version = "0.8.6", default-features = false, features = [
 criterion = { version = "0.5.1", default-features = false }
 document-features = "0.2"
 glow = "0.13"
+nohash-hasher = "0.2"
 puffin = "0.19"
 puffin_http = "0.16"
 raw-window-handle = "0.6.0"
