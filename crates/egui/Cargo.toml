@@ -83,21 +83,18 @@ unity = ["epaint/unity"]
 [dependencies]
 epaint = { version = "0.25.0", path = "../epaint", default-features = false }
 
-ahash = { version = "0.8.6", default-features = false, features = [
-    "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
-    "std",
-] }
-nohash-hasher = "0.2"
+ahash.workspace = true
+nohash-hasher.workspace = true
 
 #! ### Optional dependencies
 accesskit = { version = "0.12", optional = true }
 
-backtrace = { version = "0.3", optional = true }
+backtrace = { workspace = true, optional = true }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
-log = { version = "0.4", optional = true, features = ["std"] }
+log = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }

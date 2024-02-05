@@ -130,7 +130,7 @@
 //! ```
 //!
 //! ## Feature flags
-#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![doc = document_features::document_features!()]
 //!
 
 #![warn(missing_docs)] // let's keep eframe well-documented

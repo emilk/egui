@@ -41,13 +41,13 @@ syntect = ["egui_extras/syntect"]
 egui = { version = "0.25.0", path = "../egui", default-features = false }
 egui_extras = { version = "0.25.0", path = "../egui_extras" }
 egui_plot = { version = "0.25.0", path = "../egui_plot" }
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 unicode_names2 = { version = "0.6.0", default-features = false }          # this old version has fewer dependencies
 
 #! ### Optional dependencies
 chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 serde = { version = "1", optional = true, features = ["derive"] }
 
 
