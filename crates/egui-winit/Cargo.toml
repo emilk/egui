@@ -58,7 +58,7 @@ x11 = ["winit/x11", "bytemuck"]
 egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
   "log",
 ] }
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }

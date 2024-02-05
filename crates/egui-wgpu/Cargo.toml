@@ -49,7 +49,7 @@ epaint = { version = "0.25.0", path = "../epaint", default-features = false, fea
 
 bytemuck = "1.7"
 document-features.workspace = true
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 thiserror.workspace = true
 type-map = "0.5.0"
 web-time.workspace = true

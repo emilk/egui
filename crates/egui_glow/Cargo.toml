@@ -56,7 +56,7 @@ egui = { version = "0.25.0", path = "../egui", default-features = false, feature
 
 bytemuck = "1.7"
 glow.workspace = true
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 memoffset = "0.7"
 # glutin stuck on old version of raw-window-handle:
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [

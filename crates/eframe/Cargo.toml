@@ -127,7 +127,7 @@ egui = { version = "0.25.0", path = "../egui", default-features = false, feature
 ] }
 
 document-features.workspace = true
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 parking_lot = "0.12"
 raw-window-handle.workspace = true
 static_assertions = "1.1.0"

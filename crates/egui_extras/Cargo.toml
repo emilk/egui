@@ -64,7 +64,7 @@ egui = { version = "0.25.0", path = "../egui", default-features = false, feature
   "serde",
 ] }
 enum-map = { version = "2", features = ["serde"] }
-log = { version = "0.4", features = ["std"] }
+log.workspace = true
 serde = { version = "1", features = ["derive"] }
 
 #! ### Optional dependencies
