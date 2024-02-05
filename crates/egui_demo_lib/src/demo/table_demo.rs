@@ -109,6 +109,7 @@ impl super::View for TableDemo {
         StripBuilder::new(ui)
             .size(Size::remainder().at_least(100.0)) // for the table
             .size(Size::exact(10.5)) // for the source code link
+            .clip(true)
             .vertical(|mut strip| {
                 strip.cell(|ui| {
                     egui::ScrollArea::horizontal().show(ui, |ui| {
