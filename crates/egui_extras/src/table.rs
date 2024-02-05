@@ -3,7 +3,10 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b};
+use egui::{
+    scroll_area::ScrollBarVisibility, Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui,
+    Vec2, Vec2b,
+};
 
 use crate::{
     layout::{CellDirection, CellSize, StripLayoutFlags},
@@ -171,6 +174,7 @@ struct TableScrollOptions {
     min_scrolled_height: f32,
     max_scroll_height: f32,
     auto_shrink: Vec2b,
+    scroll_bar_visibility: ScrollBarVisibility,
 }
 
 impl Default for TableScrollOptions {
@@ -184,6 +188,7 @@ impl Default for TableScrollOptions {
             min_scrolled_height: 200.0,
             max_scroll_height: 800.0,
             auto_shrink: Vec2b::TRUE,
+            scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
         }
     }
 }
@@ -359,6 +364,15 @@ impl<'a> TableBuilder<'a> {
     #[inline]
     pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
         self.scroll_options.auto_shrink = auto_shrink.into();
+        self
+    }
+
+    /// Set the visibility of both horizontal and vertical scroll bars.
+    ///
+    /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
+    #[inline]
+    pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
+        self.scroll_options.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
 
@@ -606,6 +620,7 @@ impl<'a> Table<'a> {
             min_scrolled_height,
             max_scroll_height,
             auto_shrink,
+            scroll_bar_visibility,
         } = scroll_options;
 
         let cursor_position = ui.cursor().min;
@@ -616,7 +631,8 @@ impl<'a> Table<'a> {
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
             .max_height(max_scroll_height)
-            .auto_shrink(auto_shrink);
+            .auto_shrink(auto_shrink)
+            .scroll_bar_visibility(scroll_bar_visibility);
 
         if let Some(scroll_offset_y) = scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
