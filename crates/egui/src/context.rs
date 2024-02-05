@@ -187,7 +187,7 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
-/// Used to store each widgets [Id], [Rect] and [Sense] each frame.
+/// Used to store each widget's [Id], [Rect] and [Sense] each frame.
 /// Used to check for overlaps between widgets when handling events.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
@@ -197,7 +197,7 @@ pub struct WidgetRect {
     /// The globally unique widget id.
     ///
     /// For interactive widgets, this better be globally unique.
-    /// If not there will get weird bugs,
+    /// If not there will be weird bugs,
     /// and also big red warning test on the screen in debug builds
     /// (see [`Options::warn_on_id_clash`]).
     ///
@@ -210,7 +210,7 @@ pub struct WidgetRect {
 
 /// Stores the positions of all widgets generated during a single egui update/frame.
 ///
-/// Acgtually, only those that are on screen.
+/// Actually, only those that are on screen.
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct WidgetRects {
     /// All widgets, in painting order.
@@ -329,7 +329,7 @@ struct ViewportRepaintInfo {
 
     /// What was the output of `repaint_delay` on the previous frame?
     ///
-    /// If this was zero, we are repaining as quickly as possible
+    /// If this was zero, we are repainting as quickly as possible
     /// (as far as we know).
     prev_frame_paint_delay: Duration,
 }
@@ -363,7 +363,7 @@ impl ViewportRepaintInfo {
 
 #[derive(Default)]
 struct ContextImpl {
-    /// Since we could have multiple viewport across multiple monitors with
+    /// Since we could have multiple viewports across multiple monitors with
     /// different `pixels_per_point`, we need a `Fonts` instance for each unique
     /// `pixels_per_point`.
     /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
@@ -1394,18 +1394,18 @@ impl Context {
     /// redraws when the app is not in focus. But sometimes the GUI of the app might become stale
     /// and outdated if it is not updated for too long.
     ///
-    /// Lets say, something like a stop watch widget that displays the time in seconds. You would waste
+    /// Let's say, something like a stopwatch widget that displays the time in seconds. You would waste
     /// resources repainting multiple times within the same second (when you have no input),
     /// just calculate the difference of duration between current time and next second change,
     /// and call this function, to make sure that you are displaying the latest updated time, but
     /// not wasting resources on needless repaints within the same second.
     ///
     /// ### Quirk:
-    /// Duration begins at the next frame. lets say for example that its a very inefficient app
+    /// Duration begins at the next frame. Let's say for example that it's a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
-    /// So, its not that we are requesting repaint within X duration. We are rather timing out
+    /// So, it's not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the current viewport
@@ -2480,7 +2480,7 @@ impl Context {
             .default_open(false)
             .show(ui, |ui| {
                 ui.set_min_height(120.0);
-                ui.label("What caused egui to reapint:");
+                ui.label("What caused egui to repaint:");
                 ui.add_space(8.0);
                 let causes = ui.ctx().repaint_causes();
                 for cause in causes {
