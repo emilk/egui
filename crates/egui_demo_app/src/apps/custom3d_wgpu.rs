@@ -148,9 +148,9 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        _screen_descriptor: &ScreenDescriptor,
         _egui_encoder: &mut wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
-        _screen_descriptor: &ScreenDescriptor,
     ) -> Vec<wgpu::CommandBuffer> {
         let resources: &TriangleRenderResources = resources.get().unwrap();
         resources.prepare(device, queue, self.angle);
