@@ -103,7 +103,7 @@ serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-backtrace = { version = "0.3", optional = true }
+backtrace = { workspace = true, optional = true }
 
 
 [dev-dependencies]

@@ -89,7 +89,7 @@ nohash-hasher.workspace = true
 #! ### Optional dependencies
 accesskit = { version = "0.12", optional = true }
 
-backtrace = { version = "0.3", optional = true }
+backtrace = { workspace = true, optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
