@@ -26,11 +26,8 @@ all-features = true
 [features]
 default = []
 
-## For the `winit` integration:
-## enable cut/copy/paste to os clipboard.
-##
-## if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["egui-winit?/clipboard"]
+## Deprecated, clipboard is automatically enabled with winit integration when x11 or wayland is selected
+clipboard = []
 
 ## For the `winit` integration:
 ## enable opening links in a browser when an egui hyperlink is clicked.
