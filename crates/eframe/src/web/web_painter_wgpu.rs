@@ -7,7 +7,7 @@ use raw_window_handle::{
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
+use egui_wgpu::{RenderState, SurfaceErrorAction};
 
 use crate::WebOptions;
 
@@ -233,7 +233,7 @@ impl WebPainter for WebPainterWgpu {
                 });
 
         // Upload all resources for the GPU.
-        let screen_descriptor = ScreenDescriptor {
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
             size_in_pixels,
             pixels_per_point,
         };

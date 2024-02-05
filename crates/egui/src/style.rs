@@ -302,6 +302,9 @@ pub struct Spacing {
     /// Width of a tooltip (`on_hover_ui`, `on_hover_text` etc).
     pub tooltip_width: f32,
 
+    /// The default width of a menu.
+    pub menu_width: f32,
+
     /// End indented regions with a horizontal line
     pub indent_ends_with_horizontal_line: bool,
 
@@ -716,7 +719,7 @@ pub struct Interaction {
     pub show_tooltips_only_when_still: bool,
 
     /// Delay in seconds before showing tooltips after the mouse stops moving
-    pub tooltip_delay: f64,
+    pub tooltip_delay: f32,
 
     /// Can you select the text on a [`crate::Label`] by default?
     pub selectable_labels: bool,
@@ -1111,6 +1114,7 @@ impl Default for Spacing {
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
             tooltip_width: 600.0,
+            menu_width: 150.0,
             combo_height: 200.0,
             scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
@@ -1124,7 +1128,7 @@ impl Default for Interaction {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
-            tooltip_delay: 0.0,
+            tooltip_delay: 0.3,
             selectable_labels: true,
             multi_widget_text_select: true,
         }
@@ -1458,6 +1462,7 @@ impl Spacing {
             icon_width_inner,
             icon_spacing,
             tooltip_width,
+            menu_width,
             indent_ends_with_horizontal_line,
             combo_height,
             scroll,
@@ -1514,6 +1519,11 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
             ui.label("Tooltip wrap width");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
+            ui.label("Default width of a menu");
         });
 
         ui.checkbox(

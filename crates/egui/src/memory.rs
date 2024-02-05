@@ -186,7 +186,9 @@ pub struct Options {
 
     /// If any widget moves or changes id, repaint everything.
     ///
-    /// This is `true` by default.
+    /// It is recommended you keep this OFF, because
+    /// it is know to cause endless repaints, for unknown reasons
+    /// (https://github.com/rerun-io/rerun/issues/5018)
     pub repaint_on_widget_change: bool,
 
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
@@ -221,7 +223,7 @@ impl Default for Options {
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
-            repaint_on_widget_change: true,
+            repaint_on_widget_change: false,
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),

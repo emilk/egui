@@ -499,13 +499,16 @@ impl Response {
             }
         }
 
-        if !self.is_tooltip_open()
-            && self.ctx.input(|i| i.pointer.time_since_last_movement())
-                < self.ctx.style().interaction.tooltip_delay
-        {
-            // Keep waiting until the mouse has been still for a while
-            self.ctx.request_repaint();
-            return false;
+        if !self.is_tooltip_open() {
+            let time_til_tooltip = self.ctx.style().interaction.tooltip_delay
+                - self.ctx.input(|i| i.pointer.time_since_last_movement());
+
+            if 0.0 < time_til_tooltip {
+                // Wait until the mouse has been still for a while
+                self.ctx
+                    .request_repaint_after(std::time::Duration::from_secs_f32(time_til_tooltip));
+                return false;
+            }
         }
 
         // We don't want tooltips of things while we are dragging them,

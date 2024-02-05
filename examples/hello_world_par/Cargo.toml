@@ -9,7 +9,7 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../crates/eframe", default-features = false, features = [
+eframe = { workspace = true, default-features = false, features = [
     # accesskit struggles with threading
     "default_fonts",
     "wgpu",

@@ -73,7 +73,7 @@ impl BufferPadding {
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
 ///
-/// Alternatively you can use [`crate::renderer`] directly.
+/// Alternatively you can use [`crate::Renderer`] directly.
 ///
 /// NOTE: all egui viewports share the same painter.
 pub struct Painter {
