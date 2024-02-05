@@ -105,7 +105,7 @@ web_screen_reader = [
 ## By default, only WebGPU is enabled on web.
 ## If you want to enable WebGL, you need to turn on the `webgl` feature of crate `wgpu`:
 ##
-## ```ignore
+## ```toml
 ## wgpu = { version = "*", features = ["webgpu", "webgl"] }
 ## ```
 ##
@@ -125,6 +125,8 @@ egui = { version = "0.25.0", path = "../egui", default-features = false, feature
   "bytemuck",
   "log",
 ] }
+
+document-features.workspace = true
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.12"
 raw-window-handle.workspace = true
@@ -132,9 +134,7 @@ static_assertions = "1.1.0"
 thiserror.workspace = true
 web-time.workspace = true
 
-#! ### Optional dependencies
-## Enable this when generating docs.
-document-features = { workspace = true, optional = true }
+# Optional dependencies
 
 egui_glow = { version = "0.25.0", path = "../egui_glow", optional = true, default-features = false }
 glow = { workspace = true, optional = true }

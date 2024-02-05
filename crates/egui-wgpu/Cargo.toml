@@ -48,15 +48,14 @@ epaint = { version = "0.25.0", path = "../epaint", default-features = false, fea
 ] }
 
 bytemuck = "1.7"
+document-features.workspace = true
 log = { version = "0.4", features = ["std"] }
 thiserror.workspace = true
 type-map = "0.5.0"
 web-time.workspace = true
 wgpu = { workspace = true, features = ["wgsl"] }
 
-#! ### Optional dependencies
-## Enable this when generating docs.
-document-features = { workspace = true, optional = true }
+# Optional dependencies:
 
 winit = { workspace = true, optional = true, default-features = false, features = [
   "rwh_06",
