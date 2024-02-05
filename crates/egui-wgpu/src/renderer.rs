@@ -4,7 +4,6 @@ use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use epaint::{ahash::HashMap, emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
 
-use wgpu;
 use wgpu::util::DeviceExt as _;
 
 /// You can use this for storage when implementing [`CallbackTrait`].

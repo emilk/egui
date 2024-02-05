@@ -3,7 +3,7 @@
 //! If you're targeting WebGL you also need to turn on the
 //! `webgl` feature of the `wgpu` crate:
 //!
-//! ```ignore
+//! ```toml
 //! # Enable both WebGL and WebGPU backends on web.
 //! wgpu = { version = "*", features = ["webgpu", "webgl"] }
 //! ```
@@ -21,9 +21,9 @@
 pub use wgpu;
 
 /// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
-pub mod renderer;
-pub use renderer::Renderer;
-pub use renderer::{Callback, CallbackResources, CallbackTrait};
+mod renderer;
+
+pub use renderer::*;
 
 /// Module for painting [`egui`](https://github.com/emilk/egui) with [`wgpu`] on [`winit`].
 #[cfg(feature = "winit")]
