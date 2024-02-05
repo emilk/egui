@@ -28,6 +28,8 @@ all-features = true
 
 
 [features]
+default = []
+
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin"]
 
@@ -42,10 +44,8 @@ x11 = ["winit?/x11"]
 
 
 [dependencies]
-egui = { version = "0.25.0", path = "../egui", default-features = false }
-epaint = { version = "0.25.0", path = "../epaint", default-features = false, features = [
-  "bytemuck",
-] }
+egui = { workspace = true, default-features = false }
+epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 bytemuck = "1.7"
 document-features.workspace = true

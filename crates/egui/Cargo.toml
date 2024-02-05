@@ -81,7 +81,7 @@ unity = ["epaint/unity"]
 
 
 [dependencies]
-epaint = { version = "0.25.0", path = "../epaint", default-features = false }
+epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
 nohash-hasher.workspace = true
