@@ -92,6 +92,8 @@ wayland = [
   "egui-winit/wayland",
   "egui-wgpu?/wayland",
   "egui_glow?/wayland",
+  "glutin-winit?/wayland",
+  "glutin?/wayland"
 ]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
@@ -122,6 +124,8 @@ x11 = [
   "egui-winit/x11",
   "egui-wgpu?/x11",
   "egui_glow?/x11",
+  "glutin-winit?/x11",
+  "glutin?/x11"
 ]
 
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
@@ -174,8 +178,8 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 
 # we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
 # this can be done at the same time we expose x11/wayland features of winit crate.
-glutin = { version = "0.31", optional = true }
-glutin-winit = { version = "0.4", optional = true }
+glutin = { version = "0.31", optional = true, default-features = false, features = ["glx"] }
+glutin-winit = { version = "0.4", optional = true, default-features = false, features = ["glx"] }
 puffin = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = [
   # Let's enable some backends so that users can use `eframe` out-of-the-box
