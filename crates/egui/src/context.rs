@@ -148,9 +148,16 @@ impl ContextImpl {
     ) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        // Each request results in two repaints, just to give some things time to settle.
-        // This solves some corner-cases of missing repaints on frame-delayed responses.
-        viewport.repaint.outstanding = 1;
+        if delay == Duration::ZERO {
+            // Each request results in two repaints, just to give some things time to settle.
+            // This solves some corner-cases of missing repaints on frame-delayed responses.
+            viewport.repaint.outstanding = 1;
+        } else {
+            // For non-zero delays, we only repaint once, because
+            // otherwise we would just schedule an immediate repaint _now_,
+            // which would then clear the delay and repaint again.
+            // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
+        }
 
         viewport.repaint.causes.push(cause);
 
