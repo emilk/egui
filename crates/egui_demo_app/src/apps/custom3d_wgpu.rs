@@ -2,7 +2,7 @@ use std::num::NonZeroU64;
 
 use eframe::{
     egui_wgpu::wgpu::util::DeviceExt,
-    egui_wgpu::{self, renderer::ScreenDescriptor, wgpu},
+    egui_wgpu::{self, wgpu},
 };
 
 pub struct Custom3d {
@@ -148,7 +148,7 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        _screen_descriptor: &ScreenDescriptor,
+        _screen_descriptor: &egui_wgpu::ScreenDescriptor,
         _egui_encoder: &mut wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
