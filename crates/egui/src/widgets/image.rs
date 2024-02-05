@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use crate::load::TextureLoadResult;
 use crate::{
@@ -63,7 +63,7 @@ impl<'a> ImageSources<'a> {
     pub fn get_source(&self, ctx: &Context, id: Id) -> &'a ImageSource<'_> {
         match self {
             ImageSources::Multi(imgs) => {
-                let now = now();
+                let now = Instant::now();
                 let index = ctx.data_mut(|data| {
                     let data = data.get_temp_mut_or_insert_with(id, || ImageData {
                         image: 0,
@@ -98,7 +98,7 @@ impl<'a> From<Vec<(ImageSource<'a>, Duration)>> for ImageSources<'a> {
 }
 
 impl<'a> Image<'a> {
-    /// Loads gif from id & ImageSources
+    /// Loads gif from id & `[ImageSources]`
     /// `egui::Image::new_gif(egui_extras::include_gif!("../../assets/ferris.gif"))`
     pub fn new_gif((id, sources): (impl ToString, impl Into<ImageSources<'a>>)) -> Self {
         fn new_mono(id: String, sources: ImageSources<'_>) -> Image<'_> {
@@ -145,7 +145,6 @@ impl<'a> Image<'a> {
             } else {
                 Default::default()
             };
-            let source: ImageSource<'_> = source.into();
             Image {
                 id: Id::NULL,
                 sources: source.into(),
@@ -644,7 +643,7 @@ impl<'a> ImageSource<'a> {
 
     /// Release all memory and textures related to the given image URI.
     /// If you attempt to load the image again, it will be reloaded from scratch.
-    /// returns false if no uri was found and therefor the memory wasn't released(ImageSource::Texture)
+    /// returns false if no uri was found and therefor the memory wasn't released
     pub fn forget(&self, ctx: &Context) -> bool {
         if let Some(uri) = self.uri() {
             ctx.forget_image(uri);
@@ -871,11 +870,5 @@ pub fn paint_texture_at(
 #[derive(Clone, Copy)]
 struct ImageData {
     image: usize,
-    last_refresh: Duration,
-}
-
-fn now() -> Duration {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("time went backwards")
+    last_refresh: Instant,
 }
