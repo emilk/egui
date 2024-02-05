@@ -1,6 +1,8 @@
 #![allow(deprecated)]
 
 use egui::{mutex::Mutex, TextureOptions};
+#[cfg(feature = "image")]
+use image::{AnimationDecoder, EncodableLayout, ImageDecoder};
 
 #[cfg(feature = "svg")]
 use egui::SizeHint;
@@ -314,12 +316,45 @@ pub fn convert_image_to_bytes(image: &image::DynamicImage) -> Bytes {
 }
 
 #[cfg(feature = "image")]
+#[allow(dead_code)]
+fn include_dynamic_image(uri: impl ToString, image: &image::DynamicImage) -> egui::ImageSource {
+    egui::ImageSource::Bytes {
+        uri: std::borrow::Cow::Owned(format!("rgba8://{}", uri.to_string())),
+        bytes: convert_image_to_bytes(image),
+    }
+}
+
+#[cfg(feature = "image")]
 #[macro_export]
-macro_rules! include_dynamic_image {
-    ($uri: literal, $image: expr) => {
-        egui::ImageSource::Bytes {
-            uri: ::std::borrow::Cow::Borrowed(concat!("rgba8://", $uri)),
-            bytes: $crate::image::convert_image_to_bytes($image),
-        }
+macro_rules! include_gif {
+    ($path: literal) => {
+        egui_extras::image::gif_to_sources(
+            concat!("gif://", $path),
+            Cursor::new(include_bytes!($path)),
+        )
     };
+}
+
+#[cfg(feature = "image")]
+pub fn gif_to_sources<R: std::io::Read>(uri: &str, data: R) -> (&str, egui::ImageSources) {
+    let decoder = image::codecs::gif::GifDecoder::new(data).unwrap();
+    let (width, height) = decoder.dimensions();
+    let mut res = vec![];
+    for (index, frame) in decoder.into_frames().enumerate() {
+        let frame = frame.unwrap();
+        let img = frame.buffer();
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&(width as usize).to_le_bytes());
+        bytes.extend_from_slice(&(height as usize).to_le_bytes());
+        bytes.extend_from_slice(img.as_bytes());
+        let delay: std::time::Duration = frame.delay().into();
+        res.push((
+            egui::ImageSource::Bytes {
+                uri: std::borrow::Cow::Owned(format!("rgba8://{}-{}", uri, index)),
+                bytes: bytes.into(),
+            },
+            delay,
+        ));
+    }
+    (uri, res.into())
 }
