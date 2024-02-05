@@ -7,7 +7,7 @@ use crate::{
     *,
 };
 use emath::Rot2;
-use epaint::util::FloatOrd;
+use epaint::{util::FloatOrd, RectShape};
 
 /// A widget which displays an image.
 ///
@@ -60,7 +60,7 @@ pub enum ImageSources<'a> {
 }
 
 impl<'a> ImageSources<'a> {
-    pub fn get_source(&self, ctx: &Context, id: Id) -> &'a ImageSource {
+    pub fn get_source(&self, ctx: &Context, id: Id) -> &'a ImageSource<'_> {
         match self {
             ImageSources::Multi(imgs) => {
                 let now = now();
@@ -69,7 +69,7 @@ impl<'a> ImageSources<'a> {
                         image: 0,
                         last_refresh: now,
                     });
-                    let dur = imgs.get(data.image).unwrap().1.clone();
+                    let dur = imgs[data.image].1;
                     if data.last_refresh + dur < now {
                         data.image = (data.image + 1) % imgs.len();
                         data.last_refresh = now;
@@ -98,9 +98,10 @@ impl<'a> From<Vec<(ImageSource<'a>, Duration)>> for ImageSources<'a> {
 }
 
 impl<'a> Image<'a> {
-    /// Image::new_gif(egui_extras::include_gif!('image.gif'));
+    /// Loads gif from id & ImageSources
+    /// `egui::Image::new_gif(egui_extras::include_gif!("../../assets/ferris.gif"))`
     pub fn new_gif((id, sources): (impl ToString, impl Into<ImageSources<'a>>)) -> Self {
-        fn new_mono(id: String, sources: ImageSources) -> Image<'_> {
+        fn new_mono(id: String, sources: ImageSources<'_>) -> Image<'_> {
             let img_source = match &sources {
                 ImageSources::Multi(v) => v.first().map(|v| &v.0),
                 ImageSources::Single(v) => Some(v),
@@ -129,6 +130,7 @@ impl<'a> Image<'a> {
 
         new_mono(id.to_string(), sources.into())
     }
+
     /// Load the image from some source.
     pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
         fn new_mono(source: ImageSource<'_>) -> Image<'_> {
@@ -143,7 +145,7 @@ impl<'a> Image<'a> {
             } else {
                 Default::default()
             };
-            let source: ImageSource = source.into();
+            let source: ImageSource<'_> = source.into();
             Image {
                 id: Id::NULL,
                 sources: source.into(),
@@ -854,17 +856,14 @@ pub fn paint_texture_at(
             painter.add(Shape::mesh(mesh));
         }
         None => {
-            let mut mesh = Mesh::with_texture(texture.id);
-            mesh.add_rect_with_uv(rect, options.uv, options.tint);
-            painter.add(Shape::mesh(mesh));
-            // painter.add(RectShape {
-            //     rect,
-            //     rounding: options.rounding,
-            //     fill: options.tint,
-            //     stroke: Stroke::NONE,
-            //     fill_texture_id: texture.id,
-            //     uv: options.uv,
-            // });
+            painter.add(RectShape {
+                rect,
+                rounding: options.rounding,
+                fill: options.tint,
+                stroke: Stroke::NONE,
+                fill_texture_id: texture.id,
+                uv: options.uv,
+            });
         }
     }
 }
