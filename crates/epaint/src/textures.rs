@@ -227,10 +227,13 @@ pub enum TextureFilter {
 }
 
 /// Defines how textures are wrapped around objects when texture coordinates fall outside the [0, 1] range.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextureWrapMode {
     /// Stretches the edge pixels to fill beyond the texture's bounds.
+    ///
+    /// This is what you want to use for a normal image in a GUI.
+    #[default]
     ClampToEdge,
 
     /// Tiles the texture across the surface, repeating it horizontally and vertically.
