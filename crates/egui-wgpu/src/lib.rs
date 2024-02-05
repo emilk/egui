@@ -13,7 +13,7 @@
 //! The default is to prefer WebGPU and fall back on WebGL.
 //!
 //! ## Feature flags
-#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![doc = document_features::document_features!()]
 //!
 
 #![allow(unsafe_code)]

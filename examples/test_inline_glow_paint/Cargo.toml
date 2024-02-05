@@ -10,7 +10,10 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe = { path = "../../crates/eframe" }
+eframe = { workspace = true, features = [
+    "default",
+    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+] }
 env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",

@@ -145,7 +145,6 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let response = self.ui.allocate_rect(max_rect, self.sense);
         let used_rect = self.cell(flags, max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
@@ -156,7 +155,7 @@ impl<'l> StripLayout<'l> {
             max_rect.union(used_rect)
         };
 
-        let response = response.with_new_rect(allocation_rect);
+        let response = self.ui.allocate_rect(allocation_rect, self.sense);
 
         (used_rect, response)
     }
@@ -196,6 +195,11 @@ impl<'l> StripLayout<'l> {
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
+        }
+
+        if flags.selected {
+            let stroke_color = child_ui.style().visuals.selection.stroke.color;
+            child_ui.style_mut().visuals.override_text_color = Some(stroke_color);
         }
 
         add_cell_contents(&mut child_ui);

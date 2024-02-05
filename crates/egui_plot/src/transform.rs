@@ -359,27 +359,29 @@ impl PlotTransform {
         rect
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in the X axis in "plot space"
     pub fn dpos_dvalue_x(&self) -> f64 {
         self.frame.width() as f64 / self.bounds.width()
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in the Y axis in "plot space"
     pub fn dpos_dvalue_y(&self) -> f64 {
         -self.frame.height() as f64 / self.bounds.height() // negated y axis!
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in "plot space"
     pub fn dpos_dvalue(&self) -> [f64; 2] {
         [self.dpos_dvalue_x(), self.dpos_dvalue_y()]
     }
 
-    /// delta value / delta position
+    /// delta value / delta position = how much ground do we cover in "plot space" per ui point?
     pub fn dvalue_dpos(&self) -> [f64; 2] {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
-    /// width / height aspect ratio
+    /// scale.x/scale.y ratio.
+    ///
+    /// If 1.0, it means the scale factor is the same in both axes.
     fn aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;
@@ -408,7 +410,7 @@ impl PlotTransform {
     }
 
     /// Sets the aspect ratio by changing either the X or Y axis (callers choice).
-    pub(crate) fn set_aspect_by_changing_axis(&mut self, aspect: f64, change_x: bool) {
+    pub(crate) fn set_aspect_by_changing_axis(&mut self, aspect: f64, axis: Axis) {
         let current_aspect = self.aspect();
 
         let epsilon = 1e-5;
@@ -417,12 +419,15 @@ impl PlotTransform {
             return;
         }
 
-        if change_x {
-            self.bounds
-                .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
-        } else {
-            self.bounds
-                .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+        match axis {
+            Axis::X => {
+                self.bounds
+                    .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
+            }
+            Axis::Y => {
+                self.bounds
+                    .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+            }
         }
     }
 }

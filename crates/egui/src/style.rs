@@ -302,6 +302,9 @@ pub struct Spacing {
     /// Width of a tooltip (`on_hover_ui`, `on_hover_text` etc).
     pub tooltip_width: f32,
 
+    /// The default width of a menu.
+    pub menu_width: f32,
+
     /// End indented regions with a horizontal line
     pub indent_ends_with_horizontal_line: bool,
 
@@ -455,7 +458,7 @@ impl ScrollStyle {
     pub fn thin() -> Self {
         Self {
             floating: true,
-            bar_width: 12.0,
+            bar_width: 10.0,
             floating_allocated_width: 6.0,
             foreground_color: false,
 
@@ -479,7 +482,7 @@ impl ScrollStyle {
     pub fn floating() -> Self {
         Self {
             floating: true,
-            bar_width: 12.0,
+            bar_width: 10.0,
             foreground_color: true,
             floating_allocated_width: 0.0,
             dormant_background_opacity: 0.0,
@@ -1111,6 +1114,7 @@ impl Default for Spacing {
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
             tooltip_width: 600.0,
+            menu_width: 150.0,
             combo_height: 200.0,
             scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
@@ -1458,6 +1462,7 @@ impl Spacing {
             icon_width_inner,
             icon_spacing,
             tooltip_width,
+            menu_width,
             indent_ends_with_horizontal_line,
             combo_height,
             scroll,
@@ -1514,6 +1519,11 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
             ui.label("Tooltip wrap width");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
+            ui.label("Default width of a menu");
         });
 
         ui.checkbox(

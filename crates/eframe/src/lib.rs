@@ -130,7 +130,7 @@
 //! ```
 //!
 //! ## Feature flags
-#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![doc = document_features::document_features!()]
 //!
 
 #![warn(missing_docs)] // let's keep eframe well-documented
@@ -149,6 +149,8 @@ mod epi;
 
 // Re-export everything in `epi` so `eframe` users don't have to care about what `epi` is:
 pub use epi::*;
+
+pub(crate) mod stopwatch;
 
 // ----------------------------------------------------------------------------
 // When compiling for web
@@ -291,7 +293,7 @@ pub fn run_native(
 ///                     .labelled_by(name_label.id);
 ///             });
 ///             ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
-///             if ui.button("Click each year").clicked() {
+///             if ui.button("Increment").clicked() {
 ///                 age += 1;
 ///             }
 ///             ui.label(format!("Hello '{name}', age {age}"));

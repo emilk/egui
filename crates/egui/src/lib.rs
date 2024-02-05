@@ -347,6 +347,8 @@ mod animation_manager;
 pub mod containers;
 mod context;
 mod data;
+pub mod debug_text;
+mod drag_and_drop;
 mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
@@ -393,7 +395,7 @@ pub use emath::{
 pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
-    textures::{TextureFilter, TextureOptions, TexturesDelta},
+    textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
     ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
     Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
@@ -408,7 +410,7 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::{Context, RequestRepaintInfo},
+    context::{Context, RepaintCause, RequestRepaintInfo, WidgetRect, WidgetRects},
     data::{
         input::*,
         output::{
@@ -416,6 +418,7 @@ pub use {
         },
         Key,
     },
+    drag_and_drop::DragAndDrop,
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},

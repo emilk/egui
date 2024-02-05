@@ -6,7 +6,7 @@ use crate::{
     Color32, Context, FontId,
 };
 use epaint::{
-    text::{Fonts, Galley},
+    text::{Fonts, Galley, LayoutJob},
     CircleShape, ClippedShape, RectShape, Rounding, Shape, Stroke,
 };
 
@@ -436,9 +436,18 @@ impl Painter {
         self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))
     }
 
+    /// Lay out this text layut job in a galley.
+    ///
+    /// Paint the results with [`Self::galley`].
+    #[inline]
+    #[must_use]
+    pub fn layout_job(&self, layout_job: LayoutJob) -> Arc<Galley> {
+        self.fonts(|f| f.layout_job(layout_job))
+    }
+
     /// Paint text that has already been laid out in a [`Galley`].
     ///
-    /// You can create the [`Galley`] with [`Self::layout`].
+    /// You can create the [`Galley`] with [`Self::layout`] or [`Self::layout_job`].
     ///
     /// Any uncolored parts of the [`Galley`] (using [`Color32::PLACEHOLDER`]) will be replaced with the given color.
     ///

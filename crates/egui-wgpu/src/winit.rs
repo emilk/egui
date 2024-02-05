@@ -504,7 +504,10 @@ impl Painter {
         })
     }
 
-    // Returns a vector with the frame's pixel data if it was requested.
+    /// Returns two things:
+    ///
+    /// The approximate number of seconds spent on vsync-waiting (if any),
+    /// and the captures captured screenshot if it was requested.
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -513,29 +516,16 @@ impl Painter {
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
         capture: bool,
-    ) -> Option<epaint::ColorImage> {
+    ) -> (f32, Option<epaint::ColorImage>) {
         crate::profile_function!();
 
-        let render_state = self.render_state.as_mut()?;
-        let surface_state = self.surfaces.get(&viewport_id)?;
+        let mut vsync_sec = 0.0;
 
-        let output_frame = {
-            crate::profile_scope!("get_current_texture");
-            // This is what vsync-waiting happens, at least on Mac.
-            surface_state.surface.get_current_texture()
+        let Some(render_state) = self.render_state.as_mut() else {
+            return (vsync_sec, None);
         };
-
-        let output_frame = match output_frame {
-            Ok(frame) => frame,
-            Err(err) => match (*self.configuration.on_surface_error)(err) {
-                SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(surface_state, render_state, &self.configuration);
-                    return None;
-                }
-                SurfaceErrorAction::SkipFrame => {
-                    return None;
-                }
-            },
+        let Some(surface_state) = self.surfaces.get(&viewport_id) else {
+            return (vsync_sec, None);
         };
 
         let mut encoder =
@@ -580,6 +570,28 @@ impl Painter {
             }
         };
 
+        let output_frame = {
+            crate::profile_scope!("get_current_texture");
+            // This is what vsync-waiting happens on my Mac.
+            let start = web_time::Instant::now();
+            let output_frame = surface_state.surface.get_current_texture();
+            vsync_sec += start.elapsed().as_secs_f32();
+            output_frame
+        };
+
+        let output_frame = match output_frame {
+            Ok(frame) => frame,
+            Err(err) => match (*self.configuration.on_surface_error)(err) {
+                SurfaceErrorAction::RecreateSurface => {
+                    Self::configure_surface(surface_state, render_state, &self.configuration);
+                    return (vsync_sec, None);
+                }
+                SurfaceErrorAction::SkipFrame => {
+                    return (vsync_sec, None);
+                }
+            },
+        };
+
         {
             let renderer = render_state.renderer.read();
             let frame_view = if capture {
@@ -589,8 +601,11 @@ impl Painter {
                     render_state,
                 );
                 self.screen_capture_state
-                    .as_ref()?
-                    .texture
+                    .as_ref()
+                    .map_or_else(
+                        || &output_frame.texture,
+                        |capture_state| &capture_state.texture,
+                    )
                     .create_view(&wgpu::TextureViewDescriptor::default())
             } else {
                 output_frame
@@ -654,23 +669,33 @@ impl Painter {
         // Submit the commands: both the main buffer and user-defined ones.
         {
             crate::profile_scope!("Queue::submit");
+            // wgpu doesn't document where vsync can happen. Maybe here?
+            let start = web_time::Instant::now();
             render_state
                 .queue
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
+            vsync_sec += start.elapsed().as_secs_f32();
         };
 
         let screenshot = if capture {
-            let screen_capture_state = self.screen_capture_state.as_ref()?;
-            Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+            self.screen_capture_state
+                .as_ref()
+                .and_then(|screen_capture_state| {
+                    Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+                })
         } else {
             None
         };
 
         {
             crate::profile_scope!("present");
+            // wgpu doesn't document where vsync can happen. Maybe here?
+            let start = web_time::Instant::now();
             output_frame.present();
+            vsync_sec += start.elapsed().as_secs_f32();
         }
-        screenshot
+
+        (vsync_sec, screenshot)
     }
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
