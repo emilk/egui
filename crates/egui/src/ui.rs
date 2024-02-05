@@ -294,7 +294,7 @@ impl Ui {
     /// # });
     /// ```
     pub fn set_opacity(&mut self, opacity: f32) {
-        self.painter.set_opacity(Some(opacity));
+        self.painter.set_opacity(opacity);
     }
 
     /// Read the [`Layout`].
