@@ -48,6 +48,10 @@ opt-level = 2
 
 
 [workspace.dependencies]
+ahash = { version = "0.8.6", default-features = false, features = [
+    "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
+    "std",
+] }
 criterion = { version = "0.5.1", default-features = false }
 document-features = "0.2"
 glow = "0.13"

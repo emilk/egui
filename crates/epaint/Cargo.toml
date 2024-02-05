@@ -84,12 +84,9 @@ emath = { version = "0.25.0", path = "../emath" }
 ecolor = { version = "0.25.0", path = "../ecolor" }
 
 ab_glyph = "0.2.11"
-ahash = { version = "0.8.1", default-features = false, features = [
-  "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
-  "std",
-] }
+ahash.workspace = true
 nohash-hasher = "0.2"
-parking_lot = "0.12" # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+parking_lot = "0.12"   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 
 #! ### Optional dependencies
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
