@@ -59,6 +59,7 @@ document-features = "0.2"
 glow = "0.13"
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
+parking_lot = "0.12"
 puffin = "0.19"
 puffin_http = "0.16"
 raw-window-handle = "0.6.0"

@@ -128,7 +128,7 @@ egui = { version = "0.25.0", path = "../egui", default-features = false, feature
 
 document-features.workspace = true
 log.workspace = true
-parking_lot = "0.12"
+parking_lot.workspace = true
 raw-window-handle.workspace = true
 static_assertions = "1.1.0"
 thiserror.workspace = true

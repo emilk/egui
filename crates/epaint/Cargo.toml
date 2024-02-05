@@ -86,7 +86,7 @@ ecolor = { version = "0.25.0", path = "../ecolor" }
 ab_glyph = "0.2.11"
 ahash.workspace = true
 nohash-hasher.workspace = true
-parking_lot = "0.12"           # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 
 #! ### Optional dependencies
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
