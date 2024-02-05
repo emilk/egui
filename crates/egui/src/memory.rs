@@ -188,7 +188,7 @@ pub struct Options {
     ///
     /// It is recommended you keep this OFF, because
     /// it is know to cause endless repaints, for unknown reasons
-    /// (https://github.com/rerun-io/rerun/issues/5018)
+    /// (<https://github.com/rerun-io/rerun/issues/5018>).
     pub repaint_on_widget_change: bool,
 
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
