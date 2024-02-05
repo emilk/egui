@@ -886,8 +886,8 @@ impl PointerState {
 
     /// How long has it been (in seconds) since the pointer was last moved?
     #[inline(always)]
-    pub fn time_since_last_movement(&self) -> f64 {
-        self.time - self.last_move_time
+    pub fn time_since_last_movement(&self) -> f32 {
+        (self.time - self.last_move_time) as f32
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?
