@@ -426,7 +426,8 @@ impl<'open> Window<'open> {
             0.0
         };
 
-        let viewport_rect = ctx.input(|i| i.clone().viewport().inner_rect.unwrap_or(Rect::EVERYTHING));
+        let viewport_rect =
+            ctx.input(|i| i.clone().viewport().inner_rect.unwrap_or(Rect::EVERYTHING));
         let max_width = viewport_rect.width();
         let max_height = viewport_rect.height() - title_bar_height;
         resize.max_size.x = resize.max_size.x.min(max_width);
