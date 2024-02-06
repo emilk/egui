@@ -469,7 +469,10 @@ impl<'a> Widget for DragValue<'a> {
                     .clip_text(false)
                     .horizontal_align(ui.layout().horizontal_align())
                     .vertical_align(ui.layout().vertical_align())
-                    .margin(ui.spacing().button_padding)
+                    .margin(Margin::symmetric(
+                        ui.spacing().button_padding.x,
+                        ui.spacing().button_padding.y,
+                    ))
                     .min_size(ui.spacing().interact_size)
                     .id(id)
                     .desired_width(ui.spacing().interact_size.x)
