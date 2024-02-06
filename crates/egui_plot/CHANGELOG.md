@@ -5,6 +5,17 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.0 - 2024-02-05
+* Make `egui_plot::PlotMemory` public [#3871](https://github.com/emilk/egui/pull/3871)
+* Customizable spacing of grid and axis label spacing [#3896](https://github.com/emilk/egui/pull/3896)
+* Change default plot line thickness from 1.0 to 1.5 [#3918](https://github.com/emilk/egui/pull/3918)
+* Automatically expand plot axes thickness to fit their labels [#3921](https://github.com/emilk/egui/pull/3921)
+* Plot items now have optional id which is returned in the plot's response when hovered [#3920](https://github.com/emilk/egui/pull/3920) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Parallel tessellation with opt-in `rayon` feature [#3934](https://github.com/emilk/egui/pull/3934)
+* Make `egui_plot::PlotItem` a public trait [#3943](https://github.com/emilk/egui/pull/3943)
+* Fix clip rect for plot items [#3955](https://github.com/emilk/egui/pull/3955) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+
+
 ## 0.25.0 - 2024-01-08
 * Fix plot auto-bounds unset by default [#3722](https://github.com/emilk/egui/pull/3722) (thanks [@abey79](https://github.com/abey79)!)
 * Add methods to zoom a `Plot` programmatically [#2714](https://github.com/emilk/egui/pull/2714) (thanks [@YgorSouza](https://github.com/YgorSouza)!)

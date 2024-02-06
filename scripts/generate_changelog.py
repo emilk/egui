@@ -9,8 +9,10 @@ though it often needs some manual editing too.
 
 import argparse
 import multiprocessing
+import os
 import re
 import sys
+from datetime import date
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
@@ -109,18 +111,45 @@ def print_section(crate: str, items: List[str]) -> None:
     if 0 < len(items):
         print(f"#### {crate}")
         for line in items:
-            line = remove_prefix(line, f"[{crate}] ")
-            line = remove_prefix(line, f"{crate}: ")
-            line = remove_prefix(line, f"`{crate}`: ")
-            line = line[0].upper() + line[1:]  # Upper-case first letter
             print(f"* {line}")
     print()
 
 
+def add_to_changelog_file(crate: str, items: List[str], version: str) -> None:
+    insert_text = f"\n## {version} - {date.today()}\n"
+    for item in items:
+        insert_text += f"* {item}\n"
+    insert_text += "\n"
+
+    scripts_dirpath = os.path.dirname(os.path.realpath(__file__))
+    if crate == "egui":
+        file_path = f"{scripts_dirpath}/../CHANGELOG.md"
+    else:
+        file_path = f"{scripts_dirpath}/../crates/{crate}/CHANGELOG.md"
+    file_path = os.path.normpath(file_path)
+
+    with open(file_path, 'r') as file:
+        content = file.read()
+
+    position = content.find('\n##')
+    assert position != -1
+
+    content = content[:position] + insert_text + content[position:]
+
+    with open(file_path, 'w') as file:
+        file.write(content)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a changelog.")
-    parser.add_argument("--commit-range", help="e.g. 0.24.0..HEAD")
+    parser.add_argument("--commit-range", help="e.g. 0.24.0..HEAD", required=True)
+    parser.add_argument("--write", help="Write into the different changelogs?", action="store_true")
+    parser.add_argument("--version", help="What release is this?")
     args = parser.parse_args()
+
+    if args.write and not args.version:
+        print("ERROR: --version is required when --write is used")
+        sys.exit(1)
 
     repo = Repo(".")
     commits = list(repo.iter_commits(args.commit_range))
@@ -195,15 +224,34 @@ def main() -> None:
                 if not any(label in labels for label in ignore_labels):
                     unsorted_prs.append(summary)
 
+    # Clean up:
+    for crate in crate_names:
+        if crate in sections:
+            items = sections[crate]
+            for i in range(len(items)):
+                line = items[i]
+                line = remove_prefix(line, f"[{crate}] ")
+                line = remove_prefix(line, f"{crate}: ")
+                line = remove_prefix(line, f"`{crate}`: ")
+                line = line[0].upper() + line[1:]  # Upper-case first letter
+                items[i] = line
+
+
     print()
     print(f"Full diff at https://github.com/emilk/egui/compare/{args.commit_range}")
     print()
     for crate in crate_names:
         if crate in sections:
-            summary = sections[crate]
-            print_section(crate, summary)
+            items = sections[crate]
+            print_section(crate, items)
     print_section("Unsorted PRs", unsorted_prs)
     print_section("Unsorted commits", unsorted_commits)
+
+    if args.write:
+        for crate in crate_names:
+            items = sections[crate] if crate in sections else []
+            add_to_changelog_file(crate, items, args.version)
+
 
 
 if __name__ == "__main__":

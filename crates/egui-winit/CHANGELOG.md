@@ -5,6 +5,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.0 - 2024-02-05
+* Don't consume clipboard shortcuts [#3812](https://github.com/emilk/egui/pull/3812) (thanks [@Dinnerbone](https://github.com/Dinnerbone)!)
+* Make the `clipboard_text` and `allow_ime` state public [#3724](https://github.com/emilk/egui/pull/3724) (thanks [@tosti007](https://github.com/tosti007)!)
+
+
 ## 0.25.0 - 2024-01-08
 * Update to winit 0.29 [#3649](https://github.com/emilk/egui/pull/3649) (thanks [@fornwall](https://github.com/fornwall)!)
 * Fix: Let `accesskit` process window events [#3733](https://github.com/emilk/egui/pull/3733) (thanks [@DataTriny](https://github.com/DataTriny)!)

@@ -46,9 +46,7 @@ ui.label(format!("Hello '{name}', age {age}"));
 ui.image(egui::include_image!("ferris.png"));
 ```
 
-<img alt="Dark mode" src="media/demo.gif">
-&nbsp;&nbsp;
-<img alt="Light mode" src="media/demo_light_mode.png" height="278">
+<img alt="Dark mode" src="media/demo.gif"> &nbsp; &nbsp; <img alt="Light mode" src="media/demo_light_mode.png" height="278">
 
 ## Sections:
 
