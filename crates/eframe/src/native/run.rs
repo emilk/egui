@@ -195,8 +195,9 @@ fn run_and_return(
                 if !window.is_minimized().unwrap_or(false) {
                     window.request_redraw();
                     return true;
+                } else {
+                    return false;
                 }
-                false
             } else {
                 log::trace!("No window found for {window_id:?}");
                 false
@@ -351,8 +352,9 @@ fn run_and_exit(
                 if !window.is_minimized().unwrap_or(false) {
                     window.request_redraw();
                     return true;
+                } else {
+                    return false;
                 }
-                false
             } else {
                 log::trace!("No window found for {window_id:?}");
                 false
