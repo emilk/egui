@@ -7,6 +7,52 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.0 - 2024-02-05 - Text selection in labels
+
+### ⚠️ BREAKING
+* Always set `response.hovered` to false when dragging another widget [#3860](https://github.com/emilk/egui/pull/3860)
+* `InputState::scroll_delta` has been replaced by `InputState::raw_scroll_delta` and `InputState::smooth_scroll_delta` [#3884](https://github.com/emilk/egui/pull/3884)
+* Improve `Response.dragged`, `drag_started` and `clicked` [#3888](https://github.com/emilk/egui/pull/3888)
+
+### ⭐ Added
+* Selectable text in Labels [#3814](https://github.com/emilk/egui/pull/3814) [#3870](https://github.com/emilk/egui/pull/3870)
+* Add some drag-and-drop-related APIs in `Response` and `Memory` [#3876](https://github.com/emilk/egui/pull/3876) (thanks [@abey79](https://github.com/abey79)!)
+* Add drag-and-drop APIs with payloads storage [#3887](https://github.com/emilk/egui/pull/3887)
+* `ComboBox`: add builder method for height [#3001](https://github.com/emilk/egui/pull/3001) (thanks [@hinto-janai](https://github.com/hinto-janai)!)
+* Add keys `?`, `/`, `|` [#3820](https://github.com/emilk/egui/pull/3820)
+* Add `Response::contains_pointer` [#3859](https://github.com/emilk/egui/pull/3859)
+* Add `Align2::anchor_size` [#3863](https://github.com/emilk/egui/pull/3863)
+* Add `Context::debug_text` [#3864](https://github.com/emilk/egui/pull/3864)
+* Allow read access to shapes added to painter this frame [#3866](https://github.com/emilk/egui/pull/3866) (thanks [@brunizzl](https://github.com/brunizzl)!)
+* Register callbacks with `Context::on_begin_frame` and `on_end_frame` [#3886](https://github.com/emilk/egui/pull/3886)
+* Improve `Frame` API to allow picking color until after adding content [#3889](https://github.com/emilk/egui/pull/3889)
+* Add opacity factor to `TextShape` [#3916](https://github.com/emilk/egui/pull/3916) (thanks [@StratusFearMe21](https://github.com/StratusFearMe21)!)
+* `Context::repaint_causes`: `file:line` of what caused a repaint [#3949](https://github.com/emilk/egui/pull/3949)
+* Add `TextureOptions::wrap_mode` [#3954](https://github.com/emilk/egui/pull/3954) (thanks [@CodedNil](https://github.com/CodedNil)!)
+* Add `Spacing::menu_width` [#3973](https://github.com/emilk/egui/pull/3973)
+
+### 🔧 Changed
+* Move text selection logic to own module [#3843](https://github.com/emilk/egui/pull/3843)
+* Smooth scrolling [#3884](https://github.com/emilk/egui/pull/3884)
+* Turn off text wrapping by default in combo-box popups [#3912](https://github.com/emilk/egui/pull/3912)
+* `Response.context_menu` now returns the response of the context menu, if open [#3904](https://github.com/emilk/egui/pull/3904) (thanks [@AufarZakiev](https://github.com/AufarZakiev)!)
+* Update to puffin 0.19 [#3940](https://github.com/emilk/egui/pull/3940)
+* Wait with showing tooltip until mouse has been still for 300ms [#3977](https://github.com/emilk/egui/pull/3977)
+
+### 🐛 Fixed
+* Fix: dragging to above/below a `TextEdit` or `Label` will select text to begin/end [#3858](https://github.com/emilk/egui/pull/3858)
+* Fix clickable widgets blocking scrolling on touch screens [#3815](https://github.com/emilk/egui/pull/3815) (thanks [@lucasmerlin](https://github.com/lucasmerlin)!)
+* Fix `stable_dt` [#3832](https://github.com/emilk/egui/pull/3832)
+* Bug Fix : `Response::is_pointer_button_down_on` is now false the frame the button is released [#3833](https://github.com/emilk/egui/pull/3833) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Use runtime knowledge of OS for OS-specific text editing [#3840](https://github.com/emilk/egui/pull/3840)
+* Fix calling `request_repaint_after` every frame causing immediate repaint [#3978](https://github.com/emilk/egui/pull/3978)
+
+### 🚀 Performance
+* Niche-optimize `Id` so that `Option<Id>` is the same size as `Id` [#3932](https://github.com/emilk/egui/pull/3932)
+* Parallel tessellation with opt-in `rayon` feature [#3934](https://github.com/emilk/egui/pull/3934)
+
+
+
 ## 0.25.0 - 2024-01-08 - Better keyboard input
 
 ### ⚠️ BREAKING
