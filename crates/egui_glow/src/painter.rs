@@ -86,6 +86,7 @@ pub struct Painter {
     is_webgl_1: bool,
     vao: crate::vao::VertexArrayObject,
     srgb_textures: bool,
+    supports_srgb_framebuffer: bool,
     vbo: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
@@ -173,6 +174,13 @@ impl Painter {
             });
         log::debug!("SRGB texture Support: {:?}", srgb_textures);
 
+        let supports_srgb_framebuffer = !cfg!(target_arch = "wasm32")
+            && supported_extensions.iter().any(|extension| {
+                // {GL,GLX,WGL}_ARB_framebuffer_sRGB, …
+                extension.ends_with("ARB_framebuffer_sRGB")
+            });
+        log::debug!("SRGB framebuffer Support: {:?}", supports_srgb_framebuffer);
+
         unsafe {
             let vert = compile_shader(
                 &gl,
@@ -253,6 +261,7 @@ impl Painter {
                 is_webgl_1,
                 vao,
                 srgb_textures,
+                supports_srgb_framebuffer,
                 vbo,
                 element_array_buffer,
                 textures: Default::default(),
@@ -314,7 +323,7 @@ impl Painter {
                 glow::ONE,
             );
 
-            if !cfg!(target_arch = "wasm32") {
+            if self.supports_srgb_framebuffer {
                 self.gl.disable(glow::FRAMEBUFFER_SRGB);
                 check_for_gl_error!(&self.gl, "FRAMEBUFFER_SRGB");
             }
