@@ -833,7 +833,7 @@ impl Renderer {
             );
 
             let Some(mut index_buffer_staging) = index_buffer_staging else {
-                panic!("Failed to create staging buffer for index data. Index buffer size: {}, capacity: {} (bytes)", required_index_buffer_size, self.index_buffer.capacity);
+                panic!("Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)", self.index_buffer.buffer.size(), self.index_buffer.capacity);
             };
 
             let mut index_offset = 0;
@@ -872,7 +872,7 @@ impl Renderer {
             );
 
             let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
-                panic!("Failed to create staging buffer for vertex data. Vertex buffer size: {}, capacity: {} (bytes)", required_vertex_buffer_size, self.vertex_buffer.capacity);
+                panic!("Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)", self.vertex_buffer.buffer.size(), self.vertex_buffer.capacity);
             };
 
             let mut vertex_offset = 0;
