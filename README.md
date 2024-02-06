@@ -27,6 +27,9 @@ egui aims to be the easiest-to-use Rust GUI library, and the simplest way to mak
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
+[`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) is the official egui framework, which supports writing apps for Web, Linux, Mac, Windows, and Android.
+
+
 ## Example
 
 ``` rust
@@ -43,7 +46,7 @@ ui.label(format!("Hello '{name}', age {age}"));
 ui.image(egui::include_image!("ferris.png"));
 ```
 
-<img src="media/demo.gif">
+<img alt="Dark mode" src="media/demo.gif"> &nbsp; &nbsp; <img alt="Light mode" src="media/demo_light_mode.png" height="278">
 
 ## Sections:
 
@@ -73,7 +76,7 @@ If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/di
 
 ## Demo
 
-[Click to run egui web demo](https://www.egui.rs/#demo) (works in any browser with WASM and WebGL support). Uses [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+[Click to run egui web demo](https://www.egui.rs/#demo) (works in any browser with Wasm and WebGL support). Uses [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
@@ -120,16 +123,17 @@ Still, egui can be used to create professional looking applications, like [the R
 
 ### Features
 
-* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker, spinner
+* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, color picker, spinner
 * Images
 * Layouts: horizontal, vertical, columns, automatic wrapping
 * Text editing: multiline, copy/paste, undo, emoji supports
 * Windows: move, resize, name, minimize and close. Automatically sized and positioned.
-* Regions: resizing, vertical scrolling, collapsing headers (sections)
+* Regions: resizing, vertical scrolling, collapsing headers (sections), panels
 * Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
 * Tooltips on hover
 * Accessibility via [AccessKit](https://accesskit.dev/)
-* More
+* Label text selection
+* And more!
 
 <img src="media/widget_gallery_0.23.gif" width="50%">
 
@@ -161,25 +165,6 @@ If you are not using Rust, egui is not for you. If you want a GUI that looks nat
 
 But if you are writing something interactive in Rust that needs a simple GUI, egui may be for you.
 
-### egui vs Dear ImGui
-
-The obvious alternative to egui is [`imgui-rs`](https://github.com/Gekkio/imgui-rs), the Rust wrapper around the C++ library [Dear ImGui](https://github.com/ocornut/imgui). Dear ImGui is a great library (and the main inspiration for egui), with a lot more features and polish. However, egui provides some benefits for Rust users:
-
-* egui is pure Rust
-* egui is easily compiled to WASM
-* egui lets you use native Rust string types (`imgui-rs` forces you to use annoying macros and wrappers for zero-terminated strings)
-* [Writing your own widgets in egui is simple](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs)
-
-egui also tries to improve your experience in other small ways:
-
-* Windows are automatically sized based on their contents
-* Windows are automatically positioned to not overlap with each other
-* Some subtle animations make egui come alive
-
-So in summary:
-
-* egui: pure Rust, new, exciting, work in progress
-* Dear ImGui: feature rich, well tested, cumbersome Rust integration
 
 ## Integrations
 
@@ -189,7 +174,7 @@ egui itself doesn't know or care on what OS it is running or how to render thing
 An integration needs to do the following each frame:
 
 * **Input**: Gather input (mouse, touches, keyboard, screen size, etc) and give it to egui
-* Run the application code
+* Call into the application GUI code
 * **Output**: Handle egui output (cursor changes, paste, texture allocations, …)
 * **Painting**: Render the triangle mesh egui produces (see [OpenGL example](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs))
 
@@ -197,41 +182,40 @@ An integration needs to do the following each frame:
 
 These are the official egui integrations:
 
-* [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) for compiling the same app to web/wasm and desktop/native. Uses `egui-winit` and `egui_glow` or `egui-wgpu`.
-* [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow) for rendering egui with [glow](https://github.com/grovesNL/glow) on native and web, and for making native apps.
-* [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu) for [wgpu](https://crates.io/crates/wgpu) (WebGPU API).
-* [`egui-winit`](https://github.com/emilk/egui/tree/master/crates/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit).
+* [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) for compiling the same app to web/wasm and desktop/native. Uses `egui-winit` and `egui_glow` or `egui-wgpu`
+* [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow) for rendering egui with [glow](https://github.com/grovesNL/glow) on native and web, and for making native apps
+* [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu) for [wgpu](https://crates.io/crates/wgpu) (WebGPU API)
+* [`egui-winit`](https://github.com/emilk/egui/tree/master/crates/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit)
 
 ### 3rd party integrations
 
-* [`amethyst_egui`](https://github.com/jgraef/amethyst_egui) for [the Amethyst game engine](https://amethyst.rs/).
-* [`egui-ash`](https://github.com/MatchaChoco010/egui-ash) for [`ash`](https://github.com/ash-rs/ash) (a very lightweight wrapper around Vulkan).
-* [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/).
-* [`egui_glfw_gl`](https://github.com/cohaereo/egui_glfw_gl) for [GLFW](https://crates.io/crates/glfw).
-* [`egui_glium`](https://github.com/fayalalebrun/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium).
-* [`egui-glutin-gl`](https://github.com/h3r2tic/egui-glutin-gl/) for [glutin](https://crates.io/crates/glutin).
-* [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2).
-* [`egui_sdl2_platform`](https://github.com/ComLarsic/egui_sdl2_platform) for [SDL2](https://crates.io/crates/sdl2).
-* [`egui_vulkano`](https://github.com/derivator/egui_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
-* [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano).
-* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad).
-* [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) for [Miniquad](https://github.com/not-fl3/miniquad).
-* [`egui_speedy2d`](https://github.com/heretik31/egui_speedy2d) for [Speedy2d](https://github.com/QuantumBadger/Speedy2D).
-* [`egui-tetra`](https://crates.io/crates/egui-tetra) for [Tetra](https://crates.io/crates/tetra), a 2D game framework.
-* [`egui-winit-ash-integration`](https://github.com/MatchaChoco010/egui-winit-ash-integration) for [winit](https://github.com/rust-windowing/winit) and [ash](https://github.com/MaikKlein/ash).
-* [`fltk-egui`](https://crates.io/crates/fltk-egui) for [fltk-rs](https://github.com/fltk-rs/fltk-rs).
-* [`ggegui`](https://github.com/NemuiSen/ggegui) for the [ggez](https://ggez.rs/) game framework.
-* [`godot-egui`](https://github.com/setzer22/godot-egui) for [godot-rust](https://github.com/godot-rust/godot-rust).
-* [`nannou_egui`](https://github.com/nannou-org/nannou/tree/master/nannou_egui) for [nannou](https://nannou.cc).
-* [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan).
-* [`screen-13-egui`](https://github.com/attackgoat/screen-13/tree/master/contrib/screen-13-egui) for [Screen 13](https://github.com/attackgoat/screen-13).
-* [`egui_skia`](https://github.com/lucasmerlin/egui_skia) for [skia](https://github.com/rust-skia/rust-skia/tree/master/skia-safe).
-* [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/).
-* [`tauri-egui`](https://github.com/tauri-apps/tauri-egui) for [tauri](https://github.com/tauri-apps/tauri).
-
-Missing an integration for the thing you're working on? Create one, it's easy!
+* [`amethyst_egui`](https://github.com/jgraef/amethyst_egui) for [the Amethyst game engine](https://amethyst.rs/)
+* [`egui-ash`](https://github.com/MatchaChoco010/egui-ash) for [`ash`](https://github.com/ash-rs/ash) (a very lightweight wrapper around Vulkan)
+* [`bevy_egui`](https://github.com/mvlabat/bevy_egui) for [the Bevy game engine](https://bevyengine.org/)
+* [`egui_glfw_gl`](https://github.com/cohaereo/egui_glfw_gl) for [GLFW](https://crates.io/crates/glfw)
+* [`egui_glium`](https://github.com/fayalalebrun/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium)
+* [`egui-glutin-gl`](https://github.com/h3r2tic/egui-glutin-gl/) for [glutin](https://crates.io/crates/glutin)
+* [`egui_sdl2_gl`](https://crates.io/crates/egui_sdl2_gl) for [SDL2](https://crates.io/crates/sdl2)
+* [`egui_sdl2_platform`](https://github.com/ComLarsic/egui_sdl2_platform) for [SDL2](https://crates.io/crates/sdl2)
+* [`egui_vulkano`](https://github.com/derivator/egui_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano)
+* [`egui_winit_vulkano`](https://github.com/hakolao/egui_winit_vulkano) for [Vulkano](https://github.com/vulkano-rs/vulkano)
+* [`egui-macroquad`](https://github.com/optozorax/egui-macroquad) for [macroquad](https://github.com/not-fl3/macroquad)
+* [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad) for [Miniquad](https://github.com/not-fl3/miniquad)
+* [`egui_speedy2d`](https://github.com/heretik31/egui_speedy2d) for [Speedy2d](https://github.com/QuantumBadger/Speedy2D)
+* [`egui-tetra`](https://crates.io/crates/egui-tetra) for [Tetra](https://crates.io/crates/tetra), a 2D game framework
+* [`egui-winit-ash-integration`](https://github.com/MatchaChoco010/egui-winit-ash-integration) for [winit](https://github.com/rust-windowing/winit) and [ash](https://github.com/MaikKlein/ash)
+* [`fltk-egui`](https://crates.io/crates/fltk-egui) for [fltk-rs](https://github.com/fltk-rs/fltk-rs)
+* [`ggegui`](https://github.com/NemuiSen/ggegui) for the [ggez](https://ggez.rs/) game framework
+* [`godot-egui`](https://github.com/setzer22/godot-egui) for [godot-rust](https://github.com/godot-rust/godot-rust)
+* [`nannou_egui`](https://github.com/nannou-org/nannou/tree/master/nannou_egui) for [nannou](https://nannou.cc)
+* [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan)
+* [`screen-13-egui`](https://github.com/attackgoat/screen-13/tree/master/contrib/screen-13-egui) for [Screen 13](https://github.com/attackgoat/screen-13)
+* [`egui_skia`](https://github.com/lucasmerlin/egui_skia) for [skia](https://github.com/rust-skia/rust-skia/tree/master/skia-safe)
+* [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/)
+* [`tauri-egui`](https://github.com/tauri-apps/tauri-egui) for [tauri](https://github.com/tauri-apps/tauri)
 
 ### Writing your own egui integration
+Missing an integration for the thing you're working on? Create one, it's easy!
 See <https://docs.rs/egui/latest/egui/#integrating-with-egui>.
 
 
@@ -292,12 +276,12 @@ Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 Also see [GitHub Discussions](https://github.com/emilk/egui/discussions/categories/q-a).
 
 ### Can I use `egui` with non-latin characters?
-Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::set_fonts`.
+Yes! But you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`](https://docs.rs/egui/latest/egui/struct.Context.html#method.set_fonts).
 
 ### Can I customize the look of egui?
 Yes! You can customize the colors, spacing, fonts and sizes of everything using `Context::set_style`.
 
-This is not yet as powerful as say CSS, [but this is going to improve soon](https://github.com/emilk/egui/issues/3284).
+This is not yet as powerful as say CSS, [but this is going to improve](https://github.com/emilk/egui/issues/3284).
 
 Here is an example (from https://github.com/a-liashenko/TinyPomodoro):
 
@@ -311,9 +295,9 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
-### How to do cross-platform file dialogs?
+### How to I create a file dialog?
 
-The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and WASM. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
+The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and Wasm. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
 
 ### What about accessibility, such as screen readers?
 egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
@@ -328,12 +312,12 @@ That is the job of *the integration* or *backend*.
 
 It is common to use `egui` from a game engine (using e.g. [`bevy_egui`](https://docs.rs/bevy_egui)),
 but you can also use `egui` stand-alone using `eframe`. `eframe` has integration for web and native, and handles input and rendering.
-The _frame_ in `eframe` stands both for the frame in which your egui app resides and also for "framework" (`frame` is a framework, `egui` is a library).
+The _frame_ in `eframe` stands both for the frame in which your egui app resides and also for "framework" (`eframe` is a framework, `egui` is a library).
 
 ### How do I render 3D stuff in an egui area?
 There are multiple ways to combine egui with 3D. The simplest way is to use a 3D library and have egui sit on top of the 3D view. See for instance [`bevy_egui`](https://github.com/mvlabat/bevy_egui) or [`three-d`](https://github.com/asny/three-d).
 
-If you want to embed 3D into an egui view there are two options.
+If you want to embed 3D into an egui view there are two options:
 
 #### `Shape::Callback`
 Example:
@@ -354,9 +338,9 @@ Examples:
 
 All coordinates are in screen space coordinates, with (0, 0) in the top left corner
 
-All coordinates are in "points" which may consist of many physical pixels.
+All coordinates are in logical "points" which may consist of many physical pixels.
 
-All colors have premultiplied alpha.
+All colors have premultiplied alpha, unless otherwise stated.
 
 egui uses the builder pattern for construction widgets. For instance: `ui.add(Label::new("Hello").text_color(RED));` I am not a big fan of the builder pattern (it is quite verbose both in implementation and in use) but until Rust has named, default arguments it is the best we can do. To alleviate some of the verbosity there are common-case helper functions, like `ui.label("Hello");`.
 

@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.26.0 - 2024-02-05
+* Add `x11` and `wayland` features [#3909](https://github.com/emilk/egui/pull/3909) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+
+
 ## 0.25.0 - 2024-01-08
 * Update to glow 0.13 [#3715](https://github.com/emilk/egui/pull/3715)
 * Make glow `Send + Sync` again [#3646](https://github.com/emilk/egui/pull/3646) (thanks [@surban](https://github.com/surban)!)

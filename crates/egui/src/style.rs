@@ -719,7 +719,7 @@ pub struct Interaction {
     pub show_tooltips_only_when_still: bool,
 
     /// Delay in seconds before showing tooltips after the mouse stops moving
-    pub tooltip_delay: f64,
+    pub tooltip_delay: f32,
 
     /// Can you select the text on a [`crate::Label`] by default?
     pub selectable_labels: bool,
@@ -1128,7 +1128,7 @@ impl Default for Interaction {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
-            tooltip_delay: 0.0,
+            tooltip_delay: 0.3,
             selectable_labels: true,
             multi_widget_text_select: true,
         }

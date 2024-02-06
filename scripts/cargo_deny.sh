@@ -5,7 +5,7 @@ script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 set -x
 
-cargo install cargo-deny
+cargo install --quiet cargo-deny
 
 cargo deny --all-features --log-level error --target aarch64-apple-darwin check
 cargo deny --all-features --log-level error --target aarch64-linux-android check
