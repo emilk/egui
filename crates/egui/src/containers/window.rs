@@ -416,14 +416,15 @@ impl<'open> Window<'open> {
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
-        let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
-
         // Calculate roughly how much larger the window size is compared to the inner rect
-        let title_bar_height = if with_title_bar {
+        let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
-            ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing * 2.0
+            let window_margin = style.spacing.window_margin;
+            let spacing = window_margin.top + window_margin.bottom;
+            let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
+            (height, spacing)
         } else {
-            0.0
+            (0.0, 0.0)
         };
 
         // First interact (move etc) to avoid frame delay:
@@ -466,6 +467,11 @@ impl<'open> Window<'open> {
 
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
+            // Backup item spacing before the title bar
+            let item_spacing = frame.content_ui.spacing().item_spacing;
+            // Use title bar spacing as the item spacing before the content
+            frame.content_ui.spacing_mut().item_spacing.y = title_content_spacing;
+
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
@@ -480,13 +486,15 @@ impl<'open> Window<'open> {
                 None
             };
 
-            let (content_inner, content_response) = collapsing
-                .show_body_unindented(&mut frame.content_ui, |ui| {
-                    resize.show(ui, |ui| {
-                        if title_bar.is_some() {
-                            ui.add_space(title_content_spacing);
-                        }
+            // Remove item spacing after the title bar
+            frame.content_ui.spacing_mut().item_spacing.y = 0.0;
 
+            let (content_inner, mut content_response) = collapsing
+                .show_body_unindented(&mut frame.content_ui, |ui| {
+                    // Restore item spacing for the content
+                    ui.spacing_mut().item_spacing.y = item_spacing.y;
+
+                    resize.show(ui, |ui| {
                         if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
@@ -522,6 +530,11 @@ impl<'open> Window<'open> {
                         RectShape::filled(rect, round, header_color),
                     );
                 };
+
+                // Fix title bar separator line position
+                if let Some(response) = &mut content_response {
+                    response.rect.min.y = outer_rect.min.y + title_bar_height;
+                }
 
                 title_bar.ui(
                     &mut area_content_ui,
@@ -1026,7 +1039,7 @@ impl TitleBar {
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:
-            let y = content_response.rect.top() + ui.spacing().item_spacing.y * 0.5;
+            let y = content_response.rect.top();
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
             ui.painter().hline(outer_rect.x_range(), y, stroke);
