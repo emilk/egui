@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, ops::Deref, sync::Arc};
 
 use crate::{
     mutex::{Mutex, MutexGuard},
@@ -703,13 +703,40 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let galley = super::layout(fonts, job.into());
-                let galley = Arc::new(galley);
-                entry.insert(CachedGalley {
-                    last_used: self.generation,
-                    galley: galley.clone(),
-                });
-                galley
+                // Optimize by splitting the job into paragraphs, if possible.
+                if job.break_on_newline && job.text.contains('\n') {
+                    let mut iter = job.text.split('\n').map(|paragraph| {
+                        // TODO(dacid44): There is almost definitely more logic required to
+                        // properly split up a LayoutJob (i.e., splitting the LayoutSections).
+                        let job = LayoutJob {
+                            text: paragraph.to_owned(),
+                            ..job.clone()
+                        };
+                        self.layout(fonts, job)
+                    });
+                    let first_galley = iter.next()
+                        .expect("if a '\n' is found there should be at least 2 split parts")
+                        .deref()
+                        .clone();
+                    let galley = Arc::new(iter.fold(first_galley, |galley, next_galley| {
+                        // TODO(dacid44): Figure out merging of Galleys.
+                        todo!()
+                    }));
+                    // Can't use the entry, needed to drop it to recursively call self.layout().
+                    self.cache.insert(hash, CachedGalley {
+                        last_used: self.generation,
+                        galley: galley.clone(),
+                    });
+                    galley
+                } else {
+                    let galley = super::layout(fonts, job.into());
+                    let galley = Arc::new(galley);
+                    entry.insert(CachedGalley {
+                        last_used: self.generation,
+                        galley: galley.clone(),
+                    });
+                    galley
+                }
             }
         }
     }
