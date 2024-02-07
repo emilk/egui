@@ -428,7 +428,7 @@ impl<'open> Window<'open> {
         };
 
         let max_width = area.constrain_rect().unwrap_or(Rect::EVERYTHING).width();
-        let max_height = 
+        let max_height =
             area.constrain_rect().unwrap_or(Rect::EVERYTHING).height() - title_bar_height;
         resize.max_size.x = resize.max_size.x.min(max_width);
         resize.max_size.y = resize.max_size.y.min(max_height);
