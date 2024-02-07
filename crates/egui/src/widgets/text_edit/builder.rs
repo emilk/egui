@@ -382,19 +382,13 @@ impl<'t> TextEdit<'t> {
 
         let margin = self.margin;
         let available = ui.available_rect_before_wrap();
-        let max_rect = Rect::from_x_y_ranges(
-            available.left() + margin.left..=available.right() - margin.right,
-            available.top() + margin.top..=available.bottom() - margin.bottom,
-        );
+        let max_rect = margin.shrink_rect(available);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
 
         let mut output = self.show_content(&mut content_ui);
 
         let id = output.response.id;
-        let frame_rect = Rect::from_x_y_ranges(
-            output.response.rect.left() - margin.left..=output.response.rect.right() + margin.right,
-            output.response.rect.top() - margin.top..=output.response.rect.bottom() + margin.bottom,
-        );
+        let frame_rect = margin.expand_rect(output.response.rect);
         ui.allocate_space(frame_rect.size());
         if interactive {
             output.response |= ui.interact(frame_rect, id, Sense::click());
@@ -477,7 +471,7 @@ impl<'t> TextEdit<'t> {
             available_width
         } else {
             desired_width.min(available_width)
-        } - (margin.left + margin.right);
+        } - margin.sum().x;
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
@@ -500,10 +494,7 @@ impl<'t> TextEdit<'t> {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let at_least = Vec2::new(
-            min_size.x - (margin.left + margin.right),
-            min_size.y - (margin.top + margin.bottom),
-        );
+        let at_least = min_size - margin.sum();
         let desired_size =
             vec2(desired_width, galley.size().y.max(desired_height)).at_least(at_least);
 
