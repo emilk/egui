@@ -1498,6 +1498,7 @@ pub fn create_winit_window_builder<T>(
 
         // Windows:
         drag_and_drop: _drag_and_drop,
+        taskbar: _taskbar,
 
         // wayland:
         app_id: _app_id,
@@ -1575,9 +1576,14 @@ pub fn create_winit_window_builder<T>(
     }
 
     #[cfg(target_os = "windows")]
-    if let Some(enable) = _drag_and_drop {
+    {
         use winit::platform::windows::WindowBuilderExtWindows as _;
-        window_builder = window_builder.with_drag_and_drop(enable);
+        if let Some(enable) = _drag_and_drop {
+            window_builder = window_builder.with_drag_and_drop(enable);
+        }
+        if let Some(show) = _taskbar {
+            window_builder = window_builder.with_skip_taskbar(!show);
+        }
     }
 
     #[cfg(target_os = "macos")]
