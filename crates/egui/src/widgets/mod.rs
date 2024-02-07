@@ -12,7 +12,6 @@ pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
 mod label;
-pub mod plot;
 mod progress_bar;
 mod selected_label;
 mod separator;
@@ -23,7 +22,7 @@ pub mod text_edit;
 pub use button::*;
 pub use drag_value::DragValue;
 pub use hyperlink::*;
-pub use image::Image;
+pub use image::{paint_texture_at, Image, ImageFit, ImageOptions, ImageSize, ImageSource};
 pub use label::*;
 pub use progress_bar::ProgressBar;
 pub use selected_label::SelectableLabel;
@@ -37,6 +36,8 @@ pub use text_edit::{TextBuffer, TextEdit};
 /// Anything implementing Widget can be added to a [`Ui`] with [`Ui::add`].
 ///
 /// [`Button`], [`Label`], [`Slider`], etc all implement the [`Widget`] trait.
+///
+/// You only need to implement `Widget` if you care about being able to do `ui.add(your_widget);`.
 ///
 /// Note that the widgets ([`Button`], [`TextEdit`] etc) are
 /// [builders](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html),

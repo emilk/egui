@@ -1,4 +1,6 @@
 #![allow(clippy::many_single_char_names)]
+#![allow(clippy::wrong_self_convention)] // False positives
+
 use std::ops::Range;
 
 use crate::{shape::Shape, Color32, PathShape, Stroke};
@@ -46,7 +48,7 @@ impl CubicBezierShape {
         for (i, origin_point) in self.points.iter().enumerate() {
             points[i] = transform * *origin_point;
         }
-        CubicBezierShape {
+        Self {
             points,
             closed: self.closed,
             fill: self.fill,
@@ -161,7 +163,8 @@ impl CubicBezierShape {
         let q_end = q.sample(t_range.end);
         let ctrl1 = from + q_start.to_vec2() * delta_t;
         let ctrl2 = to - q_end.to_vec2() * delta_t;
-        CubicBezierShape {
+
+        Self {
             points: [from, ctrl1, ctrl2, to],
             closed: self.closed,
             fill: self.fill,
@@ -396,7 +399,7 @@ impl QuadraticBezierShape {
         fill: Color32,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        QuadraticBezierShape {
+        Self {
             points,
             closed,
             fill,
@@ -410,7 +413,7 @@ impl QuadraticBezierShape {
         for (i, origin_point) in self.points.iter().enumerate() {
             points[i] = transform * *origin_point;
         }
-        QuadraticBezierShape {
+        Self {
             points,
             closed: self.closed,
             fill: self.fill,
@@ -642,7 +645,7 @@ impl FlatteningParameters {
 
         let integral_step = integral_diff / count;
 
-        FlatteningParameters {
+        Self {
             count,
             integral_from,
             integral_step,
@@ -813,7 +816,7 @@ mod tests {
     }
 
     #[test]
-    fn test_quadratic_dfferent_tolerance() {
+    fn test_quadratic_different_tolerance() {
         let curve = QuadraticBezierShape {
             points: [
                 Pos2 { x: 110.0, y: 170.0 },
@@ -1079,7 +1082,7 @@ mod tests {
     }
 
     #[test]
-    fn test_quadrtic_flattening() {
+    fn test_quadratic_flattening() {
         let curve = QuadraticBezierShape {
             points: [pos2(0.0, 0.0), pos2(80.0, 200.0), pos2(100.0, 30.0)],
             closed: false,

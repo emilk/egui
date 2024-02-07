@@ -24,7 +24,7 @@ impl eframe::App for Custom3d {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::both()
-                .auto_shrink([false; 2])
+                .auto_shrink(false)
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = 0.0;
@@ -89,7 +89,7 @@ impl RotatingTriangle {
             let program = gl.create_program().expect("Cannot create program");
 
             if !shader_version.is_new_shader_interface() {
-                tracing::warn!(
+                log::warn!(
                     "Custom 3D painting hasn't been ported to {:?}",
                     shader_version
                 );
@@ -158,9 +158,11 @@ impl RotatingTriangle {
                 .collect();
 
             gl.link_program(program);
-            if !gl.get_program_link_status(program) {
-                panic!("{}", gl.get_program_info_log(program));
-            }
+            assert!(
+                gl.get_program_link_status(program),
+                "{}",
+                gl.get_program_info_log(program)
+            );
 
             for shader in shaders {
                 gl.detach_shader(program, shader);

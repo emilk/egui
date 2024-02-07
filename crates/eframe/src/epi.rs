@@ -11,11 +11,19 @@ use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use crate::native::run::UserEvent;
+pub use crate::native::winit_integration::UserEvent;
+
+#[cfg(not(target_arch = "wasm32"))]
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WindowHandle,
+};
+#[cfg(not(target_arch = "wasm32"))]
+use static_assertions::assert_not_impl_any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use winit::event_loop::EventLoopBuilder;
+pub use winit::{event_loop::EventLoopBuilder, window::WindowBuilder};
 
 /// Hook into the building of an event loop before it is run
 ///
@@ -24,6 +32,14 @@ pub use winit::event_loop::EventLoopBuilder;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)>;
+
+/// Hook into the building of a the native window.
+///
+/// You can configure any platform specific details required on top of the default configuration
+/// done by `eframe`.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
 /// This is how your app is created.
 ///
@@ -58,6 +74,32 @@ pub struct CreationContext<'s> {
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
+
+    /// Raw platform window handle
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_window_handle: Result<RawWindowHandle, HandleError>,
+
+    /// Raw platform display handle for window
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+}
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+impl HasWindowHandle for CreationContext<'_> {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(WindowHandle::borrow_raw(self.raw_window_handle.clone()?)) }
+    }
+}
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+impl HasDisplayHandle for CreationContext<'_> {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(DisplayHandle::borrow_raw(self.raw_display_handle.clone()?)) }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -71,13 +113,17 @@ pub trait App {
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
+    ///
+    /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
+    /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
+    /// (A "viewport" in egui means an native OS window).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
     /// Get a handle to the app.
     ///
     /// Can be used from web to interact or other external context.
     ///
-    /// You need to implement this if you want to be able to access the application from JS using [`crate::web::backend::AppRunner`].
+    /// You need to implement this if you want to be able to access the application from JS using [`crate::WebRunner::app_mut`].
     ///
     /// This is needed because downcasting `Box<dyn App>` -> `Box<dyn Any>` to get &`ConcreteApp` is not simple in current rust.
     ///
@@ -98,33 +144,14 @@ pub trait App {
     /// Only called when the "persistence" feature is enabled.
     ///
     /// On web the state is stored to "Local Storage".
-    /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
-    /// * Linux:   `/home/UserName/.local/share/APPNAME`
-    /// * macOS:   `/Users/UserName/Library/Application Support/APPNAME`
-    /// * Windows: `C:\Users\UserName\AppData\Roaming\APPNAME`
     ///
-    /// where `APPNAME` is what is given to `eframe::run_native`.
+    /// On native the path is picked using [`crate::storage_dir`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
-
-    /// Called when the user attempts to close the desktop window and/or quit the application.
-    ///
-    /// By returning `false` the closing will be aborted. To continue the closing return `true`.
-    ///
-    /// A scenario where this method will be run is after pressing the close button on a native
-    /// window, which allows you to ask the user whether they want to do something before exiting.
-    /// See the example at <https://github.com/emilk/egui/blob/master/examples/confirm_exit/> for practical usage.
-    ///
-    /// It will _not_ be called on the web or when the window is forcefully closed.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[doc(alias = "exit")]
-    #[doc(alias = "quit")]
-    fn on_close_event(&mut self) -> bool {
-        true
-    }
 
     /// Called once on shutdown, after [`Self::save`].
     ///
-    /// If you need to abort an exit use [`Self::on_close_event`].
+    /// If you need to abort an exit check `ctx.input(|i| i.viewport().close_requested())`
+    /// and respond with [`egui::ViewportCommand::CancelClose`].
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe with the glow backend.
@@ -143,13 +170,6 @@ pub trait App {
     /// Time between automatic calls to [`Self::save`]
     fn auto_save_interval(&self) -> std::time::Duration {
         std::time::Duration::from_secs(30)
-    }
-
-    /// The size limit of the web app canvas.
-    ///
-    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
-    fn max_size_points(&self) -> egui::Vec2 {
-        egui::Vec2::INFINITY
     }
 
     /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
@@ -171,34 +191,11 @@ pub trait App {
         // _visuals.window_fill() would also be a natural choice
     }
 
-    /// Controls whether or not the native window position and size will be
-    /// persisted (only if the "persistence" feature is enabled).
-    fn persist_native_window(&self) -> bool {
-        true
-    }
-
     /// Controls whether or not the egui memory (window positions etc) will be
     /// persisted (only if the "persistence" feature is enabled).
     fn persist_egui_memory(&self) -> bool {
         true
     }
-
-    /// If `true` a warm-up call to [`Self::update`] will be issued where
-    /// `ctx.memory(|mem| mem.everything_is_visible())` will be set to `true`.
-    ///
-    /// This can help pre-caching resources loaded by different parts of the UI, preventing stutter later on.
-    ///
-    /// In this warm-up call, all painted shapes will be ignored.
-    ///
-    /// The default is `false`, and it is unlikely you will want to change this.
-    fn warm_up_enabled(&self) -> bool {
-        false
-    }
-
-    /// Called each time after the rendering the UI.
-    ///
-    /// Can be used to access pixel data with `get_pixels`
-    fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &Frame) {}
 }
 
 /// Selects the level of hardware graphics acceleration.
@@ -219,70 +216,26 @@ pub enum HardwareAcceleration {
 
 /// Options controlling the behavior of a native window.
 ///
-/// Only a single native window is currently supported.
+/// Additional windows can be opened using (egui viewports)[`egui::viewport`].
+///
+/// Set the window title and size using [`Self::viewport`].
+///
+/// ### Application id
+/// [`egui::ViewportBuilder::with_app_id`] is used for determining the folder to persist the app to.
+///
+/// On native the path is picked using [`crate::storage_dir`].
+///
+/// If you don't set an app id, the title argument to [`crate::run_native`]
+/// will be used as app id instead.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct NativeOptions {
-    /// Sets whether or not the window will always be on top of other windows at initialization.
-    pub always_on_top: bool,
-
-    /// Show window in maximized mode
-    pub maximized: bool,
-
-    /// On desktop: add window decorations (i.e. a frame around your app)?
-    /// If false it will be difficult to move and resize the app.
-    pub decorated: bool,
-
-    /// Start in (borderless) fullscreen?
+    /// Controls the native window of the root viewport.
     ///
-    /// Default: `false`.
-    pub fullscreen: bool,
-
-    /// On Mac: the window doesn't have a titlebar, but floating window buttons.
+    /// This is where you set things like window title and size.
     ///
-    /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
-    ///
-    /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
-    #[cfg(target_os = "macos")]
-    pub fullsize_content: bool,
-
-    /// On Windows: enable drag and drop support. Drag and drop can
-    /// not be disabled on other platforms.
-    ///
-    /// See [winit's documentation][drag_and_drop] for information on why you
-    /// might want to disable this on windows.
-    ///
-    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
-    pub drag_and_drop_support: bool,
-
-    /// The application icon, e.g. in the Windows task bar etc.
-    ///
-    /// This doesn't work on Mac and on Wayland.
-    /// See <https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_window_icon> for more.
-    pub icon_data: Option<IconData>,
-
-    /// The initial (inner) position of the native window in points (logical pixels).
-    pub initial_window_pos: Option<egui::Pos2>,
-
-    /// The initial inner size of the native window in points (logical pixels).
-    pub initial_window_size: Option<egui::Vec2>,
-
-    /// The minimum inner window size in points (logical pixels).
-    pub min_window_size: Option<egui::Vec2>,
-
-    /// The maximum inner window size in points (logical pixels).
-    pub max_window_size: Option<egui::Vec2>,
-
-    /// Should the app window be resizable?
-    pub resizable: bool,
-
-    /// On desktop: make the window transparent.
-    /// You control the transparency with [`App::clear_color()`].
-    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
-    pub transparent: bool,
-
-    /// On desktop: mouse clicks pass through the window, used for non-interactable overlays
-    /// Generally you would use this in conjunction with always_on_top
-    pub mouse_passthrough: bool,
+    /// If you don't set an icon, a default egui icon will be used.
+    /// To avoid this, set the icon to [`egui::IconData::default`].
+    pub viewport: egui::ViewportBuilder,
 
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
@@ -303,10 +256,6 @@ pub struct NativeOptions {
     /// Sets the number of bits in the depth buffer.
     ///
     /// `egui` doesn't need the depth buffer, so the default value is 0.
-    ///
-    /// On `wgpu` backends, due to limited depth texture format options, this
-    /// will be interpreted as a boolean (non-zero = true) for whether or not
-    /// specifically a `Depth32Float` buffer is used.
     pub depth_buffer: u8,
 
     /// Sets the number of bits in the stencil buffer.
@@ -323,18 +272,17 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub renderer: Renderer,
 
-    /// Only used if the `dark-light` feature is enabled:
-    ///
     /// Try to detect and follow the system preferred setting for dark vs light mode.
     ///
-    /// By default, this is `true` on Mac and Windows, but `false` on Linux
-    /// due to <https://github.com/frewsxcv/rust-dark-light/issues/17>.
+    /// The theme will automatically change when the dark vs light mode preference is changed.
+    ///
+    /// Does not work on Linux (see <https://github.com/rust-windowing/winit/issues/1549>).
     ///
     /// See also [`Self::default_theme`].
     pub follow_system_theme: bool,
 
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
-    /// or the `dark-light` feature is disabled.
+    /// or eframe fails to detect the system theme.
     ///
     /// Default: [`Theme::Dark`].
     pub default_theme: Theme,
@@ -349,7 +297,7 @@ pub struct NativeOptions {
     ///
     /// This feature was introduced in <https://github.com/emilk/egui/pull/1889>.
     ///
-    /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    /// When `true`, [`winit::platform::run_on_demand::EventLoopExtRunOnDemand`] is used.
     /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
     pub run_and_return: bool,
 
@@ -361,6 +309,15 @@ pub struct NativeOptions {
     /// Note: A [`NativeOptions`] clone will not include any `event_loop_builder` hook.
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub event_loop_builder: Option<EventLoopBuilderHook>,
+
+    /// Hook into the building of a window.
+    ///
+    /// Specify a callback here in case you need to make platform specific changes to the
+    /// window appearance.
+    ///
+    /// Note: A [`NativeOptions`] clone will not include any `window_builder` hook.
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
+    pub window_builder: Option<WindowBuilderHook>,
 
     #[cfg(feature = "glow")]
     /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
@@ -379,16 +336,23 @@ pub struct NativeOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
+
+    /// Controls whether or not the native window position and size will be
+    /// persisted (only if the "persistence" feature is enabled).
+    pub persist_window: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Clone for NativeOptions {
     fn clone(&self) -> Self {
         Self {
-            icon_data: self.icon_data.clone(),
+            viewport: self.viewport.clone(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None, // Skip any builder callbacks if cloning
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            window_builder: None, // Skip any builder callbacks if cloning
 
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
@@ -402,23 +366,8 @@ impl Clone for NativeOptions {
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
-            always_on_top: false,
-            maximized: false,
-            decorated: true,
-            fullscreen: false,
+            viewport: Default::default(),
 
-            #[cfg(target_os = "macos")]
-            fullsize_content: false,
-
-            drag_and_drop_support: true,
-            icon_data: None,
-            initial_window_pos: None,
-            initial_window_size: None,
-            min_window_size: None,
-            max_window_size: None,
-            resizable: true,
-            transparent: false,
-            mouse_passthrough: false,
             vsync: true,
             multisampling: 0,
             depth_buffer: 0,
@@ -435,6 +384,9 @@ impl Default for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None,
 
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            window_builder: None,
+
             #[cfg(feature = "glow")]
             shader_version: None,
 
@@ -442,31 +394,9 @@ impl Default for NativeOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
-        }
-    }
-}
 
-#[cfg(not(target_arch = "wasm32"))]
-impl NativeOptions {
-    /// The theme used by the system.
-    #[cfg(feature = "dark-light")]
-    pub fn system_theme(&self) -> Option<Theme> {
-        if self.follow_system_theme {
-            crate::profile_scope!("dark_light::detect");
-            match dark_light::detect() {
-                dark_light::Mode::Dark => Some(Theme::Dark),
-                dark_light::Mode::Light => Some(Theme::Light),
-                dark_light::Mode::Default => None,
-            }
-        } else {
-            None
+            persist_window: true,
         }
-    }
-
-    /// The theme used by the system.
-    #[cfg(not(feature = "dark-light"))]
-    pub fn system_theme(&self) -> Option<Theme> {
-        None
     }
 }
 
@@ -488,6 +418,12 @@ pub struct WebOptions {
     /// Default: `Theme::Dark`.
     pub default_theme: Theme,
 
+    /// Sets the number of bits in the depth buffer.
+    ///
+    /// `egui` doesn't need the depth buffer, so the default value is 0.
+    /// Unused by webgl context as of writing.
+    pub depth_buffer: u8,
+
     /// Which version of WebGl context to select
     ///
     /// Default: [`WebGlContextOption::BestFirst`].
@@ -497,6 +433,11 @@ pub struct WebOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
+
+    /// The size limit of the web app canvas.
+    ///
+    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
+    pub max_size_points: egui::Vec2,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -505,26 +446,15 @@ impl Default for WebOptions {
         Self {
             follow_system_theme: true,
             default_theme: Theme::Dark,
+            depth_buffer: 0,
 
             #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
 
             #[cfg(feature = "wgpu")]
-            wgpu_options: egui_wgpu::WgpuConfiguration {
-                // WebGPU is not stable enough yet, use WebGL emulation
-                backends: wgpu::Backends::GL,
-                device_descriptor: wgpu::DeviceDescriptor {
-                    label: Some("egui wgpu device"),
-                    features: wgpu::Features::default(),
-                    limits: wgpu::Limits {
-                        // When using a depth buffer, we have to be able to create a texture
-                        // large enough for the entire surface, and we want to support 4k+ displays.
-                        max_texture_dimension_2d: 8192,
-                        ..wgpu::Limits::downlevel_webgl2_defaults()
-                    },
-                },
-                ..Default::default()
-            },
+            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+
+            max_size_points: egui::Vec2::INFINITY,
         }
     }
 }
@@ -595,16 +525,23 @@ pub enum Renderer {
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 impl Default for Renderer {
     fn default() -> Self {
+        #[cfg(not(feature = "glow"))]
+        #[cfg(not(feature = "wgpu"))]
+        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+
         #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
         return Self::Glow;
 
         #[cfg(not(feature = "glow"))]
         #[cfg(feature = "wgpu")]
         return Self::Wgpu;
 
-        #[cfg(not(feature = "glow"))]
-        #[cfg(not(feature = "wgpu"))]
-        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+        // By default, only the `glow` feature is enabled, so if the user added `wgpu` to the feature list
+        // they probably wanted to use wgpu:
+        #[cfg(feature = "glow")]
+        #[cfg(feature = "wgpu")]
+        return Self::Wgpu;
     }
 }
 
@@ -640,29 +577,13 @@ impl std::str::FromStr for Renderer {
 
 // ----------------------------------------------------------------------------
 
-/// Image data for an application icon.
-#[derive(Clone)]
-pub struct IconData {
-    /// RGBA pixels, unmultiplied.
-    pub rgba: Vec<u8>,
-
-    /// Image width. This should be a multiple of 4.
-    pub width: u32,
-
-    /// Image height. This should be a multiple of 4.
-    pub height: u32,
-}
-
 /// Represents the surroundings of your app.
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
-/// allocate textures, and change settings (e.g. window size).
+/// access to persistent storage, and access to the rendering backend.
 pub struct Frame {
     /// Information about the integration.
     pub(crate) info: IntegrationInfo,
-
-    /// Where the app can issue commands back to the integration.
-    pub(crate) output: backend::AppOutput,
 
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub(crate) storage: Option<Box<dyn Storage>>,
@@ -674,6 +595,36 @@ pub struct Frame {
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
+
+    /// Raw platform window handle
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_window_handle: Result<RawWindowHandle, HandleError>,
+
+    /// Raw platform display handle for window
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
+}
+
+// Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
+#[cfg(not(target_arch = "wasm32"))]
+assert_not_impl_any!(Frame: Clone);
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+impl HasWindowHandle for Frame {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(WindowHandle::borrow_raw(self.raw_window_handle.clone()?)) }
+    }
+}
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+impl HasDisplayHandle for Frame {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(DisplayHandle::borrow_raw(self.raw_display_handle.clone()?)) }
+    }
 }
 
 impl Frame {
@@ -686,8 +637,8 @@ impl Frame {
     }
 
     /// Information about the integration.
-    pub fn info(&self) -> IntegrationInfo {
-        self.info.clone()
+    pub fn info(&self) -> &IntegrationInfo {
+        &self.info
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
@@ -726,118 +677,6 @@ impl Frame {
     pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
         self.wgpu_render_state.as_ref()
     }
-
-    /// Tell `eframe` to close the desktop window.
-    ///
-    /// The window will not close immediately, but at the end of the this frame.
-    ///
-    /// Calling this will likely result in the app quitting, unless
-    /// you have more code after the call to [`crate::run_native`].
-    #[cfg(not(target_arch = "wasm32"))]
-    #[doc(alias = "exit")]
-    #[doc(alias = "quit")]
-    pub fn close(&mut self) {
-        tracing::debug!("eframe::Frame::close called");
-        self.output.close = true;
-    }
-
-    /// Minimize or unminimize window. (native only)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_minimized(&mut self, minimized: bool) {
-        self.output.minimized = Some(minimized);
-    }
-
-    /// Maximize or unmaximize window. (native only)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_maximized(&mut self, maximized: bool) {
-        self.output.maximized = Some(maximized);
-    }
-
-    /// Tell `eframe` to close the desktop window.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[deprecated = "Renamed `close`"]
-    pub fn quit(&mut self) {
-        self.close();
-    }
-
-    /// Set the desired inner size of the window (in egui points).
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_window_size(&mut self, size: egui::Vec2) {
-        self.output.window_size = Some(size);
-        self.info.window_info.size = size; // so that subsequent calls see the updated value
-    }
-
-    /// Set the desired title of the window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_window_title(&mut self, title: &str) {
-        self.output.window_title = Some(title.to_owned());
-    }
-
-    /// Set whether to show window decorations (i.e. a frame around you app).
-    ///
-    /// If false it will be difficult to move and resize the app.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_decorations(&mut self, decorated: bool) {
-        self.output.decorated = Some(decorated);
-    }
-
-    /// Turn borderless fullscreen on/off (native only).
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_fullscreen(&mut self, fullscreen: bool) {
-        self.output.fullscreen = Some(fullscreen);
-        self.info.window_info.fullscreen = fullscreen; // so that subsequent calls see the updated value
-    }
-
-    /// set the position of the outer window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_window_pos(&mut self, pos: egui::Pos2) {
-        self.output.window_pos = Some(pos);
-        self.info.window_info.position = Some(pos); // so that subsequent calls see the updated value
-    }
-
-    /// When called, the native window will follow the
-    /// movement of the cursor while the primary mouse button is down.
-    ///
-    /// Does not work on the web.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn drag_window(&mut self) {
-        self.output.drag_window = true;
-    }
-
-    /// Set the visibility of the window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_visible(&mut self, visible: bool) {
-        self.output.visible = Some(visible);
-    }
-
-    /// On desktop: Set the window always on top.
-    ///
-    /// (Wayland desktop currently not supported)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_always_on_top(&mut self, always_on_top: bool) {
-        self.output.always_on_top = Some(always_on_top);
-    }
-
-    /// On desktop: Set the window to be centered.
-    ///
-    /// (Wayland desktop currently not supported)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_centered(&mut self) {
-        if let Some(monitor_size) = self.info.window_info.monitor_size {
-            let inner_size = self.info.window_info.size;
-            if monitor_size.x > 1.0 && monitor_size.y > 1.0 {
-                let x = (monitor_size.x - inner_size.x) / 2.0;
-                let y = (monitor_size.y - inner_size.y) / 2.0;
-                self.set_window_pos(egui::Pos2 { x, y });
-            }
-        }
-    }
-
-    /// for integrations only: call once per frame
-    #[cfg(any(feature = "glow", feature = "wgpu"))]
-    pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
-        std::mem::take(&mut self.output)
-    }
 }
 
 /// Information about the web environment (if applicable).
@@ -849,33 +688,6 @@ pub struct WebInfo {
 
     /// Information about the URL.
     pub location: Location,
-}
-
-/// Information about the application's main window, if available.
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Debug)]
-pub struct WindowInfo {
-    /// Coordinates of the window's outer top left corner, relative to the top left corner of the first display.
-    ///
-    /// Unit: egui points (logical pixels).
-    ///
-    /// `None` = unknown.
-    pub position: Option<egui::Pos2>,
-
-    /// Are we in fullscreen mode?
-    pub fullscreen: bool,
-
-    /// Are we minimized?
-    pub minimized: bool,
-
-    /// Are we maximized?
-    pub maximized: bool,
-
-    /// Window inner size in egui points (logical pixels).
-    pub size: egui::Vec2,
-
-    /// Current monitor size in egui points (logical pixels)
-    pub monitor_size: Option<egui::Vec2>,
 }
 
 /// Information about the URL.
@@ -945,16 +757,15 @@ pub struct IntegrationInfo {
     /// `None` means "don't know".
     pub system_theme: Option<Theme>,
 
-    /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
+    /// Seconds of cpu usage (in seconds) on the previous frame.
+    ///
+    /// This includes [`App::update`] as well as rendering (except for vsync waiting).
+    ///
+    /// For a more detailed view of cpu usage, use the [`puffin`](https://crates.io/crates/puffin)
+    /// profiler together with the `puffin` feature of `eframe`.
+    ///
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
-
-    /// The OS native pixels-per-point
-    pub native_pixels_per_point: Option<f32>,
-
-    /// The position and size of the native window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub window_info: WindowInfo,
 }
 
 // ----------------------------------------------------------------------------
@@ -993,73 +804,28 @@ impl Storage for DummyStorage {
 /// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
+    crate::profile_function!(key);
     storage
         .get_string(key)
-        .and_then(|value| ron::from_str(&value).ok())
+        .and_then(|value| match ron::from_str(&value) {
+            Ok(value) => Some(value),
+            Err(err) => {
+                // This happens on when we break the format, e.g. when updating egui.
+                log::debug!("Failed to decode RON: {err}");
+                None
+            }
+        })
 }
 
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
 #[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
+    crate::profile_function!(key);
     match ron::ser::to_string(value) {
         Ok(string) => storage.set_string(key, string),
-        Err(err) => tracing::error!("eframe failed to encode data using ron: {}", err),
+        Err(err) => log::error!("eframe failed to encode data using ron: {}", err),
     }
 }
 
 /// [`Storage`] key used for app
 pub const APP_KEY: &str = "app";
-
-// ----------------------------------------------------------------------------
-
-/// You only need to look here if you are writing a backend for `epi`.
-pub(crate) mod backend {
-    /// Action that can be taken by the user app.
-    #[derive(Clone, Debug, Default)]
-    #[must_use]
-    pub struct AppOutput {
-        /// Set to `true` to close the native window (which often quits the app).
-        #[cfg(not(target_arch = "wasm32"))]
-        pub close: bool,
-
-        /// Set to some size to resize the outer window (e.g. glium window) to this size.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub window_size: Option<egui::Vec2>,
-
-        /// Set to some string to rename the outer window (e.g. glium window) to this title.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub window_title: Option<String>,
-
-        /// Set to some bool to change window decorations.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub decorated: Option<bool>,
-
-        /// Set to some bool to change window fullscreen.
-        #[cfg(not(target_arch = "wasm32"))] // TODO: implement fullscreen on web
-        pub fullscreen: Option<bool>,
-
-        /// Set to true to drag window while primary mouse button is down.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub drag_window: bool,
-
-        /// Set to some position to move the outer window (e.g. glium window) to this position
-        #[cfg(not(target_arch = "wasm32"))]
-        pub window_pos: Option<egui::Pos2>,
-
-        /// Set to some bool to change window visibility.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub visible: Option<bool>,
-
-        /// Set to some bool to tell the window always on top.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub always_on_top: Option<bool>,
-
-        /// Set to some bool to minimize or unminimize window.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub minimized: Option<bool>,
-
-        /// Set to some bool to maximize or unmaximize window.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub maximized: Option<bool>,
-    }
-}

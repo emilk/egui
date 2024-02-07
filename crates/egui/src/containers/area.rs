@@ -20,6 +20,10 @@ pub(crate) struct State {
     /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
     pub interactable: bool,
+
+    /// When `true`, this `Area` belongs to a resizable window, so it needs to
+    /// receive mouse input which occurs a short distance beyond its bounding rect.
+    pub edges_padded_for_resize: bool,
 }
 
 impl State {
@@ -55,6 +59,8 @@ impl State {
 ///     });
 /// # });
 /// ```
+///
+/// The previous rectangle used by this area can be obtained through [`crate::Memory::area_rect()`].
 #[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
@@ -63,12 +69,13 @@ pub struct Area {
     interactable: bool,
     enabled: bool,
     constrain: bool,
+    constrain_rect: Option<Rect>,
     order: Order,
     default_pos: Option<Pos2>,
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
-    drag_bounds: Option<Rect>,
+    edges_padded_for_resize: bool,
 }
 
 impl Area {
@@ -78,16 +85,18 @@ impl Area {
             movable: true,
             interactable: true,
             constrain: false,
+            constrain_rect: None,
             enabled: true,
             order: Order::Middle,
             default_pos: None,
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
-            drag_bounds: None,
+            edges_padded_for_resize: false,
         }
     }
 
+    #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = id;
         self
@@ -101,12 +110,14 @@ impl Area {
     /// and widgets will be shown grayed out.
     /// You won't be able to move the window.
     /// Default: `true`.
+    #[inline]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
 
     /// moveable by dragging the area?
+    #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
         self.movable = movable;
         self.interactable |= movable;
@@ -123,6 +134,7 @@ impl Area {
 
     /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
+    #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.interactable = interactable;
         self.movable &= interactable;
@@ -130,17 +142,20 @@ impl Area {
     }
 
     /// `order(Order::Foreground)` for an Area that should always be on top
+    #[inline]
     pub fn order(mut self, order: Order) -> Self {
         self.order = order;
         self
     }
 
+    #[inline]
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.default_pos = Some(default_pos.into());
         self
     }
 
     /// Positions the window and prevents it from being moved
+    #[inline]
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
         self.new_pos = Some(fixed_pos.into());
         self.movable = false;
@@ -148,8 +163,19 @@ impl Area {
     }
 
     /// Constrains this area to the screen bounds.
+    #[inline]
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.constrain = constrain;
+        self
+    }
+
+    /// Constrain the movement of the window to the given rectangle.
+    ///
+    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    #[inline]
+    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
+        self.constrain = true;
+        self.constrain_rect = Some(constrain_rect);
         self
     }
 
@@ -160,12 +186,14 @@ impl Area {
     /// corner of the area.
     ///
     /// Default: [`Align2::LEFT_TOP`].
+    #[inline]
     pub fn pivot(mut self, pivot: Align2) -> Self {
         self.pivot = pivot;
         self
     }
 
     /// Positions the window but you can still move it.
+    #[inline]
     pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
         self.new_pos = Some(current_pos.into());
         self
@@ -182,15 +210,10 @@ impl Area {
     /// Anchoring also makes the window immovable.
     ///
     /// It is an error to set both an anchor and a position.
+    #[inline]
     pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
         self.anchor = Some((align, offset.into()));
         self.movable(false)
-    }
-
-    /// Constrain the area up to which the window can be dragged.
-    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
-        self.drag_bounds = Some(bounds);
-        self
     }
 
     pub(crate) fn get_pivot(&self) -> Align2 {
@@ -200,6 +223,14 @@ impl Area {
             Align2::LEFT_TOP
         }
     }
+
+    /// When `true`, this `Area` belongs to a resizable window, so it needs to
+    /// receive mouse input which occurs a short distance beyond its bounding rect.
+    #[inline]
+    pub(crate) fn edges_padded_for_resize(mut self, edges_padded_for_resize: bool) -> Self {
+        self.edges_padded_for_resize = edges_padded_for_resize;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -207,7 +238,8 @@ pub(crate) struct Prepared {
     state: State,
     move_response: Response,
     enabled: bool,
-    drag_bounds: Option<Rect>,
+    constrain: bool,
+    constrain_rect: Option<Rect>,
 
     /// We always make windows invisible the first frame to hide "first-frame-jitters".
     ///
@@ -231,7 +263,7 @@ impl Area {
     }
 
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
-        let Area {
+        let Self {
             id,
             movable,
             order,
@@ -241,13 +273,20 @@ impl Area {
             new_pos,
             pivot,
             anchor,
-            drag_bounds,
             constrain,
+            constrain_rect,
+            edges_padded_for_resize,
         } = self;
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx.memory(|mem| mem.areas.get(id).copied());
+        let state = ctx
+            .memory(|mem| mem.areas().get(id).copied())
+            .map(|mut state| {
+                // override the saved state with the correct value
+                state.pivot = pivot;
+                state
+            });
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
@@ -257,9 +296,11 @@ impl Area {
             pivot,
             size: Vec2::ZERO,
             interactable,
+            edges_padded_for_resize,
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
+        state.edges_padded_for_resize = edges_padded_for_resize;
 
         if let Some((anchor, offset)) = anchor {
             let screen = ctx.available_rect();
@@ -269,7 +310,7 @@ impl Area {
         }
 
         // interact right away to prevent frame-delay
-        let move_response = {
+        let mut move_response = {
             let interact_id = layer_id.id.with("move");
             let sense = if movable {
                 Sense::click_and_drag()
@@ -289,44 +330,40 @@ impl Area {
                 enabled,
             );
 
-            // Important check - don't try to move e.g. a combobox popup!
-            if movable {
-                if move_response.dragged() {
-                    state.pivot_pos += ctx.input(|i| i.pointer.delta());
-                }
-
-                state.set_left_top_pos(
-                    ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
-                        .min,
-                );
+            if movable && move_response.dragged() {
+                state.pivot_pos += ctx.input(|i| i.pointer.delta());
             }
 
             if (move_response.dragged() || move_response.clicked())
                 || pointer_pressed_on_area(ctx, layer_id)
-                || !ctx.memory(|m| m.areas.visible_last_frame(&layer_id))
+                || !ctx.memory(|m| m.areas().visible_last_frame(&layer_id))
             {
-                ctx.memory_mut(|m| m.areas.move_to_top(layer_id));
+                ctx.memory_mut(|m| m.areas_mut().move_to_top(layer_id));
                 ctx.request_repaint();
             }
 
             move_response
         };
 
-        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
-
         if constrain {
             state.set_left_top_pos(
-                ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
-                    .left_top(),
+                ctx.constrain_window_rect_to_area(state.rect(), constrain_rect)
+                    .min,
             );
         }
+
+        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
+
+        // Update responsbe with posisbly moved/constrained rect:
+        move_response = move_response.with_new_rect(state.rect());
 
         Prepared {
             layer_id,
             state,
             move_response,
             enabled,
-            drag_bounds,
+            constrain,
+            constrain_rect,
             temporarily_invisible: is_new,
         }
     }
@@ -345,7 +382,7 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx.memory(|mem| mem.areas.get(self.id).map(|area| area.rect()));
+        let area_rect = ctx.memory(|mem| mem.areas().get(self.id).map(|area| area.rect()));
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
@@ -369,15 +406,19 @@ impl Prepared {
         &mut self.state
     }
 
-    pub(crate) fn drag_bounds(&self) -> Option<Rect> {
-        self.drag_bounds
+    pub(crate) fn constrain(&self) -> bool {
+        self.constrain
+    }
+
+    pub(crate) fn constrain_rect(&self) -> Option<Rect> {
+        self.constrain_rect
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
         let screen_rect = ctx.screen_rect();
 
-        let bounds = if let Some(bounds) = self.drag_bounds {
-            bounds.intersect(screen_rect) // protect against infinite bounds
+        let constrain_rect = if let Some(constrain_rect) = self.constrain_rect {
+            constrain_rect.intersect(screen_rect) // protect against infinite bounds
         } else {
             let central_area = ctx.available_rect();
 
@@ -391,7 +432,7 @@ impl Prepared {
 
         let max_rect = Rect::from_min_max(
             self.state.left_top_pos(),
-            bounds
+            constrain_rect
                 .max
                 .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
         );
@@ -399,9 +440,9 @@ impl Prepared {
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
         let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
-        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), bounds.max)
+        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), constrain_rect.max)
             .expand(clip_rect_margin)
-            .intersect(bounds);
+            .intersect(constrain_rect);
 
         let mut ui = Ui::new(
             ctx.clone(),
@@ -417,18 +458,19 @@ impl Prepared {
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
-        let Prepared {
+        let Self {
             layer_id,
             mut state,
             move_response,
             enabled: _,
-            drag_bounds: _,
+            constrain: _,
+            constrain_rect: _,
             temporarily_invisible: _,
         } = self;
 
-        state.size = content_ui.min_rect().size();
+        state.size = content_ui.min_size();
 
-        ctx.memory_mut(|m| m.areas.set_state(layer_id, state));
+        ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 
         move_response
     }
@@ -445,7 +487,7 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
 
 fn automatic_area_position(ctx: &Context) -> Pos2 {
     let mut existing: Vec<Rect> = ctx.memory(|mem| {
-        mem.areas
+        mem.areas()
             .visible_windows()
             .into_iter()
             .map(State::rect)

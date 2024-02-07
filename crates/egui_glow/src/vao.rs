@@ -34,32 +34,34 @@ impl VertexArrayObject {
         buffer_infos: Vec<BufferInfo>,
     ) -> Self {
         let vao = if supports_vao(gl) {
-            let vao = gl.create_vertex_array().unwrap();
-            check_for_gl_error!(gl, "create_vertex_array");
+            unsafe {
+                let vao = gl.create_vertex_array().unwrap();
+                check_for_gl_error!(gl, "create_vertex_array");
 
-            // Store state in the VAO:
-            gl.bind_vertex_array(Some(vao));
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+                // Store state in the VAO:
+                gl.bind_vertex_array(Some(vao));
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
-            for attribute in &buffer_infos {
-                gl.vertex_attrib_pointer_f32(
-                    attribute.location,
-                    attribute.vector_size,
-                    attribute.data_type,
-                    attribute.normalized,
-                    attribute.stride,
-                    attribute.offset,
-                );
-                check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
-                gl.enable_vertex_attrib_array(attribute.location);
-                check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                for attribute in &buffer_infos {
+                    gl.vertex_attrib_pointer_f32(
+                        attribute.location,
+                        attribute.vector_size,
+                        attribute.data_type,
+                        attribute.normalized,
+                        attribute.stride,
+                        attribute.offset,
+                    );
+                    check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
+                    gl.enable_vertex_attrib_array(attribute.location);
+                    check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                }
+
+                gl.bind_vertex_array(None);
+
+                Some(vao)
             }
-
-            gl.bind_vertex_array(None);
-
-            Some(vao)
         } else {
-            tracing::debug!("VAO not supported");
+            log::debug!("VAO not supported");
             None
         };
 
@@ -71,36 +73,40 @@ impl VertexArrayObject {
     }
 
     pub(crate) unsafe fn bind(&self, gl: &glow::Context) {
-        if let Some(vao) = self.vao {
-            gl.bind_vertex_array(Some(vao));
-            check_for_gl_error!(gl, "bind_vertex_array");
-        } else {
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
-            check_for_gl_error!(gl, "bind_buffer");
+        unsafe {
+            if let Some(vao) = self.vao {
+                gl.bind_vertex_array(Some(vao));
+                check_for_gl_error!(gl, "bind_vertex_array");
+            } else {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
+                check_for_gl_error!(gl, "bind_buffer");
 
-            for attribute in &self.buffer_infos {
-                gl.vertex_attrib_pointer_f32(
-                    attribute.location,
-                    attribute.vector_size,
-                    attribute.data_type,
-                    attribute.normalized,
-                    attribute.stride,
-                    attribute.offset,
-                );
-                check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
-                gl.enable_vertex_attrib_array(attribute.location);
-                check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                for attribute in &self.buffer_infos {
+                    gl.vertex_attrib_pointer_f32(
+                        attribute.location,
+                        attribute.vector_size,
+                        attribute.data_type,
+                        attribute.normalized,
+                        attribute.stride,
+                        attribute.offset,
+                    );
+                    check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
+                    gl.enable_vertex_attrib_array(attribute.location);
+                    check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                }
             }
         }
     }
 
     pub(crate) unsafe fn unbind(&self, gl: &glow::Context) {
-        if self.vao.is_some() {
-            gl.bind_vertex_array(None);
-        } else {
-            gl.bind_buffer(glow::ARRAY_BUFFER, None);
-            for attribute in &self.buffer_infos {
-                gl.disable_vertex_attrib_array(attribute.location);
+        unsafe {
+            if self.vao.is_some() {
+                gl.bind_vertex_array(None);
+            } else {
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+                for attribute in &self.buffer_infos {
+                    gl.disable_vertex_attrib_array(attribute.location);
+                }
             }
         }
     }
@@ -113,7 +119,7 @@ fn supports_vao(gl: &glow::Context) -> bool {
     const OPENGL_ES_PREFIX: &str = "OpenGL ES ";
 
     let version_string = unsafe { gl.get_parameter_string(glow::VERSION) };
-    tracing::debug!("GL version: {:?}.", version_string);
+    log::debug!("GL version: {:?}.", version_string);
 
     // Examples:
     // * "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
@@ -124,7 +130,7 @@ fn supports_vao(gl: &glow::Context) -> bool {
         if version_str.contains("1.0") {
             // need to test OES_vertex_array_object .
             let supported_extensions = gl.supported_extensions();
-            tracing::debug!("Supported OpenGL extensions: {:?}", supported_extensions);
+            log::debug!("Supported OpenGL extensions: {:?}", supported_extensions);
             supported_extensions.contains("OES_vertex_array_object")
                 || supported_extensions.contains("GL_OES_vertex_array_object")
         } else {
@@ -135,7 +141,7 @@ fn supports_vao(gl: &glow::Context) -> bool {
         if version_string.contains("2.0") {
             // need to test OES_vertex_array_object .
             let supported_extensions = gl.supported_extensions();
-            tracing::debug!("Supported OpenGL extensions: {:?}", supported_extensions);
+            log::debug!("Supported OpenGL extensions: {:?}", supported_extensions);
             supported_extensions.contains("OES_vertex_array_object")
                 || supported_extensions.contains("GL_OES_vertex_array_object")
         } else {
@@ -147,7 +153,7 @@ fn supports_vao(gl: &glow::Context) -> bool {
             // I found APPLE_vertex_array_object , GL_ATI_vertex_array_object ,ARB_vertex_array_object
             // but APPLE's and ATI's very old extension.
             let supported_extensions = gl.supported_extensions();
-            tracing::debug!("Supported OpenGL extensions: {:?}", supported_extensions);
+            log::debug!("Supported OpenGL extensions: {:?}", supported_extensions);
             supported_extensions.contains("ARB_vertex_array_object")
                 || supported_extensions.contains("GL_ARB_vertex_array_object")
         } else {

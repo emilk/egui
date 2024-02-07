@@ -24,7 +24,7 @@ fn month_data(year: i32, month: u32) -> Vec<Week> {
         if start.weekday() == Weekday::Sun {
             weeks.push(Week {
                 number: start.iso_week().week() as u8,
-                days: week.drain(..).collect(),
+                days: std::mem::take(&mut week),
             });
         }
         start = start.checked_add_signed(Duration::days(1)).unwrap();

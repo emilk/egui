@@ -18,21 +18,21 @@ pub struct HsvaGamma {
 }
 
 impl From<HsvaGamma> for Rgba {
-    fn from(hsvag: HsvaGamma) -> Rgba {
+    fn from(hsvag: HsvaGamma) -> Self {
         Hsva::from(hsvag).into()
     }
 }
 
 impl From<HsvaGamma> for Color32 {
-    fn from(hsvag: HsvaGamma) -> Color32 {
+    fn from(hsvag: HsvaGamma) -> Self {
         Rgba::from(hsvag).into()
     }
 }
 
 impl From<HsvaGamma> for Hsva {
-    fn from(hsvag: HsvaGamma) -> Hsva {
+    fn from(hsvag: HsvaGamma) -> Self {
         let HsvaGamma { h, s, v, a } = hsvag;
-        Hsva {
+        Self {
             h,
             s,
             v: linear_from_gamma(v),
@@ -42,21 +42,21 @@ impl From<HsvaGamma> for Hsva {
 }
 
 impl From<Rgba> for HsvaGamma {
-    fn from(rgba: Rgba) -> HsvaGamma {
+    fn from(rgba: Rgba) -> Self {
         Hsva::from(rgba).into()
     }
 }
 
 impl From<Color32> for HsvaGamma {
-    fn from(srgba: Color32) -> HsvaGamma {
+    fn from(srgba: Color32) -> Self {
         Hsva::from(srgba).into()
     }
 }
 
 impl From<Hsva> for HsvaGamma {
-    fn from(hsva: Hsva) -> HsvaGamma {
+    fn from(hsva: Hsva) -> Self {
         let Hsva { h, s, v, a } = hsva;
-        HsvaGamma {
+        Self {
             h,
             s,
             v: gamma_from_linear(v),

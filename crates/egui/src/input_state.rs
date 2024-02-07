@@ -4,7 +4,7 @@ use crate::data::input::*;
 use crate::{emath::*, util::History};
 use std::collections::{BTreeMap, HashSet};
 
-pub use crate::data::input::Key;
+pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
@@ -33,7 +33,10 @@ pub struct InputState {
     /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
-    /// How many points the user scrolled.
+    /// Used for smoothing the scroll delta.
+    unprocessed_scroll_delta: Vec2,
+
+    /// The raw input of how many points the user scrolled.
     ///
     /// The delta dictates how the _content_ should move.
     ///
@@ -42,7 +45,24 @@ pub struct InputState {
     ///
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    pub scroll_delta: Vec2,
+    ///
+    /// When using a notched scroll-wheel this will spike very large for one frame,
+    /// then drop to zero. For a smoother experience, use [`Self::smooth_scroll_delta`].
+    pub raw_scroll_delta: Vec2,
+
+    /// How many points the user scrolled, smoothed over a few frames.
+    ///
+    /// The delta dictates how the _content_ should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// [`crate::ScrollArea`] will both read and write to this field, so that
+    /// at the end of the frame this will be zero if a scroll-area consumed the delta.
+    pub smooth_scroll_delta: Vec2,
 
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     ///
@@ -104,6 +124,11 @@ pub struct InputState {
     /// and will effectively slow down the animation when FPS drops below 10.
     pub stable_dt: f32,
 
+    /// The native window has the keyboard focus (i.e. is receiving key presses).
+    ///
+    /// False when the user alt-tab away from the application, for instance.
+    pub focused: bool,
+
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
@@ -120,7 +145,9 @@ impl Default for InputState {
             raw: Default::default(),
             pointer: Default::default(),
             touch_states: Default::default(),
-            scroll_delta: Vec2::ZERO,
+            unprocessed_scroll_delta: Vec2::ZERO,
+            raw_scroll_delta: Vec2::ZERO,
+            smooth_scroll_delta: Vec2::ZERO,
             zoom_factor_delta: 1.0,
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -129,6 +156,7 @@ impl Default for InputState {
             unstable_dt: 1.0 / 60.0,
             predicted_dt: 1.0 / 60.0,
             stable_dt: 1.0 / 60.0,
+            focused: false,
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
@@ -141,12 +169,15 @@ impl InputState {
     pub fn begin_frame(
         mut self,
         mut new: RawInput,
-        requested_repaint_last_frame: bool,
-    ) -> InputState {
+        requested_immediate_repaint_prev_frame: bool,
+        pixels_per_point: f32,
+    ) -> Self {
+        crate::profile_function!();
+
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
-        let stable_dt = if requested_repaint_last_frame {
+        let stable_dt = if requested_immediate_repaint_prev_frame {
             // we should have had a repaint straight away,
             // so this should be trustable.
             unstable_dt
@@ -162,7 +193,7 @@ impl InputState {
         let pointer = self.pointer.begin_frame(time, &new);
 
         let mut keys_down = self.keys_down;
-        let mut scroll_delta = Vec2::ZERO;
+        let mut raw_scroll_delta = Vec2::ZERO;
         let mut zoom_factor_delta = 1.0;
         for event in &mut new.events {
             match event {
@@ -180,7 +211,7 @@ impl InputState {
                     }
                 }
                 Event::Scroll(delta) => {
-                    scroll_delta += *delta;
+                    raw_scroll_delta += *delta;
                 }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
@@ -189,23 +220,62 @@ impl InputState {
             }
         }
 
-        InputState {
+        let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
+
+        let smooth_scroll_delta;
+
+        {
+            // Mouse wheels often go very large steps.
+            // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
+            // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
+            unprocessed_scroll_delta += raw_scroll_delta;
+            let dt = stable_dt.at_most(0.1);
+            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO: parameterize
+
+            smooth_scroll_delta = t * unprocessed_scroll_delta;
+            unprocessed_scroll_delta -= smooth_scroll_delta;
+        }
+
+        let mut modifiers = new.modifiers;
+
+        let focused_changed = self.focused != new.focused
+            || new
+                .events
+                .iter()
+                .any(|e| matches!(e, Event::WindowFocused(_)));
+        if focused_changed {
+            // It is very common for keys to become stuck when we alt-tab, or a save-dialog opens by Ctrl+S.
+            // Therefore we clear all the modifiers and down keys here to avoid that.
+            modifiers = Default::default();
+            keys_down = Default::default();
+        }
+
+        Self {
             pointer,
             touch_states: self.touch_states,
-            scroll_delta,
+            unprocessed_scroll_delta,
+            raw_scroll_delta,
+            smooth_scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
+            pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
             unstable_dt,
             predicted_dt: new.predicted_dt,
             stable_dt,
-            modifiers: new.modifiers,
+            focused: new.focused,
+            modifiers,
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
         }
+    }
+
+    /// Info about the active viewport
+    #[inline]
+    pub fn viewport(&self) -> &ViewportInfo {
+        self.raw.viewport()
     }
 
     #[inline(always)]
@@ -252,14 +322,23 @@ impl InputState {
         )
     }
 
+    /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
     pub fn wants_repaint(&self) -> bool {
-        self.pointer.wants_repaint() || self.scroll_delta != Vec2::ZERO || !self.events.is_empty()
+        self.pointer.wants_repaint()
+            || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
+            || !self.events.is_empty()
     }
 
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
     ///
     /// Includes key-repeat events.
-    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, key: Key) -> usize {
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
+    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
         let mut count = 0usize;
 
         self.events.retain(|event| {
@@ -270,7 +349,7 @@ impl InputState {
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                } if *ev_key == key && ev_mods.matches(modifiers)
+                } if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
             );
 
             count += is_match as usize;
@@ -284,18 +363,31 @@ impl InputState {
     /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
     /// Includes key-repeat events.
-    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
-        self.count_and_consume_key(modifiers, key) > 0
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
+    pub fn consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> bool {
+        self.count_and_consume_key(modifiers, logical_key) > 0
     }
 
     /// Check if the given shortcut has been pressed.
     ///
     /// If so, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
-    /// Includes key-repeat events.
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
     pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
-        let KeyboardShortcut { modifiers, key } = *shortcut;
-        self.consume_key(modifiers, key)
+        let KeyboardShortcut {
+            modifiers,
+            logical_key,
+        } = *shortcut;
+        self.consume_key(modifiers, logical_key)
     }
 
     /// Was the given key pressed this frame?
@@ -439,6 +531,15 @@ impl InputState {
     pub fn num_accesskit_action_requests(&self, id: crate::Id, action: accesskit::Action) -> usize {
         self.accesskit_action_requests(id, action).count()
     }
+
+    /// Get all events that matches the given filter.
+    pub fn filtered_events(&self, filter: &EventFilter) -> Vec<Event> {
+        self.events
+            .iter()
+            .filter(|event| filter.matches(event))
+            .cloned()
+            .collect()
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -480,15 +581,15 @@ pub(crate) enum PointerEvent {
 
 impl PointerEvent {
     pub fn is_press(&self) -> bool {
-        matches!(self, PointerEvent::Pressed { .. })
+        matches!(self, Self::Pressed { .. })
     }
 
     pub fn is_release(&self) -> bool {
-        matches!(self, PointerEvent::Released { .. })
+        matches!(self, Self::Released { .. })
     }
 
     pub fn is_click(&self) -> bool {
-        matches!(self, PointerEvent::Released { click: Some(_), .. })
+        matches!(self, Self::Released { click: Some(_), .. })
     }
 }
 
@@ -537,6 +638,9 @@ pub struct PointerState {
     /// for it to be registered as a click.
     pub(crate) has_moved_too_much_for_a_click: bool,
 
+    /// Did [`Self::is_decidedly_dragging`] go from `false` to `true` this frame?
+    pub(crate) started_decidedly_dragging: bool,
+
     /// When did the pointer get click last?
     /// Used to check for double-clicks.
     last_click_time: f64,
@@ -544,6 +648,10 @@ pub struct PointerState {
     /// When did the pointer get click two clicks ago?
     /// Used to check for triple-clicks.
     last_last_click_time: f64,
+
+    /// When was the pointer last moved?
+    /// Used for things like showing hover ui/tooltip with a delay.
+    last_move_time: f64,
 
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
@@ -562,8 +670,10 @@ impl Default for PointerState {
             press_origin: None,
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
+            started_decidedly_dragging: false,
             last_click_time: std::f64::NEG_INFINITY,
             last_last_click_time: std::f64::NEG_INFINITY,
+            last_move_time: std::f64::NEG_INFINITY,
             pointer_events: vec![],
         }
     }
@@ -571,7 +681,9 @@ impl Default for PointerState {
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
+    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> Self {
+        let was_decidedly_dragging = self.is_decidedly_dragging();
+
         self.time = time;
 
         self.pointer_events.clear();
@@ -688,6 +800,11 @@ impl PointerState {
         } else {
             Vec2::default()
         };
+        if self.velocity != Vec2::ZERO {
+            self.last_move_time = time;
+        }
+
+        self.started_decidedly_dragging = self.is_decidedly_dragging() && !was_decidedly_dragging;
 
         self
     }
@@ -725,7 +842,7 @@ impl PointerState {
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
-    pub(crate) fn latest_pos(&self) -> Option<Pos2> {
+    pub fn latest_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 
@@ -767,7 +884,14 @@ impl PointerState {
         self.velocity != Vec2::ZERO
     }
 
+    /// How long has it been (in seconds) since the pointer was last moved?
+    #[inline(always)]
+    pub fn time_since_last_movement(&self) -> f32 {
+        (self.time - self.last_move_time) as f32
+    }
+
     /// Was any pointer button pressed (`!down -> down`) this frame?
+    ///
     /// This can sometimes return `true` even if `any_down() == false`
     /// because a press can be shorted than one frame.
     pub fn any_pressed(&self) -> bool {
@@ -873,8 +997,9 @@ impl PointerState {
     }
 
     /// If the pointer button is down, will it register as a click when released?
-    #[inline(always)]
-    pub(crate) fn could_any_button_be_click(&self) -> bool {
+    ///
+    /// See also [`Self::is_decidedly_dragging`].
+    pub fn could_any_button_be_click(&self) -> bool {
         if !self.any_down() {
             return false;
         }
@@ -890,6 +1015,22 @@ impl PointerState {
         }
 
         true
+    }
+
+    /// Just because the mouse is down doesn't mean we are dragging.
+    /// We could be at the start of a click.
+    /// But if the mouse is down long enough, or has moved far enough,
+    /// then we consider it a drag.
+    ///
+    /// This function can return true on the same frame the drag is released,
+    /// but NOT on the first frame it was started.
+    ///
+    /// See also [`Self::could_any_button_be_click`].
+    pub fn is_decidedly_dragging(&self) -> bool {
+        (self.any_down() || self.any_released())
+            && !self.any_pressed()
+            && !self.could_any_button_be_click()
+            && !self.any_click()
     }
 
     /// Is the primary button currently down?
@@ -917,7 +1058,11 @@ impl InputState {
             raw,
             pointer,
             touch_states,
-            scroll_delta,
+
+            unprocessed_scroll_delta,
+            raw_scroll_delta,
+            smooth_scroll_delta,
+
             zoom_factor_delta,
             screen_rect,
             pixels_per_point,
@@ -926,6 +1071,7 @@ impl InputState {
             unstable_dt,
             predicted_dt,
             stable_dt,
+            focused,
             modifiers,
             keys_down,
             events,
@@ -951,29 +1097,36 @@ impl InputState {
             });
         }
 
-        ui.label(format!("scroll_delta: {:?} points", scroll_delta));
-        ui.label(format!("zoom_factor_delta: {:4.2}x", zoom_factor_delta));
-        ui.label(format!("screen_rect: {:?} points", screen_rect));
+        if cfg!(debug_assertions) {
+            ui.label(format!(
+                "unprocessed_scroll_delta: {unprocessed_scroll_delta:?} points"
+            ));
+        }
+        ui.label(format!("raw_scroll_delta: {raw_scroll_delta:?} points"));
         ui.label(format!(
-            "{} physical pixels for each logical point",
-            pixels_per_point
+            "smooth_scroll_delta: {smooth_scroll_delta:?} points"
+        ));
+        ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
+        ui.label(format!("screen_rect: {screen_rect:?} points"));
+        ui.label(format!(
+            "{pixels_per_point} physical pixels for each logical point"
         ));
         ui.label(format!(
-            "max texture size (on each side): {}",
-            max_texture_side
+            "max texture size (on each side): {max_texture_side}"
         ));
-        ui.label(format!("time: {:.3} s", time));
+        ui.label(format!("time: {time:.3} s"));
         ui.label(format!(
             "time since previous frame: {:.1} ms",
             1e3 * unstable_dt
         ));
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("stable_dt:    {:.1} ms", 1e3 * stable_dt));
-        ui.label(format!("modifiers: {:#?}", modifiers));
-        ui.label(format!("keys_down: {:?}", keys_down));
+        ui.label(format!("focused:   {focused}"));
+        ui.label(format!("modifiers: {modifiers:#?}"));
+        ui.label(format!("keys_down: {keys_down:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
-            ui.label(format!("events: {:#?}", events))
+            ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
     }
@@ -992,27 +1145,32 @@ impl PointerState {
             press_origin,
             press_start_time,
             has_moved_too_much_for_a_click,
+            started_decidedly_dragging,
             last_click_time,
             last_last_click_time,
             pointer_events,
+            last_move_time,
         } = self;
 
-        ui.label(format!("latest_pos: {:?}", latest_pos));
-        ui.label(format!("interact_pos: {:?}", interact_pos));
-        ui.label(format!("delta: {:?}", delta));
+        ui.label(format!("latest_pos: {latest_pos:?}"));
+        ui.label(format!("interact_pos: {interact_pos:?}"));
+        ui.label(format!("delta: {delta:?}"));
         ui.label(format!(
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y
         ));
-        ui.label(format!("down: {:#?}", down));
-        ui.label(format!("press_origin: {:?}", press_origin));
-        ui.label(format!("press_start_time: {:?} s", press_start_time));
+        ui.label(format!("down: {down:#?}"));
+        ui.label(format!("press_origin: {press_origin:?}"));
+        ui.label(format!("press_start_time: {press_start_time:?} s"));
         ui.label(format!(
-            "has_moved_too_much_for_a_click: {}",
-            has_moved_too_much_for_a_click
+            "has_moved_too_much_for_a_click: {has_moved_too_much_for_a_click}"
         ));
-        ui.label(format!("last_click_time: {:#?}", last_click_time));
-        ui.label(format!("last_last_click_time: {:#?}", last_last_click_time));
-        ui.label(format!("pointer_events: {:?}", pointer_events));
+        ui.label(format!(
+            "started_decidedly_dragging: {started_decidedly_dragging}"
+        ));
+        ui.label(format!("last_click_time: {last_click_time:#?}"));
+        ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
+        ui.label(format!("last_move_time: {last_move_time:#?}"));
+        ui.label(format!("pointer_events: {pointer_events:?}"));
     }
 }

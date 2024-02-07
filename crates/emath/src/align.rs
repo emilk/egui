@@ -3,10 +3,11 @@
 use crate::*;
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Align {
     /// Left or top.
+    #[default]
     Min,
 
     /// Horizontal or vertical center.
@@ -109,37 +110,26 @@ impl Align {
     /// assert_eq!(Max   .align_size_within_range(INFINITY, NEG_INFINITY..=20.0), NEG_INFINITY..=20.0);
     /// ```
     #[inline]
-    pub fn align_size_within_range(
-        self,
-        size: f32,
-        range: RangeInclusive<f32>,
-    ) -> RangeInclusive<f32> {
-        let min = *range.start();
-        let max = *range.end();
+    pub fn align_size_within_range(self, size: f32, range: impl Into<Rangef>) -> Rangef {
+        let range = range.into();
+        let Rangef { min, max } = range;
 
         if max - min == f32::INFINITY && size == f32::INFINITY {
             return range;
         }
 
         match self {
-            Self::Min => min..=min + size,
+            Self::Min => Rangef::new(min, min + size),
             Self::Center => {
                 if size == f32::INFINITY {
-                    f32::NEG_INFINITY..=f32::INFINITY
+                    Rangef::new(f32::NEG_INFINITY, f32::INFINITY)
                 } else {
                     let left = (min + max) / 2.0 - size / 2.0;
-                    left..=left + size
+                    Rangef::new(left, left + size)
                 }
             }
-            Self::Max => max - size..=max,
+            Self::Max => Rangef::new(max - size, max),
         }
-    }
-}
-
-impl Default for Align {
-    #[inline(always)]
-    fn default() -> Align {
-        Align::Min
     }
 }
 
@@ -151,15 +141,15 @@ impl Default for Align {
 pub struct Align2(pub [Align; 2]);
 
 impl Align2 {
-    pub const LEFT_BOTTOM: Align2 = Align2([Align::Min, Align::Max]);
-    pub const LEFT_CENTER: Align2 = Align2([Align::Min, Align::Center]);
-    pub const LEFT_TOP: Align2 = Align2([Align::Min, Align::Min]);
-    pub const CENTER_BOTTOM: Align2 = Align2([Align::Center, Align::Max]);
-    pub const CENTER_CENTER: Align2 = Align2([Align::Center, Align::Center]);
-    pub const CENTER_TOP: Align2 = Align2([Align::Center, Align::Min]);
-    pub const RIGHT_BOTTOM: Align2 = Align2([Align::Max, Align::Max]);
-    pub const RIGHT_CENTER: Align2 = Align2([Align::Max, Align::Center]);
-    pub const RIGHT_TOP: Align2 = Align2([Align::Max, Align::Min]);
+    pub const LEFT_BOTTOM: Self = Self([Align::Min, Align::Max]);
+    pub const LEFT_CENTER: Self = Self([Align::Min, Align::Center]);
+    pub const LEFT_TOP: Self = Self([Align::Min, Align::Min]);
+    pub const CENTER_BOTTOM: Self = Self([Align::Center, Align::Max]);
+    pub const CENTER_CENTER: Self = Self([Align::Center, Align::Center]);
+    pub const CENTER_TOP: Self = Self([Align::Center, Align::Min]);
+    pub const RIGHT_BOTTOM: Self = Self([Align::Max, Align::Max]);
+    pub const RIGHT_CENTER: Self = Self([Align::Max, Align::Center]);
+    pub const RIGHT_TOP: Self = Self([Align::Max, Align::Min]);
 }
 
 impl Align2 {
@@ -194,6 +184,23 @@ impl Align2 {
             Align::Max => rect.top() - rect.height(),
         };
         Rect::from_min_size(pos2(x, y), rect.size())
+    }
+
+    /// Use this anchor to position something around `pos`,
+    /// e.g. [`Self::RIGHT_TOP`] means the right-top of the rect
+    /// will end up at `pos`.
+    pub fn anchor_size(self, pos: Pos2, size: Vec2) -> Rect {
+        let x = match self.x() {
+            Align::Min => pos.x,
+            Align::Center => pos.x - 0.5 * size.x,
+            Align::Max => pos.x - size.x,
+        };
+        let y = match self.y() {
+            Align::Min => pos.y,
+            Align::Center => pos.y - 0.5 * size.y,
+            Align::Max => pos.y - size.y,
+        };
+        Rect::from_min_size(pos2(x, y), size)
     }
 
     /// e.g. center a size within a given frame

@@ -46,6 +46,9 @@ impl State {
 
 // ----------------------------------------------------------------------------
 
+// type alias for boxed function to determine row color during grid generation
+type ColorPickerFn = Box<dyn Send + Sync + Fn(usize, &Style) -> Option<Color32>>;
+
 pub(crate) struct GridLayout {
     ctx: Context,
     style: std::sync::Arc<Style>,
@@ -57,6 +60,7 @@ pub(crate) struct GridLayout {
     /// State previous frame (if any).
     /// This can be used to predict future sizes of cells.
     prev_state: State,
+
     /// State accumulated during the current frame.
     curr_state: State,
     initial_available: Rect,
@@ -66,7 +70,7 @@ pub(crate) struct GridLayout {
     spacing: Vec2,
     min_cell_size: Vec2,
     max_cell_size: Vec2,
-    striped: bool,
+    color_picker: Option<ColorPickerFn>,
 
     // Cursor:
     col: usize,
@@ -101,7 +105,7 @@ impl GridLayout {
             spacing: ui.spacing().item_spacing,
             min_cell_size: ui.spacing().interact_size,
             max_cell_size: Vec2::INFINITY,
-            striped: false,
+            color_picker: None,
 
             col: 0,
             row: 0,
@@ -183,24 +187,27 @@ impl GridLayout {
     }
 
     pub(crate) fn advance(&mut self, cursor: &mut Rect, _frame_rect: Rect, widget_rect: Rect) {
-        let debug_expand_width = self.style.debug.show_expand_width;
-        let debug_expand_height = self.style.debug.show_expand_height;
-        if debug_expand_width || debug_expand_height {
-            let rect = widget_rect;
-            let too_wide = rect.width() > self.prev_col_width(self.col);
-            let too_high = rect.height() > self.prev_row_height(self.row);
+        #[cfg(debug_assertions)]
+        {
+            let debug_expand_width = self.style.debug.show_expand_width;
+            let debug_expand_height = self.style.debug.show_expand_height;
+            if debug_expand_width || debug_expand_height {
+                let rect = widget_rect;
+                let too_wide = rect.width() > self.prev_col_width(self.col);
+                let too_high = rect.height() > self.prev_row_height(self.row);
 
-            if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
-                let painter = self.ctx.debug_painter();
-                painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
+                    let painter = self.ctx.debug_painter();
+                    painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
-                let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-                let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
+                    let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
+                    let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
 
-                if debug_expand_width && too_wide {
-                    paint_line_seg(rect.left_top(), rect.left_bottom());
-                    paint_line_seg(rect.left_center(), rect.right_center());
-                    paint_line_seg(rect.right_top(), rect.right_bottom());
+                    if debug_expand_width && too_wide {
+                        paint_line_seg(rect.left_top(), rect.left_bottom());
+                        paint_line_seg(rect.left_center(), rect.right_center());
+                        paint_line_seg(rect.right_top(), rect.right_bottom());
+                    }
                 }
             }
         }
@@ -214,6 +221,26 @@ impl GridLayout {
         self.col += 1;
     }
 
+    fn paint_row(&mut self, cursor: &Rect, painter: &Painter) {
+        // handle row color painting based on color-picker function
+        let Some(color_picker) = self.color_picker.as_ref() else {
+            return;
+        };
+        let Some(row_color) = color_picker(self.row, &self.style) else {
+            return;
+        };
+        let Some(height) = self.prev_state.row_height(self.row) else {
+            return;
+        };
+        // Paint background for coming row:
+        let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
+        let rect = Rect::from_min_size(cursor.min, size);
+        let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
+        let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+
+        painter.rect_filled(rect, 2.0, row_color);
+    }
+
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         cursor.min.x = self.initial_available.min.x;
         cursor.min.y += self.spacing.y;
@@ -225,17 +252,7 @@ impl GridLayout {
         self.col = 0;
         self.row += 1;
 
-        if self.striped && self.row % 2 == 1 {
-            if let Some(height) = self.prev_state.row_height(self.row) {
-                // Paint background for coming row:
-                let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
-                let rect = Rect::from_min_size(cursor.min, size);
-                let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
-                let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
-
-                painter.rect_filled(rect, 2.0, self.style.visuals.faint_bg_color);
-            }
-        }
+        self.paint_row(cursor, painter);
     }
 
     pub(crate) fn save(&self) {
@@ -250,7 +267,7 @@ impl GridLayout {
 
 /// A simple grid layout.
 ///
-/// The cells are always layed out left to right, top-down.
+/// The cells are always laid out left to right, top-down.
 /// The contents of each cell will be aligned to the left and center.
 ///
 /// If you want to add multiple widgets to a cell you need to group them with
@@ -278,12 +295,12 @@ impl GridLayout {
 pub struct Grid {
     id_source: Id,
     num_columns: Option<usize>,
-    striped: Option<bool>,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
     max_cell_size: Vec2,
     spacing: Option<Vec2>,
     start_row: usize,
+    color_picker: Option<ColorPickerFn>,
 }
 
 impl Grid {
@@ -292,16 +309,27 @@ impl Grid {
         Self {
             id_source: Id::new(id_source),
             num_columns: None,
-            striped: None,
             min_col_width: None,
             min_row_height: None,
             max_cell_size: Vec2::INFINITY,
             spacing: None,
             start_row: 0,
+            color_picker: None,
         }
     }
 
+    /// Setting this will allow for dynamic coloring of rows of the grid object
+    #[inline]
+    pub fn with_row_color<F>(mut self, color_picker: F) -> Self
+    where
+        F: Send + Sync + Fn(usize, &Style) -> Option<Color32> + 'static,
+    {
+        self.color_picker = Some(Box::new(color_picker));
+        self
+    }
+
     /// Setting this will allow the last column to expand to take up the rest of the space of the parent [`Ui`].
+    #[inline]
     pub fn num_columns(mut self, num_columns: usize) -> Self {
         self.num_columns = Some(num_columns);
         self
@@ -311,13 +339,20 @@ impl Grid {
     ///
     /// This can make a table easier to read.
     /// Default is whatever is in [`crate::Visuals::striped`].
-    pub fn striped(mut self, striped: bool) -> Self {
-        self.striped = Some(striped);
-        self
+    pub fn striped(self, striped: bool) -> Self {
+        if striped {
+            self.with_row_color(striped_row_color)
+        } else {
+            // Explicitly set the row color to nothing.
+            // Needed so that when the style.visuals.striped value is checked later on,
+            // it is clear that the user does not want stripes on this specific Grid.
+            self.with_row_color(|_row: usize, _style: &Style| None)
+        }
     }
 
     /// Set minimum width of each column.
     /// Default: [`crate::style::Spacing::interact_size`]`.x`.
+    #[inline]
     pub fn min_col_width(mut self, min_col_width: f32) -> Self {
         self.min_col_width = Some(min_col_width);
         self
@@ -325,12 +360,14 @@ impl Grid {
 
     /// Set minimum height of each row.
     /// Default: [`crate::style::Spacing::interact_size`]`.y`.
+    #[inline]
     pub fn min_row_height(mut self, min_row_height: f32) -> Self {
         self.min_row_height = Some(min_row_height);
         self
     }
 
     /// Set soft maximum width (wrapping width) of each column.
+    #[inline]
     pub fn max_col_width(mut self, max_col_width: f32) -> Self {
         self.max_cell_size.x = max_col_width;
         self
@@ -338,6 +375,7 @@ impl Grid {
 
     /// Set spacing between columns/rows.
     /// Default: [`crate::style::Spacing::item_spacing`].
+    #[inline]
     pub fn spacing(mut self, spacing: impl Into<Vec2>) -> Self {
         self.spacing = Some(spacing.into());
         self
@@ -345,6 +383,7 @@ impl Grid {
 
     /// Change which row number the grid starts on.
     /// This can be useful when you have a large [`Grid`] inside of [`ScrollArea::show_rows`].
+    #[inline]
     pub fn start_row(mut self, start_row: usize) -> Self {
         self.start_row = start_row;
         self
@@ -364,17 +403,19 @@ impl Grid {
         let Self {
             id_source,
             num_columns,
-            striped,
             min_col_width,
             min_row_height,
             max_cell_size,
             spacing,
             start_row,
+            mut color_picker,
         } = self;
-        let striped = striped.unwrap_or(ui.visuals().striped);
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
+        if color_picker.is_none() && ui.visuals().striped {
+            color_picker = Some(Box::new(striped_row_color));
+        }
 
         let id = ui.make_persistent_id(id_source);
         let prev_state = State::load(ui.ctx(), id);
@@ -387,15 +428,23 @@ impl Grid {
         ui.allocate_ui_at_rect(max_rect, |ui| {
             ui.set_visible(prev_state.is_some()); // Avoid visible first-frame jitter
             ui.horizontal(|ui| {
-                let grid = GridLayout {
+                let is_color = color_picker.is_some();
+                let mut grid = GridLayout {
                     num_columns,
-                    striped,
+                    color_picker,
                     min_cell_size: vec2(min_col_width, min_row_height),
                     max_cell_size,
                     spacing,
                     row: start_row,
                     ..GridLayout::new(ui, id, prev_state)
                 };
+
+                // paint first incoming row
+                if is_color {
+                    let cursor = ui.cursor();
+                    let painter = ui.painter();
+                    grid.paint_row(&cursor, painter);
+                }
 
                 ui.set_grid(grid);
                 let r = add_contents(ui);
@@ -405,4 +454,11 @@ impl Grid {
             .inner
         })
     }
+}
+
+fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
+    if row % 2 == 1 {
+        return Some(style.visuals.faint_bg_color);
+    }
+    None
 }

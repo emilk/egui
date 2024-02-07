@@ -13,17 +13,15 @@ use emath::*;
 
 #[allow(clippy::approx_constant)]
 mod precomputed_vertices {
-    /*
-    fn main() {
-        let n = 64;
-        println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
-        for i in 0..=n {
-            let a = std::f64::consts::TAU * i as f64 / n as f64;
-            println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
-        }
-        println!("];")
-    }
-    */
+    // fn main() {
+    //     let n = 64;
+    //     println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
+    //     for i in 0..=n {
+    //         let a = std::f64::consts::TAU * i as f64 / n as f64;
+    //         println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
+    //     }
+    //     println!("];")
+    // }
 
     use emath::{vec2, Vec2};
 
@@ -494,6 +492,20 @@ impl Path {
     pub fn fill(&mut self, feathering: f32, color: Color32, out: &mut Mesh) {
         fill_closed_path(feathering, &mut self.0, color, out);
     }
+
+    /// Like [`Self::fill`] but with texturing.
+    ///
+    /// The `uv_from_pos` is called for each vertex position.
+    pub fn fill_with_uv(
+        &mut self,
+        feathering: f32,
+        color: Color32,
+        texture_id: TextureId,
+        uv_from_pos: impl Fn(Pos2) -> Pos2,
+        out: &mut Mesh,
+    ) {
+        fill_closed_path_with_uv(feathering, &mut self.0, color, texture_id, uv_from_pos, out);
+    }
 }
 
 pub mod path {
@@ -510,7 +522,7 @@ pub mod path {
 
         let r = clamp_radius(rounding, rect);
 
-        if r == Rounding::none() {
+        if r == Rounding::ZERO {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);
@@ -523,6 +535,7 @@ pub mod path {
             add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
             add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
             add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
+            path.dedup(); // We get duplicates for thin rectangles, producing visual artifats
         }
     }
 
@@ -641,6 +654,15 @@ pub struct TessellationOptions {
 
     /// The default value will be 1.0e-5, it will be used during float compare.
     pub epsilon: f32,
+
+    /// If `rayon` feature is activated, should we parallelize tessellation?
+    pub parallel_tessellation: bool,
+
+    /// If `true`, invalid meshes will be silently ignored.
+    /// If `false`, invalid meshes will cause a panic.
+    ///
+    /// The default is `false` to save performance.
+    pub validate_meshes: bool,
 }
 
 impl Default for TessellationOptions {
@@ -656,6 +678,8 @@ impl Default for TessellationOptions {
             debug_ignore_clip_rects: false,
             bezier_tolerance: 0.1,
             epsilon: 1.0e-5,
+            parallel_tessellation: true,
+            validate_meshes: false,
         }
     }
 }
@@ -689,7 +713,7 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
-            for point in path.iter_mut() {
+            for point in &mut *path {
                 point.normal = -point.normal;
             }
         }
@@ -722,6 +746,89 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
         out.vertices.extend(path.iter().map(|p| Vertex {
             pos: p.pos,
             uv: WHITE_UV,
+            color,
+        }));
+        for i in 2..n {
+            out.add_triangle(idx, idx + i - 1, idx + i);
+        }
+    }
+}
+
+/// Like [`fill_closed_path`] but with texturing.
+///
+/// The `uv_from_pos` is called for each vertex position.
+fn fill_closed_path_with_uv(
+    feathering: f32,
+    path: &mut [PathPoint],
+    color: Color32,
+    texture_id: TextureId,
+    uv_from_pos: impl Fn(Pos2) -> Pos2,
+    out: &mut Mesh,
+) {
+    if color == Color32::TRANSPARENT {
+        return;
+    }
+
+    if out.is_empty() {
+        out.texture_id = texture_id;
+    } else {
+        assert_eq!(
+            out.texture_id, texture_id,
+            "Mixing different `texture_id` in the same "
+        );
+    }
+
+    let n = path.len() as u32;
+    if feathering > 0.0 {
+        if cw_signed_area(path) < 0.0 {
+            // Wrong winding order - fix:
+            path.reverse();
+            for point in &mut *path {
+                point.normal = -point.normal;
+            }
+        }
+
+        out.reserve_triangles(3 * n as usize);
+        out.reserve_vertices(2 * n as usize);
+        let color_outer = Color32::TRANSPARENT;
+        let idx_inner = out.vertices.len() as u32;
+        let idx_outer = idx_inner + 1;
+
+        // The fill:
+        for i in 2..n {
+            out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+        }
+
+        // The feathering:
+        let mut i0 = n - 1;
+        for i1 in 0..n {
+            let p1 = &path[i1 as usize];
+            let dm = 0.5 * feathering * p1.normal;
+
+            let pos = p1.pos - dm;
+            out.vertices.push(Vertex {
+                pos,
+                uv: uv_from_pos(pos),
+                color,
+            });
+
+            let pos = p1.pos + dm;
+            out.vertices.push(Vertex {
+                pos,
+                uv: uv_from_pos(pos),
+                color: color_outer,
+            });
+
+            out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+            out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+            i0 = i1;
+        }
+    } else {
+        out.reserve_triangles(n as usize);
+        let idx = out.vertices.len() as u32;
+        out.vertices.extend(path.iter().map(|p| Vertex {
+            pos: p.pos,
+            uv: uv_from_pos(p.pos),
             color,
         }));
         for i in 2..n {
@@ -968,7 +1075,8 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 ///
 /// For performance reasons it is smart to reuse the same [`Tessellator`].
 ///
-/// Se also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
+/// See also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
+#[derive(Clone)]
 pub struct Tessellator {
     pixels_per_point: f32,
     options: TessellationOptions,
@@ -990,6 +1098,9 @@ pub struct Tessellator {
 impl Tessellator {
     /// Create a new [`Tessellator`].
     ///
+    /// * `pixels_per_point`: number of physical pixels to each logical point
+    /// * `options`: tessellation quality
+    /// * `shapes`: what to tessellate
     /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
     /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
     pub fn new(
@@ -1036,22 +1147,22 @@ impl Tessellator {
         clipped_shape: ClippedShape,
         out_primitives: &mut Vec<ClippedPrimitive>,
     ) {
-        let ClippedShape(new_clip_rect, new_shape) = clipped_shape;
+        let ClippedShape { clip_rect, shape } = clipped_shape;
 
-        if !new_clip_rect.is_positive() {
+        if !clip_rect.is_positive() {
             return; // skip empty clip rectangles
         }
 
-        if let Shape::Vec(shapes) = new_shape {
+        if let Shape::Vec(shapes) = shape {
             for shape in shapes {
-                self.tessellate_clipped_shape(ClippedShape(new_clip_rect, shape), out_primitives);
+                self.tessellate_clipped_shape(ClippedShape { clip_rect, shape }, out_primitives);
             }
             return;
         }
 
-        if let Shape::Callback(callback) = new_shape {
+        if let Shape::Callback(callback) = shape {
             out_primitives.push(ClippedPrimitive {
-                clip_rect: new_clip_rect,
+                clip_rect,
                 primitive: Primitive::Callback(callback),
             });
             return;
@@ -1060,10 +1171,10 @@ impl Tessellator {
         let start_new_mesh = match out_primitives.last() {
             None => true,
             Some(output_clipped_primitive) => {
-                output_clipped_primitive.clip_rect != new_clip_rect
+                output_clipped_primitive.clip_rect != clip_rect
                     || match &output_clipped_primitive.primitive {
                         Primitive::Mesh(output_mesh) => {
-                            output_mesh.texture_id != new_shape.texture_id()
+                            output_mesh.texture_id != shape.texture_id()
                         }
                         Primitive::Callback(_) => true,
                     }
@@ -1072,7 +1183,7 @@ impl Tessellator {
 
         if start_new_mesh {
             out_primitives.push(ClippedPrimitive {
-                clip_rect: new_clip_rect,
+                clip_rect,
                 primitive: Primitive::Mesh(Mesh::default()),
             });
         }
@@ -1080,8 +1191,8 @@ impl Tessellator {
         let out = out_primitives.last_mut().unwrap();
 
         if let Primitive::Mesh(out_mesh) = &mut out.primitive {
-            self.clip_rect = new_clip_rect;
-            self.tessellate_shape(new_shape, out_mesh);
+            self.clip_rect = clip_rect;
+            self.tessellate_shape(shape, out_mesh);
         } else {
             unreachable!();
         }
@@ -1105,16 +1216,20 @@ impl Tessellator {
                 self.tessellate_circle(circle, out);
             }
             Shape::Mesh(mesh) => {
-                if !mesh.is_valid() {
+                crate::profile_scope!("mesh");
+
+                if self.options.validate_meshes && !mesh.is_valid() {
                     crate::epaint_assert!(false, "Invalid Mesh in Shape::Mesh");
                     return;
                 }
+                // note: `append` still checks if the mesh is valid if extra asserts are enabled.
 
                 if self.options.coarse_tessellation_culling
                     && !self.clip_rect.intersects(mesh.calc_bounds())
                 {
                     return;
                 }
+
                 out.append(mesh);
             }
             Shape::LineSegment { points, stroke } => self.tessellate_line(points, stroke, out),
@@ -1219,7 +1334,7 @@ impl Tessellator {
         out.append_ref(mesh);
     }
 
-    /// Tessellate a line segment between the two points with the given stoken into a [`Mesh`].
+    /// Tessellate a line segment between the two points with the given stroke into a [`Mesh`].
     ///
     /// * `shape`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.
@@ -1256,6 +1371,8 @@ impl Tessellator {
         {
             return;
         }
+
+        crate::profile_function!();
 
         let PathShape {
             points,
@@ -1297,6 +1414,8 @@ impl Tessellator {
             rounding,
             fill,
             stroke,
+            fill_texture_id,
+            uv,
         } = *rect;
 
         if self.options.coarse_tessellation_culling
@@ -1314,7 +1433,7 @@ impl Tessellator {
         rect.max = rect.max.at_most(pos2(1e7, 1e7));
 
         if rect.width() < self.feathering {
-            // Very thin - approximate by a vertial line-segment:
+            // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
             if fill != Color32::TRANSPARENT {
                 self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
@@ -1338,7 +1457,21 @@ impl Tessellator {
             path.clear();
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
             path.add_line_loop(&self.scratchpad_points);
-            path.fill(self.feathering, fill, out);
+
+            if uv.is_positive() {
+                // Textured
+                let uv_from_pos = |p: Pos2| {
+                    pos2(
+                        remap(p.x, rect.x_range(), uv.x_range()),
+                        remap(p.y, rect.y_range(), uv.y_range()),
+                    )
+                };
+                path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
+            } else {
+                // Untextured
+                path.fill(self.feathering, fill, out);
+            }
+
             path.stroke_closed(self.feathering, stroke, out);
         }
     }
@@ -1352,10 +1485,16 @@ impl Tessellator {
             galley,
             underline,
             override_text_color,
+            fallback_color,
+            opacity_factor,
             angle,
         } = text_shape;
 
         if galley.is_empty() {
+            return;
+        }
+
+        if *opacity_factor <= 0.0 {
             return;
         }
 
@@ -1418,10 +1557,19 @@ impl Tessellator {
                         let Vertex { pos, uv, mut color } = *vertex;
 
                         if let Some(override_text_color) = override_text_color {
+                            // Only override the glyph color (not background color, strike-through color, etc)
                             if row.visuals.glyph_vertex_range.contains(&i) {
                                 color = *override_text_color;
                             }
+                        } else if color == Color32::PLACEHOLDER {
+                            color = *fallback_color;
                         }
+
+                        if *opacity_factor < 1.0 {
+                            color = color.gamma_multiply(*opacity_factor);
+                        }
+
+                        crate::epaint_assert!(color != Color32::PLACEHOLDER, "A placeholder color made it to the tessellator. You forgot to set a fallback color.");
 
                         let offset = if *angle == 0.0 {
                             pos.to_vec2()
@@ -1538,21 +1686,7 @@ impl Tessellator {
     }
 }
 
-/// Turns [`Shape`]:s into sets of triangles.
-///
-/// The given shapes will tessellated in the same order as they are given.
-/// They will be batched together by clip rectangle.
-///
-/// * `pixels_per_point`: number of physical pixels to each logical point
-/// * `options`: tessellation quality
-/// * `shapes`: what to tessellate
-/// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
-/// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
-///
-/// The implementation uses a [`Tessellator`].
-///
-/// ## Returns
-/// A list of clip rectangles with matching [`Mesh`].
+#[deprecated = "Use `Tessellator::new(…).tessellate_shapes(…)` instead"]
 pub fn tessellate_shapes(
     pixels_per_point: f32,
     options: TessellationOptions,
@@ -1560,67 +1694,146 @@ pub fn tessellate_shapes(
     prepared_discs: Vec<PreparedDisc>,
     shapes: Vec<ClippedShape>,
 ) -> Vec<ClippedPrimitive> {
-    let mut tessellator =
-        Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs);
-
-    let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
-
-    for clipped_shape in shapes {
-        tessellator.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
-    }
-
-    if options.debug_paint_clip_rects {
-        clipped_primitives = add_clip_rects(&mut tessellator, clipped_primitives);
-    }
-
-    if options.debug_ignore_clip_rects {
-        for clipped_primitive in &mut clipped_primitives {
-            clipped_primitive.clip_rect = Rect::EVERYTHING;
-        }
-    }
-
-    clipped_primitives.retain(|p| {
-        p.clip_rect.is_positive()
-            && match &p.primitive {
-                Primitive::Mesh(mesh) => !mesh.is_empty(),
-                Primitive::Callback(_) => true,
-            }
-    });
-
-    for clipped_primitive in &clipped_primitives {
-        if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
-            crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
-        }
-    }
-
-    clipped_primitives
+    Tessellator::new(pixels_per_point, options, font_tex_size, prepared_discs)
+        .tessellate_shapes(shapes)
 }
 
-fn add_clip_rects(
-    tessellator: &mut Tessellator,
-    clipped_primitives: Vec<ClippedPrimitive>,
-) -> Vec<ClippedPrimitive> {
-    tessellator.clip_rect = Rect::EVERYTHING;
-    let stroke = Stroke::new(2.0, Color32::from_rgb(150, 255, 150));
+impl Tessellator {
+    /// Turns [`Shape`]:s into sets of triangles.
+    ///
+    /// The given shapes will tessellated in the same order as they are given.
+    /// They will be batched together by clip rectangle.
+    ///
+    /// * `pixels_per_point`: number of physical pixels to each logical point
+    /// * `options`: tessellation quality
+    /// * `shapes`: what to tessellate
+    /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
+    /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
+    ///
+    /// The implementation uses a [`Tessellator`].
+    ///
+    /// ## Returns
+    /// A list of clip rectangles with matching [`Mesh`].
+    #[allow(unused_mut)]
+    pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        crate::profile_function!();
 
-    clipped_primitives
-        .into_iter()
-        .flat_map(|clipped_primitive| {
-            let mut clip_rect_mesh = Mesh::default();
-            tessellator.tessellate_shape(
-                Shape::rect_stroke(clipped_primitive.clip_rect, 0.0, stroke),
-                &mut clip_rect_mesh,
-            );
+        #[cfg(feature = "rayon")]
+        if self.options.parallel_tessellation {
+            self.parallel_tessellation_of_large_shapes(&mut shapes);
+        }
 
-            [
-                clipped_primitive,
-                ClippedPrimitive {
-                    clip_rect: Rect::EVERYTHING, // whatever
-                    primitive: Primitive::Mesh(clip_rect_mesh),
-                },
-            ]
-        })
-        .collect()
+        let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
+
+        {
+            crate::profile_scope!("tessellate");
+            for clipped_shape in shapes {
+                self.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
+            }
+        }
+
+        if self.options.debug_paint_clip_rects {
+            clipped_primitives = self.add_clip_rects(clipped_primitives);
+        }
+
+        if self.options.debug_ignore_clip_rects {
+            for clipped_primitive in &mut clipped_primitives {
+                clipped_primitive.clip_rect = Rect::EVERYTHING;
+            }
+        }
+
+        clipped_primitives.retain(|p| {
+            p.clip_rect.is_positive()
+                && match &p.primitive {
+                    Primitive::Mesh(mesh) => !mesh.is_empty(),
+                    Primitive::Callback(_) => true,
+                }
+        });
+
+        for clipped_primitive in &clipped_primitives {
+            if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
+                crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
+            }
+        }
+
+        clipped_primitives
+    }
+
+    /// Find large shapes and throw them on the rayon thread pool,
+    /// then replace the original shape with their tessellated meshes.
+    #[cfg(feature = "rayon")]
+    fn parallel_tessellation_of_large_shapes(&self, shapes: &mut [ClippedShape]) {
+        crate::profile_function!();
+
+        use rayon::prelude::*;
+
+        // We only parallelize large/slow stuff, because each tessellation job
+        // will allocate a new Mesh, and so it creates a lot of extra memory framentation
+        // and callocations that is only worth it for large shapes.
+        fn should_parallelize(shape: &Shape) -> bool {
+            match shape {
+                Shape::Vec(shapes) => 4 < shapes.len() || shapes.iter().any(should_parallelize),
+
+                Shape::Path(path_shape) => 32 < path_shape.points.len(),
+
+                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) => true,
+
+                Shape::Noop
+                | Shape::Text(_)
+                | Shape::Circle(_)
+                | Shape::Mesh(_)
+                | Shape::LineSegment { .. }
+                | Shape::Rect(_)
+                | Shape::Callback(_) => false,
+            }
+        }
+
+        let tessellated: Vec<(usize, Mesh)> = shapes
+            .par_iter()
+            .enumerate()
+            .filter(|(_, clipped_shape)| should_parallelize(&clipped_shape.shape))
+            .map(|(index, clipped_shape)| {
+                crate::profile_scope!("tessellate_big_shape");
+                // TODO: reuse tessellator in a thread local
+                let mut tessellator = (*self).clone();
+                let mut mesh = Mesh::default();
+                tessellator.tessellate_shape(clipped_shape.shape.clone(), &mut mesh);
+                (index, mesh)
+            })
+            .collect();
+
+        crate::profile_scope!("distribute results", tessellated.len().to_string());
+        for (index, mesh) in tessellated {
+            shapes[index].shape = Shape::Mesh(mesh);
+        }
+    }
+
+    fn add_clip_rects(
+        &mut self,
+        clipped_primitives: Vec<ClippedPrimitive>,
+    ) -> Vec<ClippedPrimitive> {
+        self.clip_rect = Rect::EVERYTHING;
+        let stroke = Stroke::new(2.0, Color32::from_rgb(150, 255, 150));
+
+        clipped_primitives
+            .into_iter()
+            .flat_map(|clipped_primitive| {
+                let mut clip_rect_mesh = Mesh::default();
+                self.tessellate_shape(
+                    Shape::rect_stroke(clipped_primitive.clip_rect, 0.0, stroke),
+                    &mut clip_rect_mesh,
+                );
+
+                [
+                    clipped_primitive,
+                    ClippedPrimitive {
+                        clip_rect: Rect::EVERYTHING, // whatever
+                        primitive: Primitive::Mesh(clip_rect_mesh),
+                    },
+                ]
+            })
+            .collect()
+    }
 }
 
 #[test]
@@ -1641,17 +1854,16 @@ fn test_tessellator() {
     shapes.push(Shape::mesh(mesh));
 
     let shape = Shape::Vec(shapes);
-    let clipped_shapes = vec![ClippedShape(rect, shape)];
+    let clipped_shapes = vec![ClippedShape {
+        clip_rect: rect,
+        shape,
+    }];
 
     let font_tex_size = [1024, 1024]; // unused
     let prepared_discs = vec![]; // unused
 
-    let primitives = tessellate_shapes(
-        1.0,
-        Default::default(),
-        font_tex_size,
-        prepared_discs,
-        clipped_shapes,
-    );
+    let primitives = Tessellator::new(1.0, Default::default(), font_tex_size, prepared_discs)
+        .tessellate_shapes(clipped_shapes);
+
     assert_eq!(primitives.len(), 2);
 }

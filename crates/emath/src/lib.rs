@@ -20,6 +20,8 @@
 //!
 
 #![allow(clippy::float_cmp)]
+#![cfg_attr(feature = "puffin", deny(unsafe_code))]
+#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
@@ -29,42 +31,40 @@ pub mod align;
 mod history;
 mod numeric;
 mod pos2;
+mod range;
 mod rect;
 mod rect_transform;
 mod rot2;
 pub mod smart_aim;
 mod vec2;
+mod vec2b;
 
 pub use {
     align::{Align, Align2},
     history::History,
     numeric::*,
     pos2::*,
+    range::Rangef,
     rect::*,
     rect_transform::*,
     rot2::*,
     vec2::*,
+    vec2b::*,
 };
 
 // ----------------------------------------------------------------------------
 
 /// Helper trait to implement [`lerp`] and [`remap`].
 pub trait One {
-    fn one() -> Self;
+    const ONE: Self;
 }
 
 impl One for f32 {
-    #[inline(always)]
-    fn one() -> Self {
-        1.0
-    }
+    const ONE: Self = 1.0;
 }
 
 impl One for f64 {
-    #[inline(always)]
-    fn one() -> Self {
-        1.0
-    }
+    const ONE: Self = 1.0;
 }
 
 /// Helper trait to implement [`lerp`] and [`remap`].
@@ -96,12 +96,13 @@ impl Real for f64 {}
 /// assert_eq!(lerp(1.0..=5.0, 2.0), 9.0);
 /// ```
 #[inline(always)]
-pub fn lerp<R, T>(range: RangeInclusive<R>, t: T) -> R
+pub fn lerp<R, T>(range: impl Into<RangeInclusive<R>>, t: T) -> R
 where
     T: Real + Mul<R, Output = R>,
     R: Copy + Add<R, Output = R>,
 {
-    (T::one() - t) * *range.start() + t * *range.end()
+    let range = range.into();
+    (T::ONE - t) * *range.start() + t * *range.end()
 }
 
 /// Where in the range is this value? Returns 0-1 if within the range.
@@ -135,20 +136,28 @@ where
 /// Linearly remap a value from one range to another,
 /// so that when `x == from.start()` returns `to.start()`
 /// and when `x == from.end()` returns `to.end()`.
-pub fn remap<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
+pub fn remap<T>(x: T, from: impl Into<RangeInclusive<T>>, to: impl Into<RangeInclusive<T>>) -> T
 where
     T: Real,
 {
+    let from = from.into();
+    let to = to.into();
     crate::emath_assert!(from.start() != from.end());
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
 
 /// Like [`remap`], but also clamps the value so that the returned value is always in the `to` range.
-pub fn remap_clamp<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
+pub fn remap_clamp<T>(
+    x: T,
+    from: impl Into<RangeInclusive<T>>,
+    to: impl Into<RangeInclusive<T>>,
+) -> T
 where
     T: Real,
 {
+    let from = from.into();
+    let to = to.into();
     if from.end() < from.start() {
         return remap_clamp(x, *from.end()..=*from.start(), *to.end()..=*to.start());
     }
@@ -160,7 +169,7 @@ where
         crate::emath_assert!(from.start() != from.end());
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
-        if T::one() <= t {
+        if T::ONE <= t {
             *to.end()
         } else {
             lerp(to, t)
@@ -171,9 +180,7 @@ where
 /// Round a value to the given number of decimal places.
 pub fn round_to_decimals(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.
-    format!("{:.*}", decimal_places, value)
-        .parse()
-        .unwrap_or(value)
+    format!("{value:.decimal_places$}").parse().unwrap_or(value)
 }
 
 pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
@@ -191,7 +198,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
     if min_decimals != max_decimals {
         // Ugly/slow way of doing this. TODO(emilk): clean up precision.
         for decimals in min_decimals..max_decimals {
-            let text = format!("{:.*}", decimals, value);
+            let text = format!("{value:.decimals$}");
             let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
             if almost_equal(text.parse::<f32>().unwrap(), value as f32, epsilon) {
                 // Enough precision to show the value accurately - good!
@@ -202,7 +209,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
         // Probably the value was set not by the slider, but from outside.
         // In any case: show the full value
     }
-    format!("{:.*}", max_decimals, value)
+    format!("{value:.max_decimals$}")
 }
 
 /// Return true when arguments are the same within some rounding error.

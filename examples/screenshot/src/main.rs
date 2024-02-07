@@ -1,26 +1,28 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::{
-    egui::{self, ColorImage},
-    glow::{self, HasContext},
-};
-use itertools::Itertools as _;
+use std::sync::Arc;
+
+use eframe::egui::{self, ColorImage};
 
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions::default();
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    let options = eframe::NativeOptions {
+        renderer: eframe::Renderer::Wgpu,
+        ..Default::default()
+    };
     eframe::run_native(
         "Take screenshots and display with eframe/egui",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 
 #[derive(Default)]
 struct MyApp {
     continuously_take_screenshots: bool,
-    take_screenshot: bool,
     texture: Option<egui::TextureHandle>,
-    screenshot: Option<ColorImage>,
+    screenshot: Option<Arc<ColorImage>>,
+    save_to_file: bool,
 }
 
 impl eframe::App for MyApp {
@@ -40,6 +42,11 @@ impl eframe::App for MyApp {
                     "continuously take screenshots",
                 );
 
+                if ui.button("save to 'top_left.png'").clicked() {
+                    self.save_to_file = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                }
+
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                     if self.continuously_take_screenshots {
                         if ui
@@ -50,59 +57,46 @@ impl eframe::App for MyApp {
                         } else {
                             ctx.set_visuals(egui::Visuals::light());
                         };
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
                     } else if ui.button("take screenshot!").clicked() {
-                        self.take_screenshot = true;
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
                     }
                 });
             });
 
             if let Some(texture) = self.texture.as_ref() {
-                ui.image(texture, ui.available_size());
+                ui.image((texture.id(), ui.available_size()));
             } else {
                 ui.spinner();
             }
 
+            // Check for returned screenshot:
+            ui.input(|i| {
+                for event in &i.raw.events {
+                    if let egui::Event::Screenshot { image, .. } = event {
+                        if self.save_to_file {
+                            let pixels_per_point = i.pixels_per_point();
+                            let region = egui::Rect::from_two_pos(
+                                egui::Pos2::ZERO,
+                                egui::Pos2 { x: 100., y: 100. },
+                            );
+                            let top_left_corner = image.region(&region, Some(pixels_per_point));
+                            image::save_buffer(
+                                "top_left.png",
+                                top_left_corner.as_raw(),
+                                top_left_corner.width() as u32,
+                                top_left_corner.height() as u32,
+                                image::ColorType::Rgba8,
+                            )
+                            .unwrap();
+                            self.save_to_file = false;
+                        }
+                        self.screenshot = Some(image.clone());
+                    }
+                }
+            });
+
             ctx.request_repaint();
         });
-    }
-
-    #[allow(unsafe_code)]
-    fn post_rendering(&mut self, screen_size_px: [u32; 2], frame: &eframe::Frame) {
-        if !self.take_screenshot && !self.continuously_take_screenshots {
-            return;
-        }
-
-        self.take_screenshot = false;
-        if let Some(gl) = frame.gl() {
-            let [w, h] = screen_size_px;
-            let mut buf = vec![0u8; w as usize * h as usize * 4];
-            let pixels = glow::PixelPackData::Slice(&mut buf[..]);
-            unsafe {
-                gl.read_pixels(
-                    0,
-                    0,
-                    w as i32,
-                    h as i32,
-                    glow::RGBA,
-                    glow::UNSIGNED_BYTE,
-                    pixels,
-                );
-            }
-
-            // Flip vertically:
-            let mut rows: Vec<Vec<u8>> = buf
-                .into_iter()
-                .chunks(w as usize * 4)
-                .into_iter()
-                .map(|chunk| chunk.collect())
-                .collect();
-            rows.reverse();
-            let buf: Vec<u8> = rows.into_iter().flatten().collect();
-
-            self.screenshot = Some(ColorImage::from_rgba_unmultiplied(
-                [screen_size_px[0] as usize, screen_size_px[1] as usize],
-                &buf[..],
-            ));
-        }
     }
 }

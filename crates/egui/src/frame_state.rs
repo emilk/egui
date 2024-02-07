@@ -1,5 +1,3 @@
-use std::ops::RangeInclusive;
-
 use crate::{id::IdSet, *};
 
 #[derive(Clone, Copy, Debug)]
@@ -21,7 +19,6 @@ pub(crate) struct AccessKitFrameState {
 #[derive(Clone)]
 pub(crate) struct FrameState {
     /// All [`Id`]s that were used this frame.
-    /// Used to debug [`Id`] clashes of widgets.
     pub(crate) used_ids: IdMap<Rect>,
 
     /// Starts off as the screen_rect, shrinks as panels are added.
@@ -41,13 +38,8 @@ pub(crate) struct FrameState {
     /// Initialized to `None` at the start of each frame.
     pub(crate) tooltip_state: Option<TooltipFrameState>,
 
-    /// Set to [`InputState::scroll_delta`] on the start of each frame.
-    ///
-    /// Cleared by the first [`ScrollArea`] that makes use of it.
-    pub(crate) scroll_delta: Vec2, // TODO(emilk): move to `InputState` ?
-
     /// horizontal, vertical
-    pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
+    pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
 
     #[cfg(feature = "accesskit")]
     pub(crate) accesskit_state: Option<AccessKitFrameState>,
@@ -57,6 +49,9 @@ pub(crate) struct FrameState {
 
     /// Highlight these widgets the next frame. Write to this.
     pub(crate) highlight_next_frame: IdSet,
+
+    #[cfg(debug_assertions)]
+    pub(crate) has_debug_viewed_this_frame: bool,
 }
 
 impl Default for FrameState {
@@ -67,30 +62,35 @@ impl Default for FrameState {
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
             tooltip_state: None,
-            scroll_delta: Vec2::ZERO,
             scroll_target: [None, None],
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_this_frame: Default::default(),
             highlight_next_frame: Default::default(),
+
+            #[cfg(debug_assertions)]
+            has_debug_viewed_this_frame: false,
         }
     }
 }
 
 impl FrameState {
     pub(crate) fn begin_frame(&mut self, input: &InputState) {
+        crate::profile_function!();
         let Self {
             used_ids,
             available_rect,
             unused_rect,
             used_by_panels,
             tooltip_state,
-            scroll_delta,
             scroll_target,
             #[cfg(feature = "accesskit")]
             accesskit_state,
             highlight_this_frame,
             highlight_next_frame,
+
+            #[cfg(debug_assertions)]
+            has_debug_viewed_this_frame,
         } = self;
 
         used_ids.clear();
@@ -98,8 +98,12 @@ impl FrameState {
         *unused_rect = input.screen_rect();
         *used_by_panels = Rect::NOTHING;
         *tooltip_state = None;
-        *scroll_delta = input.scroll_delta;
         *scroll_target = [None, None];
+
+        #[cfg(debug_assertions)]
+        {
+            *has_debug_viewed_this_frame = false;
+        }
 
         #[cfg(feature = "accesskit")]
         {

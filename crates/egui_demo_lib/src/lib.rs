@@ -10,14 +10,22 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
+#![cfg_attr(feature = "puffin", deny(unsafe_code))]
+#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 mod color_test;
 mod demo;
 pub mod easy_mark;
-pub mod syntax_highlighting;
 
 pub use color_test::ColorTest;
-pub use demo::DemoWindows;
+pub use demo::{DemoWindows, WidgetGallery};
+
+/// View some Rust code with syntax highlighting and selection.
+pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {
+    let language = "rs";
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+    egui_extras::syntax_highlighting::code_view_ui(ui, &theme, code, language);
+}
 
 // ----------------------------------------------------------------------------
 
@@ -55,7 +63,7 @@ pub const LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscin
 
 pub const LOREM_IPSUM_LONG: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu. Aliquam consequat. Curabitur augue lorem, dapibus quis, laoreet et, pretium ac, nisi. Aenean magna nisl, mollis quis, molestie eu, feugiat in, orci. In hac habitasse platea dictumst.";
+Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam various, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu. Aliquam consequat. Curabitur augue lorem, dapibus quis, laoreet et, pretium ac, nisi. Aenean magna nisl, mollis quis, molestie eu, feugiat in, orci. In hac habitasse platea dictumst.";
 
 // ----------------------------------------------------------------------------
 
@@ -70,7 +78,7 @@ fn test_egui_e2e() {
         let full_output = ctx.run(raw_input.clone(), |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
         assert!(!clipped_primitives.is_empty());
     }
 }
@@ -89,7 +97,7 @@ fn test_egui_zero_window_size() {
         let full_output = ctx.run(raw_input.clone(), |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
         assert!(
             clipped_primitives.is_empty(),
             "There should be nothing to show, has at least one primitive with clip_rect: {:?}",

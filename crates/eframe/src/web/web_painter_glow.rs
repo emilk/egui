@@ -24,10 +24,11 @@ impl WebPainterGlow {
 
         let (gl, shader_prefix) =
             init_glow_context_from_canvas(&canvas, options.webgl_context_option)?;
+        #[allow(clippy::arc_with_non_send_sync)]
         let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None)
-            .map_err(|error| format!("Error starting glow painter: {}", error))?;
+            .map_err(|err| format!("Error starting glow painter: {err}"))?;
 
         Ok(Self {
             canvas,
@@ -106,14 +107,14 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl1_ctx = gl1_ctx?;
-    tracing::debug!("WebGL1 selected.");
+    log::debug!("WebGL1 selected.");
 
     let gl1_ctx = gl1_ctx
         .dyn_into::<web_sys::WebGlRenderingContext>()
         .unwrap();
 
     let shader_prefix = if webgl1_requires_brightening(&gl1_ctx) {
-        tracing::debug!("Enabling webkitGTK brightening workaround.");
+        log::debug!("Enabling webkitGTK brightening workaround.");
         "#define APPLY_BRIGHTENING_GAMMA"
     } else {
         ""
@@ -130,7 +131,7 @@ fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl2_ctx = gl2_ctx?;
-    tracing::debug!("WebGL2 selected.");
+    log::debug!("WebGL2 selected.");
 
     let gl2_ctx = gl2_ctx
         .dyn_into::<web_sys::WebGl2RenderingContext>()

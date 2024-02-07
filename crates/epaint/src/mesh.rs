@@ -84,6 +84,8 @@ impl Mesh {
 
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
+        crate::profile_function!();
+
         if let Ok(n) = u32::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
         } else {
@@ -105,7 +107,8 @@ impl Mesh {
     }
 
     /// Append all the indices and vertices of `other` to `self`.
-    pub fn append(&mut self, other: Mesh) {
+    pub fn append(&mut self, other: Self) {
+        crate::profile_function!();
         crate::epaint_assert!(other.is_valid());
 
         if self.is_empty() {
@@ -117,16 +120,16 @@ impl Mesh {
 
     /// Append all the indices and vertices of `other` to `self` without
     /// taking ownership.
-    pub fn append_ref(&mut self, other: &Mesh) {
+    pub fn append_ref(&mut self, other: &Self) {
         crate::epaint_assert!(other.is_valid());
 
-        if !self.is_empty() {
+        if self.is_empty() {
+            self.texture_id = other.texture_id;
+        } else {
             assert_eq!(
                 self.texture_id, other.texture_id,
                 "Can't merge Mesh using different textures"
             );
-        } else {
-            self.texture_id = other.texture_id;
         }
 
         let index_offset = self.vertices.len() as u32;
@@ -251,8 +254,7 @@ impl Mesh {
 
             assert!(
                 index_cursor > span_start,
-                "One triangle spanned more than {} vertices",
-                MAX_SIZE
+                "One triangle spanned more than {MAX_SIZE} vertices"
             );
 
             let mesh = Mesh16 {

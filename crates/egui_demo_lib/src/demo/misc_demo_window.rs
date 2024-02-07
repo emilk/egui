@@ -1,16 +1,11 @@
 use super::*;
-use crate::LOREM_IPSUM;
-use egui::{epaint::text::TextWrapping, *};
+use egui::*;
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct MiscDemoWindow {
     num_columns: usize,
-
-    break_anywhere: bool,
-    max_rows: usize,
-    overflow_character: Option<char>,
 
     widgets: Widgets,
     colors: ColorWidgets,
@@ -20,16 +15,13 @@ pub struct MiscDemoWindow {
 
     dummy_bool: bool,
     dummy_usize: usize,
+    checklist: [bool; 3],
 }
 
 impl Default for MiscDemoWindow {
-    fn default() -> MiscDemoWindow {
-        MiscDemoWindow {
+    fn default() -> Self {
+        Self {
             num_columns: 2,
-
-            max_rows: 2,
-            break_anywhere: false,
-            overflow_character: Some('…'),
 
             widgets: Default::default(),
             colors: Default::default(),
@@ -39,6 +31,7 @@ impl Default for MiscDemoWindow {
 
             dummy_bool: false,
             dummy_usize: 0,
+            checklist: std::array::from_fn(|i| i == 0),
         }
     }
 }
@@ -61,8 +54,14 @@ impl View for MiscDemoWindow {
     fn ui(&mut self, ui: &mut Ui) {
         ui.set_min_width(250.0);
 
-        CollapsingHeader::new("Widgets")
+        CollapsingHeader::new("Label")
             .default_open(true)
+            .show(ui, |ui| {
+                label_ui(ui);
+            });
+
+        CollapsingHeader::new("Misc widgets")
+            .default_open(false)
             .show(ui, |ui| {
                 self.widgets.ui(ui);
             });
@@ -70,12 +69,10 @@ impl View for MiscDemoWindow {
         CollapsingHeader::new("Text layout")
             .default_open(false)
             .show(ui, |ui| {
-                text_layout_ui(
-                    ui,
-                    &mut self.max_rows,
-                    &mut self.break_anywhere,
-                    &mut self.overflow_character,
-                );
+                text_layout_demo(ui);
+                ui.vertical_centered(|ui| {
+                    ui.add(crate::egui_github_link_file_line!());
+                });
             });
 
         CollapsingHeader::new("Colors")
@@ -112,6 +109,24 @@ impl View for MiscDemoWindow {
                     }
                 });
                 ui.radio_value(&mut self.dummy_usize, 64, "radio_value");
+                ui.label("Checkboxes can be in an indeterminate state:");
+                let mut all_checked = self.checklist.iter().all(|item| *item);
+                let any_checked = self.checklist.iter().any(|item| *item);
+                let indeterminate = any_checked && !all_checked;
+                if ui
+                    .add(
+                        Checkbox::new(&mut all_checked, "Check/uncheck all")
+                            .indeterminate(indeterminate),
+                    )
+                    .changed()
+                {
+                    self.checklist
+                        .iter_mut()
+                        .for_each(|checked| *checked = all_checked);
+                }
+                for (i, checked) in self.checklist.iter_mut().enumerate() {
+                    ui.checkbox(checked, format!("Item {}", i + 1));
+                }
             });
 
         ui.collapsing("Columns", |ui| {
@@ -177,6 +192,43 @@ impl View for MiscDemoWindow {
 
 // ----------------------------------------------------------------------------
 
+fn label_ui(ui: &mut egui::Ui) {
+    ui.vertical_centered(|ui| {
+        ui.add(crate::egui_github_link_file_line!());
+    });
+
+    ui.horizontal_wrapped(|ui| {
+            // Trick so we don't have to add spaces in the text below:
+            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+            ui.spacing_mut().item_spacing.x = width;
+
+            ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
+            ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
+            ui.label("and tooltips.").on_hover_text(
+                "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
+            );
+
+            ui.label("You can mix in other widgets into text, like");
+            let _ = ui.small_button("this button");
+            ui.label(".");
+
+            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
+                .on_hover_text("There is currently no support for right-to-left languages.");
+            ui.label("See the 🔤 Font Book for more!");
+
+            ui.monospace("There is also a monospace font.");
+        });
+
+    ui.add(
+        egui::Label::new(
+            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::elide`. When hovered, the label will show the full text.",
+        )
+        .truncate(true),
+    );
+}
+
+// ----------------------------------------------------------------------------
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
@@ -198,28 +250,6 @@ impl Widgets {
         let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file_line!());
-        });
-
-        ui.horizontal_wrapped(|ui| {
-            // Trick so we don't have to add spaces in the text below:
-            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
-            ui.spacing_mut().item_spacing.x = width;
-
-            ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
-            ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
-            ui.label("and tooltips.").on_hover_text(
-                "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
-            );
-
-            ui.label("You can mix in other widgets into text, like");
-            let _ = ui.small_button("this button");
-            ui.label(".");
-
-            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
-                .on_hover_text("There is currently no support for right-to-left languages.");
-            ui.label("See the 🔤 Font Book for more!");
-
-            ui.monospace("There is also a monospace font.");
         });
 
         let tooltip_ui = |ui: &mut Ui| {
@@ -269,7 +299,7 @@ struct ColorWidgets {
 impl Default for ColorWidgets {
     fn default() -> Self {
         // Approximately the same color.
-        ColorWidgets {
+        Self {
             srgba_unmul: [0, 255, 183, 127],
             srgba_premul: [0, 187, 140, 127],
             rgba_unmul: [0.0, 1.0, 0.5, 0.5],
@@ -361,7 +391,7 @@ impl BoxPainting {
                 ui.painter().rect(
                     rect,
                     self.rounding,
-                    Color32::from_gray(64),
+                    ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
                 );
             }
@@ -422,8 +452,8 @@ struct Tree(Vec<Tree>);
 impl Tree {
     pub fn demo() -> Self {
         Self(vec![
-            Tree(vec![Tree::default(); 4]),
-            Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
+            Self(vec![Self::default(); 4]),
+            Self(vec![Self(vec![Self::default(); 2]); 3]),
         ])
     }
 
@@ -455,7 +485,7 @@ impl Tree {
             .into_iter()
             .enumerate()
             .filter_map(|(i, mut tree)| {
-                if tree.ui_impl(ui, depth + 1, &format!("child #{}", i)) == Action::Keep {
+                if tree.ui_impl(ui, depth + 1, &format!("child #{i}")) == Action::Keep {
                     Some(tree)
                 } else {
                     None
@@ -464,7 +494,7 @@ impl Tree {
             .collect();
 
         if ui.button("+").clicked() {
-            self.0.push(Tree::default());
+            self.0.push(Self::default());
         }
 
         Action::Keep
@@ -473,12 +503,7 @@ impl Tree {
 
 // ----------------------------------------------------------------------------
 
-fn text_layout_ui(
-    ui: &mut egui::Ui,
-    max_rows: &mut usize,
-    break_anywhere: &mut bool,
-    overflow_character: &mut Option<char>,
-) {
+fn text_layout_demo(ui: &mut Ui) {
     use egui::text::LayoutJob;
 
     let mut job = LayoutJob::default();
@@ -632,32 +657,4 @@ fn text_layout_ui(
     );
 
     ui.label(job);
-
-    ui.separator();
-
-    ui.horizontal(|ui| {
-        ui.add(DragValue::new(max_rows));
-        ui.label("Max rows");
-    });
-    ui.checkbox(break_anywhere, "Break anywhere");
-    ui.horizontal(|ui| {
-        ui.selectable_value(overflow_character, None, "None");
-        ui.selectable_value(overflow_character, Some('…'), "…");
-        ui.selectable_value(overflow_character, Some('—'), "—");
-        ui.selectable_value(overflow_character, Some('-'), "  -  ");
-        ui.label("Overflow character");
-    });
-
-    let mut job = LayoutJob::single_section(LOREM_IPSUM.to_owned(), TextFormat::default());
-    job.wrap = TextWrapping {
-        max_rows: *max_rows,
-        break_anywhere: *break_anywhere,
-        overflow_character: *overflow_character,
-        ..Default::default()
-    };
-    ui.label(job);
-
-    ui.vertical_centered(|ui| {
-        ui.add(crate::egui_github_link_file_line!());
-    });
 }
