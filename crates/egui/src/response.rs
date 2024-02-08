@@ -596,13 +596,14 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
-        self.ctx.interact_with_hovered(
+        self.ctx.interact(
+            self.rect,
+            self.ctx.style().spacing.item_spacing,
             self.layer_id,
             self.id,
             self.rect,
             sense,
             self.enabled,
-            self.hovered,
         )
     }
 
