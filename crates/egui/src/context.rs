@@ -1194,9 +1194,7 @@ impl Context {
                 }
             }
 
-            if res.is_pointer_button_down_on {
-                res.interact_pointer_pos = input.pointer.interact_pos();
-            }
+            res.interact_pointer_pos = input.pointer.interact_pos();
 
             if input.pointer.any_down() && !res.is_pointer_button_down_on {
                 // We don't hover widgets while interacting with *other* widgets:
