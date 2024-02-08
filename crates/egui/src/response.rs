@@ -597,7 +597,7 @@ impl Response {
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
         self.ctx.interact(
-            self.rect,
+            self.ctx.layer_painter(self.layer_id).clip_rect(),
             self.ctx.style().spacing.item_spacing,
             self.layer_id,
             self.id,
