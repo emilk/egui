@@ -334,7 +334,7 @@ impl<'a> Widget for Image<'a> {
         let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
         let ui_size = self.calc_size(ui.available_size(), original_image_size);
 
-        let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
+        let (rect, response) = ui.allocate_exact_size(ui_size, Sense::click_and_drag());
         if ui.is_rect_visible(rect) {
             paint_texture_load_result(
                 ui,
