@@ -2,7 +2,25 @@
 All notable changes to the epaint crate will be documented in this file.
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.26.0 - 2024-02-05
+* Add `Align2::anchor_size` [#3863](https://github.com/emilk/egui/pull/3863)
+* Add opacity factor to `TextShape` [#3916](https://github.com/emilk/egui/pull/3916) (thanks [@StratusFearMe21](https://github.com/StratusFearMe21)!)
+* Parallel tessellation with opt-in `rayon` feature [#3934](https://github.com/emilk/egui/pull/3934)
+
+
+## 0.25.0 - 2024-01-08
+* Replace a special `Color32::PLACEHOLDER` with widget fallback color [#3727](https://github.com/emilk/egui/pull/3727)
+* Add support for dashed lines with offset [#3720](https://github.com/emilk/egui/pull/3720) (thanks [@oscargus](https://github.com/oscargus)!)
+* Impl `Clone` for `Fonts` [#3737](https://github.com/emilk/egui/pull/3737)
+* Fix: allow using the full Private Use Area for custom fonts [#3509](https://github.com/emilk/egui/pull/3509) (thanks [@varphone](https://github.com/varphone)!)
+* Add `Color32::from_hex` and `Color32::to_hex` [#3570](https://github.com/emilk/egui/pull/3570) [#3777](https://github.com/emilk/egui/pull/3777) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+
+
+## 0.24.1 - 2023-11-30
+* Optimize `FontImage::srgba_pixels` and reduce the initial font atlas texture size from 8MiB -> 1MiB [#3666](https://github.com/emilk/egui/pull/3666)
 
 
 ## 0.24.0 - 2023-11-23

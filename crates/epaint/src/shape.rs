@@ -66,9 +66,9 @@ fn shape_impl_send_sync() {
     assert_send_sync::<Shape>();
 }
 
-impl From<Vec<Shape>> for Shape {
+impl From<Vec<Self>> for Shape {
     #[inline(always)]
-    fn from(shapes: Vec<Shape>) -> Self {
+    fn from(shapes: Vec<Self>) -> Self {
         Self::Vec(shapes)
     }
 }
@@ -95,7 +95,7 @@ impl Shape {
     /// A horizontal line.
     pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> Self {
         let x = x.into();
-        Shape::LineSegment {
+        Self::LineSegment {
             points: [pos2(x.min, y), pos2(x.max, y)],
             stroke: stroke.into(),
         }
@@ -104,7 +104,7 @@ impl Shape {
     /// A vertical line.
     pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> Self {
         let y = y.into();
-        Shape::LineSegment {
+        Self::LineSegment {
             points: [pos2(x, y.min), pos2(x, y.max)],
             stroke: stroke.into(),
         }
@@ -144,20 +144,74 @@ impl Shape {
         gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(path, stroke.into(), dash_length, gap_length, &mut shapes);
+        dashes_from_line(
+            path,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            &mut shapes,
+            0.,
+        );
+        shapes
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset.
+    pub fn dashed_line_with_offset(
+        path: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+    ) -> Vec<Self> {
+        let mut shapes = Vec::new();
+        dashes_from_line(
+            path,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            &mut shapes,
+            dash_offset,
+        );
         shapes
     }
 
     /// Turn a line into dashes. If you need to create many dashed lines use this instead of
-    /// [`Self::dashed_line`]
+    /// [`Self::dashed_line`].
     pub fn dashed_line_many(
         points: &[Pos2],
         stroke: impl Into<Stroke>,
         dash_length: f32,
         gap_length: f32,
-        shapes: &mut Vec<Shape>,
+        shapes: &mut Vec<Self>,
     ) {
-        dashes_from_line(points, stroke.into(), dash_length, gap_length, shapes);
+        dashes_from_line(
+            points,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            shapes,
+            0.,
+        );
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset. If you need to
+    /// create many dashed lines use this instead of [`Self::dashed_line_with_offset`].
+    pub fn dashed_line_many_with_offset(
+        points: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+        shapes: &mut Vec<Self>,
+    ) {
+        dashes_from_line(
+            points,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            shapes,
+            dash_offset,
+        );
     }
 
     /// A convex polygon with a fill and optional stroke.
@@ -210,25 +264,37 @@ impl Shape {
         color: Color32,
     ) -> Self {
         let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
-        Self::galley(rect.min, galley)
+        let rect = anchor.anchor_size(pos, galley.size());
+        Self::galley(rect.min, galley, color)
+    }
+
+    /// Any uncolored parts of the [`Galley`] (using [`Color32::PLACEHOLDER`]) will be replaced with the given color.
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
+    #[inline]
+    pub fn galley(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
+        TextShape::new(pos, galley, fallback_color).into()
+    }
+
+    /// All text color in the [`Galley`] will be replaced with the given color.
+    #[inline]
+    pub fn galley_with_override_text_color(
+        pos: Pos2,
+        galley: Arc<Galley>,
+        text_color: Color32,
+    ) -> Self {
+        TextShape::new(pos, galley, text_color)
+            .with_override_text_color(text_color)
+            .into()
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: Arc<Galley>) -> Self {
-        TextShape::new(pos, galley).into()
-    }
-
-    #[inline]
-    /// The text color in the [`Galley`] will be replaced with the given color.
+    #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
     pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
-        TextShape {
-            override_text_color: Some(text_color),
-            ..TextShape::new(pos, galley)
-        }
-        .into()
+        Self::galley_with_override_text_color(pos, galley, text_color)
     }
 
+    #[inline]
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
@@ -243,7 +309,7 @@ impl Shape {
     pub fn image(texture_id: TextureId, rect: Rect, uv: Rect, tint: Color32) -> Self {
         let mut mesh = Mesh::with_texture(texture_id);
         mesh.add_rect_with_uv(rect, uv, tint);
-        Shape::mesh(mesh)
+        Self::mesh(mesh)
     }
 
     /// The visual bounding rectangle (includes stroke widths)
@@ -280,9 +346,9 @@ impl Shape {
 impl Shape {
     #[inline(always)]
     pub fn texture_id(&self) -> super::TextureId {
-        if let Shape::Mesh(mesh) = self {
+        if let Self::Mesh(mesh) = self {
             mesh.texture_id
-        } else if let Shape::Rect(rect_shape) = self {
+        } else if let Self::Rect(rect_shape) = self {
             rect_shape.fill_texture_id
         } else {
             super::TextureId::default()
@@ -292,45 +358,45 @@ impl Shape {
     /// Move the shape by this many points, in-place.
     pub fn translate(&mut self, delta: Vec2) {
         match self {
-            Shape::Noop => {}
-            Shape::Vec(shapes) => {
+            Self::Noop => {}
+            Self::Vec(shapes) => {
                 for shape in shapes {
                     shape.translate(delta);
                 }
             }
-            Shape::Circle(circle_shape) => {
+            Self::Circle(circle_shape) => {
                 circle_shape.center += delta;
             }
-            Shape::LineSegment { points, .. } => {
+            Self::LineSegment { points, .. } => {
                 for p in points {
                     *p += delta;
                 }
             }
-            Shape::Path(path_shape) => {
+            Self::Path(path_shape) => {
                 for p in &mut path_shape.points {
                     *p += delta;
                 }
             }
-            Shape::Rect(rect_shape) => {
+            Self::Rect(rect_shape) => {
                 rect_shape.rect = rect_shape.rect.translate(delta);
             }
-            Shape::Text(text_shape) => {
+            Self::Text(text_shape) => {
                 text_shape.pos += delta;
             }
-            Shape::Mesh(mesh) => {
+            Self::Mesh(mesh) => {
                 mesh.translate(delta);
             }
-            Shape::QuadraticBezier(bezier_shape) => {
+            Self::QuadraticBezier(bezier_shape) => {
                 bezier_shape.points[0] += delta;
                 bezier_shape.points[1] += delta;
                 bezier_shape.points[2] += delta;
             }
-            Shape::CubicBezier(cubic_curve) => {
+            Self::CubicBezier(cubic_curve) => {
                 for p in &mut cubic_curve.points {
                     *p += delta;
                 }
             }
-            Shape::Callback(shape) => {
+            Self::Callback(shape) => {
                 shape.rect = shape.rect.translate(delta);
             }
         }
@@ -418,7 +484,7 @@ impl PathShape {
     /// Use [`Shape::line_segment`] instead if your line only connects two points.
     #[inline]
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        PathShape {
+        Self {
             points,
             closed: false,
             fill: Default::default(),
@@ -429,7 +495,7 @@ impl PathShape {
     /// A line that closes back to the start point again.
     #[inline]
     pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        PathShape {
+        Self {
             points,
             closed: true,
             fill: Default::default(),
@@ -446,7 +512,7 @@ impl PathShape {
         fill: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        PathShape {
+        Self {
             points,
             closed: true,
             fill: fill.into(),
@@ -622,17 +688,6 @@ impl Rounding {
         }
     }
 
-    #[inline]
-    #[deprecated = "Use Rounding::ZERO"]
-    pub fn none() -> Self {
-        Self {
-            nw: 0.0,
-            ne: 0.0,
-            sw: 0.0,
-            se: 0.0,
-        }
-    }
-
     /// Do all corners have the same rounding?
     #[inline]
     pub fn is_same(&self) -> bool {
@@ -680,10 +735,19 @@ pub struct TextShape {
     /// You can also set an underline when creating the galley.
     pub underline: Stroke,
 
+    /// Any [`Color32::PLACEHOLDER`] in the galley will be replaced by the given color.
+    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    pub fallback_color: Color32,
+
     /// If set, the text color in the galley will be ignored and replaced
     /// with the given color.
-    /// This will NOT replace background color nor strikethrough/underline color.
+    ///
+    /// This only affects the glyphs and will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
+
+    /// If set, the text will be rendered with the given opacity in gamma space
+    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    pub opacity_factor: f32,
 
     /// Rotate text by this many radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
@@ -691,13 +755,18 @@ pub struct TextShape {
 }
 
 impl TextShape {
+    /// The given fallback color will be used for any uncolored part of the galley (using [`Color32::PLACEHOLDER`]).
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
     #[inline]
-    pub fn new(pos: Pos2, galley: Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
         Self {
             pos,
             galley,
             underline: Stroke::NONE,
+            fallback_color,
             override_text_color: None,
+            opacity_factor: 1.0,
             angle: 0.0,
         }
     }
@@ -706,6 +775,34 @@ impl TextShape {
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
         self.galley.mesh_bounds.translate(self.pos.to_vec2())
+    }
+
+    #[inline]
+    pub fn with_underline(mut self, underline: Stroke) -> Self {
+        self.underline = underline;
+        self
+    }
+
+    /// Use the given color for the text, regardless of what color is already in the galley.
+    #[inline]
+    pub fn with_override_text_color(mut self, override_text_color: Color32) -> Self {
+        self.override_text_color = Some(override_text_color);
+        self
+    }
+
+    /// Rotate text by this many radians clockwise.
+    /// The pivot is `pos` (the upper left corner of the text).
+    #[inline]
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    /// Render text with this opacity in gamma space
+    #[inline]
+    pub fn with_opacity_factor(mut self, opacity_factor: f32) -> Self {
+        self.opacity_factor = opacity_factor;
+        self
     }
 }
 
@@ -744,12 +841,16 @@ fn points_from_line(
 fn dashes_from_line(
     path: &[Pos2],
     stroke: Stroke,
-    dash_length: f32,
-    gap_length: f32,
+    dash_lengths: &[f32],
+    gap_lengths: &[f32],
     shapes: &mut Vec<Shape>,
+    dash_offset: f32,
 ) {
-    let mut position_on_segment = 0.0;
+    assert_eq!(dash_lengths.len(), gap_lengths.len());
+    let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
+    let mut step = 0;
+    let steps = dash_lengths.len();
     path.windows(2).for_each(|window| {
         let (start, end) = (window[0], window[1]);
         let vector = end - start;
@@ -761,11 +862,16 @@ fn dashes_from_line(
             if drawing_dash {
                 // This is the end point.
                 shapes.push(Shape::line_segment([start_point, new_point], stroke));
-                position_on_segment += gap_length;
+                position_on_segment += gap_lengths[step];
+                // Increment step counter
+                step += 1;
+                if step >= steps {
+                    step = 0;
+                }
             } else {
                 // Start a new dash.
                 start_point = new_point;
-                position_on_segment += dash_length;
+                position_on_segment += dash_lengths[step];
             }
             drawing_dash = !drawing_dash;
         }

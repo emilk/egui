@@ -4,7 +4,50 @@ All notable changes to the `eframe` crate.
 NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.26.0 - 2024-02-05
+* Update `wgpu` to 0.19 [#3824](https://github.com/emilk/egui/pull/3824)
+* Disable the default features of `wgpu` [#3875](https://github.com/emilk/egui/pull/3875)
+* Much more accurate `cpu_usage` timing [#3913](https://github.com/emilk/egui/pull/3913)
+* Update to puffin 0.19 [#3940](https://github.com/emilk/egui/pull/3940)
+
+#### Desktop/Native:
+* Keep `ViewportInfo::maximized` and `minimized` up-to-date on Windows [#3831](https://github.com/emilk/egui/pull/3831) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Handle `IconData::default()` without crashing [#3842](https://github.com/emilk/egui/pull/3842)
+* Fix Android crash on resume [#3847](https://github.com/emilk/egui/pull/3847) [#3867](https://github.com/emilk/egui/pull/3867) (thanks [@Garoven](https://github.com/Garoven)!)
+* Add `WgpuConfiguration::desired_maximum_frame_latency` [#3874](https://github.com/emilk/egui/pull/3874)
+* Don't call `App::update` on minimized windows [#3877](https://github.com/emilk/egui/pull/3877) (thanks [@rustbasic](https://github.com/rustbasic)!)
+
+#### Web:
+* When using `wgpu` on web, `eframe` will try to use WebGPU if available, then fall back to WebGL [#3824](https://github.com/emilk/egui/pull/3824) [#3895](https://github.com/emilk/egui/pull/3895) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
+## 0.25.0 - 2024-01-08
+* If both `glow` and `wgpu` features are enabled, default to `wgpu` [#3717](https://github.com/emilk/egui/pull/3717)
+
+#### Desktop/Native:
+* Update to winit 0.29 [#3649](https://github.com/emilk/egui/pull/3649) (thanks [@fornwall](https://github.com/fornwall)!)
+* Make glow `Send + Sync` again [#3646](https://github.com/emilk/egui/pull/3646) (thanks [@surban](https://github.com/surban)!)
+* Bug fix: framebuffer clear when using glow with multi-viewports [#3713](https://github.com/emilk/egui/pull/3713)
+* Fix: Let `accesskit` process window events [#3733](https://github.com/emilk/egui/pull/3733) (thanks [@DataTriny](https://github.com/DataTriny)!)
+
+#### Web:
+* Fix building the `wasm32` docs for `docs.rs` [#3757](https://github.com/emilk/egui/pull/3757)
+
+
+## 0.24.1 - 2023-11-30
+#### Desktop/Native:
+* Fix window flashing white on launch [#3631](https://github.com/emilk/egui/pull/3631) (thanks [@zeozeozeo](https://github.com/zeozeozeo)!)
+* Fix windowing problems when using the `x11` feature on Linux [#3643](https://github.com/emilk/egui/pull/3643)
+* Fix bugs when there are multiple monitors with different scales [#3663](https://github.com/emilk/egui/pull/3663)
+* `glow` backend: clear framebuffer color before calling `App::update` [#3665](https://github.com/emilk/egui/pull/3665)
+
+#### Web:
+* Fix click-to-copy on Safari [#3621](https://github.com/emilk/egui/pull/3621)
+* Don't throw away frames on click/copy/cut [#3623](https://github.com/emilk/egui/pull/3623)
+* Remove dependency on `tts` [#3651](https://github.com/emilk/egui/pull/3651)
 
 
 ## 0.24.0 - 2023-11-23

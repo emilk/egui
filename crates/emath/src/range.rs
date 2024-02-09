@@ -71,7 +71,7 @@ impl Rangef {
     /// Flip `min` and `max` if needed, so that `min <= max` after.
     #[inline]
     pub fn as_positive(self) -> Self {
-        Rangef {
+        Self {
             min: self.min.min(self.max),
             max: self.min.max(self.max),
         }
@@ -124,6 +124,21 @@ impl Rangef {
             min: self.min.max(other.min),
             max: self.max.min(other.max),
         }
+    }
+
+    /// Do the two ranges intersect?
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert!(Rangef::new(0.0, 10.0).intersects(Rangef::new(5.0, 15.0)));
+    /// assert!(Rangef::new(0.0, 10.0).intersects(Rangef::new(5.0, 6.0)));
+    /// assert!(Rangef::new(0.0, 10.0).intersects(Rangef::new(10.0, 20.0)));
+    /// assert!(!Rangef::new(0.0, 10.0).intersects(Rangef::new(20.0, 30.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn intersects(self, other: Self) -> bool {
+        other.min <= self.max && self.min <= other.max
     }
 }
 

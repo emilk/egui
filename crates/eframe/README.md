@@ -5,7 +5,7 @@
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
-`eframe` is the official framework library for writing apps using [`egui`](https://github.com/emilk/egui). The app can be compiled both to run natively (cross platform) or be compiled to a web app (using WASM).
+`eframe` is the official framework library for writing apps using [`egui`](https://github.com/emilk/egui). The app can be compiled both to run natively (for Linux, Mac, Windows, and Android) or as a web app (using [Wasm](https://en.wikipedia.org/wiki/WebAssembly)).
 
 To get started, see the [examples](https://github.com/emilk/egui/tree/master/examples).
 To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
@@ -36,15 +36,15 @@ To get copy-paste working on web, you need to compile with `export RUSTFLAGS=--c
 You can also use `egui_glow` and [`winit`](https://github.com/rust-windowing/winit) to build your own app as demonstrated in <https://github.com/emilk/egui/blob/master/crates/egui_glow/examples/pure_glow.rs>.
 
 
-## Problems with running egui on the web
-`eframe` uses WebGL (via [`glow`](https://crates.io/crates/glow)) and WASM, and almost nothing else from the web tech stack. This has some benefits, but also produces some challenges and serious downsides.
+## Limitations when running egui on the web
+`eframe` uses WebGL (via [`glow`](https://crates.io/crates/glow)) and Wasm, and almost nothing else from the web tech stack. This has some benefits, but also produces some challenges and serious downsides.
 
 * Rendering: Getting pixel-perfect rendering right on the web is very difficult.
 * Search: you cannot search an egui web page like you would a normal web page.
 * Bringing up an on-screen keyboard on mobile: there is no JS function to do this, so `eframe` fakes it by adding some invisible DOM elements. It doesn't always work.
 * Mobile text editing is not as good as for a normal web app.
-* Accessibility: There is an experimental screen reader for `eframe`, but it has to be enabled explicitly. There is no JS function to ask "Does the user want a screen reader?" (and there should probably not be such a function, due to user tracking/integrity concerns).
 * No integration with browser settings for colors and fonts.
+* Accessibility: There is an experimental screen reader for `eframe`, but it has to be enabled explicitly. There is no JS function to ask "Does the user want a screen reader?" (and there should probably not be such a function, due to user tracking/integrity concerns). `egui` supports [AccessKit](https://github.com/AccessKit/accesskit), but as of early 2024, AccessKit lacks a Web backend.
 
 In many ways, `eframe` is trying to make the browser do something it wasn't designed to do (though there are many things browser vendors could do to improve how well libraries like egui work).
 
@@ -52,12 +52,13 @@ The suggested use for `eframe` are for web apps where performance and responsive
 
 
 ## Companion crates
-Not all rust crates work when compiled to WASM, but here are some useful crates have been designed to work well both natively and as WASM:
+Not all rust crates work when compiled to Wasm, but here are some useful crates have been designed to work well both natively and as Wasm:
 
-* Audio: [`cpal`](https://github.com/RustAudio/cpal).
-* HTTP client: [`ehttp`](https://github.com/emilk/ehttp) and [`reqwest`](https://github.com/seanmonstar/reqwest).
-* Time: [`chrono`](https://github.com/chronotope/chrono).
-* WebSockets: [`ewebsock`](https://github.com/rerun-io/ewebsock).
+* Audio: [`cpal`](https://github.com/RustAudio/cpal)
+* File dialogs: [rfd](https://docs.rs/rfd/latest/rfd/)
+* HTTP client: [`ehttp`](https://github.com/emilk/ehttp) and [`reqwest`](https://github.com/seanmonstar/reqwest)
+* Time: [`chrono`](https://github.com/chronotope/chrono)
+* WebSockets: [`ewebsock`](https://github.com/rerun-io/ewebsock)
 
 
 ## Name

@@ -1,15 +1,15 @@
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct WindowWithPanels {}
+pub struct Panels {}
 
-impl super::Demo for WindowWithPanels {
+impl super::Demo for Panels {
     fn name(&self) -> &'static str {
-        "🗖 Window With Panels"
+        "🗖 Panels"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use super::View as _;
-        let window = egui::Window::new("Window with Panels")
+        let window = egui::Window::new("Panels")
             .default_width(600.0)
             .default_height(400.0)
             .vscroll(false)
@@ -18,7 +18,7 @@ impl super::Demo for WindowWithPanels {
     }
 }
 
-impl super::View for WindowWithPanels {
+impl super::View for Panels {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Note that the order we add the panels is very important!
 
@@ -66,6 +66,9 @@ impl super::View for WindowWithPanels {
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Bottom Panel");
+                });
+                ui.vertical_centered(|ui| {
+                    ui.add(crate::egui_github_link_file!());
                 });
             });
 

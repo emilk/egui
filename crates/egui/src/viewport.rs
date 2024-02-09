@@ -20,7 +20,7 @@
 //! These are created with [`Context::show_viewport_deferred`].
 //! Deferred viewports take a closure that is called by the integration at a later time, perhaps multiple times.
 //! Deferred viewports are repainted independenantly of the parent viewport.
-//! This means communication with them need to done via channels, or `Arc/Mutex`.
+//! This means communication with them needs to be done via channels, or `Arc/Mutex`.
 //!
 //! This is the most performant type of child viewport, though a bit more cumbersome to work with compared to immediate viewports.
 //!
@@ -33,7 +33,7 @@
 //! In short: immediate viewports are simpler to use, but can waste a lot of CPU time.
 //!
 //! ### Embedded viewports
-//! These are not real, independenant viewports, but is a fallback mode for when the integration does not support real viewports. In your callback is called with [`ViewportClass::Embedded`] it means you need to create an [`crate::Window`] to wrap your ui in, which will then be embedded in the parent viewport, unable to escape it.
+//! These are not real, independent viewports, but is a fallback mode for when the integration does not support real viewports. In your callback is called with [`ViewportClass::Embedded`] it means you need to create a [`crate::Window`] to wrap your ui in, which will then be embedded in the parent viewport, unable to escape it.
 //!
 //!
 //! ## Using the viewports
@@ -94,7 +94,7 @@ pub enum ViewportClass {
     ///
     /// This is the easier type of viewport to use, but it is less performant
     /// at it requires both parent and child to repaint if any one of them needs repainting,
-    /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
+    /// which effectively produces double work for two viewports, and triple work for three viewports, etc.
     ///
     /// Create these with [`crate::Context::show_viewport_immediate`].
     Immediate,
@@ -170,6 +170,13 @@ pub struct IconData {
     pub height: u32,
 }
 
+impl IconData {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.rgba.is_empty()
+    }
+}
+
 impl std::fmt::Debug for IconData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IconData")
@@ -187,7 +194,7 @@ impl From<IconData> for epaint::ColorImage {
             width,
             height,
         } = icon;
-        epaint::ColorImage::from_rgba_premultiplied([width as usize, height as usize], &rgba)
+        Self::from_rgba_premultiplied([width as usize, height as usize], &rgba)
     }
 }
 
@@ -199,7 +206,7 @@ impl From<&IconData> for epaint::ColorImage {
             width,
             height,
         } = icon;
-        epaint::ColorImage::from_rgba_premultiplied([*width as usize, *height as usize], rgba)
+        Self::from_rgba_premultiplied([*width as usize, *height as usize], rgba)
     }
 }
 
@@ -262,6 +269,7 @@ pub struct ViewportBuilder {
     /// This is wayland only. See [`Self::with_app_id`].
     pub app_id: Option<String>,
 
+    /// The desired outer position of the window.
     pub position: Option<Pos2>,
     pub inner_size: Option<Vec2>,
     pub min_inner_size: Option<Vec2>,
@@ -275,13 +283,16 @@ pub struct ViewportBuilder {
     pub icon: Option<Arc<IconData>>,
     pub active: Option<bool>,
     pub visible: Option<bool>,
-    pub drag_and_drop: Option<bool>,
 
     // macOS:
     pub fullsize_content_view: Option<bool>,
     pub title_shown: Option<bool>,
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
+
+    // windows:
+    pub drag_and_drop: Option<bool>,
+    pub taskbar: Option<bool>,
 
     pub close_button: Option<bool>,
     pub minimize_button: Option<bool>,
@@ -359,7 +370,7 @@ impl ViewportBuilder {
     /// buffer.
     ///
     /// The default is `false`.
-    /// If this is not working is because the graphic context dozen't support transparency,
+    /// If this is not working, it's because the graphic context doesn't support transparency,
     /// you will need to set the transparency in the eframe!
     #[inline]
     pub fn with_transparent(mut self, transparent: bool) -> Self {
@@ -434,11 +445,18 @@ impl ViewportBuilder {
         self
     }
 
+    /// windows: Whether show or hide the window icon in the taskbar.
+    #[inline]
+    pub fn with_taskbar(mut self, show: bool) -> Self {
+        self.taskbar = Some(show);
+        self
+    }
+
     /// Requests the window to be of specific dimensions.
     ///
     /// If this is not set, some platform-specific dimensions will be used.
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -451,7 +469,7 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no minimum dimensions (aside
     /// from reserved).
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_min_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -464,7 +482,7 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no maximum or will be set to
     /// the primary monitor's dimensions by the platform.
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_max_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -506,7 +524,8 @@ impl ViewportBuilder {
         self
     }
 
-    /// This will probably not work as expected!
+    /// The initial "outer" position of the window,
+    /// i.e. where the top-left corner of the frame/chrome should be.
     #[inline]
     pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
         self.position = Some(pos.into());
@@ -541,7 +560,7 @@ impl ViewportBuilder {
         self
     }
 
-    /// Control if window i always-on-top, always-on-bottom, or neither.
+    /// Control if window is always-on-top, always-on-bottom, or neither.
     #[inline]
     pub fn with_window_level(mut self, level: WindowLevel) -> Self {
         self.window_level = Some(level);
@@ -565,10 +584,10 @@ impl ViewportBuilder {
     }
 
     /// Update this `ViewportBuilder` with a delta,
-    /// returning a list of commands and a bool intdicating if the window needs to be recreated.
+    /// returning a list of commands and a bool indicating if the window needs to be recreated.
     #[must_use]
-    pub fn patch(&mut self, new_vp_builder: ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
-        let ViewportBuilder {
+    pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
+        let Self {
             title: new_title,
             app_id: new_app_id,
             position: new_position,
@@ -593,6 +612,7 @@ impl ViewportBuilder {
             maximize_button: new_maximize_button,
             window_level: new_window_level,
             mouse_passthrough: new_mouse_passthrough,
+            taskbar: new_taskbar,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -749,6 +769,11 @@ impl ViewportBuilder {
             recreate_window = true;
         }
 
+        if new_taskbar.is_some() && self.taskbar != new_taskbar {
+            self.taskbar = new_taskbar;
+            recreate_window = true;
+        }
+
         if new_fullsize_content_view.is_some()
             && self.fullsize_content_view != new_fullsize_content_view
         {
@@ -806,6 +831,7 @@ pub enum CursorGrab {
 pub enum ResizeDirection {
     North,
     South,
+    East,
     West,
     NorthEast,
     SouthEast,
@@ -831,7 +857,7 @@ pub enum ViewportCommand {
     /// For other viewports, the [`crate::ViewportInfo::close_requested`] flag will be set.
     Close,
 
-    /// Calcel the closing that was signaled by [`crate::ViewportInfo::close_requested`].
+    /// Cancel the closing that was signaled by [`crate::ViewportInfo::close_requested`].
     CancelClose,
 
     /// Set the window title.
@@ -852,16 +878,16 @@ pub enum ViewportCommand {
     /// Set the outer position of the viewport, i.e. moves the window.
     OuterPosition(Pos2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     InnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     MinInnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     MaxInnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     ResizeIncrements(Option<Vec2>),
 
     /// Begin resizing the viewport with the left mouse button until the button is released.
@@ -897,7 +923,8 @@ pub enum ViewportCommand {
     /// The the window icon.
     Icon(Option<Arc<IconData>>),
 
-    IMEPosition(Pos2),
+    /// Set the IME cursor editing area.
+    IMERect(crate::Rect),
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 
@@ -993,9 +1020,9 @@ pub struct ViewportOutput {
     /// Commands to change the viewport, e.g. window title and size.
     pub commands: Vec<ViewportCommand>,
 
-    /// Schedulare a repaint of this viewport after this delay.
+    /// Schedule a repaint of this viewport after this delay.
     ///
-    /// It is preferably to instead install a [`Context::set_request_repaint_callback`],
+    /// It is preferable to instead install a [`Context::set_request_repaint_callback`],
     /// but if you haven't, you can use this instead.
     ///
     /// If the duration is zero, schedule a repaint immediately.

@@ -341,14 +341,12 @@ impl Grid {
     /// Default is whatever is in [`crate::Visuals::striped`].
     pub fn striped(self, striped: bool) -> Self {
         if striped {
-            self.with_row_color(move |row, style| {
-                if row % 2 == 1 {
-                    return Some(style.visuals.faint_bg_color);
-                }
-                None
-            })
+            self.with_row_color(striped_row_color)
         } else {
-            self
+            // Explicitly set the row color to nothing.
+            // Needed so that when the style.visuals.striped value is checked later on,
+            // it is clear that the user does not want stripes on this specific Grid.
+            self.with_row_color(|_row: usize, _style: &Style| None)
         }
     }
 
@@ -410,11 +408,14 @@ impl Grid {
             max_cell_size,
             spacing,
             start_row,
-            color_picker,
+            mut color_picker,
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
+        if color_picker.is_none() && ui.visuals().striped {
+            color_picker = Some(Box::new(striped_row_color));
+        }
 
         let id = ui.make_persistent_id(id_source);
         let prev_state = State::load(ui.ctx(), id);
@@ -453,4 +454,11 @@ impl Grid {
             .inner
         })
     }
+}
+
+fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
+    if row % 2 == 1 {
+        return Some(style.visuals.faint_bg_color);
+    }
+    None
 }

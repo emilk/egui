@@ -190,8 +190,8 @@ impl Pos2 {
     }
 
     /// Linearly interpolate towards another point, so that `0.0 => self, 1.0 => other`.
-    pub fn lerp(&self, other: Pos2, t: f32) -> Pos2 {
-        Pos2 {
+    pub fn lerp(&self, other: Self, t: f32) -> Self {
+        Self {
             x: lerp(self.x..=other.x, t),
             y: lerp(self.y..=other.y, t),
         }
@@ -227,7 +227,7 @@ impl Eq for Pos2 {}
 impl AddAssign<Vec2> for Pos2 {
     #[inline(always)]
     fn add_assign(&mut self, rhs: Vec2) {
-        *self = Pos2 {
+        *self = Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         };
@@ -237,7 +237,7 @@ impl AddAssign<Vec2> for Pos2 {
 impl SubAssign<Vec2> for Pos2 {
     #[inline(always)]
     fn sub_assign(&mut self, rhs: Vec2) {
-        *self = Pos2 {
+        *self = Self {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         };
@@ -245,11 +245,11 @@ impl SubAssign<Vec2> for Pos2 {
 }
 
 impl Add<Vec2> for Pos2 {
-    type Output = Pos2;
+    type Output = Self;
 
     #[inline(always)]
-    fn add(self, rhs: Vec2) -> Pos2 {
-        Pos2 {
+    fn add(self, rhs: Vec2) -> Self {
+        Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         }
@@ -260,7 +260,7 @@ impl Sub for Pos2 {
     type Output = Vec2;
 
     #[inline(always)]
-    fn sub(self, rhs: Pos2) -> Vec2 {
+    fn sub(self, rhs: Self) -> Vec2 {
         Vec2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
@@ -269,11 +269,11 @@ impl Sub for Pos2 {
 }
 
 impl Sub<Vec2> for Pos2 {
-    type Output = Pos2;
+    type Output = Self;
 
     #[inline(always)]
-    fn sub(self, rhs: Vec2) -> Pos2 {
-        Pos2 {
+    fn sub(self, rhs: Vec2) -> Self {
+        Self {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
@@ -281,11 +281,11 @@ impl Sub<Vec2> for Pos2 {
 }
 
 impl Mul<f32> for Pos2 {
-    type Output = Pos2;
+    type Output = Self;
 
     #[inline(always)]
-    fn mul(self, factor: f32) -> Pos2 {
-        Pos2 {
+    fn mul(self, factor: f32) -> Self {
+        Self {
             x: self.x * factor,
             y: self.y * factor,
         }
@@ -305,11 +305,11 @@ impl Mul<Pos2> for f32 {
 }
 
 impl Div<f32> for Pos2 {
-    type Output = Pos2;
+    type Output = Self;
 
     #[inline(always)]
-    fn div(self, factor: f32) -> Pos2 {
-        Pos2 {
+    fn div(self, factor: f32) -> Self {
+        Self {
             x: self.x / factor,
             y: self.y / factor,
         }

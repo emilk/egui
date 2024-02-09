@@ -4,6 +4,7 @@ use super::PlotPoint;
 use crate::*;
 
 /// 2D bounding box of f64 precision.
+///
 /// The range of data values we show.
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -18,25 +19,30 @@ impl PlotBounds {
         max: [-f64::INFINITY; 2],
     };
 
+    #[inline]
     pub fn from_min_max(min: [f64; 2], max: [f64; 2]) -> Self {
         Self { min, max }
     }
 
+    #[inline]
     pub fn min(&self) -> [f64; 2] {
         self.min
     }
 
+    #[inline]
     pub fn max(&self) -> [f64; 2] {
         self.max
     }
 
-    pub(crate) fn new_symmetrical(half_extent: f64) -> Self {
+    #[inline]
+    pub fn new_symmetrical(half_extent: f64) -> Self {
         Self {
             min: [-half_extent; 2],
             max: [half_extent; 2],
         }
     }
 
+    #[inline]
     pub fn is_finite(&self) -> bool {
         self.min[0].is_finite()
             && self.min[1].is_finite()
@@ -44,34 +50,42 @@ impl PlotBounds {
             && self.max[1].is_finite()
     }
 
+    #[inline]
     pub fn is_finite_x(&self) -> bool {
         self.min[0].is_finite() && self.max[0].is_finite()
     }
 
+    #[inline]
     pub fn is_finite_y(&self) -> bool {
         self.min[1].is_finite() && self.max[1].is_finite()
     }
 
+    #[inline]
     pub fn is_valid(&self) -> bool {
         self.is_finite() && self.width() > 0.0 && self.height() > 0.0
     }
 
+    #[inline]
     pub fn is_valid_x(&self) -> bool {
         self.is_finite_x() && self.width() > 0.0
     }
 
+    #[inline]
     pub fn is_valid_y(&self) -> bool {
         self.is_finite_y() && self.height() > 0.0
     }
 
+    #[inline]
     pub fn width(&self) -> f64 {
         self.max[0] - self.min[0]
     }
 
+    #[inline]
     pub fn height(&self) -> f64 {
         self.max[1] - self.min[1]
     }
 
+    #[inline]
     pub fn center(&self) -> PlotPoint {
         [
             (self.min[0] + self.max[0]) / 2.0,
@@ -81,100 +95,127 @@ impl PlotBounds {
     }
 
     /// Expand to include the given (x,y) value
-    pub(crate) fn extend_with(&mut self, value: &PlotPoint) {
+    #[inline]
+    pub fn extend_with(&mut self, value: &PlotPoint) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);
     }
 
     /// Expand to include the given x coordinate
-    pub(crate) fn extend_with_x(&mut self, x: f64) {
+    #[inline]
+    pub fn extend_with_x(&mut self, x: f64) {
         self.min[0] = self.min[0].min(x);
         self.max[0] = self.max[0].max(x);
     }
 
     /// Expand to include the given y coordinate
-    pub(crate) fn extend_with_y(&mut self, y: f64) {
+    #[inline]
+    pub fn extend_with_y(&mut self, y: f64) {
         self.min[1] = self.min[1].min(y);
         self.max[1] = self.max[1].max(y);
     }
 
-    pub(crate) fn expand_x(&mut self, pad: f64) {
+    #[inline]
+    pub fn expand_x(&mut self, pad: f64) {
         self.min[0] -= pad;
         self.max[0] += pad;
     }
 
-    pub(crate) fn expand_y(&mut self, pad: f64) {
+    #[inline]
+    pub fn expand_y(&mut self, pad: f64) {
         self.min[1] -= pad;
         self.max[1] += pad;
     }
 
-    pub(crate) fn merge_x(&mut self, other: &PlotBounds) {
+    #[inline]
+    pub fn merge_x(&mut self, other: &Self) {
         self.min[0] = self.min[0].min(other.min[0]);
         self.max[0] = self.max[0].max(other.max[0]);
     }
 
-    pub(crate) fn merge_y(&mut self, other: &PlotBounds) {
+    #[inline]
+    pub fn merge_y(&mut self, other: &Self) {
         self.min[1] = self.min[1].min(other.min[1]);
         self.max[1] = self.max[1].max(other.max[1]);
     }
 
-    pub(crate) fn set_x(&mut self, other: &PlotBounds) {
+    #[inline]
+    pub fn set_x(&mut self, other: &Self) {
         self.min[0] = other.min[0];
         self.max[0] = other.max[0];
     }
 
-    pub(crate) fn set_y(&mut self, other: &PlotBounds) {
+    #[inline]
+    pub fn set_y(&mut self, other: &Self) {
         self.min[1] = other.min[1];
         self.max[1] = other.max[1];
     }
 
-    pub(crate) fn merge(&mut self, other: &PlotBounds) {
+    #[inline]
+    pub fn merge(&mut self, other: &Self) {
         self.min[0] = self.min[0].min(other.min[0]);
         self.min[1] = self.min[1].min(other.min[1]);
         self.max[0] = self.max[0].max(other.max[0]);
         self.max[1] = self.max[1].max(other.max[1]);
     }
 
-    pub(crate) fn translate_x(&mut self, delta: f64) {
+    #[inline]
+    pub fn translate_x(&mut self, delta: f64) {
         self.min[0] += delta;
         self.max[0] += delta;
     }
 
-    pub(crate) fn translate_y(&mut self, delta: f64) {
+    #[inline]
+    pub fn translate_y(&mut self, delta: f64) {
         self.min[1] += delta;
         self.max[1] += delta;
     }
 
-    pub(crate) fn translate(&mut self, delta: Vec2) {
+    #[inline]
+    pub fn translate(&mut self, delta: Vec2) {
         self.translate_x(delta.x as f64);
         self.translate_y(delta.y as f64);
     }
 
-    pub(crate) fn add_relative_margin_x(&mut self, margin_fraction: Vec2) {
+    #[inline]
+    pub fn zoom(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+        self.min[0] = center.x + (self.min[0] - center.x) / (zoom_factor.x as f64);
+        self.max[0] = center.x + (self.max[0] - center.x) / (zoom_factor.x as f64);
+        self.min[1] = center.y + (self.min[1] - center.y) / (zoom_factor.y as f64);
+        self.max[1] = center.y + (self.max[1] - center.y) / (zoom_factor.y as f64);
+    }
+
+    #[inline]
+    pub fn add_relative_margin_x(&mut self, margin_fraction: Vec2) {
         let width = self.width().max(0.0);
         self.expand_x(margin_fraction.x as f64 * width);
     }
 
-    pub(crate) fn add_relative_margin_y(&mut self, margin_fraction: Vec2) {
+    #[inline]
+    pub fn add_relative_margin_y(&mut self, margin_fraction: Vec2) {
         let height = self.height().max(0.0);
         self.expand_y(margin_fraction.y as f64 * height);
     }
 
-    pub(crate) fn range_x(&self) -> RangeInclusive<f64> {
+    #[inline]
+    pub fn range_x(&self) -> RangeInclusive<f64> {
         self.min[0]..=self.max[0]
     }
 
-    pub(crate) fn range_y(&self) -> RangeInclusive<f64> {
+    #[inline]
+    pub fn range_y(&self) -> RangeInclusive<f64> {
         self.min[1]..=self.max[1]
     }
 
-    pub(crate) fn make_x_symmetrical(&mut self) {
+    #[inline]
+    pub fn make_x_symmetrical(&mut self) {
         let x_abs = self.min[0].abs().max(self.max[0].abs());
         self.min[0] = -x_abs;
         self.max[0] = x_abs;
     }
 
-    pub(crate) fn make_y_symmetrical(&mut self) {
+    #[inline]
+    pub fn make_y_symmetrical(&mut self) {
         let y_abs = self.min[1].abs().max(self.max[1].abs());
         self.min[1] = -y_abs;
         self.max[1] = y_abs;
@@ -225,20 +266,23 @@ impl PlotTransform {
     }
 
     /// ui-space rectangle.
+    #[inline]
     pub fn frame(&self) -> &Rect {
         &self.frame
     }
 
     /// Plot-space bounds.
+    #[inline]
     pub fn bounds(&self) -> &PlotBounds {
         &self.bounds
     }
 
-    pub(crate) fn set_bounds(&mut self, bounds: PlotBounds) {
+    #[inline]
+    pub fn set_bounds(&mut self, bounds: PlotBounds) {
         self.bounds = bounds;
     }
 
-    pub(crate) fn translate_bounds(&mut self, mut delta_pos: Vec2) {
+    pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
         if self.x_centered {
             delta_pos.x = 0.;
         }
@@ -251,14 +295,11 @@ impl PlotTransform {
     }
 
     /// Zoom by a relative factor with the given screen position as center.
-    pub(crate) fn zoom(&mut self, zoom_factor: Vec2, center: Pos2) {
+    pub fn zoom(&mut self, zoom_factor: Vec2, center: Pos2) {
         let center = self.value_from_position(center);
 
         let mut new_bounds = self.bounds;
-        new_bounds.min[0] = center.x + (new_bounds.min[0] - center.x) / (zoom_factor.x as f64);
-        new_bounds.max[0] = center.x + (new_bounds.max[0] - center.x) / (zoom_factor.x as f64);
-        new_bounds.min[1] = center.y + (new_bounds.min[1] - center.y) / (zoom_factor.y as f64);
-        new_bounds.max[1] = center.y + (new_bounds.max[1] - center.y) / (zoom_factor.y as f64);
+        new_bounds.zoom(zoom_factor, center);
 
         if new_bounds.is_valid() {
             self.bounds = new_bounds;
@@ -318,27 +359,29 @@ impl PlotTransform {
         rect
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in the X axis in "plot space"
     pub fn dpos_dvalue_x(&self) -> f64 {
         self.frame.width() as f64 / self.bounds.width()
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in the Y axis in "plot space"
     pub fn dpos_dvalue_y(&self) -> f64 {
         -self.frame.height() as f64 / self.bounds.height() // negated y axis!
     }
 
-    /// delta position / delta value
+    /// delta position / delta value = how many ui points per step in "plot space"
     pub fn dpos_dvalue(&self) -> [f64; 2] {
         [self.dpos_dvalue_x(), self.dpos_dvalue_y()]
     }
 
-    /// delta value / delta position
+    /// delta value / delta position = how much ground do we cover in "plot space" per ui point?
     pub fn dvalue_dpos(&self) -> [f64; 2] {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
-    /// width / height aspect ratio
+    /// scale.x/scale.y ratio.
+    ///
+    /// If 1.0, it means the scale factor is the same in both axes.
     fn aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;
@@ -367,7 +410,7 @@ impl PlotTransform {
     }
 
     /// Sets the aspect ratio by changing either the X or Y axis (callers choice).
-    pub(crate) fn set_aspect_by_changing_axis(&mut self, aspect: f64, change_x: bool) {
+    pub(crate) fn set_aspect_by_changing_axis(&mut self, aspect: f64, axis: Axis) {
         let current_aspect = self.aspect();
 
         let epsilon = 1e-5;
@@ -376,12 +419,15 @@ impl PlotTransform {
             return;
         }
 
-        if change_x {
-            self.bounds
-                .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
-        } else {
-            self.bounds
-                .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+        match axis {
+            Axis::X => {
+                self.bounds
+                    .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
+            }
+            Axis::Y => {
+                self.bounds
+                    .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+            }
         }
     }
 }

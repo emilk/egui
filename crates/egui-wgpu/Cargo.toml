@@ -28,30 +28,38 @@ all-features = true
 
 
 [features]
+default = []
+
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin"]
 
-## Enable [`winit`](https://docs.rs/winit) integration.
+## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["dep:winit"]
+
+## Enables Wayland support for winit.
+wayland = ["winit?/wayland"]
+
+## Enables x11 support for winit.
+x11 = ["winit?/x11"]
 
 
 [dependencies]
-egui = { version = "0.24.0", path = "../egui", default-features = false }
-epaint = { version = "0.24.0", path = "../epaint", default-features = false, features = [
-  "bytemuck",
-] }
+egui = { workspace = true, default-features = false }
+epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 bytemuck = "1.7"
-log = { version = "0.4", features = ["std"] }
+document-features.workspace = true
+log.workspace = true
 thiserror.workspace = true
 type-map = "0.5.0"
-wgpu.workspace = true
+web-time.workspace = true
+wgpu = { workspace = true, features = ["wgsl"] }
 
-#! ### Optional dependencies
-## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+# Optional dependencies:
 
-winit = { version = "0.28", default-features = false, optional = true }
+winit = { workspace = true, optional = true, default-features = false, features = [
+  "rwh_06",
+] }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

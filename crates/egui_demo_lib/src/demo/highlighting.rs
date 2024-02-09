@@ -21,6 +21,10 @@ impl super::Demo for Highlighting {
 
 impl super::View for Highlighting {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
+        });
+
         ui.label("This demo demonstrates highlighting a widget.");
         ui.add_space(4.0);
         let label_response = ui.label("Hover me to highlight the button!");

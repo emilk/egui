@@ -51,22 +51,22 @@ pub enum Side {
 impl Side {
     fn opposite(self) -> Self {
         match self {
-            Side::Left => Self::Right,
-            Side::Right => Self::Left,
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
         }
     }
 
     fn set_rect_width(self, rect: &mut Rect, width: f32) {
         match self {
-            Side::Left => rect.max.x = rect.min.x + width,
-            Side::Right => rect.min.x = rect.max.x - width,
+            Self::Left => rect.max.x = rect.min.x + width,
+            Self::Right => rect.min.x = rect.max.x - width,
         }
     }
 
     fn side_x(self, rect: Rect) -> f32 {
         match self {
-            Side::Left => rect.left(),
-            Side::Right => rect.right(),
+            Self::Left => rect.left(),
+            Self::Right => rect.right(),
         }
     }
 }
@@ -506,22 +506,22 @@ pub enum TopBottomSide {
 impl TopBottomSide {
     fn opposite(self) -> Self {
         match self {
-            TopBottomSide::Top => Self::Bottom,
-            TopBottomSide::Bottom => Self::Top,
+            Self::Top => Self::Bottom,
+            Self::Bottom => Self::Top,
         }
     }
 
     fn set_rect_height(self, rect: &mut Rect, height: f32) {
         match self {
-            TopBottomSide::Top => rect.max.y = rect.min.y + height,
-            TopBottomSide::Bottom => rect.min.y = rect.max.y - height,
+            Self::Top => rect.max.y = rect.min.y + height,
+            Self::Bottom => rect.min.y = rect.max.y - height,
         }
     }
 
     fn side_y(self, rect: Rect) -> f32 {
         match self {
-            TopBottomSide::Top => rect.top(),
-            TopBottomSide::Bottom => rect.bottom(),
+            Self::Top => rect.top(),
+            Self::Bottom => rect.bottom(),
         }
     }
 }
@@ -718,9 +718,9 @@ impl TopBottomPanel {
                 if ui.input(|i| i.pointer.any_pressed() && i.pointer.any_down())
                     && mouse_over_resize_line
                 {
-                    ui.memory_mut(|mem| mem.interaction_mut().drag_id = Some(resize_id));
+                    ui.memory_mut(|mem| mem.set_dragged_id(resize_id));
                 }
-                is_resizing = ui.memory(|mem| mem.interaction().drag_id == Some(resize_id));
+                is_resizing = ui.memory(|mem| mem.is_being_dragged(resize_id));
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
                     let height =

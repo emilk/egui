@@ -32,4 +32,5 @@
         "--all-targets",
         "--all-features",
     ],
+    "rust-analyzer.showUnlinkedFileNotification": false,
 }

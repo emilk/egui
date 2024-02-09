@@ -205,14 +205,14 @@ enum EventToUnsubscribe {
 impl EventToUnsubscribe {
     pub fn unsubscribe(self) -> Result<(), JsValue> {
         match self {
-            EventToUnsubscribe::TargetEvent(handle) => {
+            Self::TargetEvent(handle) => {
                 handle.target.remove_event_listener_with_callback(
                     handle.event_name.as_str(),
                     handle.closure.as_ref().unchecked_ref(),
                 )?;
                 Ok(())
             }
-            EventToUnsubscribe::IntervalHandle(handle) => {
+            Self::IntervalHandle(handle) => {
                 let window = web_sys::window().unwrap();
                 window.clear_interval_with_handle(handle.handle);
                 Ok(())

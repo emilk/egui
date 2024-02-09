@@ -2,23 +2,21 @@
 # cargo install cargo-cranky && cargo cranky
 # See also clippy.toml
 
-deny = [
-  "unsafe_code",
-  # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
-  #"clippy::self_named_module_files",
-]
+deny = ["unsafe_code"]
 
 warn = [
   "clippy::all",
   "clippy::as_ptr_cast_mut",
   "clippy::await_holding_lock",
   "clippy::bool_to_int_with_if",
+  "clippy::branches_sharing_code",
   "clippy::char_lit_as_u8",
   "clippy::checked_conversions",
   "clippy::clear_with_drain",
   "clippy::cloned_instead_of_copied",
   "clippy::dbg_macro",
   "clippy::debug_assert_with_mut_call",
+  "clippy::default_union_representation",
   "clippy::derive_partial_eq_without_eq",
   "clippy::disallowed_macros",                  # See clippy.toml
   "clippy::disallowed_methods",                 # See clippy.toml
@@ -28,6 +26,7 @@ warn = [
   "clippy::doc_link_with_quotes",
   "clippy::doc_markdown",
   "clippy::empty_enum",
+  "clippy::empty_line_after_outer_attr",
   "clippy::enum_glob_use",
   "clippy::equatable_if_let",
   "clippy::exit",
@@ -90,14 +89,17 @@ warn = [
   "clippy::nonstandard_macro_braces",
   "clippy::option_option",
   "clippy::path_buf_push_overwrite",
+  "clippy::print_stdout",
   "clippy::ptr_as_ptr",
   "clippy::ptr_cast_constness",
+  "clippy::pub_without_shorthand",
   "clippy::rc_mutex",
   "clippy::redundant_type_annotations",
   "clippy::ref_option_ref",
   "clippy::rest_pat_in_fully_bound_structs",
   "clippy::same_functions_in_if_condition",
   "clippy::semicolon_if_nothing_returned",
+  "clippy::significant_drop_tightening",
   "clippy::single_match_else",
   "clippy::str_to_string",
   "clippy::string_add_assign",
@@ -109,21 +111,27 @@ warn = [
   "clippy::todo",
   "clippy::trailing_empty_array",
   "clippy::trait_duplication_in_bounds",
+  "clippy::transmute_ptr_to_ptr",
   "clippy::tuple_array_conversions",
   "clippy::unchecked_duration_subtraction",
+  "clippy::undocumented_unsafe_blocks",
   "clippy::unimplemented",
   "clippy::uninlined_format_args",
   "clippy::unnecessary_box_returns",
+  "clippy::unnecessary_safety_comment",
   "clippy::unnecessary_safety_doc",
+  "clippy::unnecessary_self_imports",
   "clippy::unnecessary_struct_initialization",
   "clippy::unnecessary_wraps",
   "clippy::unnested_or_patterns",
   "clippy::unused_peekable",
   "clippy::unused_rounding",
   "clippy::unused_self",
+  "clippy::use_self",
   "clippy::useless_transmute",
   "clippy::verbose_file_reads",
   "clippy::wildcard_dependencies",
+  "clippy::wildcard_imports",
   "clippy::zero_sized_map_values",
   "elided_lifetimes_in_paths",
   "future_incompatible",
@@ -137,6 +145,14 @@ warn = [
   "unused_extern_crates",
   "unused_import_braces",
   "unused_lifetimes",
+
+
+  # Enable when we update MSRV:
+  # "clippy::implied_bounds_in_impls",
+  # "clippy::needless_pass_by_ref_mut",
+  # "clippy::readonly_write_lock",
+  # "clippy::should_panic_without_expect",
+  # "clippy::string_lit_chars_any",
 ]
 
 allow = [
@@ -148,9 +164,13 @@ allow = [
   "clippy::let_underscore_untyped",
   "clippy::missing_assert_message",
   "clippy::missing_errors_doc",
+  "clippy::print_stderr",               # TODO(emilk): use `log` crate instead
+  "clippy::self_named_module_files",    # False positives
+  "clippy::too_many_lines",
   "clippy::undocumented_unsafe_blocks",
   "clippy::unwrap_used",
-  "clippy::wildcard_imports",           # we do this a lot
+  "clippy::useless_let_if_seq",         # False positives
+  "clippy::wildcard_imports",           # We do this a lot
   "trivial_casts",
   "unused_qualifications",
 ]

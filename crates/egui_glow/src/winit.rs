@@ -24,7 +24,7 @@ impl EguiGlow {
     /// For automatic shader version detection set `shader_version` to `None`.
     pub fn new<E>(
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
-        gl: std::rc::Rc<glow::Context>,
+        gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
     ) -> Self {
@@ -34,27 +34,33 @@ impl EguiGlow {
             })
             .unwrap();
 
+        let egui_ctx = egui::Context::default();
+
         let egui_winit = egui_winit::State::new(
+            egui_ctx.clone(),
             ViewportId::ROOT,
             event_loop,
             native_pixels_per_point,
             Some(painter.max_texture_side()),
         );
-        let pixels_per_point = egui_winit.pixels_per_point();
 
         Self {
-            egui_ctx: Default::default(),
+            egui_ctx,
             egui_winit,
             painter,
             viewport_info: Default::default(),
             shapes: Default::default(),
-            pixels_per_point,
+            pixels_per_point: native_pixels_per_point.unwrap_or(1.0),
             textures_delta: Default::default(),
         }
     }
 
-    pub fn on_window_event(&mut self, event: &winit::event::WindowEvent<'_>) -> EventResponse {
-        self.egui_winit.on_window_event(&self.egui_ctx, event)
+    pub fn on_window_event(
+        &mut self,
+        window: &winit::window::Window,
+        event: &winit::event::WindowEvent,
+    ) -> EventResponse {
+        self.egui_winit.on_window_event(window, event)
     }
 
     /// Call [`Self::paint`] later to paint.
@@ -88,7 +94,7 @@ impl EguiGlow {
         }
 
         self.egui_winit
-            .handle_platform_output(window, &self.egui_ctx, platform_output);
+            .handle_platform_output(window, platform_output);
 
         self.shapes = shapes;
         self.pixels_per_point = pixels_per_point;

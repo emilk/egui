@@ -68,7 +68,7 @@ need_stdout = true
 [keybindings]
 i = "job:initial"
 c = "job:cranky"
-w = "job:wasm"
+a = "job:wasm"
 d = "job:doc-open"
 t = "job:test"
 r = "job:run"

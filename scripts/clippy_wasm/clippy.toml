@@ -45,5 +45,7 @@ disallowed-types = [
 doc-valid-idents = [
   # You must also update the same list in the root `clippy.toml`!
   "AccessKit",
+  "WebGL",
+  "WebGPU",
   "..",
 ]

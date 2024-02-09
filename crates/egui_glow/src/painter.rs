@@ -1,7 +1,7 @@
 #![allow(clippy::collapsible_else_if)]
 #![allow(unsafe_code)]
 
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
@@ -28,8 +28,22 @@ trait TextureFilterExt {
 impl TextureFilterExt for egui::TextureFilter {
     fn glow_code(&self) -> u32 {
         match self {
-            egui::TextureFilter::Linear => glow::LINEAR,
-            egui::TextureFilter::Nearest => glow::NEAREST,
+            Self::Linear => glow::LINEAR,
+            Self::Nearest => glow::NEAREST,
+        }
+    }
+}
+
+trait TextureWrapModeExt {
+    fn glow_code(&self) -> u32;
+}
+
+impl TextureWrapModeExt for egui::TextureWrapMode {
+    fn glow_code(&self) -> u32 {
+        match self {
+            Self::ClampToEdge => glow::CLAMP_TO_EDGE,
+            Self::Repeat => glow::REPEAT,
+            Self::MirroredRepeat => glow::MIRRORED_REPEAT,
         }
     }
 }
@@ -59,8 +73,10 @@ impl From<String> for PainterError {
 ///
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
+///
+/// NOTE: all egui viewports share the same painter.
 pub struct Painter {
-    gl: Rc<glow::Context>,
+    gl: Arc<glow::Context>,
 
     max_texture_side: usize,
 
@@ -70,6 +86,7 @@ pub struct Painter {
     is_webgl_1: bool,
     vao: crate::vao::VertexArrayObject,
     srgb_textures: bool,
+    supports_srgb_framebuffer: bool,
     vbo: glow::Buffer,
     element_array_buffer: glow::Buffer,
 
@@ -100,7 +117,7 @@ pub struct CallbackFn {
 impl CallbackFn {
     pub fn new<F: Fn(PaintCallbackInfo, &Painter) + Sync + Send + 'static>(callback: F) -> Self {
         let f = Box::new(callback);
-        CallbackFn { f }
+        Self { f }
     }
 }
 
@@ -118,10 +135,10 @@ impl Painter {
     /// * failed to create postprocess on webgl with `sRGB` support
     /// * failed to create buffer
     pub fn new(
-        gl: Rc<glow::Context>,
+        gl: Arc<glow::Context>,
         shader_prefix: &str,
         shader_version: Option<ShaderVersion>,
-    ) -> Result<Painter, PainterError> {
+    ) -> Result<Self, PainterError> {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
@@ -156,6 +173,13 @@ impl Painter {
                 extension.contains("sRGB")
             });
         log::debug!("SRGB texture Support: {:?}", srgb_textures);
+
+        let supports_srgb_framebuffer = !cfg!(target_arch = "wasm32")
+            && supported_extensions.iter().any(|extension| {
+                // {GL,GLX,WGL}_ARB_framebuffer_sRGB, …
+                extension.ends_with("ARB_framebuffer_sRGB")
+            });
+        log::debug!("SRGB framebuffer Support: {:?}", supports_srgb_framebuffer);
 
         unsafe {
             let vert = compile_shader(
@@ -228,7 +252,7 @@ impl Painter {
 
             crate::check_for_gl_error_even_in_release!(&gl, "after Painter::new");
 
-            Ok(Painter {
+            Ok(Self {
                 gl,
                 max_texture_side,
                 program,
@@ -237,6 +261,7 @@ impl Painter {
                 is_webgl_1,
                 vao,
                 srgb_textures,
+                supports_srgb_framebuffer,
                 vbo,
                 element_array_buffer,
                 textures: Default::default(),
@@ -248,7 +273,7 @@ impl Painter {
     }
 
     /// Access the shared glow context.
-    pub fn gl(&self) -> &Rc<glow::Context> {
+    pub fn gl(&self) -> &Arc<glow::Context> {
         &self.gl
     }
 
@@ -298,7 +323,7 @@ impl Painter {
                 glow::ONE,
             );
 
-            if !cfg!(target_arch = "wasm32") {
+            if self.supports_srgb_framebuffer {
                 self.gl.disable(glow::FRAMEBUFFER_SRGB);
                 check_for_gl_error!(&self.gl, "FRAMEBUFFER_SRGB");
             }
@@ -553,12 +578,12 @@ impl Painter {
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_S,
-                glow::CLAMP_TO_EDGE as i32,
+                options.wrap_mode.glow_code() as i32,
             );
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_WRAP_T,
-                glow::CLAMP_TO_EDGE as i32,
+                options.wrap_mode.glow_code() as i32,
             );
             check_for_gl_error!(&self.gl, "tex_parameter");
 
@@ -620,11 +645,6 @@ impl Painter {
     /// Get the [`glow::Texture`] bound to a [`egui::TextureId`].
     pub fn texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
         self.textures.get(&texture_id).copied()
-    }
-
-    #[deprecated = "renamed 'texture'"]
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
-        self.texture(texture_id)
     }
 
     #[allow(clippy::needless_pass_by_value)] // False positive

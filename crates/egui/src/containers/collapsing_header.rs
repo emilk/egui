@@ -45,7 +45,7 @@ impl CollapsingState {
     }
 
     pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
-        Self::load(ctx, id).unwrap_or(CollapsingState {
+        Self::load(ctx, id).unwrap_or(Self {
             id,
             state: InnerState {
                 open: default_open,
@@ -424,36 +424,6 @@ impl CollapsingHeader {
         self
     }
 
-    /// Can the [`CollapsingHeader`] be selected by clicking it? Default: `false`.
-    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
-    #[inline]
-    pub fn selectable(mut self, selectable: bool) -> Self {
-        self.selectable = selectable;
-        self
-    }
-
-    /// If you set this to 'true', the [`CollapsingHeader`] will be shown as selected.
-    ///
-    /// Example:
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// let mut selected = false;
-    /// let response = egui::CollapsingHeader::new("Select and open me")
-    ///     .selectable(true)
-    ///     .selected(selected)
-    ///     .show(ui, |ui| ui.label("Body"));
-    /// if response.header_response.clicked() {
-    ///     selected = true;
-    /// }
-    /// # });
-    /// ```
-    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
-    #[inline]
-    pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
-        self
-    }
-
     /// Should the [`CollapsingHeader`] show a background behind it? Default: `false`.
     ///
     /// To show it behind all [`CollapsingHeader`] you can just use:
@@ -525,22 +495,22 @@ impl CollapsingHeader {
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
         let wrap_width = available.right() - text_pos.x;
         let wrap = Some(false);
-        let text = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
-        let text_max_x = text_pos.x + text.size().x;
+        let galley = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
+        let text_max_x = text_pos.x + galley.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();
         if ui.visuals().collapsing_header_frame {
             desired_width = desired_width.max(available.width()); // fill full width
         }
 
-        let mut desired_size = vec2(desired_width, text.size().y + 2.0 * button_padding.y);
+        let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - text.size().y / 2.0,
+            header_response.rect.center().y - galley.size().y / 2.0,
         );
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
@@ -555,7 +525,7 @@ impl CollapsingHeader {
         }
 
         header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
 
         let openness = state.openness(ui.ctx());
 
@@ -593,7 +563,7 @@ impl CollapsingHeader {
                 }
             }
 
-            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
+            ui.painter().galley(text_pos, galley, visuals.text_color());
         }
 
         Prepared {

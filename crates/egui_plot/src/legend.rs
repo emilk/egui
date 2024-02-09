@@ -14,12 +14,12 @@ pub enum Corner {
 }
 
 impl Corner {
-    pub fn all() -> impl Iterator<Item = Corner> {
+    pub fn all() -> impl Iterator<Item = Self> {
         [
-            Corner::LeftTop,
-            Corner::RightTop,
-            Corner::LeftBottom,
-            Corner::RightBottom,
+            Self::LeftTop,
+            Self::RightTop,
+            Self::LeftBottom,
+            Self::RightBottom,
         ]
         .iter()
         .copied()
@@ -32,6 +32,9 @@ pub struct Legend {
     pub text_style: TextStyle,
     pub background_alpha: f32,
     pub position: Corner,
+
+    /// Used for overriding the `hidden_items` set in [`LegendWidget`].
+    hidden_items: Option<ahash::HashSet<String>>,
 }
 
 impl Default for Legend {
@@ -40,6 +43,8 @@ impl Default for Legend {
             text_style: TextStyle::Body,
             background_alpha: 0.75,
             position: Corner::RightTop,
+
+            hidden_items: None,
         }
     }
 }
@@ -63,6 +68,17 @@ impl Legend {
     #[inline]
     pub fn position(mut self, corner: Corner) -> Self {
         self.position = corner;
+        self
+    }
+
+    /// Specifies hidden items in the legend configuration to override the existing ones. This
+    /// allows the legend traces' visibility to be controlled from the application code.
+    #[inline]
+    pub fn hidden_items<I>(mut self, hidden_items: I) -> Self
+    where
+        I: IntoIterator<Item = String>,
+    {
+        self.hidden_items = Some(hidden_items.into_iter().collect());
         self
     }
 }
@@ -144,7 +160,7 @@ impl LegendEntry {
         };
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
-        painter.galley_with_color(text_position, galley, visuals.text_color());
+        painter.galley(text_position, galley, visuals.text_color());
 
         *checked ^= response.clicked_by(PointerButton::Primary);
         *hovered = response.hovered();
@@ -167,8 +183,11 @@ impl LegendWidget {
         rect: Rect,
         config: Legend,
         items: &[Box<dyn PlotItem>],
-        hidden_items: &ahash::HashSet<String>,
+        hidden_items: &ahash::HashSet<String>, // Existing hiddent items in the plot memory.
     ) -> Option<Self> {
+        // If `config.hidden_items` is not `None`, it is used.
+        let hidden_items = config.hidden_items.as_ref().unwrap_or(hidden_items);
+
         // Collect the legend entries. If multiple items have the same name, they share a
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
         let mut entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
@@ -207,7 +226,7 @@ impl LegendWidget {
     }
 
     // Get the name of the hovered items.
-    pub fn hovered_entry_name(&self) -> Option<String> {
+    pub fn hovered_item_name(&self) -> Option<String> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.hovered)

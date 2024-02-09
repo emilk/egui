@@ -609,7 +609,13 @@ impl<'a> Slider<'a> {
                 m.set_focus_lock_filter(
                     response.id,
                     EventFilter {
-                        arrows: true, // pressing arrows should not move focus to next widget
+                        // pressing arrows in the orientation of the
+                        // slider should not move focus to next widget
+                        horizontal_arrows: matches!(
+                            self.orientation,
+                            SliderOrientation::Horizontal
+                        ),
+                        vertical_arrows: matches!(self.orientation, SliderOrientation::Vertical),
                         ..Default::default()
                     },
                 );

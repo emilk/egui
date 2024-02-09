@@ -66,7 +66,12 @@ persistence = ["serde", "epaint/serde", "ron"]
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 ##
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin"]
+puffin = ["dep:puffin", "epaint/puffin"]
+
+## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
+##
+## This can help performance for graphics-intense applications.
+rayon = ["epaint/rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
@@ -76,23 +81,20 @@ unity = ["epaint/unity"]
 
 
 [dependencies]
-epaint = { version = "0.24.0", path = "../epaint", default-features = false }
+epaint = { workspace = true, default-features = false }
 
-ahash = { version = "0.8.6", default-features = false, features = [
-    "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
-    "std",
-] }
-nohash-hasher = "0.2"
+ahash.workspace = true
+nohash-hasher.workspace = true
 
 #! ### Optional dependencies
 accesskit = { version = "0.12", optional = true }
 
-backtrace = { version = "0.3", optional = true }
+backtrace = { workspace = true, optional = true }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
-log = { version = "0.4", optional = true, features = ["std"] }
+log = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }

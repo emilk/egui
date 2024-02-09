@@ -395,9 +395,9 @@ pub enum ImageFit {
 impl ImageFit {
     pub fn resolve(self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         match self {
-            ImageFit::Original { scale } => image_size * scale,
-            ImageFit::Fraction(fract) => available_size * fract,
-            ImageFit::Exact(size) => size,
+            Self::Original { scale } => image_size * scale,
+            Self::Fraction(fract) => available_size * fract,
+            Self::Exact(size) => size,
         }
     }
 }

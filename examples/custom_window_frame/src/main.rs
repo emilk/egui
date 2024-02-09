@@ -105,7 +105,9 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
         let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
         ui.ctx()
             .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
-    } else if title_bar_response.is_pointer_button_down_on() {
+    }
+
+    if title_bar_response.is_pointer_button_down_on() {
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
 

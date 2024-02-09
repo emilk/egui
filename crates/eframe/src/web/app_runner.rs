@@ -13,7 +13,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    pub(crate) text_cursor_pos: Option<egui::Pos2>,
+    pub(crate) ime: Option<egui::output::IMEOutput>,
     pub(crate) mutable_text_under_cursor: bool,
 
     // Output for the last run:
@@ -112,7 +112,7 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            text_cursor_pos: None,
+            ime: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
             clipped_primitives: None,
@@ -179,8 +179,6 @@ impl AppRunner {
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
-        let frame_start = now_sec();
-
         super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
         let canvas_size = super::canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
@@ -211,8 +209,6 @@ impl AppRunner {
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
         self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
-
-        self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
     }
 
     /// Paint the results of the last call to [`Self::logic`].
@@ -232,6 +228,10 @@ impl AppRunner {
         }
     }
 
+    pub fn report_frame_time(&mut self, cpu_usage_seconds: f32) {
+        self.frame.info.cpu_usage = Some(cpu_usage_seconds);
+    }
+
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
@@ -244,7 +244,7 @@ impl AppRunner {
             copied_text,
             events: _, // already handled
             mutable_text_under_cursor,
-            text_cursor_pos,
+            ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
         } = platform_output;
@@ -264,9 +264,9 @@ impl AppRunner {
 
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
-        if self.text_cursor_pos != text_cursor_pos {
-            super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
-            self.text_cursor_pos = text_cursor_pos;
+        if self.ime != ime {
+            super::text_agent::move_text_cursor(ime, self.canvas_id());
+            self.ime = ime;
         }
     }
 }

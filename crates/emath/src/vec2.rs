@@ -108,13 +108,13 @@ impl From<Vec2> for mint::Vector2<f32> {
 // ----------------------------------------------------------------------------
 
 impl Vec2 {
-    pub const X: Vec2 = Vec2 { x: 1.0, y: 0.0 };
-    pub const Y: Vec2 = Vec2 { x: 0.0, y: 1.0 };
+    pub const X: Self = Self { x: 1.0, y: 0.0 };
+    pub const Y: Self = Self { x: 0.0, y: 1.0 };
 
-    pub const RIGHT: Vec2 = Vec2 { x: 1.0, y: 0.0 };
-    pub const LEFT: Vec2 = Vec2 { x: -1.0, y: 0.0 };
-    pub const UP: Vec2 = Vec2 { x: 0.0, y: -1.0 };
-    pub const DOWN: Vec2 = Vec2 { x: 0.0, y: 1.0 };
+    pub const RIGHT: Self = Self { x: 1.0, y: 0.0 };
+    pub const LEFT: Self = Self { x: -1.0, y: 0.0 };
+    pub const UP: Self = Self { x: 0.0, y: -1.0 };
+    pub const DOWN: Self = Self { x: 0.0, y: 1.0 };
 
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
     pub const INFINITY: Self = Self::splat(f32::INFINITY);
@@ -278,8 +278,8 @@ impl Vec2 {
     /// Swizzle the axes.
     #[inline]
     #[must_use]
-    pub fn yx(self) -> Vec2 {
-        Vec2 {
+    pub fn yx(self) -> Self {
+        Self {
             x: self.y,
             y: self.x,
         }
@@ -322,18 +322,18 @@ impl std::ops::IndexMut<usize> for Vec2 {
 impl Eq for Vec2 {}
 
 impl Neg for Vec2 {
-    type Output = Vec2;
+    type Output = Self;
 
     #[inline(always)]
-    fn neg(self) -> Vec2 {
+    fn neg(self) -> Self {
         vec2(-self.x, -self.y)
     }
 }
 
 impl AddAssign for Vec2 {
     #[inline(always)]
-    fn add_assign(&mut self, rhs: Vec2) {
-        *self = Vec2 {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         };
@@ -342,8 +342,8 @@ impl AddAssign for Vec2 {
 
 impl SubAssign for Vec2 {
     #[inline(always)]
-    fn sub_assign(&mut self, rhs: Vec2) {
-        *self = Vec2 {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = Self {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         };
@@ -351,11 +351,11 @@ impl SubAssign for Vec2 {
 }
 
 impl Add for Vec2 {
-    type Output = Vec2;
+    type Output = Self;
 
     #[inline(always)]
-    fn add(self, rhs: Vec2) -> Vec2 {
-        Vec2 {
+    fn add(self, rhs: Self) -> Self {
+        Self {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         }
@@ -363,11 +363,11 @@ impl Add for Vec2 {
 }
 
 impl Sub for Vec2 {
-    type Output = Vec2;
+    type Output = Self;
 
     #[inline(always)]
-    fn sub(self, rhs: Vec2) -> Vec2 {
-        Vec2 {
+    fn sub(self, rhs: Self) -> Self {
+        Self {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
@@ -375,12 +375,12 @@ impl Sub for Vec2 {
 }
 
 /// Element-wise multiplication
-impl Mul<Vec2> for Vec2 {
-    type Output = Vec2;
+impl Mul<Self> for Vec2 {
+    type Output = Self;
 
     #[inline(always)]
-    fn mul(self, vec: Vec2) -> Vec2 {
-        Vec2 {
+    fn mul(self, vec: Self) -> Self {
+        Self {
             x: self.x * vec.x,
             y: self.y * vec.y,
         }
@@ -388,12 +388,12 @@ impl Mul<Vec2> for Vec2 {
 }
 
 /// Element-wise division
-impl Div<Vec2> for Vec2 {
-    type Output = Vec2;
+impl Div<Self> for Vec2 {
+    type Output = Self;
 
     #[inline(always)]
-    fn div(self, rhs: Vec2) -> Vec2 {
-        Vec2 {
+    fn div(self, rhs: Self) -> Self {
+        Self {
             x: self.x / rhs.x,
             y: self.y / rhs.y,
         }
@@ -417,11 +417,11 @@ impl DivAssign<f32> for Vec2 {
 }
 
 impl Mul<f32> for Vec2 {
-    type Output = Vec2;
+    type Output = Self;
 
     #[inline(always)]
-    fn mul(self, factor: f32) -> Vec2 {
-        Vec2 {
+    fn mul(self, factor: f32) -> Self {
+        Self {
             x: self.x * factor,
             y: self.y * factor,
         }
@@ -441,11 +441,11 @@ impl Mul<Vec2> for f32 {
 }
 
 impl Div<f32> for Vec2 {
-    type Output = Vec2;
+    type Output = Self;
 
     #[inline(always)]
-    fn div(self, factor: f32) -> Vec2 {
-        Vec2 {
+    fn div(self, factor: f32) -> Self {
+        Self {
             x: self.x / factor,
             y: self.y / factor,
         }

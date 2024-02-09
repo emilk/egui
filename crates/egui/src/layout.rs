@@ -88,16 +88,16 @@ impl Direction {
     #[inline(always)]
     pub fn is_horizontal(self) -> bool {
         match self {
-            Direction::LeftToRight | Direction::RightToLeft => true,
-            Direction::TopDown | Direction::BottomUp => false,
+            Self::LeftToRight | Self::RightToLeft => true,
+            Self::TopDown | Self::BottomUp => false,
         }
     }
 
     #[inline(always)]
     pub fn is_vertical(self) -> bool {
         match self {
-            Direction::LeftToRight | Direction::RightToLeft => false,
-            Direction::TopDown | Direction::BottomUp => true,
+            Self::LeftToRight | Self::RightToLeft => false,
+            Self::TopDown | Self::BottomUp => true,
         }
     }
 }

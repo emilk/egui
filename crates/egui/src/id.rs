@@ -1,5 +1,7 @@
 // TODO(emilk): have separate types `PositionId` and `UniqueId`. ?
 
+use std::num::NonZeroU64;
+
 /// egui tracks widgets frame-to-frame using [`Id`]s.
 ///
 /// For instance, if you start dragging a slider one frame, egui stores
@@ -25,9 +27,11 @@
 ///
 /// Then there are widgets that need no identifiers at all, like labels,
 /// because they have no state nor are interacted with.
+///
+/// This is niche-optimized to that `Option<Id>` is the same size as `Id`.
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Id(u64);
+pub struct Id(NonZeroU64);
 
 impl Id {
     /// A special [`Id`], in particular as a key to [`crate::Memory::data`]
@@ -35,47 +39,47 @@ impl Id {
     ///
     /// The null [`Id`] is still a valid id to use in all circumstances,
     /// though obviously it will lead to a lot of collisions if you do use it!
-    pub const NULL: Self = Self(0);
+    pub const NULL: Self = Self(NonZeroU64::MAX);
 
-    #[deprecated = "Use Id::NULL"]
-    pub fn null() -> Self {
-        Self(0)
-    }
-
-    pub(crate) const fn background() -> Self {
-        Self(1)
+    #[inline]
+    const fn from_hash(hash: u64) -> Self {
+        if let Some(nonzero) = NonZeroU64::new(hash) {
+            Self(nonzero)
+        } else {
+            Self(NonZeroU64::MIN) // The hash was exactly zero (very bad luck)
+        }
     }
 
     /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
-    pub fn new(source: impl std::hash::Hash) -> Id {
-        use std::hash::{BuildHasher, Hasher};
-        let mut hasher = epaint::ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
-        source.hash(&mut hasher);
-        Id(hasher.finish())
+    pub fn new(source: impl std::hash::Hash) -> Self {
+        Self::from_hash(epaint::ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(source))
     }
 
     /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.
-    pub fn with(self, child: impl std::hash::Hash) -> Id {
+    pub fn with(self, child: impl std::hash::Hash) -> Self {
         use std::hash::{BuildHasher, Hasher};
         let mut hasher = epaint::ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
-        hasher.write_u64(self.0);
+        hasher.write_u64(self.0.get());
         child.hash(&mut hasher);
-        Id(hasher.finish())
+        Self::from_hash(hasher.finish())
     }
 
     /// Short and readable summary
     pub fn short_debug_format(&self) -> String {
-        format!("{:04X}", self.0 as u16)
+        format!("{:04X}", self.value() as u16)
     }
 
+    /// The inner value of the [`Id`].
+    ///
+    /// This is a high-entropy hash, or [`Self::NULL`].
     #[inline(always)]
-    pub(crate) fn value(&self) -> u64 {
-        self.0
+    pub fn value(&self) -> u64 {
+        self.0.get()
     }
 
     #[cfg(feature = "accesskit")]
     pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
-        self.0.into()
+        self.value().into()
     }
 }
 
@@ -98,6 +102,12 @@ impl From<String> for Id {
     fn from(string: String) -> Self {
         Self::new(string)
     }
+}
+
+#[test]
+fn id_size() {
+    assert_eq!(std::mem::size_of::<Id>(), 8);
+    assert_eq!(std::mem::size_of::<Option<Id>>(), 8);
 }
 
 // ----------------------------------------------------------------------------

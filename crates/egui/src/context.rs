@@ -1,9 +1,9 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{borrow::Cow, cell::RefCell, sync::Arc, time::Duration};
+use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use ahash::HashMap;
-use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
+use epaint::{mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *};
 
 use crate::{
     animation_manager::AnimationManager,
@@ -66,26 +66,108 @@ impl Default for WrappedTextureManager {
 
 // ----------------------------------------------------------------------------
 
-/// Repaint-logic
-impl ContextImpl {
-    fn request_repaint(&mut self, viewport_id: ViewportId) {
-        self.request_repaint_after(Duration::ZERO, viewport_id);
+/// Generic event callback.
+pub type ContextCallback = Arc<dyn Fn(&Context) + Send + Sync>;
+
+#[derive(Clone)]
+struct NamedContextCallback {
+    debug_name: &'static str,
+    callback: ContextCallback,
+}
+
+/// Callbacks that users can register
+#[derive(Clone, Default)]
+struct Plugins {
+    pub on_begin_frame: Vec<NamedContextCallback>,
+    pub on_end_frame: Vec<NamedContextCallback>,
+}
+
+impl Plugins {
+    fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
+        crate::profile_scope!("plugins", _cb_name);
+        for NamedContextCallback {
+            debug_name: _name,
+            callback,
+        } in callbacks
+        {
+            crate::profile_scope!("plugin", _name);
+            (callback)(ctx);
+        }
     }
 
-    fn request_repaint_after(&mut self, delay: Duration, viewport_id: ViewportId) {
+    fn on_begin_frame(&self, ctx: &Context) {
+        Self::call(ctx, "on_begin_frame", &self.on_begin_frame);
+    }
+
+    fn on_end_frame(&self, ctx: &Context) {
+        Self::call(ctx, "on_end_frame", &self.on_end_frame);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Repaint-logic
+impl ContextImpl {
+    /// This is where we update the repaint logic.
+    fn begin_frame_repaint_logic(&mut self, viewport_id: ViewportId) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        // Each request results in two repaints, just to give some things time to settle.
-        // This solves some corner-cases of missing repaints on frame-delayed responses.
-        viewport.repaint.outstanding = 1;
+        std::mem::swap(
+            &mut viewport.repaint.prev_causes,
+            &mut viewport.repaint.causes,
+        );
+        viewport.repaint.causes.clear();
 
-        if let Some(callback) = &self.request_repaint_callback {
-            // We save some CPU time by only calling the callback if we need to.
-            // If the new delay is greater or equal to the previous lowest,
-            // it means we have already called the callback, and don't need to do it again.
-            if delay < viewport.repaint.repaint_delay {
-                viewport.repaint.repaint_delay = delay;
+        viewport.repaint.prev_frame_paint_delay = viewport.repaint.repaint_delay;
 
+        if viewport.repaint.outstanding == 0 {
+            // We are repainting now, so we can wait a while for the next repaint.
+            viewport.repaint.repaint_delay = Duration::MAX;
+        } else {
+            viewport.repaint.repaint_delay = Duration::ZERO;
+            viewport.repaint.outstanding -= 1;
+            if let Some(callback) = &self.request_repaint_callback {
+                (callback)(RequestRepaintInfo {
+                    viewport_id,
+                    delay: Duration::ZERO,
+                    current_frame_nr: viewport.repaint.frame_nr,
+                });
+            }
+        }
+    }
+
+    fn request_repaint(&mut self, viewport_id: ViewportId, cause: RepaintCause) {
+        self.request_repaint_after(Duration::ZERO, viewport_id, cause);
+    }
+
+    fn request_repaint_after(
+        &mut self,
+        delay: Duration,
+        viewport_id: ViewportId,
+        cause: RepaintCause,
+    ) {
+        let viewport = self.viewports.entry(viewport_id).or_default();
+
+        if delay == Duration::ZERO {
+            // Each request results in two repaints, just to give some things time to settle.
+            // This solves some corner-cases of missing repaints on frame-delayed responses.
+            viewport.repaint.outstanding = 1;
+        } else {
+            // For non-zero delays, we only repaint once, because
+            // otherwise we would just schedule an immediate repaint _now_,
+            // which would then clear the delay and repaint again.
+            // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
+        }
+
+        viewport.repaint.causes.push(cause);
+
+        // We save some CPU time by only calling the callback if we need to.
+        // If the new delay is greater or equal to the previous lowest,
+        // it means we have already called the callback, and don't need to do it again.
+        if delay < viewport.repaint.repaint_delay {
+            viewport.repaint.repaint_delay = delay;
+
+            if let Some(callback) = &self.request_repaint_callback {
                 (callback)(RequestRepaintInfo {
                     viewport_id,
                     delay,
@@ -96,10 +178,10 @@ impl ContextImpl {
     }
 
     #[must_use]
-    fn requested_repaint_last_frame(&self, viewport_id: &ViewportId) -> bool {
-        self.viewports
-            .get(viewport_id)
-            .map_or(false, |v| v.repaint.requested_last_frame)
+    fn requested_immediate_repaint_prev_frame(&self, viewport_id: &ViewportId) -> bool {
+        self.viewports.get(viewport_id).map_or(false, |v| {
+            v.repaint.requested_immediate_repaint_prev_frame()
+        })
     }
 
     #[must_use]
@@ -107,6 +189,52 @@ impl ContextImpl {
         self.viewports.get(viewport_id).map_or(false, |v| {
             0 < v.repaint.outstanding || v.repaint.repaint_delay < Duration::MAX
         })
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Used to store each widget's [Id], [Rect] and [Sense] each frame.
+/// Used to check for overlaps between widgets when handling events.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WidgetRect {
+    /// Where the widget is.
+    pub rect: Rect,
+
+    /// The globally unique widget id.
+    ///
+    /// For interactive widgets, this better be globally unique.
+    /// If not there will be weird bugs,
+    /// and also big red warning test on the screen in debug builds
+    /// (see [`Options::warn_on_id_clash`]).
+    ///
+    /// You can ensure globally unique ids using [`Ui::push_id`].
+    pub id: Id,
+
+    /// How the widget responds to interaction.
+    pub sense: Sense,
+}
+
+/// Stores the positions of all widgets generated during a single egui update/frame.
+///
+/// Actually, only those that are on screen.
+#[derive(Default, Clone, PartialEq, Eq)]
+pub struct WidgetRects {
+    /// All widgets, in painting order.
+    pub by_layer: HashMap<LayerId, Vec<WidgetRect>>,
+}
+
+impl WidgetRects {
+    /// Clear the contents while retaining allocated memory.
+    pub fn clear(&mut self) {
+        for rects in self.by_layer.values_mut() {
+            rects.clear();
+        }
+    }
+
+    /// Insert the given widget rect in the given layer.
+    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
+        self.by_layer.entry(layer_id).or_default().push(widget_rect);
     }
 }
 
@@ -138,10 +266,10 @@ struct ViewportState {
     used: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_this_frame: WidgetRects,
 
     /// Read
-    layer_rects_prev_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_prev_frame: WidgetRects,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -152,6 +280,35 @@ struct ViewportState {
     // Most of the things in `PlatformOutput` are not actually viewport dependent.
     output: PlatformOutput,
     commands: Vec<ViewportCommand>,
+}
+
+/// What called [`Context::request_repaint`]?
+#[derive(Clone, Debug)]
+pub struct RepaintCause {
+    /// What file had the call that requested the repaint?
+    pub file: String,
+
+    /// What line number of the the call that requested the repaint?
+    pub line: u32,
+}
+
+impl RepaintCause {
+    /// Capture the file and line number of the call site.
+    #[allow(clippy::new_without_default)]
+    #[track_caller]
+    pub fn new() -> Self {
+        let caller = Location::caller();
+        Self {
+            file: caller.file().to_owned(),
+            line: caller.line(),
+        }
+    }
+}
+
+impl std::fmt::Display for RepaintCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.file, self.line)
+    }
 }
 
 /// Per-viewport state related to repaint scheduling.
@@ -170,8 +327,18 @@ struct ViewportRepaintInfo {
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
     outstanding: u8,
 
-    /// Did we?
-    requested_last_frame: bool,
+    /// What caused repaints during this frame?
+    causes: Vec<RepaintCause>,
+
+    /// What triggered a repaint the previous frame?
+    /// (i.e: why are we updating now?)
+    prev_causes: Vec<RepaintCause>,
+
+    /// What was the output of `repaint_delay` on the previous frame?
+    ///
+    /// If this was zero, we are repainting as quickly as possible
+    /// (as far as we know).
+    prev_frame_paint_delay: Duration,
 }
 
 impl Default for ViewportRepaintInfo {
@@ -185,8 +352,17 @@ impl Default for ViewportRepaintInfo {
             // Let's run a couple of frames at the start, because why not.
             outstanding: 1,
 
-            requested_last_frame: false,
+            causes: Default::default(),
+            prev_causes: Default::default(),
+
+            prev_frame_paint_delay: Duration::MAX,
         }
+    }
+}
+
+impl ViewportRepaintInfo {
+    pub fn requested_immediate_repaint_prev_frame(&self) -> bool {
+        self.prev_frame_paint_delay == Duration::ZERO
     }
 }
 
@@ -194,10 +370,25 @@ impl Default for ViewportRepaintInfo {
 
 #[derive(Default)]
 struct ContextImpl {
-    /// `None` until the start of the first frame.
-    fonts: Option<Fonts>,
+    /// Since we could have multiple viewports across multiple monitors with
+    /// different `pixels_per_point`, we need a `Fonts` instance for each unique
+    /// `pixels_per_point`.
+    /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
+    /// as well as kerning, font sizes, etc.
+    fonts: std::collections::BTreeMap<OrderedFloat<f32>, Fonts>,
+    font_definitions: FontDefinitions,
+
     memory: Memory,
     animation_manager: AnimationManager,
+
+    plugins: Plugins,
+
+    /// All viewports share the same texture manager and texture namespace.
+    ///
+    /// In all viewports, [`TextureId::default`] is special, and points to the font atlas.
+    /// The font-atlas texture _may_ be different across viewports, as they may have different
+    /// `pixels_per_point`, so we do special book-keeping for that.
+    /// See <https://github.com/emilk/egui/issues/3664>.
     tex_manager: WrappedTextureManager,
 
     /// Set during the frame, becomes active at the start of the next frame.
@@ -240,22 +431,10 @@ impl ContextImpl {
 
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
-        let viewport = self.viewports.entry(viewport_id).or_default();
 
-        if viewport.repaint.outstanding == 0 {
-            // We are repainting now, so we can wait a while for the next repaint.
-            viewport.repaint.repaint_delay = Duration::MAX;
-        } else {
-            viewport.repaint.repaint_delay = Duration::ZERO;
-            viewport.repaint.outstanding -= 1;
-            if let Some(callback) = &self.request_repaint_callback {
-                (callback)(RequestRepaintInfo {
-                    viewport_id,
-                    delay: Duration::ZERO,
-                    current_frame_nr: viewport.repaint.frame_nr,
-                });
-            }
-        }
+        self.begin_frame_repaint_logic(viewport_id);
+
+        let viewport = self.viewports.entry(viewport_id).or_default();
 
         if is_outermost_viewport {
             if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
@@ -278,8 +457,6 @@ impl ContextImpl {
                 .native_pixels_per_point
                 .unwrap_or(1.0);
 
-        viewport.layer_rects_prev_frame = std::mem::take(&mut viewport.layer_rects_this_frame);
-
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
@@ -289,7 +466,7 @@ impl ContextImpl {
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
-            viewport.repaint.requested_last_frame,
+            viewport.repaint.requested_immediate_repaint_prev_frame(),
             pixels_per_point,
         );
 
@@ -304,6 +481,7 @@ impl ContextImpl {
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
                 interactable: true,
+                edges_padded_for_resize: false,
             },
         );
 
@@ -335,23 +513,37 @@ impl ContextImpl {
         let max_texture_side = input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
-            crate::profile_scope!("Fonts::new");
-            let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
-            self.fonts = Some(fonts);
+            // New font definition loaded, so we need to reload all fonts.
+            self.fonts.clear();
+            self.font_definitions = font_definitions;
+            #[cfg(feature = "log")]
+            log::debug!("Loading new font definitions");
         }
 
-        let fonts = self.fonts.get_or_insert_with(|| {
-            let font_definitions = FontDefinitions::default();
-            crate::profile_scope!("Fonts::new");
-            Fonts::new(pixels_per_point, max_texture_side, font_definitions)
-        });
+        let mut is_new = false;
+
+        let fonts = self
+            .fonts
+            .entry(pixels_per_point.into())
+            .or_insert_with(|| {
+                #[cfg(feature = "log")]
+                log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+
+                is_new = true;
+                crate::profile_scope!("Fonts::new");
+                Fonts::new(
+                    pixels_per_point,
+                    max_texture_side,
+                    self.font_definitions.clone(),
+                )
+            });
 
         {
             crate::profile_scope!("Fonts::begin_frame");
             fonts.begin_frame(pixels_per_point, max_texture_side);
         }
 
-        if self.memory.options.preload_font_glyphs {
+        if is_new && self.memory.options.preload_font_glyphs {
             crate::profile_scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
@@ -377,6 +569,10 @@ impl ContextImpl {
             parent_builder.push_child(id.accesskit_id());
         }
         builders.get_mut(&id).unwrap()
+    }
+
+    fn pixels_per_point(&mut self) -> f32 {
+        self.viewport().input.pixels_per_point
     }
 
     /// Return the `ViewportId` of the current viewport.
@@ -477,28 +673,35 @@ impl std::fmt::Debug for Context {
 }
 
 impl std::cmp::PartialEq for Context {
-    fn eq(&self, other: &Context) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
 impl Default for Context {
     fn default() -> Self {
-        let ctx = ContextImpl {
+        let ctx_impl = ContextImpl {
             embed_viewports: true,
             ..Default::default()
         };
-        Self(Arc::new(RwLock::new(ctx)))
+        let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
+
+        // Register built-in plugins:
+        crate::debug_text::register(&ctx);
+        crate::text_selection::LabelSelectionState::register(&ctx);
+        crate::DragAndDrop::register(&ctx);
+
+        ctx
     }
 }
 
 impl Context {
-    // Do read-only (shared access) transaction on Context
+    /// Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
         reader(&self.0.read())
     }
 
-    // Do read-write (exclusive access) transaction on Context
+    /// Do read-write (exclusive access) transaction on Context
     fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
         writer(&mut self.0.write())
     }
@@ -526,7 +729,7 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
-    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Context)) -> FullOutput {
+    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Self)) -> FullOutput {
         crate::profile_function!();
 
         self.begin_frame(new_input);
@@ -553,7 +756,7 @@ impl Context {
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
-
+        self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 }
@@ -569,7 +772,7 @@ impl Context {
     /// ```
     /// # let mut ctx = egui::Context::default();
     /// ctx.input(|i| {
-    ///     // ⚠️ Using `ctx` (even from other `Arc` reference) again here will lead to a dead-lock!
+    ///     // ⚠️ Using `ctx` (even from other `Arc` reference) again here will lead to a deadlock!
     /// });
     ///
     /// if let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) {
@@ -578,7 +781,7 @@ impl Context {
     /// ```
     #[inline]
     pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.input_for(self.viewport_id(), reader)
+        self.write(move |ctx| reader(&ctx.viewport().input))
     }
 
     /// This will create a `InputState::default()` if there is no input state for that viewport
@@ -625,8 +828,14 @@ impl Context {
 
     /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
-    pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
+    pub fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().graphics))
+    }
+
+    /// Read-only access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
+    #[inline]
+    pub fn graphics<R>(&self, reader: impl FnOnce(&GraphicLayers) -> R) -> R {
+        self.write(move |ctx| reader(&ctx.viewport().graphics))
     }
 
     /// Read-only access to [`PlatformOutput`].
@@ -666,19 +875,14 @@ impl Context {
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
-        self.read(move |ctx| {
+        self.write(move |ctx| {
+            let pixels_per_point = ctx.pixels_per_point();
             reader(
                 ctx.fonts
-                    .as_ref()
+                    .get(&pixels_per_point.into())
                     .expect("No fonts available until first call to Context::run()"),
             )
         })
-    }
-
-    /// Read-write access to [`Fonts`].
-    #[inline]
-    pub fn fonts_mut<R>(&self, writer: impl FnOnce(&mut Option<Fonts>) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.fonts))
     }
 
     /// Read-only access to [`Options`].
@@ -728,19 +932,21 @@ impl Context {
 
         // it is ok to reuse the same ID for e.g. a frame around a widget,
         // or to check for interaction with the same widget twice:
-        if prev_rect.expand(0.1).contains_rect(new_rect)
-            || new_rect.expand(0.1).contains_rect(prev_rect)
-        {
+        let is_same_rect = prev_rect.expand(0.1).contains_rect(new_rect)
+            || new_rect.expand(0.1).contains_rect(prev_rect);
+        if is_same_rect {
             return;
         }
 
         let show_error = |widget_rect: Rect, text: String| {
+            let screen_rect = self.screen_rect();
+
             let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color));
 
-            let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+            let below = widget_rect.bottom() + 32.0 < screen_rect.bottom();
 
             let text_rect = if below {
                 painter.debug_text(
@@ -811,79 +1017,25 @@ impl Context {
                 .at_most(Vec2::splat(5.0)),
         );
 
-        // Respect clip rectangle when interacting
+        // Respect clip rectangle when interacting:
         let interact_rect = clip_rect.intersect(interact_rect);
-        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
 
-        // This solves the problem of overlapping widgets.
-        // Whichever widget is added LAST (=on top) gets the input:
-        if interact_rect.is_positive() && sense.interactive() {
-            #[cfg(debug_assertions)]
-            if self.style().debug.show_interactive_widgets {
-                Self::layer_painter(self, LayerId::debug()).rect(
-                    interact_rect,
-                    0.0,
-                    Color32::YELLOW.additive().linear_multiply(0.005),
-                    Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
-                );
-            }
+        let contains_pointer = self.widget_contains_pointer(layer_id, id, sense, interact_rect);
 
-            #[cfg(debug_assertions)]
-            let mut show_blocking_widget = None;
-
-            self.write(|ctx| {
-                let viewport = ctx.viewport();
-
-                viewport
-                    .layer_rects_this_frame
-                    .entry(layer_id)
-                    .or_default()
-                    .push((id, interact_rect));
-
-                if hovered {
-                    let pointer_pos = viewport.input.pointer.interact_pos();
-                    if let Some(pointer_pos) = pointer_pos {
-                        if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
-                            for &(prev_id, prev_rect) in rects.iter().rev() {
-                                if prev_id == id {
-                                    break; // there is no other interactive widget covering us at the pointer position.
-                                }
-                                if prev_rect.contains(pointer_pos) {
-                                    // Another interactive widget is covering us at the pointer position,
-                                    // so we aren't hovered.
-
-                                    #[cfg(debug_assertions)]
-                                    if ctx.memory.options.style.debug.show_blocking_widget {
-                                        // Store the rects to use them outside the write() call to
-                                        // avoid deadlock
-                                        show_blocking_widget = Some((interact_rect, prev_rect));
-                                    }
-
-                                    hovered = false;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            #[cfg(debug_assertions)]
-            if let Some((interact_rect, prev_rect)) = show_blocking_widget {
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    interact_rect,
-                    Color32::GREEN,
-                    "Covered",
-                );
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    prev_rect,
-                    Color32::LIGHT_BLUE,
-                    "On top",
-                );
-            }
+        #[cfg(debug_assertions)]
+        if sense.interactive()
+            && interact_rect.is_positive()
+            && self.style().debug.show_interactive_widgets
+        {
+            Self::layer_painter(self, LayerId::debug()).rect(
+                interact_rect,
+                0.0,
+                Color32::YELLOW.additive().linear_multiply(0.005),
+                Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
+            );
         }
 
-        self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
+        self.interact_with_hovered(layer_id, id, rect, sense, enabled, contains_pointer)
     }
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
@@ -894,24 +1046,23 @@ impl Context {
         rect: Rect,
         sense: Sense,
         enabled: bool,
-        hovered: bool,
+        contains_pointer: bool,
     ) -> Response {
-        let hovered = hovered && enabled; // can't even hover disabled widgets
-
-        let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
-
-        let mut response = Response {
+        // This is the start - we'll fill in the fields below:
+        let mut res = Response {
             ctx: self.clone(),
             layer_id,
             id,
             rect,
             sense,
             enabled,
-            hovered,
-            highlighted,
+            contains_pointer,
+            hovered: contains_pointer && enabled,
+            highlighted: self.frame_state(|fs| fs.highlight_this_frame.contains(&id)),
             clicked: Default::default(),
             double_clicked: Default::default(),
             triple_clicked: Default::default(),
+            drag_started: false,
             dragged: false,
             drag_released: false,
             is_pointer_button_down_on: false,
@@ -922,20 +1073,21 @@ impl Context {
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(id));
-            return response;
         }
 
-        self.check_for_id_clash(id, rect, "widget");
+        if sense.interactive() || sense.focusable {
+            self.check_for_id_clash(id, rect, "widget");
+        }
 
         #[cfg(feature = "accesskit")]
         if sense.focusable {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            self.accesskit_node_builder(id, |builder| response.fill_accesskit_node_common(builder));
+            self.accesskit_node_builder(id, |builder| res.fill_accesskit_node_common(builder));
         }
 
-        let clicked_elsewhere = response.clicked_elsewhere();
+        let clicked_elsewhere = res.clicked_elsewhere();
         self.write(|ctx| {
             let input = &ctx.viewports.entry(ctx.viewport_id()).or_default().input;
             let memory = &mut ctx.memory;
@@ -945,43 +1097,53 @@ impl Context {
             }
 
             if sense.click
-                && memory.has_focus(response.id)
+                && memory.has_focus(res.id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                response.clicked[PointerButton::Primary as usize] = true;
+                res.clicked[PointerButton::Primary as usize] = true;
             }
 
             #[cfg(feature = "accesskit")]
+            if sense.click && input.has_accesskit_action_request(res.id, accesskit::Action::Default)
             {
-                if sense.click
-                    && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
-                {
-                    response.clicked[PointerButton::Primary as usize] = true;
-                }
+                res.clicked[PointerButton::Primary as usize] = true;
             }
 
             if sense.click || sense.drag {
                 let interaction = memory.interaction_mut();
 
-                interaction.click_interest |= hovered && sense.click;
-                interaction.drag_interest |= hovered && sense.drag;
+                interaction.click_interest |= contains_pointer && sense.click;
+                interaction.drag_interest |= contains_pointer && sense.drag;
 
-                response.dragged = interaction.drag_id == Some(id);
-                response.is_pointer_button_down_on =
-                    interaction.click_id == Some(id) || response.dragged;
+                res.is_pointer_button_down_on =
+                    interaction.click_id == Some(id) || interaction.drag_id == Some(id);
+
+                if sense.click && sense.drag {
+                    // This widget is sensitive to both clicks and drags.
+                    // When the mouse first is pressed, it could be either,
+                    // so we postpone the decision until we know.
+                    res.dragged =
+                        interaction.drag_id == Some(id) && input.pointer.is_decidedly_dragging();
+                    res.drag_started = res.dragged && input.pointer.started_decidedly_dragging;
+                } else if sense.drag {
+                    // We are just sensitive to drags, so we can mark ourself as dragged right away:
+                    res.dragged = interaction.drag_id == Some(id);
+                    // res.drag_started will be filled below if applicable
+                }
 
                 for pointer_event in &input.pointer.pointer_events {
                     match pointer_event {
                         PointerEvent::Moved(_) => {}
+
                         PointerEvent::Pressed { .. } => {
-                            if hovered {
+                            if contains_pointer {
                                 let interaction = memory.interaction_mut();
 
                                 if sense.click && interaction.click_id.is_none() {
                                     // potential start of a click
                                     interaction.click_id = Some(id);
-                                    response.is_pointer_button_down_on = true;
+                                    res.is_pointer_button_down_on = true;
                                 }
 
                                 // HACK: windows have low priority on dragging.
@@ -996,49 +1158,62 @@ impl Context {
                                     interaction.drag_id = Some(id);
                                     interaction.drag_is_window = false;
                                     memory.set_window_interaction(None); // HACK: stop moving windows (if any)
-                                    response.is_pointer_button_down_on = true;
-                                    response.dragged = true;
+
+                                    res.is_pointer_button_down_on = true;
+
+                                    // Again, only if we are ONLY sensitive to drags can we decide that this is a drag now.
+                                    if sense.click {
+                                        res.dragged = false;
+                                        res.drag_started = false;
+                                    } else {
+                                        res.dragged = true;
+                                        res.drag_started = true;
+                                    }
                                 }
                             }
                         }
-                        PointerEvent::Released { click, button } => {
-                            response.drag_released = response.dragged;
-                            response.dragged = false;
 
-                            if hovered && response.is_pointer_button_down_on {
+                        PointerEvent::Released { click, button } => {
+                            res.drag_released = res.dragged;
+                            res.dragged = false;
+
+                            if sense.click && res.hovered && res.is_pointer_button_down_on {
                                 if let Some(click) = click {
-                                    let clicked = hovered && response.is_pointer_button_down_on;
-                                    response.clicked[*button as usize] = clicked;
-                                    response.double_clicked[*button as usize] =
+                                    let clicked = res.hovered && res.is_pointer_button_down_on;
+                                    res.clicked[*button as usize] = clicked;
+                                    res.double_clicked[*button as usize] =
                                         clicked && click.is_double();
-                                    response.triple_clicked[*button as usize] =
+                                    res.triple_clicked[*button as usize] =
                                         clicked && click.is_triple();
                                 }
                             }
+
+                            res.is_pointer_button_down_on = false;
                         }
                     }
                 }
             }
 
-            if response.is_pointer_button_down_on {
-                response.interact_pointer_pos = input.pointer.interact_pos();
+            if res.is_pointer_button_down_on {
+                res.interact_pointer_pos = input.pointer.interact_pos();
             }
 
-            if input.pointer.any_down() {
-                response.hovered &= response.is_pointer_button_down_on; // we don't hover widgets while interacting with *other* widgets
+            if input.pointer.any_down() && !res.is_pointer_button_down_on {
+                // We don't hover widgets while interacting with *other* widgets:
+                res.hovered = false;
             }
 
-            if memory.has_focus(response.id) && clicked_elsewhere {
+            if memory.has_focus(res.id) && clicked_elsewhere {
                 memory.surrender_focus(id);
             }
 
-            if response.dragged() && !memory.has_focus(response.id) {
+            if res.dragged() && !memory.has_focus(res.id) {
                 // e.g.: remove focus from a widget when you drag something else
                 memory.stop_text_input();
             }
         });
 
-        response
+        res
     }
 
     /// Get a full-screen painter for a new or existing layer
@@ -1050,6 +1225,24 @@ impl Context {
     /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
+    }
+
+    /// Print this text next to the cursor at the end of the frame.
+    ///
+    /// If you call this multiple times, the text will be appended.
+    ///
+    /// This only works if compiled with `debug_assertions`.
+    ///
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let state = true;
+    /// ctx.debug_text(format!("State: {state:?}"));
+    /// ```
+    ///
+    /// This is just a convenience for calling [`crate::debug_text::print`].
+    #[track_caller]
+    pub fn debug_text(&self, text: impl Into<WidgetText>) {
+        crate::debug_text::print(self, text);
     }
 
     /// What operating system are we running on?
@@ -1165,11 +1358,14 @@ impl Context {
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
     ///
+    /// To request repaint with a delay, use [`Self::request_repaint_after`].
+    ///
     /// If called from outside the UI thread, the UI thread will wake up and run,
     /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
     /// (this will work on `eframe`).
     ///
-    /// This will repaint the current viewport
+    /// This will repaint the current viewport.
+    #[track_caller]
     pub fn request_repaint(&self) {
         self.request_repaint_of(self.viewport_id());
     }
@@ -1179,13 +1375,17 @@ impl Context {
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
     ///
+    /// To request repaint with a delay, use [`Self::request_repaint_after_for`].
+    ///
     /// If called from outside the UI thread, the UI thread will wake up and run,
     /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
     /// (this will work on `eframe`).
     ///
-    /// This will repaint the specified viewport
+    /// This will repaint the specified viewport.
+    #[track_caller]
     pub fn request_repaint_of(&self, id: ViewportId) {
-        self.write(|ctx| ctx.request_repaint(id));
+        let cause = RepaintCause::new();
+        self.write(|ctx| ctx.request_repaint(id, cause));
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1201,21 +1401,22 @@ impl Context {
     /// redraws when the app is not in focus. But sometimes the GUI of the app might become stale
     /// and outdated if it is not updated for too long.
     ///
-    /// Lets say, something like a stop watch widget that displays the time in seconds. You would waste
+    /// Let's say, something like a stopwatch widget that displays the time in seconds. You would waste
     /// resources repainting multiple times within the same second (when you have no input),
     /// just calculate the difference of duration between current time and next second change,
     /// and call this function, to make sure that you are displaying the latest updated time, but
     /// not wasting resources on needless repaints within the same second.
     ///
     /// ### Quirk:
-    /// Duration begins at the next frame. lets say for example that its a very inefficient app
+    /// Duration begins at the next frame. Let's say for example that it's a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
-    /// So, its not that we are requesting repaint within X duration. We are rather timing out
+    /// So, it's not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the current viewport
+    #[track_caller]
     pub fn request_repaint_after(&self, duration: Duration) {
         self.request_repaint_after_for(duration, self.viewport_id());
     }
@@ -1233,23 +1434,25 @@ impl Context {
     /// redraws when the app is not in focus. But sometimes the GUI of the app might become stale
     /// and outdated if it is not updated for too long.
     ///
-    /// Lets say, something like a stop watch widget that displays the time in seconds. You would waste
+    /// Let's say, something like a stopwatch widget that displays the time in seconds. You would waste
     /// resources repainting multiple times within the same second (when you have no input),
     /// just calculate the difference of duration between current time and next second change,
     /// and call this function, to make sure that you are displaying the latest updated time, but
     /// not wasting resources on needless repaints within the same second.
     ///
     /// ### Quirk:
-    /// Duration begins at the next frame. lets say for example that its a very inefficient app
+    /// Duration begins at the next frame. Let's say for example that it's a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
-    /// So, its not that we are requesting repaint within X duration. We are rather timing out
+    /// So, it's not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the specified viewport
+    #[track_caller]
     pub fn request_repaint_after_for(&self, duration: Duration, id: ViewportId) {
-        self.write(|ctx| ctx.request_repaint_after(duration, id));
+        let cause = RepaintCause::new();
+        self.write(|ctx| ctx.request_repaint_after(duration, id, cause));
     }
 
     /// Was a repaint requested last frame for the current viewport?
@@ -1261,7 +1464,7 @@ impl Context {
     /// Was a repaint requested last frame for the given viewport?
     #[must_use]
     pub fn requested_repaint_last_frame_for(&self, viewport_id: &ViewportId) -> bool {
-        self.read(|ctx| ctx.requested_repaint_last_frame(viewport_id))
+        self.read(|ctx| ctx.requested_immediate_repaint_prev_frame(viewport_id))
     }
 
     /// Has a repaint been requested for the current viewport?
@@ -1276,6 +1479,18 @@ impl Context {
         self.read(|ctx| ctx.has_requested_repaint(viewport_id))
     }
 
+    /// Why are we repainting?
+    ///
+    /// This can be helpful in debugging why egui is constantly repainting.
+    pub fn repaint_causes(&self) -> Vec<RepaintCause> {
+        self.read(|ctx| {
+            ctx.viewports
+                .get(&ctx.viewport_id())
+                .map(|v| v.repaint.causes.clone())
+        })
+        .unwrap_or_default()
+    }
+
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`] or [`Self::request_repaint_after`].
     ///
     /// This lets you wake up a sleeping UI thread.
@@ -1288,7 +1503,38 @@ impl Context {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
     }
+}
 
+/// Callbacks
+impl Context {
+    /// Call the given callback at the start of each frame
+    /// of each viewport.
+    ///
+    /// This can be used for egui _plugins_.
+    /// See [`crate::debug_text`] for an example.
+    pub fn on_begin_frame(&self, debug_name: &'static str, cb: ContextCallback) {
+        let named_cb = NamedContextCallback {
+            debug_name,
+            callback: cb,
+        };
+        self.write(|ctx| ctx.plugins.on_begin_frame.push(named_cb));
+    }
+
+    /// Call the given callback at the end of each frame
+    /// of each viewport.
+    ///
+    /// This can be used for egui _plugins_.
+    /// See [`crate::debug_text`] for an example.
+    pub fn on_end_frame(&self, debug_name: &'static str, cb: ContextCallback) {
+        let named_cb = NamedContextCallback {
+            debug_name,
+            callback: cb,
+        };
+        self.write(|ctx| ctx.plugins.on_end_frame.push(named_cb));
+    }
+}
+
+impl Context {
     /// Tell `egui` which fonts to use.
     ///
     /// The default `egui` fonts only support latin and cyrillic alphabets,
@@ -1296,12 +1542,18 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        let update_fonts = self.fonts_mut(|fonts| {
-            if let Some(current_fonts) = fonts {
+        crate::profile_function!();
+
+        let pixels_per_point = self.pixels_per_point();
+
+        let mut update_fonts = true;
+
+        self.read(|ctx| {
+            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
                 // NOTE: this comparison is expensive since it checks TTF data for equality
-                current_fonts.lock().fonts.definitions() != &font_definitions
-            } else {
-                true
+                if current_fonts.lock().fonts.definitions() == &font_definitions {
+                    update_fonts = false; // no need to update
+                }
             }
         });
 
@@ -1404,11 +1656,12 @@ impl Context {
     /// [`Options::zoom_factor`].
     #[inline(always)]
     pub fn set_zoom_factor(&self, zoom_factor: f32) {
+        let cause = RepaintCause::new();
         self.write(|ctx| {
             if ctx.memory.options.zoom_factor != zoom_factor {
                 ctx.new_zoom_factor = Some(zoom_factor);
-                for id in ctx.all_viewport_ids() {
-                    ctx.request_repaint(id);
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
                 }
             }
         });
@@ -1560,6 +1813,8 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
+
         self.write(|ctx| ctx.end_frame())
     }
 }
@@ -1572,17 +1827,35 @@ impl ContextImpl {
 
         viewport.repaint.frame_nr += 1;
 
-        self.memory
-            .end_frame(&viewport.input, &viewport.frame_state.used_ids);
+        self.memory.end_frame(&viewport.frame_state.used_ids);
 
-        let font_image_delta = self.fonts.as_ref().unwrap().font_image_delta();
-        if let Some(font_image_delta) = font_image_delta {
-            self.tex_manager
-                .0
-                .write()
-                .set(TextureId::default(), font_image_delta);
+        if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
+            let tex_mngr = &mut self.tex_manager.0.write();
+            if let Some(font_image_delta) = fonts.font_image_delta() {
+                // A partial font atlas update, e.g. a new glyph has been entered.
+                tex_mngr.set(TextureId::default(), font_image_delta);
+            }
+
+            if 1 < self.fonts.len() {
+                // We have multiple different `pixels_per_point`,
+                // e.g. because we have many viewports spread across
+                // monitors with different DPI scaling.
+                // All viewports share the same texture namespace and renderer,
+                // so the all use `TextureId::default()` for the font texture.
+                // This is a problem.
+                // We solve this with a hack: we always upload the full font atlas
+                // every frame, for all viewports.
+                // This ensures it is up-to-date, solving
+                // https://github.com/emilk/egui/issues/3664
+                // at the cost of a lot of performance.
+                // (This will override any smaller delta that was uploaded above.)
+                crate::profile_scope!("full_font_atlas_update");
+                let full_delta = ImageDelta::full(fonts.image(), TextureAtlas::texture_options());
+                tex_mngr.set(TextureId::default(), full_delta);
+            }
         }
 
+        // Inform the backend of all textures that have been updated (including font atlas).
         let textures_delta = self.tex_manager.0.write().take_delta();
 
         #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
@@ -1617,8 +1890,25 @@ impl ContextImpl {
 
         let shapes = viewport.graphics.drain(self.memory.areas().order());
 
-        if viewport.input.wants_repaint() {
-            self.request_repaint(ended_viewport_id);
+        let mut repaint_needed = false;
+
+        {
+            if self.memory.options.repaint_on_widget_change {
+                crate::profile_function!("compare-widget-rects");
+                if viewport.layer_rects_prev_frame != viewport.layer_rects_this_frame {
+                    repaint_needed = true; // Some widget has moved
+                }
+            }
+
+            std::mem::swap(
+                &mut viewport.layer_rects_prev_frame,
+                &mut viewport.layer_rects_this_frame,
+            );
+            viewport.layer_rects_this_frame.clear();
+        }
+
+        if repaint_needed || viewport.input.wants_repaint() {
+            self.request_repaint(ended_viewport_id, RepaintCause::new());
         }
 
         //  -------------------
@@ -1705,6 +1995,24 @@ impl ContextImpl {
             self.memory.set_viewport_id(viewport_id);
         }
 
+        let active_pixels_per_point: std::collections::BTreeSet<OrderedFloat<f32>> = self
+            .viewports
+            .values()
+            .map(|v| v.input.pixels_per_point.into())
+            .collect();
+        self.fonts.retain(|pixels_per_point, _| {
+            if active_pixels_per_point.contains(pixels_per_point) {
+                true
+            } else {
+                #[cfg(feature = "log")]
+                log::trace!(
+                    "Freeing Fonts with pixels_per_point={} because it is no longer needed",
+                    pixels_per_point.into_inner()
+                );
+                false
+            }
+        });
+
         FullOutput {
             platform_output,
             textures_delta,
@@ -1736,7 +2044,7 @@ impl Context {
             let tessellation_options = ctx.memory.options.tessellation_options;
             let texture_atlas = ctx
                 .fonts
-                .as_ref()
+                .get(&pixels_per_point.into())
                 .expect("tessellate called before first call to Context::run()")
                 .texture_atlas();
             let (font_tex_size, prepared_discs) = {
@@ -1747,13 +2055,13 @@ impl Context {
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {
                 crate::profile_scope!("tessellator::tessellate_shapes");
-                tessellator::tessellate_shapes(
+                tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
                     font_tex_size,
                     prepared_discs,
-                    shapes,
                 )
+                .tessellate_shapes(shapes)
             };
             ctx.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
             clipped_primitives
@@ -1892,7 +2200,7 @@ impl Context {
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
-            self.graphics_mut(|g| g.list(layer_id).translate(delta));
+            self.graphics_mut(|g| g.entry(layer_id).translate(delta));
         }
     }
 
@@ -1910,15 +2218,134 @@ impl Context {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
 
-    pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        rect.is_positive() && {
-            let pointer_pos = self.input(|i| i.pointer.interact_pos());
-            if let Some(pointer_pos) = pointer_pos {
-                rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
-            } else {
-                false
+    /// Retrieve the [`LayerId`] of the top level windows.
+    pub fn top_layer_id(&self) -> Option<LayerId> {
+        self.memory(|mem| mem.areas().top_layer_id(Order::Middle))
+    }
+
+    /// Does the given rectangle contain the mouse pointer?
+    ///
+    /// Will return false if some other area is covering the given layer.
+    ///
+    /// The given rectangle is assumed to have been clipped by its parent clip rect.
+    ///
+    /// See also [`Response::contains_pointer`].
+    pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+        if !rect.is_positive() {
+            return false;
+        }
+
+        let pointer_pos = self.input(|i| i.pointer.interact_pos());
+        let Some(pointer_pos) = pointer_pos else {
+            return false;
+        };
+
+        if !rect.contains(pointer_pos) {
+            return false;
+        }
+
+        if self.layer_id_at(pointer_pos) != Some(layer_id) {
+            return false;
+        }
+
+        true
+    }
+
+    /// Does the given widget contain the mouse pointer?
+    ///
+    /// Will return false if some other area is covering the given layer.
+    ///
+    /// If another widget is covering us and is listening for the same input (click and/or drag),
+    /// this will return false.
+    ///
+    /// The given rectangle is assumed to have been clipped by its parent clip rect.
+    ///
+    /// See also [`Response::contains_pointer`].
+    pub fn widget_contains_pointer(
+        &self,
+        layer_id: LayerId,
+        id: Id,
+        sense: Sense,
+        rect: Rect,
+    ) -> bool {
+        if !rect.is_positive() {
+            return false; // don't even remember this widget
+        }
+
+        let contains_pointer = self.rect_contains_pointer(layer_id, rect);
+
+        let mut blocking_widget = None;
+
+        self.write(|ctx| {
+            let viewport = ctx.viewport();
+
+            // We add all widgets here, even non-interactive ones,
+            // because we need this list not only for checking for blocking widgets,
+            // but also to know when we have reached the widget we are checking for cover.
+            viewport
+                .layer_rects_this_frame
+                .insert(layer_id, WidgetRect { id, rect, sense });
+
+            // Check if any other widget is covering us.
+            // Whichever widget is added LAST (=on top) gets the input.
+            if contains_pointer {
+                let pointer_pos = viewport.input.pointer.interact_pos();
+                if let Some(pointer_pos) = pointer_pos {
+                    if let Some(rects) = viewport.layer_rects_prev_frame.by_layer.get(&layer_id) {
+                        for blocking in rects.iter().rev() {
+                            if blocking.id == id {
+                                // There are no earlier widgets before this one,
+                                // which means there are no widgets covering us.
+                                break;
+                            }
+                            if !blocking.rect.contains(pointer_pos) {
+                                continue;
+                            }
+                            if sense.interactive() && !blocking.sense.interactive() {
+                                // Only interactive widgets can block other interactive widgets.
+                                continue;
+                            }
+
+                            // The `prev` widget is covering us - do we care?
+                            // We don't want a click-only button to block drag-events to a `ScrollArea`:
+
+                            let sense_only_drags = sense.drag && !sense.click;
+                            if sense_only_drags && !blocking.sense.drag {
+                                continue;
+                            }
+                            let sense_only_clicks = sense.click && !sense.drag;
+                            if sense_only_clicks && !blocking.sense.click {
+                                continue;
+                            }
+
+                            if blocking.sense.interactive() {
+                                // Another widget is covering us at the pointer position
+                                blocking_widget = Some(blocking.rect);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        #[cfg(debug_assertions)]
+        if let Some(blocking_rect) = blocking_widget {
+            if sense.interactive() && self.memory(|m| m.options.style.debug.show_blocking_widget) {
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    rect,
+                    Color32::GREEN,
+                    "Covered",
+                );
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    blocking_rect,
+                    Color32::LIGHT_BLUE,
+                    "On top",
+                );
             }
         }
+
+        contains_pointer && blocking_widget.is_none()
     }
 
     // ---------------------------------------------------------------------
@@ -1947,12 +2374,14 @@ impl Context {
     /// The function will call [`Self::request_repaint()`] when appropriate.
     ///
     /// The animation time is taken from [`Style::animation_time`].
+    #[track_caller] // To track repaint cause
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
         self.animate_bool_with_time(id, value, animation_time)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
+    #[track_caller] // To track repaint cause
     pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_bool(
@@ -1973,6 +2402,7 @@ impl Context {
     ///
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
+    #[track_caller] // To track repaint cause
     pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_value(
@@ -1999,25 +2429,14 @@ impl Context {
 impl Context {
     /// Show a ui for settings (style and tessellation options).
     pub fn settings_ui(&self, ui: &mut Ui) {
-        use crate::containers::*;
+        let prev_options = self.options(|o| o.clone());
+        let mut options = prev_options.clone();
 
-        CollapsingHeader::new("🎑 Style")
-            .default_open(true)
-            .show(ui, |ui| {
-                self.style_ui(ui);
-            });
+        options.ui(ui);
 
-        CollapsingHeader::new("✒ Painting")
-            .default_open(true)
-            .show(ui, |ui| {
-                let prev_tessellation_options = self.tessellation_options(|o| *o);
-                let mut tessellation_options = prev_tessellation_options;
-                tessellation_options.ui(ui);
-                ui.vertical_centered(|ui| reset_button(ui, &mut tessellation_options));
-                if tessellation_options != prev_tessellation_options {
-                    self.tessellation_options_mut(move |o| *o = tessellation_options);
-                }
-            });
+        if options != prev_options {
+            self.options_mut(move |o| *o = options);
+        }
     }
 
     /// Show the state of egui, including its input and output.
@@ -2064,6 +2483,18 @@ impl Context {
         .on_hover_text("This is approximately the number of text strings on screen");
         ui.add_space(16.0);
 
+        CollapsingHeader::new("🔃 Repaint Causes")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.set_min_height(120.0);
+                ui.label("What caused egui to repaint:");
+                ui.add_space(8.0);
+                let causes = ui.ctx().repaint_causes();
+                for cause in causes {
+                    ui.label(cause.to_string());
+                }
+            });
+
         CollapsingHeader::new("📥 Input")
             .default_open(false)
             .show(ui, |ui| {
@@ -2089,6 +2520,15 @@ impl Context {
             .show(ui, |ui| {
                 let font_image_size = self.fonts(|f| f.font_image_size());
                 crate::introspection::font_texture_ui(ui, font_image_size);
+            });
+
+        CollapsingHeader::new("Label text selection state")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label(format!(
+                    "{:#?}",
+                    crate::text_selection::LabelSelectionState::load(ui.ctx())
+                ));
             });
     }
 
@@ -2585,19 +3025,19 @@ impl Context {
 
     /// For integrations: Set this to render a sync viewport.
     ///
-    /// This will only be set the callback for the current thread,
+    /// This will only set the callback for the current thread,
     /// which most likely should be the main thread.
     ///
     /// When an immediate viewport is created with [`Self::show_viewport_immediate`] it will be rendered by this function.
     ///
-    /// When called, the integration need to:
+    /// When called, the integration needs to:
     /// * Check if there already is a window for this viewport id, and if not open one
     /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
     /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
     /// * Handle the output from [`Context::run`], including rendering
     #[allow(clippy::unused_self)]
     pub fn set_immediate_viewport_renderer(
-        callback: impl for<'a> Fn(&Context, ImmediateViewport<'a>) + 'static,
+        callback: impl for<'a> Fn(&Self, ImmediateViewport<'a>) + 'static,
     ) {
         let callback = Box::new(callback);
         IMMEDIATE_VIEWPORT_RENDERER.with(|render_sync| {
@@ -2628,7 +3068,7 @@ impl Context {
         self.send_viewport_cmd_to(self.viewport_id(), command);
     }
 
-    /// Send a command to a speicfic viewport.
+    /// Send a command to a specific viewport.
     ///
     /// This lets you affect another viewport, e.g. resizing its window.
     pub fn send_viewport_cmd_to(&self, id: ViewportId, command: ViewportCommand) {
@@ -2674,7 +3114,7 @@ impl Context {
         &self,
         new_viewport_id: ViewportId,
         viewport_builder: ViewportBuilder,
-        viewport_ui_cb: impl Fn(&Context, ViewportClass) + Send + Sync + 'static,
+        viewport_ui_cb: impl Fn(&Self, ViewportClass) + Send + Sync + 'static,
     ) {
         crate::profile_function!();
 
@@ -2726,7 +3166,7 @@ impl Context {
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
-        viewport_ui_cb: impl FnOnce(&Context, ViewportClass) -> T,
+        viewport_ui_cb: impl FnOnce(&Self, ViewportClass) -> T,
     ) -> T {
         crate::profile_function!();
 

@@ -1,7 +1,9 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
+use std::sync::Arc;
+
 use crate::collapsing_header::CollapsingState;
-use crate::{widget_text::WidgetTextGalley, *};
+use crate::*;
 use epaint::*;
 
 use super::*;
@@ -46,7 +48,9 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text())).constrain(true);
+        let area = Area::new(Id::new(title.text()))
+            .constrain(true)
+            .edges_padded_for_resize(true);
         Self {
             title,
             open: None,
@@ -115,6 +119,9 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
+        self.area = self
+            .area
+            .edges_padded_for_resize(self.resize.is_resizable());
         self
     }
 
@@ -209,15 +216,6 @@ impl<'open> Window<'open> {
         self
     }
 
-    #[deprecated = "Use `constrain_to` instead"]
-    #[inline]
-    pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
-        #![allow(deprecated)]
-
-        self.area = self.area.drag_bounds(constrain_rect);
-        self
-    }
-
     /// Where the "root" of the window is.
     ///
     /// For instance, if you set this to [`Align2::RIGHT_TOP`]
@@ -280,6 +278,7 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
+        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
@@ -301,6 +300,7 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resize = self.resize.resizable(resizable);
+        self.area = self.area.edges_padded_for_resize(resizable);
         self
     }
 
@@ -326,6 +326,7 @@ impl<'open> Window<'open> {
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
+        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
@@ -412,9 +413,19 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
 
+        let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
-        let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
+        // Calculate roughly how much larger the window size is compared to the inner rect
+        let (title_bar_height, title_content_spacing) = if with_title_bar {
+            let style = ctx.style();
+            let window_margin = style.spacing.window_margin;
+            let spacing = window_margin.top + window_margin.bottom;
+            let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
+            (height, spacing)
+        } else {
+            (0.0, 0.0)
+        };
 
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
@@ -427,13 +438,6 @@ impl<'open> Window<'open> {
                 last_frame_outer_rect,
             )
             .and_then(|window_interaction| {
-                // Calculate roughly how much larger the window size is compared to the inner rect
-                let title_bar_height = if with_title_bar {
-                    let style = ctx.style();
-                    ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                } else {
-                    0.0
-                };
                 let margins = frame.outer_margin.sum()
                     + frame.inner_margin.sum()
                     + vec2(0.0, title_bar_height);
@@ -460,6 +464,14 @@ impl<'open> Window<'open> {
             let mut frame = frame.begin(&mut area_content_ui);
 
             let show_close_button = open.is_some();
+
+            let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
+
+            // Backup item spacing before the title bar
+            let item_spacing = frame.content_ui.spacing().item_spacing;
+            // Use title bar spacing as the item spacing before the content
+            frame.content_ui.spacing_mut().item_spacing.y = title_content_spacing;
+
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
@@ -474,13 +486,15 @@ impl<'open> Window<'open> {
                 None
             };
 
-            let (content_inner, content_response) = collapsing
-                .show_body_unindented(&mut frame.content_ui, |ui| {
-                    resize.show(ui, |ui| {
-                        if title_bar.is_some() {
-                            ui.add_space(title_content_spacing);
-                        }
+            // Remove item spacing after the title bar
+            frame.content_ui.spacing_mut().item_spacing.y = 0.0;
 
+            let (content_inner, mut content_response) = collapsing
+                .show_body_unindented(&mut frame.content_ui, |ui| {
+                    // Restore item spacing for the content
+                    ui.spacing_mut().item_spacing.y = item_spacing.y;
+
+                    resize.show(ui, |ui| {
                         if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
@@ -496,6 +510,32 @@ impl<'open> Window<'open> {
             // END FRAME --------------------------------
 
             if let Some(title_bar) = title_bar {
+                if on_top && area_content_ui.visuals().window_highlight_topmost {
+                    let rect = Rect::from_min_size(
+                        outer_rect.min,
+                        Vec2 {
+                            x: outer_rect.size().x,
+                            y: title_bar_height,
+                        },
+                    );
+                    let mut round = area_content_ui.visuals().window_rounding;
+                    if !is_collapsed {
+                        round.se = 0.0;
+                        round.sw = 0.0;
+                    }
+                    let header_color = area_content_ui.visuals().widgets.open.weak_bg_fill;
+
+                    area_content_ui.painter().set(
+                        *where_to_put_header_background,
+                        RectShape::filled(rect, round, header_color),
+                    );
+                };
+
+                // Fix title bar separator line position
+                if let Some(response) = &mut content_response {
+                    response.rect.min.y = outer_rect.min.y + title_bar_height;
+                }
+
                 title_bar.ui(
                     &mut area_content_ui,
                     outer_rect,
@@ -699,12 +739,8 @@ fn window_interaction(
     id: Id,
     rect: Rect,
 ) -> Option<WindowInteraction> {
-    {
-        let drag_id = ctx.memory(|mem| mem.interaction().drag_id);
-
-        if drag_id.is_some() && drag_id != Some(id) {
-            return None;
-        }
+    if ctx.memory(|mem| mem.dragging_something_else(id)) {
+        return None;
     }
 
     let mut window_interaction = ctx.memory(|mem| mem.window_interaction());
@@ -894,7 +930,7 @@ struct TitleBar {
     id: Id,
 
     /// Prepared text in the title
-    title_galley: WidgetTextGalley,
+    title_galley: Arc<Galley>,
 
     /// Size of the title bar in a collapsed state (if window is collapsible),
     /// which includes all necessary space for showing the expand button, the
@@ -993,17 +1029,17 @@ impl TitleBar {
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
         let text_pos =
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
-        let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
+        let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
-        self.title_galley.paint_with_fallback_color(
-            ui.painter(),
+        ui.painter().galley(
             text_pos,
+            self.title_galley.clone(),
             ui.visuals().text_color(),
         );
 
         if let Some(content_response) = &content_response {
             // paint separator between title and content:
-            let y = content_response.rect.top() + ui.spacing().item_spacing.y * 0.5;
+            let y = content_response.rect.top();
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
             ui.painter().hline(outer_rect.x_range(), y, stroke);

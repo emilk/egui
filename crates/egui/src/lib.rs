@@ -333,6 +333,10 @@
 //! }); // the temporary settings are reverted here
 //! # });
 //! ```
+//!
+//! ## Installing additional fonts
+//! The default egui fonts only support latin and cryllic characters, and some emojis.
+//! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -343,6 +347,8 @@ mod animation_manager;
 pub mod containers;
 mod context;
 mod data;
+pub mod debug_text;
+mod drag_and_drop;
 mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
@@ -360,6 +366,7 @@ pub(crate) mod placer;
 mod response;
 mod sense;
 pub mod style;
+pub mod text_selection;
 mod ui;
 pub mod util;
 pub mod viewport;
@@ -388,13 +395,13 @@ pub use emath::{
 pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
-    textures::{TextureFilter, TextureOptions, TexturesDelta},
+    textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
     ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
     Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
 
 pub mod text {
-    pub use crate::text_edit::CCursorRange;
+    pub use crate::text_selection::{CCursorRange, CursorRange};
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
         LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
@@ -403,13 +410,15 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::{Context, RequestRepaintInfo},
+    context::{Context, RepaintCause, RequestRepaintInfo, WidgetRect, WidgetRects},
     data::{
         input::*,
         output::{
             self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
         },
+        Key,
     },
+    drag_and_drop::DragAndDrop,
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},

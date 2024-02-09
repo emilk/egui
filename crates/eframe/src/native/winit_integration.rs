@@ -1,4 +1,4 @@
-use std::{rc::Rc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 use winit::{
     event_loop::EventLoopWindowTarget,
@@ -68,18 +68,22 @@ pub trait WinitApp {
 
     fn integration(&self) -> Option<&EpiIntegration>;
 
-    fn window(&self, window_id: WindowId) -> Option<Rc<Window>>;
+    fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 
     fn save_and_destroy(&mut self);
 
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult;
+    fn run_ui_and_paint(
+        &mut self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        window_id: WindowId,
+    ) -> EventResult;
 
     fn on_event(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
-        event: &winit::event::Event<'_, UserEvent>,
+        event: &winit::event::Event<UserEvent>,
     ) -> crate::Result<EventResult>;
 }
 
@@ -117,11 +121,9 @@ pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<c
 
 /// Short and fast description of an event.
 /// Useful for logging and profiling.
-pub fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'static str {
-    use winit::event::Event;
-
+pub fn short_event_description(event: &winit::event::Event<UserEvent>) -> &'static str {
     match event {
-        Event::UserEvent(user_event) => match user_event {
+        winit::event::Event::UserEvent(user_event) => match user_event {
             UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
             #[cfg(feature = "accesskit")]
             UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",

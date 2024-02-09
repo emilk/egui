@@ -24,14 +24,14 @@ impl Vec2b {
 impl From<bool> for Vec2b {
     #[inline]
     fn from(val: bool) -> Self {
-        Vec2b { x: val, y: val }
+        Self { x: val, y: val }
     }
 }
 
 impl From<[bool; 2]> for Vec2b {
     #[inline]
     fn from([x, y]: [bool; 2]) -> Self {
-        Vec2b { x, y }
+        Self { x, y }
     }
 }
 

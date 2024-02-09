@@ -6,9 +6,22 @@ use crate::*;
 pub mod kb_shortcuts {
     use super::*;
 
-    pub const ZOOM_IN: KeyboardShortcut =
-        KeyboardShortcut::new(Modifiers::COMMAND, Key::PlusEquals);
+    /// Primary keyboard shortcut for zooming in (`Cmd` + `+`).
+    pub const ZOOM_IN: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Plus);
+
+    /// Secondary keyboard shortcut for zooming in (`Cmd` + `=`).
+    ///
+    /// On an English keyboard `+` is `Shift` + `=`,
+    /// but it is annoying to have to press shift.
+    /// So most browsers also allow `Cmd` + `=` for zooming in.
+    /// We do the same.
+    pub const ZOOM_IN_SECONDARY: KeyboardShortcut =
+        KeyboardShortcut::new(Modifiers::COMMAND, Key::Equals);
+
+    /// Keyboard shortcut for zooming in (`Cmd` + `-`).
     pub const ZOOM_OUT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Minus);
+
+    /// Keyboard shortcut for resetting zoom in (`Cmd` + `0`).
     pub const ZOOM_RESET: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Num0);
 }
 
@@ -21,7 +34,9 @@ pub(crate) fn zoom_with_keyboard(ctx: &Context) {
     if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_RESET)) {
         ctx.set_zoom_factor(1.0);
     } else {
-        if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_IN)) {
+        if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_IN))
+            || ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_IN_SECONDARY))
+        {
             zoom_in(ctx);
         }
         if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_OUT)) {

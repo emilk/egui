@@ -30,11 +30,16 @@ fn paint_if_needed(runner: &mut AppRunner) {
             // running the logic, as the logic could cause it to be set again.
             runner.needs_repaint.clear();
 
+            let mut stopwatch = crate::stopwatch::Stopwatch::new();
+            stopwatch.start();
+
             // Run user code…
             runner.logic();
 
             // …and paint the result.
             runner.paint();
+
+            runner.report_frame_time(stopwatch.total_time_sec());
         }
     }
     runner.auto_save_if_needed();
@@ -91,6 +96,7 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
             if let Some(key) = egui_key {
                 runner.input.raw.events.push(egui::Event::Key {
                     key,
+                    physical_key: None, // TODO
                     pressed: true,
                     repeat: false, // egui will fill this in for us!
                     modifiers,
@@ -157,6 +163,7 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
             if let Some(key) = translate_key(&event.key()) {
                 runner.input.raw.events.push(egui::Event::Key {
                     key,
+                    physical_key: None, // TODO
                     pressed: false,
                     repeat: false,
                     modifiers,
@@ -515,6 +522,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
 
         move |event: web_sys::DragEvent, runner| {
             if let Some(data_transfer) = event.data_transfer() {
+                // TODO(https://github.com/emilk/egui/issues/3702): support dropping folders
                 runner.input.raw.hovered_files.clear();
                 runner.needs_repaint.repaint_asap();
 

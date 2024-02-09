@@ -1,5 +1,7 @@
 use crate::*;
 
+use self::text_selection::LabelSelectionState;
+
 /// Clickable text, that looks like a hyperlink.
 ///
 /// To link to a web page, use [`Hyperlink`], [`Ui::hyperlink`] or [`Ui::hyperlink_to`].
@@ -31,15 +33,11 @@ impl Link {
 
 impl Widget for Link {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Link { text } = self;
+        let Self { text } = self;
         let label = Label::new(text).sense(Sense::click());
 
-        let (pos, text_galley, response) = label.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, text_galley.text()));
-
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
-        }
+        let (galley_pos, galley, response) = label.layout_in_ui(ui);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             let color = ui.visuals().hyperlink_color;
@@ -51,13 +49,18 @@ impl Widget for Link {
                 Stroke::NONE
             };
 
-            ui.painter().add(epaint::TextShape {
-                pos,
-                galley: text_galley.galley,
-                override_text_color: Some(color),
-                underline,
-                angle: 0.0,
-            });
+            ui.painter().add(
+                epaint::TextShape::new(galley_pos, galley.clone(), color).with_underline(underline),
+            );
+
+            let selectable = ui.style().interaction.selectable_labels;
+            if selectable {
+                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &galley);
+            }
+
+            if response.hovered() {
+                ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+            }
         }
 
         response

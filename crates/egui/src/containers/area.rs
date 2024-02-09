@@ -20,6 +20,10 @@ pub(crate) struct State {
     /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
     pub interactable: bool,
+
+    /// When `true`, this `Area` belongs to a resizable window, so it needs to
+    /// receive mouse input which occurs a short distance beyond its bounding rect.
+    pub edges_padded_for_resize: bool,
 }
 
 impl State {
@@ -71,6 +75,7 @@ pub struct Area {
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
+    edges_padded_for_resize: bool,
 }
 
 impl Area {
@@ -87,6 +92,7 @@ impl Area {
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
+            edges_padded_for_resize: false,
         }
     }
 
@@ -173,13 +179,6 @@ impl Area {
         self
     }
 
-    #[deprecated = "Use `constrain_to` instead"]
-    #[inline]
-    pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
-        self.constrain_rect = Some(constrain_rect);
-        self
-    }
-
     /// Where the "root" of the area is.
     ///
     /// For instance, if you set this to [`Align2::RIGHT_TOP`]
@@ -224,6 +223,14 @@ impl Area {
             Align2::LEFT_TOP
         }
     }
+
+    /// When `true`, this `Area` belongs to a resizable window, so it needs to
+    /// receive mouse input which occurs a short distance beyond its bounding rect.
+    #[inline]
+    pub(crate) fn edges_padded_for_resize(mut self, edges_padded_for_resize: bool) -> Self {
+        self.edges_padded_for_resize = edges_padded_for_resize;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -256,7 +263,7 @@ impl Area {
     }
 
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
-        let Area {
+        let Self {
             id,
             movable,
             order,
@@ -268,11 +275,18 @@ impl Area {
             anchor,
             constrain,
             constrain_rect,
+            edges_padded_for_resize,
         } = self;
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx.memory(|mem| mem.areas().get(id).copied());
+        let state = ctx
+            .memory(|mem| mem.areas().get(id).copied())
+            .map(|mut state| {
+                // override the saved state with the correct value
+                state.pivot = pivot;
+                state
+            });
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
@@ -282,9 +296,11 @@ impl Area {
             pivot,
             size: Vec2::ZERO,
             interactable,
+            edges_padded_for_resize,
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
+        state.edges_padded_for_resize = edges_padded_for_resize;
 
         if let Some((anchor, offset)) = anchor {
             let screen = ctx.available_rect();
@@ -442,7 +458,7 @@ impl Prepared {
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
-        let Prepared {
+        let Self {
             layer_id,
             mut state,
             move_response,

@@ -79,7 +79,7 @@ impl<'a> Widget for DatePickerButton<'a> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         let id = ui.make_persistent_id(self.id_source);
         let mut button_state = ui
-            .memory_mut(|mem| mem.data.get_persisted::<DatePickerButtonState>(id))
+            .data_mut(|data| data.get_persisted::<DatePickerButtonState>(id))
             .unwrap_or_default();
 
         let mut text = if self.show_icon {
@@ -98,7 +98,7 @@ impl<'a> Widget for DatePickerButton<'a> {
         let mut button_response = ui.add(button);
         if button_response.clicked() {
             button_state.picker_visible = true;
-            ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state.clone()));
+            ui.data_mut(|data| data.insert_persisted(id, button_state.clone()));
         }
 
         if button_state.picker_visible {
@@ -152,7 +152,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
-                ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state));
+                ui.data_mut(|data| data.insert_persisted(id, button_state));
             }
         }
 

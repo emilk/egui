@@ -1,7 +1,11 @@
 [package]
 name = "egui_plot"
 version.workspace = true
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = [
+    "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",    # https://github.com/emilk
+    "Jan Haller <bromeon@gmail.com>",                 # https://github.com/Bromeon
+    "Sven Niederberger <s-niederberger@outlook.com>", # https://github.com/EmbersArc
+]
 description = "Immediate mode plotting for the egui GUI library"
 edition.workspace = true
 rust-version.workspace = true
@@ -28,11 +32,11 @@ serde = ["dep:serde", "egui/serde"]
 
 
 [dependencies]
-egui = { version = "0.24.0", path = "../egui", default-features = false }
+egui = { workspace = true, default-features = false }
 
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 serde = { version = "1", optional = true, features = ["derive"] }

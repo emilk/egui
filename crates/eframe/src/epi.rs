@@ -15,7 +15,8 @@ pub use crate::native::winit_integration::UserEvent;
 
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::{
-    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WindowHandle,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use static_assertions::assert_not_impl_any;
@@ -64,7 +65,7 @@ pub struct CreationContext<'s> {
     ///
     /// Only available when compiling with the `glow` feature and using [`Renderer::Glow`].
     #[cfg(feature = "glow")]
-    pub gl: Option<std::rc::Rc<glow::Context>>,
+    pub gl: Option<std::sync::Arc<glow::Context>>,
 
     /// The underlying WGPU render state.
     ///
@@ -76,30 +77,28 @@ pub struct CreationContext<'s> {
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_window_handle: RawWindowHandle,
+    pub(crate) raw_window_handle: Result<RawWindowHandle, HandleError>,
 
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_display_handle: RawDisplayHandle,
+    pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
-
-// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
-#[cfg(not(target_arch = "wasm32"))]
-assert_not_impl_any!(CreationContext<'_>: Clone);
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawWindowHandle for CreationContext<'_> {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.raw_window_handle
+impl HasWindowHandle for CreationContext<'_> {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(WindowHandle::borrow_raw(self.raw_window_handle.clone()?)) }
     }
 }
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawDisplayHandle for CreationContext<'_> {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.raw_display_handle
+impl HasDisplayHandle for CreationContext<'_> {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(DisplayHandle::borrow_raw(self.raw_display_handle.clone()?)) }
     }
 }
 
@@ -217,7 +216,7 @@ pub enum HardwareAcceleration {
 
 /// Options controlling the behavior of a native window.
 ///
-/// Addintional windows can be opened using (egui viewports)[`egui::viewport`].
+/// Additional windows can be opened using (egui viewports)[`egui::viewport`].
 ///
 /// Set the window title and size using [`Self::viewport`].
 ///
@@ -298,7 +297,7 @@ pub struct NativeOptions {
     ///
     /// This feature was introduced in <https://github.com/emilk/egui/pull/1889>.
     ///
-    /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    /// When `true`, [`winit::platform::run_on_demand::EventLoopExtRunOnDemand`] is used.
     /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
     pub run_and_return: bool,
 
@@ -526,16 +525,23 @@ pub enum Renderer {
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 impl Default for Renderer {
     fn default() -> Self {
+        #[cfg(not(feature = "glow"))]
+        #[cfg(not(feature = "wgpu"))]
+        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+
         #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
         return Self::Glow;
 
         #[cfg(not(feature = "glow"))]
         #[cfg(feature = "wgpu")]
         return Self::Wgpu;
 
-        #[cfg(not(feature = "glow"))]
-        #[cfg(not(feature = "wgpu"))]
-        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+        // By default, only the `glow` feature is enabled, so if the user added `wgpu` to the feature list
+        // they probably wanted to use wgpu:
+        #[cfg(feature = "glow")]
+        #[cfg(feature = "wgpu")]
+        return Self::Wgpu;
     }
 }
 
@@ -574,7 +580,7 @@ impl std::str::FromStr for Renderer {
 /// Represents the surroundings of your app.
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
-/// allocate textures, and change settings (e.g. window size).
+/// access to persistent storage, and access to the rendering backend.
 pub struct Frame {
     /// Information about the integration.
     pub(crate) info: IntegrationInfo,
@@ -584,7 +590,7 @@ pub struct Frame {
 
     /// A reference to the underlying [`glow`] (OpenGL) context.
     #[cfg(feature = "glow")]
-    pub(crate) gl: Option<std::rc::Rc<glow::Context>>,
+    pub(crate) gl: Option<std::sync::Arc<glow::Context>>,
 
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
@@ -592,30 +598,32 @@ pub struct Frame {
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_window_handle: RawWindowHandle,
+    pub(crate) raw_window_handle: Result<RawWindowHandle, HandleError>,
 
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_display_handle: RawDisplayHandle,
+    pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
 
-// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
+// Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
 #[cfg(not(target_arch = "wasm32"))]
 assert_not_impl_any!(Frame: Clone);
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawWindowHandle for Frame {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.raw_window_handle
+impl HasWindowHandle for Frame {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(WindowHandle::borrow_raw(self.raw_window_handle.clone()?)) }
     }
 }
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawDisplayHandle for Frame {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.raw_display_handle
+impl HasDisplayHandle for Frame {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(DisplayHandle::borrow_raw(self.raw_display_handle.clone()?)) }
     }
 }
 
@@ -656,7 +664,7 @@ impl Frame {
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe using [`Renderer::Glow`].
     #[cfg(feature = "glow")]
-    pub fn gl(&self) -> Option<&std::rc::Rc<glow::Context>> {
+    pub fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
         self.gl.as_ref()
     }
 
@@ -749,7 +757,13 @@ pub struct IntegrationInfo {
     /// `None` means "don't know".
     pub system_theme: Option<Theme>,
 
-    /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
+    /// Seconds of cpu usage (in seconds) on the previous frame.
+    ///
+    /// This includes [`App::update`] as well as rendering (except for vsync waiting).
+    ///
+    /// For a more detailed view of cpu usage, use the [`puffin`](https://crates.io/crates/puffin)
+    /// profiler together with the `puffin` feature of `eframe`.
+    ///
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
 }

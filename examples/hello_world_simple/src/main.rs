@@ -23,7 +23,7 @@ fn main() -> Result<(), eframe::Error> {
                     .labelled_by(name_label.id);
             });
             ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
-            if ui.button("Click each year").clicked() {
+            if ui.button("Increment").clicked() {
                 age += 1;
             }
             ui.label(format!("Hello '{name}', age {age}"));

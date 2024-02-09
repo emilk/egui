@@ -49,7 +49,7 @@ impl ThreadState {
                     ui.text_edit_singleline(&mut self.name);
                 });
                 ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-                if ui.button("Click each year").clicked() {
+                if ui.button("Increment").clicked() {
                     self.age += 1;
                 }
                 ui.label(format!("Hello '{}', age {}", self.name, self.age));

@@ -18,6 +18,7 @@ impl ImageCrateLoader {
 }
 
 fn is_supported_uri(uri: &str) -> bool {
+    // TODO(emilk): use https://github.com/image-rs/image/pull/2038 when new `image` crate is released.
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
         // `true` because if there's no extension, assume that we support it
         return true;
@@ -27,6 +28,7 @@ fn is_supported_uri(uri: &str) -> bool {
 }
 
 fn is_unsupported_mime(mime: &str) -> bool {
+    // TODO(emilk): use https://github.com/image-rs/image/pull/2038 when new `image` crate is released.
     mime.contains("svg")
 }
 

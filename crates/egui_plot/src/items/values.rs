@@ -90,13 +90,13 @@ impl LineStyle {
             }
             _ => {
                 match self {
-                    LineStyle::Solid => {
+                    Self::Solid => {
                         if highlight {
                             stroke.width *= 2.0;
                         }
                         shapes.push(Shape::line(line, stroke));
                     }
-                    LineStyle::Dotted { spacing } => {
+                    Self::Dotted { spacing } => {
                         // Take the stroke width for the radius even though it's not "correct", otherwise
                         // the dots would become too small.
                         let mut radius = stroke.width;
@@ -105,7 +105,7 @@ impl LineStyle {
                         }
                         shapes.extend(Shape::dotted_line(&line, stroke.color, *spacing, radius));
                     }
-                    LineStyle::Dashed { length } => {
+                    Self::Dashed { length } => {
                         if highlight {
                             stroke.width *= 2.0;
                         }
@@ -126,9 +126,9 @@ impl LineStyle {
 impl ToString for LineStyle {
     fn to_string(&self) -> String {
         match self {
-            LineStyle::Solid => "Solid".into(),
-            LineStyle::Dotted { spacing } => format!("Dotted{spacing}Px"),
-            LineStyle::Dashed { length } => format!("Dashed{length}Px"),
+            Self::Solid => "Solid".into(),
+            Self::Dotted { spacing } => format!("Dotted{spacing}Px"),
+            Self::Dashed { length } => format!("Dashed{length}Px"),
         }
     }
 }
@@ -190,8 +190,8 @@ impl PlotPoints {
 
     pub fn points(&self) -> &[PlotPoint] {
         match self {
-            PlotPoints::Owned(points) => points.as_slice(),
-            PlotPoints::Generator(_) => &[],
+            Self::Owned(points) => points.as_slice(),
+            Self::Generator(_) => &[],
         }
     }
 
@@ -268,8 +268,8 @@ impl PlotPoints {
     /// Returns true if there are no data points available and there is no function to generate any.
     pub(crate) fn is_empty(&self) -> bool {
         match self {
-            PlotPoints::Owned(points) => points.is_empty(),
-            PlotPoints::Generator(_) => false,
+            Self::Owned(points) => points.is_empty(),
+            Self::Generator(_) => false,
         }
     }
 
@@ -305,14 +305,14 @@ impl PlotPoints {
 
     pub(super) fn bounds(&self) -> PlotBounds {
         match self {
-            PlotPoints::Owned(points) => {
+            Self::Owned(points) => {
                 let mut bounds = PlotBounds::NOTHING;
                 for point in points {
                     bounds.extend_with(point);
                 }
                 bounds
             }
-            PlotPoints::Generator(generator) => generator.estimate_bounds(),
+            Self::Generator(generator) => generator.estimate_bounds(),
         }
     }
 }
@@ -336,7 +336,7 @@ pub enum MarkerShape {
 
 impl MarkerShape {
     /// Get a vector containing all marker shapes.
-    pub fn all() -> impl ExactSizeIterator<Item = MarkerShape> {
+    pub fn all() -> impl ExactSizeIterator<Item = Self> {
         [
             Self::Circle,
             Self::Diamond,
@@ -357,7 +357,7 @@ impl MarkerShape {
 // ----------------------------------------------------------------------------
 
 /// Query the points of the plot, for geometric relations like closest checks
-pub(crate) enum PlotGeometry<'a> {
+pub enum PlotGeometry<'a> {
     /// No geometry based on single elements (examples: text, image, horizontal/vertical line)
     None,
 
@@ -425,7 +425,7 @@ impl ExplicitGenerator {
 // ----------------------------------------------------------------------------
 
 /// Result of [`super::PlotItem::find_closest()`] search, identifies an element inside the item for immediate use
-pub(crate) struct ClosestElem {
+pub struct ClosestElem {
     /// Position of hovered-over value (or bar/box-plot/...) in PlotItem
     pub index: usize,
 

@@ -32,6 +32,7 @@ impl Default for Demos {
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
+            Box::<super::panels::Panels>::default(),
             Box::<super::plot_demo::PlotDemo>::default(),
             Box::<super::scrolling::Scrolling>::default(),
             Box::<super::sliders::Sliders>::default(),
@@ -42,7 +43,6 @@ impl Default for Demos {
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
             Box::<super::tests::WindowResizeTest>::default(),
-            Box::<super::window_with_panels::WindowWithPanels>::default(),
         ])
     }
 }

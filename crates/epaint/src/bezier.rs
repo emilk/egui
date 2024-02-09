@@ -48,7 +48,7 @@ impl CubicBezierShape {
         for (i, origin_point) in self.points.iter().enumerate() {
             points[i] = transform * *origin_point;
         }
-        CubicBezierShape {
+        Self {
             points,
             closed: self.closed,
             fill: self.fill,
@@ -163,7 +163,8 @@ impl CubicBezierShape {
         let q_end = q.sample(t_range.end);
         let ctrl1 = from + q_start.to_vec2() * delta_t;
         let ctrl2 = to - q_end.to_vec2() * delta_t;
-        CubicBezierShape {
+
+        Self {
             points: [from, ctrl1, ctrl2, to],
             closed: self.closed,
             fill: self.fill,
@@ -398,7 +399,7 @@ impl QuadraticBezierShape {
         fill: Color32,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        QuadraticBezierShape {
+        Self {
             points,
             closed,
             fill,
@@ -412,7 +413,7 @@ impl QuadraticBezierShape {
         for (i, origin_point) in self.points.iter().enumerate() {
             points[i] = transform * *origin_point;
         }
-        QuadraticBezierShape {
+        Self {
             points,
             closed: self.closed,
             fill: self.fill,
@@ -644,7 +645,7 @@ impl FlatteningParameters {
 
         let integral_step = integral_diff / count;
 
-        FlatteningParameters {
+        Self {
             count,
             integral_from,
             integral_step,
