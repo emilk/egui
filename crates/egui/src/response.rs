@@ -596,6 +596,15 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
+        self.ctx.interact_with_hovered(
+            self.layer_id,
+            self.id,
+            self.rect,
+            sense,
+            self.enabled,
+            self.hovered,
+        )
+        /*
         self.ctx.interact(
             self.ctx.layer_painter(self.layer_id).clip_rect(),
             self.ctx.style().spacing.item_spacing,
@@ -605,6 +614,7 @@ impl Response {
             sense,
             self.enabled,
         )
+        */
     }
 
     /// Adjust the scroll position until this UI becomes visible.
