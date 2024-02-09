@@ -604,17 +604,6 @@ impl Response {
             self.enabled,
             self.hovered,
         )
-        /*
-        self.ctx.interact(
-            self.ctx.layer_painter(self.layer_id).clip_rect(),
-            self.ctx.style().spacing.item_spacing,
-            self.layer_id,
-            self.id,
-            self.rect,
-            sense,
-            self.enabled,
-        )
-        */
     }
 
     /// Adjust the scroll position until this UI becomes visible.
