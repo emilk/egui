@@ -174,7 +174,7 @@ impl Painter {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add(&self, shape: impl Into<Shape>) -> ShapeIdx {
-        if self.fade_to_color == Some(Color32::TRANSPARENT) {
+        if self.fade_to_color == Some(Color32::TRANSPARENT) || self.opacity_factor == 0.0 {
             self.paint_list(|l| l.add(self.clip_rect, Shape::Noop))
         } else {
             let mut shape = shape.into();
