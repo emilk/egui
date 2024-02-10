@@ -283,10 +283,10 @@ struct ViewportState {
     used: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: WidgetRects,
+    widgets_this_frame: WidgetRects,
 
     /// Read
-    layer_rects_prev_frame: WidgetRects,
+    widgets_prev_frame: WidgetRects,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -1125,7 +1125,7 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport.layer_rects_this_frame.insert(
+            viewport.widgets_this_frame.insert(
                 layer_id,
                 WidgetRect {
                     id,
@@ -1865,7 +1865,7 @@ impl Context {
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
         if self.options(|o| o.debug_paint_interactive_widgets) {
-            let rects = self.write(|ctx| ctx.viewport().layer_rects_this_frame.clone());
+            let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
             for (layer_id, rects) in rects.by_layer {
                 let painter = Painter::new(self.clone(), layer_id, Rect::EVERYTHING);
                 for rect in rects {
@@ -1965,16 +1965,16 @@ impl ContextImpl {
         {
             if self.memory.options.repaint_on_widget_change {
                 crate::profile_function!("compare-widget-rects");
-                if viewport.layer_rects_prev_frame != viewport.layer_rects_this_frame {
+                if viewport.widgets_prev_frame != viewport.widgets_this_frame {
                     repaint_needed = true; // Some widget has moved
                 }
             }
 
             std::mem::swap(
-                &mut viewport.layer_rects_prev_frame,
-                &mut viewport.layer_rects_this_frame,
+                &mut viewport.widgets_prev_frame,
+                &mut viewport.widgets_this_frame,
             );
-            viewport.layer_rects_this_frame.clear();
+            viewport.widgets_this_frame.clear();
         }
 
         if repaint_needed || viewport.input.wants_repaint() {
@@ -2353,7 +2353,7 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport.layer_rects_this_frame.insert(
+            viewport.widgets_this_frame.insert(
                 layer_id,
                 WidgetRect {
                     id,
@@ -2367,7 +2367,7 @@ impl Context {
             if contains_pointer {
                 let pointer_pos = viewport.input.pointer.interact_pos();
                 if let Some(pointer_pos) = pointer_pos {
-                    if let Some(rects) = viewport.layer_rects_prev_frame.by_layer.get(&layer_id) {
+                    if let Some(rects) = viewport.widgets_prev_frame.by_layer.get(&layer_id) {
                         // Iterate backwards, i.e. topmost widgets first.
                         for blocking in rects.iter().rev() {
                             if blocking.id == id {
