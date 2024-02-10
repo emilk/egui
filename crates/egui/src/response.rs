@@ -32,6 +32,15 @@ pub struct Response {
     /// The area of the screen we are talking about.
     pub rect: Rect,
 
+    /// The rectangle sensing interaction.
+    ///
+    /// This is sometimes smaller than [`Self::rect`] because of clipping
+    /// (e.g. when inside a scroll area).
+    ///
+    /// The interact rect may also be slightly larger than the widget rect,
+    /// becase egui adds half if the item spacing to make the interact rect easier to hit.
+    pub interact_rect: Rect,
+
     /// The senses (click and/or drag) that the widget was interested in (if any).
     pub sense: Sense,
 
@@ -605,6 +614,7 @@ impl Response {
             self.layer_id,
             self.id,
             self.rect,
+            self.interact_rect,
             sense,
             self.enabled,
             self.contains_pointer,
@@ -799,6 +809,7 @@ impl Response {
             layer_id: self.layer_id,
             id: self.id,
             rect: self.rect.union(other.rect),
+            interact_rect: self.interact_rect.union(other.interact_rect),
             sense: self.sense.union(other.sense),
             enabled: self.enabled || other.enabled,
             contains_pointer: self.contains_pointer || other.contains_pointer,
