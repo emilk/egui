@@ -509,8 +509,9 @@ impl Response {
 
             if 0.0 < time_til_tooltip {
                 // Wait until the mouse has been still for a while
-                self.ctx
-                    .request_repaint_after(std::time::Duration::from_secs_f32(time_til_tooltip));
+                if let Ok(duration) = std::time::Duration::try_from_secs_f32(time_til_tooltip) {
+                    self.ctx.request_repaint_after(duration);
+                }
                 return false;
             }
         }
