@@ -385,14 +385,12 @@ impl Shape {
                 text_shape.pos = transform * text_shape.pos;
 
                 // Scale text:
-                let mut galley = (*text_shape.galley).clone();
+                let galley = Arc::make_mut(&mut text_shape.galley);
                 for row in &mut galley.rows {
                     for v in &mut row.visuals.mesh.vertices {
                         v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
                     }
                 }
-
-                text_shape.galley = Arc::new(galley);
             }
             Self::Mesh(mesh) => {
                 mesh.transform(transform);
