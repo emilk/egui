@@ -2315,9 +2315,10 @@ impl Context {
                 let pointer_pos = viewport.input.pointer.interact_pos();
                 if let Some(pointer_pos) = pointer_pos {
                     if let Some(rects) = viewport.layer_rects_prev_frame.by_layer.get(&layer_id) {
+                        // Iterate backwards, i.e. topmost widgets first.
                         for blocking in rects.iter().rev() {
                             if blocking.id == id {
-                                // There are no earlier widgets before this one,
+                                // We've checked all widgets there were added after this one last frame,
                                 // which means there are no widgets covering us.
                                 break;
                             }
