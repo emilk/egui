@@ -123,8 +123,8 @@ impl std::ops::Mul<Rect> for TSTransform {
     }
 }
 
-impl std::ops::Mul<TSTransform> for TSTransform {
-    type Output = TSTransform;
+impl std::ops::Mul<Self> for TSTransform {
+    type Output = Self;
 
     #[inline]
     /// Applies the right hand side transform, then the left hand side.
@@ -136,9 +136,9 @@ impl std::ops::Mul<TSTransform> for TSTransform {
     /// let ts_combined = TSTransform::new(vec2(2.0, -1.0), 6.0);
     /// assert_eq!(ts_combined, ts2 * ts1);
     /// ```
-    fn mul(self, rhs: TSTransform) -> Self::Output {
+    fn mul(self, rhs: Self) -> Self::Output {
         // Apply rhs first.
-        TSTransform {
+        Self {
             scaling: self.scaling * rhs.scaling,
             translation: self.translation + self.scaling * rhs.translation,
         }
