@@ -1842,6 +1842,27 @@ impl Context {
 
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
+        if self.options(|o| o.debug_paint_interactive_widgets) {
+            let rects = self.write(|ctx| ctx.viewport().layer_rects_this_frame.clone());
+            for (layer_id, rects) in rects.by_layer {
+                let painter = Painter::new(self.clone(), layer_id, Rect::EVERYTHING);
+                for rect in rects {
+                    if rect.sense.interactive() {
+                        let (color, text) = if rect.sense.click && rect.sense.drag {
+                            (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
+                        } else if rect.sense.click {
+                            (Color32::from_rgb(0x88, 0, 0), "click")
+                        } else if rect.sense.drag {
+                            (Color32::from_rgb(0, 0, 0x88), "drag")
+                        } else {
+                            (Color32::from_rgb(0, 0, 0x88), "hover")
+                        };
+                        painter.debug_rect(rect.rect, color, text);
+                    }
+                }
+            }
+        }
+
         self.write(|ctx| ctx.end_frame())
     }
 }
