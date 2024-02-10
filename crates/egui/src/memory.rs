@@ -214,6 +214,9 @@ pub struct Options {
     ///
     /// By default this is `true` in debug builds.
     pub warn_on_id_clash: bool,
+
+    /// If true, paint all interactive widgets in the order they were added to each layer.
+    pub debug_paint_interactive_widgets: bool,
 }
 
 impl Default for Options {
@@ -227,6 +230,7 @@ impl Default for Options {
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
+            debug_paint_interactive_widgets: false,
         }
     }
 }
@@ -243,6 +247,7 @@ impl Options {
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
+            debug_paint_interactive_widgets,
         } = self;
 
         use crate::Widget as _;
@@ -261,6 +266,8 @@ impl Options {
                 );
 
                 ui.checkbox(warn_on_id_clash, "Warn if two widgets have the same Id");
+
+                ui.checkbox(debug_paint_interactive_widgets, "Debug interactive widgets");
             });
 
         use crate::containers::*;
