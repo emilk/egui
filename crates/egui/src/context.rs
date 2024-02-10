@@ -1217,7 +1217,11 @@ impl Context {
                 }
             }
 
-            if res.is_pointer_button_down_on {
+            // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
+            // to still work.
+            let clicked = res.clicked.iter().any(|c| *c);
+            let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_released;
+            if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
             }
 
