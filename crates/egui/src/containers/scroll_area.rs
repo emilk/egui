@@ -763,10 +763,12 @@ impl Prepared {
         }
 
         // Restore scroll target (if any) meant for ScrollAreas up the stack
-        if saved_scroll_target[0].is_some() || saved_scroll_target[1].is_some() {
-            ui.ctx().frame_state_mut(|state| {
-                state.scroll_target = saved_scroll_target;
-            });
+        for d in 0..2 {
+            if saved_scroll_target[d].is_some() {
+                ui.ctx().frame_state_mut(|state| {
+                    state.scroll_target[d] = saved_scroll_target[d];
+                });
+            }
         }
 
         let inner_rect = {
