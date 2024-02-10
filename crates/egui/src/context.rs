@@ -199,7 +199,9 @@ impl ContextImpl {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
     /// Where the widget is.
-    pub rect: Rect,
+    ///
+    /// This is after clipping with the parent ui clip rect.
+    pub interact_rect: Rect,
 
     /// The globally unique widget id.
     ///
@@ -234,13 +236,17 @@ impl WidgetRects {
 
     /// Insert the given widget rect in the given layer.
     pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
+        if !widget_rect.interact_rect.is_positive() {
+            return;
+        }
+
         let layer_widgets = self.by_layer.entry(layer_id).or_default();
 
         if let Some(last) = layer_widgets.last_mut() {
             if last.id == widget_rect.id {
                 // e.g. calling `response.interact(…)` right after interacting.
                 last.sense |= widget_rect.sense;
-                last.rect = last.rect.union(widget_rect.rect);
+                last.interact_rect = last.interact_rect.union(widget_rect.interact_rect);
                 return;
             }
         }
@@ -1046,15 +1052,25 @@ impl Context {
             );
         }
 
-        self.interact_with_hovered(layer_id, id, rect, sense, enabled, contains_pointer)
+        self.interact_with_hovered(
+            layer_id,
+            id,
+            rect,
+            interact_rect,
+            sense,
+            enabled,
+            contains_pointer,
+        )
     }
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn interact_with_hovered(
         &self,
         layer_id: LayerId,
         id: Id,
         rect: Rect,
+        interact_rect: Rect,
         sense: Sense,
         enabled: bool,
         contains_pointer: bool,
@@ -1065,6 +1081,7 @@ impl Context {
             layer_id,
             id,
             rect,
+            interact_rect,
             sense,
             enabled,
             contains_pointer,
@@ -1108,9 +1125,14 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport
-                .layer_rects_this_frame
-                .insert(layer_id, WidgetRect { id, rect, sense });
+            viewport.layer_rects_this_frame.insert(
+                layer_id,
+                WidgetRect {
+                    id,
+                    interact_rect,
+                    sense,
+                },
+            );
 
             let input = &viewport.input;
             let memory = &mut ctx.memory;
@@ -2293,13 +2315,13 @@ impl Context {
         layer_id: LayerId,
         id: Id,
         sense: Sense,
-        rect: Rect,
+        interact_rect: Rect,
     ) -> bool {
-        if !rect.is_positive() {
+        if !interact_rect.is_positive() {
             return false; // don't even remember this widget
         }
 
-        let contains_pointer = self.rect_contains_pointer(layer_id, rect);
+        let contains_pointer = self.rect_contains_pointer(layer_id, interact_rect);
 
         let mut blocking_widget = None;
 
@@ -2309,9 +2331,14 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport
-                .layer_rects_this_frame
-                .insert(layer_id, WidgetRect { id, rect, sense });
+            viewport.layer_rects_this_frame.insert(
+                layer_id,
+                WidgetRect {
+                    id,
+                    interact_rect,
+                    sense,
+                },
+            );
 
             // Check if any other widget is covering us.
             // Whichever widget is added LAST (=on top) gets the input.
@@ -2326,7 +2353,7 @@ impl Context {
                                 // which means there are no widgets covering us.
                                 break;
                             }
-                            if !blocking.rect.contains(pointer_pos) {
+                            if !blocking.interact_rect.contains(pointer_pos) {
                                 continue;
                             }
                             if sense.interactive() && !blocking.sense.interactive() {
@@ -2348,7 +2375,7 @@ impl Context {
 
                             if blocking.sense.interactive() {
                                 // Another widget is covering us at the pointer position
-                                blocking_widget = Some(blocking.rect);
+                                blocking_widget = Some(blocking.interact_rect);
                                 break;
                             }
                         }
@@ -2361,7 +2388,7 @@ impl Context {
         if let Some(blocking_rect) = blocking_widget {
             if sense.interactive() && self.memory(|m| m.options.style.debug.show_blocking_widget) {
                 Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    rect,
+                    interact_rect,
                     Color32::GREEN,
                     "Covered",
                 );

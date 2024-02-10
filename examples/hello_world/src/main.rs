@@ -49,9 +49,20 @@ impl eframe::App for MyApp {
             }
             ui.label(format!("Hello '{}', age {}", self.name, self.age));
 
-            ui.image(egui::include_image!(
-                "../../../crates/egui/assets/ferris.png"
-            ));
+            // ui.image(egui::include_image!(
+            //     "../../../crates/egui/assets/ferris.png"
+            // ));
+
+            let (response, painter) =
+                ui.allocate_painter(egui::vec2(300.0, 150.0), egui::Sense::click());
+            painter.rect_filled(response.rect, 2.0, egui::Color32::BLACK);
+            let clicked_pos = response.interact_pointer_pos();
+            if response.clicked() {
+                eprintln!("clicked_pos: {clicked_pos:?}");
+            }
+            if response.is_pointer_button_down_on() {
+                eprintln!("down_pos: {clicked_pos:?}");
+            }
         });
     }
 }
