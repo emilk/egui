@@ -356,6 +356,9 @@ impl Shape {
     }
 
     /// Move the shape by this many points, in-place.
+    ///
+    /// If using a [`PaintCallback`], note that only the rect is scaled, so
+    /// scaling the thickness of shapes within the callback should be considered.
     pub fn transform(&mut self, transform: TSTransform) {
         match self {
             Self::Noop => {}
@@ -367,19 +370,23 @@ impl Shape {
             Self::Circle(circle_shape) => {
                 circle_shape.center = transform * circle_shape.center;
                 circle_shape.radius *= transform.scaling;
+                circle_shape.stroke.width *= transform.scaling;
             }
-            Self::LineSegment { points, .. } => {
+            Self::LineSegment { points, stroke } => {
                 for p in points {
                     *p = transform * *p;
                 }
+                stroke.width *= transform.scaling;
             }
             Self::Path(path_shape) => {
                 for p in &mut path_shape.points {
                     *p = transform * *p;
                 }
+                path_shape.stroke.width *= transform.scaling;
             }
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
+                rect_shape.stroke.width *= transform.scaling;
             }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
@@ -399,11 +406,13 @@ impl Shape {
                 bezier_shape.points[0] = transform * bezier_shape.points[0];
                 bezier_shape.points[1] = transform * bezier_shape.points[1];
                 bezier_shape.points[2] = transform * bezier_shape.points[2];
+                bezier_shape.stroke.width *= transform.scaling;
             }
             Self::CubicBezier(cubic_curve) => {
                 for p in &mut cubic_curve.points {
                     *p = transform * *p;
                 }
+                cubic_curve.stroke.width *= transform.scaling;
             }
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
