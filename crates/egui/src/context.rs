@@ -1089,7 +1089,19 @@ impl Context {
 
         let clicked_elsewhere = res.clicked_elsewhere();
         self.write(|ctx| {
-            let input = &ctx.viewports.entry(ctx.viewport_id()).or_default().input;
+            let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
+
+            // We need to remember this widget.
+            // `widget_contains_pointer` also does this, but in case of e.g. `Response::interact`,
+            // that won't be called.
+            // We add all widgets here, even non-interactive ones,
+            // because we need this list not only for checking for blocking widgets,
+            // but also to know when we have reached the widget we are checking for cover.
+            viewport
+                .layer_rects_this_frame
+                .insert(layer_id, WidgetRect { id, rect, sense });
+
+            let input = &viewport.input;
             let memory = &mut ctx.memory;
 
             if sense.focusable {
