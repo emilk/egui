@@ -85,3 +85,19 @@ impl Sense {
         self.click || self.drag
     }
 }
+
+impl std::ops::BitOr for Sense {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, rhs: Self) -> Self {
+        self.union(rhs)
+    }
+}
+
+impl std::ops::BitOrAssign for Sense {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = self.union(rhs);
+    }
+}
