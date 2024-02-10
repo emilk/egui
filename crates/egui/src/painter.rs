@@ -190,13 +190,13 @@ impl Painter {
         if self.fade_to_color == Some(Color32::TRANSPARENT) || self.opacity_factor == 0.0 {
             return;
         }
-        if self.fade_to_color.is_none() && self.opacity_factor == 1.0 {
-            self.paint_list(|l| l.extend(self.clip_rect, shapes));
-        } else {
+        if self.fade_to_color.is_some() || self.opacity_factor < 1.0 {
             let shapes = shapes.into_iter().map(|mut shape| {
                 self.transform_shape(&mut shape);
                 shape
             });
+            self.paint_list(|l| l.extend(self.clip_rect, shapes));
+        } else {
             self.paint_list(|l| l.extend(self.clip_rect, shapes));
         }
     }
