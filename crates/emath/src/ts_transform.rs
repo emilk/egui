@@ -2,8 +2,8 @@ use crate::{Pos2, Rect, Vec2};
 
 /// Linearly transforms positions via a translation, then a scaling.
 ///
-/// [`TSTransform`] first translates points, then scales them with the scaling origin
-/// at `0, 0` (the top left corner)
+/// [`TSTransform`] first scales points with the scaling origin at `0, 0`
+/// (the top left corner), then translates them.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -12,7 +12,7 @@ pub struct TSTransform {
     /// Scaling applied first, scaled around (0, 0).
     pub scaling: f32,
 
-    /// Translation amount, applied after translation.
+    /// Translation amount, applied after scaling.
     pub translation: Vec2,
 }
 
@@ -31,8 +31,9 @@ impl TSTransform {
         scaling: 1.0,
     };
 
-    /// The translation is applied first, then scaling around 0, 0.
     #[inline]
+    /// Creates a new translation that first scales points around
+    /// `(0, 0)`, then translates them.  
     pub fn new(translation: Vec2, scaling: f32) -> Self {
         Self {
             translation,
@@ -60,13 +61,15 @@ impl TSTransform {
     /// let inv = ts.inverse();
     /// assert_eq!(inv.mul_pos(p1), pos2(0.0, 0.0));
     /// assert_eq!(inv.mul_pos(p2), pos2(5.0, 1.0));
+    ///
+    /// assert_eq!(ts.inverse().inverse(), ts);
     /// ```
     #[inline]
     pub fn inverse(&self) -> Self {
         Self::new(-self.translation / self.scaling, 1.0 / self.scaling)
     }
 
-    /// Transforms the given coordinate by translation then scaling.
+    /// Transforms the given coordinate.
     ///
     /// ```
     /// # use emath::{pos2, vec2, TSTransform};
@@ -81,7 +84,7 @@ impl TSTransform {
         self.scaling * pos + self.translation
     }
 
-    /// Transforms the given rectangle by translation then scaling.
+    /// Transforms the given rectangle.
     ///
     /// ```
     /// # use emath::{pos2, vec2, Rect, TSTransform};
@@ -110,7 +113,7 @@ impl std::ops::Mul<Pos2> for TSTransform {
     }
 }
 
-/// Transforms the position.
+/// Transforms the rectangle.
 impl std::ops::Mul<Rect> for TSTransform {
     type Output = Rect;
 
@@ -124,6 +127,8 @@ impl std::ops::Mul<TSTransform> for TSTransform {
     type Output = TSTransform;
 
     #[inline]
+    /// Applies the right hand side transform, then the left hand side.
+    ///
     /// ```
     /// # use emath::{TSTransform, vec2};
     /// let ts1 = TSTransform::new(vec2(1.0, 0.0), 2.0);
