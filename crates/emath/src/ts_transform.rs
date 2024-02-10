@@ -50,7 +50,7 @@ impl TSTransform {
         Self::new(Vec2::ZERO, scaling)
     }
 
-    /// Reverses the transformation from screen space to layer space.
+    /// Inverts the transform.
     ///
     /// ```
     /// # use emath::{pos2, vec2, TSTransform};
