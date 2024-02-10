@@ -187,18 +187,17 @@ impl Painter {
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
     pub fn extend<I: IntoIterator<Item = Shape>>(&self, shapes: I) {
-        match (self.fade_to_color, self.opacity_factor) {
-            (None, opacity) if opacity == 1.0 => {
-                self.paint_list(|l| l.extend(self.clip_rect, shapes));
-            }
-            (Some(Color32::TRANSPARENT), _) => (),
-            _ => {
-                let shapes = shapes.into_iter().map(|mut shape| {
-                    self.transform_shape(&mut shape);
-                    shape
-                });
-                self.paint_list(|l| l.extend(self.clip_rect, shapes));
-            }
+        if self.fade_to_color == Some(Color32::TRANSPARENT) || self.opacity_factor == 0.0 {
+            return;
+        }
+        if self.fade_to_color.is_none() && self.opacity_factor == 1.0 {
+            self.paint_list(|l| l.extend(self.clip_rect, shapes));
+        } else {
+            let shapes = shapes.into_iter().map(|mut shape| {
+                self.transform_shape(&mut shape);
+                shape
+            });
+            self.paint_list(|l| l.extend(self.clip_rect, shapes));
         }
     }
 
