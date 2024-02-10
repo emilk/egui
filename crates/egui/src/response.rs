@@ -607,7 +607,7 @@ impl Response {
             self.rect,
             sense,
             self.enabled,
-            self.hovered,
+            self.contains_pointer,
         )
     }
 
