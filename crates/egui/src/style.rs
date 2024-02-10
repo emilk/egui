@@ -709,6 +709,12 @@ impl std::ops::Add for Margin {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Interaction {
+    /// How close a widget must be to the mouse to have a chance to register as a click or drag.
+    ///
+    /// If this is larger than zero, it gets easier to hit widgets,
+    /// which is important for e.g. touch screens.
+    pub interact_radius: f32,
+
     /// Mouse must be this close to the side of a window to resize
     pub resize_grab_radius_side: f32,
 
@@ -1125,6 +1131,7 @@ impl Default for Spacing {
 impl Default for Interaction {
     fn default() -> Self {
         Self {
+            interact_radius: 3.0,
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
@@ -1592,6 +1599,7 @@ fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
 impl Interaction {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
+            interact_radius,
             resize_grab_radius_side,
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
@@ -1599,6 +1607,8 @@ impl Interaction {
             selectable_labels,
             multi_widget_text_select,
         } = self;
+        ui.add(Slider::new(interact_radius, 0.0..=20.0).text("interact_radius"))
+            .on_hover_text("Interact witgh ghe closest widget within this radius.");
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
             Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),

@@ -20,6 +20,8 @@ use crate::{
     TextureHandle, ViewportCommand, *,
 };
 
+use self::hit_test::WidgetHits;
+
 /// Information given to the backend about when it is time to repaint the ui.
 ///
 /// This is given in the callback set by [`Context::set_request_repaint_callback`].
@@ -292,7 +294,14 @@ struct ViewportState {
     repaint: ViewportRepaintInfo,
 
     // ----------------------
+    // Updated at the start of the frame:
+    //
+    /// Which widgets are under the pointer?
+    hits: WidgetHits,
+
+    // ----------------------
     // The output of a frame:
+    //
     graphics: GraphicLayers,
     // Most of the things in `PlatformOutput` are not actually viewport dependent.
     output: PlatformOutput,
@@ -488,6 +497,46 @@ impl ContextImpl {
         );
 
         viewport.frame_state.begin_frame(&viewport.input);
+
+        {
+            let area_order: HashMap<LayerId, usize> = self
+                .memory
+                .areas()
+                .order()
+                .iter()
+                .enumerate()
+                .map(|(i, id)| (*id, i))
+                .collect();
+
+            let mut layers: Vec<LayerId> = viewport
+                .widgets_prev_frame
+                .by_layer
+                .keys()
+                .copied()
+                .collect();
+
+            layers.sort_by(|a, b| {
+                if a.order == b.order {
+                    // Maybe both are windows, so respect area order:
+                    area_order.get(a).cmp(&area_order.get(b))
+                } else {
+                    // comparing e.g. background to tooltips
+                    a.order.cmp(&b.order)
+                }
+            });
+
+            viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
+                let interact_radius = self.memory.options.style.interaction.interact_radius;
+                crate::hit_test::hit_test(
+                    &viewport.widgets_prev_frame,
+                    &layers,
+                    pos,
+                    interact_radius,
+                )
+            } else {
+                WidgetHits::default()
+            };
+        }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = viewport.input.screen_rect();
