@@ -38,7 +38,7 @@ pub struct Response {
     /// (e.g. when inside a scroll area).
     ///
     /// The interact rect may also be slightly larger than the widget rect,
-    /// becase egui adds half if the item spacing to make the interact rect easier to hit.
+    /// because egui adds half if the item spacing to make the interact rect easier to hit.
     pub interact_rect: Rect,
 
     /// The senses (click and/or drag) that the widget was interested in (if any).
