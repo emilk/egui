@@ -119,3 +119,23 @@ impl std::ops::Mul<Rect> for TSTransform {
         self.mul_rect(rect)
     }
 }
+
+impl std::ops::Mul<TSTransform> for TSTransform {
+    type Output = TSTransform;
+
+    #[inline]
+    /// ```
+    /// # use emath::{TSTransform, vec2};
+    /// let ts1 = TSTransform::new(vec2(1.0, 0.0), 2.0);
+    /// let ts2 = TSTransform::new(vec2(-1.0, -1.0), 3.0);
+    /// let ts_combined = TSTransform::new(vec2(2.0, -1.0), 6.0);
+    /// assert_eq!(ts_combined, ts2 * ts1);
+    /// ```
+    fn mul(self, rhs: TSTransform) -> Self::Output {
+        // Apply rhs first.
+        TSTransform {
+            scaling: self.scaling * rhs.scaling,
+            translation: self.translation + self.scaling * rhs.translation,
+        }
+    }
+}

@@ -39,22 +39,18 @@ impl super::View for PanZoom {
         if let Some(pointer) = ui.ctx().input(|i| i.pointer.hover_pos()) {
             // Note: doesn't catch zooming / panning if a button in this PanZoom container is hovered.
             if response.hovered() {
-                let original_zoom = self.transform.scaling;
-                let new_zoom = original_zoom * ui.ctx().input(|i| i.zoom_delta());
+                let pointer_in_layer = self.transform.inverse() * pointer;
+                let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
+                let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
 
-                let layer_pos = self.transform.inverse() * pointer;
-                let new_transform = TSTransform::new(self.transform.translation, new_zoom);
-                let new_pos = new_transform * layer_pos;
+                // Zoom in on pointer:
+                self.transform = self.transform
+                    * TSTransform::from_translation(pointer_in_layer.to_vec2())
+                    * TSTransform::from_scaling(zoom_delta)
+                    * TSTransform::from_translation(-pointer_in_layer.to_vec2());
 
-                // Keep mouse centered.
-                let pan_delta = pointer - new_pos;
-
-                // Handle scrolling.
-                let pan_delta =
-                    pan_delta + ui.ctx().input(|i| i.smooth_scroll_delta) / original_zoom;
-
-                self.transform.scaling = new_zoom;
-                self.transform.translation += pan_delta;
+                // Pan:
+                self.transform = TSTransform::from_translation(pan_delta) * self.transform;
             }
         }
 
