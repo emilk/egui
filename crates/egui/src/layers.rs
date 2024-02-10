@@ -170,6 +170,10 @@ impl PaintList {
     pub fn all_entries(&self) -> impl ExactSizeIterator<Item = &ClippedShape> {
         self.0.iter()
     }
+
+    pub fn last(&self) -> Option<&ClippedShape> {
+        self.0.last()
+    }
 }
 
 /// This is where painted [`Shape`]s end up during a frame.

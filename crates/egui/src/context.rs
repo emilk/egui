@@ -1081,7 +1081,6 @@ impl Context {
             layer_id,
             id,
             rect,
-            interact_rect,
             sense,
             enabled,
             contains_pointer,
