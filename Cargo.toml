@@ -67,7 +67,7 @@ ahash = { version = "0.8.6", default-features = false, features = [
 ] }
 backtrace = "0.3"
 criterion = { version = "0.5.1", default-features = false }
-document-features = "0.2"
+document-features = " 0.2.8"
 glow = "0.13"
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"

@@ -357,6 +357,8 @@ pub struct InputTest {
     #[cfg_attr(feature = "serde", serde(skip))]
     history: [DeduplicatedHistory; 4],
 
+    late_interaction: bool,
+
     show_hovers: bool,
 }
 
@@ -394,6 +396,8 @@ impl super::View for InputTest {
             ui.checkbox(&mut self.show_hovers, "Show hover state");
         });
 
+        ui.checkbox(&mut self.late_interaction, "Use Response::interact");
+
         ui.label("This tests how egui::Response reports events.\n\
         The different buttons are sensitive to different things.\n\
         Try interacting with them with any mouse button by clicking, double-clicking, triple-clicking, or dragging them.");
@@ -409,7 +413,13 @@ impl super::View for InputTest {
             .enumerate()
             {
                 columns[i].push_id(i, |ui| {
-                    let response = ui.add(egui::Button::new(sense_name).sense(sense));
+                    let response = if self.late_interaction {
+                        let first_response =
+                            ui.add(egui::Button::new(sense_name).sense(egui::Sense::hover()));
+                        first_response.interact(sense)
+                    } else {
+                        ui.add(egui::Button::new(sense_name).sense(sense))
+                    };
                     let info = response_summary(&response, self.show_hovers);
                     self.history[i].add(info.trim().to_owned());
                     self.history[i].ui(ui);
