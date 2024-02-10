@@ -357,8 +357,8 @@ impl Shape {
 
     /// Move the shape by this many points, in-place.
     ///
-    /// If using a [`PaintCallback`], note that only the rect is scaled, so
-    /// scaling the thickness of shapes within the callback should be considered.
+    /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
+    /// to other shapes where the stroke is also scaled.
     pub fn transform(&mut self, transform: TSTransform) {
         match self {
             Self::Noop => {}
