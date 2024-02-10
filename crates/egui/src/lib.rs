@@ -352,6 +352,7 @@ mod drag_and_drop;
 mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
+mod hit_test;
 mod id;
 mod input_state;
 pub mod introspection;
