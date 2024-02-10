@@ -201,7 +201,7 @@ pub struct WidgetRect {
     /// Where the widget is.
     ///
     /// This is after clipping with the parent ui clip rect.
-    pub interact_rect: Rect,
+    pub rect: Rect,
 
     /// The globally unique widget id.
     ///
@@ -236,7 +236,7 @@ impl WidgetRects {
 
     /// Insert the given widget rect in the given layer.
     pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
-        if !widget_rect.interact_rect.is_positive() {
+        if !widget_rect.rect.is_positive() {
             return;
         }
 
@@ -246,7 +246,7 @@ impl WidgetRects {
             if last.id == widget_rect.id {
                 // e.g. calling `response.interact(…)` right after interacting.
                 last.sense |= widget_rect.sense;
-                last.interact_rect = last.interact_rect.union(widget_rect.interact_rect);
+                last.rect = last.rect.union(widget_rect.rect);
                 return;
             }
         }
@@ -1128,7 +1128,7 @@ impl Context {
                 layer_id,
                 WidgetRect {
                     id,
-                    interact_rect,
+                    rect: interact_rect,
                     sense,
                 },
             );
@@ -2334,7 +2334,7 @@ impl Context {
                 layer_id,
                 WidgetRect {
                     id,
-                    interact_rect,
+                    rect: interact_rect,
                     sense,
                 },
             );
@@ -2352,7 +2352,7 @@ impl Context {
                                 // which means there are no widgets covering us.
                                 break;
                             }
-                            if !blocking.interact_rect.contains(pointer_pos) {
+                            if !blocking.rect.contains(pointer_pos) {
                                 continue;
                             }
                             if sense.interactive() && !blocking.sense.interactive() {
@@ -2374,7 +2374,7 @@ impl Context {
 
                             if blocking.sense.interactive() {
                                 // Another widget is covering us at the pointer position
-                                blocking_widget = Some(blocking.interact_rect);
+                                blocking_widget = Some(blocking.rect);
                                 break;
                             }
                         }
