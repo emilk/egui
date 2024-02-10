@@ -471,7 +471,7 @@ impl<'t> TextEdit<'t> {
             available_width
         } else {
             desired_width.min(available_width)
-        } - margin.sum().x;
+        };
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {

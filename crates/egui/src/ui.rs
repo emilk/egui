@@ -650,10 +650,12 @@ impl Ui {
         id: Id,
         sense: Sense,
     ) -> Response {
+        let interact_rect = rect.intersect(self.clip_rect());
         self.ctx().interact_with_hovered(
             self.layer_id(),
             id,
             rect,
+            interact_rect,
             sense,
             self.enabled,
             contains_pointer,

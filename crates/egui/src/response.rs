@@ -32,6 +32,15 @@ pub struct Response {
     /// The area of the screen we are talking about.
     pub rect: Rect,
 
+    /// The rectangle sensing interaction.
+    ///
+    /// This is sometimes smaller than [`Self::rect`] because of clipping
+    /// (e.g. when inside a scroll area).
+    ///
+    /// The interact rect may also be slightly larger than the widget rect,
+    /// because egui adds half if the item spacing to make the interact rect easier to hit.
+    pub interact_rect: Rect,
+
     /// The senses (click and/or drag) that the widget was interested in (if any).
     pub sense: Sense,
 
@@ -438,7 +447,7 @@ impl Response {
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.should_show_hover_ui() {
+        if self.enabled && self.should_show_hover_ui() {
             crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -451,7 +460,7 @@ impl Response {
 
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if !self.enabled && self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
+        if !self.enabled && self.should_show_hover_ui() {
             crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -464,7 +473,7 @@ impl Response {
 
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.should_show_hover_ui() {
+        if self.enabled && self.should_show_hover_ui() {
             crate::containers::show_tooltip_at_pointer(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -484,7 +493,11 @@ impl Response {
             return true;
         }
 
-        if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
+        if self.enabled {
+            if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
+                return false;
+            }
+        } else if !self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
             return false;
         }
 
@@ -505,8 +518,9 @@ impl Response {
 
             if 0.0 < time_til_tooltip {
                 // Wait until the mouse has been still for a while
-                self.ctx
-                    .request_repaint_after(std::time::Duration::from_secs_f32(time_til_tooltip));
+                if let Ok(duration) = std::time::Duration::try_from_secs_f32(time_til_tooltip) {
+                    self.ctx.request_repaint_after(duration);
+                }
                 return false;
             }
         }
@@ -600,9 +614,10 @@ impl Response {
             self.layer_id,
             self.id,
             self.rect,
+            self.interact_rect,
             sense,
             self.enabled,
-            self.hovered,
+            self.contains_pointer,
         )
     }
 
@@ -794,6 +809,7 @@ impl Response {
             layer_id: self.layer_id,
             id: self.id,
             rect: self.rect.union(other.rect),
+            interact_rect: self.interact_rect.union(other.interact_rect),
             sense: self.sense.union(other.sense),
             enabled: self.enabled || other.enabled,
             contains_pointer: self.contains_pointer || other.contains_pointer,
