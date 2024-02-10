@@ -11,7 +11,8 @@ publish = false
 wgpu = ["eframe/wgpu"]
 
 [dependencies]
-eframe = { path = "../../crates/eframe", features = [
+eframe = { workspace = true, features = [
+    "default",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
 env_logger = { version = "0.10", default-features = false, features = [

@@ -1055,6 +1055,21 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::F18 => Key::F18,
         NamedKey::F19 => Key::F19,
         NamedKey::F20 => Key::F20,
+        NamedKey::F21 => Key::F21,
+        NamedKey::F22 => Key::F22,
+        NamedKey::F23 => Key::F23,
+        NamedKey::F24 => Key::F24,
+        NamedKey::F25 => Key::F25,
+        NamedKey::F26 => Key::F26,
+        NamedKey::F27 => Key::F27,
+        NamedKey::F28 => Key::F28,
+        NamedKey::F29 => Key::F29,
+        NamedKey::F30 => Key::F30,
+        NamedKey::F31 => Key::F31,
+        NamedKey::F32 => Key::F32,
+        NamedKey::F33 => Key::F33,
+        NamedKey::F34 => Key::F34,
+        NamedKey::F35 => Key::F35,
         _ => {
             log::trace!("Unknown key: {named_key:?}");
             return None;
@@ -1161,6 +1176,21 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::F18 => Key::F18,
         KeyCode::F19 => Key::F19,
         KeyCode::F20 => Key::F20,
+        KeyCode::F21 => Key::F21,
+        KeyCode::F22 => Key::F22,
+        KeyCode::F23 => Key::F23,
+        KeyCode::F24 => Key::F24,
+        KeyCode::F25 => Key::F25,
+        KeyCode::F26 => Key::F26,
+        KeyCode::F27 => Key::F27,
+        KeyCode::F28 => Key::F28,
+        KeyCode::F29 => Key::F29,
+        KeyCode::F30 => Key::F30,
+        KeyCode::F31 => Key::F31,
+        KeyCode::F32 => Key::F32,
+        KeyCode::F33 => Key::F33,
+        KeyCode::F34 => Key::F34,
+        KeyCode::F35 => Key::F35,
 
         _ => {
             return None;
@@ -1498,6 +1528,7 @@ pub fn create_winit_window_builder<T>(
 
         // Windows:
         drag_and_drop: _drag_and_drop,
+        taskbar: _taskbar,
 
         // wayland:
         app_id: _app_id,
@@ -1575,9 +1606,14 @@ pub fn create_winit_window_builder<T>(
     }
 
     #[cfg(target_os = "windows")]
-    if let Some(enable) = _drag_and_drop {
+    {
         use winit::platform::windows::WindowBuilderExtWindows as _;
-        window_builder = window_builder.with_drag_and_drop(enable);
+        if let Some(enable) = _drag_and_drop {
+            window_builder = window_builder.with_drag_and_drop(enable);
+        }
+        if let Some(show) = _taskbar {
+            window_builder = window_builder.with_skip_taskbar(!show);
+        }
     }
 
     #[cfg(target_os = "macos")]

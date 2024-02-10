@@ -1,6 +1,6 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::{borrow::Cow, cell::RefCell, sync::Arc, time::Duration};
+use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use ahash::HashMap;
 use epaint::{
@@ -92,7 +92,7 @@ impl Plugins {
             callback,
         } in callbacks
         {
-            crate::profile_scope!(_name);
+            crate::profile_scope!("plugin", _name);
             (callback)(ctx);
         }
     }
@@ -114,6 +114,12 @@ impl ContextImpl {
     fn begin_frame_repaint_logic(&mut self, viewport_id: ViewportId) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
+        std::mem::swap(
+            &mut viewport.repaint.prev_causes,
+            &mut viewport.repaint.causes,
+        );
+        viewport.repaint.causes.clear();
+
         viewport.repaint.prev_frame_paint_delay = viewport.repaint.repaint_delay;
 
         if viewport.repaint.outstanding == 0 {
@@ -132,16 +138,30 @@ impl ContextImpl {
         }
     }
 
-    fn request_repaint(&mut self, viewport_id: ViewportId) {
-        self.request_repaint_after(Duration::ZERO, viewport_id);
+    fn request_repaint(&mut self, viewport_id: ViewportId, cause: RepaintCause) {
+        self.request_repaint_after(Duration::ZERO, viewport_id, cause);
     }
 
-    fn request_repaint_after(&mut self, delay: Duration, viewport_id: ViewportId) {
+    fn request_repaint_after(
+        &mut self,
+        delay: Duration,
+        viewport_id: ViewportId,
+        cause: RepaintCause,
+    ) {
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        // Each request results in two repaints, just to give some things time to settle.
-        // This solves some corner-cases of missing repaints on frame-delayed responses.
-        viewport.repaint.outstanding = 1;
+        if delay == Duration::ZERO {
+            // Each request results in two repaints, just to give some things time to settle.
+            // This solves some corner-cases of missing repaints on frame-delayed responses.
+            viewport.repaint.outstanding = 1;
+        } else {
+            // For non-zero delays, we only repaint once, because
+            // otherwise we would just schedule an immediate repaint _now_,
+            // which would then clear the delay and repaint again.
+            // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
+        }
+
+        viewport.repaint.causes.push(cause);
 
         // We save some CPU time by only calling the callback if we need to.
         // If the new delay is greater or equal to the previous lowest,
@@ -176,17 +196,19 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
-/// Used to store each widgets [Id], [Rect] and [Sense] each frame.
+/// Used to store each widget's [Id], [Rect] and [Sense] each frame.
 /// Used to check for overlaps between widgets when handling events.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
     /// Where the widget is.
-    pub rect: Rect,
+    ///
+    /// This is after clipping with the parent ui clip rect.
+    pub interact_rect: Rect,
 
     /// The globally unique widget id.
     ///
     /// For interactive widgets, this better be globally unique.
-    /// If not there will get weird bugs,
+    /// If not there will be weird bugs,
     /// and also big red warning test on the screen in debug builds
     /// (see [`Options::warn_on_id_clash`]).
     ///
@@ -199,7 +221,7 @@ pub struct WidgetRect {
 
 /// Stores the positions of all widgets generated during a single egui update/frame.
 ///
-/// Acgtually, only those that are on screen.
+/// Actually, only those that are on screen.
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct WidgetRects {
     /// All widgets, in painting order.
@@ -216,7 +238,22 @@ impl WidgetRects {
 
     /// Insert the given widget rect in the given layer.
     pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
-        self.by_layer.entry(layer_id).or_default().push(widget_rect);
+        if !widget_rect.interact_rect.is_positive() {
+            return;
+        }
+
+        let layer_widgets = self.by_layer.entry(layer_id).or_default();
+
+        if let Some(last) = layer_widgets.last_mut() {
+            if last.id == widget_rect.id {
+                // e.g. calling `response.interact(…)` right after interacting.
+                last.sense |= widget_rect.sense;
+                last.interact_rect = last.interact_rect.union(widget_rect.interact_rect);
+                return;
+            }
+        }
+
+        layer_widgets.push(widget_rect);
     }
 }
 
@@ -264,6 +301,35 @@ struct ViewportState {
     commands: Vec<ViewportCommand>,
 }
 
+/// What called [`Context::request_repaint`]?
+#[derive(Clone, Debug)]
+pub struct RepaintCause {
+    /// What file had the call that requested the repaint?
+    pub file: String,
+
+    /// What line number of the the call that requested the repaint?
+    pub line: u32,
+}
+
+impl RepaintCause {
+    /// Capture the file and line number of the call site.
+    #[allow(clippy::new_without_default)]
+    #[track_caller]
+    pub fn new() -> Self {
+        let caller = Location::caller();
+        Self {
+            file: caller.file().to_owned(),
+            line: caller.line(),
+        }
+    }
+}
+
+impl std::fmt::Display for RepaintCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.file, self.line)
+    }
+}
+
 /// Per-viewport state related to repaint scheduling.
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
@@ -280,9 +346,16 @@ struct ViewportRepaintInfo {
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
     outstanding: u8,
 
+    /// What caused repaints during this frame?
+    causes: Vec<RepaintCause>,
+
+    /// What triggered a repaint the previous frame?
+    /// (i.e: why are we updating now?)
+    prev_causes: Vec<RepaintCause>,
+
     /// What was the output of `repaint_delay` on the previous frame?
     ///
-    /// If this was zero, we are repaining as quickly as possible
+    /// If this was zero, we are repainting as quickly as possible
     /// (as far as we know).
     prev_frame_paint_delay: Duration,
 }
@@ -297,6 +370,9 @@ impl Default for ViewportRepaintInfo {
 
             // Let's run a couple of frames at the start, because why not.
             outstanding: 1,
+
+            causes: Default::default(),
+            prev_causes: Default::default(),
 
             prev_frame_paint_delay: Duration::MAX,
         }
@@ -313,7 +389,7 @@ impl ViewportRepaintInfo {
 
 #[derive(Default)]
 struct ContextImpl {
-    /// Since we could have multiple viewport across multiple monitors with
+    /// Since we could have multiple viewports across multiple monitors with
     /// different `pixels_per_point`, we need a `Fonts` instance for each unique
     /// `pixels_per_point`.
     /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
@@ -978,15 +1054,25 @@ impl Context {
             );
         }
 
-        self.interact_with_hovered(layer_id, id, rect, sense, enabled, contains_pointer)
+        self.interact_with_hovered(
+            layer_id,
+            id,
+            rect,
+            interact_rect,
+            sense,
+            enabled,
+            contains_pointer,
+        )
     }
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn interact_with_hovered(
         &self,
         layer_id: LayerId,
         id: Id,
         rect: Rect,
+        interact_rect: Rect,
         sense: Sense,
         enabled: bool,
         contains_pointer: bool,
@@ -997,6 +1083,7 @@ impl Context {
             layer_id,
             id,
             rect,
+            interact_rect,
             sense,
             enabled,
             contains_pointer,
@@ -1032,7 +1119,24 @@ impl Context {
 
         let clicked_elsewhere = res.clicked_elsewhere();
         self.write(|ctx| {
-            let input = &ctx.viewports.entry(ctx.viewport_id()).or_default().input;
+            let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
+
+            // We need to remember this widget.
+            // `widget_contains_pointer` also does this, but in case of e.g. `Response::interact`,
+            // that won't be called.
+            // We add all widgets here, even non-interactive ones,
+            // because we need this list not only for checking for blocking widgets,
+            // but also to know when we have reached the widget we are checking for cover.
+            viewport.layer_rects_this_frame.insert(
+                layer_id,
+                WidgetRect {
+                    id,
+                    interact_rect,
+                    sense,
+                },
+            );
+
+            let input = &viewport.input;
             let memory = &mut ctx.memory;
 
             if sense.focusable {
@@ -1137,7 +1241,11 @@ impl Context {
                 }
             }
 
-            if res.is_pointer_button_down_on {
+            // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
+            // to still work.
+            let clicked = res.clicked.iter().any(|c| *c);
+            let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_released;
+            if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
             }
 
@@ -1308,6 +1416,7 @@ impl Context {
     /// (this will work on `eframe`).
     ///
     /// This will repaint the current viewport.
+    #[track_caller]
     pub fn request_repaint(&self) {
         self.request_repaint_of(self.viewport_id());
     }
@@ -1324,8 +1433,10 @@ impl Context {
     /// (this will work on `eframe`).
     ///
     /// This will repaint the specified viewport.
+    #[track_caller]
     pub fn request_repaint_of(&self, id: ViewportId) {
-        self.write(|ctx| ctx.request_repaint(id));
+        let cause = RepaintCause::new();
+        self.write(|ctx| ctx.request_repaint(id, cause));
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1341,21 +1452,22 @@ impl Context {
     /// redraws when the app is not in focus. But sometimes the GUI of the app might become stale
     /// and outdated if it is not updated for too long.
     ///
-    /// Lets say, something like a stop watch widget that displays the time in seconds. You would waste
+    /// Let's say, something like a stopwatch widget that displays the time in seconds. You would waste
     /// resources repainting multiple times within the same second (when you have no input),
     /// just calculate the difference of duration between current time and next second change,
     /// and call this function, to make sure that you are displaying the latest updated time, but
     /// not wasting resources on needless repaints within the same second.
     ///
     /// ### Quirk:
-    /// Duration begins at the next frame. lets say for example that its a very inefficient app
+    /// Duration begins at the next frame. Let's say for example that it's a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
-    /// So, its not that we are requesting repaint within X duration. We are rather timing out
+    /// So, it's not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the current viewport
+    #[track_caller]
     pub fn request_repaint_after(&self, duration: Duration) {
         self.request_repaint_after_for(duration, self.viewport_id());
     }
@@ -1388,8 +1500,10 @@ impl Context {
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the specified viewport
+    #[track_caller]
     pub fn request_repaint_after_for(&self, duration: Duration, id: ViewportId) {
-        self.write(|ctx| ctx.request_repaint_after(duration, id));
+        let cause = RepaintCause::new();
+        self.write(|ctx| ctx.request_repaint_after(duration, id, cause));
     }
 
     /// Was a repaint requested last frame for the current viewport?
@@ -1414,6 +1528,18 @@ impl Context {
     #[must_use]
     pub fn has_requested_repaint_for(&self, viewport_id: &ViewportId) -> bool {
         self.read(|ctx| ctx.has_requested_repaint(viewport_id))
+    }
+
+    /// Why are we repainting?
+    ///
+    /// This can be helpful in debugging why egui is constantly repainting.
+    pub fn repaint_causes(&self) -> Vec<RepaintCause> {
+        self.read(|ctx| {
+            ctx.viewports
+                .get(&ctx.viewport_id())
+                .map(|v| v.repaint.causes.clone())
+        })
+        .unwrap_or_default()
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`] or [`Self::request_repaint_after`].
@@ -1581,11 +1707,12 @@ impl Context {
     /// [`Options::zoom_factor`].
     #[inline(always)]
     pub fn set_zoom_factor(&self, zoom_factor: f32) {
+        let cause = RepaintCause::new();
         self.write(|ctx| {
             if ctx.memory.options.zoom_factor != zoom_factor {
                 ctx.new_zoom_factor = Some(zoom_factor);
-                for id in ctx.all_viewport_ids() {
-                    ctx.request_repaint(id);
+                for viewport_id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(viewport_id, cause.clone());
                 }
             }
         });
@@ -1739,6 +1866,27 @@ impl Context {
 
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
+        if self.options(|o| o.debug_paint_interactive_widgets) {
+            let rects = self.write(|ctx| ctx.viewport().layer_rects_this_frame.clone());
+            for (layer_id, rects) in rects.by_layer {
+                let painter = Painter::new(self.clone(), layer_id, Rect::EVERYTHING);
+                for rect in rects {
+                    if rect.sense.interactive() {
+                        let (color, text) = if rect.sense.click && rect.sense.drag {
+                            (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
+                        } else if rect.sense.click {
+                            (Color32::from_rgb(0x88, 0, 0), "click")
+                        } else if rect.sense.drag {
+                            (Color32::from_rgb(0, 0, 0x88), "drag")
+                        } else {
+                            (Color32::from_rgb(0, 0, 0x88), "hover")
+                        };
+                        painter.debug_rect(rect.interact_rect, color, text);
+                    }
+                }
+            }
+        }
+
         self.write(|ctx| ctx.end_frame())
     }
 }
@@ -1834,7 +1982,7 @@ impl ContextImpl {
         }
 
         if repaint_needed || viewport.input.wants_repaint() {
-            self.request_repaint(ended_viewport_id);
+            self.request_repaint(ended_viewport_id, RepaintCause::new());
         }
 
         //  -------------------
@@ -2204,13 +2352,13 @@ impl Context {
         layer_id: LayerId,
         id: Id,
         sense: Sense,
-        rect: Rect,
+        interact_rect: Rect,
     ) -> bool {
-        if !rect.is_positive() {
+        if !interact_rect.is_positive() {
             return false; // don't even remember this widget
         }
 
-        let contains_pointer = self.rect_contains_pointer(layer_id, rect);
+        let contains_pointer = self.rect_contains_pointer(layer_id, interact_rect);
 
         let mut blocking_widget = None;
 
@@ -2226,9 +2374,14 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport
-                .layer_rects_this_frame
-                .insert(layer_id, WidgetRect { id, rect, sense });
+            viewport.layer_rects_this_frame.insert(
+                layer_id,
+                WidgetRect {
+                    id,
+                    interact_rect,
+                    sense,
+                },
+            );
 
             // Check if any other widget is covering us.
             // Whichever widget is added LAST (=on top) gets the input.
@@ -2238,13 +2391,14 @@ impl Context {
                     // Apply the inverse transformation of this layer to the pointer pos.
                     let pointer_pos = transform.inverse() * pointer_pos;
                     if let Some(rects) = viewport.layer_rects_prev_frame.by_layer.get(&layer_id) {
+                        // Iterate backwards, i.e. topmost widgets first.
                         for blocking in rects.iter().rev() {
                             if blocking.id == id {
-                                // There are no earlier widgets before this one,
+                                // We've checked all widgets there were added after this one last frame,
                                 // which means there are no widgets covering us.
                                 break;
                             }
-                            if !blocking.rect.contains(pointer_pos) {
+                            if !blocking.interact_rect.contains(pointer_pos) {
                                 continue;
                             }
                             if sense.interactive() && !blocking.sense.interactive() {
@@ -2266,7 +2420,7 @@ impl Context {
 
                             if blocking.sense.interactive() {
                                 // Another widget is covering us at the pointer position
-                                blocking_widget = Some(blocking.rect);
+                                blocking_widget = Some(blocking.interact_rect);
                                 break;
                             }
                         }
@@ -2279,7 +2433,7 @@ impl Context {
         if let Some(blocking_rect) = blocking_widget {
             if sense.interactive() && self.memory(|m| m.options.style.debug.show_blocking_widget) {
                 Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    rect,
+                    interact_rect,
                     Color32::GREEN,
                     "Covered",
                 );
@@ -2320,12 +2474,14 @@ impl Context {
     /// The function will call [`Self::request_repaint()`] when appropriate.
     ///
     /// The animation time is taken from [`Style::animation_time`].
+    #[track_caller] // To track repaint cause
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
         self.animate_bool_with_time(id, value, animation_time)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
+    #[track_caller] // To track repaint cause
     pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_bool(
@@ -2346,6 +2502,7 @@ impl Context {
     ///
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
+    #[track_caller] // To track repaint cause
     pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_value(
@@ -2425,6 +2582,18 @@ impl Context {
         ))
         .on_hover_text("This is approximately the number of text strings on screen");
         ui.add_space(16.0);
+
+        CollapsingHeader::new("🔃 Repaint Causes")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.set_min_height(120.0);
+                ui.label("What caused egui to repaint:");
+                ui.add_space(8.0);
+                let causes = ui.ctx().repaint_causes();
+                for cause in causes {
+                    ui.label(cause.to_string());
+                }
+            });
 
         CollapsingHeader::new("📥 Input")
             .default_open(false)

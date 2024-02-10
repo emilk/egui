@@ -4,7 +4,6 @@ use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use epaint::{ahash::HashMap, emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
 
-use wgpu;
 use wgpu::util::DeviceExt as _;
 
 /// You can use this for storage when implementing [`CallbackTrait`].
@@ -79,6 +78,7 @@ pub trait CallbackTrait: Send + Sync {
         &self,
         _device: &wgpu::Device,
         _queue: &wgpu::Queue,
+        _screen_descriptor: &ScreenDescriptor,
         _egui_encoder: &mut wgpu::CommandEncoder,
         _callback_resources: &mut CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
@@ -817,6 +817,7 @@ impl Renderer {
             crate::profile_scope!("indices", index_count.to_string());
 
             self.index_buffer.slices.clear();
+
             let required_index_buffer_size = (std::mem::size_of::<u32>() * index_count) as u64;
             if self.index_buffer.capacity < required_index_buffer_size {
                 // Resize index buffer if needed.
@@ -825,13 +826,16 @@ impl Renderer {
                 self.index_buffer.buffer = create_index_buffer(device, self.index_buffer.capacity);
             }
 
-            let mut index_buffer_staging = queue
-                .write_buffer_with(
-                    &self.index_buffer.buffer,
-                    0,
-                    NonZeroU64::new(required_index_buffer_size).unwrap(),
-                )
-                .expect("Failed to create staging buffer for index data");
+            let index_buffer_staging = queue.write_buffer_with(
+                &self.index_buffer.buffer,
+                0,
+                NonZeroU64::new(required_index_buffer_size).unwrap(),
+            );
+
+            let Some(mut index_buffer_staging) = index_buffer_staging else {
+                panic!("Failed to create staging buffer for index data. Index count: {index_count}. Required index buffer size: {required_index_buffer_size}. Actual size {} and capacity: {} (bytes)", self.index_buffer.buffer.size(), self.index_buffer.capacity);
+            };
+
             let mut index_offset = 0;
             for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
                 match primitive {
@@ -851,6 +855,7 @@ impl Renderer {
             crate::profile_scope!("vertices", vertex_count.to_string());
 
             self.vertex_buffer.slices.clear();
+
             let required_vertex_buffer_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
             if self.vertex_buffer.capacity < required_vertex_buffer_size {
                 // Resize vertex buffer if needed.
@@ -860,13 +865,16 @@ impl Renderer {
                     create_vertex_buffer(device, self.vertex_buffer.capacity);
             }
 
-            let mut vertex_buffer_staging = queue
-                .write_buffer_with(
-                    &self.vertex_buffer.buffer,
-                    0,
-                    NonZeroU64::new(required_vertex_buffer_size).unwrap(),
-                )
-                .expect("Failed to create staging buffer for vertex data");
+            let vertex_buffer_staging = queue.write_buffer_with(
+                &self.vertex_buffer.buffer,
+                0,
+                NonZeroU64::new(required_vertex_buffer_size).unwrap(),
+            );
+
+            let Some(mut vertex_buffer_staging) = vertex_buffer_staging else {
+                panic!("Failed to create staging buffer for vertex data. Vertex count: {vertex_count}. Required vertex buffer size: {required_vertex_buffer_size}. Actual size {} and capacity: {} (bytes)", self.vertex_buffer.buffer.size(), self.vertex_buffer.capacity);
+            };
+
             let mut vertex_offset = 0;
             for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
                 match primitive {
@@ -890,6 +898,7 @@ impl Renderer {
                 user_cmd_bufs.extend(callback.prepare(
                     device,
                     queue,
+                    screen_descriptor,
                     encoder,
                     &mut self.callback_resources,
                 ));
@@ -923,12 +932,19 @@ fn create_sampler(
         epaint::textures::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
         epaint::textures::TextureFilter::Linear => wgpu::FilterMode::Linear,
     };
+    let address_mode = match options.wrap_mode {
+        epaint::textures::TextureWrapMode::ClampToEdge => wgpu::AddressMode::ClampToEdge,
+        epaint::textures::TextureWrapMode::Repeat => wgpu::AddressMode::Repeat,
+        epaint::textures::TextureWrapMode::MirroredRepeat => wgpu::AddressMode::MirrorRepeat,
+    };
     device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some(&format!(
             "egui sampler (mag: {mag_filter:?}, min {min_filter:?})"
         )),
         mag_filter,
         min_filter,
+        address_mode_u: address_mode,
+        address_mode_v: address_mode,
         ..Default::default()
     })
 }
