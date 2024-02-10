@@ -234,7 +234,18 @@ impl WidgetRects {
 
     /// Insert the given widget rect in the given layer.
     pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
-        self.by_layer.entry(layer_id).or_default().push(widget_rect);
+        let layer_widgets = self.by_layer.entry(layer_id).or_default();
+
+        if let Some(last) = layer_widgets.last_mut() {
+            if last.id == widget_rect.id {
+                // e.g. calling `response.interact(…)` right after interacting.
+                last.sense |= widget_rect.sense;
+                last.rect = last.rect.union(widget_rect.rect);
+                return;
+            }
+        }
+
+        layer_widgets.push(widget_rect);
     }
 }
 
