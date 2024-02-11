@@ -390,11 +390,13 @@ impl<'open> Window<'open> {
             with_title_bar,
         } = self;
 
-        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let header_color =
+            frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
+        let window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        area.show_open_close_animation(ctx, &frame, is_open);
+        area.show_open_close_animation(ctx, &window_frame, is_open);
 
         if !is_open {
             return None;
@@ -419,7 +421,7 @@ impl<'open> Window<'open> {
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
-            let window_margin = style.spacing.window_margin;
+            let window_margin = window_frame.inner_margin;
             let spacing = window_margin.top + window_margin.bottom;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
             (height, spacing)
@@ -444,8 +446,8 @@ impl<'open> Window<'open> {
                 last_frame_outer_rect,
             )
             .and_then(|window_interaction| {
-                let margins = frame.outer_margin.sum()
-                    + frame.inner_margin.sum()
+                let margins = window_frame.outer_margin.sum()
+                    + window_frame.inner_margin.sum()
                     + vec2(0.0, title_bar_height);
 
                 interact(
@@ -466,8 +468,8 @@ impl<'open> Window<'open> {
 
         let content_inner = {
             // BEGIN FRAME --------------------------------
-            let frame_stroke = frame.stroke;
-            let mut frame = frame.begin(&mut area_content_ui);
+            let frame_stroke = window_frame.stroke;
+            let mut frame = window_frame.begin(&mut area_content_ui);
 
             let show_close_button = open.is_some();
 
@@ -524,12 +526,12 @@ impl<'open> Window<'open> {
                             y: title_bar_height,
                         },
                     );
-                    let mut round = area_content_ui.visuals().window_rounding;
+
+                    let mut round = window_frame.rounding;
                     if !is_collapsed {
                         round.se = 0.0;
                         round.sw = 0.0;
                     }
-                    let header_color = area_content_ui.visuals().widgets.open.weak_bg_fill;
 
                     area_content_ui.painter().set(
                         *where_to_put_header_background,

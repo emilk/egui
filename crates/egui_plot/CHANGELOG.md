@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.1 - 2024-02-11
+* Nothing new
+
+
 ## 0.26.0 - 2024-02-05
 * Make `egui_plot::PlotMemory` public [#3871](https://github.com/emilk/egui/pull/3871)
 * Customizable spacing of grid and axis label spacing [#3896](https://github.com/emilk/egui/pull/3896)
