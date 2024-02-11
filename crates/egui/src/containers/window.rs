@@ -514,10 +514,13 @@ impl<'open> Window<'open> {
             if let Some(title_bar) = title_bar {
                 if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let rect = Rect::from_min_size(
-                        outer_rect.min,
+                        Pos2 {
+                            x: outer_rect.min.x + frame_stroke.width,
+                            y: outer_rect.min.y + frame_stroke.width,
+                        },
                         Vec2 {
-                            x: outer_rect.size().x,
-                            y: title_bar_height,
+                            x: outer_rect.size().x - (frame_stroke.width * 2.0),
+                            y: title_bar_height - (frame_stroke.width * 2.0),
                         },
                     );
 
@@ -1044,7 +1047,13 @@ impl TitleBar {
             let y = content_response.rect.top();
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-            ui.painter().hline(outer_rect.x_range(), y, stroke);
+            let cr_range = content_response.rect.x_range();
+            let outer_range = outer_rect.x_range();
+            let hline_x_range = Rangef::new(
+                (cr_range.min + outer_range.min) / 2.0,
+                (cr_range.max + outer_range.max) / 2.0,
+            );
+            ui.painter().hline(hline_x_range, y, stroke);
         }
 
         // Don't cover the close- and collapse buttons:
