@@ -7,6 +7,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.1 - 2024-02-11
+* Fix high CPU usage on Windows when app is minimized [#3985](https://github.com/emilk/egui/pull/3985) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Update to document-features 0.2.8 [#4003](https://github.com/emilk/egui/pull/4003)
+
+
 ## 0.26.0 - 2024-02-05
 * Update `wgpu` to 0.19 [#3824](https://github.com/emilk/egui/pull/3824)
 * Disable the default features of `wgpu` [#3875](https://github.com/emilk/egui/pull/3875)
