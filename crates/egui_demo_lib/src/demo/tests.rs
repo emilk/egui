@@ -444,6 +444,9 @@ fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
         if response.is_pointer_button_down_on() {
             writeln!(new_info, "pointer_down_on").ok();
         }
+        if let Some(pos) = response.interact_pointer_pos() {
+            writeln!(new_info, "response.interact_pointer_pos: {pos:?}").ok();
+        }
     }
 
     for &button in &[
