@@ -120,6 +120,7 @@ pub(crate) fn interact(
         .collect();
 
     let hovered = if clicked.is_some() || dragged.is_some() {
+        // If currently clicking or dragging, nother else is hovered.
         clicked.iter().chain(&dragged).map(|w| (w.id, *w)).collect()
     } else {
         contains_pointer.clone()

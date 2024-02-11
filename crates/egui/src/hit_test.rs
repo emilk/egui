@@ -36,16 +36,6 @@ pub struct WidgetHits {
     pub drag: Option<WidgetRect>,
 }
 
-impl WidgetHits {
-    #[inline]
-    pub fn is_tooltip_candidate(&self, id: Id) -> bool {
-        self.contains_pointer.contains_key(&id)
-            || self.top.map_or(false, |w| w.id == id)
-            || self.click.map_or(false, |w| w.id == id)
-            || self.drag.map_or(false, |w| w.id == id)
-    }
-}
-
 /// Find the top or closest widgets to the given position,
 /// None which is closer than `search_radius`.
 pub fn hit_test(

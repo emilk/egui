@@ -20,7 +20,7 @@ use crate::{
     TextureHandle, ViewportCommand, *,
 };
 
-use self::hit_test::WidgetHits;
+use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -318,6 +318,11 @@ struct ViewportState {
     /// Which widgets are under the pointer?
     hits: WidgetHits,
 
+    /// What widgets are being interacted with this frame?
+    ///
+    /// Based on the widgets from last frame, and input in this frame.
+    interact_widgets: InteractionSnapshot,
+
     // ----------------------
     // The output of a frame:
     //
@@ -555,6 +560,14 @@ impl ContextImpl {
             } else {
                 WidgetHits::default()
             };
+
+            viewport.interact_widgets = crate::interaction::interact(
+                &viewport.interact_widgets,
+                &viewport.widgets_prev_frame,
+                &viewport.hits,
+                &viewport.input,
+                self.memory.interaction_mut(),
+            );
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
