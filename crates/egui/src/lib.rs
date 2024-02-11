@@ -355,6 +355,7 @@ pub mod gui_zoom;
 mod hit_test;
 mod id;
 mod input_state;
+mod interaction;
 pub mod introspection;
 pub mod layers;
 mod layout;
