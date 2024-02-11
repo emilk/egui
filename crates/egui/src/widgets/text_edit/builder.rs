@@ -263,8 +263,8 @@ impl<'t> TextEdit<'t> {
 
     /// Set margin of text. Default is `Margin::symmetric(4.0, 2.0)`
     #[inline]
-    pub fn margin(mut self, margin: Margin) -> Self {
-        self.margin = margin;
+    pub fn margin(mut self, margin: impl Into<Margin>) -> Self {
+        self.margin = margin.into();
         self
     }
 
