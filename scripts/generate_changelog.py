@@ -249,7 +249,7 @@ def main() -> None:
 
     if args.write:
         for crate in crate_names:
-            items = sections[crate] if crate in sections else []
+            items = sections[crate] if crate in sections else ["Nothing new"]
             add_to_changelog_file(crate, items, args.version)
 
 
