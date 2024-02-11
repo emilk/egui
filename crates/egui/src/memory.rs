@@ -1,10 +1,8 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
 use crate::{
-    area, vec2,
-    window::{self, WindowInteraction},
-    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, Rect, Style, Vec2, ViewportId,
-    ViewportIdMap, ViewportIdSet,
+    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, Rect, Style, Vec2,
+    ViewportId, ViewportIdMap, ViewportIdSet,
 };
 
 // ----------------------------------------------------------------------------
@@ -91,9 +89,6 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interactions: ViewportIdMap<InteractionState>,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    window_interactions: ViewportIdMap<window::WindowInteraction>,
 }
 
 impl Default for Memory {
@@ -105,7 +100,6 @@ impl Default for Memory {
             new_font_definitions: Default::default(),
             interactions: Default::default(),
             viewport_id: Default::default(),
-            window_interactions: Default::default(),
             areas: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
@@ -314,21 +308,6 @@ pub(crate) struct InteractionState {
     pub drag_id: Option<Id>,
 
     pub focus: Focus,
-
-    /// HACK: windows have low priority on dragging.
-    /// This is so that if you drag a slider in a window,
-    /// the slider will steal the drag away from the window.
-    /// This is needed because we do window interaction first (to prevent frame delay),
-    /// and then do content layout.
-    pub drag_is_window: bool,
-
-    /// Any interest in catching clicks this frame?
-    /// Cleared to false at start of each frame.
-    pub click_interest: bool,
-
-    /// Any interest in catching clicks this frame?
-    /// Cleared to false at start of each frame.
-    pub drag_interest: bool,
 }
 
 /// Keeps tracks of what widget has keyboard focus
@@ -387,9 +366,6 @@ impl InteractionState {
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
     ) {
-        self.click_interest = false;
-        self.drag_interest = false;
-
         if !prev_input.pointer.could_any_button_be_click() {
             self.click_id = None;
         }
@@ -636,8 +612,6 @@ impl Memory {
         // Cleanup
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
-        self.window_interactions
-            .retain(|id, _| viewports.contains(id));
 
         self.viewport_id = new_input.viewport_id;
         self.interactions
@@ -645,10 +619,6 @@ impl Memory {
             .or_default()
             .begin_frame(prev_input, new_input);
         self.areas.entry(self.viewport_id).or_default();
-
-        if !prev_input.pointer.any_down() {
-            self.window_interactions.remove(&self.viewport_id);
-        }
     }
 
     pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
@@ -824,18 +794,6 @@ impl Memory {
     /// Obtain the previous rectangle of an area.
     pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
         self.areas().get(id.into()).map(|state| state.rect())
-    }
-
-    pub(crate) fn window_interaction(&self) -> Option<WindowInteraction> {
-        self.window_interactions.get(&self.viewport_id).copied()
-    }
-
-    pub(crate) fn set_window_interaction(&mut self, wi: Option<WindowInteraction>) {
-        if let Some(wi) = wi {
-            self.window_interactions.insert(self.viewport_id, wi);
-        } else {
-            self.window_interactions.remove(&self.viewport_id);
-        }
     }
 
     pub(crate) fn interaction(&self) -> &InteractionState {

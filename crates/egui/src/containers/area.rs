@@ -313,7 +313,7 @@ impl Area {
         let mut move_response = {
             let interact_id = layer_id.id.with("move");
             let sense = if movable {
-                Sense::click_and_drag()
+                Sense::drag()
             } else if interactable {
                 Sense::click() // allow clicks to bring to front
             } else {
@@ -322,7 +322,6 @@ impl Area {
 
             let move_response = ctx.interact(
                 Rect::EVERYTHING,
-                ctx.style().spacing.item_spacing,
                 layer_id,
                 interact_id,
                 state.rect(),

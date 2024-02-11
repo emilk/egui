@@ -10,19 +10,16 @@ use crate::*;
 /// For that you need the `InteractionState`.
 #[derive(Clone, Debug, Default)]
 pub struct WidgetHits {
-    /// All widgets that contains the pointer.
+    /// All widgets that contains the pointer, back-to-front.
     ///
     /// i.e. both a Window and the button in it can ontain the pointer.
     ///
-    /// Show tooltips for all of these.
-    /// Why? So you can do `ui.scope(|ui| …).response.on_hover_text(…)`
-    /// and get a tooltip for the whole ui, even if individual things
-    /// in the ui also had a tooltip.
-    pub contains_pointer: IdMap<WidgetRect>,
+    /// Some of these may be widgets in a layer below the top-most layer.
+    pub contains_pointer: Vec<WidgetRect>,
 
     /// The topmost widget under the pointer, interactive or not.
     ///
-    /// Used for nothing?
+    /// Used for nothing right now.
     pub top: Option<WidgetRect>,
 
     /// If the user would start a clicking now, this is what would be clicked.
@@ -37,7 +34,7 @@ pub struct WidgetHits {
 }
 
 /// Find the top or closest widgets to the given position,
-/// None which is closer than `search_radius`.
+/// none which is closer than `search_radius`.
 pub fn hit_test(
     widgets: &WidgetRects,
     layer_order: &[LayerId],
@@ -48,24 +45,34 @@ pub fn hit_test(
 
     let hit_rect = Rect::from_center_size(pos, Vec2::splat(2.0 * search_radius));
 
-    // The few widgets close to the given position, sorted back-to-front.
-    let close: Vec<WidgetRect> = layer_order
+    let search_radius_sq = search_radius * search_radius;
+
+    // First pass: find the few widgets close to the given position, sorted back-to-front.
+    let mut close: Vec<WidgetRect> = layer_order
         .iter()
         .filter_map(|layer_id| widgets.by_layer.get(layer_id))
         .flatten()
         .filter(|widget| widget.interact_rect.intersects(hit_rect))
-        .filter(|w| w.interact_rect.distance_to_pos(pos) <= search_radius)
+        .filter(|w| w.interact_rect.distance_sq_to_pos(pos) <= search_radius_sq)
         .copied()
         .collect();
 
     // Only those widgets directly under the `pos`.
-    let hits: Vec<WidgetRect> = close
+    let mut hits: Vec<WidgetRect> = close
         .iter()
         .filter(|widget| widget.interact_rect.contains(pos))
         .copied()
         .collect();
 
-    let hit = hits.last().copied();
+    let top_hit = hits.last().copied();
+    let top_layer = top_hit.map(|w| w.layer_id);
+
+    if let Some(top_layer) = top_layer {
+        // Ignore everything in a layer below the top-most layer:
+        close.retain(|w| w.layer_id == top_layer);
+        hits.retain(|w| w.layer_id == top_layer);
+    }
+
     let hit_click = hits.iter().copied().filter(|w| w.sense.click).last();
     let hit_drag = hits.iter().copied().filter(|w| w.sense.drag).last();
 
@@ -73,15 +80,12 @@ pub fn hit_test(
     let closest_click = find_closest(close.iter().copied().filter(|w| w.sense.click), pos);
     let closest_drag = find_closest(close.iter().copied().filter(|w| w.sense.drag), pos);
 
-    let top = hit.or(closest);
+    let top = top_hit.or(closest);
     let click = hit_click.or(closest_click);
     let drag = hit_drag.or(closest_drag);
 
-    // Which widgets which will have tooltips:
-    let contains_pointer = hits.into_iter().map(|w| (w.id, w)).collect();
-
     WidgetHits {
-        contains_pointer,
+        contains_pointer: hits,
         top,
         click,
         drag,

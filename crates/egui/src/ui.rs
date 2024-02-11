@@ -648,7 +648,6 @@ impl Ui {
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
         self.ctx().interact(
             self.clip_rect(),
-            self.spacing().item_spacing,
             self.layer_id(),
             id,
             rect,

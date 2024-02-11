@@ -1102,24 +1102,14 @@ impl Context {
     pub(crate) fn interact(
         &self,
         clip_rect: Rect,
-        item_spacing: Vec2,
         layer_id: LayerId,
         id: Id,
         rect: Rect,
         sense: Sense,
         enabled: bool,
     ) -> Response {
-        let gap = 0.1; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
-
-        // Make it easier to click things:
-        let interact_rect = rect.expand2(
-            (0.5 * item_spacing - Vec2::splat(gap))
-                .at_least(Vec2::splat(0.0))
-                .at_most(Vec2::splat(5.0)),
-        );
-
         // Respect clip rectangle when interacting:
-        let interact_rect = clip_rect.intersect(interact_rect);
+        let interact_rect = clip_rect.intersect(rect);
 
         let contains_pointer = self.widget_contains_pointer(layer_id, id, sense, interact_rect);
 
@@ -1240,93 +1230,41 @@ impl Context {
                 res.clicked[PointerButton::Primary as usize] = true;
             }
 
-            if sense.click || sense.drag {
-                let interaction = memory.interaction_mut();
+            let interaction = memory.interaction_mut();
 
-                interaction.click_interest |= contains_pointer && sense.click;
-                interaction.drag_interest |= contains_pointer && sense.drag;
+            res.is_pointer_button_down_on =
+                interaction.click_id == Some(id) || interaction.drag_id == Some(id);
 
-                res.is_pointer_button_down_on =
-                    interaction.click_id == Some(id) || interaction.drag_id == Some(id);
+            res.dragged = Some(id) == viewport.interact_widgets.dragged.map(|w| w.id);
+            res.drag_started = Some(id) == viewport.interact_widgets.drag_started.map(|w| w.id);
+            res.drag_released = Some(id) == viewport.interact_widgets.drag_ended.map(|w| w.id);
 
-                if sense.click && sense.drag {
-                    // This widget is sensitive to both clicks and drags.
-                    // When the mouse first is pressed, it could be either,
-                    // so we postpone the decision until we know.
-                    res.dragged =
-                        interaction.drag_id == Some(id) && input.pointer.is_decidedly_dragging();
-                    res.drag_started = res.dragged && input.pointer.started_decidedly_dragging;
-                } else if sense.drag {
-                    // We are just sensitive to drags, so we can mark ourself as dragged right away:
-                    res.dragged = interaction.drag_id == Some(id);
-                    // res.drag_started will be filled below if applicable
-                }
+            let clicked = viewport.interact_widgets.clicked.iter().any(|w| w.id == id);
 
+            if sense.click && clicked {
+                // We were clicked - what kind of click?
                 for pointer_event in &input.pointer.pointer_events {
-                    match pointer_event {
-                        PointerEvent::Moved(_) => {}
-
-                        PointerEvent::Pressed { .. } => {
-                            if contains_pointer {
-                                let interaction = memory.interaction_mut();
-
-                                if sense.click && interaction.click_id.is_none() {
-                                    // potential start of a click
-                                    interaction.click_id = Some(id);
-                                    res.is_pointer_button_down_on = true;
-                                }
-
-                                // HACK: windows have low priority on dragging.
-                                // This is so that if you drag a slider in a window,
-                                // the slider will steal the drag away from the window.
-                                // This is needed because we do window interaction first (to prevent frame delay),
-                                // and then do content layout.
-                                if sense.drag
-                                    && (interaction.drag_id.is_none() || interaction.drag_is_window)
-                                {
-                                    // potential start of a drag
-                                    interaction.drag_id = Some(id);
-                                    interaction.drag_is_window = false;
-                                    memory.set_window_interaction(None); // HACK: stop moving windows (if any)
-
-                                    res.is_pointer_button_down_on = true;
-
-                                    // Again, only if we are ONLY sensitive to drags can we decide that this is a drag now.
-                                    if sense.click {
-                                        res.dragged = false;
-                                        res.drag_started = false;
-                                    } else {
-                                        res.dragged = true;
-                                        res.drag_started = true;
-                                    }
-                                }
-                            }
-                        }
-
-                        PointerEvent::Released { click, button } => {
-                            res.drag_released = res.dragged;
-                            res.dragged = false;
-
-                            if sense.click && res.hovered && res.is_pointer_button_down_on {
-                                if let Some(click) = click {
-                                    let clicked = res.hovered && res.is_pointer_button_down_on;
-                                    res.clicked[*button as usize] = clicked;
-                                    res.double_clicked[*button as usize] =
-                                        clicked && click.is_double();
-                                    res.triple_clicked[*button as usize] =
-                                        clicked && click.is_triple();
-                                }
-                            }
-
-                            res.is_pointer_button_down_on = false;
-                        }
+                    if let PointerEvent::Released {
+                        click: Some(click),
+                        button,
+                    } = pointer_event
+                    {
+                        res.clicked[*button as usize] = true;
+                        res.double_clicked[*button as usize] = click.is_double();
+                        res.triple_clicked[*button as usize] = click.is_triple();
                     }
+                }
+            }
+
+            for pointer_event in &input.pointer.pointer_events {
+                if let PointerEvent::Released { .. } = pointer_event {
+                    res.is_pointer_button_down_on = false;
+                    res.dragged = false;
                 }
             }
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let clicked = res.clicked.iter().any(|c| *c);
             let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_released;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
@@ -1970,6 +1908,62 @@ impl Context {
             }
         }
 
+        #[cfg(debug_assertions)]
+        {
+            let paint = |widget: &WidgetRect, text: &str, color: Color32| {
+                let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
+                painter.debug_rect(widget.interact_rect, color, text);
+            };
+
+            if self.style().debug.show_widget_hits {
+                let hits = self.write(|ctx| ctx.viewport().hits.clone());
+                let WidgetHits {
+                    contains_pointer,
+                    top,
+                    click,
+                    drag,
+                } = hits;
+
+                for widget in &contains_pointer {
+                    paint(widget, "contains_pointer", Color32::BLUE);
+                }
+                for widget in &top {
+                    paint(widget, "top", Color32::WHITE);
+                }
+                for widget in &click {
+                    paint(widget, "click", Color32::RED);
+                }
+                for widget in &drag {
+                    paint(widget, "drag", Color32::GREEN);
+                }
+            }
+
+            if self.style().debug.show_interaction_widgets {
+                let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
+                let InteractionSnapshot {
+                    clicked,
+                    drag_started: _,
+                    dragged,
+                    drag_ended: _,
+                    contains_pointer,
+                    hovered,
+                } = interact_widgets;
+
+                for widget in contains_pointer.values() {
+                    paint(widget, "contains_pointer", Color32::BLUE);
+                }
+                for widget in hovered.values() {
+                    paint(widget, "hovered", Color32::WHITE);
+                }
+                for widget in &clicked {
+                    paint(widget, "clicked", Color32::RED);
+                }
+                for widget in &dragged {
+                    paint(widget, "dragged", Color32::GREEN);
+                }
+            }
+        }
+
         self.write(|ctx| ctx.end_frame())
     }
 }
@@ -2428,10 +2422,6 @@ impl Context {
             return false; // don't even remember this widget
         }
 
-        let contains_pointer = self.rect_contains_pointer(layer_id, interact_rect);
-
-        let mut blocking_widget = None;
-
         self.write(|ctx| {
             let viewport = ctx.viewport();
 
@@ -2448,67 +2438,9 @@ impl Context {
                 },
             );
 
-            // Check if any other widget is covering us.
-            // Whichever widget is added LAST (=on top) gets the input.
-            if contains_pointer {
-                let pointer_pos = viewport.input.pointer.interact_pos();
-                if let Some(pointer_pos) = pointer_pos {
-                    if let Some(rects) = viewport.widgets_prev_frame.by_layer.get(&layer_id) {
-                        // Iterate backwards, i.e. topmost widgets first.
-                        for blocking in rects.iter().rev() {
-                            if blocking.id == id {
-                                // We've checked all widgets there were added after this one last frame,
-                                // which means there are no widgets covering us.
-                                break;
-                            }
-                            if !blocking.interact_rect.contains(pointer_pos) {
-                                continue;
-                            }
-                            if sense.interactive() && !blocking.sense.interactive() {
-                                // Only interactive widgets can block other interactive widgets.
-                                continue;
-                            }
-
-                            // The `prev` widget is covering us - do we care?
-                            // We don't want a click-only button to block drag-events to a `ScrollArea`:
-
-                            let sense_only_drags = sense.drag && !sense.click;
-                            if sense_only_drags && !blocking.sense.drag {
-                                continue;
-                            }
-                            let sense_only_clicks = sense.click && !sense.drag;
-                            if sense_only_clicks && !blocking.sense.click {
-                                continue;
-                            }
-
-                            if blocking.sense.interactive() {
-                                // Another widget is covering us at the pointer position
-                                blocking_widget = Some(blocking.interact_rect);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        #[cfg(debug_assertions)]
-        if let Some(blocking_rect) = blocking_widget {
-            if sense.interactive() && self.memory(|m| m.options.style.debug.show_blocking_widget) {
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    interact_rect,
-                    Color32::GREEN,
-                    "Covered",
-                );
-                Self::layer_painter(self, LayerId::debug()).debug_rect(
-                    blocking_rect,
-                    Color32::LIGHT_BLUE,
-                    "On top",
-                );
-            }
-        }
-
-        contains_pointer && blocking_widget.is_none()
+            // Based on output from previous frame and input in this frame
+            viewport.interact_widgets.contains_pointer.contains_key(&id)
+        })
     }
 
     // ---------------------------------------------------------------------

@@ -112,7 +112,7 @@ pub(crate) fn interact(
 
     let contains_pointer: IdMap<WidgetRect> = hits
         .contains_pointer
-        .values()
+        .iter()
         .chain(&hits.top)
         .chain(&hits.click)
         .chain(&hits.drag)
@@ -122,8 +122,22 @@ pub(crate) fn interact(
     let hovered = if clicked.is_some() || dragged.is_some() {
         // If currently clicking or dragging, nother else is hovered.
         clicked.iter().chain(&dragged).map(|w| (w.id, *w)).collect()
+    } else if hits.click.is_some() || hits.drag.is_some() {
+        // We are hovering over an interactive widget or two. Just highlight these two.
+        hits.click
+            .iter()
+            .chain(&hits.drag)
+            .map(|w| (w.id, *w))
+            .collect()
     } else {
-        contains_pointer.clone()
+        // Whatever is topmost is what we are hovering.
+        // TODO: consider handle hovering over multiple top-most widgets?
+        // TODO: allow hovering close widgets?
+        hits.contains_pointer
+            .last()
+            .map(|w| (w.id, *w))
+            .into_iter()
+            .collect()
     };
 
     InteractionSnapshot {

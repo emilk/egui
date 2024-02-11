@@ -1047,8 +1047,11 @@ pub struct DebugOptions {
     /// Show an overlay on all interactive widgets.
     pub show_interactive_widgets: bool,
 
-    /// Show what widget blocks the interaction of another widget.
-    pub show_blocking_widget: bool,
+    /// Show interesting widgets under the mouse cursor.
+    pub show_widget_hits: bool,
+
+    /// Show which widgets are being interacted with.
+    pub show_interaction_widgets: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1063,7 +1066,8 @@ impl Default for DebugOptions {
             show_expand_height: false,
             show_resize: false,
             show_interactive_widgets: false,
-            show_blocking_widget: false,
+            show_widget_hits: false,
+            show_interaction_widgets: false,
         }
     }
 }
@@ -1876,7 +1880,8 @@ impl DebugOptions {
             show_expand_height,
             show_resize,
             show_interactive_widgets,
-            show_blocking_widget,
+            show_widget_hits,
+            show_interaction_widgets,
         } = self;
 
         {
@@ -1904,10 +1909,9 @@ impl DebugOptions {
             "Show an overlay on all interactive widgets",
         );
 
-        ui.checkbox(
-            show_blocking_widget,
-            "Show which widget blocks the interaction of another widget",
-        );
+        ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
+
+        ui.checkbox(show_interaction_widgets, "Show interaction widgets");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
