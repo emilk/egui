@@ -763,9 +763,9 @@ impl Prepared {
         }
 
         // Restore scroll target (if any) meant for ScrollAreas up the stack
-        for d in 0..2 {
-            if saved_scroll_target[d].is_some() {
-                ui.ctx().frame_state_mut(|state| {
+        ui.ctx().frame_state_mut(|state| {
+            for d in 0..2 {
+                if saved_scroll_target[d].is_some() {
                     state.scroll_target[d] = saved_scroll_target[d];
                 });
             }
