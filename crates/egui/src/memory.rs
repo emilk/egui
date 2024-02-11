@@ -90,7 +90,7 @@ pub struct Memory {
     areas: ViewportIdMap<Areas>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) interactions: ViewportIdMap<Interaction>,
+    pub(crate) interactions: ViewportIdMap<InteractionState>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     window_interactions: ViewportIdMap<window::WindowInteraction>,
@@ -290,6 +290,9 @@ impl Options {
 
 // ----------------------------------------------------------------------------
 
+/// The state of the interaction in egui,
+/// i.e. what is being dragged.
+///
 /// Say there is a button in a scroll area.
 /// If the user clicks the button, the button should click.
 /// If the user drags the button we should scroll the scroll area.
@@ -298,7 +301,7 @@ impl Options {
 /// If the user releases the button without moving the mouse we register it as a click on `click_id`.
 /// If the cursor moves too much we clear the `click_id` and start passing move events to `drag_id`.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct Interaction {
+pub(crate) struct InteractionState {
     /// A widget interested in clicks that has a mouse press on it.
     pub click_id: Option<Id>,
 
@@ -373,7 +376,7 @@ impl FocusWidget {
     }
 }
 
-impl Interaction {
+impl InteractionState {
     /// Are we currently clicking or dragging an egui widget?
     pub fn is_using_pointer(&self) -> bool {
         self.click_id.is_some() || self.drag_id.is_some()
@@ -835,13 +838,13 @@ impl Memory {
         }
     }
 
-    pub(crate) fn interaction(&self) -> &Interaction {
+    pub(crate) fn interaction(&self) -> &InteractionState {
         self.interactions
             .get(&self.viewport_id)
             .expect("Failed to get interaction")
     }
 
-    pub(crate) fn interaction_mut(&mut self) -> &mut Interaction {
+    pub(crate) fn interaction_mut(&mut self) -> &mut InteractionState {
         self.interactions.entry(self.viewport_id).or_default()
     }
 }

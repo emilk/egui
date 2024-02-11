@@ -189,7 +189,7 @@ impl Widget for &mut epaint::TessellationOptions {
     }
 }
 
-impl Widget for &memory::Interaction {
+impl Widget for &memory::InteractionState {
     fn ui(self, ui: &mut Ui) -> Response {
         ui.vertical(|ui| {
             ui.label(format!("click_id: {:?}", self.click_id));
