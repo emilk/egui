@@ -226,14 +226,21 @@ pub struct WidgetRect {
 pub struct WidgetRects {
     /// All widgets, in painting order.
     pub by_layer: HashMap<LayerId, Vec<WidgetRect>>,
+
+    /// All widgets
+    pub by_id: IdMap<WidgetRect>,
 }
 
 impl WidgetRects {
     /// Clear the contents while retaining allocated memory.
     pub fn clear(&mut self) {
-        for rects in self.by_layer.values_mut() {
+        let Self { by_layer, by_id } = self;
+
+        for rects in by_layer.values_mut() {
             rects.clear();
         }
+
+        by_id.clear();
     }
 
     /// Insert the given widget rect in the given layer.
@@ -254,6 +261,18 @@ impl WidgetRects {
         }
 
         layer_widgets.push(widget_rect);
+
+        match self.by_id.entry(widget_rect.id) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(widget_rect);
+            }
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                // e.g. calling `response.interact(…)` right after interacting.
+                let existing = entry.get_mut();
+                existing.sense |= widget_rect.sense;
+                existing.interact_rect = existing.interact_rect.union(widget_rect.interact_rect);
+            }
+        }
     }
 }
 
