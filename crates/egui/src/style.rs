@@ -715,10 +715,10 @@ pub struct Interaction {
     /// which is important for e.g. touch screens.
     pub interact_radius: f32,
 
-    /// Mouse must be this close to the side of a window to resize
+    /// Radius of the interactive area of the side of a window during drag-to-resize.
     pub resize_grab_radius_side: f32,
 
-    /// Mouse must be this close to the corner of a window to resize
+    /// Radius of the interactive area of the corner of a window during drag-to-resize.
     pub resize_grab_radius_corner: f32,
 
     /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
@@ -1135,9 +1135,9 @@ impl Default for Spacing {
 impl Default for Interaction {
     fn default() -> Self {
         Self {
-            interact_radius: 3.0,
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
+            interact_radius: 8.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.3,
             selectable_labels: true,
@@ -1612,7 +1612,7 @@ impl Interaction {
             multi_widget_text_select,
         } = self;
         ui.add(Slider::new(interact_radius, 0.0..=20.0).text("interact_radius"))
-            .on_hover_text("Interact witgh ghe closest widget within this radius.");
+            .on_hover_text("Interact with the closest widget within this radius.");
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
             Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
@@ -1621,7 +1621,11 @@ impl Interaction {
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
         );
-        ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
+        ui.add(
+            Slider::new(tooltip_delay, 0.0..=1.0)
+                .suffix(" s")
+                .text("tooltip_delay"),
+        );
 
         ui.horizontal(|ui| {
             ui.checkbox(selectable_labels, "Selectable text in labels");

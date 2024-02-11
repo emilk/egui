@@ -254,17 +254,6 @@ impl WidgetRects {
 
         let layer_widgets = self.by_layer.entry(layer_id).or_default();
 
-        if let Some(last) = layer_widgets.last_mut() {
-            if last.id == widget_rect.id {
-                // e.g. calling `response.interact(…)` right after interacting.
-                last.sense |= widget_rect.sense;
-                last.interact_rect = last.interact_rect.union(widget_rect.interact_rect);
-                return;
-            }
-        }
-
-        layer_widgets.push(widget_rect);
-
         match self.by_id.entry(widget_rect.id) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 entry.insert(widget_rect);
@@ -276,6 +265,17 @@ impl WidgetRects {
                 existing.interact_rect = existing.interact_rect.union(widget_rect.interact_rect);
             }
         }
+
+        if let Some(last) = layer_widgets.last_mut() {
+            if last.id == widget_rect.id {
+                // e.g. calling `response.interact(…)` right after interacting.
+                last.sense |= widget_rect.sense;
+                last.interact_rect = last.interact_rect.union(widget_rect.interact_rect);
+                return;
+            }
+        }
+
+        layer_widgets.push(widget_rect);
     }
 }
 
@@ -1105,9 +1105,14 @@ impl Context {
         layer_id: LayerId,
         id: Id,
         rect: Rect,
-        sense: Sense,
+        mut sense: Sense,
         enabled: bool,
     ) -> Response {
+        if !enabled {
+            sense.click = false;
+            sense.drag = false;
+        }
+
         // Respect clip rectangle when interacting:
         let interact_rect = clip_rect.intersect(rect);
 
@@ -1126,7 +1131,7 @@ impl Context {
             );
         }
 
-        self.interact_with_hovered(
+        self.interact_with_existing(
             layer_id,
             id,
             rect,
@@ -1139,16 +1144,21 @@ impl Context {
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn interact_with_hovered(
+    pub(crate) fn interact_with_existing(
         &self,
         layer_id: LayerId,
         id: Id,
         rect: Rect,
         interact_rect: Rect,
-        sense: Sense,
+        mut sense: Sense,
         enabled: bool,
         contains_pointer: bool,
     ) -> Response {
+        if !enabled {
+            sense.click = false;
+            sense.drag = false;
+        }
+
         // This is the start - we'll fill in the fields below:
         let mut res = Response {
             ctx: self.clone(),
@@ -1159,7 +1169,7 @@ impl Context {
             sense,
             enabled,
             contains_pointer,
-            hovered: contains_pointer && enabled,
+            hovered: false,
             highlighted: self.frame_state(|fs| fs.highlight_this_frame.contains(&id)),
             clicked: Default::default(),
             double_clicked: Default::default(),
@@ -1235,11 +1245,14 @@ impl Context {
             res.is_pointer_button_down_on =
                 interaction.click_id == Some(id) || interaction.drag_id == Some(id);
 
-            res.dragged = Some(id) == viewport.interact_widgets.dragged.map(|w| w.id);
-            res.drag_started = Some(id) == viewport.interact_widgets.drag_started.map(|w| w.id);
-            res.drag_released = Some(id) == viewport.interact_widgets.drag_ended.map(|w| w.id);
+            if enabled {
+                res.hovered = viewport.interact_widgets.hovered.contains_key(&id);
+                res.dragged = Some(id) == viewport.interact_widgets.dragged.map(|w| w.id);
+                res.drag_started = Some(id) == viewport.interact_widgets.drag_started.map(|w| w.id);
+                res.drag_released = Some(id) == viewport.interact_widgets.drag_ended.map(|w| w.id);
+            }
 
-            let clicked = viewport.interact_widgets.clicked.iter().any(|w| w.id == id);
+            let clicked = Some(id) == viewport.interact_widgets.clicked.map(|w| w.id);
 
             if sense.click && clicked {
                 // We were clicked - what kind of click?
@@ -1922,10 +1935,13 @@ impl Context {
                     top,
                     click,
                     drag,
+                    closest_interactive: _,
                 } = hits;
 
-                for widget in &contains_pointer {
-                    paint(widget, "contains_pointer", Color32::BLUE);
+                if false {
+                    for widget in &contains_pointer {
+                        paint(widget, "contains_pointer", Color32::BLUE);
+                    }
                 }
                 for widget in &top {
                     paint(widget, "top", Color32::WHITE);
@@ -1949,11 +1965,15 @@ impl Context {
                     hovered,
                 } = interact_widgets;
 
-                for widget in contains_pointer.values() {
-                    paint(widget, "contains_pointer", Color32::BLUE);
+                if false {
+                    for widget in contains_pointer.values() {
+                        paint(widget, "contains_pointer", Color32::BLUE);
+                    }
                 }
-                for widget in hovered.values() {
-                    paint(widget, "hovered", Color32::WHITE);
+                if true {
+                    for widget in hovered.values() {
+                        paint(widget, "hovered", Color32::WHITE);
+                    }
                 }
                 for widget in &clicked {
                     paint(widget, "clicked", Color32::RED);

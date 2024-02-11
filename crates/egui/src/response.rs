@@ -617,7 +617,7 @@ impl Response {
             return self.clone();
         }
 
-        self.ctx.interact_with_hovered(
+        self.ctx.interact_with_existing(
             self.layer_id,
             self.id,
             self.rect,

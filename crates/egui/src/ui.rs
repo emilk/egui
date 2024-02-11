@@ -670,7 +670,7 @@ impl Ui {
         sense: Sense,
     ) -> Response {
         let interact_rect = rect.intersect(self.clip_rect());
-        self.ctx().interact_with_hovered(
+        self.ctx().interact_with_existing(
             self.layer_id(),
             id,
             rect,

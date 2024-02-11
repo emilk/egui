@@ -42,6 +42,8 @@ pub(crate) fn interact(
     input: &InputState,
     interaction: &mut InteractionState,
 ) -> InteractionSnapshot {
+    crate::profile_function!();
+
     if let Some(id) = interaction.click_id {
         if !widgets.by_id.contains_key(&id) {
             // The widget we were interested in clicking is gone.
@@ -120,10 +122,10 @@ pub(crate) fn interact(
         .collect();
 
     let hovered = if clicked.is_some() || dragged.is_some() {
-        // If currently clicking or dragging, nother else is hovered.
+        // If currently clicking or dragging, nothing else is hovered.
         clicked.iter().chain(&dragged).map(|w| (w.id, *w)).collect()
     } else if hits.click.is_some() || hits.drag.is_some() {
-        // We are hovering over an interactive widget or two. Just highlight these two.
+        // We are hovering over an interactive widget or two.
         hits.click
             .iter()
             .chain(&hits.drag)
