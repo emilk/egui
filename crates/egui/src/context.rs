@@ -200,11 +200,6 @@ impl ContextImpl {
 /// Used to check for overlaps between widgets when handling events.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
-    /// Where the widget is.
-    ///
-    /// This is after clipping with the parent ui clip rect.
-    pub interact_rect: Rect,
-
     /// The globally unique widget id.
     ///
     /// For interactive widgets, this better be globally unique.
@@ -214,6 +209,14 @@ pub struct WidgetRect {
     ///
     /// You can ensure globally unique ids using [`Ui::push_id`].
     pub id: Id,
+
+    /// What layer the widget is on.
+    pub layer_id: LayerId,
+
+    /// Where the widget is.
+    ///
+    /// This is after clipping with the parent ui clip rect.
+    pub interact_rect: Rect,
 
     /// How the widget responds to interaction.
     pub sense: Sense,
@@ -1210,6 +1213,7 @@ impl Context {
                 layer_id,
                 WidgetRect {
                     id,
+                    layer_id,
                     interact_rect,
                     sense,
                 },
@@ -2438,6 +2442,7 @@ impl Context {
                 layer_id,
                 WidgetRect {
                     id,
+                    layer_id,
                     interact_rect,
                     sense,
                 },
