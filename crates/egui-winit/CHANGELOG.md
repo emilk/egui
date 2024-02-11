@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.1 - 2024-02-11
+* Nothing new
+
+
 ## 0.26.0 - 2024-02-05
 * Don't consume clipboard shortcuts [#3812](https://github.com/emilk/egui/pull/3812) (thanks [@Dinnerbone](https://github.com/Dinnerbone)!)
 * Make the `clipboard_text` and `allow_ime` state public [#3724](https://github.com/emilk/egui/pull/3724) (thanks [@tosti007](https://github.com/tosti007)!)
