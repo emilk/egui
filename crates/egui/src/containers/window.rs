@@ -429,28 +429,22 @@ impl<'open> Window<'open> {
         };
 
         // First check for resize to avoid frame delay:
-        let resize_interaction = if possible.movable || possible.resizable() {
-            let last_frame_outer_rect = area.state().rect();
-            let resize_interaction =
-                resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
-            if let Some(resize_interaction) = resize_interaction {
-                let margins = window_frame.outer_margin.sum()
-                    + window_frame.inner_margin.sum()
-                    + vec2(0.0, title_bar_height);
+        let last_frame_outer_rect = area.state().rect();
+        let resize_interaction =
+            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
 
-                interact(
-                    resize_interaction,
-                    ctx,
-                    margins,
-                    area_layer_id,
-                    &mut area,
-                    resize_id,
-                );
-            }
-            resize_interaction
-        } else {
-            None
-        };
+        let margins = window_frame.outer_margin.sum()
+            + window_frame.inner_margin.sum()
+            + vec2(0.0, title_bar_height);
+
+        resize_response(
+            resize_interaction,
+            ctx,
+            margins,
+            area_layer_id,
+            &mut area,
+            resize_id,
+        );
 
         let mut area_content_ui = area.content_ui(ctx);
 
@@ -544,9 +538,8 @@ impl<'open> Window<'open> {
 
             collapsing.store(ctx);
 
-            if let Some(resize_interaction) = resize_interaction {
-                paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
-            }
+            paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
+
             content_inner
         };
 
@@ -586,10 +579,10 @@ fn paint_resize_corner(
 
 // ----------------------------------------------------------------------------
 
+/// Which sides can be resized?
 #[derive(Clone, Copy, Debug)]
 struct PossibleInteractions {
-    movable: bool,
-    // Which sides can we drag to resize?
+    // Which sides can we drag to resize or move?
     resize_left: bool,
     resize_right: bool,
     resize_top: bool,
@@ -602,7 +595,6 @@ impl PossibleInteractions {
         let resizable = area.is_enabled() && resize.is_resizable() && !is_collapsed;
         let pivot = area.get_pivot();
         Self {
-            movable,
             resize_left: resizable && (movable || pivot.x() != Align::LEFT),
             resize_right: resizable && (movable || pivot.x() != Align::RIGHT),
             resize_top: resizable && (movable || pivot.y() != Align::TOP),
@@ -674,7 +666,7 @@ impl ResizeInteraction {
     }
 }
 
-fn interact(
+fn resize_response(
     resize_interaction: ResizeInteraction,
     ctx: &Context,
     margins: Vec2,
@@ -727,12 +719,22 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
     Some(rect)
 }
 
-fn resize_hover(
+fn resize_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
     layer_id: LayerId,
     rect: Rect,
-) -> Option<ResizeInteraction> {
+) -> ResizeInteraction {
+    if !possible.resizable() {
+        return ResizeInteraction {
+            start_rect: rect,
+            left: Default::default(),
+            right: Default::default(),
+            top: Default::default(),
+            bottom: Default::default(),
+        };
+    }
+
     let is_dragging = |rect, id| {
         let clip_rect = Rect::EVERYTHING;
         let response = ctx.interact(clip_rect, layer_id, id, rect, Sense::drag(), true);
@@ -812,21 +814,15 @@ fn resize_hover(
         top |= response;
     }
 
-    let any_resize = left.any() || right.any() || top.any() || bottom.any();
-
-    if any_resize || possible.movable {
-        let interaction = ResizeInteraction {
-            start_rect: rect,
-            left,
-            right,
-            top,
-            bottom,
-        };
-        interaction.set_cursor(ctx);
-        Some(interaction)
-    } else {
-        None // TODO: return a default ResizeInteraction instead
-    }
+    let interaction = ResizeInteraction {
+        start_rect: rect,
+        left,
+        right,
+        top,
+        bottom,
+    };
+    interaction.set_cursor(ctx);
+    interaction
 }
 
 /// Fill in parts of the window frame when we resize by dragging that part
