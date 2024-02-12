@@ -392,7 +392,14 @@ impl<'open> Window<'open> {
 
         let header_color =
             frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
-        let window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        // Keep the original inner margin for later use
+        let window_margin = window_frame.inner_margin;
+        // Add padding to the inner margin if the border large then 1.0
+        let border_padding = window_frame.stroke.width / 2.0;
+        if window_frame.stroke.width > 1.0 {
+            window_frame.inner_margin = window_frame.inner_margin + Margin::same(border_padding);
+        }
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -420,9 +427,10 @@ impl<'open> Window<'open> {
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
-            let window_margin = window_frame.inner_margin;
             let spacing = window_margin.top + window_margin.bottom;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
+            window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
+            window_frame.rounding.nw = window_frame.rounding.nw.clamp(0.0, height / 2.0);
             (height, spacing)
         } else {
             (0.0, 0.0)
@@ -506,16 +514,31 @@ impl<'open> Window<'open> {
             // END FRAME --------------------------------
 
             if let Some(title_bar) = title_bar {
-                if on_top && area_content_ui.visuals().window_highlight_topmost {
-                    let rect = Rect::from_min_size(
-                        outer_rect.min,
-                        Vec2 {
-                            x: outer_rect.size().x,
-                            y: title_bar_height,
-                        },
-                    );
+                let mut title_rect = Rect::from_min_size(
+                    outer_rect.min + vec2(border_padding, border_padding),
+                    Vec2 {
+                        x: outer_rect.size().x - border_padding * 2.0,
+                        y: title_bar_height,
+                    },
+                );
 
+                title_rect.min = area_content_ui
+                    .painter()
+                    .round_pos_to_pixels(title_rect.min);
+                title_rect.max = area_content_ui
+                    .painter()
+                    .round_pos_to_pixels(title_rect.max);
+
+                if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let mut round = window_frame.rounding;
+
+                    // Eliminate the rounding gap between the title bar and the window frame
+                    if border_padding > 1.0 {
+                        round.ne -= border_padding;
+                        round.nw -= border_padding;
+                        round.se -= border_padding;
+                        round.sw -= border_padding;
+                    }
                     if !is_collapsed {
                         round.se = 0.0;
                         round.sw = 0.0;
@@ -523,18 +546,18 @@ impl<'open> Window<'open> {
 
                     area_content_ui.painter().set(
                         *where_to_put_header_background,
-                        RectShape::filled(rect, round, header_color),
+                        RectShape::filled(title_rect, round, header_color),
                     );
                 };
 
                 // Fix title bar separator line position
                 if let Some(response) = &mut content_response {
-                    response.rect.min.y = outer_rect.min.y + title_bar_height;
+                    response.rect.min.y = outer_rect.min.y + title_bar_height + border_padding;
                 }
 
                 title_bar.ui(
                     &mut area_content_ui,
-                    outer_rect,
+                    title_rect,
                     &content_response,
                     open,
                     &mut collapsing,
