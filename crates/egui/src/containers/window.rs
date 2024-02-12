@@ -390,9 +390,10 @@ impl<'open> Window<'open> {
             with_title_bar,
         } = self;
 
+        let is_window_frame_overrode = frame.is_some();
         let header_color =
             frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
-        let window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -424,6 +425,8 @@ impl<'open> Window<'open> {
             let window_margin = window_frame.inner_margin;
             let spacing = window_margin.top + window_margin.bottom;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
+            window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
+            window_frame.rounding.nw = window_frame.rounding.nw.clamp(0.0, height / 2.0);
             (height, spacing)
         } else {
             (0.0, 0.0)
@@ -462,11 +465,12 @@ impl<'open> Window<'open> {
 
         let content_inner = {
             // BEGIN FRAME --------------------------------
-            let frame_stroke = window_frame.stroke;
             let mut frame = window_frame.begin(&mut area_content_ui);
+            let border_stroke = ctx.style().visuals.widgets.noninteractive.fg_stroke;
 
             let show_close_button = open.is_some();
 
+            let where_to_put_outer_background = &area_content_ui.painter().add(Shape::Noop);
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
             // Backup item spacing before the title bar
@@ -507,20 +511,31 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&area_content_ui, &possible, outer_rect, frame_stroke);
+            paint_resize_corner(&area_content_ui, &possible, outer_rect, border_stroke);
 
             // END FRAME --------------------------------
+
+            if is_window_frame_overrode {
+                area_content_ui.painter().set(
+                    *where_to_put_outer_background,
+                    RectShape::filled(
+                        outer_rect.shrink(border_stroke.width),
+                        window_frame.rounding,
+                        window_frame.fill,
+                    ),
+                );
+            }
 
             if let Some(title_bar) = title_bar {
                 if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let rect = Rect::from_min_size(
                         Pos2 {
-                            x: outer_rect.min.x + frame_stroke.width,
-                            y: outer_rect.min.y + frame_stroke.width,
+                            x: outer_rect.min.x + border_stroke.width,
+                            y: outer_rect.min.y + border_stroke.width,
                         },
                         Vec2 {
-                            x: outer_rect.size().x - (frame_stroke.width * 2.0),
-                            y: title_bar_height - (frame_stroke.width * 2.0),
+                            x: outer_rect.size().x - (border_stroke.width * 2.0),
+                            y: title_bar_height - (border_stroke.width * 2.0),
                         },
                     );
 
@@ -1047,13 +1062,8 @@ impl TitleBar {
             let y = content_response.rect.top();
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-            let cr_range = content_response.rect.x_range();
-            let outer_range = outer_rect.x_range();
-            let hline_x_range = Rangef::new(
-                (cr_range.min + outer_range.min) / 2.0,
-                (cr_range.max + outer_range.max) / 2.0,
-            );
-            ui.painter().hline(hline_x_range, y, stroke);
+            ui.painter()
+                .hline(outer_rect.x_range().shrink(stroke.width), y, stroke);
         }
 
         // Don't cover the close- and collapse buttons:
