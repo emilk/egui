@@ -495,7 +495,13 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&area_content_ui, &possible, outer_rect, frame_stroke);
+            paint_resize_corner(
+                &area_content_ui,
+                &possible,
+                outer_rect,
+                frame_stroke,
+                window_frame.rounding,
+            );
 
             // END FRAME --------------------------------
 
@@ -558,6 +564,7 @@ fn paint_resize_corner(
     possible: &PossibleInteractions,
     outer_rect: Rect,
     stroke: impl Into<Stroke>,
+    rounding: impl Into<Rounding>,
 ) {
     let corner = if possible.resize_right && possible.resize_bottom {
         Align2::RIGHT_BOTTOM
@@ -571,9 +578,20 @@ fn paint_resize_corner(
         return;
     };
 
+    let stroke = stroke.into();
+    let rounding = rounding.into();
+    let radius = rounding.se;
+    // Adjust the corner offset to accommodate the stroke width and window rounding
+    let offset = if radius <= 2.0 && stroke.width < 2.0 {
+        2.0
+    } else {
+        // The corner offset is calculated to make the corner appear to be in the correct position
+        (2.0_f32.sqrt() * (1.0 + radius + stroke.width / 2.0) - radius)
+            * 45.0_f32.to_radians().cos()
+    };
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
-    let corner_rect = corner_rect.translate(-2.0 * corner.to_sign()); // move away from corner
+    let corner_rect = corner_rect.translate(-offset * corner.to_sign()); // move away from corner
     crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke, corner);
 }
 
