@@ -381,7 +381,10 @@ pub fn paint_resize_corner_with_style(
     let painter = ui.painter();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;
-    let stroke = stroke.into();
+    let stroke = Stroke {
+        width: 1.0, // Set width to 1.0 to prevent overlapping
+        ..stroke.into()
+    };
 
     while w <= rect.width() && w <= rect.height() {
         painter.line_segment(
