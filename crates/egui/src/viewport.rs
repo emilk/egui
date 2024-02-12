@@ -965,6 +965,15 @@ pub enum ViewportCommand {
     ///
     /// The results are returned in `crate::Event::Screenshot`.
     Screenshot,
+
+    /// Request a cut from the clipboard
+    RequestCut,
+
+    /// Request a copy from the clipboard
+    RequestCopy,
+
+    /// Request a paste from the clipboard
+    RequestPaste,
 }
 
 impl ViewportCommand {

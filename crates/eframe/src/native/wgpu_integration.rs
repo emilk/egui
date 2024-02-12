@@ -7,6 +7,7 @@
 
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
+use egui_winit::ActionRequested;
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 use winit::{
@@ -15,9 +16,9 @@ use winit::{
 };
 
 use egui::{
-    ahash::HashMap, DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder,
-    ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo,
-    ViewportOutput,
+    ahash::{HashMap, HashSet, HashSetExt},
+    DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder, ViewportClass,
+    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -77,7 +78,7 @@ pub struct Viewport {
     class: ViewportClass,
     builder: ViewportBuilder,
     info: ViewportInfo,
-    screenshot_requested: bool,
+    actions_requested: HashSet<ActionRequested>,
 
     /// `None` for sync viewports.
     viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -286,7 +287,7 @@ impl WgpuWinitApp {
                     maximized: Some(window.is_maximized()),
                     ..Default::default()
                 },
-                screenshot_requested: false,
+                actions_requested: HashSetExt::new(),
                 viewport_ui_cb: None,
                 window: Some(window),
                 egui_winit: Some(egui_winit),
@@ -643,7 +644,10 @@ impl WgpuWinitRunning {
 
         let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
-        let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
+        let screenshot_requested = viewport
+            .actions_requested
+            .take(&ActionRequested::Screenshot)
+            .is_some();
         let (vsync_secs, screenshot) = painter.paint_and_update_textures(
             viewport_id,
             pixels_per_point,
@@ -660,6 +664,31 @@ impl WgpuWinitRunning {
                     viewport_id,
                     image: screenshot.into(),
                 });
+        }
+
+        for action in viewport.actions_requested.drain() {
+            match action {
+                ActionRequested::Screenshot => {
+                    // already handled above
+                }
+                ActionRequested::Cut => {
+                    egui_winit.egui_input_mut().events.push(egui::Event::Cut);
+                }
+                ActionRequested::Copy => {
+                    egui_winit.egui_input_mut().events.push(egui::Event::Copy);
+                }
+                ActionRequested::Paste => {
+                    if let Some(contents) = egui_winit.clipboard_text() {
+                        let contents = contents.replace("\r\n", "\n");
+                        if !contents.is_empty() {
+                            egui_winit
+                                .egui_input_mut()
+                                .events
+                                .push(egui::Event::Paste(contents));
+                        }
+                    }
+                }
+            }
         }
 
         integration.post_rendering(window);
@@ -1027,7 +1056,7 @@ fn handle_viewport_output(
                 commands,
                 window,
                 is_viewport_focused,
-                &mut viewport.screenshot_requested,
+                &mut viewport.actions_requested,
             );
         }
     }
@@ -1060,7 +1089,7 @@ fn initialize_or_update_viewport<'vp>(
                 class,
                 builder,
                 info: Default::default(),
-                screenshot_requested: false,
+                actions_requested: HashSet::new(),
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
@@ -1093,7 +1122,7 @@ fn initialize_or_update_viewport<'vp>(
                     delta_commands,
                     window,
                     is_viewport_focused,
-                    &mut viewport.screenshot_requested,
+                    &mut viewport.actions_requested,
                 );
             }
 
