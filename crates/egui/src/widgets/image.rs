@@ -739,9 +739,17 @@ pub fn paint_texture_at(
     texture: &SizedTexture,
 ) {
     if options.bg_fill != Default::default() {
-        let mut mesh = Mesh::default();
-        mesh.add_colored_rect(rect, options.bg_fill);
-        painter.add(Shape::mesh(mesh));
+        // NOTE(vincent-sparks) originally this was only done with a mesh;
+        // however this created a bug if the image had rounding
+        // I assume the mesh was used in place of the rect for performance reasons
+        // so I have left it in
+        if options.rounding == Rounding::ZERO {
+            let mut mesh = Mesh::default();
+            mesh.add_colored_rect(rect, options.bg_fill);
+            painter.add(Shape::mesh(mesh));
+        } else {
+            painter.add(RectShape::new(rect, options.rounding, options.bg_fill, Stroke::NONE));
+        }
     }
 
     match options.rotation {
