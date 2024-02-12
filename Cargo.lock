@@ -1346,7 +1346,7 @@ dependencies = [
  "glutin",
  "glutin-winit",
  "log",
- "memoffset",
+ "memoffset 0.9.0",
  "puffin",
  "raw-window-handle 0.5.2",
  "wasm-bindgen",
@@ -2364,6 +2364,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memoffset"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "metal"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2484,7 +2493,7 @@ dependencies = [
  "bitflags 1.3.2",
  "cfg-if",
  "libc",
- "memoffset",
+ "memoffset 0.7.1",
 ]
 
 [[package]]

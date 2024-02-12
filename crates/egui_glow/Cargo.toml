@@ -55,7 +55,7 @@ egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 bytemuck = "1.7"
 glow.workspace = true
 log.workspace = true
-memoffset = "0.7"
+memoffset = "0.9"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
