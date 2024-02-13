@@ -69,7 +69,7 @@ pub struct TextEdit<'t> {
     layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
     password: bool,
     frame: bool,
-    margin: Vec2,
+    margin: Margin,
     multiline: bool,
     interactive: bool,
     desired_width: Option<f32>,
@@ -119,7 +119,7 @@ impl<'t> TextEdit<'t> {
             layouter: None,
             password: false,
             frame: true,
-            margin: vec2(4.0, 2.0),
+            margin: Margin::symmetric(4.0, 2.0),
             multiline: true,
             interactive: true,
             desired_width: None,
@@ -261,10 +261,10 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Set margin of text. Default is [4.0,2.0]
+    /// Set margin of text. Default is `Margin::symmetric(4.0, 2.0)`
     #[inline]
-    pub fn margin(mut self, margin: Vec2) -> Self {
-        self.margin = margin;
+    pub fn margin(mut self, margin: impl Into<Margin>) -> Self {
+        self.margin = margin.into();
         self
     }
 
@@ -381,13 +381,14 @@ impl<'t> TextEdit<'t> {
         let where_to_put_background = ui.painter().add(Shape::Noop);
 
         let margin = self.margin;
-        let max_rect = ui.available_rect_before_wrap().shrink2(margin);
+        let available = ui.available_rect_before_wrap();
+        let max_rect = margin.shrink_rect(available);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
 
         let mut output = self.show_content(&mut content_ui);
 
         let id = output.response.id;
-        let frame_rect = output.response.rect.expand2(margin);
+        let frame_rect = margin.expand_rect(output.response.rect);
         ui.allocate_space(frame_rect.size());
         if interactive {
             output.response |= ui.interact(frame_rect, id, Sense::click());
@@ -493,8 +494,9 @@ impl<'t> TextEdit<'t> {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_size = vec2(desired_width, galley.size().y.max(desired_height))
-            .at_least(min_size - margin * 2.0);
+        let at_least = min_size - margin.sum();
+        let desired_size =
+            vec2(desired_width, galley.size().y.max(desired_height)).at_least(at_least);
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
