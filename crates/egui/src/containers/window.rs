@@ -589,21 +589,20 @@ fn paint_resize_corner(
     stroke: impl Into<Stroke>,
     rounding: impl Into<Rounding>,
 ) {
-    let corner = if possible.resize_right && possible.resize_bottom {
-        Align2::RIGHT_BOTTOM
+    let stroke = stroke.into();
+    let rounding = rounding.into();
+    let (corner, radius) = if possible.resize_right && possible.resize_bottom {
+        (Align2::RIGHT_BOTTOM, rounding.se)
     } else if possible.resize_left && possible.resize_bottom {
-        Align2::LEFT_BOTTOM
+        (Align2::LEFT_BOTTOM, rounding.sw)
     } else if possible.resize_left && possible.resize_top {
-        Align2::LEFT_TOP
+        (Align2::LEFT_TOP, rounding.nw)
     } else if possible.resize_right && possible.resize_top {
-        Align2::RIGHT_TOP
+        (Align2::RIGHT_TOP, rounding.ne)
     } else {
         return;
     };
 
-    let stroke = stroke.into();
-    let rounding = rounding.into();
-    let radius = rounding.se;
     // Adjust the corner offset to accommodate the stroke width and window rounding
     let offset = if radius <= 2.0 && stroke.width < 2.0 {
         2.0
