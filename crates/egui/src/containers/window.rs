@@ -1070,7 +1070,10 @@ impl TitleBar {
             let y = content_response.rect.top();
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-            ui.painter().hline(outer_rect.x_range(), y, stroke);
+            // Workaround: To prevent border infringement,
+            // the 0.1 value should ideally be calculated using TessellationOptions::feathering_size_in_pixels
+            let x_range = outer_rect.x_range().shrink(0.1);
+            ui.painter().hline(x_range, y, stroke);
         }
 
         // Don't cover the close- and collapse buttons:
