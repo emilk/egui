@@ -189,5 +189,8 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Check
+      - name: Check all
         run: cargo check --all-targets --all-features
+
+      - name: Check hello_world
+        run: cargo check -p hello_world
