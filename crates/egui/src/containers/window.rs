@@ -395,11 +395,9 @@ impl<'open> Window<'open> {
         let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
         // Keep the original inner margin for later use
         let window_margin = window_frame.inner_margin;
-        // Add padding to the inner margin if the border large then 1.0
         let border_padding = window_frame.stroke.width / 2.0;
-        if window_frame.stroke.width > 1.0 {
-            window_frame.inner_margin = window_frame.inner_margin + Margin::same(border_padding);
-        }
+        // Add border padding to the inner margin to prevent it from covering the contents
+        window_frame.inner_margin += border_padding;
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -533,12 +531,8 @@ impl<'open> Window<'open> {
                     let mut round = window_frame.rounding;
 
                     // Eliminate the rounding gap between the title bar and the window frame
-                    if border_padding > 1.0 {
-                        round.ne -= border_padding;
-                        round.nw -= border_padding;
-                        round.se -= border_padding;
-                        round.sw -= border_padding;
-                    }
+                    round -= border_padding;
+
                     if !is_collapsed {
                         round.se = 0.0;
                         round.sw = 0.0;
