@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.2 - 2024-02-14
+* Nothing new
+
+
 ## 0.26.1 - 2024-02-11
 * Improve panic message in egui-wgpu when failing to create buffers [#3986](https://github.com/emilk/egui/pull/3986)
 
