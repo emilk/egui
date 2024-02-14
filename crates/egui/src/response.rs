@@ -601,6 +601,13 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
+        // Test if we must sense something new compared to what we have already sensed. If not, then
+        // we can return early. This may avoid unnecessarily "masking" some widgets with unneeded
+        // interactions.
+        if (self.sense | sense) == self.sense {
+            return self.clone();
+        }
+
         // Temporary hack for 0.26.1 to avoid breaking change.
         let clip_rect = self.ctx.graphics(|g| {
             g.get(self.layer_id)
