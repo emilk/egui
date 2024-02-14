@@ -1252,6 +1252,7 @@ impl Ui {
     }
 
     /// This is like to `Label::new(text).truncate(true).ui(self)`
+    ///
     /// See also [`Label`].
     #[inline]
     pub fn label_trunc(&mut self, text: impl Into<WidgetText>) -> Response {
@@ -1259,6 +1260,7 @@ impl Ui {
     }
 
     /// This is like to `Label::new(text).wrap(true).ui(self)`
+    ///
     /// See also [`Label`].
     #[inline]
     pub fn label_wrap(&mut self, text: impl Into<WidgetText>) -> Response {
@@ -1266,6 +1268,7 @@ impl Ui {
     }
 
     /// This is like to `Label::new(RichText::new(text).font(font_id).color(color)).truncate(true).ui(self)`
+    ///
     /// See also [`Label`].
     #[inline]
     pub fn label_rich(&mut self, text: String, font_id: FontId, color: Color32) -> Response {
