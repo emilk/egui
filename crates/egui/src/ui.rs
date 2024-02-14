@@ -1251,14 +1251,14 @@ impl Ui {
         Label::new(text).ui(self)
     }
 
-    /// This is like to Label::new(text).truncate(true).ui(self)
+    /// This is like to `Label::new(text).truncate(true).ui(self)`
     /// See also [`Label`].
     #[inline]
     pub fn label_trunc(&mut self, text: impl Into<WidgetText>) -> Response {
         Label::new(text).truncate(true).ui(self)
     }
 
-    /// This is like to Label::new(text).wrap(true).ui(self)
+    /// This is like to `Label::new(text).wrap(true).ui(self)`
     /// See also [`Label`].
     #[inline]
     pub fn label_wrap(&mut self, text: impl Into<WidgetText>) -> Response {
