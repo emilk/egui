@@ -610,6 +610,13 @@ impl Response {
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
+        // Test if we must sense something new compared to what we have already sensed. If not, then
+        // we can return early. This may avoid unnecessarily "masking" some widgets with unneeded
+        // interactions.
+        if (self.sense | sense) == self.sense {
+            return self.clone();
+        }
+
         self.ctx.interact_with_hovered(
             self.layer_id,
             self.id,
