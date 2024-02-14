@@ -732,7 +732,6 @@ impl WgpuWinitRunning {
         // to resizes anyway, as doing so avoids dropping frames.
         //
         // See: https://github.com/emilk/egui/issues/903
-        let mut repaint_asap = false;
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
@@ -743,18 +742,12 @@ impl WgpuWinitRunning {
                 // This solves an issue where the app would panic when minimizing on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 if let Some(viewport_id) = viewport_id {
-                    if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
-                        let is_minimized = viewport.info.minimized.unwrap_or(false);
-                        if !is_minimized {
-                            use std::num::NonZeroU32;
-                            if let (Some(width), Some(height)) = (
-                                NonZeroU32::new(physical_size.width),
-                                NonZeroU32::new(physical_size.height),
-                            ) {
-                                repaint_asap = true;
-                                shared.painter.on_window_resized(viewport_id, width, height);
-                            }
-                        }
+                    use std::num::NonZeroU32;
+                    if let (Some(width), Some(height)) = (
+                        NonZeroU32::new(physical_size.width),
+                        NonZeroU32::new(physical_size.height),
+                    ) {
+                        shared.painter.on_window_resized(viewport_id, width, height);
                     }
                 }
             }
@@ -801,11 +794,7 @@ impl WgpuWinitRunning {
         if integration.should_close() {
             EventResult::Exit
         } else if event_response.repaint {
-            if repaint_asap {
-                EventResult::RepaintNow(window_id)
-            } else {
-                EventResult::RepaintNext(window_id)
-            }
+            EventResult::RepaintNow(window_id)
         } else {
             EventResult::Wait
         }
