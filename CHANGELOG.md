@@ -7,6 +7,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.2 - 2024-02-14
+* Avoid interacting twice when not required [#4041](https://github.com/emilk/egui/pull/4041) (thanks [@abey79](https://github.com/abey79)!)
+
+
 ## 0.26.1 - 2024-02-11
 * Fix `Window` title bar incorrect handling spacing [#3995](https://github.com/emilk/egui/pull/3995) (thanks [@varphone](https://github.com/varphone)!)
 * Make `on_disabled_hover_ui` respect `tooltip_delay` [#4012](https://github.com/emilk/egui/pull/4012) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
