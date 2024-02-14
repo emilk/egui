@@ -1251,6 +1251,20 @@ impl Ui {
         Label::new(text).ui(self)
     }
 
+    /// This is like to Label::new(text).truncate(true).ui(self)
+    /// See also [`Label`].
+    #[inline]
+    pub fn label_trunc(&mut self, text: impl Into<WidgetText>) -> Response {
+        Label::new(text).truncate(true).ui(self)
+    }
+
+    /// This is like to Label::new(text).wrap(true).ui(self)
+    /// See also [`Label`].
+    #[inline]
+    pub fn label_wrap(&mut self, text: impl Into<WidgetText>) -> Response {
+        Label::new(text).wrap(true).ui(self)
+    }
+
     /// Show colored text.
     ///
     /// Shortcut for `ui.label(RichText::new(text).color(color))`
