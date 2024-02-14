@@ -505,7 +505,7 @@ impl GlowWinitRunning {
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                 if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
                     if let Some(window) = parent_viewport.window.as_ref() {
-                        return EventResult::RepaintNext(window.id());
+                        return EventResult::RepaintNow(window.id());
                     }
                 }
                 return EventResult::Wait;
