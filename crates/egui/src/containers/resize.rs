@@ -14,6 +14,9 @@ pub(crate) struct State {
 
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
+
+    /// Offset of the cursor when clicked
+    cursor_offset: Option<Vec2>,
 }
 
 impl State {
@@ -216,6 +219,7 @@ impl Resize {
                 desired_size: default_size,
                 last_content_size: vec2(0.0, 0.0),
                 requested_size: None,
+                cursor_offset: None,
             }
         });
 
@@ -234,8 +238,16 @@ impl Resize {
             let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
 
             if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
+                let offset = state
+                    .cursor_offset
+                    .get_or_insert(corner_rect.center() - pointer_pos);
+
                 user_requested_size =
-                    Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+                    Some(pointer_pos - position + 0.5 * corner_response.rect.size() + *offset);
+            }
+
+            if corner_response.drag_released() {
+                state.cursor_offset = None;
             }
 
             Some(corner_response)
