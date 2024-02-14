@@ -743,14 +743,18 @@ impl WgpuWinitRunning {
                 // This solves an issue where the app would panic when minimizing on Windows.
                 // See: https://github.com/rust-windowing/winit/issues/208
                 if let Some(viewport_id) = viewport_id {
-                    let is_minimized = viewport.info.minimized.unwrap_or(false);
-                    if !is_minimized {
-                        repaint_asap = true;
-                        shared.painter.on_window_resized(
-                            viewport_id,
-                            physical_size.width,
-                            physical_size.height,
-                        );
+                    if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
+                        let is_minimized = viewport.info.minimized.unwrap_or(false);
+                        if !is_minimized {
+                            use std::num::NonZeroU32;
+                            if let (Some(width), Some(height)) = (
+                                NonZeroU32::new(physical_size.width),
+                                NonZeroU32::new(physical_size.height),
+                            ) {
+                                repaint_asap = true;
+                                shared.painter.on_window_resized(viewport_id, width, height);
+                            }
+                        }
                     }
                 }
             }
