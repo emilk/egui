@@ -715,7 +715,6 @@ impl GlowWinitRunning {
         // to resizes anyway, as doing so avoids dropping frames.
         //
         // See: https://github.com/emilk/egui/issues/903
-        let mut repaint_asap = false;
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
@@ -723,16 +722,8 @@ impl GlowWinitRunning {
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
-                // This solves an issue where the app would panic when minimizing on Windows.
-                // See: https://github.com/rust-windowing/winit/issues/208
                 if let Some(viewport_id) = viewport_id {
-                    if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                        let is_minimized = viewport.info.minimized.unwrap_or(false);
-                        if !is_minimized {
-                            repaint_asap = true;
-                            glutin.resize(viewport_id, *physical_size);
-                        }
-                    }
+                    glutin.resize(viewport_id, *physical_size);
                 }
             }
 
@@ -788,11 +779,7 @@ impl GlowWinitRunning {
         }
 
         if event_response.repaint {
-            if repaint_asap {
-                EventResult::RepaintNow(window_id)
-            } else {
-                EventResult::RepaintNext(window_id)
-            }
+            EventResult::RepaintNow(window_id)
         } else {
             EventResult::Wait
         }
