@@ -1265,6 +1265,15 @@ impl Ui {
         Label::new(text).wrap(true).ui(self)
     }
 
+    /// This is like to `Label::new(RichText::new(text).font(font_id).color(color)).truncate(true).ui(self)`
+    /// See also [`Label`].
+    #[inline]
+    pub fn label_rich(&mut self, text: String, font_id: FontId, color: Color32) -> Response {
+        Label::new(RichText::new(text).font(font_id).color(color))
+            .truncate(true)
+            .ui(self)
+    }
+
     /// Show colored text.
     ///
     /// Shortcut for `ui.label(RichText::new(text).color(color))`
