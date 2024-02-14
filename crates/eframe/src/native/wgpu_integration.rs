@@ -549,7 +549,7 @@ impl WgpuWinitRunning {
                     // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                     if let Some(viewport) = viewports.get(&viewport.ids.parent) {
                         if let Some(window) = viewport.window.as_ref() {
-                            return EventResult::RepaintNext(window.id());
+                            return EventResult::RepaintNow(window.id());
                         }
                     }
                     return EventResult::Wait;
