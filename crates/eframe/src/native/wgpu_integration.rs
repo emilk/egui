@@ -739,8 +739,6 @@ impl WgpuWinitRunning {
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
-                // This solves an issue where the app would panic when minimizing on Windows.
-                // See: https://github.com/rust-windowing/winit/issues/208
                 if let Some(viewport_id) = viewport_id {
                     use std::num::NonZeroU32;
                     if let (Some(width), Some(height)) = (
