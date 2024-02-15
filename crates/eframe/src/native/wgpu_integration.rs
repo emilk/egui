@@ -550,6 +550,9 @@ impl WgpuWinitRunning {
                     // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                     if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
                         viewport_id = parent_viewport.ids.this;
+                    } else {
+                        // Not actually used.
+                        return EventResult::Wait;
                     }
                 }
             }
