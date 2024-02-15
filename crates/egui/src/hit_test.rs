@@ -127,7 +127,10 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                 if closest_click.sense.drag {
                     // We have something close that sense both clicks and drag.
                     // Should we use it over the direct drag-hit?
-                    if hit_drag.rect.contains_rect(closest_click.interact_rect) {
+                    if hit_drag
+                        .interact_rect
+                        .contains_rect(closest_click.interact_rect)
+                    {
                         // This is a smaller thing on a big background - help the user hit it,
                         // and ignore the big drag background.
                         WidgetHits {
@@ -148,7 +151,10 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                     // These is a close pure-click widget.
                     // However, we should be careful to only return two different widgets
                     // when it is absolutely not going to confuse the user.
-                    if hit_drag.rect.contains_rect(closest_click.interact_rect) {
+                    if hit_drag
+                        .interact_rect
+                        .contains_rect(closest_click.interact_rect)
+                    {
                         // The drag widget is a big background thing (scroll area),
                         // so returning a separate click widget should not be confusing
                         WidgetHits {
@@ -167,7 +173,33 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                     }
                 }
             } else {
-                // No close drags
+                // No close clicks.
+                // Maybe there is a close drag widget, that is a smaller
+                // widget floating on top of a big background?
+                // If so, it would be nice to help the user click that.
+                let closest_drag = find_closest(
+                    close
+                        .iter()
+                        .copied()
+                        .filter(|w| w.sense.drag && w.id != hit_drag.id),
+                    pos,
+                );
+
+                if let Some(closest_drag) = closest_drag {
+                    if hit_drag
+                        .interact_rect
+                        .contains_rect(closest_drag.interact_rect)
+                    {
+                        // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
+                        // Be helpful and return the small things:
+                        return WidgetHits {
+                            contains_pointer: hits,
+                            click: None,
+                            drag: Some(closest_drag),
+                        };
+                    }
+                }
+
                 WidgetHits {
                     contains_pointer: hits,
                     click: None,
