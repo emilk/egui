@@ -503,7 +503,7 @@ impl GlowWinitRunning {
             if is_immediate && viewport_id != ViewportId::ROOT {
                 // This will only happen if this is an immediate viewport.
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
+                if let Some(parent_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
                     viewport_id = parent_viewport.ids.this;
                 } else {
                     // Not actually used. Because there is always a `Some()` value.
