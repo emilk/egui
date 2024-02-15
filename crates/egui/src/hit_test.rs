@@ -72,13 +72,15 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
         .copied()
         .collect();
 
-    let top_hit = hits.last().copied();
-    let top_layer = top_hit.map(|w| w.layer_id);
+    {
+        let top_hit = hits.last().copied();
+        let top_layer = top_hit.map(|w| w.layer_id);
 
-    if let Some(top_layer) = top_layer {
-        // Ignore all layers not in the same layer as the top hit.
-        close.retain(|w| w.layer_id == top_layer);
-        hits.retain(|w| w.layer_id == top_layer);
+        if let Some(top_layer) = top_layer {
+            // Ignore all layers not in the same layer as the top hit.
+            close.retain(|w| w.layer_id == top_layer);
+            hits.retain(|w| w.layer_id == top_layer);
+        }
     }
 
     let hit_click = hits.iter().copied().filter(|w| w.sense.click).last();
@@ -103,6 +105,7 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                     drag: closest.sense.drag.then_some(closest),
                 }
             } else {
+                // Found nothing
                 WidgetHits {
                     contains_pointer: hits,
                     click: None,
@@ -172,6 +175,7 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                 }
             }
         }
+
         (Some(hit_click), None) => {
             // We have a perfect hit on a click-widget, but not on a drag-widget.
 
