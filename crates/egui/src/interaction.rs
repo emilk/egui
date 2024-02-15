@@ -115,7 +115,6 @@ pub(crate) fn interact(
     let contains_pointer: IdMap<WidgetRect> = hits
         .contains_pointer
         .iter()
-        .chain(&hits.top)
         .chain(&hits.click)
         .chain(&hits.drag)
         .map(|w| (w.id, *w))

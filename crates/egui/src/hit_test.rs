@@ -17,11 +17,6 @@ pub struct WidgetHits {
     /// Some of these may be widgets in a layer below the top-most layer.
     pub contains_pointer: Vec<WidgetRect>,
 
-    /// The topmost widget under the pointer, interactive or not.
-    ///
-    /// Used for nothing right now.
-    pub top: Option<WidgetRect>,
-
     /// If the user would start a clicking now, this is what would be clicked.
     ///
     /// This is the top one under the pointer, or closest one of the top-most.
@@ -31,11 +26,6 @@ pub struct WidgetHits {
     ///
     /// This is the top one under the pointer, or closest one of the top-most.
     pub drag: Option<WidgetRect>,
-
-    /// The closest interactive widget under the pointer.
-    ///
-    /// This is either the same as [`Self::click`] or [`Self::drag`], or both.
-    pub closest_interactive: Option<WidgetRect>,
 }
 
 /// Find the top or closest widgets to the given position,
@@ -51,7 +41,7 @@ pub fn hit_test(
     let search_radius_sq = search_radius * search_radius;
 
     // First pass: find the few widgets close to the given position, sorted back-to-front.
-    let mut close: Vec<WidgetRect> = layer_order
+    let close: Vec<WidgetRect> = layer_order
         .iter()
         .filter(|layer| layer.order.allow_interaction())
         .filter_map(|layer_id| widgets.by_layer.get(layer_id))
@@ -59,6 +49,21 @@ pub fn hit_test(
         .filter(|w| w.interact_rect.distance_sq_to_pos(pos) <= search_radius_sq)
         .copied()
         .collect();
+
+    let hits = hit_test_on_close(close, pos);
+
+    if let Some(drag) = hits.drag {
+        debug_assert!(drag.sense.drag);
+    }
+    if let Some(click) = hits.click {
+        debug_assert!(click.sense.click);
+    }
+
+    hits
+}
+
+fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
+    #![allow(clippy::collapsible_else_if)]
 
     // Only those widgets directly under the `pos`.
     let mut hits: Vec<WidgetRect> = close
@@ -79,47 +84,130 @@ pub fn hit_test(
     let hit_click = hits.iter().copied().filter(|w| w.sense.click).last();
     let hit_drag = hits.iter().copied().filter(|w| w.sense.drag).last();
 
-    let closest = find_closest(close.iter().copied(), pos);
-    let closest_click = find_closest(close.iter().copied().filter(|w| w.sense.click), pos);
-    let closest_drag = find_closest(close.iter().copied().filter(|w| w.sense.drag), pos);
+    match (hit_click, hit_drag) {
+        (None, None) => {
+            // No direct hit on anything. Find the closest interactive widget.
 
-    let top = top_hit.or(closest);
-    let mut click = hit_click.or(closest_click);
-    let mut drag = hit_drag.or(closest_drag);
+            let closest = find_closest(
+                close
+                    .iter()
+                    .copied()
+                    .filter(|w| w.sense.click || w.sense.drag),
+                pos,
+            );
 
-    if let (Some(click), Some(drag)) = (&mut click, &mut drag) {
-        // If one of the widgets is interested in both click and drags, let it win.
-        // Otherwise we end up in weird situations where both widgets respond to hover,
-        // but one of the widgets only responds to _one_ of the events.
-
-        if click.sense.click && click.sense.drag {
-            *drag = *click;
-        } else if drag.sense.click && drag.sense.drag {
-            *click = *drag;
-        }
-    }
-
-    let closest_interactive = match (click, drag) {
-        (Some(click), Some(drag)) => {
-            if click.interact_rect.distance_sq_to_pos(pos)
-                < drag.interact_rect.distance_sq_to_pos(pos)
-            {
-                Some(click)
+            if let Some(closest) = closest {
+                WidgetHits {
+                    contains_pointer: hits,
+                    click: closest.sense.click.then_some(closest),
+                    drag: closest.sense.drag.then_some(closest),
+                }
             } else {
-                Some(drag)
+                WidgetHits {
+                    contains_pointer: hits,
+                    click: None,
+                    drag: None,
+                }
             }
         }
-        (Some(click), None) => Some(click),
-        (None, Some(drag)) => Some(drag),
-        (None, None) => None,
-    };
 
-    WidgetHits {
-        contains_pointer: hits,
-        top,
-        click,
-        drag,
-        closest_interactive,
+        (None, Some(hit_drag)) => {
+            // We have a perfect hit on a drag, but not on click.
+
+            // We have a direct hit on something that implements drag.
+            // This could be a big background thing, like a `ScrollArea` background,
+            // or a moveable window.
+            // It could also be something small, like a slider, or panel resize handle.
+
+            let closest_click = find_closest(close.iter().copied().filter(|w| w.sense.click), pos);
+            if let Some(closest_click) = closest_click {
+                if closest_click.sense.drag {
+                    // We have something close that sense both clicks and drag.
+                    // Should we use it over the direct drag-hit?
+                    if hit_drag.rect.contains_rect(closest_click.interact_rect) {
+                        // This is a smaller thing on a big background - help the user hit it,
+                        // and ignore the big drag background.
+                        WidgetHits {
+                            contains_pointer: hits,
+                            click: Some(closest_click),
+                            drag: Some(closest_click),
+                        }
+                    } else {
+                        // The drag wiudth is separate from the click wiudth,
+                        // so return only the drag widget
+                        WidgetHits {
+                            contains_pointer: hits,
+                            click: None,
+                            drag: Some(hit_drag),
+                        }
+                    }
+                } else {
+                    // These is a close pure-click widget.
+                    WidgetHits {
+                        contains_pointer: hits,
+                        click: Some(closest_click),
+                        drag: Some(hit_drag),
+                    }
+                }
+            } else {
+                // No close drags
+                WidgetHits {
+                    contains_pointer: hits,
+                    click: None,
+                    drag: Some(hit_drag),
+                }
+            }
+        }
+        (Some(hit_click), None) => {
+            // We have a perfect hit on a click-widget, but not on a drag-widget.
+
+            WidgetHits {
+                contains_pointer: hits,
+                click: Some(hit_click),
+                drag: None, // TODO: we should maybe look for close drag widgets?
+            }
+        }
+
+        (Some(hit_click), Some(hit_drag)) => {
+            // We have a perfect hit on both click and drag. Which is the topmost?
+            let click_idx = hits.iter().position(|w| *w == hit_click).unwrap();
+            let drag_idx = hits.iter().position(|w| *w == hit_drag).unwrap();
+
+            let click_is_on_top_of_drag = drag_idx < click_idx;
+            if click_is_on_top_of_drag {
+                if hit_click.sense.drag {
+                    // The top thing senses both clicks and drags.
+                    WidgetHits {
+                        contains_pointer: hits,
+                        click: Some(hit_click),
+                        drag: Some(hit_click),
+                    }
+                } else {
+                    // They are interested in different things.
+                    WidgetHits {
+                        contains_pointer: hits,
+                        click: Some(hit_click),
+                        drag: Some(hit_drag),
+                    }
+                }
+            } else {
+                if hit_drag.sense.click {
+                    // The top thing senses both clicks and drags.
+                    WidgetHits {
+                        contains_pointer: hits,
+                        click: Some(hit_drag),
+                        drag: Some(hit_drag),
+                    }
+                } else {
+                    // The top things senses only drags
+                    WidgetHits {
+                        contains_pointer: hits,
+                        click: None,
+                        drag: Some(hit_drag),
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -137,4 +225,101 @@ fn find_closest(widgets: impl Iterator<Item = WidgetRect>, pos: Pos2) -> Option<
     }
 
     closest
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn wr(id: Id, sense: Sense, rect: Rect) -> WidgetRect {
+        WidgetRect {
+            id,
+            layer_id: LayerId::background(),
+            rect,
+            interact_rect: rect,
+            sense,
+            enabled: true,
+        }
+    }
+
+    #[test]
+    fn buttons_on_window() {
+        let widgets = vec![
+            wr(
+                Id::new("bg-area"),
+                Sense::drag(),
+                Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
+            ),
+            wr(
+                Id::new("click"),
+                Sense::click(),
+                Rect::from_min_size(pos2(10.0, 10.0), vec2(10.0, 10.0)),
+            ),
+            wr(
+                Id::new("click-and-drag"),
+                Sense::click_and_drag(),
+                Rect::from_min_size(pos2(100.0, 10.0), vec2(10.0, 10.0)),
+            ),
+        ];
+
+        // Perfect hit:
+        let hits = hit_test_on_close(widgets.clone(), pos2(15.0, 15.0));
+        assert_eq!(hits.click.unwrap().id, Id::new("click"));
+        assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
+
+        // Close hit:
+        let hits = hit_test_on_close(widgets.clone(), pos2(5.0, 5.0));
+        assert_eq!(hits.click.unwrap().id, Id::new("click"));
+        assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
+
+        // Perfect hit:
+        let hits = hit_test_on_close(widgets.clone(), pos2(105.0, 15.0));
+        assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
+        assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
+
+        // Close hit - should still ignore the drag-background so as not to confuse the userr:
+        let hits = hit_test_on_close(widgets.clone(), pos2(105.0, 5.0));
+        assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
+        assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
+    }
+
+    #[test]
+    fn thin_resize_handle_next_to_label() {
+        let widgets = vec![
+            wr(
+                Id::new("bg-area"),
+                Sense::drag(),
+                Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0)),
+            ),
+            wr(
+                Id::new("bg-left-label"),
+                Sense::click_and_drag(),
+                Rect::from_min_size(pos2(0.0, 0.0), vec2(50.0, 100.0)),
+            ),
+            wr(
+                Id::new("thin-drag-handle"),
+                Sense::drag(),
+                Rect::from_min_size(pos2(40.0, 0.0), vec2(20.0, 100.0)),
+            ),
+        ];
+
+        for (i, w) in widgets.iter().enumerate() {
+            eprintln!("Widget {i}: {:?}", w.id);
+        }
+
+        // In the middle of the bg-left-label:
+        let hits = hit_test_on_close(widgets.clone(), pos2(25.0, 50.0));
+        assert_eq!(hits.click.unwrap().id, Id::new("bg-left-label"));
+        assert_eq!(hits.drag.unwrap().id, Id::new("bg-left-label"));
+
+        // Only on the thin-drag-handle:
+        let hits = hit_test_on_close(widgets.clone(), pos2(55.0, 50.0));
+        assert_eq!(hits.click, None);
+        assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
+
+        // On both the click-and-drag and thin handle, but the thin handle is on top and should win:
+        let hits = hit_test_on_close(widgets.clone(), pos2(45.0, 50.0));
+        assert_eq!(hits.click, None);
+        assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
+    }
 }
