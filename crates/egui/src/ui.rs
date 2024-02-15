@@ -2166,6 +2166,8 @@ impl Ui {
         let is_being_dragged = self.memory(|mem| mem.is_being_dragged(id));
 
         if is_being_dragged {
+            crate::DragAndDrop::set_payload(self.ctx(), payload);
+
             // Paint the body to a new layer:
             let layer_id = LayerId::new(Order::Tooltip, id);
             let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
@@ -2187,9 +2189,9 @@ impl Ui {
             let InnerResponse { inner, response } = self.scope(add_contents);
 
             // Check for drags:
-            let dnd_response = self.interact(response.rect, id, Sense::drag());
-
-            dnd_response.dnd_set_drag_payload(payload);
+            let dnd_response = self
+                .interact(response.rect, id, Sense::drag())
+                .on_hover_cursor(CursorIcon::Grab);
 
             InnerResponse::new(inner, dnd_response | response)
         }
