@@ -551,7 +551,7 @@ impl WgpuWinitRunning {
                     if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
                         viewport_id = parent_viewport.ids.this;
                     } else {
-                        // Not actually used.
+                        // Not actually used. Because there is always a `Some()` value.
                         return EventResult::Wait;
                     }
                 }
