@@ -480,7 +480,7 @@ impl GlowWinitRunning {
     ) -> EventResult {
         crate::profile_function!();
 
-        let Some(viewport_id) = self
+        let Some(mut viewport_id) = self
             .glutin
             .borrow()
             .viewport_from_window
@@ -504,11 +504,8 @@ impl GlowWinitRunning {
                 // This will only happen if this is an immediate viewport.
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                 if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
-                    if let Some(window) = parent_viewport.window.as_ref() {
-                        return EventResult::RepaintNow(window.id());
-                    }
+                    viewport_id = parent_viewport.ids.this;
                 }
-                return EventResult::Wait;
             }
         }
 
