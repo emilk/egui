@@ -1110,31 +1110,13 @@ impl Context {
     ///
     /// You should use [`Ui::interact`] instead.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn create_widget(
-        &self,
-        layer_id: LayerId,
-        id: Id,
-        rect: Rect,
-        interact_rect: Rect,
-        mut sense: Sense,
-        enabled: bool,
-        may_contain_pointer: bool,
-    ) -> Response {
-        if !enabled {
-            sense.click = false;
-            sense.drag = false;
+    pub(crate) fn create_widget(&self, mut w: WidgetRect, may_contain_pointer: bool) -> Response {
+        if !w.enabled {
+            w.sense.click = false;
+            w.sense.drag = false;
         }
 
-        let widget_rect = WidgetRect {
-            id,
-            layer_id,
-            rect,
-            interact_rect,
-            sense,
-            enabled,
-        };
-
-        if widget_rect.interact_rect.is_positive() {
+        if w.interact_rect.is_positive() {
             // Remember this widget
             self.write(|ctx| {
                 let viewport = ctx.viewport();
@@ -1142,38 +1124,36 @@ impl Context {
                 // We add all widgets here, even non-interactive ones,
                 // because we need this list not only for checking for blocking widgets,
                 // but also to know when we have reached the widget we are checking for cover.
-                viewport
-                    .widgets_this_frame
-                    .insert(widget_rect.layer_id, widget_rect);
+                viewport.widgets_this_frame.insert(w.layer_id, w);
 
                 // Based on output from previous frame and input in this frame
                 viewport
                     .interact_widgets
                     .contains_pointer
-                    .contains_key(&widget_rect.id)
+                    .contains_key(&w.id)
             });
         } else {
             // Don't remember invisible widgets
         }
 
-        if !enabled || !sense.focusable || !layer_id.allow_interaction() {
+        if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
             // Not interested or allowed input:
-            self.memory_mut(|mem| mem.surrender_focus(id));
+            self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
 
-        if sense.interactive() || sense.focusable {
-            self.check_for_id_clash(id, rect, "widget");
+        if w.sense.interactive() || w.sense.focusable {
+            self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        let mut res = self.get_response(widget_rect);
+        let mut res = self.get_response(w);
         res.contains_pointer &= may_contain_pointer;
 
         #[cfg(feature = "accesskit")]
-        if sense.focusable {
+        if w.sense.focusable {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            self.accesskit_node_builder(id, |builder| res.fill_accesskit_node_common(builder));
+            self.accesskit_node_builder(w.id, |builder| res.fill_accesskit_node_common(builder));
         }
 
         res

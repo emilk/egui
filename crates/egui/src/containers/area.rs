@@ -321,12 +321,14 @@ impl Area {
             };
 
             let move_response = ctx.create_widget(
-                layer_id,
-                interact_id,
-                state.rect(),
-                state.rect(),
-                sense,
-                enabled,
+                WidgetRect {
+                    id: interact_id,
+                    layer_id,
+                    rect: state.rect(),
+                    interact_rect: state.rect(),
+                    sense,
+                    enabled,
+                },
                 true,
             );
 

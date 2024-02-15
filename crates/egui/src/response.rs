@@ -2,7 +2,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
+    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect, WidgetText,
     NUM_POINTER_BUTTONS,
 };
 
@@ -618,12 +618,14 @@ impl Response {
         }
 
         self.ctx.create_widget(
-            self.layer_id,
-            self.id,
-            self.rect,
-            self.interact_rect,
-            sense,
-            self.enabled,
+            WidgetRect {
+                layer_id: self.layer_id,
+                id: self.id,
+                rect: self.rect,
+                interact_rect: self.interact_rect,
+                sense,
+                enabled: self.enabled,
+            },
             self.contains_pointer,
         )
     }
