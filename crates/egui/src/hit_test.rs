@@ -143,10 +143,24 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                     }
                 } else {
                     // These is a close pure-click widget.
-                    WidgetHits {
-                        contains_pointer: hits,
-                        click: Some(closest_click),
-                        drag: Some(hit_drag),
+                    // However, we should be careful to only return two different widgets
+                    // when it is absolutely not going to confuse the user.
+                    if hit_drag.rect.contains_rect(closest_click.interact_rect) {
+                        // The drag widget is a big background thing (scroll area),
+                        // so returning a separate click widget should not be confusing
+                        WidgetHits {
+                            contains_pointer: hits,
+                            click: Some(closest_click),
+                            drag: Some(hit_drag),
+                        }
+                    } else {
+                        // The two widgets are just two normal small widgets close to each other.
+                        // Highlighting both would be very confusing.
+                        WidgetHits {
+                            contains_pointer: hits,
+                            click: None,
+                            drag: Some(hit_drag),
+                        }
                     }
                 }
             } else {
@@ -294,12 +308,17 @@ mod tests {
             wr(
                 Id::new("bg-left-label"),
                 Sense::click_and_drag(),
-                Rect::from_min_size(pos2(0.0, 0.0), vec2(50.0, 100.0)),
+                Rect::from_min_size(pos2(0.0, 0.0), vec2(40.0, 100.0)),
             ),
             wr(
                 Id::new("thin-drag-handle"),
                 Sense::drag(),
-                Rect::from_min_size(pos2(40.0, 0.0), vec2(20.0, 100.0)),
+                Rect::from_min_size(pos2(30.0, 0.0), vec2(70.0, 100.0)),
+            ),
+            wr(
+                Id::new("fg-right-label"),
+                Sense::click_and_drag(),
+                Rect::from_min_size(pos2(60.0, 0.0), vec2(50.0, 100.0)),
             ),
         ];
 
@@ -312,14 +331,19 @@ mod tests {
         assert_eq!(hits.click.unwrap().id, Id::new("bg-left-label"));
         assert_eq!(hits.drag.unwrap().id, Id::new("bg-left-label"));
 
-        // Only on the thin-drag-handle:
-        let hits = hit_test_on_close(widgets.clone(), pos2(55.0, 50.0));
+        // On both the left click-and-drag and thin handle, but the thin handle is on top and should win:
+        let hits = hit_test_on_close(widgets.clone(), pos2(35.0, 50.0));
         assert_eq!(hits.click, None);
         assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
 
-        // On both the click-and-drag and thin handle, but the thin handle is on top and should win:
-        let hits = hit_test_on_close(widgets.clone(), pos2(45.0, 50.0));
+        // Only on the thin-drag-handle:
+        let hits = hit_test_on_close(widgets.clone(), pos2(50.0, 50.0));
         assert_eq!(hits.click, None);
         assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
+
+        // On both the thin handle and right label. The label is on top and should win
+        let hits = hit_test_on_close(widgets.clone(), pos2(65.0, 50.0));
+        assert_eq!(hits.click.unwrap().id, Id::new("fg-right-label"));
+        assert_eq!(hits.drag.unwrap().id, Id::new("fg-right-label"));
     }
 }
