@@ -1133,7 +1133,7 @@ impl Default for Interaction {
         Self {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
-            interact_radius: 8.0,
+            interact_radius: 5.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.3,
             selectable_labels: true,
