@@ -549,9 +549,7 @@ impl WgpuWinitRunning {
                     // This will only happen if this is an immediate viewport.
                     // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                     if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
-                        if let Some(window) = viewport.window.as_ref() {
-                            viewport_id = parent_viewport.ids.this;
-                        }
+                        viewport_id = parent_viewport.ids.this;
                     }
                 }
             }
