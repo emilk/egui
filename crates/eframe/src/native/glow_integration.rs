@@ -499,6 +499,7 @@ impl GlowWinitRunning {
         {
             let glutin = self.glutin.borrow();
             let viewport = &glutin.viewports[&viewport_id];
+
             let is_immediate = viewport.viewport_ui_cb.is_none();
             if is_immediate && viewport_id != ViewportId::ROOT {
                 // This will only happen if this is an immediate viewport.
