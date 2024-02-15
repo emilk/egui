@@ -320,13 +320,14 @@ impl Area {
                 Sense::hover()
             };
 
-            let move_response = ctx.interact(
-                Rect::EVERYTHING,
+            let move_response = ctx.create_widget(
                 layer_id,
                 interact_id,
                 state.rect(),
+                state.rect(),
                 sense,
                 enabled,
+                true,
             );
 
             if movable && move_response.dragged() {

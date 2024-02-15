@@ -617,7 +617,7 @@ impl Response {
             return self.clone();
         }
 
-        self.ctx.interact_with_existing(
+        self.ctx.create_widget(
             self.layer_id,
             self.id,
             self.rect,

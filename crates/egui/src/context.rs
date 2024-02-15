@@ -213,6 +213,9 @@ pub struct WidgetRect {
     /// What layer the widget is on.
     pub layer_id: LayerId,
 
+    /// The full widget rectangle.
+    pub rect: Rect,
+
     /// Where the widget is.
     ///
     /// This is after clipping with the parent ui clip rect.
@@ -220,6 +223,9 @@ pub struct WidgetRect {
 
     /// How the widget responds to interaction.
     pub sense: Sense,
+
+    /// Is the widget enabled?
+    pub enabled: bool,
 }
 
 /// Stores the positions of all widgets generated during a single egui update/frame.
@@ -256,26 +262,27 @@ impl WidgetRects {
 
         match self.by_id.entry(widget_rect.id) {
             std::collections::hash_map::Entry::Vacant(entry) => {
+                // A new widget
                 entry.insert(widget_rect);
+                layer_widgets.push(widget_rect);
             }
             std::collections::hash_map::Entry::Occupied(mut entry) => {
-                // e.g. calling `response.interact(…)` right after interacting.
+                // e.g. calling `response.interact(…)` to add more interaction.
                 let existing = entry.get_mut();
-                existing.sense |= widget_rect.sense;
+                existing.rect = existing.rect.union(widget_rect.rect);
                 existing.interact_rect = existing.interact_rect.union(widget_rect.interact_rect);
+                existing.sense |= widget_rect.sense;
+                existing.enabled |= widget_rect.enabled;
+
+                // Find the existing widget in this layer and update it:
+                for previous in layer_widgets.iter_mut().rev() {
+                    if previous.id == widget_rect.id {
+                        *previous = *existing;
+                        break;
+                    }
+                }
             }
         }
-
-        if let Some(last) = layer_widgets.last_mut() {
-            if last.id == widget_rect.id {
-                // e.g. calling `response.interact(…)` right after interacting.
-                last.sense |= widget_rect.sense;
-                last.interact_rect = last.interact_rect.union(widget_rect.interact_rect);
-                return;
-            }
-        }
-
-        layer_widgets.push(widget_rect);
     }
 }
 
@@ -703,7 +710,7 @@ impl ContextImpl {
     }
 
     /// The current active viewport
-    fn viewport(&mut self) -> &mut ViewportState {
+    pub(crate) fn viewport(&mut self) -> &mut ViewportState {
         self.viewports.entry(self.viewport_id()).or_default()
     }
 
@@ -1097,54 +1104,13 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Use `ui.interact` instead
+    /// Create a widget and check for interaction.
+    ///
+    /// If this is not called, the widget doesn't exist.
+    ///
+    /// You should use [`Ui::interact`] instead.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn interact(
-        &self,
-        clip_rect: Rect,
-        layer_id: LayerId,
-        id: Id,
-        rect: Rect,
-        mut sense: Sense,
-        enabled: bool,
-    ) -> Response {
-        if !enabled {
-            sense.click = false;
-            sense.drag = false;
-        }
-
-        // Respect clip rectangle when interacting:
-        let interact_rect = clip_rect.intersect(rect);
-
-        let contains_pointer = self.widget_contains_pointer(layer_id, id, sense, interact_rect);
-
-        #[cfg(debug_assertions)]
-        if sense.interactive()
-            && interact_rect.is_positive()
-            && self.style().debug.show_interactive_widgets
-        {
-            Self::layer_painter(self, LayerId::debug()).rect(
-                interact_rect,
-                0.0,
-                Color32::YELLOW.additive().linear_multiply(0.005),
-                Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
-            );
-        }
-
-        self.interact_with_existing(
-            layer_id,
-            id,
-            rect,
-            interact_rect,
-            sense,
-            enabled,
-            contains_pointer,
-        )
-    }
-
-    /// You specify if a thing is hovered, and the function gives a [`Response`].
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn interact_with_existing(
+    pub(crate) fn create_widget(
         &self,
         layer_id: LayerId,
         id: Id,
@@ -1152,35 +1118,43 @@ impl Context {
         interact_rect: Rect,
         mut sense: Sense,
         enabled: bool,
-        contains_pointer: bool,
+        may_contain_pointer: bool,
     ) -> Response {
         if !enabled {
             sense.click = false;
             sense.drag = false;
         }
 
-        // This is the start - we'll fill in the fields below:
-        let mut res = Response {
-            ctx: self.clone(),
-            layer_id,
+        let widget_rect = WidgetRect {
             id,
+            layer_id,
             rect,
             interact_rect,
             sense,
             enabled,
-            contains_pointer,
-            hovered: false,
-            highlighted: self.frame_state(|fs| fs.highlight_this_frame.contains(&id)),
-            clicked: Default::default(),
-            double_clicked: Default::default(),
-            triple_clicked: Default::default(),
-            drag_started: false,
-            dragged: false,
-            drag_released: false,
-            is_pointer_button_down_on: false,
-            interact_pointer_pos: None,
-            changed: false, // must be set by the widget itself
         };
+
+        if widget_rect.interact_rect.is_positive() {
+            // Remember this widget
+            self.write(|ctx| {
+                let viewport = ctx.viewport();
+
+                // We add all widgets here, even non-interactive ones,
+                // because we need this list not only for checking for blocking widgets,
+                // but also to know when we have reached the widget we are checking for cover.
+                viewport
+                    .widgets_this_frame
+                    .insert(widget_rect.layer_id, widget_rect);
+
+                // Based on output from previous frame and input in this frame
+                viewport
+                    .interact_widgets
+                    .contains_pointer
+                    .contains_key(&widget_rect.id)
+            });
+        } else {
+            // Don't remember invisible widgets
+        }
 
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
@@ -1191,6 +1165,9 @@ impl Context {
             self.check_for_id_clash(id, rect, "widget");
         }
 
+        let mut res = self.get_response(widget_rect);
+        res.contains_pointer &= may_contain_pointer;
+
         #[cfg(feature = "accesskit")]
         if sense.focusable {
             // Make sure anything that can receive focus has an AccessKit node.
@@ -1199,25 +1176,66 @@ impl Context {
             self.accesskit_node_builder(id, |builder| res.fill_accesskit_node_common(builder));
         }
 
+        res
+    }
+
+    /// Read the response of some widget, either before or after it was created/interacted.
+    ///
+    /// If the widget was not visible the previous frame (or this frame), this will return `None`.
+    pub fn read_response(&self, id: Id) -> Option<Response> {
+        self.write(|ctx| {
+            let viewport = ctx.viewport();
+            viewport
+                .widgets_this_frame
+                .by_id
+                .get(&id)
+                .or_else(|| viewport.widgets_prev_frame.by_id.get(&id))
+                .copied()
+        })
+        .map(|widget_rect| self.get_response(widget_rect))
+    }
+
+    /// Do all interaction for an existing widget, without (re-)registering it.
+    fn get_response(&self, widget_rect: WidgetRect) -> Response {
+        let WidgetRect {
+            id,
+            layer_id,
+            rect,
+            interact_rect,
+            sense,
+            enabled,
+        } = widget_rect;
+
+        let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
+
+        let mut res = Response {
+            ctx: self.clone(),
+            layer_id,
+            id,
+            rect,
+            interact_rect,
+            sense,
+            enabled,
+            contains_pointer: false,
+            hovered: false,
+            highlighted,
+            clicked: Default::default(),
+            double_clicked: Default::default(),
+            triple_clicked: Default::default(),
+            drag_started: false,
+            dragged: false,
+            drag_released: false,
+            is_pointer_button_down_on: false,
+            interact_pointer_pos: None,
+            changed: false,
+        };
+
         let clicked_elsewhere = res.clicked_elsewhere();
+
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
-            // We need to remember this widget.
-            // `widget_contains_pointer` also does this, but in case of e.g. `Response::interact`,
-            // that won't be called.
-            // We add all widgets here, even non-interactive ones,
-            // because we need this list not only for checking for blocking widgets,
-            // but also to know when we have reached the widget we are checking for cover.
-            viewport.widgets_this_frame.insert(
-                layer_id,
-                WidgetRect {
-                    id,
-                    layer_id,
-                    interact_rect,
-                    sense,
-                },
-            );
+            res.contains_pointer = viewport.interact_widgets.contains_pointer.contains_key(&id);
 
             let input = &viewport.input;
             let memory = &mut ctx.memory;
@@ -1227,7 +1245,7 @@ impl Context {
             }
 
             if sense.click
-                && memory.has_focus(res.id)
+                && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
@@ -1235,8 +1253,7 @@ impl Context {
             }
 
             #[cfg(feature = "accesskit")]
-            if sense.click && input.has_accesskit_action_request(res.id, accesskit::Action::Default)
-            {
+            if sense.click && input.has_accesskit_action_request(id, accesskit::Action::Default) {
                 res.clicked[PointerButton::Primary as usize] = true;
             }
 
@@ -1245,7 +1262,7 @@ impl Context {
             res.is_pointer_button_down_on =
                 interaction.click_id == Some(id) || interaction.drag_id == Some(id);
 
-            if enabled {
+            if res.enabled {
                 res.hovered = viewport.interact_widgets.hovered.contains_key(&id);
                 res.dragged = Some(id) == viewport.interact_widgets.dragged.map(|w| w.id);
                 res.drag_started = Some(id) == viewport.interact_widgets.drag_started.map(|w| w.id);
@@ -1288,11 +1305,11 @@ impl Context {
                 res.hovered = false;
             }
 
-            if memory.has_focus(res.id) && clicked_elsewhere {
+            if clicked_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
             }
 
-            if res.dragged() && !memory.has_focus(res.id) {
+            if res.dragged() && !memory.has_focus(id) {
                 // e.g.: remove focus from a widget when you drag something else
                 memory.stop_text_input();
             }
@@ -1900,7 +1917,7 @@ impl Context {
 
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
-        if self.options(|o| o.debug_paint_interactive_widgets) {
+        if self.style().debug.show_interactive_widgets {
             let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
             for (layer_id, rects) in rects.by_layer {
                 let painter = Painter::new(self.clone(), layer_id, Rect::EVERYTHING);
@@ -1913,7 +1930,8 @@ impl Context {
                         } else if rect.sense.drag {
                             (Color32::from_rgb(0, 0, 0x88), "drag")
                         } else {
-                            (Color32::from_rgb(0, 0, 0x88), "hover")
+                            continue;
+                            // (Color32::from_rgb(0, 0, 0x88), "hover")
                         };
                         painter.debug_rect(rect.interact_rect, color, text);
                     }
@@ -2419,48 +2437,6 @@ impl Context {
         }
 
         true
-    }
-
-    /// Does the given widget contain the mouse pointer?
-    ///
-    /// Will return false if some other area is covering the given layer.
-    ///
-    /// If another widget is covering us and is listening for the same input (click and/or drag),
-    /// this will return false.
-    ///
-    /// The given rectangle is assumed to have been clipped by its parent clip rect.
-    ///
-    /// See also [`Response::contains_pointer`].
-    pub fn widget_contains_pointer(
-        &self,
-        layer_id: LayerId,
-        id: Id,
-        sense: Sense,
-        interact_rect: Rect,
-    ) -> bool {
-        if !interact_rect.is_positive() {
-            return false; // don't even remember this widget
-        }
-
-        self.write(|ctx| {
-            let viewport = ctx.viewport();
-
-            // We add all widgets here, even non-interactive ones,
-            // because we need this list not only for checking for blocking widgets,
-            // but also to know when we have reached the widget we are checking for cover.
-            viewport.widgets_this_frame.insert(
-                layer_id,
-                WidgetRect {
-                    id,
-                    layer_id,
-                    interact_rect,
-                    sense,
-                },
-            );
-
-            // Based on output from previous frame and input in this frame
-            viewport.interact_widgets.contains_pointer.contains_key(&id)
-        })
     }
 
     // ---------------------------------------------------------------------

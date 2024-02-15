@@ -646,13 +646,15 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().interact(
-            self.clip_rect(),
+        let interact_rect = self.clip_rect().intersect(rect);
+        self.ctx().create_widget(
             self.layer_id(),
             id,
             rect,
+            interact_rect,
             sense,
             self.enabled,
+            true,
         )
     }
 
@@ -670,7 +672,7 @@ impl Ui {
         sense: Sense,
     ) -> Response {
         let interact_rect = rect.intersect(self.clip_rect());
-        self.ctx().interact_with_existing(
+        self.ctx().create_widget(
             self.layer_id(),
             id,
             rect,

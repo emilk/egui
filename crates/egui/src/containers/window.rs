@@ -736,8 +736,7 @@ fn resize_interaction(
     }
 
     let is_dragging = |rect, id| {
-        let clip_rect = Rect::EVERYTHING;
-        let response = ctx.interact(clip_rect, layer_id, id, rect, Sense::drag(), true);
+        let response = ctx.create_widget(layer_id, id, rect, rect, Sense::drag(), true, true);
         SideResponse {
             hover: response.hovered(),
             drag: response.dragged(),
