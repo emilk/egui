@@ -1049,9 +1049,6 @@ pub struct DebugOptions {
 
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
-
-    /// Show which widgets are being interacted with.
-    pub show_interaction_widgets: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1067,7 +1064,6 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
-            show_interaction_widgets: false,
         }
     }
 }
@@ -1885,7 +1881,6 @@ impl DebugOptions {
             show_resize,
             show_interactive_widgets,
             show_widget_hits,
-            show_interaction_widgets,
         } = self;
 
         {
@@ -1914,8 +1909,6 @@ impl DebugOptions {
         );
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
-
-        ui.checkbox(show_interaction_widgets, "Show interaction widgets");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

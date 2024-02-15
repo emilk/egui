@@ -1917,7 +1917,13 @@ impl Context {
 
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
+        let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
+            let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
+            painter.debug_rect(widget.interact_rect, color, text);
+        };
+
         if self.style().debug.show_interactive_widgets {
+            // Show all interactive widgets:
             let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
             for (layer_id, rects) in rects.by_layer {
                 let painter = Painter::new(self.clone(), layer_id, Rect::EVERYTHING);
@@ -1937,42 +1943,9 @@ impl Context {
                     }
                 }
             }
-        }
 
-        #[cfg(debug_assertions)]
-        {
-            let paint = |widget: &WidgetRect, text: &str, color: Color32| {
-                let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
-                painter.debug_rect(widget.interact_rect, color, text);
-            };
-
-            if self.style().debug.show_widget_hits {
-                let hits = self.write(|ctx| ctx.viewport().hits.clone());
-                let WidgetHits {
-                    contains_pointer,
-                    top,
-                    click,
-                    drag,
-                    closest_interactive: _,
-                } = hits;
-
-                if false {
-                    for widget in &contains_pointer {
-                        paint(widget, "contains_pointer", Color32::BLUE);
-                    }
-                }
-                for widget in &top {
-                    paint(widget, "top", Color32::WHITE);
-                }
-                for widget in &click {
-                    paint(widget, "click", Color32::RED);
-                }
-                for widget in &drag {
-                    paint(widget, "drag", Color32::GREEN);
-                }
-            }
-
-            if self.style().debug.show_interaction_widgets {
+            // Show the ones actually interacted with:
+            {
                 let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
                 let InteractionSnapshot {
                     clicked,
@@ -1985,19 +1958,43 @@ impl Context {
 
                 if false {
                     for widget in contains_pointer.values() {
-                        paint(widget, "contains_pointer", Color32::BLUE);
+                        paint_widget(widget, "contains_pointer", Color32::BLUE);
                     }
                 }
                 if true {
                     for widget in hovered.values() {
-                        paint(widget, "hovered", Color32::WHITE);
+                        paint_widget(widget, "hovered", Color32::WHITE);
                     }
                 }
                 for widget in &clicked {
-                    paint(widget, "clicked", Color32::RED);
+                    paint_widget(widget, "clicked", Color32::RED);
                 }
                 for widget in &dragged {
-                    paint(widget, "dragged", Color32::GREEN);
+                    paint_widget(widget, "dragged", Color32::GREEN);
+                }
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            if self.style().debug.show_widget_hits {
+                let hits = self.write(|ctx| ctx.viewport().hits.clone());
+                let WidgetHits {
+                    contains_pointer,
+                    click,
+                    drag,
+                } = hits;
+
+                if false {
+                    for widget in &contains_pointer {
+                        paint_widget(widget, "contains_pointer", Color32::BLUE);
+                    }
+                }
+                for widget in &click {
+                    paint_widget(widget, "click", Color32::RED);
+                }
+                for widget in &drag {
+                    paint_widget(widget, "drag", Color32::GREEN);
                 }
             }
         }
