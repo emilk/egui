@@ -1126,11 +1126,9 @@ impl Context {
                 // but also to know when we have reached the widget we are checking for cover.
                 viewport.widgets_this_frame.insert(w.layer_id, w);
 
-                // Based on output from previous frame and input in this frame
-                viewport
-                    .interact_widgets
-                    .contains_pointer
-                    .contains_key(&w.id)
+                if w.sense.focusable {
+                    ctx.memory.interested_in_focus(w.id);
+                }
             });
         } else {
             // Don't remember invisible widgets
@@ -1159,7 +1157,9 @@ impl Context {
         res
     }
 
-    /// Read the response of some widget, either before or after it was created/interacted.
+    /// Read the response of some widget, which may be called _before_ creating the widget (!).
+    ///
+    /// This is because widget interaction happens at the start of the frame, using the previous frame's widgets.
     ///
     /// If the widget was not visible the previous frame (or this frame), this will return `None`.
     pub fn read_response(&self, id: Id) -> Option<Response> {
@@ -1220,10 +1220,6 @@ impl Context {
             let input = &viewport.input;
             let memory = &mut ctx.memory;
 
-            if sense.focusable {
-                memory.interested_in_focus(id);
-            }
-
             if sense.click
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
@@ -1251,23 +1247,16 @@ impl Context {
 
             let clicked = Some(id) == viewport.interact_widgets.clicked.map(|w| w.id);
 
-            if sense.click && clicked {
-                // We were clicked - what kind of click?
-                for pointer_event in &input.pointer.pointer_events {
-                    if let PointerEvent::Released {
-                        click: Some(click),
-                        button,
-                    } = pointer_event
-                    {
-                        res.clicked[*button as usize] = true;
-                        res.double_clicked[*button as usize] = click.is_double();
-                        res.triple_clicked[*button as usize] = click.is_triple();
-                    }
-                }
-            }
-
             for pointer_event in &input.pointer.pointer_events {
-                if let PointerEvent::Released { .. } = pointer_event {
+                if let PointerEvent::Released { click, button } = pointer_event {
+                    if sense.click && clicked {
+                        if let Some(click) = click {
+                            res.clicked[*button as usize] = true;
+                            res.double_clicked[*button as usize] = click.is_double();
+                            res.triple_clicked[*button as usize] = click.is_triple();
+                        }
+                    }
+
                     res.is_pointer_button_down_on = false;
                     res.dragged = false;
                 }
@@ -1897,6 +1886,14 @@ impl Context {
 
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
+        #[cfg(debug_assertions)]
+        self.debug_painting();
+
+        self.write(|ctx| ctx.end_frame())
+    }
+
+    #[cfg(debug_assertions)]
+    fn debug_painting(&self) {
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
             let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
             painter.debug_rect(widget.interact_rect, color, text);
@@ -1955,31 +1952,26 @@ impl Context {
             }
         }
 
-        #[cfg(debug_assertions)]
-        {
-            if self.style().debug.show_widget_hits {
-                let hits = self.write(|ctx| ctx.viewport().hits.clone());
-                let WidgetHits {
-                    contains_pointer,
-                    click,
-                    drag,
-                } = hits;
+        if self.style().debug.show_widget_hits {
+            let hits = self.write(|ctx| ctx.viewport().hits.clone());
+            let WidgetHits {
+                contains_pointer,
+                click,
+                drag,
+            } = hits;
 
-                if false {
-                    for widget in &contains_pointer {
-                        paint_widget(widget, "contains_pointer", Color32::BLUE);
-                    }
-                }
-                for widget in &click {
-                    paint_widget(widget, "click", Color32::RED);
-                }
-                for widget in &drag {
-                    paint_widget(widget, "drag", Color32::GREEN);
+            if false {
+                for widget in &contains_pointer {
+                    paint_widget(widget, "contains_pointer", Color32::BLUE);
                 }
             }
+            for widget in &click {
+                paint_widget(widget, "click", Color32::RED);
+            }
+            for widget in &drag {
+                paint_widget(widget, "drag", Color32::GREEN);
+            }
         }
-
-        self.write(|ctx| ctx.end_frame())
     }
 }
 

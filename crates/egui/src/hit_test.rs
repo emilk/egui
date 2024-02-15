@@ -6,8 +6,6 @@ use crate::*;
 ///
 /// Note that this doesn't care if the mouse button is pressed or not,
 /// or if we're currently already dragging something.
-///
-/// For that you need the [`crate::InteractionState`].
 #[derive(Clone, Debug, Default)]
 pub struct WidgetHits {
     /// All widgets that contains the pointer, back-to-front.
