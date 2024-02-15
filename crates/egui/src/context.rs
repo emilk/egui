@@ -2598,6 +2598,13 @@ impl Context {
                     crate::text_selection::LabelSelectionState::load(ui.ctx())
                 ));
             });
+
+        CollapsingHeader::new("Interaction")
+            .default_open(false)
+            .show(ui, |ui| {
+                let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
+                interact_widgets.ui(ui);
+            });
     }
 
     /// Show stats about the allocated textures.

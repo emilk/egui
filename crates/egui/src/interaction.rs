@@ -31,8 +31,53 @@ pub struct InteractionSnapshot {
     /// The widget will not be found in [`Self::dragged`] this frame.
     pub drag_ended: Option<WidgetRect>,
 
-    pub contains_pointer: IdMap<WidgetRect>,
     pub hovered: IdMap<WidgetRect>,
+    pub contains_pointer: IdMap<WidgetRect>,
+}
+
+impl InteractionSnapshot {
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        let Self {
+            clicked,
+            drag_started,
+            dragged,
+            drag_ended,
+            hovered,
+            contains_pointer,
+        } = self;
+
+        fn wr_ui<'a>(ui: &mut crate::Ui, widgets: impl IntoIterator<Item = &'a WidgetRect>) {
+            for widget in widgets {
+                ui.label(widget.id.short_debug_format());
+            }
+        }
+
+        crate::Grid::new("interaction").show(ui, |ui| {
+            ui.label("clicked");
+            wr_ui(ui, clicked);
+            ui.end_row();
+
+            ui.label("drag_started");
+            wr_ui(ui, drag_started);
+            ui.end_row();
+
+            ui.label("dragged");
+            wr_ui(ui, dragged);
+            ui.end_row();
+
+            ui.label("drag_ended");
+            wr_ui(ui, drag_ended);
+            ui.end_row();
+
+            ui.label("hovered");
+            wr_ui(ui, hovered.values());
+            ui.end_row();
+
+            ui.label("contains_pointer");
+            wr_ui(ui, contains_pointer.values());
+            ui.end_row();
+        });
+    }
 }
 
 pub(crate) fn interact(
@@ -53,7 +98,9 @@ pub(crate) fn interact(
     if let Some(id) = interaction.drag_id {
         if !widgets.by_id.contains_key(&id) {
             // The widget we were interested in dragging is gone.
-            interaction.drag_id = None;
+            // This is fine! This could be drag-and-drop,
+            // and the widget being dragged is now "in the air" and thus
+            // not registered in the new frame.
         }
     }
 
@@ -111,6 +158,14 @@ pub(crate) fn interact(
     let drag_changed = dragged != prev_snapshot.dragged;
     let drag_ended = drag_changed.then_some(prev_snapshot.dragged).flatten();
     let drag_started = drag_changed.then_some(dragged).flatten();
+
+    // if let Some(drag_started) = drag_started {
+    //     eprintln!(
+    //         "Started dragging {} {:?}",
+    //         drag_started.id.short_debug_format(),
+    //         drag_started.rect
+    //     );
+    // }
 
     let contains_pointer: IdMap<WidgetRect> = hits
         .contains_pointer
