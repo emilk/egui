@@ -277,6 +277,26 @@ impl Ui {
         }
     }
 
+    /// Make the widget in this [`Ui`] semi-transparent.
+    ///
+    /// `opacity` must be between 0.0 and 1.0, where 0.0 means fully transparent (i.e., invisible)
+    /// and 1.0 means fully opaque (i.e., the same as not calling the method at all).
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.group(|ui| {
+    ///     ui.set_opacity(0.5);
+    ///     if ui.button("Half-transparent button").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn set_opacity(&mut self, opacity: f32) {
+        self.painter.set_opacity(opacity);
+    }
+
     /// Read the [`Layout`].
     #[inline]
     pub fn layout(&self) -> &Layout {
