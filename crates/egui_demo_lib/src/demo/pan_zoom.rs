@@ -17,8 +17,8 @@ impl super::Demo for PanZoom {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use super::View as _;
         let window = egui::Window::new("Pan Zoom")
-            .default_width(200.0)
-            .default_height(200.0)
+            .default_width(300.0)
+            .default_height(300.0)
             .vscroll(false)
             .open(open);
         window.show(ctx, |ui| self.ui(ui));
@@ -39,17 +39,22 @@ impl super::View for PanZoom {
         let (id, rect) = ui.allocate_space(ui.available_size());
         let response = ui.interact(rect, id, egui::Sense::click_and_drag());
         // Allow dragging the background as well.
-        self.transform.translation += response.drag_delta();
+        if response.dragged() {
+            self.transform.translation += response.drag_delta();
+        }
 
         // Plot-like reset
         if response.double_clicked() {
             self.transform = TSTransform::default();
         }
 
+        let transform =
+            TSTransform::from_translation(ui.min_rect().left_top().to_vec2()) * self.transform;
+
         if let Some(pointer) = ui.ctx().input(|i| i.pointer.hover_pos()) {
             // Note: doesn't catch zooming / panning if a button in this PanZoom container is hovered.
             if response.hovered() {
-                let pointer_in_layer = self.transform.inverse() * pointer;
+                let pointer_in_layer = transform.inverse() * pointer;
                 let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
                 let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
 
@@ -64,32 +69,31 @@ impl super::View for PanZoom {
             }
         }
 
-        let current_size = ui.min_rect();
         for (id, pos, callback) in [
             (
                 "a",
-                current_size.left_top() + egui::Vec2::new(10.0, 10.0),
+                egui::Pos2::new(0.0, 0.0),
                 Box::new(|ui: &mut egui::Ui, _: &mut Self| ui.button("top left!"))
                     as Box<dyn Fn(&mut egui::Ui, &mut Self) -> egui::Response>,
             ),
             (
                 "b",
-                current_size.left_bottom() + egui::Vec2::new(10.0, -10.0),
+                egui::Pos2::new(0.0, 120.0),
                 Box::new(|ui: &mut egui::Ui, _| ui.button("bottom left?")),
             ),
             (
                 "c",
-                current_size.right_bottom() + egui::Vec2::new(-10.0, -10.0),
+                egui::Pos2::new(120.0, 120.0),
                 Box::new(|ui: &mut egui::Ui, _| ui.button("right bottom :D")),
             ),
             (
                 "d",
-                current_size.right_top() + egui::Vec2::new(-10.0, 10.0),
+                egui::Pos2::new(120.0, 0.0),
                 Box::new(|ui: &mut egui::Ui, _| ui.button("right top ):")),
             ),
             (
                 "e",
-                current_size.center(),
+                egui::Pos2::new(60.0, 60.0),
                 Box::new(|ui, state| {
                     ui.add(egui::Slider::new(&mut state.drag_value, 0.0..=100.0).text("My value"))
                 }),
@@ -101,7 +105,7 @@ impl super::View for PanZoom {
                 // but may also cover over other windows.
                 .order(egui::Order::Foreground)
                 .show(ui.ctx(), |ui| {
-                    ui.set_clip_rect(self.transform.inverse() * rect);
+                    ui.set_clip_rect(transform.inverse() * rect);
                     egui::Frame::default()
                         .rounding(egui::Rounding::same(4.0))
                         .inner_margin(egui::Margin::same(8.0))
@@ -114,7 +118,7 @@ impl super::View for PanZoom {
                 })
                 .response
                 .layer_id;
-            ui.ctx().set_transform_layer(id, self.transform);
+            ui.ctx().set_transform_layer(id, transform);
         }
     }
 }
