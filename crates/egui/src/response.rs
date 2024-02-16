@@ -407,7 +407,7 @@ impl Response {
                 .ctx
                 .memory(|m| m.layer_transforms.get(&self.layer_id).cloned())
             {
-                pos = pos.map(|p| transform * p)
+                pos = pos.map(|p| transform * p);
             }
             pos
         } else {
