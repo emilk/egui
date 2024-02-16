@@ -1247,6 +1247,12 @@ impl Context {
             let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_released;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
+                if let (Some(transform), Some(pos)) = (
+                    memory.layer_transforms.get(&res.layer_id),
+                    &mut res.interact_pointer_pos,
+                ) {
+                    *pos = transform.inverse() * *pos;
+                }
             }
 
             if input.pointer.any_down() && !res.is_pointer_button_down_on {
