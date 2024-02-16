@@ -402,14 +402,14 @@ impl Response {
     #[inline]
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
-            let mut pos = self.ctx.input(|i| i.pointer.hover_pos());
+            let mut pos = self.ctx.input(|i| i.pointer.hover_pos())?;
             if let Some(transform) = self
                 .ctx
                 .memory(|m| m.layer_transforms.get(&self.layer_id).cloned())
             {
-                pos = pos.map(|p| transform * p);
+                pos = transform * pos;
             }
-            pos
+            Some(pos)
         } else {
             None
         }
