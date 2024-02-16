@@ -105,7 +105,7 @@ fn run_and_return(
                 viewport_id,
             }) => {
                 let current_frame_nr = winit_app.frame_nr(*viewport_id);
-                if current_frame_nr == *frame_nr || current_frame_nr == *frame_nr + 1 {
+                if current_frame_nr >= *frame_nr {
                     log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
                     if let Some(window_id) = winit_app.window_id_from_viewport_id(*viewport_id) {
                         EventResult::RepaintAt(window_id, *when)
@@ -270,7 +270,7 @@ fn run_and_exit(
                 viewport_id,
             }) => {
                 let current_frame_nr = winit_app.frame_nr(*viewport_id);
-                if current_frame_nr == *frame_nr || current_frame_nr == *frame_nr + 1 {
+                if current_frame_nr >= *frame_nr {
                     if let Some(window_id) = winit_app.window_id_from_viewport_id(*viewport_id) {
                         EventResult::RepaintAt(window_id, *when)
                     } else {
