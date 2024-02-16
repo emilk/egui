@@ -17,4 +17,4 @@ env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",
 ] }
-rfd = "0.11"
+rfd = "0.13"

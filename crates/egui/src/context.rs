@@ -2115,7 +2115,8 @@ impl Context {
             let texture_atlas = ctx
                 .fonts
                 .get(&pixels_per_point.into())
-                .expect("tessellate called before first call to Context::run()")
+                .expect("tessellate called with a different pixels_per_point than the font atlas was created with. \
+                         You should use egui::FullOutput::pixels_per_point when tessellating.")
                 .texture_atlas();
             let (font_tex_size, prepared_discs) = {
                 let atlas = texture_atlas.lock();
