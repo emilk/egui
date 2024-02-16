@@ -28,8 +28,8 @@ impl super::View for PanZoom {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let (id, rect) = ui.allocate_space(ui.available_size());
         let response = ui.interact(rect, id, egui::Sense::click_and_drag());
-        // Uncomment to allow dragging the background as well.
-        // self.transform.translation += response.drag_delta() / self.transform.scaling;
+        // Allow dragging the background as well.
+        self.transform.translation += response.drag_delta();
 
         // Plot-like reset
         if response.double_clicked() {
