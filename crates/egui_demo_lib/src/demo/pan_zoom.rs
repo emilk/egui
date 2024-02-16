@@ -4,6 +4,7 @@ use egui::emath::TSTransform;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PanZoom {
     transform: TSTransform,
+    drag_value: f32,
 }
 
 impl Eq for PanZoom {}
@@ -55,25 +56,37 @@ impl super::View for PanZoom {
         }
 
         let current_size = ui.min_rect();
-        for (pos, msg) in [
+        for (id, pos, callback) in [
             (
+                "a",
                 current_size.left_top() + egui::Vec2::new(10.0, 10.0),
-                "top left!",
+                Box::new(|ui: &mut egui::Ui, _: &mut Self| ui.button("top left!"))
+                    as Box<dyn Fn(&mut egui::Ui, &mut Self) -> egui::Response>,
             ),
             (
+                "b",
                 current_size.left_bottom() + egui::Vec2::new(10.0, -10.0),
-                "bottom left?",
+                Box::new(|ui: &mut egui::Ui, _| ui.button("bottom left?")),
             ),
             (
+                "c",
                 current_size.right_bottom() + egui::Vec2::new(-10.0, -10.0),
-                "right bottom :D",
+                Box::new(|ui: &mut egui::Ui, _| ui.button("right bottom :D")),
             ),
             (
+                "d",
                 current_size.right_top() + egui::Vec2::new(-10.0, 10.0),
-                "right top ):",
+                Box::new(|ui: &mut egui::Ui, _| ui.button("right top ):")),
+            ),
+            (
+                "e",
+                current_size.center(),
+                Box::new(|ui, state| {
+                    ui.add(egui::Slider::new(&mut state.drag_value, 0.0..=100.0).text("My value"))
+                }),
             ),
         ] {
-            let id = egui::Area::new(msg)
+            let id = egui::Area::new(id)
                 .default_pos(pos)
                 // Need to cover up the pan_zoom demo window,
                 // but may also cover over other windows.
@@ -87,7 +100,7 @@ impl super::View for PanZoom {
                         .fill(ui.style().visuals.panel_fill)
                         .show(ui, |ui| {
                             ui.style_mut().wrap = Some(false);
-                            ui.button(msg).clicked();
+                            callback(ui, self)
                         });
                 })
                 .response
