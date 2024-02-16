@@ -481,7 +481,7 @@ impl Plot {
         self
     }
 
-    /// Set the sense for the plot window.
+    /// Set the sense for the plot rect.
     ///
     /// Default: `Sense::click_and_drag()`.
     #[inline]
