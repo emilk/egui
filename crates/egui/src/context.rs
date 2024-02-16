@@ -3321,6 +3321,39 @@ impl Context {
     pub fn drag_ended_id(&self) -> Option<Id> {
         self.interaction_snapshot(|i| i.drag_ended)
     }
+
+    /// Set which widget is being dragged.
+    pub fn set_dragged_id(&self, id: Id) {
+        self.write(|ctx| {
+            let vp = ctx.viewport();
+            let i = &mut vp.interact_widgets;
+            if i.dragged != Some(id) {
+                i.drag_ended = i.dragged.or(i.drag_ended);
+                i.dragged = Some(id);
+                i.drag_started = Some(id);
+            }
+        });
+    }
+
+    /// Stop dragging any widget.
+    pub fn stop_dragging(&self) {
+        self.write(|ctx| {
+            let vp = ctx.viewport();
+            let i = &mut vp.interact_widgets;
+            if i.dragged.is_some() {
+                i.drag_ended = i.dragged;
+                i.dragged = None;
+            }
+        });
+    }
+    /// Is something else being dragged?
+    ///
+    /// Returns true if we are dragging something, but not the given widget.
+    #[inline(always)]
+    pub fn dragging_something_else(&self, not_this: Id) -> bool {
+        let dragged = self.dragged_id();
+        dragged.is_some() && dragged != Some(not_this)
+    }
 }
 
 #[test]

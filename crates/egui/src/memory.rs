@@ -762,12 +762,14 @@ impl Memory {
 
     /// Set which widget is being dragged.
     #[inline(always)]
+    #[deprecated = "Use `Context::set_dragged_id` instead"]
     pub fn set_dragged_id(&mut self, id: Id) {
         self.interaction_mut().potential_drag_id = Some(id);
     }
 
     /// Stop dragging any widget.
     #[inline(always)]
+    #[deprecated = "Use `Context::stop_dragging` instead"]
     pub fn stop_dragging(&mut self) {
         self.interaction_mut().potential_drag_id = None;
     }
@@ -776,6 +778,7 @@ impl Memory {
     ///
     /// Returns true if we are dragging something, but not the given widget.
     #[inline(always)]
+    #[deprecated = "Use `Context::dragging_something_else` instead"]
     pub fn dragging_something_else(&self, not_this: Id) -> bool {
         let drag_id = self.interaction().potential_drag_id;
         drag_id.is_some() && drag_id != Some(not_this)
