@@ -198,11 +198,11 @@ fn run_and_return(
                 } else {
                     window.request_redraw();
                 }
-                false
+                return false;
             } else {
                 log::trace!("No window found for {window_id:?}");
-                false
             }
+            false
         });
 
         if let Some(next_repaint_time) = next_repaint_time {
@@ -356,11 +356,11 @@ fn run_and_exit(
                 } else {
                     window.request_redraw();
                 }
-                false
+                return false;
             } else {
                 log::trace!("No window found for {window_id:?}");
-                false
             }
+            false
         });
 
         if let Some(next_repaint_time) = next_repaint_time {
