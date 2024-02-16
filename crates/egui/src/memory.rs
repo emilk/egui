@@ -292,7 +292,7 @@ impl Options {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct InteractionState {
     /// A widget interested in clicks that has a mouse press on it.
-    pub click_id: Option<Id>,
+    pub potential_click_id: Option<Id>,
 
     /// A widget interested in drags that has a mouse press on it.
     ///
@@ -300,7 +300,7 @@ pub(crate) struct InteractionState {
     /// so the widget may not yet be marked as "dragged",
     /// as that can only happen after the mouse has moved a bit
     /// (at least if the widget is interesated in both clicks and drags).
-    pub drag_id: Option<Id>,
+    pub potential_drag_id: Option<Id>,
 
     pub focus: Focus,
 }
@@ -353,7 +353,7 @@ impl FocusWidget {
 impl InteractionState {
     /// Are we currently clicking or dragging an egui widget?
     pub fn is_using_pointer(&self) -> bool {
-        self.click_id.is_some() || self.drag_id.is_some()
+        self.potential_click_id.is_some() || self.potential_drag_id.is_some()
     }
 
     fn begin_frame(
@@ -362,13 +362,13 @@ impl InteractionState {
         new_input: &crate::data::input::RawInput,
     ) {
         if !prev_input.pointer.could_any_button_be_click() {
-            self.click_id = None;
+            self.potential_click_id = None;
         }
 
         if !prev_input.pointer.any_down() || prev_input.pointer.latest_pos().is_none() {
             // pointer button was not down last frame
-            self.click_id = None;
-            self.drag_id = None;
+            self.potential_click_id = None;
+            self.potential_drag_id = None;
         }
 
         self.focus.begin_frame(new_input);
@@ -730,9 +730,10 @@ impl Memory {
     }
 
     /// Is any widget being dragged?
+    #[deprecated = "Use `Context::dragged_id` instead"]
     #[inline(always)]
     pub fn is_anything_being_dragged(&self) -> bool {
-        self.interaction().drag_id.is_some()
+        self.interaction().potential_drag_id.is_some()
     }
 
     /// Is this specific widget being dragged?
@@ -741,9 +742,10 @@ impl Memory {
     ///
     /// A widget that sense both clicks and drags is only marked as "dragged"
     /// when the mouse has moved a bit, but `is_being_dragged` will return true immediately.
+    #[deprecated = "Use `Context::dragged_id` instead"]
     #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
-        self.interaction().drag_id == Some(id)
+        self.interaction().potential_drag_id == Some(id)
     }
 
     /// Get the id of the widget being dragged, if any.
@@ -752,21 +754,22 @@ impl Memory {
     /// so the widget may not yet be marked as "dragged",
     /// as that can only happen after the mouse has moved a bit
     /// (at least if the widget is interesated in both clicks and drags).
+    #[deprecated = "Use `Context::dragged_id` instead"]
     #[inline(always)]
     pub fn dragged_id(&self) -> Option<Id> {
-        self.interaction().drag_id
+        self.interaction().potential_drag_id
     }
 
     /// Set which widget is being dragged.
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
-        self.interaction_mut().drag_id = Some(id);
+        self.interaction_mut().potential_drag_id = Some(id);
     }
 
     /// Stop dragging any widget.
     #[inline(always)]
     pub fn stop_dragging(&mut self) {
-        self.interaction_mut().drag_id = None;
+        self.interaction_mut().potential_drag_id = None;
     }
 
     /// Is something else being dragged?
@@ -774,7 +777,7 @@ impl Memory {
     /// Returns true if we are dragging something, but not the given widget.
     #[inline(always)]
     pub fn dragging_something_else(&self, not_this: Id) -> bool {
-        let drag_id = self.interaction().drag_id;
+        let drag_id = self.interaction().potential_drag_id;
         drag_id.is_some() && drag_id != Some(not_this)
     }
 

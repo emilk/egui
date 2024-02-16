@@ -2,7 +2,7 @@
 
 use crate::*;
 
-use self::{hit_test::WidgetHits, input_state::PointerEvent, memory::InteractionState};
+use self::{hit_test::WidgetHits, id::IdSet, input_state::PointerEvent, memory::InteractionState};
 
 /// Calculated at the start of each frame
 /// based on:
@@ -12,27 +12,31 @@ use self::{hit_test::WidgetHits, input_state::PointerEvent, memory::InteractionS
 #[derive(Clone, Default)]
 pub struct InteractionSnapshot {
     /// The widget that got clicked this frame.
-    pub clicked: Option<WidgetRect>,
+    pub clicked: Option<Id>,
 
     /// Drag started on this widget this frame.
     ///
     /// This will also be found in `dragged` this frame.
-    pub drag_started: Option<WidgetRect>,
+    pub drag_started: Option<Id>,
 
     /// This widget is being dragged this frame.
     ///
     /// Set the same frame a drag starts,
     /// but unset the frame a drag ends.
-    pub dragged: Option<WidgetRect>,
+    ///
+    /// NOTE: this may not have a corresponding [`WidgetRect`],
+    /// if this for instance is a drag-and-drop widget which
+    /// isn't painted whilest being dragged
+    pub dragged: Option<Id>,
 
     /// This widget was let go this frame,
     /// after having been dragged.
     ///
     /// The widget will not be found in [`Self::dragged`] this frame.
-    pub drag_ended: Option<WidgetRect>,
+    pub drag_ended: Option<Id>,
 
-    pub hovered: IdMap<WidgetRect>,
-    pub contains_pointer: IdMap<WidgetRect>,
+    pub hovered: IdSet,
+    pub contains_pointer: IdSet,
 }
 
 impl InteractionSnapshot {
@@ -46,35 +50,35 @@ impl InteractionSnapshot {
             contains_pointer,
         } = self;
 
-        fn wr_ui<'a>(ui: &mut crate::Ui, widgets: impl IntoIterator<Item = &'a WidgetRect>) {
-            for widget in widgets {
-                ui.label(widget.id.short_debug_format());
+        fn id_ui<'a>(ui: &mut crate::Ui, widgets: impl IntoIterator<Item = &'a Id>) {
+            for id in widgets {
+                ui.label(id.short_debug_format());
             }
         }
 
         crate::Grid::new("interaction").show(ui, |ui| {
             ui.label("clicked");
-            wr_ui(ui, clicked);
+            id_ui(ui, clicked);
             ui.end_row();
 
             ui.label("drag_started");
-            wr_ui(ui, drag_started);
+            id_ui(ui, drag_started);
             ui.end_row();
 
             ui.label("dragged");
-            wr_ui(ui, dragged);
+            id_ui(ui, dragged);
             ui.end_row();
 
             ui.label("drag_ended");
-            wr_ui(ui, drag_ended);
+            id_ui(ui, drag_ended);
             ui.end_row();
 
             ui.label("hovered");
-            wr_ui(ui, hovered.values());
+            id_ui(ui, hovered);
             ui.end_row();
 
             ui.label("contains_pointer");
-            wr_ui(ui, contains_pointer.values());
+            id_ui(ui, contains_pointer);
             ui.end_row();
         });
     }
@@ -89,13 +93,13 @@ pub(crate) fn interact(
 ) -> InteractionSnapshot {
     crate::profile_function!();
 
-    if let Some(id) = interaction.click_id {
+    if let Some(id) = interaction.potential_click_id {
         if !widgets.by_id.contains_key(&id) {
             // The widget we were interested in clicking is gone.
-            interaction.click_id = None;
+            interaction.potential_click_id = None;
         }
     }
-    if let Some(id) = interaction.drag_id {
+    if let Some(id) = interaction.potential_drag_id {
         if !widgets.by_id.contains_key(&id) {
             // The widget we were interested in dragging is gone.
             // This is fine! This could be drag-and-drop,
@@ -105,6 +109,7 @@ pub(crate) fn interact(
     }
 
     let mut clicked = None;
+    let mut dragged = prev_snapshot.dragged;
 
     // Note: in the current code a press-release in the same frame is NOT considered a drag.
     for pointer_event in &input.pointer.pointer_events {
@@ -113,47 +118,56 @@ pub(crate) fn interact(
 
             PointerEvent::Pressed { .. } => {
                 // Maybe new click?
-                if interaction.click_id.is_none() {
-                    interaction.click_id = hits.click.map(|w| w.id);
+                if interaction.potential_click_id.is_none() {
+                    interaction.potential_click_id = hits.click.map(|w| w.id);
                 }
 
                 // Maybe new drag?
-                if interaction.drag_id.is_none() {
-                    interaction.drag_id = hits.drag.map(|w| w.id);
+                if interaction.potential_drag_id.is_none() {
+                    interaction.potential_drag_id = hits.drag.map(|w| w.id);
                 }
             }
 
             PointerEvent::Released { click, button: _ } => {
                 if click.is_some() {
-                    if let Some(widget) = interaction.click_id.and_then(|id| widgets.by_id.get(&id))
+                    if let Some(widget) = interaction
+                        .potential_click_id
+                        .and_then(|id| widgets.by_id.get(&id))
                     {
-                        clicked = Some(*widget);
+                        clicked = Some(widget.id);
                     }
                 }
 
-                interaction.drag_id = None;
-                interaction.click_id = None;
+                interaction.potential_drag_id = None;
+                interaction.potential_click_id = None;
+                dragged = None;
             }
         }
     }
 
-    // Check if we're dragging something:
-    let mut dragged = None;
-    if let Some(widget) = interaction.drag_id.and_then(|id| widgets.by_id.get(&id)) {
-        let is_dragged = if widget.sense.click && widget.sense.drag {
-            // This widget is sensitive to both clicks and drags.
-            // When the mouse first is pressed, it could be either,
-            // so we postpone the decision until we know.
-            input.pointer.is_decidedly_dragging()
-        } else {
-            // This widget is just sensitive to drags, so we can mark it as dragged right away:
-            widget.sense.drag
-        };
+    if dragged.is_none() {
+        // Check if we started dragging something new:
+        if let Some(widget) = interaction
+            .potential_drag_id
+            .and_then(|id| widgets.by_id.get(&id))
+        {
+            let is_dragged = if widget.sense.click && widget.sense.drag {
+                // This widget is sensitive to both clicks and drags.
+                // When the mouse first is pressed, it could be either,
+                // so we postpone the decision until we know.
+                input.pointer.is_decidedly_dragging()
+            } else {
+                // This widget is just sensitive to drags, so we can mark it as dragged right away:
+                widget.sense.drag
+            };
 
-        if is_dragged {
-            dragged = Some(*widget);
+            if is_dragged {
+                dragged = Some(widget.id);
+            }
         }
     }
+
+    // ------------------------------------------------------------------------
 
     let drag_changed = dragged != prev_snapshot.dragged;
     let drag_ended = drag_changed.then_some(prev_snapshot.dragged).flatten();
@@ -167,31 +181,27 @@ pub(crate) fn interact(
     //     );
     // }
 
-    let contains_pointer: IdMap<WidgetRect> = hits
+    let contains_pointer: IdSet = hits
         .contains_pointer
         .iter()
         .chain(&hits.click)
         .chain(&hits.drag)
-        .map(|w| (w.id, *w))
+        .map(|w| w.id)
         .collect();
 
     let hovered = if clicked.is_some() || dragged.is_some() {
         // If currently clicking or dragging, nothing else is hovered.
-        clicked.iter().chain(&dragged).map(|w| (w.id, *w)).collect()
+        clicked.iter().chain(&dragged).copied().collect()
     } else if hits.click.is_some() || hits.drag.is_some() {
         // We are hovering over an interactive widget or two.
-        hits.click
-            .iter()
-            .chain(&hits.drag)
-            .map(|w| (w.id, *w))
-            .collect()
+        hits.click.iter().chain(&hits.drag).map(|w| w.id).collect()
     } else {
         // Whatever is topmost is what we are hovering.
         // TODO: consider handle hovering over multiple top-most widgets?
         // TODO: allow hovering close widgets?
         hits.contains_pointer
             .last()
-            .map(|w| (w.id, *w))
+            .map(|w| w.id)
             .into_iter()
             .collect()
     };

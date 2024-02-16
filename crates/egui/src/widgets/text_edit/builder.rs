@@ -551,7 +551,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor(&painter, ui.visuals(), cursor_rect);
                 }
 
-                let is_being_dragged = ui.ctx().memory(|m| m.is_being_dragged(response.id));
+                let is_being_dragged = ui.ctx().dragged_id() == Some(response.id);
                 let did_interact = state.cursor.pointer_interaction(
                     ui,
                     &response,

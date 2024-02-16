@@ -1215,7 +1215,7 @@ impl Context {
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
-            res.contains_pointer = viewport.interact_widgets.contains_pointer.contains_key(&id);
+            res.contains_pointer = viewport.interact_widgets.contains_pointer.contains(&id);
 
             let input = &viewport.input;
             let memory = &mut ctx.memory;
@@ -1235,17 +1235,17 @@ impl Context {
 
             let interaction = memory.interaction_mut();
 
-            res.is_pointer_button_down_on =
-                interaction.click_id == Some(id) || interaction.drag_id == Some(id);
+            res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
+                || interaction.potential_drag_id == Some(id);
 
             if res.enabled {
-                res.hovered = viewport.interact_widgets.hovered.contains_key(&id);
-                res.dragged = Some(id) == viewport.interact_widgets.dragged.map(|w| w.id);
-                res.drag_started = Some(id) == viewport.interact_widgets.drag_started.map(|w| w.id);
-                res.drag_released = Some(id) == viewport.interact_widgets.drag_ended.map(|w| w.id);
+                res.hovered = viewport.interact_widgets.hovered.contains(&id);
+                res.dragged = Some(id) == viewport.interact_widgets.dragged;
+                res.drag_started = Some(id) == viewport.interact_widgets.drag_started;
+                res.drag_released = Some(id) == viewport.interact_widgets.drag_ended;
             }
 
-            let clicked = Some(id) == viewport.interact_widgets.clicked.map(|w| w.id);
+            let clicked = Some(id) == viewport.interact_widgets.clicked;
 
             for pointer_event in &input.pointer.pointer_events {
                 if let PointerEvent::Released { click, button } = pointer_event {
@@ -1899,6 +1899,14 @@ impl Context {
             painter.debug_rect(widget.interact_rect, color, text);
         };
 
+        let paint_widget_id = |id: Id, text: &str, color: Color32| {
+            if let Some(widget) =
+                self.write(|ctx| ctx.viewport().widgets_this_frame.by_id.get(&id).cloned())
+            {
+                paint_widget(&widget, text, color);
+            }
+        };
+
         if self.style().debug.show_interactive_widgets {
             // Show all interactive widgets:
             let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
@@ -1934,20 +1942,20 @@ impl Context {
                 } = interact_widgets;
 
                 if false {
-                    for widget in contains_pointer.values() {
-                        paint_widget(widget, "contains_pointer", Color32::BLUE);
+                    for widget in contains_pointer {
+                        paint_widget_id(widget, "contains_pointer", Color32::BLUE);
                     }
                 }
                 if true {
-                    for widget in hovered.values() {
-                        paint_widget(widget, "hovered", Color32::WHITE);
+                    for widget in hovered {
+                        paint_widget_id(widget, "hovered", Color32::WHITE);
                     }
                 }
-                for widget in &clicked {
-                    paint_widget(widget, "clicked", Color32::RED);
+                for &widget in &clicked {
+                    paint_widget_id(widget, "clicked", Color32::RED);
                 }
-                for widget in &dragged {
-                    paint_widget(widget, "dragged", Color32::GREEN);
+                for &widget in &dragged {
+                    paint_widget_id(widget, "dragged", Color32::GREEN);
                 }
             }
         }
@@ -3281,6 +3289,37 @@ impl Context {
                 "egui backend is implemented incorrectly - the user callback was never called",
             )
         })
+    }
+}
+
+/// ## Interaction
+impl Context {
+    /// Read you what widgets are currently being interacted with.
+    pub fn interaction_snapshot<R>(&self, reader: impl FnOnce(&InteractionSnapshot) -> R) -> R {
+        self.write(|w| reader(&w.viewport().interact_widgets))
+    }
+
+    /// The widget currently being dragged, if any.
+    ///
+    /// For widgets that sense both clicks and drags, this will
+    /// not be set until the mouse cursor has moved a certain distance.
+    ///
+    /// NOTE: if the widget was released this frame, this will be `None`.
+    /// Use [`Self::drag_ended_id`] instead.
+    pub fn dragged_id(&self) -> Option<Id> {
+        self.interaction_snapshot(|i| i.dragged)
+    }
+
+    /// This widget just started being dragged this frame.
+    ///
+    /// The same widget should also be found in [`Self::dragged_id`].
+    pub fn drag_started_id(&self) -> Option<Id> {
+        self.interaction_snapshot(|i| i.drag_started)
+    }
+
+    /// This widget was being dragged, but was released this frame
+    pub fn drag_ended_id(&self) -> Option<Id> {
+        self.interaction_snapshot(|i| i.drag_ended)
     }
 }
 
