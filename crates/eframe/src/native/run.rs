@@ -180,14 +180,18 @@ fn run_and_return(
             }
         }
 
-        let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
+        let mut is_draw_complete = false;
 
         windows_next_repaint_times.retain(|window_id, repaint_time| {
             if Instant::now() < *repaint_time {
                 return true; // not yet ready
             };
 
-            next_repaint_time = None;
+            if is_draw_complete {
+                return false;
+            }
+
+            is_draw_complete = true;
             event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
             if let Some(window) = winit_app.window(*window_id) {
@@ -197,13 +201,15 @@ fn run_and_return(
                     false
                 } else {
                     window.request_redraw();
-                    true
+                    false
                 }
             } else {
                 log::trace!("No window found for {window_id:?}");
                 false
             }
         });
+
+        let next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         if let Some(next_repaint_time) = next_repaint_time {
             event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
@@ -338,14 +344,18 @@ fn run_and_exit(
             }
         }
 
-        let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
+        let mut is_draw_complete = false;
 
         windows_next_repaint_times.retain(|window_id, repaint_time| {
             if Instant::now() < *repaint_time {
                 return true; // not yet ready
             }
 
-            next_repaint_time = None;
+            if is_draw_complete {
+                return false;
+            }
+
+            is_draw_complete = true;
             event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
             if let Some(window) = winit_app.window(*window_id) {
@@ -362,6 +372,8 @@ fn run_and_exit(
                 false
             }
         });
+
+        let next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         if let Some(next_repaint_time) = next_repaint_time {
             // WaitUntil seems to not work on iOS
