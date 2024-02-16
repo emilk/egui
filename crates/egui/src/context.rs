@@ -3332,6 +3332,8 @@ impl Context {
                 i.dragged = Some(id);
                 i.drag_started = Some(id);
             }
+
+            ctx.memory.interaction_mut().potential_drag_id = Some(id);
         });
     }
 
@@ -3344,6 +3346,8 @@ impl Context {
                 i.drag_ended = i.dragged;
                 i.dragged = None;
             }
+
+            ctx.memory.interaction_mut().potential_drag_id = None;
         });
     }
     /// Is something else being dragged?
