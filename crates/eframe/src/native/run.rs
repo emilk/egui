@@ -197,7 +197,7 @@ fn run_and_return(
                     false
                 } else {
                     window.request_redraw();
-                    true
+                    false
                 }
             } else {
                 log::trace!("No window found for {window_id:?}");
@@ -355,7 +355,7 @@ fn run_and_exit(
                     false
                 } else {
                     window.request_redraw();
-                    true
+                    false
                 }
             } else {
                 log::trace!("No window found for {window_id:?}");
