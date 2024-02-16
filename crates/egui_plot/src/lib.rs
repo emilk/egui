@@ -181,6 +181,8 @@ pub struct Plot {
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
+
+    sense: Sense,
 }
 
 impl Plot {
@@ -226,6 +228,8 @@ impl Plot {
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
+
+            sense: egui::Sense::click_and_drag(),
         }
     }
 
@@ -474,6 +478,15 @@ impl Plot {
     #[inline]
     pub fn clamp_grid(mut self, clamp_grid: bool) -> Self {
         self.clamp_grid = clamp_grid;
+        self
+    }
+
+    /// Set the sense for the plot rect.
+    ///
+    /// Default: `Sense::click_and_drag()`.
+    #[inline]
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
         self
     }
 
@@ -745,6 +758,7 @@ impl Plot {
             clamp_grid,
             grid_spacers,
             sharp_grid_lines,
+            sense,
         } = self;
 
         // Determine position of widget.
@@ -789,7 +803,7 @@ impl Plot {
         );
 
         // Allocate the plot window.
-        let response = ui.allocate_rect(plot_rect, Sense::click_and_drag());
+        let response = ui.allocate_rect(plot_rect, sense);
 
         // Load or initialize the memory.
         ui.ctx().check_for_id_clash(plot_id, plot_rect, "Plot");
