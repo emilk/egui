@@ -1182,7 +1182,7 @@ impl Context {
                         PointerEvent::Moved(_) => {}
 
                         PointerEvent::Pressed { .. } => {
-                            if contains_pointer {
+                            if res.hovered {
                                 let interaction = memory.interaction_mut();
 
                                 if sense.click && interaction.click_id.is_none() {
