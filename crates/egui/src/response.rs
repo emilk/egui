@@ -595,25 +595,34 @@ impl Response {
         self
     }
 
-    /// Check for more interactions (e.g. sense clicks on a [`Response`] returned from a label).
+    /// Sense more interactions (e.g. sense clicks on a [`Response`] returned from a label).
+    ///
+    /// The interaction will occur on the same plane as the original widget,
+    /// i.e. if the response was from a widget behind button, the interaction will also be behind that button.
+    /// egui gives priority to the _last_ added widget (the one on top gets clicked first).
     ///
     /// Note that this call will not add any hover-effects to the widget, so when possible
     /// it is better to give the widget a [`Sense`] instead, e.g. using [`crate::Label::sense`].
     ///
+    /// Using this method on a `Response` that is the result of calling `union` on multiple `Response`s
+    /// is undefined behavior.
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// let response = ui.label("hello");
-    /// assert!(!response.clicked()); // labels don't sense clicks by default
-    /// let response = response.interact(egui::Sense::click());
-    /// if response.clicked() { /* … */ }
+    /// let horiz_response = ui.horizontal(|ui| {
+    ///     ui.label("hello");
+    /// }).response;
+    /// assert!(!horiz_response.clicked()); // ui's don't sense clicks by default
+    /// let horiz_response = horiz_response.interact(egui::Sense::click());
+    /// if horiz_response.clicked() {
+    ///     // The background behind the label was clicked
+    /// }
     /// # });
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
-        // Test if we must sense something new compared to what we have already sensed. If not, then
-        // we can return early. This may avoid unnecessarily "masking" some widgets with unneeded
-        // interactions.
         if (self.sense | sense) == self.sense {
+            // Early-out: we already sense everything we need to sense.
             return self.clone();
         }
 
@@ -807,6 +816,8 @@ impl Response {
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     ///
     /// The resulting [`Self::id`] will come from the first (`self`) argument.
+    ///
+    /// You may not call [`Self::interact`] on the resulting `Response`.
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
         crate::egui_assert!(
@@ -864,6 +875,8 @@ impl Response {
     }
 }
 
+/// See [`Response::union`].
+///
 /// To summarize the response from many widgets you can use this pattern:
 ///
 /// ```
@@ -882,6 +895,8 @@ impl std::ops::BitOr for Response {
     }
 }
 
+/// See [`Response::union`].
+///
 /// To summarize the response from many widgets you can use this pattern:
 ///
 /// ```
