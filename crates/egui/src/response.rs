@@ -798,6 +798,30 @@ impl Response {
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
         menu::context_menu(self, add_contents)
     }
+
+    /// Draw a debug rectangle over the response displaying the response's id and whether it is
+    /// enabled and/or hovered.
+    ///
+    /// This function is intended for debugging purpose and can be useful, for example, in case of
+    /// widget id instability.
+    ///
+    /// Color code:
+    /// - Blue: Enabled but not hovered
+    /// - Green: Enabled and hovered
+    /// - Red: Disabled
+    pub fn paint_debug_info(&self) {
+        self.ctx.debug_painter().debug_rect(
+            self.rect,
+            if self.hovered {
+                crate::Color32::DARK_GREEN
+            } else if self.enabled {
+                crate::Color32::BLUE
+            } else {
+                crate::Color32::RED
+            },
+            format!("{:?}", self.id),
+        );
+    }
 }
 
 impl Response {
