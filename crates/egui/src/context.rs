@@ -1115,6 +1115,8 @@ impl Context {
     /// If this is not called, the widget doesn't exist.
     ///
     /// You should use [`Ui::interact`] instead.
+    ///
+    /// If the widget already exists, its state (sense, Rect, etc) will be updated.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, mut w: WidgetRect) -> Response {
         if !w.enabled {
@@ -1246,7 +1248,7 @@ impl Context {
                 res.clicked[PointerButton::Primary as usize] = true;
             }
 
-            let interaction = memory.interaction_mut();
+            let interaction = memory.interaction();
 
             res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
                 || interaction.potential_drag_id == Some(id);
