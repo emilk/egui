@@ -227,8 +227,17 @@ impl GraphicLayers {
             }
 
             // Also draw areas that are missing in `area_order`:
-            for shapes in order_map.values_mut() {
-                all_shapes.append(&mut shapes.0);
+            for (id, list) in order_map {
+                let layer_id = LayerId::new(order, *id);
+
+                if let Some(transform) = transforms.get(&layer_id) {
+                    for clipped_shape in &mut list.0 {
+                        clipped_shape.clip_rect = *transform * clipped_shape.clip_rect;
+                        clipped_shape.shape.transform(*transform);
+                    }
+                }
+
+                all_shapes.append(&mut list.0);
             }
         }
 
