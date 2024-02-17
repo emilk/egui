@@ -386,7 +386,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
                 for (id, value) in data.read().cols(container_id, col) {
                     drag_source(ui, id, |ui| {
                         ui.add(egui::Label::new(value).sense(egui::Sense::click()));
-                        if ui.ctx().dragged_id() == Some(id) {
+                        if ui.ctx().is_being_dragged(id) {
                             is_dragged = Some(id);
                         }
                     });
@@ -408,7 +408,7 @@ fn drag_source<R>(
     id: egui::Id,
     body: impl FnOnce(&mut egui::Ui) -> R,
 ) -> InnerResponse<R> {
-    let is_being_dragged = ui.ctx().dragged_id() == Some(id);
+    let is_being_dragged = ui.ctx().is_being_dragged(id);
 
     if !is_being_dragged {
         let res = ui.scope(body);

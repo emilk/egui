@@ -742,7 +742,7 @@ impl Memory {
     ///
     /// A widget that sense both clicks and drags is only marked as "dragged"
     /// when the mouse has moved a bit, but `is_being_dragged` will return true immediately.
-    #[deprecated = "Use `Context::dragged_id` instead"]
+    #[deprecated = "Use `Context::is_being_dragged` instead"]
     #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
         self.interaction().potential_drag_id == Some(id)

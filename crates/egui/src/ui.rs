@@ -2146,7 +2146,7 @@ impl Ui {
     where
         Payload: Any + Send + Sync,
     {
-        let is_being_dragged = self.ctx().dragged_id() == Some(id);
+        let is_being_dragged = self.ctx().is_being_dragged(id);
 
         if is_being_dragged {
             crate::DragAndDrop::set_payload(self.ctx(), payload);

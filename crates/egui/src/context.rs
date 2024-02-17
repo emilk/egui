@@ -3305,10 +3305,19 @@ impl Context {
     /// not be set until the mouse cursor has moved a certain distance.
     ///
     /// NOTE: if the widget was released this frame, this will be `None`.
-    /// Use [`Self::drag_stopped
-    /// _id`] instead.
+    /// Use [`Self::drag_stopped_id`] instead.
     pub fn dragged_id(&self) -> Option<Id> {
         self.interaction_snapshot(|i| i.dragged)
+    }
+
+    /// Is this specific widget being dragged?
+    ///
+    /// A widget that sense both clicks and drags is only marked as "dragged"
+    /// when the mouse has moved a bit
+    ///
+    /// See also: [`crate::Response::dragged`].
+    pub fn is_being_dragged(&self, id: Id) -> bool {
+        self.dragged_id() == Some(id)
     }
 
     /// This widget just started being dragged this frame.
