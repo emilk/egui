@@ -258,9 +258,11 @@ impl WidgetRects {
             return;
         }
 
-        let layer_widgets = self.by_layer.entry(layer_id).or_default();
+        let Self { by_layer, by_id } = self;
 
-        match self.by_id.entry(widget_rect.id) {
+        let layer_widgets = by_layer.entry(layer_id).or_default();
+
+        match by_id.entry(widget_rect.id) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 // A new widget
                 entry.insert(widget_rect);
@@ -1173,6 +1175,13 @@ impl Context {
                 .copied()
         })
         .map(|widget_rect| self.get_response(widget_rect))
+    }
+
+    /// Returns `true` if the widget with the given `Id` contains the pointer.
+    #[deprecated = "Use Response.contains_pointer or Context::read_response instead"]
+    pub fn widget_contains_pointer(&self, id: Id) -> bool {
+        self.read_response(id)
+            .map_or(false, |response| response.contains_pointer)
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.

@@ -35,7 +35,20 @@ pub struct InteractionSnapshot {
     /// The widget will not be found in [`Self::dragged`] this frame.
     pub drag_stopped: Option<Id>,
 
+    /// A small set of widgets (usually 0-1) that the pointer is hovering over.
+    ///
+    /// Show these widgets as highlighted, if they are interactive.
+    ///
+    /// While dragging or clicking something, nothing else is hovered.
+    ///
+    /// Use [`Self::contains_pointer`] to find a drop-zone for drag-and-drop.
     pub hovered: IdSet,
+
+    /// All widgets that contain the pointer this frame,
+    /// regardless if the user is currently clicking or dragging.
+    ///
+    /// This is usually a larger set than [`Self::hovered`],
+    /// and can be used for e.g. drag-and-drop zones.
     pub contains_pointer: IdSet,
 }
 

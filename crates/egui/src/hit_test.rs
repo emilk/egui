@@ -208,11 +208,21 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
 
         (Some(hit_click), None) => {
             // We have a perfect hit on a click-widget, but not on a drag-widget.
+            //
+            // Note that we don't look for a close drag widget in this case,
+            // because I can't think of a case where that would be helpful.
+            // This is in contrast with the opposite case,
+            // where when hovering directly over a drag-widget (like a big ScrollArea),
+            // we look for close click-widgets (e.g. buttons).
+            // This is because big background drag-widgets (ScrollArea, Window) are common,
+            // but bit clickable things aren't.
+            // Even if they were, I think it would be confusing for a user if clicking
+            // a drag-only widget would click something _behind_ it.
 
             WidgetHits {
                 contains_pointer: hits,
                 click: Some(hit_click),
-                drag: None, // TODO: we should maybe look for close drag widgets?
+                drag: None,
             }
         }
 
@@ -231,7 +241,9 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                         drag: Some(hit_click),
                     }
                 } else {
-                    // They are interested in different things.
+                    // They are interested in different things,
+                    // and click is on top. Report both hits,
+                    // e.g. the top Button and the ScrollArea behind it.
                     WidgetHits {
                         contains_pointer: hits,
                         click: Some(hit_click),
@@ -247,7 +259,9 @@ fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
                         drag: Some(hit_drag),
                     }
                 } else {
-                    // The top things senses only drags
+                    // The top things senses only drags,
+                    // so we ignore the click-widget, because it would be confusing
+                    // if clicking a drag-widget would actually click something else below it.
                     WidgetHits {
                         contains_pointer: hits,
                         click: None,
