@@ -247,6 +247,14 @@ impl SidePanel {
                     .ctx()
                     .layer_id_at(pointer)
                     .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
+                let pointer = if let Some(transform) = ui
+                    .ctx()
+                    .memory(|m| m.layer_transforms.get(&ui.layer_id()).cloned())
+                {
+                    transform.inverse() * pointer
+                } else {
+                    pointer
+                };
 
                 let resize_x = side.opposite().side_x(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
