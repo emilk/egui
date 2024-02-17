@@ -338,8 +338,8 @@ impl Response {
 
     /// If dragged, how far did the mouse move?
     /// This will use raw mouse movement if provided by the integration, otherwise will fall back to [`Response::drag_delta`]
-    /// Raw mouse movement is unaccelerated and unclamped by screen boundries, and does not relate to any position on the screen.
-    /// This may be useful in certain situations such as dragable values and 3D cameras, where screen position does not matter.
+    /// Raw mouse movement is unaccelerated and unclamped by screen boundaries, and does not relate to any position on the screen.
+    /// This may be useful in certain situations such as draggable values and 3D cameras, where screen position does not matter.
     #[inline]
     pub fn drag_motion(&self) -> Vec2 {
         if self.dragged() {

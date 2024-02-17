@@ -619,7 +619,7 @@ pub struct PointerState {
 
     /// How much the mouse moved since the last frame, in unspecified units.
     /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
-    /// May be unavailable on some intergrations.
+    /// May be unavailable on some integrations.
     motion: Option<Vec2>,
 
     /// Current velocity of pointer.
@@ -831,7 +831,7 @@ impl PointerState {
 
     /// How much the mouse moved since the last frame, in unspecified units.
     /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
-    /// May be unavailable on some intergrations.
+    /// May be unavailable on some integrations.
     #[inline(always)]
     pub fn motion(&self) -> Option<Vec2> {
         self.motion
