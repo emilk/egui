@@ -3,7 +3,9 @@
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use ahash::HashMap;
-use epaint::{mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *};
+use epaint::{
+    emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
+};
 
 use crate::{
     animation_manager::AnimationManager,
@@ -1245,6 +1247,12 @@ impl Context {
             let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_released;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
+                if let (Some(transform), Some(pos)) = (
+                    memory.layer_transforms.get(&res.layer_id),
+                    &mut res.interact_pointer_pos,
+                ) {
+                    *pos = transform.inverse() * *pos;
+                }
             }
 
             if input.pointer.any_down() && !res.is_pointer_button_down_on {
@@ -1958,7 +1966,9 @@ impl ContextImpl {
             }
         }
 
-        let shapes = viewport.graphics.drain(self.memory.areas().order());
+        let shapes = viewport
+            .graphics
+            .drain(self.memory.areas().order(), &self.memory.layer_transforms);
 
         let mut repaint_needed = false;
 
@@ -2266,13 +2276,19 @@ impl Context {
 }
 
 impl Context {
-    /// Move all the graphics at the given layer.
+    /// Transform the graphics of the given layer.
     ///
-    /// Can be used to implement drag-and-drop (see relevant demo).
-    pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
-        if delta != Vec2::ZERO {
-            self.graphics_mut(|g| g.entry(layer_id).translate(delta));
-        }
+    /// This is a sticky setting, remembered from one frame to the next.
+    ///
+    /// Can be used to implement pan and zoom (see relevant demo).
+    pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
+        self.memory_mut(|m| {
+            if transform == TSTransform::IDENTITY {
+                m.layer_transforms.remove(&layer_id)
+            } else {
+                m.layer_transforms.insert(layer_id, transform)
+            }
+        });
     }
 
     /// Top-most layer at the given position.
@@ -2302,6 +2318,12 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+        let rect =
+            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).cloned()) {
+                transform * rect
+            } else {
+                rect
+            };
         if !rect.is_positive() {
             return false;
         }
@@ -2348,6 +2370,12 @@ impl Context {
         let mut blocking_widget = None;
 
         self.write(|ctx| {
+            let transform = ctx
+                .memory
+                .layer_transforms
+                .get(&layer_id)
+                .cloned()
+                .unwrap_or_default();
             let viewport = ctx.viewport();
 
             // We add all widgets here, even non-interactive ones,
@@ -2367,6 +2395,8 @@ impl Context {
             if contains_pointer {
                 let pointer_pos = viewport.input.pointer.interact_pos();
                 if let Some(pointer_pos) = pointer_pos {
+                    // Apply the inverse transformation of this layer to the pointer pos.
+                    let pointer_pos = transform.inverse() * pointer_pos;
                     if let Some(rects) = viewport.layer_rects_prev_frame.by_layer.get(&layer_id) {
                         // Iterate backwards, i.e. topmost widgets first.
                         for blocking in rects.iter().rev() {

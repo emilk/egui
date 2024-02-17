@@ -330,7 +330,14 @@ impl Response {
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
-            self.ctx.input(|i| i.pointer.delta())
+            let mut delta = self.ctx.input(|i| i.pointer.delta());
+            if let Some(scaling) = self
+                .ctx
+                .memory(|m| m.layer_transforms.get(&self.layer_id).map(|t| t.scaling))
+            {
+                delta /= scaling;
+            }
+            delta
         } else {
             Vec2::ZERO
         }
@@ -395,7 +402,14 @@ impl Response {
     #[inline]
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
-            self.ctx.input(|i| i.pointer.hover_pos())
+            let mut pos = self.ctx.input(|i| i.pointer.hover_pos())?;
+            if let Some(transform) = self
+                .ctx
+                .memory(|m| m.layer_transforms.get(&self.layer_id).cloned())
+            {
+                pos = transform * pos;
+            }
+            Some(pos)
         } else {
             None
         }

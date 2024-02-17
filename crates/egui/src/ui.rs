@@ -2176,7 +2176,8 @@ impl Ui {
 
             if let Some(pointer_pos) = self.ctx().pointer_interact_pos() {
                 let delta = pointer_pos - response.rect.center();
-                self.ctx().translate_layer(layer_id, delta);
+                self.ctx()
+                    .set_transform_layer(layer_id, emath::TSTransform::from_translation(delta));
             }
 
             InnerResponse::new(inner, response)
