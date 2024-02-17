@@ -539,7 +539,6 @@ impl WgpuWinitRunning {
                 viewports, painter, ..
             } = &mut *shared_lock;
 
-            // if viewport_id != ViewportId::ROOT {
             let Some(viewport) = viewports.get(&viewport_id) else {
                 return EventResult::Wait;
             };
