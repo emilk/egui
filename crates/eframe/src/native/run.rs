@@ -196,7 +196,7 @@ fn run_and_return(
                 if is_minimized {
                     // Don't draw.
                     // See: https://github.com/rust-windowing/winit/issues/208
-                    // See: https://github.com/rust-windowing/winit/issues/3321
+                    // See: https://github.com/emilk/egui/issues/3321
                 } else {
                     window.request_redraw();
                 }
@@ -356,7 +356,7 @@ fn run_and_exit(
                 if is_minimized {
                     // Don't draw.
                     // See: https://github.com/rust-windowing/winit/issues/208
-                    // See: https://github.com/rust-windowing/winit/issues/3321
+                    // See: https://github.com/emilk/egui/issues/3321
                 } else {
                     window.request_redraw();
                 }
