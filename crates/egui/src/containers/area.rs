@@ -330,7 +330,7 @@ impl Area {
             });
 
             if movable && move_response.dragged() {
-                state.pivot_pos += ctx.input(|i| i.pointer.delta());
+                state.pivot_pos += move_response.drag_delta();
             }
 
             if (move_response.dragged() || move_response.clicked())

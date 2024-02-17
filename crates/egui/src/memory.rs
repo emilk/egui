@@ -1,5 +1,8 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
+use ahash::HashMap;
+use epaint::emath::TSTransform;
+
 use crate::{
     area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, Rect, Style, Vec2,
     ViewportId, ViewportIdMap, ViewportIdSet,
@@ -83,6 +86,9 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
+    /// Transforms per layer
+    pub layer_transforms: HashMap<LayerId, TSTransform>,
+
     // -------------------------------------------------
     // Per-viewport:
     areas: ViewportIdMap<Areas>,
@@ -101,6 +107,7 @@ impl Default for Memory {
             interactions: Default::default(),
             viewport_id: Default::default(),
             areas: Default::default(),
+            layer_transforms: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
         };
@@ -640,7 +647,8 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
-        self.areas().layer_id_at(pos, resize_interact_radius_side)
+        self.areas()
+            .layer_id_at(pos, resize_interact_radius_side, &self.layer_transforms)
     }
 
     /// An iterator over all layers. Back-to-front. Top is last.
@@ -910,7 +918,12 @@ impl Areas {
     }
 
     /// Top-most layer at the given position.
-    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
+    pub fn layer_id_at(
+        &self,
+        pos: Pos2,
+        resize_interact_radius_side: f32,
+        layer_transforms: &HashMap<LayerId, TSTransform>,
+    ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
@@ -919,6 +932,10 @@ impl Areas {
                         if state.edges_padded_for_resize {
                             // Allow us to resize by dragging just outside the window:
                             rect = rect.expand(resize_interact_radius_side);
+                        }
+
+                        if let Some(transform) = layer_transforms.get(layer) {
+                            rect = *transform * rect;
                         }
 
                         if rect.contains(pos) {

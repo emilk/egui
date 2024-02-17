@@ -1,3 +1,7 @@
+use ahash::HashMap;
+
+use emath::TSTransform;
+
 use crate::*;
 
 /// Result of a hit-test against [`WidgetRects`].
@@ -31,6 +35,7 @@ pub struct WidgetHits {
 pub fn hit_test(
     widgets: &WidgetRects,
     layer_order: &[LayerId],
+    layer_transforms: &HashMap<LayerId, TSTransform>,
     pos: Pos2,
     search_radius: f32,
 ) -> WidgetHits {
@@ -38,48 +43,68 @@ pub fn hit_test(
 
     let search_radius_sq = search_radius * search_radius;
 
+    // Transform the position into the local coordinate space of each layer:
+    let pos_in_layers: HashMap<LayerId, Pos2> = layer_transforms
+        .iter()
+        .map(|(layer_id, t)| (*layer_id, t.inverse() * pos))
+        .collect();
+
+    let mut closest_dist_sq = f32::INFINITY;
+    let mut closest_hit = None;
+
     // First pass: find the few widgets close to the given position, sorted back-to-front.
-    let close: Vec<WidgetRect> = layer_order
+    let mut close: Vec<WidgetRect> = layer_order
         .iter()
         .filter(|layer| layer.order.allow_interaction())
         .filter_map(|layer_id| widgets.by_layer.get(layer_id))
         .flatten()
-        .filter(|w| w.interact_rect.distance_sq_to_pos(pos) <= search_radius_sq)
+        .filter(|&w| {
+            let pos_in_layer = pos_in_layers.get(&w.layer_id).copied().unwrap_or(pos);
+            let dist_sq = w.interact_rect.distance_sq_to_pos(pos_in_layer);
+
+            // In tie, pick last = topmost.
+            if dist_sq <= closest_dist_sq {
+                closest_dist_sq = dist_sq;
+                closest_hit = Some(w);
+            }
+
+            dist_sq <= search_radius_sq
+        })
         .copied()
         .collect();
 
-    let hits = hit_test_on_close(close, pos);
+    // We need to pick one single layer for the interaction.
+    if let Some(closest_hit) = closest_hit {
+        // Select the top layer, and ignore widgets in any other layer:
+        let top_layer = closest_hit.layer_id;
+        close.retain(|w| w.layer_id == top_layer);
 
-    if let Some(drag) = hits.drag {
-        debug_assert!(drag.sense.drag);
-    }
-    if let Some(click) = hits.click {
-        debug_assert!(click.sense.click);
-    }
+        let pos_in_layer = pos_in_layers.get(&top_layer).copied().unwrap_or(pos);
+        let hits = hit_test_on_close(&close, pos_in_layer);
 
-    hits
+        if let Some(drag) = hits.drag {
+            debug_assert!(drag.sense.drag);
+        }
+        if let Some(click) = hits.click {
+            debug_assert!(click.sense.click);
+        }
+
+        hits
+    } else {
+        // No close widgets.
+        Default::default()
+    }
 }
 
-fn hit_test_on_close(mut close: Vec<WidgetRect>, pos: Pos2) -> WidgetHits {
+fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
     #![allow(clippy::collapsible_else_if)]
 
     // Only those widgets directly under the `pos`.
-    let mut hits: Vec<WidgetRect> = close
+    let hits: Vec<WidgetRect> = close
         .iter()
         .filter(|widget| widget.interact_rect.contains(pos))
         .copied()
         .collect();
-
-    {
-        let top_hit = hits.last().copied();
-        let top_layer = top_hit.map(|w| w.layer_id);
-
-        if let Some(top_layer) = top_layer {
-            // Ignore all layers not in the same layer as the top hit.
-            close.retain(|w| w.layer_id == top_layer);
-            hits.retain(|w| w.layer_id == top_layer);
-        }
-    }
 
     let hit_click = hits.iter().copied().filter(|w| w.sense.click).last();
     let hit_drag = hits.iter().copied().filter(|w| w.sense.drag).last();
@@ -325,22 +350,22 @@ mod tests {
         ];
 
         // Perfect hit:
-        let hits = hit_test_on_close(widgets.clone(), pos2(15.0, 15.0));
+        let hits = hit_test_on_close(&widgets, pos2(15.0, 15.0));
         assert_eq!(hits.click.unwrap().id, Id::new("click"));
         assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
 
         // Close hit:
-        let hits = hit_test_on_close(widgets.clone(), pos2(5.0, 5.0));
+        let hits = hit_test_on_close(&widgets, pos2(5.0, 5.0));
         assert_eq!(hits.click.unwrap().id, Id::new("click"));
         assert_eq!(hits.drag.unwrap().id, Id::new("bg-area"));
 
         // Perfect hit:
-        let hits = hit_test_on_close(widgets.clone(), pos2(105.0, 15.0));
+        let hits = hit_test_on_close(&widgets, pos2(105.0, 15.0));
         assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
         assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
 
         // Close hit - should still ignore the drag-background so as not to confuse the userr:
-        let hits = hit_test_on_close(widgets.clone(), pos2(105.0, 5.0));
+        let hits = hit_test_on_close(&widgets, pos2(105.0, 5.0));
         assert_eq!(hits.click.unwrap().id, Id::new("click-and-drag"));
         assert_eq!(hits.drag.unwrap().id, Id::new("click-and-drag"));
     }
@@ -375,22 +400,22 @@ mod tests {
         }
 
         // In the middle of the bg-left-label:
-        let hits = hit_test_on_close(widgets.clone(), pos2(25.0, 50.0));
+        let hits = hit_test_on_close(&widgets, pos2(25.0, 50.0));
         assert_eq!(hits.click.unwrap().id, Id::new("bg-left-label"));
         assert_eq!(hits.drag.unwrap().id, Id::new("bg-left-label"));
 
         // On both the left click-and-drag and thin handle, but the thin handle is on top and should win:
-        let hits = hit_test_on_close(widgets.clone(), pos2(35.0, 50.0));
+        let hits = hit_test_on_close(&widgets, pos2(35.0, 50.0));
         assert_eq!(hits.click, None);
         assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
 
         // Only on the thin-drag-handle:
-        let hits = hit_test_on_close(widgets.clone(), pos2(50.0, 50.0));
+        let hits = hit_test_on_close(&widgets, pos2(50.0, 50.0));
         assert_eq!(hits.click, None);
         assert_eq!(hits.drag.unwrap().id, Id::new("thin-drag-handle"));
 
         // On both the thin handle and right label. The label is on top and should win
-        let hits = hit_test_on_close(widgets.clone(), pos2(65.0, 50.0));
+        let hits = hit_test_on_close(&widgets, pos2(65.0, 50.0));
         assert_eq!(hits.click.unwrap().id, Id::new("fg-right-label"));
         assert_eq!(hits.drag.unwrap().id, Id::new("fg-right-label"));
     }

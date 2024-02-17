@@ -343,7 +343,14 @@ impl Response {
     #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
-            self.ctx.input(|i| i.pointer.delta())
+            let mut delta = self.ctx.input(|i| i.pointer.delta());
+            if let Some(scaling) = self
+                .ctx
+                .memory(|m| m.layer_transforms.get(&self.layer_id).map(|t| t.scaling))
+            {
+                delta /= scaling;
+            }
+            delta
         } else {
             Vec2::ZERO
         }
@@ -408,7 +415,14 @@ impl Response {
     #[inline]
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
-            self.ctx.input(|i| i.pointer.hover_pos())
+            let mut pos = self.ctx.input(|i| i.pointer.hover_pos())?;
+            if let Some(transform) = self
+                .ctx
+                .memory(|m| m.layer_transforms.get(&self.layer_id).cloned())
+            {
+                pos = transform * pos;
+            }
+            Some(pos)
         } else {
             None
         }
@@ -818,6 +832,30 @@ impl Response {
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
         menu::context_menu(self, add_contents)
+    }
+
+    /// Draw a debug rectangle over the response displaying the response's id and whether it is
+    /// enabled and/or hovered.
+    ///
+    /// This function is intended for debugging purpose and can be useful, for example, in case of
+    /// widget id instability.
+    ///
+    /// Color code:
+    /// - Blue: Enabled but not hovered
+    /// - Green: Enabled and hovered
+    /// - Red: Disabled
+    pub fn paint_debug_info(&self) {
+        self.ctx.debug_painter().debug_rect(
+            self.rect,
+            if self.hovered {
+                crate::Color32::DARK_GREEN
+            } else if self.enabled {
+                crate::Color32::BLUE
+            } else {
+                crate::Color32::RED
+            },
+            format!("{:?}", self.id),
+        );
     }
 }
 
