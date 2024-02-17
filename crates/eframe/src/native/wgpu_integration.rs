@@ -539,21 +539,34 @@ impl WgpuWinitRunning {
                 viewports, painter, ..
             } = &mut *shared_lock;
 
-            if viewport_id != ViewportId::ROOT {
-                let Some(viewport) = viewports.get(&viewport_id) else {
-                    return EventResult::Wait;
-                };
+            // if viewport_id != ViewportId::ROOT {
+            let Some(viewport) = viewports.get(&viewport_id) else {
+                return EventResult::Wait;
+            };
 
-                let is_immediate = viewport.viewport_ui_cb.is_none();
-                if is_immediate && viewport_id != ViewportId::ROOT {
-                    // This will only happen if this is an immediate viewport.
-                    // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                    if let Some(root_viewport) = viewports.get(&ViewportId::ROOT) {
-                        viewport_id = root_viewport.ids.this;
-                    } else {
-                        // Not actually used. Because there is always a `Some()` value.
-                        return EventResult::Wait;
+            let mut is_change_to_root = false;
+            let is_immediate = viewport.viewport_ui_cb.is_none();
+
+            if is_immediate && viewport_id != ViewportId::ROOT {
+                is_change_to_root = true;
+
+                if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
+                    let is_differed_parent = parent_viewport.viewport_ui_cb.is_some();
+                    if is_differed_parent {
+                        is_change_to_root = false;
+                        viewport_id = parent_viewport.ids.this;
                     }
+                }
+            }
+
+            if is_change_to_root {
+                // This will only happen if this is an immediate viewport.
+                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
+                if let Some(root_viewport) = viewports.get(&ViewportId::ROOT) {
+                    viewport_id = root_viewport.ids.this;
+                } else {
+                    // Not actually used. Because there is always a `Some()` value.
+                    return EventResult::Wait;
                 }
             }
 
@@ -733,7 +746,6 @@ impl WgpuWinitRunning {
         // to resizes anyway, as doing so avoids dropping frames.
         //
         // See: https://github.com/emilk/egui/issues/903
-        let mut repaint_asap = false;
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
@@ -750,7 +762,6 @@ impl WgpuWinitRunning {
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
                     ) {
-                        repaint_asap = true;
                         shared.painter.on_window_resized(viewport_id, width, height);
                     }
                 }
@@ -798,11 +809,7 @@ impl WgpuWinitRunning {
         if integration.should_close() {
             EventResult::Exit
         } else if event_response.repaint {
-            if repaint_asap {
-                EventResult::RepaintNow(window_id)
-            } else {
-                EventResult::RepaintNext(window_id)
-            }
+            EventResult::RepaintNow(window_id)
         } else {
             EventResult::Wait
         }
