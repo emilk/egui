@@ -105,7 +105,7 @@ fn run_and_return(
                 viewport_id,
             }) => {
                 let current_frame_nr = winit_app.frame_nr(*viewport_id);
-                if current_frame_nr == *frame_nr || current_frame_nr == *frame_nr + 1 {
+                if current_frame_nr >= *frame_nr {
                     log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
                     if let Some(window_id) = winit_app.window_id_from_viewport_id(*viewport_id) {
                         EventResult::RepaintAt(window_id, *when)
@@ -180,40 +180,40 @@ fn run_and_return(
             }
         }
 
-        let mut is_draw_complete = false;
+        let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         windows_next_repaint_times.retain(|window_id, repaint_time| {
             if Instant::now() < *repaint_time {
                 return true; // not yet ready
             };
 
-            if is_draw_complete {
+            if next_repaint_time.is_none() {
                 return false;
             }
 
-            is_draw_complete = true;
+            next_repaint_time = None;
             event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
             if let Some(window) = winit_app.window(*window_id) {
                 log::trace!("request_redraw for {window_id:?}");
                 let is_minimized = window.is_minimized().unwrap_or(false);
                 if is_minimized {
-                    false
+                    // Don't draw.
+                    // See: https://github.com/rust-windowing/winit/issues/208
+                    // See: https://github.com/emilk/egui/issues/3321
                 } else {
                     window.request_redraw();
-                    false
                 }
+                return false;
             } else {
                 log::trace!("No window found for {window_id:?}");
-                false
             }
+            false
         });
-
-        let next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         if let Some(next_repaint_time) = next_repaint_time {
             event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
-        };
+        }
     })?;
 
     log::debug!("eframe window closed");
@@ -276,7 +276,7 @@ fn run_and_exit(
                 viewport_id,
             }) => {
                 let current_frame_nr = winit_app.frame_nr(*viewport_id);
-                if current_frame_nr == *frame_nr || current_frame_nr == *frame_nr + 1 {
+                if current_frame_nr >= *frame_nr {
                     if let Some(window_id) = winit_app.window_id_from_viewport_id(*viewport_id) {
                         EventResult::RepaintAt(window_id, *when)
                     } else {
@@ -344,36 +344,36 @@ fn run_and_exit(
             }
         }
 
-        let mut is_draw_complete = false;
+        let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         windows_next_repaint_times.retain(|window_id, repaint_time| {
             if Instant::now() < *repaint_time {
                 return true; // not yet ready
             }
 
-            if is_draw_complete {
+            if next_repaint_time.is_none() {
                 return false;
             }
 
-            is_draw_complete = true;
+            next_repaint_time = None;
             event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
             if let Some(window) = winit_app.window(*window_id) {
                 log::trace!("request_redraw for {window_id:?}");
                 let is_minimized = window.is_minimized().unwrap_or(false);
                 if is_minimized {
-                    false
+                    // Don't draw.
+                    // See: https://github.com/rust-windowing/winit/issues/208
+                    // See: https://github.com/emilk/egui/issues/3321
                 } else {
                     window.request_redraw();
-                    false
                 }
+                return false;
             } else {
                 log::trace!("No window found for {window_id:?}");
-                false
             }
+            false
         });
-
-        let next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         if let Some(next_repaint_time) = next_repaint_time {
             // WaitUntil seems to not work on iOS
