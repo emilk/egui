@@ -313,25 +313,24 @@ impl Area {
         let mut move_response = {
             let interact_id = layer_id.id.with("move");
             let sense = if movable {
-                Sense::click_and_drag()
+                Sense::drag()
             } else if interactable {
                 Sense::click() // allow clicks to bring to front
             } else {
                 Sense::hover()
             };
 
-            let move_response = ctx.interact(
-                Rect::EVERYTHING,
-                ctx.style().spacing.item_spacing,
+            let move_response = ctx.create_widget(WidgetRect {
+                id: interact_id,
                 layer_id,
-                interact_id,
-                state.rect(),
+                rect: state.rect(),
+                interact_rect: state.rect(),
                 sense,
                 enabled,
-            );
+            });
 
             if movable && move_response.dragged() {
-                state.pivot_pos += ctx.input(|i| i.pointer.delta());
+                state.pivot_pos += move_response.drag_delta();
             }
 
             if (move_response.dragged() || move_response.clicked())

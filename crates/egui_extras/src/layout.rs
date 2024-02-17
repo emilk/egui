@@ -203,6 +203,7 @@ impl<'l> StripLayout<'l> {
         }
 
         add_cell_contents(&mut child_ui);
+
         child_ui.min_rect()
     }
 
