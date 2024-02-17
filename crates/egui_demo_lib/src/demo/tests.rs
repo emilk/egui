@@ -475,8 +475,8 @@ fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
             writeln!(new_info, "Clicked{button_suffix}").ok();
         }
 
-        if response.drag_released_by(button) {
-            writeln!(new_info, "Drag ended{button_suffix}").ok();
+        if response.drag_stopped_by(button) {
+            writeln!(new_info, "Drag stopped{button_suffix}").ok();
         }
         if response.dragged_by(button) {
             writeln!(new_info, "Dragged{button_suffix}").ok();
