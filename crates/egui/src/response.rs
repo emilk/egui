@@ -85,7 +85,7 @@ pub struct Response {
 
     /// The widget was being dragged, but now it has been released.
     #[doc(hidden)]
-    pub drag_released: bool,
+    pub drag_stopped: bool,
 
     /// Is the pointer button currently down on this widget?
     /// This is true if the pointer is pressing down or dragging a widget
@@ -317,13 +317,26 @@ impl Response {
 
     /// The widget was being dragged, but now it has been released.
     #[inline]
-    pub fn drag_released(&self) -> bool {
-        self.drag_released
+    pub fn drag_stopped(&self) -> bool {
+        self.drag_stopped
     }
 
     /// The widget was being dragged by the button, but now it has been released.
+    pub fn drag_stopped_by(&self, button: PointerButton) -> bool {
+        self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
+    }
+
+    /// The widget was being dragged, but now it has been released.
+    #[inline]
+    #[deprecated = "Renamed 'dragged_stopped'"]
+    pub fn drag_released(&self) -> bool {
+        self.drag_stopped
+    }
+
+    /// The widget was being dragged by the button, but now it has been released.
+    #[deprecated = "Renamed 'dragged_stopped_by'"]
     pub fn drag_released_by(&self, button: PointerButton) -> bool {
-        self.drag_released() && self.ctx.input(|i| i.pointer.button_released(button))
+        self.drag_stopped_by(button)
     }
 
     /// If dragged, how many points were we dragged and in what direction?
@@ -858,7 +871,7 @@ impl Response {
             ],
             drag_started: self.drag_started || other.drag_started,
             dragged: self.dragged || other.dragged,
-            drag_released: self.drag_released || other.drag_released,
+            drag_stopped: self.drag_stopped || other.drag_stopped,
             is_pointer_button_down_on: self.is_pointer_button_down_on
                 || other.is_pointer_button_down_on,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),

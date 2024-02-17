@@ -33,7 +33,7 @@ pub struct InteractionSnapshot {
     /// after having been dragged.
     ///
     /// The widget will not be found in [`Self::dragged`] this frame.
-    pub drag_ended: Option<Id>,
+    pub drag_stopped: Option<Id>,
 
     pub hovered: IdSet,
     pub contains_pointer: IdSet,
@@ -45,7 +45,7 @@ impl InteractionSnapshot {
             clicked,
             drag_started,
             dragged,
-            drag_ended,
+            drag_stopped,
             hovered,
             contains_pointer,
         } = self;
@@ -69,8 +69,8 @@ impl InteractionSnapshot {
             id_ui(ui, dragged);
             ui.end_row();
 
-            ui.label("drag_ended");
-            id_ui(ui, drag_ended);
+            ui.label("drag_stopped");
+            id_ui(ui, drag_stopped);
             ui.end_row();
 
             ui.label("hovered");
@@ -170,7 +170,7 @@ pub(crate) fn interact(
     // ------------------------------------------------------------------------
 
     let drag_changed = dragged != prev_snapshot.dragged;
-    let drag_ended = drag_changed.then_some(prev_snapshot.dragged).flatten();
+    let drag_stopped = drag_changed.then_some(prev_snapshot.dragged).flatten();
     let drag_started = drag_changed.then_some(dragged).flatten();
 
     // if let Some(drag_started) = drag_started {
@@ -210,7 +210,7 @@ pub(crate) fn interact(
         clicked,
         drag_started,
         dragged,
-        drag_ended,
+        drag_stopped,
         contains_pointer,
         hovered,
     }

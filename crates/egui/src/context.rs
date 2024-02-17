@@ -1204,7 +1204,7 @@ impl Context {
             triple_clicked: Default::default(),
             drag_started: false,
             dragged: false,
-            drag_released: false,
+            drag_stopped: false,
             is_pointer_button_down_on: false,
             interact_pointer_pos: None,
             changed: false,
@@ -1242,7 +1242,7 @@ impl Context {
                 res.hovered = viewport.interact_widgets.hovered.contains(&id);
                 res.dragged = Some(id) == viewport.interact_widgets.dragged;
                 res.drag_started = Some(id) == viewport.interact_widgets.drag_started;
-                res.drag_released = Some(id) == viewport.interact_widgets.drag_ended;
+                res.drag_stopped = Some(id) == viewport.interact_widgets.drag_stopped;
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
@@ -1264,7 +1264,7 @@ impl Context {
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_released;
+            let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_stopped;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
             }
@@ -1936,7 +1936,7 @@ impl Context {
                     clicked,
                     drag_started: _,
                     dragged,
-                    drag_ended: _,
+                    drag_stopped: _,
                     contains_pointer,
                     hovered,
                 } = interact_widgets;
@@ -3305,7 +3305,8 @@ impl Context {
     /// not be set until the mouse cursor has moved a certain distance.
     ///
     /// NOTE: if the widget was released this frame, this will be `None`.
-    /// Use [`Self::drag_ended_id`] instead.
+    /// Use [`Self::drag_stopped
+    /// _id`] instead.
     pub fn dragged_id(&self) -> Option<Id> {
         self.interaction_snapshot(|i| i.dragged)
     }
@@ -3318,8 +3319,8 @@ impl Context {
     }
 
     /// This widget was being dragged, but was released this frame
-    pub fn drag_ended_id(&self) -> Option<Id> {
-        self.interaction_snapshot(|i| i.drag_ended)
+    pub fn drag_stopped_id(&self) -> Option<Id> {
+        self.interaction_snapshot(|i| i.drag_stopped)
     }
 
     /// Set which widget is being dragged.
@@ -3328,7 +3329,7 @@ impl Context {
             let vp = ctx.viewport();
             let i = &mut vp.interact_widgets;
             if i.dragged != Some(id) {
-                i.drag_ended = i.dragged.or(i.drag_ended);
+                i.drag_stopped = i.dragged.or(i.drag_stopped);
                 i.dragged = Some(id);
                 i.drag_started = Some(id);
             }
@@ -3343,7 +3344,7 @@ impl Context {
             let vp = ctx.viewport();
             let i = &mut vp.interact_widgets;
             if i.dragged.is_some() {
-                i.drag_ended = i.dragged;
+                i.drag_stopped = i.dragged;
                 i.dragged = None;
             }
 
