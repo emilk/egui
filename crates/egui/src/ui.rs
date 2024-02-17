@@ -646,43 +646,26 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().create_widget(
-            WidgetRect {
-                id,
-                layer_id: self.layer_id(),
-                rect,
-                interact_rect: self.clip_rect().intersect(rect),
-                sense,
-                enabled: self.enabled,
-            },
-            true,
-        )
+        self.ctx().create_widget(WidgetRect {
+            id,
+            layer_id: self.layer_id(),
+            rect,
+            interact_rect: self.clip_rect().intersect(rect),
+            sense,
+            enabled: self.enabled,
+        })
     }
 
-    /// Check for clicks, and drags on a specific region that is hovered.
-    /// This can be used once you have checked that some shape you are painting has been hovered,
-    /// and want to check for clicks and drags on hovered items this frame.
-    ///
-    /// The given [`Rect`] should approximately be where the thing is,
-    /// as will be the rectangle for the returned [`Response::rect`].
+    /// Deprecated: use [`Self::interact`] instead.
+    #[deprecated = "The contains_pointer argument is ignored. Use `ui.interact` instead."]
     pub fn interact_with_hovered(
         &self,
         rect: Rect,
-        contains_pointer: bool,
+        _contains_pointer: bool,
         id: Id,
         sense: Sense,
     ) -> Response {
-        self.ctx().create_widget(
-            WidgetRect {
-                id,
-                layer_id: self.layer_id(),
-                rect,
-                interact_rect: self.clip_rect().intersect(rect),
-                sense,
-                enabled: self.enabled,
-            },
-            contains_pointer,
-        )
+        self.interact(rect, id, sense)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?

@@ -320,17 +320,14 @@ impl Area {
                 Sense::hover()
             };
 
-            let move_response = ctx.create_widget(
-                WidgetRect {
-                    id: interact_id,
-                    layer_id,
-                    rect: state.rect(),
-                    interact_rect: state.rect(),
-                    sense,
-                    enabled,
-                },
-                true,
-            );
+            let move_response = ctx.create_widget(WidgetRect {
+                id: interact_id,
+                layer_id,
+                rect: state.rect(),
+                interact_rect: state.rect(),
+                sense,
+                enabled,
+            });
 
             if movable && move_response.dragged() {
                 state.pivot_pos += ctx.input(|i| i.pointer.delta());

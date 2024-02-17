@@ -1110,7 +1110,7 @@ impl Context {
     ///
     /// You should use [`Ui::interact`] instead.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn create_widget(&self, mut w: WidgetRect, may_contain_pointer: bool) -> Response {
+    pub(crate) fn create_widget(&self, mut w: WidgetRect) -> Response {
         if !w.enabled {
             w.sense.click = false;
             w.sense.drag = false;
@@ -1143,8 +1143,7 @@ impl Context {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
-        let mut res = self.get_response(w);
-        res.contains_pointer &= may_contain_pointer;
+        let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
         if w.sense.focusable {

@@ -639,17 +639,14 @@ impl Response {
             return self.clone();
         }
 
-        self.ctx.create_widget(
-            WidgetRect {
-                layer_id: self.layer_id,
-                id: self.id,
-                rect: self.rect,
-                interact_rect: self.interact_rect,
-                sense,
-                enabled: self.enabled,
-            },
-            self.contains_pointer,
-        )
+        self.ctx.create_widget(WidgetRect {
+            layer_id: self.layer_id,
+            id: self.id,
+            rect: self.rect,
+            interact_rect: self.interact_rect,
+            sense,
+            enabled: self.enabled,
+        })
     }
 
     /// Adjust the scroll position until this UI becomes visible.
