@@ -195,6 +195,8 @@ fn run_and_return(
                 let is_minimized = window.is_minimized().unwrap_or(false);
                 if is_minimized {
                     // Don't draw.
+                    // See: https://github.com/rust-windowing/winit/issues/208
+                    // See: https://github.com/rust-windowing/winit/issues/3321
                 } else {
                     window.request_redraw();
                 }
@@ -353,6 +355,8 @@ fn run_and_exit(
                 let is_minimized = window.is_minimized().unwrap_or(false);
                 if is_minimized {
                     // Don't draw.
+                    // See: https://github.com/rust-windowing/winit/issues/208
+                    // See: https://github.com/rust-windowing/winit/issues/3321
                 } else {
                     window.request_redraw();
                 }
