@@ -617,6 +617,11 @@ pub struct PointerState {
     /// How much the pointer moved compared to last frame, in points.
     delta: Vec2,
 
+    /// How much the mouse moved since the last frame, in unspecified units.
+    /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
+    /// May be unavailable on some intergrations.
+    motion: Option<Vec2>,
+
     /// Current velocity of pointer.
     velocity: Vec2,
 
@@ -664,6 +669,7 @@ impl Default for PointerState {
             latest_pos: None,
             interact_pos: None,
             delta: Vec2::ZERO,
+            motion: None,
             velocity: Vec2::ZERO,
             pos_history: History::new(0..1000, 0.1),
             down: Default::default(),
@@ -690,6 +696,9 @@ impl PointerState {
 
         let old_pos = self.latest_pos;
         self.interact_pos = self.latest_pos;
+        if self.motion.is_some() {
+            self.motion = Some(Vec2::ZERO);
+        }
 
         for event in &new.events {
             match event {
@@ -775,6 +784,7 @@ impl PointerState {
                     self.latest_pos = None;
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
                 }
+                Event::MouseMoved(delta) => *self.motion.get_or_insert(Vec2::ZERO) += *delta,
                 _ => {}
             }
         }
@@ -817,6 +827,14 @@ impl PointerState {
     #[inline(always)]
     pub fn delta(&self) -> Vec2 {
         self.delta
+    }
+
+    /// How much the mouse moved since the last frame, in unspecified units.
+    /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
+    /// May be unavailable on some intergrations.
+    #[inline(always)]
+    pub fn motion(&self) -> Option<Vec2> {
+        self.motion
     }
 
     /// Current velocity of pointer.
@@ -1139,6 +1157,7 @@ impl PointerState {
             latest_pos,
             interact_pos,
             delta,
+            motion,
             velocity,
             pos_history: _,
             down,
@@ -1155,6 +1174,7 @@ impl PointerState {
         ui.label(format!("latest_pos: {latest_pos:?}"));
         ui.label(format!("interact_pos: {interact_pos:?}"));
         ui.label(format!("delta: {delta:?}"));
+        ui.label(format!("motion: {motion:?}"));
         ui.label(format!(
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y

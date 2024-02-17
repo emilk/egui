@@ -336,6 +336,20 @@ impl Response {
         }
     }
 
+    /// If dragged, how far did the mouse move?
+    /// This will use raw mouse movement if provided by the integration, otherwise will fall back to [`Response::drag_delta`]
+    /// Raw mouse movement is unaccelerated and unclamped by screen boundries, and does not relate to any position on the screen.
+    /// This may be useful in certain situations such as dragable values and 3D cameras, where screen position does not matter.
+    #[inline]
+    pub fn drag_motion(&self) -> Vec2 {
+        if self.dragged() {
+            self.ctx
+                .input(|i| i.pointer.motion().unwrap_or(i.pointer.delta()))
+        } else {
+            Vec2::ZERO
+        }
+    }
+
     /// If the user started dragging this widget this frame, store the payload for drag-and-drop.
     #[doc(alias = "drag and drop")]
     pub fn dnd_set_drag_payload<Payload: Any + Send + Sync>(&self, payload: Payload) {
