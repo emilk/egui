@@ -496,12 +496,27 @@ impl GlowWinitRunning {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        {
-            let glutin = self.glutin.borrow();
+        let (raw_input, viewport_ui_cb) = {
+            crate::profile_scope!("Prepare");
+            let mut glutin = self.glutin.borrow_mut();
             let viewport = &glutin.viewports[&viewport_id];
 
+            let mut is_change_to_root = false;
             let is_immediate = viewport.viewport_ui_cb.is_none();
+
             if is_immediate && viewport_id != ViewportId::ROOT {
+                is_change_to_root = true;
+
+                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
+                    let is_differed_parent = parent_viewport.viewport_ui_cb.is_some();
+                    if is_differed_parent {
+                        is_change_to_root = false;
+                        viewport_id = parent_viewport.ids.this;
+                    }
+                }
+            }
+
+            if is_change_to_root {
                 // This will only happen if this is an immediate viewport.
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                 if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
@@ -511,10 +526,7 @@ impl GlowWinitRunning {
                     return EventResult::Wait;
                 }
             }
-        }
 
-        let (raw_input, viewport_ui_cb) = {
-            let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
             let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
             let Some(window) = viewport.window.as_ref() else {
@@ -716,7 +728,6 @@ impl GlowWinitRunning {
         // to resizes anyway, as doing so avoids dropping frames.
         //
         // See: https://github.com/emilk/egui/issues/903
-        let mut repaint_asap = false;
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
@@ -729,7 +740,6 @@ impl GlowWinitRunning {
                 // This solves an issue where the app would panic when minimizing on Windows.
                 if 0 < physical_size.width && 0 < physical_size.height {
                     if let Some(viewport_id) = viewport_id {
-                        repaint_asap = true;
                         glutin.resize(viewport_id, *physical_size);
                     }
                 }
@@ -787,11 +797,7 @@ impl GlowWinitRunning {
         }
 
         if event_response.repaint {
-            if repaint_asap {
-                EventResult::RepaintNow(window_id)
-            } else {
-                EventResult::RepaintNext(window_id)
-            }
+            EventResult::RepaintNow(window_id)
         } else {
             EventResult::Wait
         }
