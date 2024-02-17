@@ -181,9 +181,10 @@ fn run_and_return(
         }
 
         let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
+        let now = Instant::now();
 
         windows_next_repaint_times.retain(|window_id, repaint_time| {
-            if Instant::now() < *repaint_time {
+            if now < *repaint_time {
                 return true; // not yet ready
             };
 
@@ -345,9 +346,10 @@ fn run_and_exit(
         }
 
         let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
+        let now = Instant::now();
 
         windows_next_repaint_times.retain(|window_id, repaint_time| {
-            if Instant::now() < *repaint_time {
+            if now < *repaint_time {
                 return true; // not yet ready
             }
 
