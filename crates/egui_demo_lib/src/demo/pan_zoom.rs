@@ -95,6 +95,18 @@ impl super::View for PanZoom {
                 "e",
                 egui::Pos2::new(60.0, 60.0),
                 Box::new(|ui, state| {
+                    use egui::epaint::*;
+                    // Smiley face.
+                    let painter = ui.painter();
+                    painter.add(CircleShape::filled(pos2(0.0, -10.0), 1.0, Color32::YELLOW));
+                    painter.add(CircleShape::filled(pos2(10.0, -10.0), 1.0, Color32::YELLOW));
+                    painter.add(QuadraticBezierShape::from_points_stroke(
+                        [pos2(0.0, 0.0), pos2(5.0, 3.0), pos2(10.0, 0.0)],
+                        false,
+                        Color32::TRANSPARENT,
+                        Stroke::new(1.0, Color32::YELLOW),
+                    ));
+
                     ui.add(egui::Slider::new(&mut state.drag_value, 0.0..=100.0).text("My value"))
                 }),
             ),
