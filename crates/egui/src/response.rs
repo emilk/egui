@@ -2,7 +2,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
+    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect, WidgetText,
     NUM_POINTER_BUTTONS,
 };
 
@@ -85,7 +85,7 @@ pub struct Response {
 
     /// The widget was being dragged, but now it has been released.
     #[doc(hidden)]
-    pub drag_released: bool,
+    pub drag_stopped: bool,
 
     /// Is the pointer button currently down on this widget?
     /// This is true if the pointer is pressing down or dragging a widget
@@ -317,13 +317,26 @@ impl Response {
 
     /// The widget was being dragged, but now it has been released.
     #[inline]
-    pub fn drag_released(&self) -> bool {
-        self.drag_released
+    pub fn drag_stopped(&self) -> bool {
+        self.drag_stopped
     }
 
     /// The widget was being dragged by the button, but now it has been released.
+    pub fn drag_stopped_by(&self, button: PointerButton) -> bool {
+        self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
+    }
+
+    /// The widget was being dragged, but now it has been released.
+    #[inline]
+    #[deprecated = "Renamed 'dragged_stopped'"]
+    pub fn drag_released(&self) -> bool {
+        self.drag_stopped
+    }
+
+    /// The widget was being dragged by the button, but now it has been released.
+    #[deprecated = "Renamed 'dragged_stopped_by'"]
     pub fn drag_released_by(&self, button: PointerButton) -> bool {
-        self.drag_released() && self.ctx.input(|i| i.pointer.button_released(button))
+        self.drag_stopped_by(button)
     }
 
     /// If dragged, how many points were we dragged and in what direction?
@@ -609,37 +622,45 @@ impl Response {
         self
     }
 
-    /// Check for more interactions (e.g. sense clicks on a [`Response`] returned from a label).
+    /// Sense more interactions (e.g. sense clicks on a [`Response`] returned from a label).
+    ///
+    /// The interaction will occur on the same plane as the original widget,
+    /// i.e. if the response was from a widget behind button, the interaction will also be behind that button.
+    /// egui gives priority to the _last_ added widget (the one on top gets clicked first).
     ///
     /// Note that this call will not add any hover-effects to the widget, so when possible
     /// it is better to give the widget a [`Sense`] instead, e.g. using [`crate::Label::sense`].
     ///
+    /// Using this method on a `Response` that is the result of calling `union` on multiple `Response`s
+    /// is undefined behavior.
+    ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// let response = ui.label("hello");
-    /// assert!(!response.clicked()); // labels don't sense clicks by default
-    /// let response = response.interact(egui::Sense::click());
-    /// if response.clicked() { /* … */ }
+    /// let horiz_response = ui.horizontal(|ui| {
+    ///     ui.label("hello");
+    /// }).response;
+    /// assert!(!horiz_response.clicked()); // ui's don't sense clicks by default
+    /// let horiz_response = horiz_response.interact(egui::Sense::click());
+    /// if horiz_response.clicked() {
+    ///     // The background behind the label was clicked
+    /// }
     /// # });
     /// ```
     #[must_use]
     pub fn interact(&self, sense: Sense) -> Self {
-        // Test if we must sense something new compared to what we have already sensed. If not, then
-        // we can return early. This may avoid unnecessarily "masking" some widgets with unneeded
-        // interactions.
         if (self.sense | sense) == self.sense {
+            // Early-out: we already sense everything we need to sense.
             return self.clone();
         }
 
-        self.ctx.interact_with_hovered(
-            self.layer_id,
-            self.id,
-            self.rect,
-            self.interact_rect,
+        self.ctx.create_widget(WidgetRect {
+            layer_id: self.layer_id,
+            id: self.id,
+            rect: self.rect,
+            interact_rect: self.interact_rect,
             sense,
-            self.enabled,
-            self.contains_pointer,
-        )
+            enabled: self.enabled,
+        })
     }
 
     /// Adjust the scroll position until this UI becomes visible.
@@ -843,6 +864,8 @@ impl Response {
     /// For instance `a.union(b).hovered` means "was either a or b hovered?".
     ///
     /// The resulting [`Self::id`] will come from the first (`self`) argument.
+    ///
+    /// You may not call [`Self::interact`] on the resulting `Response`.
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
         crate::egui_assert!(
@@ -883,7 +906,7 @@ impl Response {
             ],
             drag_started: self.drag_started || other.drag_started,
             dragged: self.dragged || other.dragged,
-            drag_released: self.drag_released || other.drag_released,
+            drag_stopped: self.drag_stopped || other.drag_stopped,
             is_pointer_button_down_on: self.is_pointer_button_down_on
                 || other.is_pointer_button_down_on,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
@@ -900,6 +923,8 @@ impl Response {
     }
 }
 
+/// See [`Response::union`].
+///
 /// To summarize the response from many widgets you can use this pattern:
 ///
 /// ```
@@ -918,6 +943,8 @@ impl std::ops::BitOr for Response {
     }
 }
 
+/// See [`Response::union`].
+///
 /// To summarize the response from many widgets you can use this pattern:
 ///
 /// ```

@@ -1052,7 +1052,7 @@ impl Plot {
                     ));
                 }
                 // when the click is release perform the zoom
-                if response.drag_released() {
+                if response.drag_stopped() {
                     let box_start_pos = mem.transform.value_from_position(box_start_pos);
                     let box_end_pos = mem.transform.value_from_position(box_end_pos);
                     let new_bounds = PlotBounds {
