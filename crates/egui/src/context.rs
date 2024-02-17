@@ -2383,9 +2383,13 @@ impl Context {
 impl Context {
     /// Transform the graphics of the given layer.
     ///
+    /// This will also affect input.
+    ///
     /// This is a sticky setting, remembered from one frame to the next.
     ///
     /// Can be used to implement pan and zoom (see relevant demo).
+    ///
+    /// For a temporary transform, use [`Self::transform_layer_shapes`] instead.
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
         self.memory_mut(|m| {
             if transform == TSTransform::IDENTITY {
@@ -2394,6 +2398,34 @@ impl Context {
                 m.layer_transforms.insert(layer_id, transform)
             }
         });
+    }
+
+    /// Move all the graphics at the given layer.
+    ///
+    /// Is used to implement drag-and-drop preview.
+    ///
+    /// This only applied to the existing graphics at the layer, not to new graphics added later.
+    ///
+    /// For a persistent transform, use [`Self::set_transform_layer`] instead.
+    #[deprecated = "Use `transform_layer_shapes` instead"]
+    pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
+        if delta != Vec2::ZERO {
+            let transform = emath::TSTransform::from_translation(delta);
+            self.transform_layer_shapes(layer_id, transform);
+        }
+    }
+
+    /// Transform all the graphics at the given layer.
+    ///
+    /// Is used to implement drag-and-drop preview.
+    ///
+    /// This only applied to the existing graphics at the layer, not to new graphics added later.
+    ///
+    /// For a persistent transform, use [`Self::set_transform_layer`] instead.
+    pub fn transform_layer_shapes(&self, layer_id: LayerId, transform: TSTransform) {
+        if transform != TSTransform::IDENTITY {
+            self.graphics_mut(|g| g.entry(layer_id).transform(transform));
+        }
     }
 
     /// Top-most layer at the given position.
