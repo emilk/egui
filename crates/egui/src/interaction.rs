@@ -26,7 +26,7 @@ pub struct InteractionSnapshot {
     ///
     /// NOTE: this may not have a corresponding [`WidgetRect`],
     /// if this for instance is a drag-and-drop widget which
-    /// isn't painted whilest being dragged
+    /// isn't painted whilst being dragged
     pub dragged: Option<Id>,
 
     /// This widget was let go this frame,

@@ -267,6 +267,37 @@
 //! }
 //! ```
 //!
+//!
+//! ## Widget interaction
+//! Each widget has a [`Sense`], which defines whether or not the widget
+//! is sensitive to clickicking and/or drags.
+//!
+//! For instance, a [`Button`] only has a [`Sense::click`] (by default).
+//! This means if you drag a button it will not respond with [`Response::dragged`].
+//! Instead, the drag will continue through the button to the first
+//! widget behind it that is sensitive to dragging, which for instance could be
+//! a [`ScrollArea`]. This lets you scroll by dragging a scroll area (important
+//! on touch screens), just as long as you don't drag on a widget that is sensitive
+//! to drags (e.g. a [`Slider`]).
+//!
+//! When widgets overlap it is the last added one
+//! that is considered to be on top and which will get input priority.
+//!
+//! The widget interaction logic is run at the _start_ of each frame,
+//! based on the output from the previous frame.
+//! This means that when a new widget shows up you cannot click it in the same
+//! frame (i.e. in the same fraction of a second), but unless the user
+//! is spider-man, they wouldn't be fast enough to do so anyways.
+//!
+//! By running the interaction code early, egui can actually
+//! tell you if a widget is being interacted with _before_ you add it,
+//! as long as you know its [`Id`] before-hand (e.g. using [`Ui::next_auto_id`]),
+//! by calling [`Context::read_response`].
+//! This can be useful in some circumstances in order to style a widget,
+//! or to respond to interactions before adding the widget
+//! (perhaps on top of other widgets).
+//!
+//!
 //! ## Auto-sizing panels and windows
 //! In egui, all panels and windows auto-shrink to fit the content.
 //! If the window or panel is also resizable, this can lead to a weird behavior
