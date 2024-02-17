@@ -36,6 +36,7 @@ mod rect;
 mod rect_transform;
 mod rot2;
 pub mod smart_aim;
+mod ts_transform;
 mod vec2;
 mod vec2b;
 
@@ -48,6 +49,7 @@ pub use {
     rect::*,
     rect_transform::*,
     rot2::*,
+    ts_transform::*,
     vec2::*,
     vec2b::*,
 };

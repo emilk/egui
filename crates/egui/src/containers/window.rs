@@ -411,8 +411,7 @@ impl<'open> Window<'open> {
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
-        let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
-        let resize = resize.resizable(false); // We move it manually
+        let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
 
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
@@ -429,34 +428,23 @@ impl<'open> Window<'open> {
             (0.0, 0.0)
         };
 
-        // First interact (move etc) to avoid frame delay:
+        // First check for resize to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
-        let interaction = if possible.movable || possible.resizable() {
-            window_interaction(
-                ctx,
-                possible,
-                area_layer_id,
-                area_id.with("frame_resize"),
-                last_frame_outer_rect,
-            )
-            .and_then(|window_interaction| {
-                let margins = window_frame.outer_margin.sum()
-                    + window_frame.inner_margin.sum()
-                    + vec2(0.0, title_bar_height);
+        let resize_interaction =
+            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
 
-                interact(
-                    window_interaction,
-                    ctx,
-                    margins,
-                    area_layer_id,
-                    &mut area,
-                    resize_id,
-                )
-            })
-        } else {
-            None
-        };
-        let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
+        let margins = window_frame.outer_margin.sum()
+            + window_frame.inner_margin.sum()
+            + vec2(0.0, title_bar_height);
+
+        resize_response(
+            resize_interaction,
+            ctx,
+            margins,
+            area_layer_id,
+            &mut area,
+            resize_id,
+        );
 
         let mut area_content_ui = area.content_ui(ctx);
 
@@ -550,23 +538,8 @@ impl<'open> Window<'open> {
 
             collapsing.store(ctx);
 
-            if let Some(interaction) = interaction {
-                paint_frame_interaction(
-                    &area_content_ui,
-                    outer_rect,
-                    interaction,
-                    ctx.style().visuals.widgets.active,
-                );
-            } else if let Some(hover_interaction) = hover_interaction {
-                if ctx.input(|i| i.pointer.has_pointer()) {
-                    paint_frame_interaction(
-                        &area_content_ui,
-                        outer_rect,
-                        hover_interaction,
-                        ctx.style().visuals.widgets.hovered,
-                    );
-                }
-            }
+            paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
+
             content_inner
         };
 
@@ -606,10 +579,10 @@ fn paint_resize_corner(
 
 // ----------------------------------------------------------------------------
 
+/// Which sides can be resized?
 #[derive(Clone, Copy, Debug)]
 struct PossibleInteractions {
-    movable: bool,
-    // Which sides can we drag to resize?
+    // Which sides can we drag to resize or move?
     resize_left: bool,
     resize_right: bool,
     resize_top: bool,
@@ -622,7 +595,6 @@ impl PossibleInteractions {
         let resizable = area.is_enabled() && resize.is_resizable() && !is_collapsed;
         let pivot = area.get_pivot();
         Self {
-            movable,
             resize_left: resizable && (movable || pivot.x() != Align::LEFT),
             resize_right: resizable && (movable || pivot.x() != Align::RIGHT),
             resize_top: resizable && (movable || pivot.y() != Align::TOP),
@@ -635,44 +607,76 @@ impl PossibleInteractions {
     }
 }
 
-/// Either a move or resize
+/// Resizing the window edges.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct WindowInteraction {
-    pub(crate) area_layer_id: LayerId,
-    pub(crate) start_rect: Rect,
-    pub(crate) left: bool,
-    pub(crate) right: bool,
-    pub(crate) top: bool,
-    pub(crate) bottom: bool,
+struct ResizeInteraction {
+    start_rect: Rect,
+    left: SideResponse,
+    right: SideResponse,
+    top: SideResponse,
+    bottom: SideResponse,
 }
 
-impl WindowInteraction {
+/// A minitature version of `Response`, for each side of the window.
+#[derive(Clone, Copy, Debug, Default)]
+struct SideResponse {
+    hover: bool,
+    drag: bool,
+}
+
+impl SideResponse {
+    pub fn any(&self) -> bool {
+        self.hover || self.drag
+    }
+}
+
+impl std::ops::BitOrAssign for SideResponse {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = Self {
+            hover: self.hover || rhs.hover,
+            drag: self.drag || rhs.drag,
+        };
+    }
+}
+
+impl ResizeInteraction {
     pub fn set_cursor(&self, ctx: &Context) {
-        if (self.left && self.top) || (self.right && self.bottom) {
+        let left = self.left.any();
+        let right = self.right.any();
+        let top = self.top.any();
+        let bottom = self.bottom.any();
+
+        if (left && top) || (right && bottom) {
             ctx.set_cursor_icon(CursorIcon::ResizeNwSe);
-        } else if (self.right && self.top) || (self.left && self.bottom) {
+        } else if (right && top) || (left && bottom) {
             ctx.set_cursor_icon(CursorIcon::ResizeNeSw);
-        } else if self.left || self.right {
+        } else if left || right {
             ctx.set_cursor_icon(CursorIcon::ResizeHorizontal);
-        } else if self.bottom || self.top {
+        } else if bottom || top {
             ctx.set_cursor_icon(CursorIcon::ResizeVertical);
         }
     }
 
-    pub fn is_resize(&self) -> bool {
-        self.left || self.right || self.top || self.bottom
+    pub fn any_hovered(&self) -> bool {
+        self.left.hover || self.right.hover || self.top.hover || self.bottom.hover
+    }
+
+    pub fn any_dragged(&self) -> bool {
+        self.left.drag || self.right.drag || self.top.drag || self.bottom.drag
     }
 }
 
-fn interact(
-    window_interaction: WindowInteraction,
+fn resize_response(
+    resize_interaction: ResizeInteraction,
     ctx: &Context,
     margins: Vec2,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
     resize_id: Id,
-) -> Option<WindowInteraction> {
-    let new_rect = move_and_resize_window(ctx, &window_interaction)?;
+) {
+    let Some(new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
+        return;
+    };
     let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
     if area.constrain() {
@@ -682,7 +686,7 @@ fn interact(
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
     area.state_mut().set_left_top_pos(new_rect.left_top());
 
-    if window_interaction.is_resize() {
+    if resize_interaction.any_dragged() {
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
             state.requested_size = Some(new_rect.size() - margins);
             state.store(ctx, resize_id);
@@ -690,191 +694,179 @@ fn interact(
     }
 
     ctx.memory_mut(|mem| mem.areas_mut().move_to_top(area_layer_id));
-    Some(window_interaction)
 }
 
-fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction) -> Option<Rect> {
-    window_interaction.set_cursor(ctx);
-
-    // Only move/resize windows with primary mouse button:
-    if !ctx.input(|i| i.pointer.primary_down()) {
+fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Option<Rect> {
+    if !interaction.any_dragged() {
         return None;
     }
 
     let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
-    let mut rect = window_interaction.start_rect; // prevent drift
+    let mut rect = interaction.start_rect; // prevent drift
 
-    if window_interaction.is_resize() {
-        if window_interaction.left {
-            rect.min.x = ctx.round_to_pixel(pointer_pos.x);
-        } else if window_interaction.right {
-            rect.max.x = ctx.round_to_pixel(pointer_pos.x);
-        }
+    if interaction.left.drag {
+        rect.min.x = ctx.round_to_pixel(pointer_pos.x);
+    } else if interaction.right.drag {
+        rect.max.x = ctx.round_to_pixel(pointer_pos.x);
+    }
 
-        if window_interaction.top {
-            rect.min.y = ctx.round_to_pixel(pointer_pos.y);
-        } else if window_interaction.bottom {
-            rect.max.y = ctx.round_to_pixel(pointer_pos.y);
-        }
-    } else {
-        // Movement.
-
-        // We do window interaction first (to avoid frame delay),
-        // but we want anything interactive in the window (e.g. slider) to steal
-        // the drag from us. It is therefor important not to move the window the first frame,
-        // but instead let other widgets to the steal. HACK.
-        if !ctx.input(|i| i.pointer.any_pressed()) {
-            let press_origin = ctx.input(|i| i.pointer.press_origin())?;
-            let delta = pointer_pos - press_origin;
-            rect = rect.translate(delta);
-        }
+    if interaction.top.drag {
+        rect.min.y = ctx.round_to_pixel(pointer_pos.y);
+    } else if interaction.bottom.drag {
+        rect.max.y = ctx.round_to_pixel(pointer_pos.y);
     }
 
     Some(rect)
 }
 
-/// Returns `Some` if there is a move or resize
-fn window_interaction(
+fn resize_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer_id: LayerId,
-    id: Id,
+    layer_id: LayerId,
     rect: Rect,
-) -> Option<WindowInteraction> {
-    if ctx.memory(|mem| mem.dragging_something_else(id)) {
-        return None;
+) -> ResizeInteraction {
+    if !possible.resizable() {
+        return ResizeInteraction {
+            start_rect: rect,
+            left: Default::default(),
+            right: Default::default(),
+            top: Default::default(),
+            bottom: Default::default(),
+        };
     }
 
-    let mut window_interaction = ctx.memory(|mem| mem.window_interaction());
-
-    if window_interaction.is_none() {
-        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
-            hover_window_interaction.set_cursor(ctx);
-            if ctx.input(|i| i.pointer.any_pressed() && i.pointer.primary_down()) {
-                ctx.memory_mut(|mem| {
-                    mem.interaction_mut().drag_id = Some(id);
-                    mem.interaction_mut().drag_is_window = true;
-                    window_interaction = Some(hover_window_interaction);
-                    mem.set_window_interaction(window_interaction);
-                });
-            }
+    let is_dragging = |rect, id| {
+        let response = ctx.create_widget(WidgetRect {
+            layer_id,
+            id,
+            rect,
+            interact_rect: rect,
+            sense: Sense::drag(),
+            enabled: true,
+        });
+        SideResponse {
+            hover: response.hovered(),
+            drag: response.dragged(),
         }
-    }
+    };
 
-    if let Some(window_interaction) = window_interaction {
-        let is_active = ctx.memory_mut(|mem| mem.interaction().drag_id == Some(id));
-
-        if is_active && window_interaction.area_layer_id == area_layer_id {
-            return Some(window_interaction);
-        }
-    }
-
-    None
-}
-
-fn resize_hover(
-    ctx: &Context,
-    possible: PossibleInteractions,
-    area_layer_id: LayerId,
-    rect: Rect,
-) -> Option<WindowInteraction> {
-    let pointer = ctx.input(|i| i.pointer.interact_pos())?;
-
-    if ctx.input(|i| i.pointer.any_down() && !i.pointer.any_pressed()) {
-        return None; // already dragging (something)
-    }
-
-    if let Some(top_layer_id) = ctx.layer_id_at(pointer) {
-        if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
-            return None; // Another window is on top here
-        }
-    }
-
-    if ctx.memory(|mem| mem.interaction().drag_interest) {
-        // Another widget will become active if we drag here
-        return None;
-    }
+    let id = Id::new(layer_id).with("edge_drag");
 
     let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
     let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
-    if !rect.expand(side_grab_radius).contains(pointer) {
-        return None;
+
+    let corner_rect =
+        |center: Pos2| Rect::from_center_size(center, Vec2::splat(2.0 * corner_grab_radius));
+
+    // What are we dragging/hovering?
+    let [mut left, mut right, mut top, mut bottom] = [SideResponse::default(); 4];
+
+    // ----------------------------------------
+    // Check sides first, so that corners are on top, covering the sides (i.e. corners have priority)
+
+    if possible.resize_right {
+        let response = is_dragging(
+            Rect::from_min_max(rect.right_top(), rect.right_bottom()).expand(side_grab_radius),
+            id.with("right"),
+        );
+        right |= response;
+    }
+    if possible.resize_left {
+        let response = is_dragging(
+            Rect::from_min_max(rect.left_top(), rect.left_bottom()).expand(side_grab_radius),
+            id.with("left"),
+        );
+        left |= response;
+    }
+    if possible.resize_bottom {
+        let response = is_dragging(
+            Rect::from_min_max(rect.left_bottom(), rect.right_bottom()).expand(side_grab_radius),
+            id.with("bottom"),
+        );
+        bottom |= response;
+    }
+    if possible.resize_top {
+        let response = is_dragging(
+            Rect::from_min_max(rect.left_top(), rect.right_top()).expand(side_grab_radius),
+            id.with("top"),
+        );
+        top |= response;
     }
 
-    let mut left = possible.resize_left && (rect.left() - pointer.x).abs() <= side_grab_radius;
-    let mut right = possible.resize_right && (rect.right() - pointer.x).abs() <= side_grab_radius;
-    let mut top = possible.resize_top && (rect.top() - pointer.y).abs() <= side_grab_radius;
-    let mut bottom =
-        possible.resize_bottom && (rect.bottom() - pointer.y).abs() <= side_grab_radius;
+    // ----------------------------------------
+    // Now check corners:
 
-    if possible.resize_right
-        && possible.resize_bottom
-        && rect.right_bottom().distance(pointer) < corner_grab_radius
-    {
-        right = true;
-        bottom = true;
-    }
-    if possible.resize_right
-        && possible.resize_top
-        && rect.right_top().distance(pointer) < corner_grab_radius
-    {
-        right = true;
-        top = true;
-    }
-    if possible.resize_left
-        && possible.resize_top
-        && rect.left_top().distance(pointer) < corner_grab_radius
-    {
-        left = true;
-        top = true;
-    }
-    if possible.resize_left
-        && possible.resize_bottom
-        && rect.left_bottom().distance(pointer) < corner_grab_radius
-    {
-        left = true;
-        bottom = true;
+    if possible.resize_right && possible.resize_bottom {
+        let response = is_dragging(corner_rect(rect.right_bottom()), id.with("right_bottom"));
+        right |= response;
+        bottom |= response;
     }
 
-    let any_resize = left || right || top || bottom;
-
-    if !any_resize && !possible.movable {
-        return None;
+    if possible.resize_right && possible.resize_top {
+        let response = is_dragging(corner_rect(rect.right_top()), id.with("right_top"));
+        right |= response;
+        top |= response;
     }
 
-    if any_resize || possible.movable {
-        Some(WindowInteraction {
-            area_layer_id,
-            start_rect: rect,
-            left,
-            right,
-            top,
-            bottom,
-        })
-    } else {
-        None
+    if possible.resize_left && possible.resize_bottom {
+        let response = is_dragging(corner_rect(rect.left_bottom()), id.with("left_bottom"));
+        left |= response;
+        bottom |= response;
     }
+
+    if possible.resize_left && possible.resize_top {
+        let response = is_dragging(corner_rect(rect.left_top()), id.with("left_top"));
+        left |= response;
+        top |= response;
+    }
+
+    let interaction = ResizeInteraction {
+        start_rect: rect,
+        left,
+        right,
+        top,
+        bottom,
+    };
+    interaction.set_cursor(ctx);
+    interaction
 }
 
 /// Fill in parts of the window frame when we resize by dragging that part
-fn paint_frame_interaction(
-    ui: &Ui,
-    rect: Rect,
-    interaction: WindowInteraction,
-    visuals: style::WidgetVisuals,
-) {
+fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) {
     use epaint::tessellator::path::add_circle_quadrant;
+
+    let visuals = if interaction.any_dragged() {
+        ui.style().visuals.widgets.active
+    } else if interaction.any_hovered() {
+        ui.style().visuals.widgets.hovered
+    } else {
+        return;
+    };
+
+    let [left, right, top, bottom]: [bool; 4];
+
+    if interaction.any_dragged() {
+        left = interaction.left.drag;
+        right = interaction.right.drag;
+        top = interaction.top.drag;
+        bottom = interaction.bottom.drag;
+    } else {
+        left = interaction.left.hover;
+        right = interaction.right.hover;
+        top = interaction.top.hover;
+        bottom = interaction.bottom.hover;
+    }
 
     let rounding = ui.visuals().window_rounding;
     let Rect { min, max } = rect;
 
     let mut points = Vec::new();
 
-    if interaction.right && !interaction.bottom && !interaction.top {
+    if right && !bottom && !top {
         points.push(pos2(max.x, min.y + rounding.ne));
         points.push(pos2(max.x, max.y - rounding.se));
     }
-    if interaction.right && interaction.bottom {
+    if right && bottom {
         points.push(pos2(max.x, min.y + rounding.ne));
         points.push(pos2(max.x, max.y - rounding.se));
         add_circle_quadrant(
@@ -884,11 +876,11 @@ fn paint_frame_interaction(
             0.0,
         );
     }
-    if interaction.bottom {
+    if bottom {
         points.push(pos2(max.x - rounding.se, max.y));
         points.push(pos2(min.x + rounding.sw, max.y));
     }
-    if interaction.left && interaction.bottom {
+    if left && bottom {
         add_circle_quadrant(
             &mut points,
             pos2(min.x + rounding.sw, max.y - rounding.sw),
@@ -896,11 +888,11 @@ fn paint_frame_interaction(
             1.0,
         );
     }
-    if interaction.left {
+    if left {
         points.push(pos2(min.x, max.y - rounding.sw));
         points.push(pos2(min.x, min.y + rounding.nw));
     }
-    if interaction.left && interaction.top {
+    if left && top {
         add_circle_quadrant(
             &mut points,
             pos2(min.x + rounding.nw, min.y + rounding.nw),
@@ -908,11 +900,11 @@ fn paint_frame_interaction(
             2.0,
         );
     }
-    if interaction.top {
+    if top {
         points.push(pos2(min.x + rounding.nw, min.y));
         points.push(pos2(max.x - rounding.ne, min.y));
     }
-    if interaction.right && interaction.top {
+    if right && top {
         add_circle_quadrant(
             &mut points,
             pos2(max.x - rounding.ne, min.y + rounding.ne),
