@@ -44,8 +44,8 @@ pub struct WidgetRects {
     /// All widgets, in painting order.
     by_layer: HashMap<LayerId, Vec<WidgetRect>>,
 
-    /// All widgets
-    by_id: IdMap<WidgetRect>,
+    /// All widgets, by id, and their order in their respective layer
+    by_id: IdMap<(usize, WidgetRect)>,
 }
 
 impl WidgetRects {
@@ -62,7 +62,7 @@ impl WidgetRects {
 
     #[inline]
     pub fn get(&self, id: Id) -> Option<&WidgetRect> {
-        self.by_id.get(&id)
+        self.by_id.get(&id).map(|(_, w)| w)
     }
 
     #[inline]
@@ -100,23 +100,28 @@ impl WidgetRects {
         match by_id.entry(widget_rect.id) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 // A new widget
-                entry.insert(widget_rect);
+                let idx_in_layer = layer_widgets.len();
+                entry.insert((idx_in_layer, widget_rect));
                 layer_widgets.push(widget_rect);
             }
             std::collections::hash_map::Entry::Occupied(mut entry) => {
+                // This is a known widget, but we might need to update it!
                 // e.g. calling `response.interact(…)` to add more interaction.
-                let existing = entry.get_mut();
+                let (idx_in_layer, existing) = entry.get_mut();
+
+                // Update it:
                 existing.rect = existing.rect.union(widget_rect.rect);
                 existing.interact_rect = existing.interact_rect.union(widget_rect.interact_rect);
                 existing.sense |= widget_rect.sense;
                 existing.enabled |= widget_rect.enabled;
 
-                // Find the existing widget in this layer and update it:
-                for previous in layer_widgets.iter_mut().rev() {
-                    if previous.id == widget_rect.id {
-                        *previous = *existing;
-                        break;
-                    }
+                egui_assert!(
+                    existing.layer_id == widget_rect.layer_id,
+                    "Widget changed layer_id during the frame"
+                );
+
+                if existing.layer_id == widget_rect.layer_id {
+                    layer_widgets[*idx_in_layer] = *existing;
                 }
             }
         }
