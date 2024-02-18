@@ -2756,31 +2756,31 @@ impl Context {
                 self.memory_mut(|mem| *mem.areas_mut() = Default::default());
             }
         });
-        ui.indent("areas", |ui| {
-            ui.label("Visible areas, ordered back to front.");
-            ui.label("Hover to highlight");
-            let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
-            for layer_id in layers_ids {
-                let area = self.memory(|mem| mem.areas().get(layer_id.id).copied());
-                if let Some(area) = area {
-                    let is_visible = self.memory(|mem| mem.areas().is_visible(&layer_id));
-                    if !is_visible {
-                        continue;
+        ui.indent(|ui| {
+                    ui.label("Visible areas, ordered back to front.");
+                    ui.label("Hover to highlight");
+                    let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
+                    for layer_id in layers_ids {
+                        let area = self.memory(|mem| mem.areas().get(layer_id.id).copied());
+                        if let Some(area) = area {
+                            let is_visible = self.memory(|mem| mem.areas().is_visible(&layer_id));
+                            if !is_visible {
+                                continue;
+                            }
+                            let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
+                            // TODO(emilk): `Sense::hover_highlight()`
+                            if ui
+                                .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
+                                .hovered
+                                && is_visible
+                            {
+                                ui.ctx()
+                                    .debug_painter()
+                                    .debug_rect(area.rect(), Color32::RED, "");
+                            }
+                        }
                     }
-                    let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
-                    // TODO(emilk): `Sense::hover_highlight()`
-                    if ui
-                        .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
-                        .hovered
-                        && is_visible
-                    {
-                        ui.ctx()
-                            .debug_painter()
-                            .debug_rect(area.rect(), Color32::RED, "");
-                    }
-                }
-            }
-        });
+                });
 
         ui.horizontal(|ui| {
             ui.label(format!(
