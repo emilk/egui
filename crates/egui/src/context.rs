@@ -452,12 +452,7 @@ impl ContextImpl {
                 .map(|(i, id)| (*id, i))
                 .collect();
 
-            let mut layers: Vec<LayerId> = viewport
-                .widgets_prev_frame
-                .by_layer
-                .keys()
-                .copied()
-                .collect();
+            let mut layers: Vec<LayerId> = viewport.widgets_prev_frame.layer_ids().collect();
 
             layers.sort_by(|a, b| {
                 if a.order == b.order {
@@ -1081,9 +1076,8 @@ impl Context {
             let viewport = ctx.viewport();
             viewport
                 .widgets_this_frame
-                .by_id
-                .get(&id)
-                .or_else(|| viewport.widgets_prev_frame.by_id.get(&id))
+                .get(id)
+                .or_else(|| viewport.widgets_prev_frame.get(id))
                 .copied()
         })
         .map(|widget_rect| self.get_response(widget_rect))
@@ -1828,7 +1822,7 @@ impl Context {
 
         let paint_widget_id = |id: Id, text: &str, color: Color32| {
             if let Some(widget) =
-                self.write(|ctx| ctx.viewport().widgets_this_frame.by_id.get(&id).cloned())
+                self.write(|ctx| ctx.viewport().widgets_this_frame.get(id).cloned())
             {
                 paint_widget(&widget, text, color);
             }
@@ -1837,8 +1831,8 @@ impl Context {
         if self.style().debug.show_interactive_widgets {
             // Show all interactive widgets:
             let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
-            for (layer_id, rects) in rects.by_layer {
-                let painter = Painter::new(self.clone(), layer_id, Rect::EVERYTHING);
+            for (layer_id, rects) in rects.layers() {
+                let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
                     if rect.sense.interactive() {
                         let (color, text) = if rect.sense.click && rect.sense.drag {

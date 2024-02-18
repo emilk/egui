@@ -3,7 +3,8 @@ use ahash::HashMap;
 use crate::*;
 
 /// Used to store each widget's [Id], [Rect] and [Sense] each frame.
-/// Used to check for overlaps between widgets when handling events.
+///
+/// Used to check which widget gets input when a user clicks somewhere.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WidgetRect {
     /// The globally unique widget id.
@@ -34,19 +35,47 @@ pub struct WidgetRect {
     pub enabled: bool,
 }
 
-/// Stores the positions of all widgets generated during a single egui update/frame.
+/// Stores the [`WidgetRect`]s of all widgets generated during a single egui update/frame.
 ///
-/// Actually, only those that are on screen.
+/// Widgets that are not visible (outside their clip area,
+/// e.g. too far down a scroll area) are not stored.
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct WidgetRects {
     /// All widgets, in painting order.
-    pub by_layer: HashMap<LayerId, Vec<WidgetRect>>,
+    by_layer: HashMap<LayerId, Vec<WidgetRect>>,
 
     /// All widgets
-    pub by_id: IdMap<WidgetRect>,
+    by_id: IdMap<WidgetRect>,
 }
 
 impl WidgetRects {
+    /// All known layers with widgets.
+    pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
+        self.by_layer.keys().copied()
+    }
+
+    pub fn layers(&self) -> impl Iterator<Item = (&LayerId, &[WidgetRect])> + '_ {
+        self.by_layer
+            .iter()
+            .map(|(layer_id, rects)| (layer_id, &rects[..]))
+    }
+
+    #[inline]
+    pub fn get(&self, id: Id) -> Option<&WidgetRect> {
+        self.by_id.get(&id)
+    }
+
+    #[inline]
+    pub fn contains(&self, id: Id) -> bool {
+        self.by_id.contains_key(&id)
+    }
+
+    /// All widgets in this layer, sorted back-to-front.
+    #[inline]
+    pub fn get_layer(&self, layer_id: LayerId) -> impl Iterator<Item = &WidgetRect> + '_ {
+        self.by_layer.get(&layer_id).into_iter().flatten()
+    }
+
     /// Clear the contents while retaining allocated memory.
     pub fn clear(&mut self) {
         let Self { by_layer, by_id } = self;
