@@ -110,8 +110,8 @@ impl WidgetRects {
                 let (idx_in_layer, existing) = entry.get_mut();
 
                 // Update it:
-                existing.rect = existing.rect.union(widget_rect.rect);
-                existing.interact_rect = existing.interact_rect.union(widget_rect.interact_rect);
+                existing.rect = widget_rect.rect; // last wins
+                existing.interact_rect = widget_rect.interact_rect; // last wins
                 existing.sense |= widget_rect.sense;
                 existing.enabled |= widget_rect.enabled;
 

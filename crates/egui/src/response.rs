@@ -658,7 +658,7 @@ impl Response {
             id: self.id,
             rect: self.rect,
             interact_rect: self.interact_rect,
-            sense,
+            sense: self.sense | sense,
             enabled: self.enabled,
         })
     }
