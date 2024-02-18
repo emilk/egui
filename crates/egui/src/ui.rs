@@ -1777,10 +1777,7 @@ impl Ui {
     /// The `id_source` here be anything at all.
     // TODO(emilk): remove `id_source` argument?
     #[inline]
-    pub fn indent<R>(
-        &mut self,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
+    pub fn indent<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.indent_dyn(Box::new(add_contents))
     }
 
