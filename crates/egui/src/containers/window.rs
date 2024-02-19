@@ -520,12 +520,7 @@ impl<'open> Window<'open> {
                     },
                 );
 
-                title_rect.min = area_content_ui
-                    .painter()
-                    .round_pos_to_pixels(title_rect.min);
-                title_rect.max = area_content_ui
-                    .painter()
-                    .round_pos_to_pixels(title_rect.max);
+                title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
 
                 if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let mut round = window_frame.rounding;
