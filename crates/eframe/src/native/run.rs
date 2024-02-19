@@ -335,7 +335,7 @@ fn run_and_exit(
                     winit_app.run_ui_and_paint(event_loop_window_target, window_id);
                 }
 
-                windows_next_repaint_times.insert(window_id, Instant::now());
+                windows_next_repaint_times.insert(window_id, now);
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
                 windows_next_repaint_times.insert(
