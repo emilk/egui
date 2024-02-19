@@ -1,7 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
 #![allow(clippy::use_self)]
 
-use std::{any::Any, hash::Hash, sync::Arc};
+use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
 
 use epaint::mutex::RwLock;
 
@@ -2317,6 +2317,14 @@ impl Ui {
     #[cfg(debug_assertions)]
     pub fn debug_paint_cursor(&self) {
         self.placer.debug_paint_cursor(&self.painter, "next");
+    }
+}
+
+impl Deref for Ui {
+    type Target = Context;
+
+    fn deref(&self) -> &Self::Target {
+        self.ctx()
     }
 }
 
