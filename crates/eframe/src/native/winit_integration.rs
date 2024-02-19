@@ -102,7 +102,6 @@ pub enum EventResult {
     /// Queues a repaint for once the event loop handles its next redraw. Exists
     /// so that multiple input events can be handled in one frame. Does not
     /// cause any delay like `RepaintNow`.
-    #[allow(dead_code)]
     RepaintNext(WindowId),
 
     RepaintAt(WindowId, Instant),
