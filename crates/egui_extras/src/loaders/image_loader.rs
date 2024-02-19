@@ -76,12 +76,12 @@ impl ImageLoader for ImageCrateLoader {
                             let ctx = ctx.clone();
                             let cache = self.cache.clone();
 
-                            let uri = uri.to_owned();
+                            let uri = uri.clone();
                             move || {
                                 log::trace!("ImageLoader - started loading {uri:?}");
                                 let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
                                 log::trace!("ImageLoader - finished loading {uri:?}");
-                                let prev = cache.lock().insert(uri.into(), Poll::Ready(result));
+                                let prev = cache.lock().insert(uri, Poll::Ready(result));
                                 assert!(matches!(prev, Some(Poll::Pending)));
 
                                 ctx.request_repaint();
@@ -89,7 +89,7 @@ impl ImageLoader for ImageCrateLoader {
                         })
                         .expect("failed to spawn thread");
 
-                    return Ok(ImagePoll::Pending { size: None });
+                    Ok(ImagePoll::Pending { size: None })
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
                 Err(err) => Err(err),
