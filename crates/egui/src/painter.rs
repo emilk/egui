@@ -16,7 +16,7 @@ use epaint::{
 #[derive(Clone)]
 pub struct Painter {
     /// Source of fonts and destination of shapes
-    pub(crate) ctx: Context,
+    ctx: Context,
 
     /// Where we paint
     layer_id: LayerId,
