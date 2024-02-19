@@ -122,7 +122,7 @@ impl ColorImage {
 
     /// Alternative method to `from_gray`.
     /// Create a [`ColorImage`] from iterator over flat opaque gray data.
-    /// 
+    ///
     /// Panics if `size[0] * size[1] != gray_iter.len()`.
     pub fn from_gray_iter(size: [usize; 2], gray_iter: impl Iterator<Item = u8>) -> Self {
         let pixels: Vec<_> = gray_iter.map(Color32::from_gray).collect();
