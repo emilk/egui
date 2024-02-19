@@ -369,13 +369,13 @@ use epaint::Stroke;
 
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
-    paint_resize_corner_with_style(ui, &response.rect, stroke, Align2::RIGHT_BOTTOM);
+    paint_resize_corner_with_style(ui, &response.rect, stroke.color, Align2::RIGHT_BOTTOM);
 }
 
 pub fn paint_resize_corner_with_style(
     ui: &Ui,
     rect: &Rect,
-    stroke: impl Into<Stroke>,
+    color: impl Into<Color32>,
     corner: Align2,
 ) {
     let painter = ui.painter();
@@ -383,7 +383,7 @@ pub fn paint_resize_corner_with_style(
     let mut w = 2.0;
     let stroke = Stroke {
         width: 1.0, // Set width to 1.0 to prevent overlapping
-        ..stroke.into()
+        color: color.into(),
     };
 
     while w <= rect.width() && w <= rect.height() {

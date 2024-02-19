@@ -608,7 +608,7 @@ fn paint_resize_corner(
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
     let corner_rect = corner_rect.translate(-offset * corner.to_sign()); // move away from corner
-    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke, corner);
+    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke.color, corner);
 }
 
 // ----------------------------------------------------------------------------
