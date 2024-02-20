@@ -37,8 +37,8 @@ pub struct WidgetRect {
 
 /// Stores the [`WidgetRect`]s of all widgets generated during a single egui update/frame.
 ///
-/// All [`Ui`]s have a [`WidgetRects`], but wether or not their rects are correct
-/// depends on if [`Ui:::interact_bg`] was ever called.
+/// All [`Ui`]s have a [`WidgetRects`], but whether or not their rects are correct
+/// depends on if [`Ui::interact_bg`] was ever called.
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct WidgetRects {
     /// All widgets, in painting order.
