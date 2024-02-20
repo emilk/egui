@@ -403,6 +403,7 @@ pub mod text_selection;
 mod ui;
 pub mod util;
 pub mod viewport;
+mod widget_rect;
 pub mod widget_text;
 pub mod widgets;
 
@@ -443,7 +444,7 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::{Context, RepaintCause, RequestRepaintInfo, WidgetRect, WidgetRects},
+    context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
         input::*,
         output::{
@@ -466,6 +467,7 @@ pub use {
     text::{Galley, TextFormat},
     ui::Ui,
     viewport::*,
+    widget_rect::{WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},
     widgets::*,
 };

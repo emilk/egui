@@ -1166,7 +1166,13 @@ impl<'a, 'b> TableRow<'a, 'b> {
             selected: self.selected,
         };
 
-        let (used_rect, response) = self.layout.add(flags, width, height, add_cell_contents);
+        let (used_rect, response) = self.layout.add(
+            flags,
+            width,
+            height,
+            egui::Id::new((self.row_index, col_index)),
+            add_cell_contents,
+        );
 
         if let Some(max_w) = self.max_used_widths.get_mut(col_index) {
             *max_w = max_w.max(used_rect.width());
