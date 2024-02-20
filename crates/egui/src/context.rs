@@ -256,7 +256,7 @@ struct ViewportState {
 #[derive(Clone, Debug)]
 pub struct RepaintCause {
     /// What file had the call that requested the repaint?
-    pub file: String,
+    pub file: &'static str,
 
     /// What line number of the the call that requested the repaint?
     pub line: u32,
@@ -269,7 +269,7 @@ impl RepaintCause {
     pub fn new() -> Self {
         let caller = Location::caller();
         Self {
-            file: caller.file().to_owned(),
+            file: caller.file(),
             line: caller.line(),
         }
     }
