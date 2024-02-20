@@ -18,7 +18,7 @@ impl Shadow {
         extrusion: 0.0,
         color: Color32::TRANSPARENT,
     };
-    
+
     pub const fn new(extrusion: f32, color: Color32) -> Self {
         Self { extrusion, color }
     }
