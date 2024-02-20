@@ -475,6 +475,13 @@ impl State {
         }
     }
 
+    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
+        self.egui_input.events.push(egui::Event::MouseMoved(Vec2 {
+            x: delta.0 as f32,
+            y: delta.1 as f32,
+        }));
+    }
+
     /// Call this when there is a new [`accesskit::ActionRequest`].
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
