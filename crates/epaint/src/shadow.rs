@@ -18,6 +18,10 @@ impl Shadow {
         extrusion: 0.0,
         color: Color32::TRANSPARENT,
     };
+    
+    pub const fn new(extrusion: f32, color: Color32) -> Self {
+        Self { extrusion, color }
+    }
 
     /// Tooltips, menus, …, for dark mode.
     pub const fn small_dark() -> Self {
