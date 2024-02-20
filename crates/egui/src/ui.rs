@@ -86,7 +86,7 @@ impl Ui {
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if the ui is closed
+        let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
         ui.ctx().create_widget(WidgetRect {
             id: ui.id,
             layer_id: ui.layer_id(),
@@ -125,7 +125,7 @@ impl Ui {
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if the ui is closed
+        let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
         child_ui.ctx().create_widget(WidgetRect {
             id: child_ui.id,
             layer_id: child_ui.layer_id(),
@@ -697,8 +697,7 @@ impl Ui {
     /// Interact with the background of this [`Ui`],
     /// i.e. behind all the widgets.
     ///
-    /// The size of the [`Response`] (and interactive area)
-    /// will be [`Self::min_rect`]
+    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
     pub fn interact_bg(&self, sense: Sense) -> Response {
         // This will update the WidgetRect that was first created in `Ui::new`.
         self.interact(self.min_rect(), self.id, sense)

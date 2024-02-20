@@ -1812,8 +1812,11 @@ impl Context {
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
-            let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
-            painter.debug_rect(widget.interact_rect, color, text);
+            let rect = widget.interact_rect;
+            if rect.is_positive() {
+                let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
+                painter.debug_rect(rect, color, text);
+            }
         };
 
         let paint_widget_id = |id: Id, text: &str, color: Color32| {
