@@ -1,4 +1,4 @@
-use egui::{Pos2, Rect, Response, Sense, Ui};
+use egui::{Id, Pos2, Rect, Response, Sense, Ui};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -113,6 +113,7 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
+        child_ui_id_source: Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
@@ -145,7 +146,7 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let used_rect = self.cell(flags, max_rect, add_cell_contents);
+        let used_rect = self.cell(flags, max_rect, child_ui_id_source, add_cell_contents);
 
         self.set_pos(max_rect);
 
@@ -186,9 +187,12 @@ impl<'l> StripLayout<'l> {
         &mut self,
         flags: StripLayoutFlags,
         rect: Rect,
+        child_ui_id_source: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Rect {
-        let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
+        let mut child_ui =
+            self.ui
+                .child_ui_with_id_source(rect, self.cell_layout, child_ui_id_source);
 
         if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
