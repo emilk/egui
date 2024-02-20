@@ -95,8 +95,11 @@ fn run_and_return(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
-                windows_next_repaint_times.remove(window_id);
-                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
+                if cfg!(feature = "wgpu") {
+                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
+                } else {
+                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
+                }
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -150,15 +153,14 @@ fn run_and_return(
                     short_event_description(&event)
                 );
 
-                if cfg!(target_os = "windows") {
-                    // Deprecated Comment
-                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                    // windows_next_repaint_times.remove(&window_id);
-
-                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
-                } else {
-                    // Fix for https://github.com/emilk/egui/issues/2425
+                if cfg!(feature = "wgpu") {
                     windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
+                } else {
+                    windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
                 }
             }
             EventResult::RepaintNext(window_id) => {
@@ -167,11 +169,17 @@ fn run_and_return(
                     short_event_description(&event)
                 );
 
-                if cfg!(target_os = "windows") {
+                if cfg!(feature = "wgpu") {
                     winit_app.run_ui_and_paint(event_loop_window_target, window_id);
+                    windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
+                } else {
+                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
+                    windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
                 }
-
-                windows_next_repaint_times.insert(window_id, now);
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
                 windows_next_repaint_times.insert(
@@ -270,8 +278,11 @@ fn run_and_exit(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
-                windows_next_repaint_times.remove(window_id);
-                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
+                if cfg!(feature = "wgpu") {
+                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
+                } else {
+                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
+                }
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -318,24 +329,31 @@ fn run_and_exit(
             }
             EventResult::RepaintNow(window_id) => {
                 log::trace!("RepaintNow caused by {}", short_event_description(&event));
-                if cfg!(target_os = "windows") {
-                    // Deprecated Comment
-                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                    // windows_next_repaint_times.remove(&window_id);
 
-                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
-                } else {
-                    // Fix for https://github.com/emilk/egui/issues/2425
+                if cfg!(feature = "wgpu") {
                     windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
+                } else {
+                    windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
                 }
             }
             EventResult::RepaintNext(window_id) => {
                 log::trace!("RepaintNext caused by {}", short_event_description(&event));
-                if cfg!(target_os = "windows") {
-                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
-                }
 
-                windows_next_repaint_times.insert(window_id, now);
+                if cfg!(feature = "wgpu") {
+                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
+                    windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
+                } else {
+                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
+                    windows_next_repaint_times.insert(window_id, now);
+                    windows_next_repaint_times
+                        .insert(window_id, now + std::time::Duration::from_millis(1));
+                }
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
                 windows_next_repaint_times.insert(
