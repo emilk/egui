@@ -148,7 +148,7 @@ pub struct Plot {
     center_axis: Vec2b,
     allow_zoom: Vec2b,
     allow_drag: Vec2b,
-    allow_scroll: bool,
+    allow_scroll: Vec2b,
     allow_double_click_reset: bool,
     allow_boxed_zoom: bool,
     default_auto_bounds: Vec2b,
@@ -181,6 +181,8 @@ pub struct Plot {
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
+
+    sense: Sense,
 }
 
 impl Plot {
@@ -193,7 +195,7 @@ impl Plot {
             center_axis: false.into(),
             allow_zoom: true.into(),
             allow_drag: true.into(),
-            allow_scroll: true,
+            allow_scroll: true.into(),
             allow_double_click_reset: true,
             allow_boxed_zoom: true,
             default_auto_bounds: true.into(),
@@ -226,6 +228,8 @@ impl Plot {
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
+
+            sense: egui::Sense::click_and_drag(),
         }
     }
 
@@ -325,8 +329,11 @@ impl Plot {
 
     /// Whether to allow scrolling in the plot. Default: `true`.
     #[inline]
-    pub fn allow_scroll(mut self, on: bool) -> Self {
-        self.allow_scroll = on;
+    pub fn allow_scroll<T>(mut self, on: T) -> Self
+    where
+        T: Into<Vec2b>,
+    {
+        self.allow_scroll = on.into();
         self
     }
 
@@ -474,6 +481,15 @@ impl Plot {
     #[inline]
     pub fn clamp_grid(mut self, clamp_grid: bool) -> Self {
         self.clamp_grid = clamp_grid;
+        self
+    }
+
+    /// Set the sense for the plot rect.
+    ///
+    /// Default: `Sense::click_and_drag()`.
+    #[inline]
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
         self
     }
 
@@ -745,6 +761,7 @@ impl Plot {
             clamp_grid,
             grid_spacers,
             sharp_grid_lines,
+            sense,
         } = self;
 
         // Determine position of widget.
@@ -789,7 +806,7 @@ impl Plot {
         );
 
         // Allocate the plot window.
-        let response = ui.allocate_rect(plot_rect, Sense::click_and_drag());
+        let response = ui.allocate_rect(plot_rect, sense);
 
         // Load or initialize the memory.
         ui.ctx().check_for_id_clash(plot_id, plot_rect, "Plot");
@@ -1035,7 +1052,7 @@ impl Plot {
                     ));
                 }
                 // when the click is release perform the zoom
-                if response.drag_released() {
+                if response.drag_stopped() {
                     let box_start_pos = mem.transform.value_from_position(box_start_pos);
                     let box_end_pos = mem.transform.value_from_position(box_end_pos);
                     let new_bounds = PlotBounds {
@@ -1077,8 +1094,14 @@ impl Plot {
                     mem.auto_bounds = !allow_zoom;
                 }
             }
-            if allow_scroll {
-                let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
+            if allow_scroll.any() {
+                let mut scroll_delta = ui.input(|i| i.smooth_scroll_delta);
+                if !allow_scroll.x {
+                    scroll_delta.x = 0.0;
+                }
+                if !allow_scroll.y {
+                    scroll_delta.y = 0.0;
+                }
                 if scroll_delta != Vec2::ZERO {
                     mem.transform.translate_bounds(-scroll_delta);
                     mem.auto_bounds = false.into();

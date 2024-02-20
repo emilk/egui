@@ -277,6 +277,26 @@ impl Ui {
         }
     }
 
+    /// Make the widget in this [`Ui`] semi-transparent.
+    ///
+    /// `opacity` must be between 0.0 and 1.0, where 0.0 means fully transparent (i.e., invisible)
+    /// and 1.0 means fully opaque (i.e., the same as not calling the method at all).
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.group(|ui| {
+    ///     ui.set_opacity(0.5);
+    ///     if ui.button("Half-transparent button").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn set_opacity(&mut self, opacity: f32) {
+        self.painter.set_opacity(opacity);
+    }
+
     /// Read the [`Layout`].
     #[inline]
     pub fn layout(&self) -> &Layout {
@@ -626,38 +646,26 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().interact(
-            self.clip_rect(),
-            self.spacing().item_spacing,
-            self.layer_id(),
+        self.ctx().create_widget(WidgetRect {
             id,
+            layer_id: self.layer_id(),
             rect,
+            interact_rect: self.clip_rect().intersect(rect),
             sense,
-            self.enabled,
-        )
+            enabled: self.enabled,
+        })
     }
 
-    /// Check for clicks, and drags on a specific region that is hovered.
-    /// This can be used once you have checked that some shape you are painting has been hovered,
-    /// and want to check for clicks and drags on hovered items this frame.
-    ///
-    /// The given [`Rect`] should approximately be where the thing is,
-    /// as will be the rectangle for the returned [`Response::rect`].
+    /// Deprecated: use [`Self::interact`] instead.
+    #[deprecated = "The contains_pointer argument is ignored. Use `ui.interact` instead."]
     pub fn interact_with_hovered(
         &self,
         rect: Rect,
-        contains_pointer: bool,
+        _contains_pointer: bool,
         id: Id,
         sense: Sense,
     ) -> Response {
-        self.ctx().interact_with_hovered(
-            self.layer_id(),
-            id,
-            rect,
-            sense,
-            self.enabled,
-            contains_pointer,
-        )
+        self.interact(rect, id, sense)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -2138,9 +2146,11 @@ impl Ui {
     where
         Payload: Any + Send + Sync,
     {
-        let is_being_dragged = self.memory(|mem| mem.is_being_dragged(id));
+        let is_being_dragged = self.ctx().is_being_dragged(id);
 
         if is_being_dragged {
+            crate::DragAndDrop::set_payload(self.ctx(), payload);
+
             // Paint the body to a new layer:
             let layer_id = LayerId::new(Order::Tooltip, id);
             let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
@@ -2154,7 +2164,8 @@ impl Ui {
 
             if let Some(pointer_pos) = self.ctx().pointer_interact_pos() {
                 let delta = pointer_pos - response.rect.center();
-                self.ctx().translate_layer(layer_id, delta);
+                self.ctx()
+                    .transform_layer_shapes(layer_id, emath::TSTransform::from_translation(delta));
             }
 
             InnerResponse::new(inner, response)
@@ -2162,9 +2173,9 @@ impl Ui {
             let InnerResponse { inner, response } = self.scope(add_contents);
 
             // Check for drags:
-            let dnd_response = self.interact(response.rect, id, Sense::drag());
-
-            dnd_response.dnd_set_drag_payload(payload);
+            let dnd_response = self
+                .interact(response.rect, id, Sense::drag())
+                .on_hover_cursor(CursorIcon::Grab);
 
             InnerResponse::new(inner, dnd_response | response)
         }

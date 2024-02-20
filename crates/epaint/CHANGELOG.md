@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.2 - 2024-02-14
+* Nothing new
+
+
+## 0.26.1 - 2024-02-11
+* Nothing new
+
+
 ## 0.26.0 - 2024-02-05
 * Add `Align2::anchor_size` [#3863](https://github.com/emilk/egui/pull/3863)
 * Add opacity factor to `TextShape` [#3916](https://github.com/emilk/egui/pull/3916) (thanks [@StratusFearMe21](https://github.com/StratusFearMe21)!)

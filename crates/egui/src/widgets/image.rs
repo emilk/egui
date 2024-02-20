@@ -739,9 +739,7 @@ pub fn paint_texture_at(
     texture: &SizedTexture,
 ) {
     if options.bg_fill != Default::default() {
-        let mut mesh = Mesh::default();
-        mesh.add_colored_rect(rect, options.bg_fill);
-        painter.add(Shape::mesh(mesh));
+        painter.add(RectShape::filled(rect, options.rounding, options.bg_fill));
     }
 
     match options.rotation {
