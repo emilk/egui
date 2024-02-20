@@ -622,7 +622,7 @@ impl Margin {
     };
 
     #[inline]
-    pub fn same(margin: f32) -> Self {
+    pub const fn same(margin: f32) -> Self {
         Self {
             left: margin,
             right: margin,
@@ -633,7 +633,7 @@ impl Margin {
 
     /// Margins with the same size on opposing sides
     #[inline]
-    pub fn symmetric(x: f32, y: f32) -> Self {
+    pub const fn symmetric(x: f32, y: f32) -> Self {
         Self {
             left: x,
             right: x,
@@ -649,12 +649,12 @@ impl Margin {
     }
 
     #[inline]
-    pub fn left_top(&self) -> Vec2 {
+    pub const fn left_top(&self) -> Vec2 {
         vec2(self.left, self.top)
     }
 
     #[inline]
-    pub fn right_bottom(&self) -> Vec2 {
+    pub const fn right_bottom(&self) -> Vec2 {
         vec2(self.right, self.bottom)
     }
 
