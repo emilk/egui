@@ -95,11 +95,9 @@ fn run_and_return(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
-                if cfg!(feature = "wgpu") {
-                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
-                } else {
-                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
-                }
+                // Deprecated Comment
+                // windows_next_repaint_times.remove(window_id);
+                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -153,15 +151,9 @@ fn run_and_return(
                     short_event_description(&event)
                 );
 
-                if cfg!(feature = "wgpu") {
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                } else {
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                }
+                windows_next_repaint_times.insert(window_id, now);
+                windows_next_repaint_times
+                    .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintNext(window_id) => {
                 log::trace!(
@@ -169,17 +161,10 @@ fn run_and_return(
                     short_event_description(&event)
                 );
 
-                if cfg!(feature = "wgpu") {
-                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                } else {
-                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                }
+                winit_app.run_ui_and_paint(event_loop_window_target, window_id);
+                windows_next_repaint_times.insert(window_id, now);
+                windows_next_repaint_times
+                    .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
                 windows_next_repaint_times.insert(
@@ -278,11 +263,9 @@ fn run_and_exit(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
-                if cfg!(feature = "wgpu") {
-                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
-                } else {
-                    winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
-                }
+                // Deprecated Comment
+                // windows_next_repaint_times.remove(window_id);
+                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -330,30 +313,17 @@ fn run_and_exit(
             EventResult::RepaintNow(window_id) => {
                 log::trace!("RepaintNow caused by {}", short_event_description(&event));
 
-                if cfg!(feature = "wgpu") {
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                } else {
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                }
+                windows_next_repaint_times.insert(window_id, now);
+                windows_next_repaint_times
+                    .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintNext(window_id) => {
                 log::trace!("RepaintNext caused by {}", short_event_description(&event));
 
-                if cfg!(feature = "wgpu") {
-                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                } else {
-                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
-                    windows_next_repaint_times.insert(window_id, now);
-                    windows_next_repaint_times
-                        .insert(window_id, now + std::time::Duration::from_millis(1));
-                }
+                winit_app.run_ui_and_paint(event_loop_window_target, window_id);
+                windows_next_repaint_times.insert(window_id, now);
+                windows_next_repaint_times
+                    .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
                 windows_next_repaint_times.insert(
