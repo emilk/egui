@@ -75,7 +75,7 @@ impl Ui {
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
-        Ui {
+        let ui = Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
@@ -83,7 +83,20 @@ impl Ui {
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
             menu_state: None,
-        }
+        };
+
+        // Register in the widget stack early, to ensure we are behind all widgets we contain:
+        let start_rect = Rect::NOTHING; // This will be overwritten when/if the ui is closed
+        ui.ctx().create_widget(WidgetRect {
+            id: ui.id,
+            layer_id: ui.layer_id(),
+            rect: start_rect,
+            interact_rect: start_rect,
+            sense: Sense::hover(),
+            enabled: ui.enabled,
+        });
+
+        ui
     }
 
     /// Create a new [`Ui`] at a specific region.
@@ -101,7 +114,7 @@ impl Ui {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
-        Ui {
+        let child_ui = Ui {
             id: self.id.with(id_source),
             next_auto_id_source,
             painter: self.painter.clone(),
@@ -109,7 +122,20 @@ impl Ui {
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
             menu_state: self.menu_state.clone(),
-        }
+        };
+
+        // Register in the widget stack early, to ensure we are behind all widgets we contain:
+        let start_rect = Rect::NOTHING; // This will be overwritten when/if the ui is closed
+        child_ui.ctx().create_widget(WidgetRect {
+            id: child_ui.id,
+            layer_id: child_ui.layer_id(),
+            rect: start_rect,
+            interact_rect: start_rect,
+            sense: Sense::hover(),
+            enabled: child_ui.enabled,
+        });
+
+        child_ui
     }
 
     // -------------------------------------------------
@@ -666,6 +692,16 @@ impl Ui {
         sense: Sense,
     ) -> Response {
         self.interact(rect, id, sense)
+    }
+
+    /// Interact with the background of this [`Ui`],
+    /// i.e. behind all the widgets.
+    ///
+    /// The size of the [`Response`] (and interactive area)
+    /// will be [`Self::min_rect`]
+    pub fn interact_bg(&self, sense: Sense) -> Response {
+        // This will update the WidgetRect that was first created in `Ui::new`.
+        self.interact(self.min_rect(), self.id, sense)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?

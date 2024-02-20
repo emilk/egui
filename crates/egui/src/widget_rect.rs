@@ -37,8 +37,8 @@ pub struct WidgetRect {
 
 /// Stores the [`WidgetRect`]s of all widgets generated during a single egui update/frame.
 ///
-/// Widgets that are not visible (outside their clip area,
-/// e.g. too far down a scroll area) are not stored.
+/// All [`Ui`]s have a [`WidgetRects`], but wether or not their rects are correct
+/// depends on if [`Ui:::interact_bg`] was ever called.
 #[derive(Default, Clone, PartialEq, Eq)]
 pub struct WidgetRects {
     /// All widgets, in painting order.
@@ -89,10 +89,6 @@ impl WidgetRects {
 
     /// Insert the given widget rect in the given layer.
     pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
-        if !widget_rect.interact_rect.is_positive() {
-            return;
-        }
-
         let Self { by_layer, by_id } = self;
 
         let layer_widgets = by_layer.entry(layer_id).or_default();

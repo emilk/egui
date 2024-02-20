@@ -1025,23 +1025,19 @@ impl Context {
             w.sense.drag = false;
         }
 
-        if w.interact_rect.is_positive() {
-            // Remember this widget
-            self.write(|ctx| {
-                let viewport = ctx.viewport();
+        // Remember this widget
+        self.write(|ctx| {
+            let viewport = ctx.viewport();
 
-                // We add all widgets here, even non-interactive ones,
-                // because we need this list not only for checking for blocking widgets,
-                // but also to know when we have reached the widget we are checking for cover.
-                viewport.widgets_this_frame.insert(w.layer_id, w);
+            // We add all widgets here, even non-interactive ones,
+            // because we need this list not only for checking for blocking widgets,
+            // but also to know when we have reached the widget we are checking for cover.
+            viewport.widgets_this_frame.insert(w.layer_id, w);
 
-                if w.sense.focusable {
-                    ctx.memory.interested_in_focus(w.id);
-                }
-            });
-        } else {
-            // Don't remember invisible widgets
-        }
+            if w.sense.focusable {
+                ctx.memory.interested_in_focus(w.id);
+            }
+        });
 
         if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
             // Not interested or allowed input:
