@@ -815,12 +815,14 @@ impl State {
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
+            crate::profile_scope!("set_ime_allowed");
             window.set_ime_allowed(allow_ime);
         }
 
         if let Some(ime) = ime {
             let rect = ime.rect;
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+            crate::profile_scope!("set_ime_cursor_area");
             window.set_ime_cursor_area(
                 winit::dpi::PhysicalPosition {
                     x: pixels_per_point * rect.min.x,
@@ -836,6 +838,7 @@ impl State {
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_ref() {
             if let Some(update) = accesskit_update {
+                crate::profile_scope!("accesskit");
                 accesskit.update_if_active(|| update);
             }
         }
