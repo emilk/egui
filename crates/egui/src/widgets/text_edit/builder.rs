@@ -108,7 +108,7 @@ impl<'t> TextEdit<'t> {
         }
     }
 
-    /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`]).
+    /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`](TextEdit::return_key)).
     pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
             text,
