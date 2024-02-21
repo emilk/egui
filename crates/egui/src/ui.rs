@@ -2223,11 +2223,11 @@ impl Ui {
     ///
     /// The given frame is used for its margins, but it color is ignored.
     #[doc(alias = "drag and drop")]
-    pub fn dnd_drop_zone<Payload>(
+    pub fn dnd_drop_zone<Payload, R>(
         &mut self,
         frame: Frame,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> (Response, Option<Arc<Payload>>)
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (InnerResponse<R>, Option<Arc<Payload>>)
     where
         Payload: Any + Send + Sync,
     {
@@ -2236,7 +2236,7 @@ impl Ui {
             DragAndDrop::has_payload_of_type::<Payload>(self.ctx());
 
         let mut frame = frame.begin(self);
-        add_contents(&mut frame.content_ui);
+        let inner = add_contents(&mut frame.content_ui);
         let response = frame.allocate_space(self);
 
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
@@ -2266,7 +2266,7 @@ impl Ui {
 
         let payload = response.dnd_release_payload::<Payload>();
 
-        (response, payload)
+        (InnerResponse { inner, response }, payload)
     }
 
     /// Close the menu we are in (including submenus), if any.
