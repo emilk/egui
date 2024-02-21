@@ -886,7 +886,9 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if *key == return_key.logical_key && *modifiers == return_key.modifiers => {
+            } if *key == return_key.logical_key
+                && modifiers.matches_logically(return_key.modifiers) =>
+            {
                 if multiline {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     text.insert_text_at(&mut ccursor, "\n", char_limit);
