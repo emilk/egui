@@ -1391,6 +1391,11 @@ pub struct GridMark {
 pub fn log_grid_spacer(log_base: i64) -> GridSpacer {
     let log_base = log_base as f64;
     let step_sizes = move |input: GridInput| -> Vec<GridMark> {
+        // handle degenerate cases
+        if input.base_step_size.abs() < f64::EPSILON {
+            return Vec::new();
+        }
+
         // The distance between two of the thinnest grid lines is "rounded" up
         // to the next-bigger power of base
         let smallest_visible_unit = next_power(input.base_step_size, log_base);
@@ -1693,7 +1698,7 @@ impl PreparedPlot {
 /// assert_eq!(next_power(0.2,  10.0), 1);
 /// ```
 fn next_power(value: f64, base: f64) -> f64 {
-    assert_ne!(value, 0.0); // can be negative (typical for Y axis)
+    debug_assert_ne!(value, 0.0); // can be negative (typical for Y axis)
     base.powi(value.abs().log(base).ceil() as i32)
 }
 
@@ -1708,7 +1713,7 @@ fn generate_marks(step_sizes: [f64; 3], bounds: (f64, f64)) -> Vec<GridMark> {
 
 /// Fill in all values between [min, max] which are a multiple of `step_size`
 fn fill_marks_between(out: &mut Vec<GridMark>, step_size: f64, (min, max): (f64, f64)) {
-    assert!(max > min);
+    debug_assert!(max > min);
     let first = (min / step_size).ceil() as i64;
     let last = (max / step_size).ceil() as i64;
 
