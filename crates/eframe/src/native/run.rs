@@ -175,10 +175,10 @@ fn run_and_return(
                 );
             }
             EventResult::ViewportExit(window_id) => {
-                // TODO : Viewport Exit
                 if let Some(window) = winit_app.window(window_id) {
                     windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
+                    window.request_redraw();
                     return;
                 }
             }
@@ -342,10 +342,10 @@ fn run_and_exit(
                 );
             }
             EventResult::ViewportExit(window_id) => {
-                // TODO : Viewport Exit
                 if let Some(window) = winit_app.window(window_id) {
                     windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
+                    window.request_redraw();
                     return;
                 }
             }
