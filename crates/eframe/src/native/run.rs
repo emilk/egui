@@ -174,6 +174,14 @@ fn run_and_return(
                         .map_or(repaint_time, |last| (*last).min(repaint_time)),
                 );
             }
+            EventResult::ViewportExit(window_id) => {
+                // TODO : Viewport Exit
+                if let Some(window) = winit_app.window(window_id) {
+                    windows_next_repaint_times.remove(&window_id);
+                    window.set_minimized(true);
+                    return;
+                }
+            }
             EventResult::Exit => {
                 log::debug!("Asking to exit event loop…");
                 winit_app.save_and_destroy();
@@ -332,6 +340,14 @@ fn run_and_exit(
                         .get(&window_id)
                         .map_or(repaint_time, |last| (*last).min(repaint_time)),
                 );
+            }
+            EventResult::ViewportExit(window_id) => {
+                // TODO : Viewport Exit
+                if let Some(window) = winit_app.window(window_id) {
+                    windows_next_repaint_times.remove(&window_id);
+                    window.set_minimized(true);
+                    return;
+                }
             }
             EventResult::Exit => {
                 log::debug!("Quitting - saving app state…");
