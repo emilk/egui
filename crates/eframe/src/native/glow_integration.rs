@@ -790,6 +790,8 @@ impl GlowWinitRunning {
                         self.integration
                             .egui_ctx
                             .request_repaint_of(viewport.ids.parent);
+
+                        return EventResult::ViewportExit(window_id);
                     }
                 }
             }
