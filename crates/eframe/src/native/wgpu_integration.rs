@@ -577,8 +577,8 @@ impl WgpuWinitRunning {
                 is_change_to_root = true;
 
                 if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
-                    let is_differed_parent = parent_viewport.viewport_ui_cb.is_some();
-                    if is_differed_parent {
+                    let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
+                    if is_deferred_parent {
                         is_change_to_root = false;
                         viewport_id = parent_viewport.ids.this;
                     }
