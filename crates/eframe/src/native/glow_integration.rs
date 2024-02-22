@@ -791,7 +791,11 @@ impl GlowWinitRunning {
                             .egui_ctx
                             .request_repaint_of(viewport.ids.parent);
 
-                        return EventResult::ViewportExit(window_id);
+                        if viewport_id == ViewportId::ROOT {
+                            return EventResult::Wait;
+                        } else {
+                            return EventResult::ViewportExit(window_id);
+                        }
                     }
                 }
             }
