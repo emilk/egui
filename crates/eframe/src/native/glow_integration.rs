@@ -461,7 +461,7 @@ impl WinitApp for GlowWinitApp {
                         }
 
                         if let Some(window) = viewport.window.as_ref() {
-                            EventResult::RepaintNext(window.id())
+                            EventResult::RepaintNow(window.id())
                         } else {
                             EventResult::Wait
                         }
