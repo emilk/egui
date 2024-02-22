@@ -811,6 +811,8 @@ impl WgpuWinitRunning {
                         // `request_repaint_of` does a double-repaint though:
                         integration.egui_ctx.request_repaint_of(viewport_id);
                         integration.egui_ctx.request_repaint_of(viewport.ids.parent);
+
+                        return EventResult::ViewportExit(window_id);
                     }
                 }
             }
