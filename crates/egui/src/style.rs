@@ -280,6 +280,7 @@ pub struct Spacing {
 
     /// Default width of a [`Slider`].
     pub slider_width: f32,
+    pub slider_rail_height: f32,
 
     /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
     pub combo_width: f32,
@@ -1114,6 +1115,7 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
+            slider_rail_height: 4.8,
             combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
@@ -1463,6 +1465,7 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            slider_rail_height,
             combo_width,
             text_edit_width,
             icon_width,
@@ -1490,6 +1493,10 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
             ui.label("Slider width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=20.0));
+            ui.label("Slider rail height");
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
