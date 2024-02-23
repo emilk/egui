@@ -280,6 +280,8 @@ pub struct Spacing {
 
     /// Default width of a [`Slider`].
     pub slider_width: f32,
+
+    /// Default rail height of a [`Slider`].
     pub slider_rail_height: f32,
 
     /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
