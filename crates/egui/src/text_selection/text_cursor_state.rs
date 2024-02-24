@@ -346,8 +346,6 @@ pub fn get_current_column(text: &str, line_indexes: &mut [usize], index: usize) 
     current_column
 }
 
-// ----------------------------------------------------------------------------
-
 pub fn get_current_column_total_column(
     text: &str,
     line_indexes: &mut [usize],
@@ -357,8 +355,6 @@ pub fn get_current_column_total_column(
         get_current_column_total_column_line(text, line_indexes, index);
     (current_column, total_column)
 }
-
-// ----------------------------------------------------------------------------
 
 pub fn get_current_column_total_column_line(
     text: &str,
@@ -370,8 +366,6 @@ pub fn get_current_column_total_column_line(
 
     (current_column, total_columns, total_lines)
 }
-
-// ----------------------------------------------------------------------------
 
 pub fn get_current_column_line_total_column_line(
     text: &str,
