@@ -99,8 +99,6 @@ fn run_and_return(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
-                // Deprecated Comment
-                // windows_next_repaint_times.remove(window_id);
                 winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
@@ -284,8 +282,6 @@ fn run_and_exit(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
-                // Deprecated Comment
-                // windows_next_repaint_times.remove(window_id);
                 winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
