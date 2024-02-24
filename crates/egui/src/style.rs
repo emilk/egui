@@ -1497,7 +1497,7 @@ impl Spacing {
             ui.label("Slider width");
         });
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=20.0));
+            ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
             ui.label("Slider rail height");
         });
         ui.horizontal(|ui| {
