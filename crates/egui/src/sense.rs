@@ -59,6 +59,13 @@ impl Sense {
     }
 
     /// Sense both clicks, drags and hover (e.g. a slider or window).
+    ///
+    /// Note that this will introduce a latency when dragging,
+    /// because when the user starts a press egui can't know if this is the start
+    /// of a click or a drag, and it won't know until the cursor has
+    /// either moved a certain distance, or the user has released the mouse button.
+    ///
+    /// See [`crate::PointerState::is_decidedly_dragging`] for details.
     #[inline]
     pub fn click_and_drag() -> Self {
         Self {
@@ -83,5 +90,21 @@ impl Sense {
     #[inline]
     pub fn interactive(&self) -> bool {
         self.click || self.drag
+    }
+}
+
+impl std::ops::BitOr for Sense {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, rhs: Self) -> Self {
+        self.union(rhs)
+    }
+}
+
+impl std::ops::BitOrAssign for Sense {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = self.union(rhs);
     }
 }

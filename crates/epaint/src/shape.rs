@@ -356,48 +356,70 @@ impl Shape {
     }
 
     /// Move the shape by this many points, in-place.
-    pub fn translate(&mut self, delta: Vec2) {
+    ///
+    /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
+    /// to other shapes where the stroke is also scaled.
+    pub fn transform(&mut self, transform: TSTransform) {
         match self {
             Self::Noop => {}
             Self::Vec(shapes) => {
                 for shape in shapes {
-                    shape.translate(delta);
+                    shape.transform(transform);
                 }
             }
             Self::Circle(circle_shape) => {
-                circle_shape.center += delta;
+                circle_shape.center = transform * circle_shape.center;
+                circle_shape.radius *= transform.scaling;
+                circle_shape.stroke.width *= transform.scaling;
             }
-            Self::LineSegment { points, .. } => {
+            Self::LineSegment { points, stroke } => {
                 for p in points {
-                    *p += delta;
+                    *p = transform * *p;
                 }
+                stroke.width *= transform.scaling;
             }
             Self::Path(path_shape) => {
                 for p in &mut path_shape.points {
-                    *p += delta;
+                    *p = transform * *p;
                 }
+                path_shape.stroke.width *= transform.scaling;
             }
             Self::Rect(rect_shape) => {
-                rect_shape.rect = rect_shape.rect.translate(delta);
+                rect_shape.rect = transform * rect_shape.rect;
+                rect_shape.stroke.width *= transform.scaling;
             }
             Self::Text(text_shape) => {
-                text_shape.pos += delta;
+                text_shape.pos = transform * text_shape.pos;
+
+                // Scale text:
+                let galley = Arc::make_mut(&mut text_shape.galley);
+                for row in &mut galley.rows {
+                    row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
+                    for v in &mut row.visuals.mesh.vertices {
+                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                    }
+                }
+
+                galley.mesh_bounds = transform.scaling * galley.mesh_bounds;
+                galley.rect = transform.scaling * galley.rect;
             }
             Self::Mesh(mesh) => {
-                mesh.translate(delta);
+                mesh.transform(transform);
             }
             Self::QuadraticBezier(bezier_shape) => {
-                bezier_shape.points[0] += delta;
-                bezier_shape.points[1] += delta;
-                bezier_shape.points[2] += delta;
+                bezier_shape.points[0] = transform * bezier_shape.points[0];
+                bezier_shape.points[1] = transform * bezier_shape.points[1];
+                bezier_shape.points[2] = transform * bezier_shape.points[2];
+                bezier_shape.stroke.width *= transform.scaling;
             }
             Self::CubicBezier(cubic_curve) => {
                 for p in &mut cubic_curve.points {
-                    *p += delta;
+                    *p = transform * *p;
                 }
+                cubic_curve.stroke.width *= transform.scaling;
             }
             Self::Callback(shape) => {
-                shape.rect = shape.rect.translate(delta);
+                shape.rect = transform * shape.rect;
             }
         }
     }
@@ -679,7 +701,7 @@ impl Rounding {
     };
 
     #[inline]
-    pub fn same(radius: f32) -> Self {
+    pub const fn same(radius: f32) -> Self {
         Self {
             nw: radius,
             ne: radius,

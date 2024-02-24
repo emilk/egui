@@ -475,6 +475,13 @@ impl State {
         }
     }
 
+    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
+        self.egui_input.events.push(egui::Event::MouseMoved(Vec2 {
+            x: delta.0 as f32,
+            y: delta.1 as f32,
+        }));
+    }
+
     /// Call this when there is a new [`accesskit::ActionRequest`].
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
@@ -808,12 +815,14 @@ impl State {
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
+            crate::profile_scope!("set_ime_allowed");
             window.set_ime_allowed(allow_ime);
         }
 
         if let Some(ime) = ime {
             let rect = ime.rect;
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+            crate::profile_scope!("set_ime_cursor_area");
             window.set_ime_cursor_area(
                 winit::dpi::PhysicalPosition {
                     x: pixels_per_point * rect.min.x,
@@ -829,6 +838,7 @@ impl State {
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_ref() {
             if let Some(update) = accesskit_update {
+                crate::profile_scope!("accesskit");
                 accesskit.update_if_active(|| update);
             }
         }
@@ -1055,6 +1065,21 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::F18 => Key::F18,
         NamedKey::F19 => Key::F19,
         NamedKey::F20 => Key::F20,
+        NamedKey::F21 => Key::F21,
+        NamedKey::F22 => Key::F22,
+        NamedKey::F23 => Key::F23,
+        NamedKey::F24 => Key::F24,
+        NamedKey::F25 => Key::F25,
+        NamedKey::F26 => Key::F26,
+        NamedKey::F27 => Key::F27,
+        NamedKey::F28 => Key::F28,
+        NamedKey::F29 => Key::F29,
+        NamedKey::F30 => Key::F30,
+        NamedKey::F31 => Key::F31,
+        NamedKey::F32 => Key::F32,
+        NamedKey::F33 => Key::F33,
+        NamedKey::F34 => Key::F34,
+        NamedKey::F35 => Key::F35,
         _ => {
             log::trace!("Unknown key: {named_key:?}");
             return None;
@@ -1161,6 +1186,21 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::F18 => Key::F18,
         KeyCode::F19 => Key::F19,
         KeyCode::F20 => Key::F20,
+        KeyCode::F21 => Key::F21,
+        KeyCode::F22 => Key::F22,
+        KeyCode::F23 => Key::F23,
+        KeyCode::F24 => Key::F24,
+        KeyCode::F25 => Key::F25,
+        KeyCode::F26 => Key::F26,
+        KeyCode::F27 => Key::F27,
+        KeyCode::F28 => Key::F28,
+        KeyCode::F29 => Key::F29,
+        KeyCode::F30 => Key::F30,
+        KeyCode::F31 => Key::F31,
+        KeyCode::F32 => Key::F32,
+        KeyCode::F33 => Key::F33,
+        KeyCode::F34 => Key::F34,
+        KeyCode::F35 => Key::F35,
 
         _ => {
             return None;
