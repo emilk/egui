@@ -346,22 +346,39 @@ pub fn get_current_column(text: &str, line_indexes: &mut [usize], index: usize) 
     current_column
 }
 
+// ----------------------------------------------------------------------------
+
 pub fn get_current_column_total_column(
     text: &str,
     line_indexes: &mut [usize],
     index: usize,
 ) -> (usize, usize) {
     let (current_column, total_column, _total_line) =
-        get_current_column_total_column_total_line(text, line_indexes, index);
+        get_current_column_total_column_line(text, line_indexes, index);
     (current_column, total_column)
 }
 
-pub fn get_current_column_total_column_total_line(
+// ----------------------------------------------------------------------------
+
+pub fn get_current_column_total_column_line(
     text: &str,
     line_indexes: &mut [usize],
     index: usize,
 ) -> (usize, usize, usize) {
-    let line_start_index = get_line_start_index(line_indexes, index);
+    let (current_column, _current_line, total_columns, total_lines) =
+        get_current_column_line_total_column_line(text, line_indexes, index);
+
+    (current_column, total_columns, total_lines)
+}
+
+// ----------------------------------------------------------------------------
+
+pub fn get_current_column_line_total_column_line(
+    text: &str,
+    line_indexes: &mut [usize],
+    index: usize,
+) -> (usize, usize, usize, usize) {
+    let (current_line, line_start_index) = get_line_and_start_index(line_indexes, index);
 
     let total_lines = line_indexes.len() - 1;
 
@@ -392,7 +409,7 @@ pub fn get_current_column_total_column_total_line(
         i += 1;
     }
 
-    (current_column, total_columns, total_lines)
+    (current_column, current_line, total_columns, total_lines)
 }
 
 pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
