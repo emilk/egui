@@ -84,11 +84,15 @@ fn run_and_return(
 
         let event_result = match &event {
             winit::event::Event::LoopExiting => {
+                // First, `WindowEvent::CloseRequested` occurs which leads to `Result::Exit`
+                // and when `event_loop_window_target.exit()` is executed, `Event::LoopExiting` event is given.
+
                 // On Mac, Cmd-Q we get here and then `run_on_demand` doesn't return (despite its name),
                 // so we need to save state now:
                 log::debug!("Received Event::LoopExiting - saving app state…");
                 winit_app.save_and_destroy();
-                return;
+
+                EventResult::Exit
             }
 
             winit::event::Event::WindowEvent {
@@ -184,10 +188,14 @@ fn run_and_return(
                 }
             }
             EventResult::Exit => {
-                log::debug!("Asking to exit event loop…");
-                winit_app.save_and_destroy();
                 event_loop_window_target.exit();
-                return;
+
+                log::debug!("Quitting - saving app state…");
+                winit_app.save_and_destroy();
+
+                log::debug!("Exiting with return code 0");
+                #[allow(clippy::exit)]
+                std::process::exit(0);
             }
         }
 
@@ -264,8 +272,12 @@ fn run_and_exit(
 
         let event_result = match &event {
             winit::event::Event::LoopExiting => {
+                // First, `WindowEvent::CloseRequested` occurs which leads to `Result::Exit`
+                // and when `event_loop_window_target.exit()` is executed, `Event::LoopExiting` event is given.
+
                 log::debug!("Received Event::LoopExiting");
-                EventResult::Exit
+                winit_app.save_and_destroy();
+                return;
             }
 
             winit::event::Event::WindowEvent {
@@ -352,6 +364,8 @@ fn run_and_exit(
                 }
             }
             EventResult::Exit => {
+                event_loop_window_target.exit();
+
                 log::debug!("Quitting - saving app state…");
                 winit_app.save_and_destroy();
 
