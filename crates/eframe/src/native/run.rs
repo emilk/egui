@@ -99,6 +99,7 @@ fn run_and_return(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
+                // "glow": glow_integration, "wgpu": wgpu_integration
                 winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
@@ -282,6 +283,7 @@ fn run_and_exit(
                 event: winit::event::WindowEvent::RedrawRequested,
                 window_id,
             } => {
+                // "glow": glow_integration, "wgpu": wgpu_integration
                 winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
