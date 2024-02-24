@@ -684,7 +684,7 @@ impl<'a> Slider<'a> {
             let widget_visuals = &ui.visuals().widgets;
             let spacing = &ui.style().spacing;
 
-            let rail_radius = spacing.slider_rail_height.at_least(0.0);
+            let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
             let rail_rect = self.rail_rect(rect, rail_radius);
 
             ui.painter().rect_filled(
