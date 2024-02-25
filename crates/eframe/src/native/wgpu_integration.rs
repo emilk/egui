@@ -727,8 +727,11 @@ impl WgpuWinitRunning {
 
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
-        if let Some(window) = window {
-            if window.is_minimized() == Some(true) {
+        let is_windows = cfg!(target_os = "windows");
+        if !is_windows {
+            if window.is_minimized() == Some(true)
+                && let Some(window) = window
+            {
                 // On Mac, a minimized Window uses up all CPU:
                 // https://github.com/emilk/egui/issues/325
                 crate::profile_scope!("minimized_sleep");
