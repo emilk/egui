@@ -718,11 +718,14 @@ impl GlowWinitRunning {
 
         integration.maybe_autosave(app.as_mut(), Some(&window));
 
-        if window.is_minimized() == Some(true) {
-            // On Mac, a minimized Window uses up all CPU:
-            // https://github.com/emilk/egui/issues/325
-            crate::profile_scope!("minimized_sleep");
-            std::thread::sleep(std::time::Duration::from_millis(10));
+        let is_windows = cfg!(target_os = "windows");
+        if !is_windows {
+            if window.is_minimized() == Some(true) {
+                // On Mac, a minimized Window uses up all CPU:
+                // https://github.com/emilk/egui/issues/325
+                crate::profile_scope!("minimized_sleep");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
         }
 
         if integration.should_close() {
