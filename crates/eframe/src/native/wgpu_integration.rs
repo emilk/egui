@@ -728,15 +728,15 @@ impl WgpuWinitRunning {
         integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
         let is_windows = cfg!(target_os = "windows");
-        if let Some(window) = window
-            && !is_windows
-        {
-            let is_minimized = window.is_minimized().unwrap_or(false);
-            if !is_minimized {
-                // On Mac, a minimized Window uses up all CPU:
-                // https://github.com/emilk/egui/issues/325
-                crate::profile_scope!("minimized_sleep");
-                std::thread::sleep(std::time::Duration::from_millis(10));
+        if !is_windows {
+            if let Some(window) = window {
+                let is_minimized = window.is_minimized().unwrap_or(false);
+                if !is_minimized {
+                    // On Mac, a minimized Window uses up all CPU:
+                    // https://github.com/emilk/egui/issues/325
+                    crate::profile_scope!("minimized_sleep");
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
             }
         }
 
