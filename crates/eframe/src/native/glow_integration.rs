@@ -720,7 +720,8 @@ impl GlowWinitRunning {
 
         let is_windows = cfg!(target_os = "windows");
         if !is_windows {
-            if window.is_minimized() == Some(true) {
+            let is_minimized = window.is_minimized().unwrap_or(false);
+            if is_minimized {
                 // On Mac, a minimized Window uses up all CPU:
                 // https://github.com/emilk/egui/issues/325
                 crate::profile_scope!("minimized_sleep");
