@@ -107,13 +107,13 @@ pub(crate) fn interact(
     crate::profile_function!();
 
     if let Some(id) = interaction.potential_click_id {
-        if !widgets.by_id.contains_key(&id) {
+        if !widgets.contains(id) {
             // The widget we were interested in clicking is gone.
             interaction.potential_click_id = None;
         }
     }
     if let Some(id) = interaction.potential_drag_id {
-        if !widgets.by_id.contains_key(&id) {
+        if !widgets.contains(id) {
             // The widget we were interested in dragging is gone.
             // This is fine! This could be drag-and-drop,
             // and the widget being dragged is now "in the air" and thus
@@ -145,7 +145,7 @@ pub(crate) fn interact(
                 if click.is_some() {
                     if let Some(widget) = interaction
                         .potential_click_id
-                        .and_then(|id| widgets.by_id.get(&id))
+                        .and_then(|id| widgets.get(id))
                     {
                         clicked = Some(widget.id);
                     }
@@ -160,10 +160,7 @@ pub(crate) fn interact(
 
     if dragged.is_none() {
         // Check if we started dragging something new:
-        if let Some(widget) = interaction
-            .potential_drag_id
-            .and_then(|id| widgets.by_id.get(&id))
-        {
+        if let Some(widget) = interaction.potential_drag_id.and_then(|id| widgets.get(id)) {
             let is_dragged = if widget.sense.click && widget.sense.drag {
                 // This widget is sensitive to both clicks and drags.
                 // When the mouse first is pressed, it could be either,

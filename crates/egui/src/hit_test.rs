@@ -56,8 +56,7 @@ pub fn hit_test(
     let mut close: Vec<WidgetRect> = layer_order
         .iter()
         .filter(|layer| layer.order.allow_interaction())
-        .filter_map(|layer_id| widgets.by_layer.get(layer_id))
-        .flatten()
+        .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
             let pos_in_layer = pos_in_layers.get(&w.layer_id).copied().unwrap_or(pos);
             let dist_sq = w.interact_rect.distance_sq_to_pos(pos_in_layer);

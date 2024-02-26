@@ -701,7 +701,7 @@ impl Rounding {
     };
 
     #[inline]
-    pub fn same(radius: f32) -> Self {
+    pub const fn same(radius: f32) -> Self {
         Self {
             nw: radius,
             ne: radius,
