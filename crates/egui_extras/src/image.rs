@@ -288,14 +288,14 @@ pub fn load_svg_bytes_with_size(
 const RGBA8_IMAGE_MAGIC_HEADER: &[u8] = b"WIDTH_HEIGHT_RGBA8";
 
 #[cfg(feature = "image")]
-/// DynamicImage -> Bytes
+/// `DynamicImage` -> Bytes
 pub fn convert_image_to_bytes(image: &image::DynamicImage) -> Bytes {
     let image_buffer = image.to_rgba8();
     convert_rgba8_image_to_bytes(&image_buffer)
 }
 
 #[cfg(feature = "image")]
-/// RgbaImage -> Bytes
+/// `RgbaImage` -> Bytes
 pub fn convert_rgba8_image_to_bytes(image: &image::RgbaImage) -> Bytes {
     let pixels = image.as_flat_samples();
     let mut result: Vec<u8> = Vec::new();
@@ -307,7 +307,7 @@ pub fn convert_rgba8_image_to_bytes(image: &image::RgbaImage) -> Bytes {
 }
 
 #[cfg(feature = "image")]
-/// Bytes -> ColorImage
+/// Bytes -> `ColorImage`
 pub fn load_rgba(image_bytes: &[u8]) -> Result<ColorImage, String> {
     crate::profile_function!();
     let header_size = RGBA8_IMAGE_MAGIC_HEADER.len();
@@ -339,7 +339,7 @@ pub fn load_rgba(image_bytes: &[u8]) -> Result<ColorImage, String> {
 
 #[cfg(feature = "image")]
 pub fn include_dynamic_image(
-    uri: impl ToString,
+    uri: &impl ToString,
     image: &image::DynamicImage,
 ) -> egui::ImageSource<'_> {
     egui::ImageSource::Bytes {
