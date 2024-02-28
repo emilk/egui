@@ -111,6 +111,16 @@ impl ColorImage {
         Self { size, pixels }
     }
 
+    /// Creates a [`ColorImage`] with an existing image buffer.
+    ///
+    /// This is typically used when you want to avoid unnecessary memory copying by reusing an existing image buffer.
+    ///
+    /// Panics if `size[0] * size[1] != pixels.len()`.
+    pub fn from_rgba_vec(size: [usize; 2], pixels: Vec<Color32>) -> Self {
+        assert_eq!(size[0] * size[1], pixels.len());
+        Self { size, pixels }
+    }
+
     /// Create a [`ColorImage`] from flat opaque gray data.
     ///
     /// Panics if `size[0] * size[1] != gray.len()`.
