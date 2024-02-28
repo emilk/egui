@@ -188,8 +188,8 @@ impl Resize {
 
 struct Prepared {
     id: Id,
+    corner_id: Option<Id>,
     state: State,
-    corner_response: Option<Response>,
     content_ui: Ui,
 }
 
@@ -226,22 +226,17 @@ impl Resize {
 
         let mut user_requested_size = state.requested_size.take();
 
-        let corner_response = if self.resizable {
-            // Resize-corner:
-            let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
-            let corner_rect =
-                Rect::from_min_size(position + state.desired_size - corner_size, corner_size);
-            let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
+        let corner_id = self.resizable.then(|| id.with("__resize_corner"));
 
-            if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
-                user_requested_size =
-                    Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+        if let Some(corner_id) = corner_id {
+            if let Some(corner_response) = ui.ctx().read_response(corner_id) {
+                if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
+                    // Respond to the interaction early to avoid frame delay.
+                    user_requested_size =
+                        Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+                }
             }
-
-            Some(corner_response)
-        } else {
-            None
-        };
+        }
 
         if let Some(user_requested_size) = user_requested_size {
             state.desired_size = user_requested_size;
@@ -279,8 +274,8 @@ impl Resize {
 
         Prepared {
             id,
+            corner_id,
             state,
-            corner_response,
             content_ui,
         }
     }
@@ -295,8 +290,8 @@ impl Resize {
     fn end(self, ui: &mut Ui, prepared: Prepared) {
         let Prepared {
             id,
+            corner_id,
             mut state,
-            corner_response,
             content_ui,
         } = prepared;
 
@@ -317,6 +312,20 @@ impl Resize {
             state.last_content_size
         };
         ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
+
+        // ------------------------------
+
+        let corner_response = if let Some(corner_id) = corner_id {
+            // We do the corner interaction last to place it on top of the content:
+            let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
+            let corner_rect = Rect::from_min_size(
+                content_ui.min_rect().left_top() + size - corner_size,
+                corner_size,
+            );
+            Some(ui.interact(corner_rect, corner_id, Sense::drag()))
+        } else {
+            None
+        };
 
         // ------------------------------
 

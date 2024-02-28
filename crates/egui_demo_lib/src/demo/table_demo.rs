@@ -1,3 +1,5 @@
+use egui::TextStyle;
+
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum DemoType {
@@ -105,10 +107,11 @@ impl super::View for TableDemo {
         ui.separator();
 
         // Leave room for the source code link after the table demo:
+        let body_text_size = TextStyle::Body.resolve(ui.style()).size;
         use egui_extras::{Size, StripBuilder};
         StripBuilder::new(ui)
             .size(Size::remainder().at_least(100.0)) // for the table
-            .size(Size::exact(10.5)) // for the source code link
+            .size(Size::exact(body_text_size)) // for the source code link
             .vertical(|mut strip| {
                 strip.cell(|ui| {
                     egui::ScrollArea::horizontal().show(ui, |ui| {

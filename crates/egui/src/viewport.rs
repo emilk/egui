@@ -283,13 +283,16 @@ pub struct ViewportBuilder {
     pub icon: Option<Arc<IconData>>,
     pub active: Option<bool>,
     pub visible: Option<bool>,
-    pub drag_and_drop: Option<bool>,
 
     // macOS:
     pub fullsize_content_view: Option<bool>,
     pub title_shown: Option<bool>,
     pub titlebar_buttons_shown: Option<bool>,
     pub titlebar_shown: Option<bool>,
+
+    // windows:
+    pub drag_and_drop: Option<bool>,
+    pub taskbar: Option<bool>,
 
     pub close_button: Option<bool>,
     pub minimize_button: Option<bool>,
@@ -439,6 +442,13 @@ impl ViewportBuilder {
     #[inline]
     pub fn with_titlebar_shown(mut self, shown: bool) -> Self {
         self.titlebar_shown = Some(shown);
+        self
+    }
+
+    /// windows: Whether show or hide the window icon in the taskbar.
+    #[inline]
+    pub fn with_taskbar(mut self, show: bool) -> Self {
+        self.taskbar = Some(show);
         self
     }
 
@@ -602,6 +612,7 @@ impl ViewportBuilder {
             maximize_button: new_maximize_button,
             window_level: new_window_level,
             mouse_passthrough: new_mouse_passthrough,
+            taskbar: new_taskbar,
         } = new_vp_builder;
 
         let mut commands = Vec::new();
@@ -755,6 +766,11 @@ impl ViewportBuilder {
 
         if new_titlebar_shown.is_some() && self.titlebar_shown != new_titlebar_shown {
             self.titlebar_shown = new_titlebar_shown;
+            recreate_window = true;
+        }
+
+        if new_taskbar.is_some() && self.taskbar != new_taskbar {
+            self.taskbar = new_taskbar;
             recreate_window = true;
         }
 

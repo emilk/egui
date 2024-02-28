@@ -154,6 +154,21 @@ pub enum Key {
     F18,
     F19,
     F20,
+    F21,
+    F22,
+    F23,
+    F24,
+    F25,
+    F26,
+    F27,
+    F28,
+    F29,
+    F30,
+    F31,
+    F32,
+    F33,
+    F34,
+    F35,
     // When adding keys, remember to also update `crates/egui-winit/src/lib.rs`
     // and [`Self::ALL`].
     // Also: don't add keys last; add them to the group they best belong to.
@@ -254,6 +269,21 @@ impl Key {
         Self::F18,
         Self::F19,
         Self::F20,
+        Self::F21,
+        Self::F22,
+        Self::F23,
+        Self::F24,
+        Self::F25,
+        Self::F26,
+        Self::F27,
+        Self::F28,
+        Self::F29,
+        Self::F30,
+        Self::F31,
+        Self::F32,
+        Self::F33,
+        Self::F34,
+        Self::F35,
     ];
 
     /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
@@ -362,6 +392,21 @@ impl Key {
             "F18" => Self::F18,
             "F19" => Self::F19,
             "F20" => Self::F20,
+            "F21" => Self::F21,
+            "F22" => Self::F22,
+            "F23" => Self::F23,
+            "F24" => Self::F24,
+            "F25" => Self::F25,
+            "F26" => Self::F26,
+            "F27" => Self::F27,
+            "F28" => Self::F28,
+            "F29" => Self::F29,
+            "F30" => Self::F30,
+            "F31" => Self::F31,
+            "F32" => Self::F32,
+            "F33" => Self::F33,
+            "F34" => Self::F34,
+            "F35" => Self::F35,
 
             _ => return None,
         })
@@ -494,6 +539,21 @@ impl Key {
             Self::F18 => "F18",
             Self::F19 => "F19",
             Self::F20 => "F20",
+            Self::F21 => "F21",
+            Self::F22 => "F22",
+            Self::F23 => "F23",
+            Self::F24 => "F24",
+            Self::F25 => "F25",
+            Self::F26 => "F26",
+            Self::F27 => "F27",
+            Self::F28 => "F28",
+            Self::F29 => "F29",
+            Self::F30 => "F30",
+            Self::F31 => "F31",
+            Self::F32 => "F32",
+            Self::F33 => "F33",
+            Self::F34 => "F34",
+            Self::F35 => "F35",
         }
     }
 }
@@ -502,7 +562,7 @@ impl Key {
 fn test_key_from_name() {
     assert_eq!(
         Key::ALL.len(),
-        Key::F20 as usize + 1,
+        Key::F35 as usize + 1,
         "Some keys are missing in Key::ALL"
     );
 

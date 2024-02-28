@@ -19,8 +19,12 @@ impl Shadow {
         color: Color32::TRANSPARENT,
     };
 
+    pub const fn new(extrusion: f32, color: Color32) -> Self {
+        Self { extrusion, color }
+    }
+
     /// Tooltips, menus, …, for dark mode.
-    pub fn small_dark() -> Self {
+    pub const fn small_dark() -> Self {
         Self {
             extrusion: 16.0,
             color: Color32::from_black_alpha(96),
@@ -28,7 +32,7 @@ impl Shadow {
     }
 
     /// Tooltips, menus, …, for light mode.
-    pub fn small_light() -> Self {
+    pub const fn small_light() -> Self {
         Self {
             extrusion: 16.0,
             color: Color32::from_black_alpha(20),
@@ -36,7 +40,7 @@ impl Shadow {
     }
 
     /// Used for egui windows in dark mode.
-    pub fn big_dark() -> Self {
+    pub const fn big_dark() -> Self {
         Self {
             extrusion: 32.0,
             color: Color32::from_black_alpha(96),
@@ -44,7 +48,7 @@ impl Shadow {
     }
 
     /// Used for egui windows in light mode.
-    pub fn big_light() -> Self {
+    pub const fn big_light() -> Self {
         Self {
             extrusion: 32.0,
             color: Color32::from_black_alpha(16),

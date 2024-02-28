@@ -6,6 +6,25 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.2 - 2024-02-14
+* Nothing new
+
+
+## 0.26.1 - 2024-02-11
+* Improve panic message in egui-wgpu when failing to create buffers [#3986](https://github.com/emilk/egui/pull/3986)
+
+
+## 0.26.0 - 2024-02-05
+* Update wgpu to 0.19 [#3824](https://github.com/emilk/egui/pull/3824)
+* Add `WgpuConfiguration::desired_maximum_frame_latency` [#3874](https://github.com/emilk/egui/pull/3874)
+* Disable the default features of `wgpu` [#3875](https://github.com/emilk/egui/pull/3875)
+* If WebGPU fails, re-try adapter creation with WebGL [#3895](https://github.com/emilk/egui/pull/3895) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Delay call to `get_current_texture` (possible small performance win) [#3914](https://github.com/emilk/egui/pull/3914)
+* Add `x11` and `wayland` features [#3909](https://github.com/emilk/egui/pull/3909) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Pass `ScreenDescriptor` to `egui_wgpu::CallbackTrait::prepare` [#3960](https://github.com/emilk/egui/pull/3960) (thanks [@StratusFearMe21](https://github.com/StratusFearMe21)!)
+* Make `egui_wgpu::renderer` a private module [#3979](https://github.com/emilk/egui/pull/3979)
+
+
 ## 0.25.0 - 2024-01-08
 * Only call wgpu paint callback if viewport is positive [#3778](https://github.com/emilk/egui/pull/3778) (thanks [@msparkles](https://github.com/msparkles)!)
 

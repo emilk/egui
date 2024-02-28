@@ -396,6 +396,12 @@ pub enum Event {
     /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),
 
+    /// The mouse moved, the units are unspecified.
+    /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
+    /// `PointerMoved` and `MouseMoved` can be sent at the same time.
+    /// This event is optional. If the integration can not determine unfiltered motion it should not send this event.
+    MouseMoved(Vec2),
+
     /// A mouse button was pressed or released (or a touch started or stopped).
     PointerButton {
         /// Where is the pointer?

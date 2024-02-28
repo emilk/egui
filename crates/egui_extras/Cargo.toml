@@ -94,4 +94,4 @@ syntect = { version = "5", optional = true, default-features = false, features =
 resvg = { version = "0.37", optional = true, default-features = false }
 
 # http feature
-ehttp = { version = "0.4", optional = true, default-features = false }
+ehttp = { version = "0.5", optional = true, default-features = false }

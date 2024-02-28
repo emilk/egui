@@ -32,6 +32,7 @@ impl Default for Demos {
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
+            Box::<super::pan_zoom::PanZoom>::default(),
             Box::<super::panels::Panels>::default(),
             Box::<super::plot_demo::PlotDemo>::default(),
             Box::<super::scrolling::Scrolling>::default(),

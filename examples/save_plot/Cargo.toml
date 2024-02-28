@@ -14,7 +14,7 @@ eframe = { workspace = true, features = [
 ] }
 egui_plot.workspace = true
 image = { version = "0.24", default-features = false, features = ["png"] }
-rfd = "0.11.0"
+rfd = "0.13.0"
 env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",

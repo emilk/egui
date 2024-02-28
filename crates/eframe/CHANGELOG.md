@@ -7,6 +7,32 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.2 - 2024-02-14
+* Add `winuser` feature to `winapi` to fix unresolved import [#4037](https://github.com/emilk/egui/pull/4037) (thanks [@varphone](https://github.com/varphone)!)
+
+
+## 0.26.1 - 2024-02-11
+* Fix high CPU usage on Windows when app is minimized [#3985](https://github.com/emilk/egui/pull/3985) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Update to document-features 0.2.8 [#4003](https://github.com/emilk/egui/pull/4003)
+
+
+## 0.26.0 - 2024-02-05
+* Update `wgpu` to 0.19 [#3824](https://github.com/emilk/egui/pull/3824)
+* Disable the default features of `wgpu` [#3875](https://github.com/emilk/egui/pull/3875)
+* Much more accurate `cpu_usage` timing [#3913](https://github.com/emilk/egui/pull/3913)
+* Update to puffin 0.19 [#3940](https://github.com/emilk/egui/pull/3940)
+
+#### Desktop/Native:
+* Keep `ViewportInfo::maximized` and `minimized` up-to-date on Windows [#3831](https://github.com/emilk/egui/pull/3831) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Handle `IconData::default()` without crashing [#3842](https://github.com/emilk/egui/pull/3842)
+* Fix Android crash on resume [#3847](https://github.com/emilk/egui/pull/3847) [#3867](https://github.com/emilk/egui/pull/3867) (thanks [@Garoven](https://github.com/Garoven)!)
+* Add `WgpuConfiguration::desired_maximum_frame_latency` [#3874](https://github.com/emilk/egui/pull/3874)
+* Don't call `App::update` on minimized windows [#3877](https://github.com/emilk/egui/pull/3877) (thanks [@rustbasic](https://github.com/rustbasic)!)
+
+#### Web:
+* When using `wgpu` on web, `eframe` will try to use WebGPU if available, then fall back to WebGL [#3824](https://github.com/emilk/egui/pull/3824) [#3895](https://github.com/emilk/egui/pull/3895) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
 ## 0.25.0 - 2024-01-08
 * If both `glow` and `wgpu` features are enabled, default to `wgpu` [#3717](https://github.com/emilk/egui/pull/3717)
 

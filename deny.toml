@@ -47,8 +47,10 @@ skip = [
 ]
 skip-tree = [
   { name = "criterion" },     # dev-dependency
+  { name = "fastrand" },      # old version via accesskit_unix
   { name = "foreign-types" }, # small crate. Old version via cocoa and core-graphics (winit).
   { name = "objc2" },         # old version via accesskit_macos
+  { name = "polling" },       # old version via accesskit_unix
   { name = "rfd" },           # example dependency
 ]
 

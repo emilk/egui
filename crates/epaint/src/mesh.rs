@@ -278,6 +278,13 @@ impl Mesh {
         }
     }
 
+    /// Transform the mesh in-place with the given transform.
+    pub fn transform(&mut self, transform: TSTransform) {
+        for v in &mut self.vertices {
+            v.pos = transform * v.pos;
+        }
+    }
+
     /// Rotate by some angle about an origin, in-place.
     ///
     /// Origin is a position in screen space.

@@ -173,7 +173,7 @@ impl Custom3d {
         let (rect, response) =
             ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
-        self.angle += response.drag_delta().x * 0.01;
+        self.angle += response.drag_motion().x * 0.01;
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             CustomTriangleCallback { angle: self.angle },

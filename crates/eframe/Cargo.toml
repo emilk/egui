@@ -183,7 +183,7 @@ objc = "0.2.7"
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
-winapi = "0.3.9"
+winapi = { version = "0.3.9", features = ["winuser"] }
 
 # -------------------------------------------
 # web:

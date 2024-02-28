@@ -386,7 +386,7 @@ fn drag_and_drop_test(ui: &mut egui::Ui) {
                 for (id, value) in data.read().cols(container_id, col) {
                     drag_source(ui, id, |ui| {
                         ui.add(egui::Label::new(value).sense(egui::Sense::click()));
-                        if ui.memory(|mem| mem.is_being_dragged(id)) {
+                        if ui.ctx().is_being_dragged(id) {
                             is_dragged = Some(id);
                         }
                     });
@@ -408,7 +408,7 @@ fn drag_source<R>(
     id: egui::Id,
     body: impl FnOnce(&mut egui::Ui) -> R,
 ) -> InnerResponse<R> {
-    let is_being_dragged = ui.memory(|mem| mem.is_being_dragged(id));
+    let is_being_dragged = ui.ctx().is_being_dragged(id);
 
     if !is_being_dragged {
         let res = ui.scope(body);
@@ -428,19 +428,22 @@ fn drag_source<R>(
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             let delta = pointer_pos - res.response.rect.center();
-            ui.ctx().translate_layer(layer_id, delta);
+            ui.ctx().set_transform_layer(
+                layer_id,
+                eframe::emath::TSTransform::from_translation(delta),
+            );
         }
 
         res
     }
 }
 
-// This is taken from crates/egui_demo_lib/src/debo/drag_and_drop.rs
+// TODO: Update to be more like `crates/egui_demo_lib/src/debo/drag_and_drop.rs`
 fn drop_target<R>(
     ui: &mut egui::Ui,
     body: impl FnOnce(&mut egui::Ui) -> R,
 ) -> egui::InnerResponse<R> {
-    let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
+    let is_being_dragged = ui.ctx().dragged_id().is_some();
 
     let margin = egui::Vec2::splat(ui.visuals().clip_rect_margin); // 3.0
 

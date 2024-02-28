@@ -878,6 +878,7 @@ struct ChartsDemo {
     vertical: bool,
     allow_zoom: Vec2b,
     allow_drag: Vec2b,
+    allow_scroll: Vec2b,
 }
 
 impl Default for ChartsDemo {
@@ -887,6 +888,7 @@ impl Default for ChartsDemo {
             chart: Chart::default(),
             allow_zoom: true.into(),
             allow_drag: true.into(),
+            allow_scroll: true.into(),
         }
     }
 }
@@ -920,6 +922,11 @@ impl ChartsDemo {
                         ui.label("Allow drag:");
                         ui.checkbox(&mut self.allow_drag.x, "X");
                         ui.checkbox(&mut self.allow_drag.y, "Y");
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Allow scroll:");
+                        ui.checkbox(&mut self.allow_scroll.x, "X");
+                        ui.checkbox(&mut self.allow_scroll.y, "Y");
                     });
                 });
             });
@@ -958,6 +965,7 @@ impl ChartsDemo {
             .y_axis_width(3)
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
+            .allow_scroll(self.allow_scroll)
             .show(ui, |plot_ui| plot_ui.bar_chart(chart))
             .response
     }
