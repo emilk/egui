@@ -339,7 +339,7 @@ pub fn load_rgba(image_bytes: &[u8]) -> Result<ColorImage, String> {
 
 #[cfg(feature = "image")]
 pub fn include_dynamic_image(
-    uri: impl ToString,
+    uri: &impl ToString,
     image: &image::DynamicImage,
 ) -> egui::ImageSource<'static> {
     egui::ImageSource::Bytes {
