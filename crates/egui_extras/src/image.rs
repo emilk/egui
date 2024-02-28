@@ -2,7 +2,7 @@
 
 use egui::{mutex::Mutex, TextureOptions};
 #[cfg(feature = "gif")]
-use image::{AnimationDecoder, EncodableLayout};
+use image::AnimationDecoder;
 
 #[cfg(feature = "svg")]
 use egui::SizeHint;
@@ -338,7 +338,7 @@ pub fn load_rgba(image_bytes: &[u8]) -> Result<ColorImage, String> {
 }
 
 #[cfg(feature = "image")]
-pub fn include_dynamic_image(uri: impl ToString, image: &image::DynamicImage) -> egui::ImageSource {
+pub fn include_dynamic_image(uri: impl ToString, image: &image::DynamicImage) -> egui::ImageSource<'_> {
     egui::ImageSource::Bytes {
         uri: std::borrow::Cow::Owned(format!("rgba8://{}", uri.to_string())),
         bytes: convert_image_to_bytes(image),
@@ -357,7 +357,7 @@ macro_rules! include_gif {
 }
 
 #[cfg(feature = "gif")]
-pub fn gif_to_sources<R: std::io::Read>(uri: &str, data: R) -> (&str, egui::ImageSources) {
+pub fn gif_to_sources<R: std::io::Read>(uri: &str, data: R) -> (&str, egui::ImageSources<'_>) {
     let decoder = image::codecs::gif::GifDecoder::new(data).unwrap();
     let mut res = vec![];
     for (index, frame) in decoder.into_frames().enumerate() {
@@ -367,7 +367,7 @@ pub fn gif_to_sources<R: std::io::Read>(uri: &str, data: R) -> (&str, egui::Imag
         let delay: std::time::Duration = frame.delay().into();
         res.push((
             egui::ImageSource::Bytes {
-                uri: std::borrow::Cow::Owned(format!("rgba8://{}-{}", uri, index)),
+                uri: std::borrow::Cow::Owned(format!("rgba8://{uri}-{index}")),
                 bytes,
             },
             delay,
