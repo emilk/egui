@@ -338,7 +338,10 @@ pub fn load_rgba(image_bytes: &[u8]) -> Result<ColorImage, String> {
 }
 
 #[cfg(feature = "image")]
-pub fn include_dynamic_image(uri: impl ToString, image: &image::DynamicImage) -> egui::ImageSource<'_> {
+pub fn include_dynamic_image(
+    uri: impl ToString,
+    image: &image::DynamicImage,
+) -> egui::ImageSource<'_> {
     egui::ImageSource::Bytes {
         uri: std::borrow::Cow::Owned(format!("rgba8://{}", uri.to_string())),
         bytes: convert_image_to_bytes(image),
