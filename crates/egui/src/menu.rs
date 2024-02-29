@@ -135,7 +135,7 @@ pub(crate) fn submenu_button<R>(
 /// wrapper for the contents of every menu.
 pub(crate) fn menu_ui<'c, R>(
     ctx: &Context,
-    menu_id: impl Into<Id>,
+    menu_id: Id,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
@@ -145,7 +145,7 @@ pub(crate) fn menu_ui<'c, R>(
         menu_state.rect.min
     };
 
-    let area = Area::new(menu_id)
+    let area = Area::new(menu_id.with("__menu"))
         .order(Order::Foreground)
         .fixed_pos(pos)
         .constrain_to(ctx.screen_rect())
