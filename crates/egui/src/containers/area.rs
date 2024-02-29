@@ -79,9 +79,10 @@ pub struct Area {
 }
 
 impl Area {
-    pub fn new(id: impl Into<Id>) -> Self {
+    /// The `id` must be globally unique.
+    pub fn new(id: Id) -> Self {
         Self {
-            id: id.into(),
+            id,
             movable: true,
             interactable: true,
             constrain: false,
@@ -96,6 +97,9 @@ impl Area {
         }
     }
 
+    /// Let's you change the `id` that you assigned in [`Self::new`].
+    ///
+    /// The `id` must be globally unique.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = id;
