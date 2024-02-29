@@ -105,16 +105,16 @@ impl WidgetRects {
                 // e.g. calling `response.interact(…)` to add more interaction.
                 let (idx_in_layer, existing) = entry.get_mut();
 
+                egui_assert!(
+                    existing.layer_id == widget_rect.layer_id,
+                    "Widget changed layer_id during the frame"
+                );
+
                 // Update it:
                 existing.rect = widget_rect.rect; // last wins
                 existing.interact_rect = widget_rect.interact_rect; // last wins
                 existing.sense |= widget_rect.sense;
                 existing.enabled |= widget_rect.enabled;
-
-                egui_assert!(
-                    existing.layer_id == widget_rect.layer_id,
-                    "Widget changed layer_id during the frame"
-                );
 
                 if existing.layer_id == widget_rect.layer_id {
                     layer_widgets[*idx_in_layer] = *existing;
