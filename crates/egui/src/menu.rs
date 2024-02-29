@@ -39,13 +39,14 @@ impl BarState {
     }
 
     /// Show a menu at pointer if primary-clicked response.
+    ///
     /// Should be called from [`Context`] on a [`Response`]
     pub fn bar_menu<R>(
         &mut self,
         response: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id);
+        MenuRoot::stationary_click_interaction(response, &mut self.open_menu);
         self.open_menu.show(response, add_contents)
     }
 
@@ -222,7 +223,7 @@ pub(crate) fn context_menu(
     let menu_id = Id::new(CONTEXT_MENU_ID_STR);
     let mut bar_state = BarState::load(&response.ctx, menu_id);
 
-    MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
+    MenuRoot::context_click_interaction(response, &mut bar_state);
     let inner_response = bar_state.show(response, add_contents);
 
     bar_state.store(&response.ctx, menu_id);
@@ -237,6 +238,7 @@ pub(crate) struct MenuRootManager {
 
 impl MenuRootManager {
     /// Show a menu at pointer if right-clicked response.
+    ///
     /// Should be called from [`Context`] on a [`Response`]
     pub fn show<R>(
         &mut self,
@@ -308,11 +310,9 @@ impl MenuRoot {
     /// Interaction with a stationary menu, i.e. fixed in another Ui.
     ///
     /// Responds to primary clicks.
-    fn stationary_interaction(
-        response: &Response,
-        root: &mut MenuRootManager,
-        id: Id,
-    ) -> MenuResponse {
+    fn stationary_interaction(response: &Response, root: &mut MenuRootManager) -> MenuResponse {
+        let id = response.id;
+
         if (response.clicked() && root.is_menu_open(id))
             || response.ctx.input(|i| i.key_pressed(Key::Escape))
         {
@@ -357,8 +357,8 @@ impl MenuRoot {
         MenuResponse::Stay
     }
 
-    /// Interaction with a context menu (secondary clicks).
-    fn context_interaction(response: &Response, root: &mut Option<Self>, id: Id) -> MenuResponse {
+    /// Interaction with a context menu (secondary click).
+    fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
         let response = response.interact(Sense::click());
         response.ctx.input(|input| {
             let pointer = &input.pointer;
@@ -371,7 +371,7 @@ impl MenuRoot {
                 }
                 if !in_old_menu {
                     if response.hovered() && response.secondary_clicked() {
-                        return MenuResponse::Create(pos, id);
+                        return MenuResponse::Create(pos, response.id);
                     } else if (response.hovered() && pointer.primary_down()) || destroy {
                         return MenuResponse::Close;
                     }
@@ -392,14 +392,14 @@ impl MenuRoot {
     }
 
     /// Respond to secondary (right) clicks.
-    pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
-        let menu_response = Self::context_interaction(response, root, id);
+    pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager) {
+        let menu_response = Self::context_interaction(response, root);
         Self::handle_menu_response(root, menu_response);
     }
 
     // Responds to primary clicks.
-    pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
-        let menu_response = Self::stationary_interaction(response, root, id);
+    pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager) {
+        let menu_response = Self::stationary_interaction(response, root);
         Self::handle_menu_response(root, menu_response);
     }
 }
