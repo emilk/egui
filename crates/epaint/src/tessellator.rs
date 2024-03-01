@@ -1215,6 +1215,9 @@ impl Tessellator {
             Shape::Circle(circle) => {
                 self.tessellate_circle(circle, out);
             }
+            Shape::Ellipse(ellipse) => {
+                self.tesselate_ellipse(ellipse, out);
+            }
             Shape::Mesh(mesh) => {
                 crate::profile_scope!("mesh");
 
@@ -1313,6 +1316,28 @@ impl Tessellator {
         self.scratchpad_path.fill(self.feathering, fill, out);
         self.scratchpad_path
             .stroke_closed(self.feathering, stroke, out);
+    }
+
+    pub fn tesselate_ellipse(&mut self, shape: EllipseShape, out: &mut Mesh) {
+        let EllipseShape {
+            center,
+            size,
+            fill,
+            stroke,
+        } = shape;
+
+        if size == Vec2::ZERO {
+            return;
+        }
+
+        if self.options.coarse_tessellation_culling
+            && !self
+                .clip_rect
+                .expand2(size + Vec2::splat(stroke.width))
+                .contains(center)
+        {
+            return;
+        }
     }
 
     /// Tessellate a single [`Mesh`] into a [`Mesh`].
@@ -1777,6 +1802,8 @@ impl Tessellator {
                 Shape::Path(path_shape) => 32 < path_shape.points.len(),
 
                 Shape::QuadraticBezier(_) | Shape::CubicBezier(_) => true,
+
+                Shape::Ellipse(_) => true,
 
                 Shape::Noop
                 | Shape::Text(_)
