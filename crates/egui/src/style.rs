@@ -202,11 +202,6 @@ pub struct Style {
     /// How many seconds a typical animation should last.
     pub animation_time: f32,
 
-    /// When exponentially animating, reach this fraction in [`Self::animation_time`].
-    ///
-    /// Currently this affects the scroll speed of [`Ui::scroll_to_cursor`] etc.
-    pub animation_exponential_fraction: f32,
-
     /// Options to help debug why egui behaves strangely.
     ///
     /// Only available in debug builds.
@@ -1101,7 +1096,6 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
-            animation_exponential_fraction: 0.50,
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
@@ -1363,7 +1357,6 @@ impl Style {
             interaction,
             visuals,
             animation_time,
-            animation_exponential_fraction,
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
@@ -1421,10 +1414,6 @@ impl Style {
                     .clamp_to_range(true)
                     .suffix(" s"),
             );
-            ui.end_row();
-
-            ui.label("Animation exponential fraction:");
-            ui.add(Slider::new(animation_exponential_fraction, 0.0..=1.0).clamp_to_range(true));
             ui.end_row();
         });
 

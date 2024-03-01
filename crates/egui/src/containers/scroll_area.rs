@@ -4,13 +4,21 @@ use crate::*;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+struct ScrollTarget {
+    start_time: f64,
+    end_time: f64,
+    target_offset: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct State {
     /// Positive offset means scrolling down/right
     pub offset: Vec2,
 
     /// If set, quickly but smoothly scroll to this target offset.
-    offset_target: [Option<f32>; 2],
+    offset_target: [Option<ScrollTarget>; 2],
 
     /// Were the scroll bars visible last frame?
     show_scroll: Vec2b,
@@ -572,24 +580,31 @@ impl ScrollArea {
                 for d in 0..2 {
                     let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
-                    if let Some(target_offset) = state.offset_target[d] {
+                    if let Some(scroll_target) = state.offset_target[d] {
                         state.vel[d] = 0.0;
-                        if (state.offset[d] - target_offset).abs() < 1.0 {
+
+                        if (state.offset[d] - scroll_target.target_offset).abs() < 1.0 {
                             // Arrived
-                            state.offset[d] = target_offset;
+                            state.offset[d] = scroll_target.target_offset;
                             state.offset_target[d] = None;
                         } else {
                             // Move towards target
-                            let animation_exponential_fraction =
-                                ui.style().animation_exponential_fraction;
-                            let animation_time = ui.style().animation_time;
-                            let t = emath::exponential_smooth_factor(
-                                animation_exponential_fraction,
-                                animation_time,
+                            let t = emath::interpolation_factor(
+                                scroll_target.start_time,
+                                ui.input(|i| i.time),
+                                scroll_target.end_time,
                                 dt,
+                                emath::ease_in_ease_out,
                             );
-                            state.offset[d] = emath::lerp(state.offset[d]..=target_offset, t);
-                            ctx.request_repaint();
+                            if t < 1.0 {
+                                state.offset[d] =
+                                    emath::lerp(state.offset[d]..=scroll_target.target_offset, t);
+                                ctx.request_repaint();
+                            } else {
+                                // Arrived
+                                state.offset[d] = scroll_target.target_offset;
+                                state.offset_target[d] = None;
+                            }
                         }
                     } else {
                         // Kinetic scrolling
@@ -774,8 +789,25 @@ impl Prepared {
                     };
 
                     if delta != 0.0 {
-                        // We'll quickly animate scrolling there:
-                        state.offset_target[d] = Some(state.offset[d] + delta);
+                        let target_offset = state.offset[d] + delta;
+
+                        if let Some(animation) = &mut state.offset_target[d] {
+                            // For instance: the user is continuously calling `ui.scroll_to_cursor`,
+                            // so we don't want to reset the animation, but perhaps update the target:
+                            animation.target_offset = target_offset;
+                        } else {
+                            // The futher we scroll, the more time we take.
+                            // TODO(emilk): let users configure this in `Style`.
+                            let now = ui.input(|i| i.time);
+                            let points_per_second = 1000.0;
+                            let animation_duration =
+                                (delta.abs() / points_per_second).clamp(0.1, 0.3);
+                            state.offset_target[d] = Some(ScrollTarget {
+                                start_time: now,
+                                end_time: now + animation_duration as f64,
+                                target_offset,
+                            });
+                        }
                         ui.ctx().request_repaint();
                     }
                 }
