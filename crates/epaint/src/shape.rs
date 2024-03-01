@@ -30,6 +30,9 @@ pub enum Shape {
     /// Circle with optional outline and fill.
     Circle(CircleShape),
 
+    /// Elipse with optional outline and fill.
+    Elipse(ElipseShape),
+
     /// A line between two points.
     LineSegment { points: [Pos2; 2], stroke: Stroke },
 
@@ -324,6 +327,7 @@ impl Shape {
                 rect
             }
             Self::Circle(circle_shape) => circle_shape.visual_bounding_rect(),
+            Self::Elipse(elipse_shape) => elipse_shape.visual_bounding_rect(),
             Self::LineSegment { points, stroke } => {
                 if stroke.is_empty() {
                     Rect::NOTHING
@@ -371,6 +375,11 @@ impl Shape {
                 circle_shape.center = transform * circle_shape.center;
                 circle_shape.radius *= transform.scaling;
                 circle_shape.stroke.width *= transform.scaling;
+            }
+            Self::Elipse(elipse_shape) => {
+                elipse_shape.center = transform * elipse_shape.center;
+                elipse_shape.size *= transform.scaling;
+                elipse_shape.stroke.width *= transform.scaling;
             }
             Self::LineSegment { points, stroke } => {
                 for p in points {
@@ -475,6 +484,60 @@ impl From<CircleShape> for Shape {
     #[inline(always)]
     fn from(shape: CircleShape) -> Self {
         Self::Circle(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to paint an elipse.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ElipseShape {
+    pub center: Pos2,
+    /// Size is the vector (a, b) where the width of the Elipse is 2a and the height is 2b
+    pub size: Vec2,
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl ElipseShape {
+    #[inline]
+    pub fn filled(center: Pos2, size: Vec2, fill_color: impl Into<Color32>) -> Self {
+        Self {
+            center,
+            size,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn stroke(center: Pos2, size: Vec2, stroke: impl Into<Stroke>) -> Self {
+        Self {
+            center,
+            size,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            Rect::from_center_size(
+                self.center,
+                self.size * 2.0 + Vec2::splat(self.stroke.width),
+            )
+        }
+    }
+}
+
+impl From<ElipseShape> for Shape {
+    #[inline(always)]
+    fn from(shape: ElipseShape) -> Self {
+        Self::Elipse(shape)
     }
 }
 
