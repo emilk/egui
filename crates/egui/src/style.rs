@@ -1101,7 +1101,7 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
-            animation_exponential_fraction: 0.99,
+            animation_exponential_fraction: 0.90,
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
