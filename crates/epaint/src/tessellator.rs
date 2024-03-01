@@ -1330,7 +1330,7 @@ impl Tessellator {
             stroke,
         } = shape;
 
-        if size == Vec2::ZERO {
+        if size.x == 0.0 || size.y == 0.0 {
             return;
         }
 
@@ -1343,12 +1343,16 @@ impl Tessellator {
             return;
         }
 
-        let radius_px = (size * self.pixels_per_point).max_elem() as u32;
+        let max_radius = (size / 2.0).max_elem() * self.pixels_per_point;
+        let num_points = 2f32.powf(max_radius.log2().floor());
 
-        let mut points = Vec::new();
-        for i in 0..=radius_px {
-            let t = (i as f32 / radius_px as f32) * std::f32::consts::TAU;
-            let point = Pos2::new(center.x + size.x * f32::cos(t), center.y + size.y * f32::sin(t));
+        let mut points = Vec::with_capacity(num_points as usize);
+        for i in 0..num_points as u32 {
+            let t = (i as f32 / num_points) * std::f32::consts::TAU;
+            let point = Pos2::new(
+                center.x + size.x * f32::cos(t),
+                center.y + size.y * f32::sin(t),
+            );
             points.push(point);
         }
 
@@ -1820,12 +1824,11 @@ impl Tessellator {
 
                 Shape::Path(path_shape) => 32 < path_shape.points.len(),
 
-                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) => true,
+                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) | Shape::Ellipse(_) => true,
 
                 Shape::Noop
                 | Shape::Text(_)
                 | Shape::Circle(_)
-                | Shape::Ellipse(_)
                 | Shape::Mesh(_)
                 | Shape::LineSegment { .. }
                 | Shape::Rect(_)
