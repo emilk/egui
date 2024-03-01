@@ -390,32 +390,29 @@ pub fn exponential_smooth_factor(
 ///
 /// ``` rs
 /// struct Animation {
-///    current_value: f32,
+///     current_value: f32,
 ///
-///    animation_start_time: f64,
-///    target_value: f32,
+///     animation_time_span: (f64, f64),
+///     target_value: f32,
 /// }
 ///
 /// impl Animation {
 ///     fn update(&mut self, now: f64, dt: f32) {
-///         let animation_duration = 0.5;
-///         let animation_end_time = self.animation_start_time + animation_duration;
-///         let t = interpolation_factor(self.animation_start_time, now, animation_end_time, dt, ease_in_ease_out);
+///         let t = interpolation_factor(self.animation_time_span, now, dt, ease_in_ease_out);
 ///         self.current_value = emath::lerp(self.current_value..=self.target_value, t);
 ///     }
 /// }
 /// ```
 pub fn interpolation_factor(
-    start_time: f64,
+    (start_time, end_time): (f64, f64),
     current_time: f64,
-    end_time: f64,
     dt: f32,
     easing: impl Fn(f32) -> f32,
 ) -> f32 {
-    let animation_time = (end_time - start_time) as f32;
+    let animation_duration = (end_time - start_time) as f32;
     let prev_time = current_time - dt as f64;
-    let prev_t = easing((prev_time - start_time) as f32 / animation_time);
-    let end_t = easing((current_time - start_time) as f32 / animation_time);
+    let prev_t = easing((prev_time - start_time) as f32 / animation_duration);
+    let end_t = easing((current_time - start_time) as f32 / animation_duration);
     if end_t < 1.0 {
         (end_t - prev_t) / (1.0 - prev_t)
     } else {

@@ -5,8 +5,7 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct ScrollTarget {
-    start_time: f64,
-    end_time: f64,
+    animation_time_span: (f64, f64),
     target_offset: f32,
 }
 
@@ -590,9 +589,8 @@ impl ScrollArea {
                         } else {
                             // Move towards target
                             let t = emath::interpolation_factor(
-                                scroll_target.start_time,
+                                scroll_target.animation_time_span,
                                 ui.input(|i| i.time),
-                                scroll_target.end_time,
                                 dt,
                                 emath::ease_in_ease_out,
                             );
@@ -803,8 +801,7 @@ impl Prepared {
                             let animation_duration =
                                 (delta.abs() / points_per_second).clamp(0.1, 0.3);
                             state.offset_target[d] = Some(ScrollTarget {
-                                start_time: now,
-                                end_time: now + animation_duration as f64,
+                                animation_time_span: (now, now + animation_duration as f64),
                                 target_offset,
                             });
                         }
