@@ -1318,6 +1318,10 @@ impl Tessellator {
             .stroke_closed(self.feathering, stroke, out);
     }
 
+    /// Tessellate a single [`EllipseShape`] into a [`Mesh`].
+    ///
+    /// * `shape`: the ellipse to tessellate.
+    /// * `out`: triangles are appended to this.
     pub fn tesselate_ellipse(&mut self, shape: EllipseShape, out: &mut Mesh) {
         let EllipseShape {
             center,
@@ -1338,6 +1342,21 @@ impl Tessellator {
         {
             return;
         }
+
+        let radius_px = (size * self.pixels_per_point).max_elem() as u32;
+
+        let mut points = Vec::new();
+        for i in 0..=radius_px {
+            let t = (i as f32 / radius_px as f32) * std::f32::consts::TAU;
+            let point = Pos2::new(center.x + size.x * f32::cos(t), center.y + size.y * f32::sin(t));
+            points.push(point);
+        }
+
+        self.scratchpad_path.clear();
+        self.scratchpad_path.add_line_loop(&points);
+        self.scratchpad_path.fill(self.feathering, fill, out);
+        self.scratchpad_path
+            .stroke_closed(self.feathering, stroke, out);
     }
 
     /// Tessellate a single [`Mesh`] into a [`Mesh`].
@@ -1803,11 +1822,10 @@ impl Tessellator {
 
                 Shape::QuadraticBezier(_) | Shape::CubicBezier(_) => true,
 
-                Shape::Ellipse(_) => true,
-
                 Shape::Noop
                 | Shape::Text(_)
                 | Shape::Circle(_)
+                | Shape::Ellipse(_)
                 | Shape::Mesh(_)
                 | Shape::LineSegment { .. }
                 | Shape::Rect(_)
