@@ -9,6 +9,9 @@ pub struct State {
     /// Positive offset means scrolling down/right
     pub offset: Vec2,
 
+    /// If set, quickly but smoothly scroll to this target offset.
+    offset_target: [Option<f32>; 2],
+
     /// Were the scroll bars visible last frame?
     show_scroll: Vec2b,
 
@@ -35,6 +38,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             offset: Vec2::ZERO,
+            offset_target: Default::default(),
             show_scroll: Vec2b::FALSE,
             content_is_too_large: Vec2b::FALSE,
             scroll_bar_interaction: Vec2b::FALSE,
@@ -559,25 +563,50 @@ impl ScrollArea {
                             state.vel[d] = input.pointer.velocity()[d];
                         });
                         state.scroll_stuck_to_end[d] = false;
+                        state.offset_target[d] = None;
                     } else {
                         state.vel[d] = 0.0;
                     }
                 }
             } else {
-                // Kinetic scrolling
-                let stop_speed = 20.0; // Pixels per second.
-                let friction_coeff = 1000.0; // Pixels per second squared.
-                let dt = ui.input(|i| i.unstable_dt);
+                for d in 0..2 {
+                    let dt = ui.input(|i| i.unstable_dt);
 
-                let friction = friction_coeff * dt;
-                if friction > state.vel.length() || state.vel.length() < stop_speed {
-                    state.vel = Vec2::ZERO;
-                } else {
-                    state.vel -= friction * state.vel.normalized();
-                    // Offset has an inverted coordinate system compared to
-                    // the velocity, so we subtract it instead of adding it
-                    state.offset -= state.vel * dt;
-                    ctx.request_repaint();
+                    if let Some(target_offset) = state.offset_target[d] {
+                        state.vel[d] = 0.0;
+                        if (state.offset[d] - target_offset).abs() < 1.0 {
+                            // Arrived
+                            state.offset[d] = target_offset;
+                            state.offset_target[d] = None;
+                        } else {
+                            // Move towards target
+                            let animation_exponential_fraction =
+                                ui.style().animation_exponential_fraction;
+                            let animation_time = ui.style().animation_time;
+                            let t = emath::exponential_smooth_factor(
+                                animation_exponential_fraction,
+                                animation_time,
+                                dt,
+                            );
+                            state.offset[d] = emath::lerp(state.offset[d]..=target_offset, t);
+                            ctx.request_repaint();
+                        }
+                    } else {
+                        // Kinetic scrolling
+                        let stop_speed = 20.0; // Pixels per second.
+                        let friction_coeff = 1000.0; // Pixels per second squared.
+
+                        let friction = friction_coeff * dt;
+                        if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
+                            state.vel[d] = 0.0;
+                        } else {
+                            state.vel[d] -= friction * state.vel[d].signum();
+                            // Offset has an inverted coordinate system compared to
+                            // the velocity, so we subtract it instead of adding it
+                            state.offset[d] -= state.vel[d] * dt;
+                            ctx.request_repaint();
+                        }
+                    }
                 }
             }
         }
@@ -745,7 +774,8 @@ impl Prepared {
                     };
 
                     if delta != 0.0 {
-                        state.offset[d] += delta;
+                        // We'll quickly animate scrolling there:
+                        state.offset_target[d] = Some(state.offset[d] + delta);
                         ui.ctx().request_repaint();
                     }
                 }
@@ -808,6 +838,7 @@ impl Prepared {
                         });
 
                         state.scroll_stuck_to_end[d] = false;
+                        state.offset_target[d] = None;
                     }
                 }
             }
@@ -952,6 +983,7 @@ impl Prepared {
 
                 // some manual action taken, scroll not stuck
                 state.scroll_stuck_to_end[d] = false;
+                state.offset_target[d] = None;
             } else {
                 state.scroll_start_offset_from_top_left[d] = None;
             }
