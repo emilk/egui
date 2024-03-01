@@ -570,7 +570,7 @@ impl ScrollArea {
                 }
             } else {
                 for d in 0..2 {
-                    let dt = ui.input(|i| i.unstable_dt);
+                    let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
                     if let Some(target_offset) = state.offset_target[d] {
                         state.vel[d] = 0.0;
