@@ -44,7 +44,7 @@ impl ImageLoader for ImageCrateLoader {
         Self::ID
     }
 
-    fn load(&self, ctx: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
+    fn load(&self, ctx: &egui::Context, uri: &str, hint: SizeHint) -> ImageLoadResult {
         // three stages of guessing if we support loading the image:
         // 1. URI extension
         // 2. Mime from `BytesPoll::Ready`
@@ -72,7 +72,8 @@ impl ImageLoader for ImageCrateLoader {
                     }
 
                     log::trace!("started loading {uri:?}");
-                    let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
+                    let result =
+                        crate::image::load_image_bytes_for_size(&bytes, hint).map(Arc::new);
                     log::trace!("finished loading {uri:?}");
                     cache.insert(uri.into(), result.clone());
                     match result {

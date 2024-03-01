@@ -1,9 +1,6 @@
 #![allow(deprecated)]
 
-use egui::{mutex::Mutex, TextureOptions};
-
-#[cfg(feature = "svg")]
-use egui::SizeHint;
+use egui::{mutex::Mutex, SizeHint, TextureOptions};
 
 /// An image to be shown in egui.
 ///
@@ -204,6 +201,55 @@ pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, String> 
     crate::profile_function!();
     let image = image::load_from_memory(image_bytes).map_err(|err| err.to_string())?;
     let size = [image.width() as _, image.height() as _];
+    let image_buffer = image.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        pixels.as_slice(),
+    ))
+}
+
+fn calculate_size_for_hint(size: [usize; 2], hint: SizeHint) -> [usize; 2] {
+    match hint {
+        SizeHint::Size(w, h) => [w as usize, h as usize],
+        SizeHint::Height(h) => [size[0] * h as usize / size[1], h as usize],
+        SizeHint::Width(w) => [w as usize, size[1] * w as usize / size[0]],
+        SizeHint::Scale(scale) => {
+            let scale = scale.into_inner();
+            [
+                (size[0] as f32 * scale) as usize,
+                (size[1] as f32 * scale) as usize,
+            ]
+        }
+    }
+}
+
+/// Load a (non-svg) image and resize it to the given size hint.
+///
+/// Requires the "image" feature. You must also opt-in to the image formats you need
+/// with e.g. `image = { version = "0.24", features = ["jpeg", "png"] }`.
+///
+/// # Errors
+/// On invalid image or unsupported image format.
+#[cfg(feature = "image")]
+pub fn load_image_bytes_for_size(
+    image_bytes: &[u8],
+    hint: SizeHint,
+) -> Result<egui::ColorImage, String> {
+    crate::profile_function!();
+    let image = image::load_from_memory(image_bytes).map_err(|err| err.to_string())?;
+    let src_size = [image.width() as _, image.height() as _];
+    let dst_size = calculate_size_for_hint(src_size, hint);
+    let (image, size) = if src_size != dst_size {
+        let image = image.resize_exact(
+            dst_size[0] as u32,
+            dst_size[1] as u32,
+            image::imageops::FilterType::Lanczos3,
+        );
+        (image, dst_size)
+    } else {
+        (image, src_size)
+    };
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
     Ok(egui::ColorImage::from_rgba_unmultiplied(
