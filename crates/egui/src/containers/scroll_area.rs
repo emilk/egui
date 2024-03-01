@@ -796,7 +796,7 @@ impl Prepared {
                             // so we don't want to reset the animation, but perhaps update the target:
                             animation.target_offset = target_offset;
                         } else {
-                            // The futher we scroll, the more time we take.
+                            // The further we scroll, the more time we take.
                             // TODO(emilk): let users configure this in `Style`.
                             let now = ui.input(|i| i.time);
                             let points_per_second = 1000.0;
