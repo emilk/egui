@@ -745,11 +745,11 @@ impl Prepared {
                 let scroll_target = content_ui
                     .ctx()
                     .frame_state_mut(|state| state.scroll_target[d].take());
-                if let Some((scroll, align)) = scroll_target {
+                if let Some((target_range, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
-                    let (start, end) = (scroll.min, scroll.max);
+                    let (start, end) = (target_range.min, target_range.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
                     let mut spacing = ui.spacing().item_spacing[d];
@@ -758,7 +758,7 @@ impl Prepared {
                         let center_factor = align.to_factor();
 
                         let offset =
-                            lerp(scroll, center_factor) - lerp(visible_range, center_factor);
+                            lerp(target_range, center_factor) - lerp(visible_range, center_factor);
 
                         // Depending on the alignment we need to add or subtract the spacing
                         spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
