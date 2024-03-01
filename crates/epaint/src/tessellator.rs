@@ -5,6 +5,8 @@
 
 #![allow(clippy::identity_op)]
 
+use core::num;
+
 use crate::texture_atlas::PreparedDisc;
 use crate::*;
 use emath::*;
@@ -1343,18 +1345,35 @@ impl Tessellator {
             return;
         }
 
+        // Get the max pixel radius
         let max_radius = (size / 2.0).max_elem() * self.pixels_per_point;
-        let num_points = 2f32.powf(max_radius.log2().floor());
+        // Get the power of two below the radius to limit the number of vertices
+        let floored_radius = 2_f32.powf(max_radius.log2().floor());
+        // Ensure there is at least 8 points
+        let num_points = f32::max(8.0, floored_radius);
 
-        let mut points = Vec::with_capacity(num_points as usize);
-        for i in 0..num_points as u32 {
-            let t = (i as f32 / num_points) * std::f32::consts::TAU;
-            let point = Pos2::new(
-                center.x + size.x * f32::cos(t),
-                center.y + size.y * f32::sin(t),
-            );
-            points.push(point);
-        }
+        let quarter_points = num_points as u32 / 4;
+        let total_points = quarter_points * 4 + 4;
+
+        // Generate points between the 0 to pi/2
+        let quarter: Vec<Vec2> = (1..quarter_points as u32)
+        .map(|i| {
+            let t = (i as f32 / total_points as f32) * std::f32::consts::TAU;
+            Vec2::new(size.x * f32::cos(t), size.y * f32::sin(t))
+        })
+        .collect();
+
+        // Build the ellipse from the 4 known vertices
+        // filling arcs between with mirrored
+        let mut points = Vec::new();
+        points.push(center + Vec2::new(size.x, 0.0));
+        points.extend(quarter.iter().map(|p| center + *p));
+        points.push(center + Vec2::new(0.0, size.y));
+        points.extend(quarter.iter().rev().map(|p| center + Vec2::new(-p.x, p.y)));
+        points.push(center + Vec2::new(-size.x, 0.0));
+        points.extend(quarter.iter().map(|p| center - *p));
+        points.push(center + Vec2::new(0.0, -size.y));
+        points.extend(quarter.iter().rev().map(|p| center + Vec2::new(p.x, -p.y)));
 
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_loop(&points);
