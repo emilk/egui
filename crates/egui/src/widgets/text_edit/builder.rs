@@ -520,6 +520,7 @@ impl<'t> TextEdit<'t> {
             }
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let save_ccursor_range = state.cursor.char_range();
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
@@ -561,7 +562,7 @@ impl<'t> TextEdit<'t> {
                     // preview:
                     let cursor_rect =
                         cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
-                    let is_drawn = paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, blink);
+                    let is_drawn = paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, false);
                     if is_drawn {
                         ui.ctx().request_repaint();
                     }
@@ -696,12 +697,13 @@ impl<'t> TextEdit<'t> {
                     }
 
                     if text.is_mutable() {
+                        let is_blink = blink && (save_ccursor_range == state.cursor.char_range());
                         let is_drawn = paint_cursor(
                             &painter,
                             ui.visuals(),
                             primary_cursor_rect,
                             i_time,
-                            blink,
+                            is_blink,
                         );
                         if is_drawn {
                             ui.ctx().request_repaint();
