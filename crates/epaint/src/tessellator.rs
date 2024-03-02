@@ -5,8 +5,6 @@
 
 #![allow(clippy::identity_op)]
 
-use core::num;
-
 use crate::texture_atlas::PreparedDisc;
 use crate::*;
 use emath::*;
@@ -1218,7 +1216,7 @@ impl Tessellator {
                 self.tessellate_circle(circle, out);
             }
             Shape::Ellipse(ellipse) => {
-                self.tesselate_ellipse(ellipse, out);
+                self.tessellate_ellipse(ellipse, out);
             }
             Shape::Mesh(mesh) => {
                 crate::profile_scope!("mesh");
@@ -1324,7 +1322,7 @@ impl Tessellator {
     ///
     /// * `shape`: the ellipse to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tesselate_ellipse(&mut self, shape: EllipseShape, out: &mut Mesh) {
+    pub fn tessellate_ellipse(&mut self, shape: EllipseShape, out: &mut Mesh) {
         let EllipseShape {
             center,
             size,
@@ -1346,9 +1344,9 @@ impl Tessellator {
         }
 
         // Get the max pixel radius
-        let max_radius = (size / 2.0).max_elem() * self.pixels_per_point;
+        let max_radius = size.max_elem() * self.pixels_per_point;
         // Get the power of two below the radius to limit the number of vertices
-        let floored_radius = 2_f32.powf(max_radius.log2().floor());
+        let floored_radius = 2_f32.powf(max_radius.log2().floor() - 1.0);
         // Ensure there is at least 8 points
         let num_points = f32::max(8.0, floored_radius);
 
@@ -1356,15 +1354,15 @@ impl Tessellator {
         let total_points = quarter_points * 4 + 4;
 
         // Generate points between the 0 to pi/2
-        let quarter: Vec<Vec2> = (1..quarter_points as u32)
-        .map(|i| {
-            let t = (i as f32 / total_points as f32) * std::f32::consts::TAU;
-            Vec2::new(size.x * f32::cos(t), size.y * f32::sin(t))
-        })
-        .collect();
+        let quarter: Vec<Vec2> = (1..quarter_points)
+            .map(|i| {
+                let t = (i as f32 / total_points as f32) * std::f32::consts::TAU;
+                Vec2::new(size.x * f32::cos(t), size.y * f32::sin(t))
+            })
+            .collect();
 
-        // Build the ellipse from the 4 known vertices
-        // filling arcs between with mirrored
+        // Build the ellipse from the 4 known vertices filling arcs between
+        // them by mirroring the points between 0 and pi/2
         let mut points = Vec::new();
         points.push(center + Vec2::new(size.x, 0.0));
         points.extend(quarter.iter().map(|p| center + *p));

@@ -504,6 +504,7 @@ impl From<CircleShape> for Shape {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct EllipseShape {
     pub center: Pos2,
+
     /// Size is the vector (a, b) where the width of the Ellipse is 2a and the height is 2b
     pub size: Vec2,
     pub fill: Color32,
