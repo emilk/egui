@@ -561,8 +561,7 @@ impl<'t> TextEdit<'t> {
                     // preview:
                     let cursor_rect =
                         cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
-                    let is_drawn =
-                        paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, blink);
+                    let is_drawn = paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, blink);
                     if is_drawn {
                         ui.ctx().request_repaint();
                     }
