@@ -85,5 +85,5 @@ pub fn paint_cursor(
         );
     }
 
-    return true;
+    true
 }
