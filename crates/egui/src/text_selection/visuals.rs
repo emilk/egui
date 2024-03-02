@@ -61,7 +61,7 @@ pub fn paint_cursor(
     if blink {
         // Make i_time_piece between 0 to 9.
         let i_time_piece = ((i_time % 1.0) * 10.0).trunc() as i64;
-        if i_time_piece >= 5 && i_time_piece <= 6 {
+        if i_time_piece >= 5 && i_time_piece <= 8 {
             return false;
         }
     }
