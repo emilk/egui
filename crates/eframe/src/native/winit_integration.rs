@@ -108,7 +108,7 @@ pub enum EventResult {
 
     ViewportExit(WindowId),
 
-    Exit,
+    Exit(WindowId),
 }
 
 pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<crate::Theme> {
