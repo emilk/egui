@@ -92,7 +92,7 @@ fn run_and_return(
                 log::debug!("Received Event::LoopExiting - saving app state…");
                 winit_app.save_and_destroy();
 
-                EventResult::Exit
+                return;
             }
 
             winit::event::Event::WindowEvent {
@@ -137,7 +137,8 @@ fn run_and_return(
                 Err(err) => {
                     log::error!("Exiting because of error: {err} during event {event:?}");
                     returned_result = Err(err);
-                    EventResult::Exit
+                    event_loop_window_target.exit();
+                    return;
                 }
             },
         };
@@ -183,18 +184,16 @@ fn run_and_return(
                     windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
                     window.request_redraw();
-                    return;
                 }
             }
-            EventResult::Exit => {
+            EventResult::Exit(window_id) => {
                 event_loop_window_target.exit();
 
-                log::debug!("Quitting - saving app state…");
-                winit_app.save_and_destroy();
-
-                log::debug!("Exiting with return code 0");
-                #[allow(clippy::exit)]
-                std::process::exit(0);
+                if let Some(window) = winit_app.window(window_id) {
+                    windows_next_repaint_times.remove(&window_id);
+                    window.set_minimized(true);
+                    window.request_redraw();
+                }
             }
         }
 
@@ -229,6 +228,7 @@ fn run_and_return(
         }
     })?;
 
+    dbg!("eframe window closed");
     log::debug!("eframe window closed");
 
     drop(winit_app);
@@ -276,7 +276,10 @@ fn run_and_exit(
 
                 log::debug!("Received Event::LoopExiting");
                 winit_app.save_and_destroy();
-                return;
+
+                log::debug!("Exiting with return code 0");
+                #[allow(clippy::exit)]
+                std::process::exit(0);
             }
 
             winit::event::Event::WindowEvent {
@@ -357,18 +360,16 @@ fn run_and_exit(
                     windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
                     window.request_redraw();
-                    return;
                 }
             }
-            EventResult::Exit => {
+            EventResult::Exit(window_id) => {
                 event_loop_window_target.exit();
 
-                log::debug!("Quitting - saving app state…");
-                winit_app.save_and_destroy();
-
-                log::debug!("Exiting with return code 0");
-                #[allow(clippy::exit)]
-                std::process::exit(0);
+                if let Some(window) = winit_app.window(window_id) {
+                    windows_next_repaint_times.remove(&window_id);
+                    window.set_minimized(true);
+                    window.request_redraw();
+                }
             }
         }
 
