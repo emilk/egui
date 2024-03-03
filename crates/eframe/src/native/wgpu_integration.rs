@@ -741,7 +741,7 @@ impl WgpuWinitRunning {
         }
 
         if integration.should_close() {
-            EventResult::Exit
+            EventResult::Exit(window_id)
         } else {
             EventResult::Wait
         }
@@ -800,7 +800,7 @@ impl WgpuWinitRunning {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
-                    return EventResult::Exit;
+                    return EventResult::Exit(window_id);
                 }
 
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
@@ -841,7 +841,7 @@ impl WgpuWinitRunning {
             .unwrap_or_default();
 
         if integration.should_close() {
-            EventResult::Exit
+            EventResult::Exit(window_id)
         } else if event_response.repaint {
             EventResult::RepaintNow(window_id)
         } else {
