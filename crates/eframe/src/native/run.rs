@@ -228,7 +228,6 @@ fn run_and_return(
         }
     })?;
 
-    dbg!("eframe window closed");
     log::debug!("eframe window closed");
 
     drop(winit_app);
