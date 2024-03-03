@@ -1330,7 +1330,7 @@ impl Tessellator {
             stroke,
         } = shape;
 
-        if size.x == 0.0 || size.y == 0.0 {
+        if size.x <= 0.0 || size.y <= 0.0 {
             return;
         }
 
@@ -1346,17 +1346,23 @@ impl Tessellator {
         // Get the max pixel radius
         let max_radius = size.max_elem() * self.pixels_per_point;
         // Get the power of two below the radius to limit the number of vertices
-        let floored_radius = 2_f32.powf(max_radius.log2().floor() - 1.0);
-        // Ensure there is at least 8 points
-        let num_points = f32::max(8.0, floored_radius);
+        let floored_radius = 2_f32.powf(max_radius.log2().floor()) as u32;
+        // Ensure there is at least 16 points
+        let num_points = u32::max(16, floored_radius) / 4;
 
-        let quarter_points = num_points as u32 / 4;
-        let total_points = quarter_points * 4 + 4;
+        // Create an ease ratio based the ellipses a and b
+        let ratio = ((size.y / size.x) / 2.0).clamp(0.0, 1.0);
 
         // Generate points between the 0 to pi/2
-        let quarter: Vec<Vec2> = (1..quarter_points)
+        let quarter: Vec<Vec2> = (1..num_points)
             .map(|i| {
-                let t = (i as f32 / total_points as f32) * std::f32::consts::TAU;
+                let percent = i as f32 / num_points as f32;
+
+                // Ease the percent value, concentrating points around tight bends
+                let eased = 2.0 * (percent - percent.powf(2.0)) * ratio + percent.powf(2.0);
+
+                // Scale the ease to the quarter
+                let t = eased * std::f32::consts::FRAC_PI_2;
                 Vec2::new(size.x * f32::cos(t), size.y * f32::sin(t))
             })
             .collect();
