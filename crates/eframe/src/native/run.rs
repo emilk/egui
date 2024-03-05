@@ -171,12 +171,7 @@ fn run_and_return(
                     .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
-                windows_next_repaint_times.insert(
-                    window_id,
-                    windows_next_repaint_times
-                        .get(&window_id)
-                        .map_or(repaint_time, |last| (*last).min(repaint_time)),
-                );
+                windows_next_repaint_times.insert(window_id, repaint_time);
             }
             EventResult::ViewportExit(window_id) => {
                 // TODO : ViewportExit
@@ -346,12 +341,7 @@ fn run_and_exit(
                     .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
-                windows_next_repaint_times.insert(
-                    window_id,
-                    windows_next_repaint_times
-                        .get(&window_id)
-                        .map_or(repaint_time, |last| (*last).min(repaint_time)),
-                );
+                windows_next_repaint_times.insert(window_id, repaint_time);
             }
             EventResult::ViewportExit(window_id) => {
                 // TODO : ViewportExit
