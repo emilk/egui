@@ -1002,6 +1002,7 @@ impl Ui {
 
     /// Adjust the scroll position of any parent [`ScrollArea`] so that the given [`Rect`] becomes visible.
     ///
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
     ///
     /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`]. [`Ui::scroll_with_delta`]..
@@ -1028,6 +1029,7 @@ impl Ui {
 
     /// Adjust the scroll position of any parent [`ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
     ///
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
     ///
     /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`]. [`Ui::scroll_with_delta`].
