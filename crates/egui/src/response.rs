@@ -534,6 +534,10 @@ impl Response {
             return true;
         }
 
+        if self.context_menu_opened() {
+            return false;
+        }
+
         if self.enabled {
             if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
@@ -847,6 +851,13 @@ impl Response {
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
         menu::context_menu(self, add_contents)
+    }
+
+    /// Returns whether a context menu is currently open for this widget.
+    ///
+    /// See [`Self::context_menu`].
+    pub fn context_menu_opened(&self) -> bool {
+        menu::context_menu_opened(self)
     }
 
     /// Draw a debug rectangle over the response displaying the response's id and whether it is
