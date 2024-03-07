@@ -118,6 +118,7 @@ pub struct Slider<'a> {
     trailing_fill: Option<bool>,
     handle_shape: Option<HandleShape>,
     update_while_editing: bool,
+    easing: Option<bool>,
 }
 
 impl<'a> Slider<'a> {
@@ -169,6 +170,7 @@ impl<'a> Slider<'a> {
             trailing_fill: None,
             handle_shape: None,
             update_while_editing: true,
+            easing: None,
         }
     }
 
@@ -396,6 +398,13 @@ impl<'a> Slider<'a> {
     #[inline]
     pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
         self.handle_shape = Some(handle_shape);
+        self
+    }
+
+    /// Set the easing of the slider.
+    #[inline]
+    pub fn easing(mut self) -> Self {
+        self.easing = Some(true);
         self
     }
 
@@ -636,12 +645,18 @@ impl<'a> Slider<'a> {
     /// For instance, `position` is the mouse position and `position_range` is the physical location of the slider on the screen.
     fn value_from_position(&self, position: f32, position_range: Rangef) -> f64 {
         let normalized = remap_clamp(position, position_range, 0.0..=1.0) as f64;
-        value_from_normalized(normalized, self.range(), &self.spec)
+        let eased_normalized = self.easing.map_or(normalized, |_easing| {
+            emath::easing::quadratic_in(normalized as _) as _
+        });
+        value_from_normalized(eased_normalized, self.range(), &self.spec)
     }
 
     fn position_from_value(&self, value: f64, position_range: Rangef) -> f32 {
         let normalized = normalized_from_value(value, self.range(), &self.spec);
-        lerp(position_range, normalized as f32)
+        let inversed_ease_normalized = self.easing.map_or(normalized, |_easing| {
+            emath::easing::quadratic_in_inverse(normalized as _) as _
+        });
+        lerp(position_range, inversed_ease_normalized as f32)
     }
 
     /// Update the value on each key press when text-editing the value.
