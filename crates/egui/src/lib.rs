@@ -643,6 +643,8 @@ pub enum WidgetType {
 
     CollapsingHeader,
 
+    ProgressIndicator,
+
     /// If you cannot fit any of the above slots.
     ///
     /// If this is something you think should be added, file an issue.
