@@ -230,6 +230,13 @@ pub(crate) fn context_menu(
     inner_response
 }
 
+/// Returns `true` if the context menu is opened for this widget.
+pub(crate) fn context_menu_opened(response: &Response) -> bool {
+    let menu_id = Id::new(CONTEXT_MENU_ID_STR);
+    let bar_state = BarState::load(&response.ctx, menu_id);
+    bar_state.is_menu_open(response.id)
+}
+
 /// Stores the state for the context menu.
 #[derive(Clone, Default)]
 pub(crate) struct MenuRootManager {
