@@ -2323,6 +2323,7 @@ impl Ui {
 impl Deref for Ui {
     type Target = Context;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.ctx()
     }
