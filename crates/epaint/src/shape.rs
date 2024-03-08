@@ -355,6 +355,22 @@ impl Shape {
         }
     }
 
+    /// Scale the shape by `factor`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
+    pub fn scale(&mut self, factor: f32) {
+        self.transform(TSTransform::from_scaling(factor));
+    }
+
+    /// Move the shape by `delta`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
+    pub fn translate(&mut self, delta: Vec2) {
+        self.transform(TSTransform::from_translation(delta));
+    }
+
     /// Move the shape by this many points, in-place.
     ///
     /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
