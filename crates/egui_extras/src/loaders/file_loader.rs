@@ -32,14 +32,11 @@ const PROTOCOL: &str = "file://";
 #[cfg(target_os = "windows")]
 #[inline]
 fn trim_extra_slash(s: &str) -> &str {
-    s.trim_start_matches('/')
-}
-
-/// Do nothing if the target OS is not Windows.
-#[cfg(not(target_os = "windows"))]
-#[inline]
-fn trim_extra_slash(s: &str) -> &str {
-    s
+    if cfg!(target_os = "windows") {
+        s.trim_start_matches('/')
+    } else {
+        s
+    }
 }
 
 impl BytesLoader for FileLoader {
