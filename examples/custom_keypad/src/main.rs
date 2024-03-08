@@ -62,7 +62,7 @@ impl eframe::App for MyApp {
         self.keypad.show(ctx);
     }
 
-    fn filter_raw_input_inplace(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         self.keypad.bump_events(ctx, raw_input);
     }
 }
