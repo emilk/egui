@@ -29,7 +29,6 @@ const PROTOCOL: &str = "file://";
 ///
 /// This is because Windows paths are not supposed to start with a slash.
 /// For example, `file:///C:/path/to/file` is a valid URI, but `/C:/path/to/file` is not a valid path.
-#[cfg(target_os = "windows")]
 #[inline]
 fn trim_extra_slash(s: &str) -> &str {
     if cfg!(target_os = "windows") {
