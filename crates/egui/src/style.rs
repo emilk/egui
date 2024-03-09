@@ -622,7 +622,7 @@ impl Margin {
     };
 
     #[inline]
-    pub fn same(margin: f32) -> Self {
+    pub const fn same(margin: f32) -> Self {
         Self {
             left: margin,
             right: margin,
@@ -633,7 +633,7 @@ impl Margin {
 
     /// Margins with the same size on opposing sides
     #[inline]
-    pub fn symmetric(x: f32, y: f32) -> Self {
+    pub const fn symmetric(x: f32, y: f32) -> Self {
         Self {
             left: x,
             right: x,
@@ -649,12 +649,12 @@ impl Margin {
     }
 
     #[inline]
-    pub fn left_top(&self) -> Vec2 {
+    pub const fn left_top(&self) -> Vec2 {
         vec2(self.left, self.top)
     }
 
     #[inline]
-    pub fn right_bottom(&self) -> Vec2 {
+    pub const fn right_bottom(&self) -> Vec2 {
         vec2(self.right, self.bottom)
     }
 
@@ -702,6 +702,116 @@ impl std::ops::Add for Margin {
     }
 }
 
+impl std::ops::Add<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, v: f32) -> Self {
+        Self {
+            left: self.left + v,
+            right: self.right + v,
+            top: self.top + v,
+            bottom: self.bottom + v,
+        }
+    }
+}
+
+impl std::ops::AddAssign<f32> for Margin {
+    #[inline]
+    fn add_assign(&mut self, v: f32) {
+        self.left += v;
+        self.right += v;
+        self.top += v;
+        self.bottom += v;
+    }
+}
+
+impl std::ops::Div<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn div(self, v: f32) -> Self {
+        Self {
+            left: self.left / v,
+            right: self.right / v,
+            top: self.top / v,
+            bottom: self.bottom / v,
+        }
+    }
+}
+
+impl std::ops::DivAssign<f32> for Margin {
+    #[inline]
+    fn div_assign(&mut self, v: f32) {
+        self.left /= v;
+        self.right /= v;
+        self.top /= v;
+        self.bottom /= v;
+    }
+}
+
+impl std::ops::Mul<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, v: f32) -> Self {
+        Self {
+            left: self.left * v,
+            right: self.right * v,
+            top: self.top * v,
+            bottom: self.bottom * v,
+        }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Margin {
+    #[inline]
+    fn mul_assign(&mut self, v: f32) {
+        self.left *= v;
+        self.right *= v;
+        self.top *= v;
+        self.bottom *= v;
+    }
+}
+
+impl std::ops::Sub for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, other: Self) -> Self {
+        Self {
+            left: self.left - other.left,
+            right: self.right - other.right,
+            top: self.top - other.top,
+            bottom: self.bottom - other.bottom,
+        }
+    }
+}
+
+impl std::ops::Sub<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, v: f32) -> Self {
+        Self {
+            left: self.left - v,
+            right: self.right - v,
+            top: self.top - v,
+            bottom: self.bottom - v,
+        }
+    }
+}
+
+impl std::ops::SubAssign<f32> for Margin {
+    #[inline]
+    fn sub_assign(&mut self, v: f32) {
+        self.left -= v;
+        self.right -= v;
+        self.top -= v;
+        self.bottom -= v;
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// How and when interaction happens.
@@ -709,10 +819,16 @@ impl std::ops::Add for Margin {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Interaction {
-    /// Mouse must be this close to the side of a window to resize
+    /// How close a widget must be to the mouse to have a chance to register as a click or drag.
+    ///
+    /// If this is larger than zero, it gets easier to hit widgets,
+    /// which is important for e.g. touch screens.
+    pub interact_radius: f32,
+
+    /// Radius of the interactive area of the side of a window during drag-to-resize.
     pub resize_grab_radius_side: f32,
 
-    /// Mouse must be this close to the corner of a window to resize
+    /// Radius of the interactive area of the corner of a window during drag-to-resize.
     pub resize_grab_radius_corner: f32,
 
     /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
@@ -1041,8 +1157,8 @@ pub struct DebugOptions {
     /// Show an overlay on all interactive widgets.
     pub show_interactive_widgets: bool,
 
-    /// Show what widget blocks the interaction of another widget.
-    pub show_blocking_widget: bool,
+    /// Show interesting widgets under the mouse cursor.
+    pub show_widget_hits: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1057,7 +1173,7 @@ impl Default for DebugOptions {
             show_expand_height: false,
             show_resize: false,
             show_interactive_widgets: false,
-            show_blocking_widget: false,
+            show_widget_hits: false,
         }
     }
 }
@@ -1127,6 +1243,7 @@ impl Default for Interaction {
         Self {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
+            interact_radius: 5.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.3,
             selectable_labels: true,
@@ -1592,6 +1709,7 @@ fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
 impl Interaction {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
+            interact_radius,
             resize_grab_radius_side,
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
@@ -1599,6 +1717,8 @@ impl Interaction {
             selectable_labels,
             multi_widget_text_select,
         } = self;
+        ui.add(Slider::new(interact_radius, 0.0..=20.0).text("interact_radius"))
+            .on_hover_text("Interact with the closest widget within this radius.");
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
             Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
@@ -1607,7 +1727,11 @@ impl Interaction {
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
         );
-        ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
+        ui.add(
+            Slider::new(tooltip_delay, 0.0..=1.0)
+                .suffix(" s")
+                .text("tooltip_delay"),
+        );
 
         ui.horizontal(|ui| {
             ui.checkbox(selectable_labels, "Selectable text in labels");
@@ -1866,7 +1990,7 @@ impl DebugOptions {
             show_expand_height,
             show_resize,
             show_interactive_widgets,
-            show_blocking_widget,
+            show_widget_hits,
         } = self;
 
         {
@@ -1894,10 +2018,7 @@ impl DebugOptions {
             "Show an overlay on all interactive widgets",
         );
 
-        ui.checkbox(
-            show_blocking_widget,
-            "Show which widget blocks the interaction of another widget",
-        );
+        ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

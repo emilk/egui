@@ -52,7 +52,7 @@ impl State {
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
-/// egui::Area::new("my_area")
+/// egui::Area::new(egui::Id::new("my_area"))
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
@@ -79,9 +79,10 @@ pub struct Area {
 }
 
 impl Area {
-    pub fn new(id: impl Into<Id>) -> Self {
+    /// The `id` must be globally unique.
+    pub fn new(id: Id) -> Self {
         Self {
-            id: id.into(),
+            id,
             movable: true,
             interactable: true,
             constrain: false,
@@ -96,6 +97,9 @@ impl Area {
         }
     }
 
+    /// Let's you change the `id` that you assigned in [`Self::new`].
+    ///
+    /// The `id` must be globally unique.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = id;
@@ -313,25 +317,24 @@ impl Area {
         let mut move_response = {
             let interact_id = layer_id.id.with("move");
             let sense = if movable {
-                Sense::click_and_drag()
+                Sense::drag()
             } else if interactable {
                 Sense::click() // allow clicks to bring to front
             } else {
                 Sense::hover()
             };
 
-            let move_response = ctx.interact(
-                Rect::EVERYTHING,
-                ctx.style().spacing.item_spacing,
+            let move_response = ctx.create_widget(WidgetRect {
+                id: interact_id,
                 layer_id,
-                interact_id,
-                state.rect(),
+                rect: state.rect(),
+                interact_rect: state.rect(),
                 sense,
                 enabled,
-            );
+            });
 
             if movable && move_response.dragged() {
-                state.pivot_pos += ctx.input(|i| i.pointer.delta());
+                state.pivot_pos += move_response.drag_delta();
             }
 
             if (move_response.dragged() || move_response.clicked())

@@ -2,7 +2,7 @@
 //! are sometimes painted behind or in front of other things.
 
 use crate::{Id, *};
-use epaint::{ClippedShape, Shape};
+use epaint::{emath::TSTransform, ClippedShape, Shape};
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -158,11 +158,11 @@ impl PaintList {
         self.0[idx.0].shape = Shape::Noop;
     }
 
-    /// Translate each [`Shape`] and clip rectangle by this much, in-place
-    pub fn translate(&mut self, delta: Vec2) {
+    /// Transform each [`Shape`] and clip rectangle by this much, in-place
+    pub fn transform(&mut self, transform: TSTransform) {
         for ClippedShape { clip_rect, shape } in &mut self.0 {
-            *clip_rect = clip_rect.translate(delta);
-            shape.translate(delta);
+            *clip_rect = transform.mul_rect(*clip_rect);
+            shape.transform(transform);
         }
     }
 
@@ -194,7 +194,11 @@ impl GraphicLayers {
         self.0[layer_id.order as usize].get_mut(&layer_id.id)
     }
 
-    pub fn drain(&mut self, area_order: &[LayerId]) -> Vec<ClippedShape> {
+    pub fn drain(
+        &mut self,
+        area_order: &[LayerId],
+        transforms: &ahash::HashMap<LayerId, TSTransform>,
+    ) -> Vec<ClippedShape> {
         crate::profile_function!();
 
         let mut all_shapes: Vec<_> = Default::default();
@@ -211,14 +215,29 @@ impl GraphicLayers {
             for layer_id in area_order {
                 if layer_id.order == order {
                     if let Some(list) = order_map.get_mut(&layer_id.id) {
+                        if let Some(transform) = transforms.get(layer_id) {
+                            for clipped_shape in &mut list.0 {
+                                clipped_shape.clip_rect = *transform * clipped_shape.clip_rect;
+                                clipped_shape.shape.transform(*transform);
+                            }
+                        }
                         all_shapes.append(&mut list.0);
                     }
                 }
             }
 
             // Also draw areas that are missing in `area_order`:
-            for shapes in order_map.values_mut() {
-                all_shapes.append(&mut shapes.0);
+            for (id, list) in order_map {
+                let layer_id = LayerId::new(order, *id);
+
+                if let Some(transform) = transforms.get(&layer_id) {
+                    for clipped_shape in &mut list.0 {
+                        clipped_shape.clip_rect = *transform * clipped_shape.clip_rect;
+                        clipped_shape.shape.transform(*transform);
+                    }
+                }
+
+                all_shapes.append(&mut list.0);
             }
         }
 

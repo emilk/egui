@@ -7,6 +7,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.26.2 - 2024-02-14
+* Add `winuser` feature to `winapi` to fix unresolved import [#4037](https://github.com/emilk/egui/pull/4037) (thanks [@varphone](https://github.com/varphone)!)
+
+
 ## 0.26.1 - 2024-02-11
 * Fix high CPU usage on Windows when app is minimized [#3985](https://github.com/emilk/egui/pull/3985) (thanks [@rustbasic](https://github.com/rustbasic)!)
 * Update to document-features 0.2.8 [#4003](https://github.com/emilk/egui/pull/4003)

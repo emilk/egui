@@ -477,6 +477,13 @@ impl State {
         }
     }
 
+    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
+        self.egui_input.events.push(egui::Event::MouseMoved(Vec2 {
+            x: delta.0 as f32,
+            y: delta.1 as f32,
+        }));
+    }
+
     /// Call this when there is a new [`accesskit::ActionRequest`].
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
@@ -810,12 +817,14 @@ impl State {
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
+            crate::profile_scope!("set_ime_allowed");
             window.set_ime_allowed(allow_ime);
         }
 
         if let Some(ime) = ime {
             let rect = ime.rect;
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+            crate::profile_scope!("set_ime_cursor_area");
             window.set_ime_cursor_area(
                 winit::dpi::PhysicalPosition {
                     x: pixels_per_point * rect.min.x,
@@ -831,6 +840,7 @@ impl State {
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_ref() {
             if let Some(update) = accesskit_update {
+                crate::profile_scope!("accesskit");
                 accesskit.update_if_active(|| update);
             }
         }

@@ -75,7 +75,7 @@ impl Ui {
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
     pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
         let style = ctx.style();
-        Ui {
+        let ui = Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
@@ -83,7 +83,20 @@ impl Ui {
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
             menu_state: None,
-        }
+        };
+
+        // Register in the widget stack early, to ensure we are behind all widgets we contain:
+        let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
+        ui.ctx().create_widget(WidgetRect {
+            id: ui.id,
+            layer_id: ui.layer_id(),
+            rect: start_rect,
+            interact_rect: start_rect,
+            sense: Sense::hover(),
+            enabled: ui.enabled,
+        });
+
+        ui
     }
 
     /// Create a new [`Ui`] at a specific region.
@@ -101,7 +114,7 @@ impl Ui {
         crate::egui_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
-        Ui {
+        let child_ui = Ui {
             id: self.id.with(id_source),
             next_auto_id_source,
             painter: self.painter.clone(),
@@ -109,7 +122,20 @@ impl Ui {
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
             menu_state: self.menu_state.clone(),
-        }
+        };
+
+        // Register in the widget stack early, to ensure we are behind all widgets we contain:
+        let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
+        child_ui.ctx().create_widget(WidgetRect {
+            id: child_ui.id,
+            layer_id: child_ui.layer_id(),
+            rect: start_rect,
+            interact_rect: start_rect,
+            sense: Sense::hover(),
+            enabled: child_ui.enabled,
+        });
+
+        child_ui
     }
 
     // -------------------------------------------------
@@ -275,6 +301,26 @@ impl Ui {
         if !visible {
             self.painter.set_invisible();
         }
+    }
+
+    /// Make the widget in this [`Ui`] semi-transparent.
+    ///
+    /// `opacity` must be between 0.0 and 1.0, where 0.0 means fully transparent (i.e., invisible)
+    /// and 1.0 means fully opaque (i.e., the same as not calling the method at all).
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.group(|ui| {
+    ///     ui.set_opacity(0.5);
+    ///     if ui.button("Half-transparent button").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn set_opacity(&mut self, opacity: f32) {
+        self.painter.set_opacity(opacity);
     }
 
     /// Read the [`Layout`].
@@ -626,40 +672,35 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().interact(
-            self.clip_rect(),
-            self.spacing().item_spacing,
-            self.layer_id(),
+        self.ctx().create_widget(WidgetRect {
             id,
+            layer_id: self.layer_id(),
             rect,
+            interact_rect: self.clip_rect().intersect(rect),
             sense,
-            self.enabled,
-        )
+            enabled: self.enabled,
+        })
     }
 
-    /// Check for clicks, and drags on a specific region that is hovered.
-    /// This can be used once you have checked that some shape you are painting has been hovered,
-    /// and want to check for clicks and drags on hovered items this frame.
-    ///
-    /// The given [`Rect`] should approximately be where the thing is,
-    /// as will be the rectangle for the returned [`Response::rect`].
+    /// Deprecated: use [`Self::interact`] instead.
+    #[deprecated = "The contains_pointer argument is ignored. Use `ui.interact` instead."]
     pub fn interact_with_hovered(
         &self,
         rect: Rect,
-        contains_pointer: bool,
+        _contains_pointer: bool,
         id: Id,
         sense: Sense,
     ) -> Response {
-        let interact_rect = rect.intersect(self.clip_rect());
-        self.ctx().interact_with_hovered(
-            self.layer_id(),
-            id,
-            rect,
-            interact_rect,
-            sense,
-            self.enabled,
-            contains_pointer,
-        )
+        self.interact(rect, id, sense)
+    }
+
+    /// Interact with the background of this [`Ui`],
+    /// i.e. behind all the widgets.
+    ///
+    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
+    pub fn interact_bg(&self, sense: Sense) -> Response {
+        // This will update the WidgetRect that was first created in `Ui::new`.
+        self.interact(self.min_rect(), self.id, sense)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -961,6 +1002,7 @@ impl Ui {
 
     /// Adjust the scroll position of any parent [`ScrollArea`] so that the given [`Rect`] becomes visible.
     ///
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
     ///
     /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`]. [`Ui::scroll_with_delta`]..
@@ -987,6 +1029,7 @@ impl Ui {
 
     /// Adjust the scroll position of any parent [`ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
     ///
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
     ///
     /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`]. [`Ui::scroll_with_delta`].
@@ -2140,9 +2183,11 @@ impl Ui {
     where
         Payload: Any + Send + Sync,
     {
-        let is_being_dragged = self.memory(|mem| mem.is_being_dragged(id));
+        let is_being_dragged = self.ctx().is_being_dragged(id);
 
         if is_being_dragged {
+            crate::DragAndDrop::set_payload(self.ctx(), payload);
+
             // Paint the body to a new layer:
             let layer_id = LayerId::new(Order::Tooltip, id);
             let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
@@ -2156,7 +2201,8 @@ impl Ui {
 
             if let Some(pointer_pos) = self.ctx().pointer_interact_pos() {
                 let delta = pointer_pos - response.rect.center();
-                self.ctx().translate_layer(layer_id, delta);
+                self.ctx()
+                    .transform_layer_shapes(layer_id, emath::TSTransform::from_translation(delta));
             }
 
             InnerResponse::new(inner, response)
@@ -2164,9 +2210,9 @@ impl Ui {
             let InnerResponse { inner, response } = self.scope(add_contents);
 
             // Check for drags:
-            let dnd_response = self.interact(response.rect, id, Sense::drag());
-
-            dnd_response.dnd_set_drag_payload(payload);
+            let dnd_response = self
+                .interact(response.rect, id, Sense::drag())
+                .on_hover_cursor(CursorIcon::Grab);
 
             InnerResponse::new(inner, dnd_response | response)
         }
@@ -2179,11 +2225,11 @@ impl Ui {
     ///
     /// The given frame is used for its margins, but it color is ignored.
     #[doc(alias = "drag and drop")]
-    pub fn dnd_drop_zone<Payload>(
+    pub fn dnd_drop_zone<Payload, R>(
         &mut self,
         frame: Frame,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> (Response, Option<Arc<Payload>>)
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (InnerResponse<R>, Option<Arc<Payload>>)
     where
         Payload: Any + Send + Sync,
     {
@@ -2192,7 +2238,7 @@ impl Ui {
             DragAndDrop::has_payload_of_type::<Payload>(self.ctx());
 
         let mut frame = frame.begin(self);
-        add_contents(&mut frame.content_ui);
+        let inner = add_contents(&mut frame.content_ui);
         let response = frame.allocate_space(self);
 
         // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
@@ -2222,7 +2268,7 @@ impl Ui {
 
         let payload = response.dnd_release_payload::<Payload>();
 
-        (response, payload)
+        (InnerResponse { inner, response }, payload)
     }
 
     /// Close the menu we are in (including submenus), if any.

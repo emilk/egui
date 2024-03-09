@@ -457,6 +457,33 @@ impl WinitApp for WgpuWinitApp {
                 }
             }
 
+            winit::event::Event::DeviceEvent {
+                device_id: _,
+                event: winit::event::DeviceEvent::MouseMotion { delta },
+            } => {
+                if let Some(running) = &mut self.running {
+                    let mut shared = running.shared.borrow_mut();
+                    if let Some(viewport) = shared
+                        .focused_viewport
+                        .and_then(|viewport| shared.viewports.get_mut(&viewport))
+                    {
+                        if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                            egui_winit.on_mouse_motion(*delta);
+                        }
+
+                        if let Some(window) = viewport.window.as_ref() {
+                            EventResult::RepaintNext(window.id())
+                        } else {
+                            EventResult::Wait
+                        }
+                    } else {
+                        EventResult::Wait
+                    }
+                } else {
+                    EventResult::Wait
+                }
+            }
+
             #[cfg(feature = "accesskit")]
             winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
                 accesskit_winit::ActionRequestEvent { request, window_id },

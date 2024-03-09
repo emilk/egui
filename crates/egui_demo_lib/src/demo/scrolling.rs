@@ -252,6 +252,8 @@ impl super::View for ScrollTo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("This shows how you can scroll to a specific item or pixel offset");
 
+        let num_items = 500;
+
         let mut track_item = false;
         let mut go_to_scroll_offset = false;
         let mut scroll_top = false;
@@ -260,7 +262,7 @@ impl super::View for ScrollTo {
         ui.horizontal(|ui| {
             ui.label("Scroll to a specific item index:");
             track_item |= ui
-                .add(Slider::new(&mut self.track_item, 1..=50).text("Track Item"))
+                .add(Slider::new(&mut self.track_item, 1..=num_items).text("Track Item"))
                 .dragged();
         });
 
@@ -304,7 +306,7 @@ impl super::View for ScrollTo {
                     ui.scroll_to_cursor(Some(Align::TOP));
                 }
                 ui.vertical(|ui| {
-                    for item in 1..=50 {
+                    for item in 1..=num_items {
                         if track_item && item == self.track_item {
                             let response =
                                 ui.colored_label(Color32::YELLOW, format!("This is item {item}"));
