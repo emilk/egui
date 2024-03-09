@@ -16,6 +16,7 @@ pub struct DatePickerButton<'a> {
     calendar: bool,
     calendar_week: bool,
     show_icon: bool,
+    highlight_weekends: bool,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -28,6 +29,7 @@ impl<'a> DatePickerButton<'a> {
             calendar: true,
             calendar_week: true,
             show_icon: true,
+            highlight_weekends: true,
         }
     }
 
@@ -71,6 +73,13 @@ impl<'a> DatePickerButton<'a> {
     #[inline]
     pub fn show_icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
+        self
+    }
+
+    /// Highlight weekend days. (Default: true)
+    #[inline]
+    pub fn highlight_weekends(mut self, highlight_weekends: bool) -> Self {
+        self.highlight_weekends = highlight_weekends;
         self
     }
 }
