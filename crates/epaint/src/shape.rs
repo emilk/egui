@@ -240,13 +240,13 @@ impl Shape {
     }
 
     #[inline]
-    pub fn ellipse_filled(center: Pos2, size: Vec2, fill_color: impl Into<Color32>) -> Self {
-        Self::Ellipse(EllipseShape::filled(center, size, fill_color))
+    pub fn ellipse_filled(center: Pos2, radius: Vec2, fill_color: impl Into<Color32>) -> Self {
+        Self::Ellipse(EllipseShape::filled(center, radius, fill_color))
     }
 
     #[inline]
-    pub fn ellipse_stroke(center: Pos2, size: Vec2, stroke: impl Into<Stroke>) -> Self {
-        Self::Ellipse(EllipseShape::stroke(center, size, stroke))
+    pub fn ellipse_stroke(center: Pos2, radius: Vec2, stroke: impl Into<Stroke>) -> Self {
+        Self::Ellipse(EllipseShape::stroke(center, radius, stroke))
     }
 
     #[inline]
