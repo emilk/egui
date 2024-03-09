@@ -388,7 +388,7 @@ impl Shape {
             }
             Self::Ellipse(ellipse_shape) => {
                 ellipse_shape.center = transform * ellipse_shape.center;
-                ellipse_shape.size *= transform.scaling;
+                ellipse_shape.radius *= transform.scaling;
                 ellipse_shape.stroke.width *= transform.scaling;
             }
             Self::LineSegment { points, stroke } => {
@@ -505,28 +505,28 @@ impl From<CircleShape> for Shape {
 pub struct EllipseShape {
     pub center: Pos2,
 
-    /// Size is the vector (a, b) where the width of the Ellipse is 2a and the height is 2b
-    pub size: Vec2,
+    /// Radius is the vector (a, b) where the width of the Ellipse is 2a and the height is 2b
+    pub radius: Vec2,
     pub fill: Color32,
     pub stroke: Stroke,
 }
 
 impl EllipseShape {
     #[inline]
-    pub fn filled(center: Pos2, size: Vec2, fill_color: impl Into<Color32>) -> Self {
+    pub fn filled(center: Pos2, radius: Vec2, fill_color: impl Into<Color32>) -> Self {
         Self {
             center,
-            size,
+            radius,
             fill: fill_color.into(),
             stroke: Default::default(),
         }
     }
 
     #[inline]
-    pub fn stroke(center: Pos2, size: Vec2, stroke: impl Into<Stroke>) -> Self {
+    pub fn stroke(center: Pos2, radius: Vec2, stroke: impl Into<Stroke>) -> Self {
         Self {
             center,
-            size,
+            radius,
             fill: Default::default(),
             stroke: stroke.into(),
         }
@@ -539,7 +539,7 @@ impl EllipseShape {
         } else {
             Rect::from_center_size(
                 self.center,
-                self.size * 2.0 + Vec2::splat(self.stroke.width),
+                self.radius * 2.0 + Vec2::splat(self.stroke.width),
             )
         }
     }

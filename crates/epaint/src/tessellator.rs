@@ -1325,33 +1325,33 @@ impl Tessellator {
     pub fn tessellate_ellipse(&mut self, shape: EllipseShape, out: &mut Mesh) {
         let EllipseShape {
             center,
-            size,
+            radius,
             fill,
             stroke,
         } = shape;
 
-        if size.x <= 0.0 || size.y <= 0.0 {
+        if radius.x <= 0.0 || radius.y <= 0.0 {
             return;
         }
 
         if self.options.coarse_tessellation_culling
             && !self
                 .clip_rect
-                .expand2(size + Vec2::splat(stroke.width))
+                .expand2(radius + Vec2::splat(stroke.width))
                 .contains(center)
         {
             return;
         }
 
         // Get the max pixel radius
-        let max_radius = size.max_elem() * self.pixels_per_point;
+        let max_radius = radius.max_elem() * self.pixels_per_point;
         // Get the power of two below the radius to limit the number of vertices
         let floored_radius = 2_f32.powf(max_radius.log2().floor()) as u32;
         // Ensure there is at least 16 points
         let num_points = u32::max(16, floored_radius) / 4;
 
         // Create an ease ratio based the ellipses a and b
-        let ratio = ((size.y / size.x) / 2.0).clamp(0.0, 1.0);
+        let ratio = ((radius.y / radius.x) / 2.0).clamp(0.0, 1.0);
 
         // Generate points between the 0 to pi/2
         let quarter: Vec<Vec2> = (1..num_points)
@@ -1363,20 +1363,20 @@ impl Tessellator {
 
                 // Scale the ease to the quarter
                 let t = eased * std::f32::consts::FRAC_PI_2;
-                Vec2::new(size.x * f32::cos(t), size.y * f32::sin(t))
+                Vec2::new(radius.x * f32::cos(t), radius.y * f32::sin(t))
             })
             .collect();
 
         // Build the ellipse from the 4 known vertices filling arcs between
         // them by mirroring the points between 0 and pi/2
         let mut points = Vec::new();
-        points.push(center + Vec2::new(size.x, 0.0));
+        points.push(center + Vec2::new(radius.x, 0.0));
         points.extend(quarter.iter().map(|p| center + *p));
-        points.push(center + Vec2::new(0.0, size.y));
+        points.push(center + Vec2::new(0.0, radius.y));
         points.extend(quarter.iter().rev().map(|p| center + Vec2::new(-p.x, p.y)));
-        points.push(center + Vec2::new(-size.x, 0.0));
+        points.push(center + Vec2::new(-radius.x, 0.0));
         points.extend(quarter.iter().map(|p| center - *p));
-        points.push(center + Vec2::new(0.0, -size.y));
+        points.push(center + Vec2::new(0.0, -radius.y));
         points.extend(quarter.iter().rev().map(|p| center + Vec2::new(p.x, -p.y)));
 
         self.scratchpad_path.clear();

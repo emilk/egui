@@ -22,7 +22,7 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
         })
         | Shape::Ellipse(EllipseShape {
             center: _,
-            size: _,
+            radius: _,
             fill,
             stroke,
         })
