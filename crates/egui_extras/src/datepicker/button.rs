@@ -147,6 +147,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                                 arrows: self.arrows,
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
+                                highlight_weekends: self.highlight_weekends,
                             }
                             .draw(ui)
                         })
