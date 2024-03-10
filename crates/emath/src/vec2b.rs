@@ -20,6 +20,12 @@ impl Vec2b {
         self.x || self.y
     }
 
+    /// Are both `x` and `y` true?
+    #[inline]
+    pub fn all(&self) -> bool {
+        self.x && self.y
+    }
+
     #[inline]
     pub fn and(&self, other: impl Into<Self>) -> Self {
         let other = other.into();
