@@ -594,7 +594,20 @@ fn paint_resize_corner(
     } else if possible.resize_right && possible.resize_top {
         (Align2::RIGHT_TOP, rounding.ne)
     } else {
-        return;
+        // We're not in two directions, but it is still nice to tell the user
+        // we're resizable by painting the resize corner in the expected place
+        // (i.e. for windows only resizable in one direction):
+        if possible.resize_right || possible.resize_bottom {
+            (Align2::RIGHT_BOTTOM, rounding.se)
+        } else if possible.resize_left || possible.resize_bottom {
+            (Align2::LEFT_BOTTOM, rounding.sw)
+        } else if possible.resize_left || possible.resize_top {
+            (Align2::LEFT_TOP, rounding.nw)
+        } else if possible.resize_right || possible.resize_top {
+            (Align2::RIGHT_TOP, rounding.ne)
+        } else {
+            return;
+        }
     };
 
     // Adjust the corner offset to accommodate the stroke width and window rounding
