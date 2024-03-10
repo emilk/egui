@@ -19,6 +19,24 @@ impl Vec2b {
     pub fn any(&self) -> bool {
         self.x || self.y
     }
+
+    #[inline]
+    pub fn and(&self, other: impl Into<Self>) -> Self {
+        let other = other.into();
+        Self {
+            x: self.x && other.x,
+            y: self.y && other.y,
+        }
+    }
+
+    #[inline]
+    pub fn or(&self, other: impl Into<Self>) -> Self {
+        let other = other.into();
+        Self {
+            x: self.x || other.x,
+            y: self.y || other.y,
+        }
+    }
 }
 
 impl From<bool> for Vec2b {

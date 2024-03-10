@@ -23,7 +23,7 @@ pub(crate) struct State {
 
     /// When `true`, this `Area` belongs to a resizable window, so it needs to
     /// receive mouse input which occurs a short distance beyond its bounding rect.
-    pub edges_padded_for_resize: bool,
+    pub edges_padded_for_resize: Vec2b,
 }
 
 impl State {
@@ -75,7 +75,7 @@ pub struct Area {
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
-    edges_padded_for_resize: bool,
+    edges_padded_for_resize: Vec2b,
 }
 
 impl Area {
@@ -93,7 +93,7 @@ impl Area {
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
-            edges_padded_for_resize: false,
+            edges_padded_for_resize: Vec2b::FALSE,
         }
     }
 
@@ -231,8 +231,11 @@ impl Area {
     /// When `true`, this `Area` belongs to a resizable window, so it needs to
     /// receive mouse input which occurs a short distance beyond its bounding rect.
     #[inline]
-    pub(crate) fn edges_padded_for_resize(mut self, edges_padded_for_resize: bool) -> Self {
-        self.edges_padded_for_resize = edges_padded_for_resize;
+    pub(crate) fn edges_padded_for_resize(
+        mut self,
+        edges_padded_for_resize: impl Into<Vec2b>,
+    ) -> Self {
+        self.edges_padded_for_resize = edges_padded_for_resize.into();
         self
     }
 }

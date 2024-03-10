@@ -929,10 +929,10 @@ impl Areas {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        if state.edges_padded_for_resize {
-                            // Allow us to resize by dragging just outside the window:
-                            rect = rect.expand(resize_interact_radius_side);
-                        }
+                        // Allow us to resize by dragging just outside the window:
+                        rect = rect.expand2(
+                            Vec2::from(state.edges_padded_for_resize) * resize_interact_radius_side,
+                        );
 
                         if let Some(transform) = layer_transforms.get(layer) {
                             rect = *transform * rect;
