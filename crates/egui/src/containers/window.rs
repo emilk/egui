@@ -48,9 +48,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text()))
-            .constrain(true)
-            .edges_padded_for_resize(true);
+        let area = Area::new(Id::new(title.text())).constrain(true);
         Self {
             title,
             open: None,
@@ -119,9 +117,6 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
-        self.area = self
-            .area
-            .edges_padded_for_resize(self.resize.is_resizable());
         self
     }
 
@@ -278,7 +273,6 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
-        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
@@ -296,11 +290,15 @@ impl<'open> Window<'open> {
     ///
     /// Note that even if you set this to `false` the window may still auto-resize.
     ///
+    /// You can set the window to only be resizable in one direction by using
+    /// e.g. `[true, false]` as the argument,
+    /// making the window only resizable in the x-direction.
+    ///
     /// Default is `true`.
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub fn resizable(mut self, resizable: impl Into<Vec2b>) -> Self {
+        let resizable = resizable.into();
         self.resize = self.resize.resizable(resizable);
-        self.area = self.area.edges_padded_for_resize(resizable);
         self
     }
 
@@ -326,7 +324,6 @@ impl<'open> Window<'open> {
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
-        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
@@ -594,7 +591,20 @@ fn paint_resize_corner(
     } else if possible.resize_right && possible.resize_top {
         (Align2::RIGHT_TOP, rounding.ne)
     } else {
-        return;
+        // We're not in two directions, but it is still nice to tell the user
+        // we're resizable by painting the resize corner in the expected place
+        // (i.e. for windows only resizable in one direction):
+        if possible.resize_right || possible.resize_bottom {
+            (Align2::RIGHT_BOTTOM, rounding.se)
+        } else if possible.resize_left || possible.resize_bottom {
+            (Align2::LEFT_BOTTOM, rounding.sw)
+        } else if possible.resize_left || possible.resize_top {
+            (Align2::LEFT_TOP, rounding.nw)
+        } else if possible.resize_right || possible.resize_top {
+            (Align2::RIGHT_TOP, rounding.ne)
+        } else {
+            return;
+        }
     };
 
     // Adjust the corner offset to accommodate the stroke width and window rounding
@@ -626,13 +636,15 @@ struct PossibleInteractions {
 impl PossibleInteractions {
     fn new(area: &Area, resize: &Resize, is_collapsed: bool) -> Self {
         let movable = area.is_enabled() && area.is_movable();
-        let resizable = area.is_enabled() && resize.is_resizable() && !is_collapsed;
+        let resizable = resize
+            .is_resizable()
+            .and(area.is_enabled() && !is_collapsed);
         let pivot = area.get_pivot();
         Self {
-            resize_left: resizable && (movable || pivot.x() != Align::LEFT),
-            resize_right: resizable && (movable || pivot.x() != Align::RIGHT),
-            resize_top: resizable && (movable || pivot.y() != Align::TOP),
-            resize_bottom: resizable && (movable || pivot.y() != Align::BOTTOM),
+            resize_left: resizable.x && (movable || pivot.x() != Align::LEFT),
+            resize_right: resizable.x && (movable || pivot.x() != Align::RIGHT),
+            resize_top: resizable.y && (movable || pivot.y() != Align::TOP),
+            resize_bottom: resizable.y && (movable || pivot.y() != Align::BOTTOM),
         }
     }
 
