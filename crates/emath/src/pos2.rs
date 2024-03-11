@@ -93,6 +93,22 @@ impl From<&Pos2> for (f32, f32) {
 }
 
 // ----------------------------------------------------------------------------
+// Compatibility and convenience conversions to and from Vec2:
+impl From<Vec2> for Pos2 {
+    #[inline(always)]
+    fn from(v: Vec2) -> Self {
+        Self { x: v.x, y: v.y }
+    }
+}
+
+impl From<&Vec2> for Pos2 {
+    #[inline(always)]
+    fn from(v: &Vec2) -> Self {
+        Self { x: v.x, y: v.y }
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Mint compatibility and convenience conversions
 
 #[cfg(feature = "mint")]
