@@ -496,7 +496,6 @@ impl ContextImpl {
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
                 interactable: true,
-                edges_padded_for_resize: false,
             },
         );
 
@@ -2331,9 +2330,7 @@ impl Context {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.memory(|mem| {
-            mem.layer_id_at(pos, mem.options.style.interaction.resize_grab_radius_side)
-        })
+        self.memory(|mem| mem.layer_id_at(pos))
     }
 
     /// Moves the given area to the top in its [`Order`].
