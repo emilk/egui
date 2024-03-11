@@ -132,6 +132,77 @@ impl Pos2 {
         }
     }
 
+    /// Calculate the angle between two points, originating from this point to points `a` and `b`.
+    ///
+    /// The result is in the range `[-pi, pi]`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use emath::*;
+    /// let a = pos2(0.0, 0.0);
+    /// let b = pos2(1.0, 0.0);
+    /// let c = pos2(0.0, 1.0);
+    /// assert_eq!(a.angle_between(b, c), std::f32::consts::FRAC_PI_2);
+    /// let c = pos2(1.0, 1.0);
+    /// assert_eq!(a.angle_between(b, c), std::f32::consts::FRAC_PI_4);
+    /// let c = pos2(-1.0, 0.0);
+    /// assert_eq!(a.angle_between(b, c), std::f32::consts::PI);
+    /// ```
+    #[inline]
+    pub fn angle_between(self, a: Self, b: Self) -> f32 {
+        let va = a - self;
+        let vb = b - self;
+        let dot_product = va.dot(vb);
+        let magnitude_product = va.length() * vb.length();
+        (dot_product / magnitude_product).acos()
+    }
+
+    /// Calculate the angle from the origin to this point.
+    ///
+    /// The result is in the range `[-pi, pi]`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use emath::*;
+    /// let p = pos2(1.0, 1.0);
+    /// assert_eq!(p.angle_from_origin(), std::f32::consts::FRAC_PI_4);
+    /// let p = pos2(-1.0, 1.0);
+    /// assert_eq!(p.angle_from_origin(), std::f32::consts::PI - std::f32::consts::FRAC_PI_4);
+    /// let p = pos2(1.0, -1.0);
+    /// assert_eq!(p.angle_from_origin(), -std::f32::consts::FRAC_PI_4);
+    /// let p = pos2(-1.0, -1.0);
+    /// assert_eq!(p.angle_from_origin(), -std::f32::consts::PI + std::f32::consts::FRAC_PI_4);
+    /// ```
+    #[inline]
+    pub fn angle_from_origin(self) -> f32 {
+        self.y.atan2(self.x)
+    }
+
+    /// Calculate the angle from this point to another point.
+    ///
+    /// The result is in the range `[-pi, pi]`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use emath::*;
+    /// let a = pos2(0.0, 0.0);
+    /// let b = pos2(1.0, 0.0);
+    /// assert_eq!(a.angle_to(b), 0.0);
+    /// let b = pos2(0.0, 1.0);
+    /// assert_eq!(a.angle_to(b), std::f32::consts::FRAC_PI_2);
+    /// let b = pos2(-1.0, 0.0);
+    /// assert_eq!(a.angle_to(b), std::f32::consts::PI);
+    /// let b = pos2(0.0, -1.0);
+    /// assert_eq!(a.angle_to(b), -std::f32::consts::FRAC_PI_2);
+    /// ```
+    #[inline]
+    pub fn angle_to(self, other: Self) -> f32 {
+        (other.y - self.y).atan2(other.x - self.x)
+    }
+
     #[inline]
     pub fn distance(self, other: Self) -> f32 {
         (self - other).length()
