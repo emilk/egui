@@ -199,16 +199,14 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 /// Set icon & app title for `MacOS` applications.
 #[cfg(target_os = "macos")]
 #[allow(unsafe_code)]
-fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
+fn set_title_and_icon_mac(_title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
     crate::profile_function!();
-
     use cocoa::{
-        appkit::{NSApp, NSApplication, NSImage, NSMenu, NSWindow},
-        base::{id, nil},
-        foundation::{NSData, NSString},
+        appkit::{NSApp, NSApplication, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
+        base::{nil, selector},
+        foundation::{NSAutoreleasePool, NSData, NSProcessInfo, NSString},
     };
-    use objc::{msg_send, sel, sel_impl};
 
     let png_bytes = if let Some(icon_data) = icon_data {
         match icon_data.to_png_bytes() {
@@ -246,17 +244,70 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.
-        let main_menu = app.mainMenu();
-        if !main_menu.is_null() {
-            let item = main_menu.itemAtIndex_(0);
-            if !item.is_null() {
-                let app_menu: id = msg_send![item, submenu];
-                if !app_menu.is_null() {
-                    crate::profile_scope!("setTitle_");
-                    app_menu.setTitle_(NSString::alloc(nil).init_str(title));
-                }
-            }
-        }
+
+        // create Menu Bar
+        let menubar = NSMenu::new(nil).autorelease();
+        let app_menu_item = NSMenuItem::new(nil).autorelease();
+        menubar.addItem_(app_menu_item);
+        app.setMainMenu_(menubar);
+
+        // create Application menu
+        let app_menu = NSMenu::new(nil).autorelease();
+
+        let about_prefix = NSString::alloc(nil).init_str("About ");
+        let about_title =
+            about_prefix.stringByAppendingString_(NSProcessInfo::processInfo(nil).processName());
+        let about_action = selector("orderFrontStandardAboutPanel:");
+        let about_key = NSString::alloc(nil).init_str("");
+        let about_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(about_title, about_action, about_key)
+            .autorelease();
+        app_menu.addItem_(about_item);
+
+        let hide_prefix = NSString::alloc(nil).init_str("Hide ");
+        let hide_title =
+            hide_prefix.stringByAppendingString_(NSProcessInfo::processInfo(nil).processName());
+        let hide_action = selector("hide:");
+        let hide_key = NSString::alloc(nil).init_str("h");
+        let hide_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(hide_title, hide_action, hide_key)
+            .autorelease();
+        app_menu.addItem_(hide_item);
+
+        let hide_others_title = NSString::alloc(nil).init_str("Hide Others");
+        let hide_others_action = selector("hideOtherApplications:");
+        let hide_others_key = NSString::alloc(nil).init_str("h");
+        let hide_others_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(
+                hide_others_title,
+                hide_others_action,
+                hide_others_key,
+            )
+            .autorelease();
+        hide_others_item.setKeyEquivalentModifierMask_(
+            NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSAlternateKeyMask,
+        );
+        app_menu.addItem_(hide_others_item);
+
+        let show_all_title = NSString::alloc(nil).init_str("Show All");
+        let show_all_action = selector("unhideAllApplications:");
+        let show_all_key = NSString::alloc(nil).init_str("");
+        let show_all_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(show_all_title, show_all_action, show_all_key)
+            .autorelease();
+        app_menu.addItem_(show_all_item);
+
+        let quit_prefix = NSString::alloc(nil).init_str("Quit ");
+        let quit_title =
+            quit_prefix.stringByAppendingString_(NSProcessInfo::processInfo(nil).processName());
+        let quit_action = selector("terminate:");
+        let quit_key = NSString::alloc(nil).init_str("q");
+        let quit_item = NSMenuItem::alloc(nil)
+            .initWithTitle_action_keyEquivalent_(quit_title, quit_action, quit_key)
+            .autorelease();
+        app_menu.addItem_(quit_item);
+
+        app_menu_item.setSubmenu_(app_menu);
 
         // The title in the Dock apparently can't be changed.
         // At least these people didn't figure it out either:

@@ -6,6 +6,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`egui_plot`](crates/egui_plot/CHA
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+# Unreleased
+* Fixed menubar in macOS
 
 ## 0.26.2 - 2024-02-14
 * Avoid interacting twice when not required [#4041](https://github.com/emilk/egui/pull/4041) (thanks [@abey79](https://github.com/abey79)!)
