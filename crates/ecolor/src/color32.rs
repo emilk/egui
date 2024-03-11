@@ -11,10 +11,7 @@ use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_
 /// The special value of alpha=0 means the color is to be treated as an additive color.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-#[cfg_attr(
-    all(feature = "serde", not(feature = "serde-hexcolor")),
-    derive(serde::Deserialize, serde::Serialize)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
 
@@ -237,92 +234,5 @@ impl Color32 {
             b as f32 / 255.0,
             a as f32 / 255.0,
         ]
-    }
-}
-
-// #[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
-impl serde::Serialize for Color32 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.collect_str(&crate::HexColor::Hex8(*self))
-    }
-}
-
-#[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
-impl<'de> serde::Deserialize<'de> for Color32 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        // let try_enum = deserializer.deserialize_enum(
-        //     "Color32",
-        //     &[
-        //         "TRANSPARENT",
-        //         "BLACK",
-        //         "DARK_GRAY",
-        //         "GRAY",
-        //         "LIGHT_GRAY",
-        //         "WHITE",
-        //         "BROWN",
-        //         "DARK_RED",
-        //         "RED",
-        //         "LIGHT_RED",
-        //         "YELLOW",
-        //         "LIGHT_YELLOW",
-        //         "KHAKI",
-        //         "DARK_GREEN",
-        //         "GREEN",
-        //         "LIGHT_GREEN",
-        //         "DARK_BLUE",
-        //         "BLUE",
-        //         "LIGHT_BLUE",
-        //         "GOLD",
-        //         "DEBUG_COLOR",
-        //         "PLACEHOLDER",
-        //     ],
-        //     Color32Visitor,
-        // );
-        // if matches!(try_enum.err(), Some(e)) {
-        //     let e = try_enum.err();
-        // }
-        // TODO(quinntyx): see if this is possible without requiring deserialize_any
-        deserializer.deserialize_str(Color32Visitor)
-    }
-}
-
-#[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
-struct Color32Visitor;
-
-#[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
-impl<'de> serde::de::Visitor<'de> for Color32Visitor {
-    type Value = Color32;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("a string containing a hex color code")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        use crate::{HexColor, ParseHexColorError};
-        use std::str::FromStr;
-        HexColor::from_str(v)
-            .map_err(|e| match e {
-                ParseHexColorError::MissingHash => serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Str(v),
-                    &format!("#{v} (missing hash)").as_str(),
-                ),
-                ParseHexColorError::InvalidLength => {
-                    serde::de::Error::invalid_length(v.len(), &"length 3, 4, 6 or 8 expected")
-                }
-                ParseHexColorError::InvalidInt(i) => serde::de::Error::invalid_type(
-                    serde::de::Unexpected::Str(v),
-                    &format!("invalid int: {i}").as_str(),
-                ),
-            })
-            .map(|c| c.color())
     }
 }
