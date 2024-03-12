@@ -1031,101 +1031,105 @@ impl PlotItem for Points {
 
         let y_reference = stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y);
 
-        let values_tf: Vec<_> = series
+        series
             .points()
             .iter()
-            .map(|v| transform.position_from_point(v))
-            .collect();
+            .map(|value| transform.position_from_point(value))
+            .for_each(|center| {
+                let tf = |dx: f32, dy: f32| -> Pos2 { center + radius * vec2(dx, dy) };
 
-        values_tf.iter().for_each(|center| {
-            let center = *center;
-            let tf = |dx: f32, dy: f32| -> Pos2 { center + radius * vec2(dx, dy) };
+                if let Some(y) = y_reference {
+                    let stem = Shape::line_segment([center, pos2(center.x, y)], stem_stroke);
+                    shapes.push(stem);
+                }
 
-            if let Some(y) = y_reference {
-                let stem = Shape::line_segment([center, pos2(center.x, y)], stem_stroke);
-                shapes.push(stem);
-            }
-
-            match shape {
-                MarkerShape::Circle => {
-                    shapes.push(Shape::Circle(epaint::CircleShape {
-                        center,
-                        radius,
-                        fill,
-                        stroke,
-                    }));
+                match shape {
+                    MarkerShape::Circle => {
+                        shapes.push(Shape::Circle(epaint::CircleShape {
+                            center,
+                            radius,
+                            fill,
+                            stroke,
+                        }));
+                    }
+                    MarkerShape::Diamond => {
+                        let points = vec![
+                            tf(0.0, 1.0),  // bottom
+                            tf(-1.0, 0.0), // left
+                            tf(0.0, -1.0), // top
+                            tf(1.0, 0.0),  // right
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Square => {
+                        let points = vec![
+                            tf(-frac_1_sqrt_2, frac_1_sqrt_2),
+                            tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, frac_1_sqrt_2),
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Cross => {
+                        let diagonal1 = [
+                            tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(frac_1_sqrt_2, frac_1_sqrt_2),
+                        ];
+                        let diagonal2 = [
+                            tf(frac_1_sqrt_2, -frac_1_sqrt_2),
+                            tf(-frac_1_sqrt_2, frac_1_sqrt_2),
+                        ];
+                        shapes.push(Shape::line_segment(diagonal1, default_stroke));
+                        shapes.push(Shape::line_segment(diagonal2, default_stroke));
+                    }
+                    MarkerShape::Plus => {
+                        let horizontal = [tf(-1.0, 0.0), tf(1.0, 0.0)];
+                        let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
+                        shapes.push(Shape::line_segment(horizontal, default_stroke));
+                        shapes.push(Shape::line_segment(vertical, default_stroke));
+                    }
+                    MarkerShape::Up => {
+                        let points =
+                            vec![tf(0.0, -1.0), tf(0.5 * sqrt_3, 0.5), tf(-0.5 * sqrt_3, 0.5)];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Down => {
+                        let points = vec![
+                            tf(0.0, 1.0),
+                            tf(-0.5 * sqrt_3, -0.5),
+                            tf(0.5 * sqrt_3, -0.5),
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Left => {
+                        let points =
+                            vec![tf(-1.0, 0.0), tf(0.5, -0.5 * sqrt_3), tf(0.5, 0.5 * sqrt_3)];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Right => {
+                        let points = vec![
+                            tf(1.0, 0.0),
+                            tf(-0.5, 0.5 * sqrt_3),
+                            tf(-0.5, -0.5 * sqrt_3),
+                        ];
+                        shapes.push(Shape::convex_polygon(points, fill, stroke));
+                    }
+                    MarkerShape::Asterisk => {
+                        let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
+                        let diagonal1 = [tf(-frac_sqrt_3_2, 0.5), tf(frac_sqrt_3_2, -0.5)];
+                        let diagonal2 = [tf(-frac_sqrt_3_2, -0.5), tf(frac_sqrt_3_2, 0.5)];
+                        shapes.push(Shape::line_segment(vertical, default_stroke));
+                        shapes.push(Shape::line_segment(diagonal1, default_stroke));
+                        shapes.push(Shape::line_segment(diagonal2, default_stroke));
+                    }
                 }
-                MarkerShape::Diamond => {
-                    let points = vec![
-                        tf(0.0, 1.0),  // bottom
-                        tf(-1.0, 0.0), // left
-                        tf(0.0, -1.0), // top
-                        tf(1.0, 0.0),  // right
-                    ];
-                    shapes.push(Shape::convex_polygon(points, fill, stroke));
-                }
-                MarkerShape::Square => {
-                    let points = vec![
-                        tf(-frac_1_sqrt_2, frac_1_sqrt_2),
-                        tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
-                        tf(frac_1_sqrt_2, -frac_1_sqrt_2),
-                        tf(frac_1_sqrt_2, frac_1_sqrt_2),
-                    ];
-                    shapes.push(Shape::convex_polygon(points, fill, stroke));
-                }
-                MarkerShape::Cross => {
-                    let diagonal1 = [
-                        tf(-frac_1_sqrt_2, -frac_1_sqrt_2),
-                        tf(frac_1_sqrt_2, frac_1_sqrt_2),
-                    ];
-                    let diagonal2 = [
-                        tf(frac_1_sqrt_2, -frac_1_sqrt_2),
-                        tf(-frac_1_sqrt_2, frac_1_sqrt_2),
-                    ];
-                    shapes.push(Shape::line_segment(diagonal1, default_stroke));
-                    shapes.push(Shape::line_segment(diagonal2, default_stroke));
-                }
-                MarkerShape::Plus => {
-                    let horizontal = [tf(-1.0, 0.0), tf(1.0, 0.0)];
-                    let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
-                    shapes.push(Shape::line_segment(horizontal, default_stroke));
-                    shapes.push(Shape::line_segment(vertical, default_stroke));
-                }
-                MarkerShape::Up => {
-                    let points = vec![tf(0.0, -1.0), tf(0.5 * sqrt_3, 0.5), tf(-0.5 * sqrt_3, 0.5)];
-                    shapes.push(Shape::convex_polygon(points, fill, stroke));
-                }
-                MarkerShape::Down => {
-                    let points = vec![
-                        tf(0.0, 1.0),
-                        tf(-0.5 * sqrt_3, -0.5),
-                        tf(0.5 * sqrt_3, -0.5),
-                    ];
-                    shapes.push(Shape::convex_polygon(points, fill, stroke));
-                }
-                MarkerShape::Left => {
-                    let points = vec![tf(-1.0, 0.0), tf(0.5, -0.5 * sqrt_3), tf(0.5, 0.5 * sqrt_3)];
-                    shapes.push(Shape::convex_polygon(points, fill, stroke));
-                }
-                MarkerShape::Right => {
-                    let points = vec![
-                        tf(1.0, 0.0),
-                        tf(-0.5, 0.5 * sqrt_3),
-                        tf(-0.5, -0.5 * sqrt_3),
-                    ];
-                    shapes.push(Shape::convex_polygon(points, fill, stroke));
-                }
-                MarkerShape::Asterisk => {
-                    let vertical = [tf(0.0, -1.0), tf(0.0, 1.0)];
-                    let diagonal1 = [tf(-frac_sqrt_3_2, 0.5), tf(frac_sqrt_3_2, -0.5)];
-                    let diagonal2 = [tf(-frac_sqrt_3_2, -0.5), tf(frac_sqrt_3_2, 0.5)];
-                    shapes.push(Shape::line_segment(vertical, default_stroke));
-                    shapes.push(Shape::line_segment(diagonal1, default_stroke));
-                    shapes.push(Shape::line_segment(diagonal2, default_stroke));
-                }
-            }
-        });
+            });
         if *line {
+            let values_tf: Vec<_> = series
+                .points()
+                .iter()
+                .map(|v| transform.position_from_point(v))
+                .collect();
             style.style_line(values_tf, line_stroke, *highlight, shapes);
         }
     }
