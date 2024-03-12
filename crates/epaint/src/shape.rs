@@ -403,6 +403,7 @@ impl Shape {
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
                 rect_shape.stroke.width *= transform.scaling;
+                rect_shape.rounding *= transform.scaling;
             }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
