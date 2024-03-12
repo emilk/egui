@@ -274,6 +274,8 @@ impl EpiIntegration {
 
         let close_requested = raw_input.viewport().close_requested();
 
+        app.raw_input_hook(&self.egui_ctx, &mut raw_input);
+
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport

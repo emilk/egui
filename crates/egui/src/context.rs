@@ -198,100 +198,6 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
-/// Used to store each widget's [Id], [Rect] and [Sense] each frame.
-/// Used to check for overlaps between widgets when handling events.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct WidgetRect {
-    /// The globally unique widget id.
-    ///
-    /// For interactive widgets, this better be globally unique.
-    /// If not there will be weird bugs,
-    /// and also big red warning test on the screen in debug builds
-    /// (see [`Options::warn_on_id_clash`]).
-    ///
-    /// You can ensure globally unique ids using [`Ui::push_id`].
-    pub id: Id,
-
-    /// What layer the widget is on.
-    pub layer_id: LayerId,
-
-    /// The full widget rectangle.
-    pub rect: Rect,
-
-    /// Where the widget is.
-    ///
-    /// This is after clipping with the parent ui clip rect.
-    pub interact_rect: Rect,
-
-    /// How the widget responds to interaction.
-    pub sense: Sense,
-
-    /// Is the widget enabled?
-    pub enabled: bool,
-}
-
-/// Stores the positions of all widgets generated during a single egui update/frame.
-///
-/// Actually, only those that are on screen.
-#[derive(Default, Clone, PartialEq, Eq)]
-pub struct WidgetRects {
-    /// All widgets, in painting order.
-    pub by_layer: HashMap<LayerId, Vec<WidgetRect>>,
-
-    /// All widgets
-    pub by_id: IdMap<WidgetRect>,
-}
-
-impl WidgetRects {
-    /// Clear the contents while retaining allocated memory.
-    pub fn clear(&mut self) {
-        let Self { by_layer, by_id } = self;
-
-        for rects in by_layer.values_mut() {
-            rects.clear();
-        }
-
-        by_id.clear();
-    }
-
-    /// Insert the given widget rect in the given layer.
-    pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
-        if !widget_rect.interact_rect.is_positive() {
-            return;
-        }
-
-        let Self { by_layer, by_id } = self;
-
-        let layer_widgets = by_layer.entry(layer_id).or_default();
-
-        match by_id.entry(widget_rect.id) {
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                // A new widget
-                entry.insert(widget_rect);
-                layer_widgets.push(widget_rect);
-            }
-            std::collections::hash_map::Entry::Occupied(mut entry) => {
-                // e.g. calling `response.interact(…)` to add more interaction.
-                let existing = entry.get_mut();
-                existing.rect = existing.rect.union(widget_rect.rect);
-                existing.interact_rect = existing.interact_rect.union(widget_rect.interact_rect);
-                existing.sense |= widget_rect.sense;
-                existing.enabled |= widget_rect.enabled;
-
-                // Find the existing widget in this layer and update it:
-                for previous in layer_widgets.iter_mut().rev() {
-                    if previous.id == widget_rect.id {
-                        *previous = *existing;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// State stored per viewport
 #[derive(Default)]
 struct ViewportState {
@@ -350,7 +256,7 @@ struct ViewportState {
 #[derive(Clone, Debug)]
 pub struct RepaintCause {
     /// What file had the call that requested the repaint?
-    pub file: String,
+    pub file: &'static str,
 
     /// What line number of the the call that requested the repaint?
     pub line: u32,
@@ -363,7 +269,7 @@ impl RepaintCause {
     pub fn new() -> Self {
         let caller = Location::caller();
         Self {
-            file: caller.file().to_owned(),
+            file: caller.file(),
             line: caller.line(),
         }
     }
@@ -546,12 +452,7 @@ impl ContextImpl {
                 .map(|(i, id)| (*id, i))
                 .collect();
 
-            let mut layers: Vec<LayerId> = viewport
-                .widgets_prev_frame
-                .by_layer
-                .keys()
-                .copied()
-                .collect();
+            let mut layers: Vec<LayerId> = viewport.widgets_prev_frame.layer_ids().collect();
 
             layers.sort_by(|a, b| {
                 if a.order == b.order {
@@ -595,7 +496,6 @@ impl ContextImpl {
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
                 interactable: true,
-                edges_padded_for_resize: false,
             },
         );
 
@@ -1118,29 +1018,20 @@ impl Context {
     ///
     /// If the widget already exists, its state (sense, Rect, etc) will be updated.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn create_widget(&self, mut w: WidgetRect) -> Response {
-        if !w.enabled {
-            w.sense.click = false;
-            w.sense.drag = false;
-        }
+    pub(crate) fn create_widget(&self, w: WidgetRect) -> Response {
+        // Remember this widget
+        self.write(|ctx| {
+            let viewport = ctx.viewport();
 
-        if w.interact_rect.is_positive() {
-            // Remember this widget
-            self.write(|ctx| {
-                let viewport = ctx.viewport();
+            // We add all widgets here, even non-interactive ones,
+            // because we need this list not only for checking for blocking widgets,
+            // but also to know when we have reached the widget we are checking for cover.
+            viewport.widgets_this_frame.insert(w.layer_id, w);
 
-                // We add all widgets here, even non-interactive ones,
-                // because we need this list not only for checking for blocking widgets,
-                // but also to know when we have reached the widget we are checking for cover.
-                viewport.widgets_this_frame.insert(w.layer_id, w);
-
-                if w.sense.focusable {
-                    ctx.memory.interested_in_focus(w.id);
-                }
-            });
-        } else {
-            // Don't remember invisible widgets
-        }
+            if w.sense.focusable {
+                ctx.memory.interested_in_focus(w.id);
+            }
+        });
 
         if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
             // Not interested or allowed input:
@@ -1175,9 +1066,8 @@ impl Context {
             let viewport = ctx.viewport();
             viewport
                 .widgets_this_frame
-                .by_id
-                .get(&id)
-                .or_else(|| viewport.widgets_prev_frame.by_id.get(&id))
+                .get(id)
+                .or_else(|| viewport.widgets_prev_frame.get(id))
                 .copied()
         })
         .map(|widget_rect| self.get_response(widget_rect))
@@ -1235,7 +1125,8 @@ impl Context {
             let input = &viewport.input;
             let memory = &mut ctx.memory;
 
-            if sense.click
+            if enabled
+                && sense.click
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
@@ -1244,7 +1135,10 @@ impl Context {
             }
 
             #[cfg(feature = "accesskit")]
-            if sense.click && input.has_accesskit_action_request(id, accesskit::Action::Default) {
+            if enabled
+                && sense.click
+                && input.has_accesskit_action_request(id, accesskit::Action::Default)
+            {
                 res.clicked[PointerButton::Primary as usize] = true;
             }
 
@@ -1264,7 +1158,7 @@ impl Context {
 
             for pointer_event in &input.pointer.pointer_events {
                 if let PointerEvent::Released { click, button } = pointer_event {
-                    if sense.click && clicked {
+                    if enabled && sense.click && clicked {
                         if let Some(click) = click {
                             res.clicked[*button as usize] = true;
                             res.double_clicked[*button as usize] = click.is_double();
@@ -1916,13 +1810,16 @@ impl Context {
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
-            let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
-            painter.debug_rect(widget.interact_rect, color, text);
+            let rect = widget.interact_rect;
+            if rect.is_positive() {
+                let painter = Painter::new(self.clone(), widget.layer_id, Rect::EVERYTHING);
+                painter.debug_rect(rect, color, text);
+            }
         };
 
         let paint_widget_id = |id: Id, text: &str, color: Color32| {
             if let Some(widget) =
-                self.write(|ctx| ctx.viewport().widgets_this_frame.by_id.get(&id).cloned())
+                self.write(|ctx| ctx.viewport().widgets_this_frame.get(id).cloned())
             {
                 paint_widget(&widget, text, color);
             }
@@ -1931,8 +1828,8 @@ impl Context {
         if self.style().debug.show_interactive_widgets {
             // Show all interactive widgets:
             let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
-            for (layer_id, rects) in rects.by_layer {
-                let painter = Painter::new(self.clone(), layer_id, Rect::EVERYTHING);
+            for (layer_id, rects) in rects.layers() {
+                let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
                     if rect.sense.interactive() {
                         let (color, text) = if rect.sense.click && rect.sense.drag {
@@ -2432,9 +2329,7 @@ impl Context {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.memory(|mem| {
-            mem.layer_id_at(pos, mem.options.style.interaction.resize_grab_radius_side)
-        })
+        self.memory(|mem| mem.layer_id_at(pos))
     }
 
     /// Moves the given area to the top in its [`Order`].

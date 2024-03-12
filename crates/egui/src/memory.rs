@@ -646,9 +646,8 @@ impl Memory {
     }
 
     /// Top-most layer at the given position.
-    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
-        self.areas()
-            .layer_id_at(pos, resize_interact_radius_side, &self.layer_transforms)
+    pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
+        self.areas().layer_id_at(pos, &self.layer_transforms)
     }
 
     /// An iterator over all layers. Back-to-front. Top is last.
@@ -921,7 +920,6 @@ impl Areas {
     pub fn layer_id_at(
         &self,
         pos: Pos2,
-        resize_interact_radius_side: f32,
         layer_transforms: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
@@ -929,11 +927,6 @@ impl Areas {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        if state.edges_padded_for_resize {
-                            // Allow us to resize by dragging just outside the window:
-                            rect = rect.expand(resize_interact_radius_side);
-                        }
-
                         if let Some(transform) = layer_transforms.get(layer) {
                             rect = *transform * rect;
                         }

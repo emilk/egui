@@ -1,4 +1,4 @@
-use egui::{Pos2, Rect, Response, Sense, Ui};
+use egui::{Id, Pos2, Rect, Response, Sense, Ui};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -113,6 +113,7 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
+        child_ui_id_source: Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
@@ -145,7 +146,9 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let used_rect = self.cell(flags, max_rect, add_cell_contents);
+        let child_ui = self.cell(flags, max_rect, child_ui_id_source, add_cell_contents);
+
+        let used_rect = child_ui.min_rect();
 
         self.set_pos(max_rect);
 
@@ -155,7 +158,9 @@ impl<'l> StripLayout<'l> {
             max_rect.union(used_rect)
         };
 
-        let response = self.ui.allocate_rect(allocation_rect, self.sense);
+        self.ui.advance_cursor_after_rect(allocation_rect);
+
+        let response = child_ui.interact(max_rect, child_ui.id(), self.sense);
 
         (used_rect, response)
     }
@@ -182,13 +187,17 @@ impl<'l> StripLayout<'l> {
         self.ui.allocate_rect(rect, Sense::hover());
     }
 
+    /// Return the Ui to which the contents where added
     fn cell(
         &mut self,
         flags: StripLayoutFlags,
         rect: Rect,
+        child_ui_id_source: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
-    ) -> Rect {
-        let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
+    ) -> Ui {
+        let mut child_ui =
+            self.ui
+                .child_ui_with_id_source(rect, self.cell_layout, child_ui_id_source);
 
         if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
@@ -204,7 +213,7 @@ impl<'l> StripLayout<'l> {
 
         add_cell_contents(&mut child_ui);
 
-        child_ui.min_rect()
+        child_ui
     }
 
     /// Allocate the rect in [`Self::ui`] so that the scrollview knows about our size

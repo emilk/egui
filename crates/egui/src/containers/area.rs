@@ -20,10 +20,6 @@ pub(crate) struct State {
     /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
     pub interactable: bool,
-
-    /// When `true`, this `Area` belongs to a resizable window, so it needs to
-    /// receive mouse input which occurs a short distance beyond its bounding rect.
-    pub edges_padded_for_resize: bool,
 }
 
 impl State {
@@ -52,7 +48,7 @@ impl State {
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
-/// egui::Area::new("my_area")
+/// egui::Area::new(egui::Id::new("my_area"))
 ///     .fixed_pos(egui::pos2(32.0, 32.0))
 ///     .show(ctx, |ui| {
 ///         ui.label("Floating text!");
@@ -75,13 +71,13 @@ pub struct Area {
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
-    edges_padded_for_resize: bool,
 }
 
 impl Area {
-    pub fn new(id: impl Into<Id>) -> Self {
+    /// The `id` must be globally unique.
+    pub fn new(id: Id) -> Self {
         Self {
-            id: id.into(),
+            id,
             movable: true,
             interactable: true,
             constrain: false,
@@ -92,10 +88,12 @@ impl Area {
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
-            edges_padded_for_resize: false,
         }
     }
 
+    /// Let's you change the `id` that you assigned in [`Self::new`].
+    ///
+    /// The `id` must be globally unique.
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = id;
@@ -223,14 +221,6 @@ impl Area {
             Align2::LEFT_TOP
         }
     }
-
-    /// When `true`, this `Area` belongs to a resizable window, so it needs to
-    /// receive mouse input which occurs a short distance beyond its bounding rect.
-    #[inline]
-    pub(crate) fn edges_padded_for_resize(mut self, edges_padded_for_resize: bool) -> Self {
-        self.edges_padded_for_resize = edges_padded_for_resize;
-        self
-    }
 }
 
 pub(crate) struct Prepared {
@@ -275,7 +265,6 @@ impl Area {
             anchor,
             constrain,
             constrain_rect,
-            edges_padded_for_resize,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -296,11 +285,9 @@ impl Area {
             pivot,
             size: Vec2::ZERO,
             interactable,
-            edges_padded_for_resize,
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
-        state.edges_padded_for_resize = edges_padded_for_resize;
 
         if let Some((anchor, offset)) = anchor {
             let screen = ctx.available_rect();

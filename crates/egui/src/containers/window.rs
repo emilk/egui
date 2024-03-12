@@ -48,9 +48,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text()))
-            .constrain(true)
-            .edges_padded_for_resize(true);
+        let area = Area::new(Id::new(title.text())).constrain(true);
         Self {
             title,
             open: None,
@@ -119,9 +117,6 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
-        self.area = self
-            .area
-            .edges_padded_for_resize(self.resize.is_resizable());
         self
     }
 
@@ -278,7 +273,6 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
-        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
@@ -296,11 +290,15 @@ impl<'open> Window<'open> {
     ///
     /// Note that even if you set this to `false` the window may still auto-resize.
     ///
+    /// You can set the window to only be resizable in one direction by using
+    /// e.g. `[true, false]` as the argument,
+    /// making the window only resizable in the x-direction.
+    ///
     /// Default is `true`.
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub fn resizable(mut self, resizable: impl Into<Vec2b>) -> Self {
+        let resizable = resizable.into();
         self.resize = self.resize.resizable(resizable);
-        self.area = self.area.edges_padded_for_resize(resizable);
         self
     }
 
@@ -326,7 +324,6 @@ impl<'open> Window<'open> {
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
-        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
@@ -392,7 +389,12 @@ impl<'open> Window<'open> {
 
         let header_color =
             frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
-        let window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        // Keep the original inner margin for later use
+        let window_margin = window_frame.inner_margin;
+        let border_padding = window_frame.stroke.width / 2.0;
+        // Add border padding to the inner margin to prevent it from covering the contents
+        window_frame.inner_margin += border_padding;
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -420,9 +422,10 @@ impl<'open> Window<'open> {
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
-            let window_margin = window_frame.inner_margin;
             let spacing = window_margin.top + window_margin.bottom;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
+            window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
+            window_frame.rounding.nw = window_frame.rounding.nw.clamp(0.0, height / 2.0);
             (height, spacing)
         } else {
             (0.0, 0.0)
@@ -495,21 +498,33 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&area_content_ui, &possible, outer_rect, frame_stroke);
+            paint_resize_corner(
+                &area_content_ui,
+                &possible,
+                outer_rect,
+                frame_stroke,
+                window_frame.rounding,
+            );
 
             // END FRAME --------------------------------
 
             if let Some(title_bar) = title_bar {
-                if on_top && area_content_ui.visuals().window_highlight_topmost {
-                    let rect = Rect::from_min_size(
-                        outer_rect.min,
-                        Vec2 {
-                            x: outer_rect.size().x,
-                            y: title_bar_height,
-                        },
-                    );
+                let mut title_rect = Rect::from_min_size(
+                    outer_rect.min + vec2(border_padding, border_padding),
+                    Vec2 {
+                        x: outer_rect.size().x - border_padding * 2.0,
+                        y: title_bar_height,
+                    },
+                );
 
+                title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
+
+                if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let mut round = window_frame.rounding;
+
+                    // Eliminate the rounding gap between the title bar and the window frame
+                    round -= border_padding;
+
                     if !is_collapsed {
                         round.se = 0.0;
                         round.sw = 0.0;
@@ -517,18 +532,18 @@ impl<'open> Window<'open> {
 
                     area_content_ui.painter().set(
                         *where_to_put_header_background,
-                        RectShape::filled(rect, round, header_color),
+                        RectShape::filled(title_rect, round, header_color),
                     );
                 };
 
                 // Fix title bar separator line position
                 if let Some(response) = &mut content_response {
-                    response.rect.min.y = outer_rect.min.y + title_bar_height;
+                    response.rect.min.y = outer_rect.min.y + title_bar_height + border_padding;
                 }
 
                 title_bar.ui(
                     &mut area_content_ui,
-                    outer_rect,
+                    title_rect,
                     &content_response,
                     open,
                     &mut collapsing,
@@ -558,23 +573,47 @@ fn paint_resize_corner(
     possible: &PossibleInteractions,
     outer_rect: Rect,
     stroke: impl Into<Stroke>,
+    rounding: impl Into<Rounding>,
 ) {
-    let corner = if possible.resize_right && possible.resize_bottom {
-        Align2::RIGHT_BOTTOM
+    let stroke = stroke.into();
+    let rounding = rounding.into();
+    let (corner, radius) = if possible.resize_right && possible.resize_bottom {
+        (Align2::RIGHT_BOTTOM, rounding.se)
     } else if possible.resize_left && possible.resize_bottom {
-        Align2::LEFT_BOTTOM
+        (Align2::LEFT_BOTTOM, rounding.sw)
     } else if possible.resize_left && possible.resize_top {
-        Align2::LEFT_TOP
+        (Align2::LEFT_TOP, rounding.nw)
     } else if possible.resize_right && possible.resize_top {
-        Align2::RIGHT_TOP
+        (Align2::RIGHT_TOP, rounding.ne)
     } else {
-        return;
+        // We're not in two directions, but it is still nice to tell the user
+        // we're resizable by painting the resize corner in the expected place
+        // (i.e. for windows only resizable in one direction):
+        if possible.resize_right || possible.resize_bottom {
+            (Align2::RIGHT_BOTTOM, rounding.se)
+        } else if possible.resize_left || possible.resize_bottom {
+            (Align2::LEFT_BOTTOM, rounding.sw)
+        } else if possible.resize_left || possible.resize_top {
+            (Align2::LEFT_TOP, rounding.nw)
+        } else if possible.resize_right || possible.resize_top {
+            (Align2::RIGHT_TOP, rounding.ne)
+        } else {
+            return;
+        }
     };
 
+    // Adjust the corner offset to accommodate the stroke width and window rounding
+    let offset = if radius <= 2.0 && stroke.width < 2.0 {
+        2.0
+    } else {
+        // The corner offset is calculated to make the corner appear to be in the correct position
+        (2.0_f32.sqrt() * (1.0 + radius + stroke.width / 2.0) - radius)
+            * 45.0_f32.to_radians().cos()
+    };
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
-    let corner_rect = corner_rect.translate(-2.0 * corner.to_sign()); // move away from corner
-    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke, corner);
+    let corner_rect = corner_rect.translate(-offset * corner.to_sign()); // move away from corner
+    crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke.color, corner);
 }
 
 // ----------------------------------------------------------------------------
@@ -592,13 +631,15 @@ struct PossibleInteractions {
 impl PossibleInteractions {
     fn new(area: &Area, resize: &Resize, is_collapsed: bool) -> Self {
         let movable = area.is_enabled() && area.is_movable();
-        let resizable = area.is_enabled() && resize.is_resizable() && !is_collapsed;
+        let resizable = resize
+            .is_resizable()
+            .and(area.is_enabled() && !is_collapsed);
         let pivot = area.get_pivot();
         Self {
-            resize_left: resizable && (movable || pivot.x() != Align::LEFT),
-            resize_right: resizable && (movable || pivot.x() != Align::RIGHT),
-            resize_top: resizable && (movable || pivot.y() != Align::TOP),
-            resize_bottom: resizable && (movable || pivot.y() != Align::BOTTOM),
+            resize_left: resizable.x && (movable || pivot.x() != Align::LEFT),
+            resize_right: resizable.x && (movable || pivot.x() != Align::RIGHT),
+            resize_top: resizable.y && (movable || pivot.y() != Align::TOP),
+            resize_bottom: resizable.y && (movable || pivot.y() != Align::BOTTOM),
         }
     }
 
@@ -1036,7 +1077,10 @@ impl TitleBar {
             let y = content_response.rect.top();
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-            ui.painter().hline(outer_rect.x_range(), y, stroke);
+            // Workaround: To prevent border infringement,
+            // the 0.1 value should ideally be calculated using TessellationOptions::feathering_size_in_pixels
+            let x_range = outer_rect.x_range().shrink(0.1);
+            ui.painter().hline(x_range, y, stroke);
         }
 
         // Don't cover the close- and collapse buttons:

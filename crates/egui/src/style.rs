@@ -622,7 +622,7 @@ impl Margin {
     };
 
     #[inline]
-    pub fn same(margin: f32) -> Self {
+    pub const fn same(margin: f32) -> Self {
         Self {
             left: margin,
             right: margin,
@@ -633,7 +633,7 @@ impl Margin {
 
     /// Margins with the same size on opposing sides
     #[inline]
-    pub fn symmetric(x: f32, y: f32) -> Self {
+    pub const fn symmetric(x: f32, y: f32) -> Self {
         Self {
             left: x,
             right: x,
@@ -649,12 +649,12 @@ impl Margin {
     }
 
     #[inline]
-    pub fn left_top(&self) -> Vec2 {
+    pub const fn left_top(&self) -> Vec2 {
         vec2(self.left, self.top)
     }
 
     #[inline]
-    pub fn right_bottom(&self) -> Vec2 {
+    pub const fn right_bottom(&self) -> Vec2 {
         vec2(self.right, self.bottom)
     }
 
@@ -699,6 +699,116 @@ impl std::ops::Add for Margin {
             top: self.top + other.top,
             bottom: self.bottom + other.bottom,
         }
+    }
+}
+
+impl std::ops::Add<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, v: f32) -> Self {
+        Self {
+            left: self.left + v,
+            right: self.right + v,
+            top: self.top + v,
+            bottom: self.bottom + v,
+        }
+    }
+}
+
+impl std::ops::AddAssign<f32> for Margin {
+    #[inline]
+    fn add_assign(&mut self, v: f32) {
+        self.left += v;
+        self.right += v;
+        self.top += v;
+        self.bottom += v;
+    }
+}
+
+impl std::ops::Div<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn div(self, v: f32) -> Self {
+        Self {
+            left: self.left / v,
+            right: self.right / v,
+            top: self.top / v,
+            bottom: self.bottom / v,
+        }
+    }
+}
+
+impl std::ops::DivAssign<f32> for Margin {
+    #[inline]
+    fn div_assign(&mut self, v: f32) {
+        self.left /= v;
+        self.right /= v;
+        self.top /= v;
+        self.bottom /= v;
+    }
+}
+
+impl std::ops::Mul<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn mul(self, v: f32) -> Self {
+        Self {
+            left: self.left * v,
+            right: self.right * v,
+            top: self.top * v,
+            bottom: self.bottom * v,
+        }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Margin {
+    #[inline]
+    fn mul_assign(&mut self, v: f32) {
+        self.left *= v;
+        self.right *= v;
+        self.top *= v;
+        self.bottom *= v;
+    }
+}
+
+impl std::ops::Sub for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, other: Self) -> Self {
+        Self {
+            left: self.left - other.left,
+            right: self.right - other.right,
+            top: self.top - other.top,
+            bottom: self.bottom - other.bottom,
+        }
+    }
+}
+
+impl std::ops::Sub<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, v: f32) -> Self {
+        Self {
+            left: self.left - v,
+            right: self.right - v,
+            top: self.top - v,
+            bottom: self.bottom - v,
+        }
+    }
+}
+
+impl std::ops::SubAssign<f32> for Margin {
+    #[inline]
+    fn sub_assign(&mut self, v: f32) {
+        self.left -= v;
+        self.right -= v;
+        self.top -= v;
+        self.bottom -= v;
     }
 }
 
