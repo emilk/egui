@@ -29,6 +29,13 @@ pub struct WidgetRect {
     pub interact_rect: Rect,
 
     /// How the widget responds to interaction.
+    ///
+    /// Note: if [`Self::enabled`] is `false`, then
+    /// the widget _effectively_ doesn't sense anything,
+    /// but can still have the same `Sense`.
+    /// This is because the sense informs the styling of the widget,
+    /// but we don't want to change the style when a widget is disabled
+    /// (that is handled by the `Painter` directly).
     pub sense: Sense,
 
     /// Is the widget enabled?

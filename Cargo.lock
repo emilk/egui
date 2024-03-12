@@ -1073,6 +1073,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_keypad"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+]
+
+[[package]]
 name = "custom_plot_manipulation"
 version = "0.1.0"
 dependencies = [
