@@ -115,7 +115,23 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
     egui::Key::from_name(key)
 }
 
-pub fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
+pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
+    egui::Modifiers {
+        alt: event.alt_key(),
+        ctrl: event.ctrl_key(),
+        shift: event.shift_key(),
+
+        // Ideally we should know if we are running or mac or not,
+        // but this works good enough for now.
+        mac_cmd: event.meta_key(),
+
+        // Ideally we should know if we are running or mac or not,
+        // but this works good enough for now.
+        command: event.ctrl_key() || event.meta_key(),
+    }
+}
+
+pub fn modifiers_from_mouse_event(event: &web_sys::MouseEvent) -> egui::Modifiers {
     egui::Modifiers {
         alt: event.alt_key(),
         ctrl: event.ctrl_key(),
