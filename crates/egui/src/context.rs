@@ -1018,12 +1018,7 @@ impl Context {
     ///
     /// If the widget already exists, its state (sense, Rect, etc) will be updated.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn create_widget(&self, mut w: WidgetRect) -> Response {
-        if !w.enabled {
-            w.sense.click = false;
-            w.sense.drag = false;
-        }
-
+    pub(crate) fn create_widget(&self, w: WidgetRect) -> Response {
         // Remember this widget
         self.write(|ctx| {
             let viewport = ctx.viewport();
@@ -1130,7 +1125,8 @@ impl Context {
             let input = &viewport.input;
             let memory = &mut ctx.memory;
 
-            if sense.click
+            if enabled
+                && sense.click
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
@@ -1139,7 +1135,10 @@ impl Context {
             }
 
             #[cfg(feature = "accesskit")]
-            if sense.click && input.has_accesskit_action_request(id, accesskit::Action::Default) {
+            if enabled
+                && sense.click
+                && input.has_accesskit_action_request(id, accesskit::Action::Default)
+            {
                 res.clicked[PointerButton::Primary as usize] = true;
             }
 
@@ -1159,7 +1158,7 @@ impl Context {
 
             for pointer_event in &input.pointer.pointer_events {
                 if let PointerEvent::Released { click, button } = pointer_event {
-                    if sense.click && clicked {
+                    if enabled && sense.click && clicked {
                         if let Some(click) = click {
                             res.clicked[*button as usize] = true;
                             res.double_clicked[*button as usize] = click.is_double();
