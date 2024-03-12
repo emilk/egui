@@ -76,6 +76,9 @@ impl AppRunner {
             #[cfg(feature = "glow")]
             gl: Some(painter.gl().clone()),
 
+            #[cfg(feature = "glow")]
+            get_proc_address: None,
+
             #[cfg(all(feature = "wgpu", not(feature = "glow")))]
             wgpu_render_state: painter.render_state(),
             #[cfg(all(feature = "wgpu", feature = "glow"))]
