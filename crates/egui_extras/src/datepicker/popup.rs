@@ -306,7 +306,7 @@ impl<'a> DatePickerPopup<'a> {
                                                         {
                                                             ui.visuals().selection.bg_fill
                                                         } else if (day.weekday() == Weekday::Sat
-                                                            || day.weekday() == Weekday::Sun) 
+                                                            || day.weekday() == Weekday::Sun)
                                                             && self.highlight_weekends
                                                         {
                                                             if ui.visuals().dark_mode {
