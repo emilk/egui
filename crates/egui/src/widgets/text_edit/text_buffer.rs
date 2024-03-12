@@ -89,10 +89,12 @@ pub trait TextBuffer {
     fn decrease_indentation(&mut self, ccursor: &mut CCursor) {
         let line_start = find_line_start(self.as_str(), *ccursor);
 
-        let remove_len = if self.as_str()[line_start.index..].starts_with('\t') {
+        let remove_len = if self.as_str().chars().nth(line_start.index) == Some('\t') {
             Some(1)
-        } else if self.as_str()[line_start.index..]
+        } else if self
+            .as_str()
             .chars()
+            .skip(line_start.index)
             .take(TAB_SIZE)
             .all(|c| c == ' ')
         {

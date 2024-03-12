@@ -42,6 +42,13 @@ pub struct Response {
     pub interact_rect: Rect,
 
     /// The senses (click and/or drag) that the widget was interested in (if any).
+    ///
+    /// Note: if [`Self::enabled`] is `false`, then
+    /// the widget _effectively_ doesn't sense anything,
+    /// but can still have the same `Sense`.
+    /// This is because the sense informs the styling of the widget,
+    /// but we don't want to change the style when a widget is disabled
+    /// (that is handled by the `Painter` directly).
     pub sense: Sense,
 
     /// Was the widget enabled?

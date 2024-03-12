@@ -87,7 +87,7 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
                 return;
             }
 
-            let modifiers = modifiers_from_event(&event);
+            let modifiers = modifiers_from_kb_event(&event);
             runner.input.raw.modifiers = modifiers;
 
             let key = event.key();
@@ -158,7 +158,7 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
         &document,
         "keyup",
         |event: web_sys::KeyboardEvent, runner| {
-            let modifiers = modifiers_from_event(&event);
+            let modifiers = modifiers_from_kb_event(&event);
             runner.input.raw.modifiers = modifiers;
             if let Some(key) = translate_key(&event.key()) {
                 runner.input.raw.events.push(egui::Event::Key {
@@ -301,6 +301,8 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         &canvas,
         "mousedown",
         |event: web_sys::MouseEvent, runner: &mut AppRunner| {
+            let modifiers = modifiers_from_mouse_event(&event);
+            runner.input.raw.modifiers = modifiers;
             if let Some(button) = button_from_mouse_event(&event) {
                 let pos = pos_from_mouse_event(runner.canvas_id(), &event);
                 let modifiers = runner.input.raw.modifiers;
@@ -327,6 +329,8 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         &canvas,
         "mousemove",
         |event: web_sys::MouseEvent, runner| {
+            let modifiers = modifiers_from_mouse_event(&event);
+            runner.input.raw.modifiers = modifiers;
             let pos = pos_from_mouse_event(runner.canvas_id(), &event);
             runner.input.raw.events.push(egui::Event::PointerMoved(pos));
             runner.needs_repaint.repaint_asap();
@@ -336,6 +340,8 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
     )?;
 
     runner_ref.add_event_listener(&canvas, "mouseup", |event: web_sys::MouseEvent, runner| {
+        let modifiers = modifiers_from_mouse_event(&event);
+        runner.input.raw.modifiers = modifiers;
         if let Some(button) = button_from_mouse_event(&event) {
             let pos = pos_from_mouse_event(runner.canvas_id(), &event);
             let modifiers = runner.input.raw.modifiers;
@@ -474,7 +480,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
 
         // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
         // This if-statement is equivalent to how `Modifiers.command` is determined in
-        // `modifiers_from_event()`, but we cannot directly use that fn for a [`WheelEvent`].
+        // `modifiers_from_kb_event()`, but we cannot directly use that fn for a [`WheelEvent`].
         if event.ctrl_key() || event.meta_key() {
             let factor = (delta.y / 200.0).exp();
             runner.input.raw.events.push(egui::Event::Zoom(factor));
