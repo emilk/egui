@@ -207,7 +207,7 @@ fn is_mobile() -> Option<bool> {
 // On mobile devices, there is no need to do that.
 pub fn move_text_cursor(
     ime: Option<egui::output::IMEOutput>,
-    canvas: web_sys::HtmlCanvasElement,
+    canvas: &web_sys::HtmlCanvasElement,
 ) -> Option<()> {
     let style = text_agent().style();
     // Note: moving agent on mobile devices will lead to unpredictable scroll.

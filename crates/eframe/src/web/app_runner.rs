@@ -268,7 +268,7 @@ impl AppRunner {
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
         if self.ime != ime {
-            super::text_agent::move_text_cursor(ime, self.canvas());
+            super::text_agent::move_text_cursor(ime, &self.canvas());
             self.ime = ime;
         }
     }
