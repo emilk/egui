@@ -165,8 +165,8 @@ impl AppRunner {
         self.last_save_time = now_sec();
     }
 
-    pub fn canvas_id(&self) -> &str {
-        self.painter.canvas_id()
+    pub fn canvas(&self) -> web_sys::HtmlCanvasElement {
+        self.painter.canvas()
     }
 
     pub fn destroy(mut self) {
@@ -182,8 +182,8 @@ impl AppRunner {
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
-        super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
-        let canvas_size = super::canvas_size_in_points(self.canvas_id());
+        super::resize_canvas_to_screen_size(&self.canvas(), self.web_options.max_size_points);
+        let canvas_size = super::canvas_size_in_points(&self.canvas());
         let raw_input = self.input.new_frame(canvas_size);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -268,7 +268,7 @@ impl AppRunner {
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
         if self.ime != ime {
-            super::text_agent::move_text_cursor(ime, self.canvas_id());
+            super::text_agent::move_text_cursor(ime, self.canvas());
             self.ime = ime;
         }
     }
