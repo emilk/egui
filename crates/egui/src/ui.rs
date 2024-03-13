@@ -714,8 +714,13 @@ impl Ui {
             .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
     }
 
-    /// Is the pointer (mouse/touch) above this [`Ui`]?
+    /// Is the pointer (mouse/touch) above the current [`Ui`]?
+    ///
     /// Equivalent to `ui.rect_contains_pointer(ui.min_rect())`
+    ///
+    /// Note that this tests against the _current_ [`Ui::min_rect`].
+    /// If you want to test against the final `min_rect`,
+    /// use [`Self::interact_bg`] instead.
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
     }
