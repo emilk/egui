@@ -424,7 +424,7 @@ impl<'t> TextEdit<'t> {
                         frame_rect,
                         visuals.rounding,
                         ui.visuals().extreme_bg_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        ui.visuals().widgets.unhovered.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
             } else {
@@ -432,7 +432,7 @@ impl<'t> TextEdit<'t> {
                 epaint::RectShape::stroke(
                     frame_rect,
                     visuals.rounding,
-                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    ui.visuals().widgets.unhovered.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                 )
             };
 
@@ -562,10 +562,8 @@ impl<'t> TextEdit<'t> {
                     // preview:
                     let cursor_rect =
                         cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
-                    let is_drawn = paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, false);
-                    if is_drawn {
-                        ui.ctx().request_repaint();
-                    }
+                    let _is_cursor_preview_visible =
+                        paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, false);
                 }
 
                 let is_being_dragged = ui.ctx().is_being_dragged(response.id);
@@ -697,15 +695,17 @@ impl<'t> TextEdit<'t> {
                     }
 
                     if text.is_mutable() {
+                        // is_blink: Stays displayed when the cursor is moving
                         let is_blink = blink && (save_ccursor_range == state.cursor.char_range());
-                        let is_drawn = paint_cursor(
+                        let is_cursor_visible = paint_cursor(
                             &painter,
                             ui.visuals(),
                             primary_cursor_rect,
                             i_time,
                             is_blink,
                         );
-                        if is_drawn {
+                        if is_cursor_visible != state.is_cursor_visible {
+                            state.is_cursor_visible = is_cursor_visible;
                             ui.ctx().request_repaint();
                         }
 
