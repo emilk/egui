@@ -629,22 +629,16 @@ impl MenuState {
         }
     }
 
-    /// Check if `dir` points from `pos` towards left side of `rect`.
-    fn points_at_left_of_rect(pos: Pos2, dir: Vec2, rect: Rect) -> bool {
-        let vel_a = dir.angle();
-        let top_a = (rect.left_top() - pos).angle();
-        let bottom_a = (rect.left_bottom() - pos).angle();
-        bottom_a - vel_a >= 0.0 && top_a - vel_a <= 0.0
-    }
-
     /// Check if pointer is moving towards current submenu.
     fn moving_towards_current_submenu(&self, pointer: &PointerState) -> bool {
         if pointer.is_still() {
             return false;
         }
+
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
-                return Self::points_at_left_of_rect(pos, pointer.velocity(), sub_menu.read().rect);
+                let rect = sub_menu.read().rect;
+                return rect.intesects_ray(pos, pointer.velocity().normalized());
             }
         }
         false
