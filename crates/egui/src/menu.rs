@@ -613,12 +613,18 @@ impl MenuState {
         let pointer = ui.input(|i| i.pointer.clone());
         let open = self.is_open(sub_id);
         if self.moving_towards_current_submenu(&pointer) {
+            // We don't close the submenu if the pointer is on its way to hover it.
             // ensure to repaint once even when pointer is not moving
             ui.ctx().request_repaint();
         } else if !open && button.hovered() {
             let pos = button.rect.right_top();
             self.open_submenu(sub_id, pos);
-        } else if open && !button.hovered() && !self.hovering_current_submenu(&pointer) {
+        } else if open
+            && ui.interact_bg(Sense::hover()).contains_pointer()
+            && !button.hovered()
+            && !self.hovering_current_submenu(&pointer)
+        {
+            // We are hovering something else in the menu, so close the submenu.
             self.close_submenu();
         }
     }
