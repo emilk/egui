@@ -67,6 +67,10 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "glow")]
     pub gl: Option<std::sync::Arc<glow::Context>>,
 
+    /// The `get_proc_address` wrapper of underlying GL context
+    #[cfg(feature = "glow")]
+    pub get_proc_address: Option<&'s dyn Fn(&std::ffi::CStr) -> *const std::ffi::c_void>,
+
     /// The underlying WGPU render state.
     ///
     /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
