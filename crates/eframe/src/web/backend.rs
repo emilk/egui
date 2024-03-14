@@ -103,6 +103,7 @@ pub fn web_location() -> epi::Location {
         .to_owned();
 
     epi::Location {
+        // TODO(emilk): should we really percent-decode the url? 🤷‍♂️
         url: percent_decode(&location.href().unwrap_or_default()),
         protocol: percent_decode(&location.protocol().unwrap_or_default()),
         host: percent_decode(&location.host().unwrap_or_default()),
