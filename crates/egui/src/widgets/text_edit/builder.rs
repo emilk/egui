@@ -133,7 +133,7 @@ impl<'t> TextEdit<'t> {
                 ..Default::default()
             },
             cursor_at_end: true,
-            blink: false,
+            blink: true,
             min_size: Vec2::ZERO,
             align: Align2::LEFT_TOP,
             clip_text: false,
@@ -424,7 +424,7 @@ impl<'t> TextEdit<'t> {
                         frame_rect,
                         visuals.rounding,
                         ui.visuals().extreme_bg_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        ui.visuals().widgets.unhovered.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
             } else {
@@ -432,7 +432,7 @@ impl<'t> TextEdit<'t> {
                 epaint::RectShape::stroke(
                     frame_rect,
                     visuals.rounding,
-                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    ui.visuals().widgets.unhovered.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                 )
             };
 
@@ -704,9 +704,12 @@ impl<'t> TextEdit<'t> {
                             i_time,
                             is_blink,
                         );
-                        if is_cursor_visible != state.is_cursor_visible {
+                        if is_blink && !is_cursor_visible {
+                            ui.ctx()
+                                .request_repaint_after(std::time::Duration::from_millis(500));
+                        }
+                        if state.is_cursor_visible != is_cursor_visible {
                             state.is_cursor_visible = is_cursor_visible;
-                            ui.ctx().request_repaint();
                         }
 
                         if interactive {
