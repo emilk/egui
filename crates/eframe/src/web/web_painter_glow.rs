@@ -38,8 +38,8 @@ impl WebPainter for WebPainterGlow {
         self.painter.max_texture_side()
     }
 
-    fn canvas(&self) -> HtmlCanvasElement {
-        self.canvas.clone()
+    fn canvas(&self) -> &HtmlCanvasElement {
+        &self.canvas
     }
 
     fn paint_and_update_textures(

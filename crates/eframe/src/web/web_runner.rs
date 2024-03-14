@@ -29,7 +29,7 @@ pub struct WebRunner {
     events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
 
     /// Used in `destroy` to cancel a pending frame.
-    raf_id: Cell<Option<i32>>,
+    request_animation_frame_id: Cell<Option<i32>>,
 }
 
 impl WebRunner {
@@ -47,7 +47,7 @@ impl WebRunner {
             panic_handler,
             runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
-            raf_id: Cell::new(None),
+            request_animation_frame_id: Cell::new(None),
         }
     }
 
@@ -115,7 +115,7 @@ impl WebRunner {
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
 
-        if let Some(id) = self.raf_id.get() {
+        if let Some(id) = self.request_animation_frame_id.get() {
             let window = web_sys::window().unwrap();
             window.cancel_animation_frame(id).ok();
         }
@@ -199,7 +199,7 @@ impl WebRunner {
             move || events::paint_and_schedule(&runner_ref)
         });
         let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-        self.raf_id.set(Some(id));
+        self.request_animation_frame_id.set(Some(id));
         closure.forget(); // We must forget it, or else the callback is canceled on drop
         Ok(())
     }
@@ -207,19 +207,19 @@ impl WebRunner {
 
 // ----------------------------------------------------------------------------
 
-pub(super) struct TargetEvent {
-    pub target: web_sys::EventTarget,
-    pub event_name: String,
-    pub closure: Closure<dyn FnMut(web_sys::Event)>,
+struct TargetEvent {
+    target: web_sys::EventTarget,
+    event_name: String,
+    closure: Closure<dyn FnMut(web_sys::Event)>,
 }
 
 #[allow(unused)]
-pub(super) struct IntervalHandle {
-    pub handle: i32,
-    pub closure: Closure<dyn FnMut()>,
+struct IntervalHandle {
+    handle: i32,
+    closure: Closure<dyn FnMut()>,
 }
 
-pub(super) enum EventToUnsubscribe {
+enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
 
     #[allow(unused)]

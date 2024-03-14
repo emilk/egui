@@ -10,7 +10,7 @@ pub(crate) trait WebPainter {
     //     Self: Sized;
 
     /// Reference to the canvas in use.
-    fn canvas(&self) -> web_sys::HtmlCanvasElement;
+    fn canvas(&self) -> &web_sys::HtmlCanvasElement;
 
     /// Maximum size of a texture in one direction.
     fn max_texture_side(&self) -> usize;

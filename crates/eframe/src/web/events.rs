@@ -267,7 +267,7 @@ pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Resul
 }
 
 pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    let canvas = runner_ref.try_lock().unwrap().canvas();
+    let canvas = runner_ref.try_lock().unwrap().canvas().clone();
 
     {
         let prevent_default_events = [
@@ -296,7 +296,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
             let modifiers = modifiers_from_mouse_event(&event);
             runner.input.raw.modifiers = modifiers;
             if let Some(button) = button_from_mouse_event(&event) {
-                let pos = pos_from_mouse_event(&runner.canvas(), &event);
+                let pos = pos_from_mouse_event(runner.canvas(), &event);
                 let modifiers = runner.input.raw.modifiers;
                 runner.input.raw.events.push(egui::Event::PointerButton {
                     pos,
@@ -323,7 +323,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         |event: web_sys::MouseEvent, runner| {
             let modifiers = modifiers_from_mouse_event(&event);
             runner.input.raw.modifiers = modifiers;
-            let pos = pos_from_mouse_event(&runner.canvas(), &event);
+            let pos = pos_from_mouse_event(runner.canvas(), &event);
             runner.input.raw.events.push(egui::Event::PointerMoved(pos));
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
@@ -335,7 +335,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         let modifiers = modifiers_from_mouse_event(&event);
         runner.input.raw.modifiers = modifiers;
         if let Some(button) = button_from_mouse_event(&event) {
-            let pos = pos_from_mouse_event(&runner.canvas(), &event);
+            let pos = pos_from_mouse_event(runner.canvas(), &event);
             let modifiers = runner.input.raw.modifiers;
             runner.input.raw.events.push(egui::Event::PointerButton {
                 pos,
@@ -373,7 +373,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         "touchstart",
         |event: web_sys::TouchEvent, runner| {
             let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-            let pos = pos_from_touch_event(&runner.canvas(), &event, &mut latest_touch_pos_id);
+            let pos = pos_from_touch_event(runner.canvas(), &event, &mut latest_touch_pos_id);
             runner.input.latest_touch_pos_id = latest_touch_pos_id;
             runner.input.latest_touch_pos = Some(pos);
             let modifiers = runner.input.raw.modifiers;
@@ -396,7 +396,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         "touchmove",
         |event: web_sys::TouchEvent, runner| {
             let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-            let pos = pos_from_touch_event(&runner.canvas(), &event, &mut latest_touch_pos_id);
+            let pos = pos_from_touch_event(runner.canvas(), &event, &mut latest_touch_pos_id);
             runner.input.latest_touch_pos_id = latest_touch_pos_id;
             runner.input.latest_touch_pos = Some(pos);
             runner.input.raw.events.push(egui::Event::PointerMoved(pos));
@@ -459,7 +459,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         });
 
         let scroll_multiplier = match unit {
-            egui::MouseWheelUnit::Page => canvas_size_in_points(&runner.canvas()).y,
+            egui::MouseWheelUnit::Page => canvas_size_in_points(runner.canvas()).y,
             egui::MouseWheelUnit::Line => {
                 #[allow(clippy::let_and_return)]
                 let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.

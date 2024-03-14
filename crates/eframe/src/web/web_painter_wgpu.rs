@@ -198,8 +198,8 @@ impl WebPainterWgpu {
 }
 
 impl WebPainter for WebPainterWgpu {
-    fn canvas(&self) -> HtmlCanvasElement {
-        self.canvas.clone()
+    fn canvas(&self) -> &HtmlCanvasElement {
+        &self.canvas
     }
 
     fn max_texture_side(&self) -> usize {
