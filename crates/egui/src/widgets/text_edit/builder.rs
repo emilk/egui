@@ -704,9 +704,15 @@ impl<'t> TextEdit<'t> {
                             i_time,
                             is_blink,
                         );
-                        if is_blink && !is_cursor_visible {
-                            ui.ctx()
-                                .request_repaint_after(std::time::Duration::from_millis(300));
+                        if is_blink {
+                            if is_cursor_visible {
+                                ui.ctx()
+                                    .request_repaint_after(std::time::Duration::from_millis(700));
+                            }
+                            if !is_cursor_visible {
+                                ui.ctx()
+                                    .request_repaint_after(std::time::Duration::from_millis(300));
+                            }
                         }
 
                         if interactive {
