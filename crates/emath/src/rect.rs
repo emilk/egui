@@ -605,6 +605,32 @@ impl Rect {
     }
 }
 
+impl Rect {
+    /// Does this Rect intersect the given ray (where `d` is normalized)?
+    pub fn intesects_ray(&self, o: Pos2, d: Vec2) -> bool {
+        let mut tmin = -f32::INFINITY;
+        let mut tmax = f32::INFINITY;
+
+        if d.x != 0.0 {
+            let tx1 = (self.min.x - o.x) / d.x;
+            let tx2 = (self.max.x - o.x) / d.x;
+
+            tmin = tmin.max(tx1.min(tx2));
+            tmax = tmax.min(tx1.max(tx2));
+        }
+
+        if d.y != 0.0 {
+            let ty1 = (self.min.y - o.y) / d.y;
+            let ty2 = (self.max.y - o.y) / d.y;
+
+            tmin = tmin.max(ty1.min(ty2));
+            tmax = tmax.min(ty1.max(ty2));
+        }
+
+        tmin <= tmax
+    }
+}
+
 impl std::fmt::Debug for Rect {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{:?} - {:?}]", self.min, self.max)
