@@ -36,10 +36,6 @@ pub struct TextEditState {
     /// Controls the text selection.
     pub cursor: TextCursorState,
 
-    // Blink state of text cursor is.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) is_cursor_visible: bool,
-
     /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
