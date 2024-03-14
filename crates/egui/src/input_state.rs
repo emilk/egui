@@ -22,6 +22,7 @@ const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
 /// You can check if `egui` is using the inputs using
 /// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InputState {
     /// The raw input we got this frame from the backend.
     pub raw: RawInput,
@@ -222,7 +223,7 @@ impl InputState {
 
         let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
 
-        let smooth_scroll_delta;
+        let mut smooth_scroll_delta = Vec2::ZERO;
 
         {
             // Mouse wheels often go very large steps.
@@ -232,8 +233,15 @@ impl InputState {
             let dt = stable_dt.at_most(0.1);
             let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO: parameterize
 
-            smooth_scroll_delta = t * unprocessed_scroll_delta;
-            unprocessed_scroll_delta -= smooth_scroll_delta;
+            for d in 0..2 {
+                if unprocessed_scroll_delta[d].abs() < 1.0 {
+                    smooth_scroll_delta[d] = unprocessed_scroll_delta[d];
+                    unprocessed_scroll_delta[d] = 0.0;
+                } else {
+                    smooth_scroll_delta[d] = t * unprocessed_scroll_delta[d];
+                    unprocessed_scroll_delta[d] -= smooth_scroll_delta[d];
+                }
+            }
         }
 
         let mut modifiers = new.modifiers;
@@ -546,6 +554,7 @@ impl InputState {
 
 /// A pointer (mouse or touch) click.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct Click {
     pub pos: Pos2,
 
@@ -567,6 +576,7 @@ impl Click {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) enum PointerEvent {
     Moved(Pos2),
     Pressed {
@@ -595,6 +605,7 @@ impl PointerEvent {
 
 /// Mouse or touch state.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PointerState {
     /// Latest known time
     time: f64,

@@ -355,6 +355,22 @@ impl Shape {
         }
     }
 
+    /// Scale the shape by `factor`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
+    pub fn scale(&mut self, factor: f32) {
+        self.transform(TSTransform::from_scaling(factor));
+    }
+
+    /// Move the shape by `delta`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
+    pub fn translate(&mut self, delta: Vec2) {
+        self.transform(TSTransform::from_translation(delta));
+    }
+
     /// Move the shape by this many points, in-place.
     ///
     /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
@@ -387,6 +403,7 @@ impl Shape {
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
                 rect_shape.stroke.width *= transform.scaling;
+                rect_shape.rounding *= transform.scaling;
             }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
@@ -736,6 +753,130 @@ impl Rounding {
             sw: self.sw.min(max),
             se: self.se.min(max),
         }
+    }
+}
+
+impl std::ops::Add for Rounding {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            nw: self.nw + rhs.nw,
+            ne: self.ne + rhs.ne,
+            sw: self.sw + rhs.sw,
+            se: self.se + rhs.se,
+        }
+    }
+}
+
+impl std::ops::AddAssign for Rounding {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Self {
+            nw: self.nw + rhs.nw,
+            ne: self.ne + rhs.ne,
+            sw: self.sw + rhs.sw,
+            se: self.se + rhs.se,
+        };
+    }
+}
+
+impl std::ops::AddAssign<f32> for Rounding {
+    #[inline]
+    fn add_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw + rhs,
+            ne: self.ne + rhs,
+            sw: self.sw + rhs,
+            se: self.se + rhs,
+        };
+    }
+}
+
+impl std::ops::Sub for Rounding {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: Self) -> Self {
+        Self {
+            nw: self.nw - rhs.nw,
+            ne: self.ne - rhs.ne,
+            sw: self.sw - rhs.sw,
+            se: self.se - rhs.se,
+        }
+    }
+}
+
+impl std::ops::SubAssign for Rounding {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = Self {
+            nw: self.nw - rhs.nw,
+            ne: self.ne - rhs.ne,
+            sw: self.sw - rhs.sw,
+            se: self.se - rhs.se,
+        };
+    }
+}
+
+impl std::ops::SubAssign<f32> for Rounding {
+    #[inline]
+    fn sub_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw - rhs,
+            ne: self.ne - rhs,
+            sw: self.sw - rhs,
+            se: self.se - rhs,
+        };
+    }
+}
+
+impl std::ops::Div<f32> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn div(self, rhs: f32) -> Self {
+        Self {
+            nw: self.nw / rhs,
+            ne: self.ne / rhs,
+            sw: self.sw / rhs,
+            se: self.se / rhs,
+        }
+    }
+}
+
+impl std::ops::DivAssign<f32> for Rounding {
+    #[inline]
+    fn div_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw / rhs,
+            ne: self.ne / rhs,
+            sw: self.sw / rhs,
+            se: self.se / rhs,
+        };
+    }
+}
+
+impl std::ops::Mul<f32> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn mul(self, rhs: f32) -> Self {
+        Self {
+            nw: self.nw * rhs,
+            ne: self.ne * rhs,
+            sw: self.sw * rhs,
+            se: self.se * rhs,
+        }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Rounding {
+    #[inline]
+    fn mul_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw * rhs,
+            ne: self.ne * rhs,
+            sw: self.sw * rhs,
+            se: self.se * rhs,
+        };
     }
 }
 

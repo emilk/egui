@@ -39,13 +39,14 @@ impl BarState {
     }
 
     /// Show a menu at pointer if primary-clicked response.
+    ///
     /// Should be called from [`Context`] on a [`Response`]
     pub fn bar_menu<R>(
         &mut self,
         response: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id);
+        MenuRoot::stationary_click_interaction(response, &mut self.open_menu);
         self.open_menu.show(response, add_contents)
     }
 
@@ -134,7 +135,7 @@ pub(crate) fn submenu_button<R>(
 /// wrapper for the contents of every menu.
 pub(crate) fn menu_ui<'c, R>(
     ctx: &Context,
-    menu_id: impl Into<Id>,
+    menu_id: Id,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
@@ -144,7 +145,7 @@ pub(crate) fn menu_ui<'c, R>(
         menu_state.rect.min
     };
 
-    let area = Area::new(menu_id)
+    let area = Area::new(menu_id.with("__menu"))
         .order(Order::Foreground)
         .fixed_pos(pos)
         .constrain_to(ctx.screen_rect())
@@ -222,11 +223,18 @@ pub(crate) fn context_menu(
     let menu_id = Id::new(CONTEXT_MENU_ID_STR);
     let mut bar_state = BarState::load(&response.ctx, menu_id);
 
-    MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
+    MenuRoot::context_click_interaction(response, &mut bar_state);
     let inner_response = bar_state.show(response, add_contents);
 
     bar_state.store(&response.ctx, menu_id);
     inner_response
+}
+
+/// Returns `true` if the context menu is opened for this widget.
+pub(crate) fn context_menu_opened(response: &Response) -> bool {
+    let menu_id = Id::new(CONTEXT_MENU_ID_STR);
+    let bar_state = BarState::load(&response.ctx, menu_id);
+    bar_state.is_menu_open(response.id)
 }
 
 /// Stores the state for the context menu.
@@ -237,6 +245,7 @@ pub(crate) struct MenuRootManager {
 
 impl MenuRootManager {
     /// Show a menu at pointer if right-clicked response.
+    ///
     /// Should be called from [`Context`] on a [`Response`]
     pub fn show<R>(
         &mut self,
@@ -308,11 +317,9 @@ impl MenuRoot {
     /// Interaction with a stationary menu, i.e. fixed in another Ui.
     ///
     /// Responds to primary clicks.
-    fn stationary_interaction(
-        response: &Response,
-        root: &mut MenuRootManager,
-        id: Id,
-    ) -> MenuResponse {
+    fn stationary_interaction(response: &Response, root: &mut MenuRootManager) -> MenuResponse {
+        let id = response.id;
+
         if (response.clicked() && root.is_menu_open(id))
             || response.ctx.input(|i| i.key_pressed(Key::Escape))
         {
@@ -357,8 +364,8 @@ impl MenuRoot {
         MenuResponse::Stay
     }
 
-    /// Interaction with a context menu (secondary clicks).
-    fn context_interaction(response: &Response, root: &mut Option<Self>, id: Id) -> MenuResponse {
+    /// Interaction with a context menu (secondary click).
+    fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
         let response = response.interact(Sense::click());
         response.ctx.input(|input| {
             let pointer = &input.pointer;
@@ -371,7 +378,7 @@ impl MenuRoot {
                 }
                 if !in_old_menu {
                     if response.hovered() && response.secondary_clicked() {
-                        return MenuResponse::Create(pos, id);
+                        return MenuResponse::Create(pos, response.id);
                     } else if (response.hovered() && pointer.primary_down()) || destroy {
                         return MenuResponse::Close;
                     }
@@ -392,14 +399,14 @@ impl MenuRoot {
     }
 
     /// Respond to secondary (right) clicks.
-    pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
-        let menu_response = Self::context_interaction(response, root, id);
+    pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager) {
+        let menu_response = Self::context_interaction(response, root);
         Self::handle_menu_response(root, menu_response);
     }
 
     // Responds to primary clicks.
-    pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager, id: Id) {
-        let menu_response = Self::stationary_interaction(response, root, id);
+    pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager) {
+        let menu_response = Self::stationary_interaction(response, root);
         Self::handle_menu_response(root, menu_response);
     }
 }
@@ -606,20 +613,20 @@ impl MenuState {
         let pointer = ui.input(|i| i.pointer.clone());
         let open = self.is_open(sub_id);
         if self.moving_towards_current_submenu(&pointer) {
+            // We don't close the submenu if the pointer is on its way to hover it.
             // ensure to repaint once even when pointer is not moving
             ui.ctx().request_repaint();
         } else if !open && button.hovered() {
             let pos = button.rect.right_top();
             self.open_submenu(sub_id, pos);
+        } else if open
+            && ui.interact_bg(Sense::hover()).contains_pointer()
+            && !button.hovered()
+            && !self.hovering_current_submenu(&pointer)
+        {
+            // We are hovering something else in the menu, so close the submenu.
+            self.close_submenu();
         }
-    }
-
-    /// Check if `dir` points from `pos` towards left side of `rect`.
-    fn points_at_left_of_rect(pos: Pos2, dir: Vec2, rect: Rect) -> bool {
-        let vel_a = dir.angle();
-        let top_a = (rect.left_top() - pos).angle();
-        let bottom_a = (rect.left_bottom() - pos).angle();
-        bottom_a - vel_a >= 0.0 && top_a - vel_a <= 0.0
     }
 
     /// Check if pointer is moving towards current submenu.
@@ -627,9 +634,21 @@ impl MenuState {
         if pointer.is_still() {
             return false;
         }
+
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
-                return Self::points_at_left_of_rect(pos, pointer.velocity(), sub_menu.read().rect);
+                let rect = sub_menu.read().rect;
+                return rect.intesects_ray(pos, pointer.velocity().normalized());
+            }
+        }
+        false
+    }
+
+    /// Check if pointer is hovering current submenu.
+    fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
+        if let Some(sub_menu) = self.current_submenu() {
+            if let Some(pos) = pointer.hover_pos() {
+                return sub_menu.read().area_contains(pos);
             }
         }
         false
@@ -665,5 +684,9 @@ impl MenuState {
         if !self.is_open(id) {
             self.sub_menu = Some((id, Arc::new(RwLock::new(Self::new(pos)))));
         }
+    }
+
+    fn close_submenu(&mut self) {
+        self.sub_menu = None;
     }
 }

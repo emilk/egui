@@ -42,6 +42,13 @@ pub struct Response {
     pub interact_rect: Rect,
 
     /// The senses (click and/or drag) that the widget was interested in (if any).
+    ///
+    /// Note: if [`Self::enabled`] is `false`, then
+    /// the widget _effectively_ doesn't sense anything,
+    /// but can still have the same `Sense`.
+    /// This is because the sense informs the styling of the widget,
+    /// but we don't want to change the style when a widget is disabled
+    /// (that is handled by the `Painter` directly).
     pub sense: Sense,
 
     /// Was the widget enabled?
@@ -534,6 +541,10 @@ impl Response {
             return true;
         }
 
+        if self.context_menu_opened() {
+            return false;
+        }
+
         if self.enabled {
             if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
@@ -679,6 +690,7 @@ impl Response {
 
     /// Adjust the scroll position until this UI becomes visible.
     ///
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is `None`, it'll scroll enough to bring the UI into view.
     ///
     /// See also: [`Ui::scroll_to_cursor`], [`Ui::scroll_to_rect`]. [`Ui::scroll_with_delta`].
@@ -778,6 +790,7 @@ impl Response {
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
             WidgetType::ColorButton => Role::ColorWell,
+            WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Other => Role::Unknown,
         });
         if let Some(label) = info.label {
@@ -846,6 +859,13 @@ impl Response {
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
         menu::context_menu(self, add_contents)
+    }
+
+    /// Returns whether a context menu is currently open for this widget.
+    ///
+    /// See [`Self::context_menu`].
+    pub fn context_menu_opened(&self) -> bool {
+        menu::context_menu_opened(self)
     }
 
     /// Draw a debug rectangle over the response displaying the response's id and whether it is
