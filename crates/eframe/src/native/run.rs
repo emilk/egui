@@ -227,6 +227,9 @@ fn run_and_return(
 
     drop(winit_app);
 
+    /*
+    // Deprecated
+
     // On Windows this clears out events so that we can later create another window.
     // See https://github.com/emilk/egui/pull/1889 for details.
     //
@@ -240,6 +243,7 @@ fn run_and_return(
             })
             .ok();
     }
+    */
 
     returned_result
 }
