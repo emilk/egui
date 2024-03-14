@@ -99,13 +99,8 @@ pub fn web_location() -> epi::Location {
         .search()
         .unwrap_or_default()
         .strip_prefix('?')
-        .map(percent_decode)
-        .unwrap_or_default();
-
-    let query_map = parse_query_map(&query)
-        .iter()
-        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
-        .collect();
+        .unwrap_or_default()
+        .to_owned();
 
     epi::Location {
         url: percent_decode(&location.href().unwrap_or_default()),
@@ -114,13 +109,14 @@ pub fn web_location() -> epi::Location {
         hostname: percent_decode(&location.hostname().unwrap_or_default()),
         port: percent_decode(&location.port().unwrap_or_default()),
         hash,
+        query_map: parse_query_map(&query),
         query,
-        query_map,
         origin: percent_decode(&location.origin().unwrap_or_default()),
     }
 }
 
-fn parse_query_map(query: &str) -> BTreeMap<&str, &str> {
+/// query is percent-encoded
+fn parse_query_map(query: &str) -> BTreeMap<String, String> {
     query
         .split('&')
         .filter_map(|pair| {
@@ -128,15 +124,16 @@ fn parse_query_map(query: &str) -> BTreeMap<&str, &str> {
                 None
             } else {
                 Some(if let Some((key, value)) = pair.split_once('=') {
-                    (key, value)
+                    (percent_decode(key), percent_decode(value))
                 } else {
-                    (pair, "")
+                    (percent_decode(pair), String::new())
                 })
             }
         })
         .collect()
 }
 
+// TODO(emilk): this test is never acgtually run, because this whole module is wasm32 only 🤦‍♂️
 #[test]
 fn test_parse_query() {
     assert_eq!(parse_query_map(""), BTreeMap::default());
@@ -156,5 +153,12 @@ fn test_parse_query() {
     assert_eq!(
         parse_query_map("foo&baz&&"),
         BTreeMap::from_iter([("foo", ""), ("baz", "")])
+    );
+    assert_eq!(
+        parse_query_map("badger=data.rrd%3Fparam1%3Dfoo%26param2%3Dbar&mushroom=snake"),
+        BTreeMap::from_iter([
+            ("badger", "data.rrd?param1=foo&param2=bar"),
+            ("mushroom", "snake")
+        ])
     );
 }
