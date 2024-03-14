@@ -5,7 +5,7 @@ use std::{cell::Cell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use super::{canvas_element, AppRunner, WebRunner};
+use super::{AppRunner, WebRunner};
 
 static AGENT_ID: &str = "egui_text_agent";
 
@@ -121,7 +121,7 @@ pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
     let window = web_sys::window()?;
     let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let canvas_style = canvas_element(runner.canvas_id())?.style();
+    let canvas_style = runner.canvas().style();
 
     if runner.mutable_text_under_cursor {
         let is_already_editing = input.hidden();
@@ -205,14 +205,16 @@ fn is_mobile() -> Option<bool> {
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-pub fn move_text_cursor(ime: Option<egui::output::IMEOutput>, canvas_id: &str) -> Option<()> {
+pub fn move_text_cursor(
+    ime: Option<egui::output::IMEOutput>,
+    canvas: &web_sys::HtmlCanvasElement,
+) -> Option<()> {
     let style = text_agent().style();
     // Note: moving agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
         ime.as_ref().and_then(|ime| {
             let egui::Pos2 { x, y } = ime.cursor_rect.left_top();
 
-            let canvas = canvas_element(canvas_id)?;
             let bounding_rect = text_agent().get_bounding_client_rect();
             let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
                 .min(canvas.client_height() as f32 - bounding_rect.height() as f32);
