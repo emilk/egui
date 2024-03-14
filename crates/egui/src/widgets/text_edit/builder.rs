@@ -708,9 +708,6 @@ impl<'t> TextEdit<'t> {
                             ui.ctx()
                                 .request_repaint_after(std::time::Duration::from_millis(500));
                         }
-                        if state.is_cursor_visible != is_cursor_visible {
-                            state.is_cursor_visible = is_cursor_visible;
-                        }
 
                         if interactive {
                             // For IME, so only set it when text is editable and visible!
