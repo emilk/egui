@@ -307,9 +307,9 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// When `false` (default), the text cursor will not blink.
+    /// When `true` (default), the text cursor will blink.
     ///
-    /// When `true`, the text cursor will blink.
+    /// When `false`, the text cursor will not blink.
     #[inline]
     pub fn blink(mut self, b: bool) -> Self {
         self.blink = b;
