@@ -1,4 +1,7 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use wasm_bindgen::prelude::*;
 
@@ -24,6 +27,9 @@ pub struct WebRunner {
     /// They have to be in a separate `Rc` so that we don't need to pass them to
     /// the panic handler, since they aren't `Send`.
     events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
+
+    /// Used in `destroy` to cancel a pending frame.
+    request_animation_frame_id: Cell<Option<i32>>,
 }
 
 impl WebRunner {
@@ -41,6 +47,7 @@ impl WebRunner {
             panic_handler,
             runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
+            request_animation_frame_id: Cell::new(None),
         }
     }
 
@@ -71,7 +78,7 @@ impl WebRunner {
                 events::install_color_scheme_change_event(self)?;
             }
 
-            events::request_animation_frame(self.clone())?;
+            self.request_animation_frame()?;
         }
 
         Ok(())
@@ -107,6 +114,11 @@ impl WebRunner {
     /// Shut down eframe and clean up resources.
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
+
+        if let Some(id) = self.request_animation_frame_id.get() {
+            let window = web_sys::window().unwrap();
+            window.cancel_animation_frame(id).ok();
+        }
 
         if let Some(runner) = self.runner.replace(None) {
             runner.destroy();
@@ -177,6 +189,18 @@ impl WebRunner {
             .borrow_mut()
             .push(EventToUnsubscribe::TargetEvent(handle));
 
+        Ok(())
+    }
+
+    pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
+        let window = web_sys::window().unwrap();
+        let closure = Closure::once({
+            let runner_ref = self.clone();
+            move || events::paint_and_schedule(&runner_ref)
+        });
+        let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
+        self.request_animation_frame_id.set(Some(id));
+        closure.forget(); // We must forget it, or else the callback is canceled on drop
         Ok(())
     }
 }
