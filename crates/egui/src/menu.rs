@@ -219,11 +219,12 @@ pub(crate) const CONTEXT_MENU_ID_STR: &str = "__egui::context_menu";
 pub(crate) fn context_menu(
     response: &Response,
     add_contents: impl FnOnce(&mut Ui),
+    activate_buttons: PointerButtonSet,
 ) -> Option<InnerResponse<()>> {
     let menu_id = Id::new(CONTEXT_MENU_ID_STR);
     let mut bar_state = BarState::load(&response.ctx, menu_id);
 
-    MenuRoot::context_click_interaction(response, &mut bar_state);
+    MenuRoot::context_click_interaction(response, &mut bar_state, activate_buttons);
     let inner_response = bar_state.show(response, add_contents);
 
     bar_state.store(&response.ctx, menu_id);
@@ -364,8 +365,12 @@ impl MenuRoot {
         MenuResponse::Stay
     }
 
-    /// Interaction with a context menu (secondary click).
-    fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
+    /// Interaction with a context menu
+    fn context_interaction(
+        response: &Response,
+        root: &mut Option<Self>,
+        activate_buttons: PointerButtonSet,
+    ) -> MenuResponse {
         let response = response.interact(Sense::click());
         response.ctx.input(|input| {
             let pointer = &input.pointer;
@@ -377,9 +382,19 @@ impl MenuRoot {
                     destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
                 }
                 if !in_old_menu {
-                    if response.hovered() && response.secondary_clicked() {
-                        return MenuResponse::Create(pos, response.id);
-                    } else if (response.hovered() && pointer.primary_down()) || destroy {
+                    let hovered = response.hovered();
+                    let mut close = false;
+                    for button in PointerButton::all() {
+                        let clicked = response.clicked_by(button);
+                        let activate = activate_buttons.contains(button);
+                        if hovered && (clicked && activate) {
+                            return MenuResponse::Create(pos, response.id);
+                        } else if (hovered && (clicked && !activate)) || destroy {
+                            close = true;
+                        }
+                    }
+
+                    if close {
                         return MenuResponse::Close;
                     }
                 }
@@ -399,8 +414,12 @@ impl MenuRoot {
     }
 
     /// Respond to secondary (right) clicks.
-    pub fn context_click_interaction(response: &Response, root: &mut MenuRootManager) {
-        let menu_response = Self::context_interaction(response, root);
+    pub fn context_click_interaction(
+        response: &Response,
+        root: &mut MenuRootManager,
+        activate_buttons: PointerButtonSet,
+    ) {
+        let menu_response = Self::context_interaction(response, root, activate_buttons);
         Self::handle_menu_response(root, menu_response);
     }
 

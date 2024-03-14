@@ -2,8 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect, WidgetText,
-    NUM_POINTER_BUTTONS,
+    menu, Context, CursorIcon, Id, LayerId, PointerButton, PointerButtonSet, Sense, Ui, WidgetRect,
+    WidgetText, NUM_POINTER_BUTTONS,
 };
 
 // ----------------------------------------------------------------------------
@@ -858,7 +858,20 @@ impl Response {
     ///
     /// See also: [`Ui::menu_button`] and [`Ui::close_menu`].
     pub fn context_menu(&self, add_contents: impl FnOnce(&mut Ui)) -> Option<InnerResponse<()>> {
-        menu::context_menu(self, add_contents)
+        menu::context_menu(self, add_contents, PointerButtonSet::DEFAULT)
+    }
+
+    /// Response to clicks by buttons from the set by showing the given menu.
+    pub fn context_menu_custom(
+        &self,
+        activate_buttons: PointerButtonSet,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Option<InnerResponse<()>> {
+        if activate_buttons.is_empty() {
+            return None;
+        }
+
+        menu::context_menu(self, add_contents, activate_buttons)
     }
 
     /// Returns whether a context menu is currently open for this widget.
