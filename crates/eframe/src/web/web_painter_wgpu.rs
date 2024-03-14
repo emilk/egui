@@ -41,7 +41,6 @@ impl HasDisplayHandle for EguiWebWindow {
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
-    canvas_id: String,
     surface: wgpu::Surface<'static>,
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
@@ -163,7 +162,7 @@ impl WebPainterWgpu {
             }
         }
 
-        let canvas = super::canvas_element_or_die(canvas_id);
+        let canvas = super::get_canvas_element_by_id_or_die(canvas_id);
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
@@ -188,7 +187,6 @@ impl WebPainterWgpu {
 
         Ok(Self {
             canvas,
-            canvas_id: canvas_id.to_owned(),
             render_state: Some(render_state),
             surface,
             surface_configuration,
@@ -200,8 +198,8 @@ impl WebPainterWgpu {
 }
 
 impl WebPainter for WebPainterWgpu {
-    fn canvas_id(&self) -> &str {
-        &self.canvas_id
+    fn canvas(&self) -> &HtmlCanvasElement {
+        &self.canvas
     }
 
     fn max_texture_side(&self) -> usize {
