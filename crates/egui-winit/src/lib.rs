@@ -1287,7 +1287,7 @@ fn process_viewport_command(
 
     use winit::window::ResizeDirection;
 
-    log::debug!("Processing ViewportCommand::{command:?}");
+    log::trace!("Processing ViewportCommand::{command:?}");
 
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
