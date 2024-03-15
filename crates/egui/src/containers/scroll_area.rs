@@ -553,6 +553,7 @@ impl ScrollArea {
         }
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
+        let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
         if (scrolling_enabled && drag_to_scroll)
             && (state.content_is_too_large[0] || state.content_is_too_large[1])
@@ -577,48 +578,50 @@ impl ScrollArea {
                 }
             } else {
                 for d in 0..2 {
-                    let dt = ui.input(|i| i.stable_dt).at_most(0.1);
+                    // Kinetic scrolling
+                    let stop_speed = 20.0; // Pixels per second.
+                    let friction_coeff = 1000.0; // Pixels per second squared.
 
-                    if let Some(scroll_target) = state.offset_target[d] {
+                    let friction = friction_coeff * dt;
+                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
                         state.vel[d] = 0.0;
-
-                        if (state.offset[d] - scroll_target.target_offset).abs() < 1.0 {
-                            // Arrived
-                            state.offset[d] = scroll_target.target_offset;
-                            state.offset_target[d] = None;
-                        } else {
-                            // Move towards target
-                            let t = emath::interpolation_factor(
-                                scroll_target.animation_time_span,
-                                ui.input(|i| i.time),
-                                dt,
-                                emath::ease_in_ease_out,
-                            );
-                            if t < 1.0 {
-                                state.offset[d] =
-                                    emath::lerp(state.offset[d]..=scroll_target.target_offset, t);
-                                ctx.request_repaint();
-                            } else {
-                                // Arrived
-                                state.offset[d] = scroll_target.target_offset;
-                                state.offset_target[d] = None;
-                            }
-                        }
                     } else {
-                        // Kinetic scrolling
-                        let stop_speed = 20.0; // Pixels per second.
-                        let friction_coeff = 1000.0; // Pixels per second squared.
+                        state.vel[d] -= friction * state.vel[d].signum();
+                        // Offset has an inverted coordinate system compared to
+                        // the velocity, so we subtract it instead of adding it
+                        state.offset[d] -= state.vel[d] * dt;
+                        ctx.request_repaint();
+                    }
+                }
+            }
+        }
 
-                        let friction = friction_coeff * dt;
-                        if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
-                            state.vel[d] = 0.0;
-                        } else {
-                            state.vel[d] -= friction * state.vel[d].signum();
-                            // Offset has an inverted coordinate system compared to
-                            // the velocity, so we subtract it instead of adding it
-                            state.offset[d] -= state.vel[d] * dt;
-                            ctx.request_repaint();
-                        }
+        // Scroll with an animation if we have a target offset (that hasn't been cleared by the code
+        // above).
+        for d in 0..2 {
+            if let Some(scroll_target) = state.offset_target[d] {
+                state.vel[d] = 0.0;
+
+                if (state.offset[d] - scroll_target.target_offset).abs() < 1.0 {
+                    // Arrived
+                    state.offset[d] = scroll_target.target_offset;
+                    state.offset_target[d] = None;
+                } else {
+                    // Move towards target
+                    let t = emath::interpolation_factor(
+                        scroll_target.animation_time_span,
+                        ui.input(|i| i.time),
+                        dt,
+                        emath::ease_in_ease_out,
+                    );
+                    if t < 1.0 {
+                        state.offset[d] =
+                            emath::lerp(state.offset[d]..=scroll_target.target_offset, t);
+                        ctx.request_repaint();
+                    } else {
+                        // Arrived
+                        state.offset[d] = scroll_target.target_offset;
+                        state.offset_target[d] = None;
                     }
                 }
             }
