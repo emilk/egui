@@ -718,7 +718,7 @@ pub struct WebInfo {
 #[cfg(target_arch = "wasm32")]
 #[derive(Clone, Debug)]
 pub struct Location {
-    /// The full URL (`location.href`) without the hash.
+    /// The full URL (`location.href`) without the hash, percent-decoded.
     ///
     /// Example: `"http://www.example.com:80/index.html?foo=bar"`.
     pub url: String,
