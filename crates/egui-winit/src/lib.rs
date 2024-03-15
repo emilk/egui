@@ -1543,6 +1543,9 @@ pub fn create_winit_window_builder<T>(
         // wayland:
         app_id: _app_id,
 
+        // x11
+        window_type,
+
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
     } = viewport_builder;
 
@@ -1613,6 +1616,19 @@ pub fn create_winit_window_builder<T>(
     if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
         window_builder = window_builder.with_name(app_id, "");
+    }
+
+    #[cfg(all(feature = "x11", target_os = "linux"))]
+    {
+        if let Some(window_type) = window_type {
+            use winit::platform::x11::WindowBuilderExtX11 as _;
+            use winit::platform::x11::XWindowType;
+            window_builder = window_builder.with_x11_window_type(vec![match window_type {
+                egui::WindowType::Normal => XWindowType::Normal,
+                egui::WindowType::Utility => XWindowType::Utility,
+                egui::WindowType::Dock => XWindowType::Dock,
+            }]);
+        }
     }
 
     #[cfg(target_os = "windows")]
