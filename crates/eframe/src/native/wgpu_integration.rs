@@ -262,8 +262,6 @@ impl WgpuWinitApp {
             storage: integration.frame.storage(),
             #[cfg(feature = "glow")]
             gl: None,
-            #[cfg(feature = "glow")]
-            get_proc_address: None,
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),
@@ -572,29 +570,22 @@ impl WgpuWinitRunning {
                 return EventResult::Wait;
             };
 
-            let mut is_change_to_root = false;
             let is_immediate = viewport.viewport_ui_cb.is_none();
 
             if is_immediate && viewport_id != ViewportId::ROOT {
-                is_change_to_root = true;
-
                 if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
-                        is_change_to_root = false;
+                        // This will only happens when parent is deferred viewport.
                         viewport_id = parent_viewport.ids.this;
+                    } else if let Some(root_viewport) = viewports.get(&ViewportId::ROOT) {
+                        // This will only happen if this is an immediate viewport.
+                        // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
+                        viewport_id = root_viewport.ids.this;
+                    } else {
+                        // Not actually used. Because there is always a `Some()` value.
+                        return EventResult::Wait;
                     }
-                }
-            }
-
-            if is_change_to_root {
-                // This will only happen if this is an immediate viewport.
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(root_viewport) = viewports.get(&ViewportId::ROOT) {
-                    viewport_id = root_viewport.ids.this;
-                } else {
-                    // Not actually used. Because there is always a `Some()` value.
-                    return EventResult::Wait;
                 }
             }
 
