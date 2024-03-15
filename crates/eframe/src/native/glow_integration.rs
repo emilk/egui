@@ -284,14 +284,12 @@ impl GlowWinitApp {
             // Use latest raw_window_handle for eframe compatibility
             use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
-            let get_proc_address = |addr: &_| glutin.get_proc_address(addr);
             let window = glutin.window(ViewportId::ROOT);
             let cc = CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
                 integration_info: integration.frame.info().clone(),
                 storage: integration.frame.storage(),
                 gl: Some(gl),
-                get_proc_address: Some(&get_proc_address),
                 #[cfg(feature = "wgpu")]
                 wgpu_render_state: None,
                 raw_display_handle: window.display_handle().map(|h| h.as_raw()),
@@ -530,29 +528,22 @@ impl GlowWinitRunning {
             let mut glutin = self.glutin.borrow_mut();
             let viewport = &glutin.viewports[&viewport_id];
 
-            let mut is_change_to_root = false;
             let is_immediate = viewport.viewport_ui_cb.is_none();
 
             if is_immediate && viewport_id != ViewportId::ROOT {
-                is_change_to_root = true;
-
                 if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
-                        is_change_to_root = false;
+                        // This will only happens when parent is deferred viewport.
                         viewport_id = parent_viewport.ids.this;
+                    } else if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
+                        // This will only happen if this is an immediate viewport.
+                        // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
+                        viewport_id = root_viewport.ids.this;
+                    } else {
+                        // Not actually used. Because there is always a `Some()` value.
+                        return EventResult::Wait;
                     }
-                }
-            }
-
-            if is_change_to_root {
-                // This will only happen if this is an immediate viewport.
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
-                    viewport_id = root_viewport.ids.this;
-                } else {
-                    // Not actually used. Because there is always a `Some()` value.
-                    return EventResult::Wait;
                 }
             }
 
