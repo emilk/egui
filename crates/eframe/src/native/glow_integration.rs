@@ -529,13 +529,13 @@ impl GlowWinitRunning {
             crate::profile_scope!("Prepare");
 
             let mut glutin = self.glutin.borrow_mut();
-            let old_viewport = &glutin.viewports[&viewport_id];
+            let original_viewport = &glutin.viewports[&viewport_id];
 
-            let is_immediate = old_viewport.viewport_ui_cb.is_none();
+            let is_immediate = original_viewport.viewport_ui_cb.is_none();
 
             // This will only happens when a Immediate Viewport.
             if is_immediate && viewport_id != ViewportId::ROOT {
-                if let Some(parent_viewport) = glutin.viewports.get(&old_viewport.ids.parent) {
+                if let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
                         // This will only happens when the parent is a Deferred Viewport.
