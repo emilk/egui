@@ -527,13 +527,14 @@ impl GlowWinitRunning {
 
         let (raw_input, viewport_ui_cb) = {
             crate::profile_scope!("Prepare");
-            let mut glutin = self.glutin.borrow_mut();
-            let viewport = &glutin.viewports[&viewport_id];
 
-            let is_immediate = viewport.viewport_ui_cb.is_none();
+            let mut glutin = self.glutin.borrow_mut();
+            let old_viewport = &glutin.viewports[&viewport_id];
+
+            let is_immediate = old_viewport.viewport_ui_cb.is_none();
 
             if is_immediate && viewport_id != ViewportId::ROOT {
-                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
+                if let Some(parent_viewport) = glutin.viewports.get(&old_viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
                         // This will only happens when parent is deferred viewport.
@@ -550,7 +551,10 @@ impl GlowWinitRunning {
             }
 
             let egui_ctx = glutin.egui_ctx.clone();
-            let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
+            let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
+                return EventResult::Wait;
+            };
+
             let Some(window) = viewport.window.as_ref() else {
                 return EventResult::Wait;
             };
@@ -640,7 +644,10 @@ impl GlowWinitRunning {
             ..
         } = &mut *glutin;
 
-        let viewport = viewports.get_mut(&viewport_id).unwrap();
+        let Some(viewport) = viewports.get_mut(&viewport_id) else {
+            return EventResult::Wait;
+        };
+
         viewport.info.events.clear(); // they should have been processed
         let window = viewport.window.clone().unwrap();
         let gl_surface = viewport.gl_surface.as_ref().unwrap();
