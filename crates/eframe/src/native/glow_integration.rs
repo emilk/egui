@@ -538,10 +538,10 @@ impl GlowWinitRunning {
                 if let Some(parent_viewport) = glutin.viewports.get(&old_viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
-                        // This will only happens when the parent has a Deferred Viewport.
+                        // This will only happens when the parent is a Deferred Viewport.
                         viewport_id = parent_viewport.ids.this;
                     } else if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
-                        // This will only happen when the parent has a Immediate Viewport.
+                        // This will only happen when the parent is a Immediate Viewport.
                         // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                         viewport_id = root_viewport.ids.this;
                     } else {
