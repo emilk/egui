@@ -568,15 +568,15 @@ impl WgpuWinitRunning {
                 viewports, painter, ..
             } = &mut *shared_lock;
 
-            let Some(viewport) = viewports.get(&viewport_id) else {
+            let Some(original_viewport) = viewports.get(&viewport_id) else {
                 return EventResult::Wait;
             };
 
-            let is_immediate = viewport.viewport_ui_cb.is_none();
+            let is_immediate = original_viewport.viewport_ui_cb.is_none();
 
             // This will only happens when a Immediate Viewport.
             if is_immediate && viewport_id != ViewportId::ROOT {
-                if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
+                if let Some(parent_viewport) = viewports.get(&original_viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
                         // This will only happens when the parent is a Deferred Viewport.
