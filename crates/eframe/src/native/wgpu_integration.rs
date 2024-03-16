@@ -620,7 +620,7 @@ impl WgpuWinitRunning {
                 }
             }
 
-            let Some(egui_winit) = viewport.egui_winit.as_mut() else {
+            let Some(egui_winit) = egui_winit.as_mut() else {
                 return EventResult::Wait;
             };
             let mut raw_input = egui_winit.take_egui_input(window);
