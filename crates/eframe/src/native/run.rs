@@ -200,7 +200,7 @@ fn run_and_return(
                 log::trace!("request_redraw for {window_id:?}");
                 let is_minimized = window.is_minimized().unwrap_or(false);
                 if is_minimized {
-                    // Don't draw : This also affects CPU usage in a minimized state.
+                    // Don't draw : Issues #3321 && This also affects CPU usage in a minimized state.
                     // See: https://github.com/rust-windowing/winit/issues/208
                     // See: https://github.com/emilk/egui/issues/3321
                 } else {
@@ -371,7 +371,7 @@ fn run_and_exit(
                 log::trace!("request_redraw for {window_id:?}");
                 let is_minimized = window.is_minimized().unwrap_or(false);
                 if is_minimized {
-                    // Don't draw : This also affects CPU usage in a minimized state.
+                    // Don't draw : Issues #3321 && This also affects CPU usage in a minimized state.
                     // See: https://github.com/rust-windowing/winit/issues/208
                     // See: https://github.com/emilk/egui/issues/3321
                 } else {
