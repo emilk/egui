@@ -174,7 +174,6 @@ fn run_and_return(
                 windows_next_repaint_times.insert(window_id, repaint_time);
             }
             EventResult::ViewportExit(window_id) => {
-                // TODO : ViewportExit
                 if let Some(window) = winit_app.window(window_id) {
                     windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
@@ -348,7 +347,6 @@ fn run_and_exit(
                 windows_next_repaint_times.insert(window_id, repaint_time);
             }
             EventResult::ViewportExit(window_id) => {
-                // TODO : ViewportExit
                 if let Some(window) = winit_app.window(window_id) {
                     windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
