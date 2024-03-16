@@ -156,8 +156,6 @@ fn run_and_return(
                 );
 
                 windows_next_repaint_times.insert(window_id, now);
-                windows_next_repaint_times
-                    .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintNext(window_id) => {
                 log::trace!(
@@ -332,8 +330,6 @@ fn run_and_exit(
                 log::trace!("RepaintNow caused by {}", short_event_description(&event));
 
                 windows_next_repaint_times.insert(window_id, now);
-                windows_next_repaint_times
-                    .insert(window_id, now + std::time::Duration::from_millis(1));
             }
             EventResult::RepaintNext(window_id) => {
                 log::trace!("RepaintNext caused by {}", short_event_description(&event));
