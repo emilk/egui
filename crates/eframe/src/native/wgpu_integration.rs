@@ -574,14 +574,15 @@ impl WgpuWinitRunning {
 
             let is_immediate = viewport.viewport_ui_cb.is_none();
 
+            // This will only happens when a Immediate Viewport.
             if is_immediate && viewport_id != ViewportId::ROOT {
                 if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
-                        // This will only happens when parent is deferred viewport.
+                        // This will only happens when the parent has a Deferred Viewport.
                         viewport_id = parent_viewport.ids.this;
                     } else if let Some(root_viewport) = viewports.get(&ViewportId::ROOT) {
-                        // This will only happen if this is an immediate viewport.
+                        // This will only happen when the parent has a Immediate Viewport.
                         // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                         viewport_id = root_viewport.ids.this;
                     } else {
