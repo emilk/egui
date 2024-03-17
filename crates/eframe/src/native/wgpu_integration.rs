@@ -654,6 +654,16 @@ impl WgpuWinitRunning {
             focused_viewport,
         } = &mut *shared;
 
+        let FullOutput {
+            platform_output,
+            textures_delta,
+            shapes,
+            pixels_per_point,
+            viewport_output,
+        } = full_output;
+
+        active_viewports_retain(viewports, painter, viewport_from_window, viewport_output.clone());
+
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
         };
@@ -668,14 +678,6 @@ impl WgpuWinitRunning {
         else {
             return EventResult::Wait;
         };
-
-        let FullOutput {
-            platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output,
-        } = full_output;
 
         egui_winit.handle_platform_output(window, platform_output);
 
@@ -1099,7 +1101,8 @@ fn handle_viewport_output(
         }
     }
 
-    active_viewports_retain(viewports, painter, viewport_from_window, viewport_output);
+    // Deprecated
+    // active_viewports_retain(viewports, painter, viewport_from_window, viewport_output);
 }
 
 fn initialize_or_update_viewport<'vp>(
