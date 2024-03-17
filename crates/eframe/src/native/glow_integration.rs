@@ -530,7 +530,6 @@ impl GlowWinitRunning {
 
             let mut glutin = self.glutin.borrow_mut();
             let original_viewport = &glutin.viewports[&viewport_id];
-
             let is_immediate = original_viewport.viewport_ui_cb.is_none();
 
             // This will only happens when a Immediate Viewport.
@@ -640,6 +639,8 @@ impl GlowWinitRunning {
             pixels_per_point,
             viewport_output,
         } = full_output;
+
+        glutin.active_viewports_retain(viewport_output.clone());
 
         let GlutinWindowContext {
             viewports,
@@ -1278,8 +1279,8 @@ impl GlutinWindowContext {
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        // GC old viewports
-        self.active_viewports_retain(viewport_output);
+        // Deprecated
+        // self.active_viewports_retain(viewport_output);
     }
 }
 
