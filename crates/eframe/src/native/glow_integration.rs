@@ -1184,6 +1184,21 @@ impl GlutinWindowContext {
             .expect("winit window doesn't exist")
     }
 
+    pub(crate) fn active_viewports_retain(
+        &mut self,
+        viewport_output: &ViewportIdMap<ViewportOutput>,
+    ) {
+        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+        // GC old viewports
+        self.viewports
+            .retain(|id, _| active_viewports_ids.contains(id));
+        self.viewport_from_window
+            .retain(|_, id| active_viewports_ids.contains(id));
+        self.window_from_viewport
+            .retain(|id, _| active_viewports_ids.contains(id));
+    }
+
     fn resize(&mut self, viewport_id: ViewportId, physical_size: winit::dpi::PhysicalSize<u32>) {
         let width_px = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
         let height_px = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
@@ -1222,8 +1237,6 @@ impl GlutinWindowContext {
     ) {
         crate::profile_function!();
 
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
         for (
             viewport_id,
             ViewportOutput {
@@ -1234,7 +1247,7 @@ impl GlutinWindowContext {
                 commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
-        ) in viewport_output
+        ) in viewport_output.clone()
         {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1265,12 +1278,7 @@ impl GlutinWindowContext {
         self.initialize_all_windows(event_loop);
 
         // GC old viewports
-        self.viewports
-            .retain(|id, _| active_viewports_ids.contains(id));
-        self.viewport_from_window
-            .retain(|_, id| active_viewports_ids.contains(id));
-        self.window_from_viewport
-            .retain(|id, _| active_viewports_ids.contains(id));
+        self.active_viewports_retain(&viewport_output);
     }
 }
 
