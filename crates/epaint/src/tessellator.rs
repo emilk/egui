@@ -1344,11 +1344,10 @@ impl Tessellator {
         }
 
         // Get the max pixel radius
-        let max_radius = radius.max_elem() * self.pixels_per_point;
-        // Get the power of two below the radius to limit the number of vertices
-        let floored_radius = 2_f32.powf(max_radius.log2().floor()) as u32;
-        // Ensure there is at least 16 points
-        let num_points = u32::max(16, floored_radius) / 4;
+        let max_radius = (radius.max_elem() * self.pixels_per_point) as u32;
+
+        // Ensure there is at least 8 points in each quarter of the ellipse
+        let num_points = u32::max(8, max_radius / 16);
 
         // Create an ease ratio based the ellipses a and b
         let ratio = ((radius.y / radius.x) / 2.0).clamp(0.0, 1.0);
