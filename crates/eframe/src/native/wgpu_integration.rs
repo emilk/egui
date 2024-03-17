@@ -708,6 +708,8 @@ impl WgpuWinitRunning {
             &integration.egui_ctx,
             viewport_output,
             viewports,
+            painter,
+            viewport_from_window,
             *focused_viewport,
         );
 
@@ -991,6 +993,7 @@ fn render_immediate_viewport(
     let SharedState {
         viewports,
         painter,
+        viewport_from_window,
         focused_viewport,
         ..
     } = &mut *shared;
@@ -1025,7 +1028,28 @@ fn render_immediate_viewport(
 
     egui_winit.handle_platform_output(window, platform_output);
 
-    handle_viewport_output(&egui_ctx, viewport_output, viewports, *focused_viewport);
+    handle_viewport_output(
+        &egui_ctx,
+        viewport_output,
+        viewports,
+        painter,
+        viewport_from_window,
+        *focused_viewport,
+    );
+}
+
+pub(crate) fn active_viewports_retain(
+    viewport_output: &ViewportIdMap<ViewportOutput>,
+    viewports: &mut ViewportIdMap<Viewport>,
+    painter: &mut egui_wgpu::winit::Painter,
+    viewport_from_window: &mut HashMap<WindowId, ViewportId>,
+) {
+    let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+    // Prune dead viewports:
+    viewports.retain(|id, _| active_viewports_ids.contains(id));
+    viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
+    painter.gc_viewports(&active_viewports_ids);
 }
 
 /// Add new viewports, and update existing ones:
@@ -1033,6 +1057,8 @@ fn handle_viewport_output(
     egui_ctx: &egui::Context,
     viewport_output: ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
+    painter: &mut egui_wgpu::winit::Painter,
+    viewport_from_window: &mut HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
 ) {
     for (
@@ -1045,7 +1071,7 @@ fn handle_viewport_output(
             commands,
             repaint_delay: _, // ignored - we listened to the repaint callback instead
         },
-    ) in viewport_output
+    ) in viewport_output.clone()
     {
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1071,6 +1097,8 @@ fn handle_viewport_output(
             );
         }
     }
+
+    active_viewports_retain(&viewport_output, viewports, painter, viewport_from_window);
 }
 
 fn initialize_or_update_viewport<'vp>(
