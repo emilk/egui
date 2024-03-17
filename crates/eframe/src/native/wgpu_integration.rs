@@ -1038,8 +1038,9 @@ fn render_immediate_viewport(
     );
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub(crate) fn active_viewports_retain(
-    viewport_output: ViewportIdMap<ViewportOutput>,
+    viewport_output: &ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
@@ -1098,7 +1099,7 @@ fn handle_viewport_output(
         }
     }
 
-    active_viewports_retain(viewport_output, viewports, painter, viewport_from_window);
+    active_viewports_retain(&viewport_output, viewports, painter, viewport_from_window);
 }
 
 fn initialize_or_update_viewport<'vp>(
