@@ -1184,9 +1184,10 @@ impl GlutinWindowContext {
             .expect("winit window doesn't exist")
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn active_viewports_retain(
         &mut self,
-        viewport_output: &ViewportIdMap<ViewportOutput>,
+        viewport_output: ViewportIdMap<ViewportOutput>,
     ) {
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -1278,7 +1279,7 @@ impl GlutinWindowContext {
         self.initialize_all_windows(event_loop);
 
         // GC old viewports
-        self.active_viewports_retain(&viewport_output);
+        self.active_viewports_retain(viewport_output);
     }
 }
 
