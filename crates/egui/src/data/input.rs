@@ -528,8 +528,78 @@ pub enum PointerButton {
     Extra2 = 4,
 }
 
+impl PointerButton {
+    /// Returns the list of all possible buttons.
+    pub fn all() -> [PointerButton; NUM_POINTER_BUTTONS] {
+        [
+            PointerButton::Primary,
+            PointerButton::Secondary,
+            PointerButton::Middle,
+            PointerButton::Extra1,
+            PointerButton::Extra2,
+        ]
+    }
+}
+
 /// Number of pointer buttons supported by egui, i.e. the number of possible states of [`PointerButton`].
 pub const NUM_POINTER_BUTTONS: usize = 5;
+
+/// Set of mouse buttons
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct PointerButtonSet(u8);
+
+impl PointerButtonSet {
+    pub const EMPTY: Self = Self::new();
+    pub(crate) const DEFAULT: Self = Self::singleton(PointerButton::Secondary);
+
+    /// Constructs a new, empty set
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(0)
+    }
+
+    /// Constructs a new set, having exactly one item.
+    #[must_use]
+    pub const fn singleton(button: PointerButton) -> Self {
+        Self(Self::as_mask(button))
+    }
+
+    /// Checks whether set is empty
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
+    /// Checks if [`PointerButton`] is contained in the set
+    pub fn contains(&self, button: PointerButton) -> bool {
+        (self.0 & Self::as_mask(button)) != 0
+    }
+
+    /// Adds [`PointerButton`] into the set.
+    pub fn add(&mut self, button: PointerButton) {
+        self.0 |= Self::as_mask(button);
+    }
+
+    /// Removes [`PointerButton`] from the set.
+    pub fn remove(&mut self, button: PointerButton) {
+        self.0 &= !Self::as_mask(button);
+    }
+
+    const fn as_mask(button: PointerButton) -> u8 {
+        1 << button as usize
+    }
+}
+
+impl<const N: usize> From<[PointerButton; N]> for PointerButtonSet {
+    fn from(buttons: [PointerButton; N]) -> Self {
+        let mut set = Self::new();
+        for b in buttons {
+            set.add(b);
+        }
+
+        set
+    }
+}
 
 /// State of the modifier keys. These must be fed to egui.
 ///
