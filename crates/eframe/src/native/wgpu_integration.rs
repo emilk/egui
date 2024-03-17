@@ -1079,7 +1079,7 @@ fn handle_viewport_output(
             commands,
             repaint_delay: _, // ignored - we listened to the repaint callback instead
         },
-    ) in viewport_output.clone()
+    ) in viewport_output
     {
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
