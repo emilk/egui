@@ -1065,8 +1065,8 @@ fn handle_viewport_output(
     egui_ctx: &egui::Context,
     viewport_output: ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
-    painter: &mut egui_wgpu::winit::Painter,
-    viewport_from_window: &mut HashMap<WindowId, ViewportId>,
+    _painter: &mut egui_wgpu::winit::Painter,
+    _viewport_from_window: &mut HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
 ) {
     for (
