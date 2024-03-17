@@ -662,7 +662,12 @@ impl WgpuWinitRunning {
             viewport_output,
         } = full_output;
 
-        active_viewports_retain(viewports, painter, viewport_from_window, viewport_output.clone());
+        active_viewports_retain(
+            viewports,
+            painter,
+            viewport_from_window,
+            viewport_output.clone(),
+        );
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
