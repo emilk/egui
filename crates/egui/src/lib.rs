@@ -434,6 +434,8 @@ pub use epaint::{
     Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
 
+pub use winit::platform::x11::XWindowType;
+
 pub mod text {
     pub use crate::text_selection::{CCursorRange, CursorRange};
     pub use epaint::text::{

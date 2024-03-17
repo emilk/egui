@@ -1239,6 +1239,7 @@ dependencies = [
  "puffin",
  "ron",
  "serde",
+ "winit",
 ]
 
 [[package]]
