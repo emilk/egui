@@ -1184,7 +1184,10 @@ impl GlutinWindowContext {
             .expect("winit window doesn't exist")
     }
 
-    pub(crate) fn active_viewports_retain(&mut self, viewport_output: ViewportIdMap<ViewportOutput>) {
+    pub(crate) fn active_viewports_retain(
+        &mut self,
+        viewport_output: ViewportIdMap<ViewportOutput>,
+    ) {
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
         // GC old viewports
