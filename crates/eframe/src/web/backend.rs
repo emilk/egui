@@ -117,21 +117,24 @@ pub fn web_location() -> epi::Location {
 }
 
 /// query is percent-encoded
-fn parse_query_map(query: &str) -> BTreeMap<String, String> {
-    query
-        .split('&')
-        .filter_map(|pair| {
-            if pair.is_empty() {
-                None
+fn parse_query_map(query: &str) -> BTreeMap<String, Vec<String>> {
+    let mut map: BTreeMap<String, Vec<String>> = Default::default();
+
+    for pair in query.split('&') {
+        if !pair.is_empty() {
+            if let Some((key, value)) = pair.split_once('=') {
+                map.entry(percent_decode(key))
+                    .or_default()
+                    .push(percent_decode(value));
             } else {
-                Some(if let Some((key, value)) = pair.split_once('=') {
-                    (percent_decode(key), percent_decode(value))
-                } else {
-                    (percent_decode(pair), String::new())
-                })
+                map.entry(percent_decode(pair))
+                    .or_default()
+                    .push(String::new());
             }
-        })
-        .collect()
+        }
+    }
+
+    map
 }
 
 // TODO(emilk): this test is never acgtually run, because this whole module is wasm32 only 🤦‍♂️
