@@ -1624,20 +1624,20 @@ pub fn create_winit_window_builder<T>(
             use winit::platform::x11::WindowBuilderExtX11 as _;
             use winit::platform::x11::XWindowType;
             window_builder = window_builder.with_x11_window_type(vec![match window_type {
-                egui::WindowType::Normal => XWindowType::Normal,
-                egui::WindowType::Utility => XWindowType::Utility,
-                egui::WindowType::Dock => XWindowType::Dock,
-                egui::WindowType::Desktop => XWindowType::Desktop,
-                egui::WindowType::Toolbar => XWindowType::Toolbar,
-                egui::WindowType::Menu => XWindowType::Menu,
-                egui::WindowType::Splash => XWindowType::Splash,
-                egui::WindowType::Dialog => XWindowType::Dialog,
-                egui::WindowType::DropdownMenu => XWindowType::DropdownMenu,
-                egui::WindowType::PopupMenu => XWindowType::PopupMenu,
-                egui::WindowType::Tooltip => XWindowType::Tooltip,
-                egui::WindowType::Notification => XWindowType::Notification,
-                egui::WindowType::Combo => XWindowType::Combo,
-                egui::WindowType::Dnd => XWindowType::Dnd,
+                egui::X11WindowType::Normal => XWindowType::Normal,
+                egui::X11WindowType::Utility => XWindowType::Utility,
+                egui::X11WindowType::Dock => XWindowType::Dock,
+                egui::X11WindowType::Desktop => XWindowType::Desktop,
+                egui::X11WindowType::Toolbar => XWindowType::Toolbar,
+                egui::X11WindowType::Menu => XWindowType::Menu,
+                egui::X11WindowType::Splash => XWindowType::Splash,
+                egui::X11WindowType::Dialog => XWindowType::Dialog,
+                egui::X11WindowType::DropdownMenu => XWindowType::DropdownMenu,
+                egui::X11WindowType::PopupMenu => XWindowType::PopupMenu,
+                egui::X11WindowType::Tooltip => XWindowType::Tooltip,
+                egui::X11WindowType::Notification => XWindowType::Notification,
+                egui::X11WindowType::Combo => XWindowType::Combo,
+                egui::X11WindowType::Dnd => XWindowType::Dnd,
             }]);
         }
     }

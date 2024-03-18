@@ -303,7 +303,7 @@ pub struct ViewportBuilder {
     pub mouse_passthrough: Option<bool>,
 
     // X11
-    pub window_type: Option<WindowType>,
+    pub window_type: Option<X11WindowType>,
 }
 
 impl ViewportBuilder {
@@ -590,7 +590,7 @@ impl ViewportBuilder {
     /// This sets the window type.
     /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm-spec/wm-spec-1.5.html).
     #[inline]
-    pub fn with_window_type(mut self, value: WindowType) -> Self {
+    pub fn with_window_type(mut self, value: X11WindowType) -> Self {
         self.window_type = Some(value);
         self
     }
@@ -819,7 +819,7 @@ pub enum WindowLevel {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum WindowType {
+pub enum X11WindowType {
     /// A desktop feature. This can include a single window containing desktop icons with the same dimensions as the
     /// screen, allowing the desktop environment to have full control of the desktop, without the need for proxying
     /// root window clicks.
