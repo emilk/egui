@@ -758,8 +758,8 @@ pub struct Location {
 
     /// The parsed "query" part of "www.example.com/index.html?query#fragment".
     ///
-    /// "foo=42&bar%20" is parsed as `{"foo": "42",  "bar ": ""}`
-    pub query_map: std::collections::BTreeMap<String, String>,
+    /// "foo=hello&bar%20&foo=world" is parsed as `{"bar ": [""], "foo": ["hello", "world"]}`
+    pub query_map: std::collections::BTreeMap<String, Vec<String>>,
 
     /// `location.origin`
     ///
