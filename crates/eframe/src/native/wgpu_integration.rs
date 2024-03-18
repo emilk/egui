@@ -283,11 +283,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
-                info: ViewportInfo {
-                    minimized: window.is_minimized(),
-                    maximized: Some(window.is_maximized()),
-                    ..Default::default()
-                },
+                info: get_update_viewport_info(&ViewportInfo::default(), &window),
                 screenshot_requested: false,
                 viewport_ui_cb: None,
                 window: Some(window),
@@ -709,8 +705,6 @@ impl WgpuWinitRunning {
 
         integration.post_rendering(window);
 
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
         handle_viewport_output(
             &integration.egui_ctx,
             viewport_output,
@@ -719,11 +713,6 @@ impl WgpuWinitRunning {
             viewport_from_window,
             *focused_viewport,
         );
-
-        // Prune dead viewports:
-        viewports.retain(|id, _| active_viewports_ids.contains(id));
-        viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
-        painter.gc_viewports(&active_viewports_ids);
 
         let window = viewport_from_window
             .get(&window_id)
@@ -894,9 +883,7 @@ impl Viewport {
                     painter.max_texture_side(),
                 ));
 
-                self.info.minimized = window.is_minimized();
-                self.info.maximized = Some(window.is_maximized());
-
+                self.info = get_update_viewport_info(&self.info, &window);
                 self.window = Some(window);
             }
             Err(err) => {
@@ -1045,6 +1032,17 @@ fn render_immediate_viewport(
     );
 }
 
+fn get_update_viewport_info(info: &ViewportInfo, window: &Arc<Window>) -> ViewportInfo {
+    let mut update_info = info.clone();
+
+    update_info.minimized = window.is_minimized();
+    update_info.maximized = Some(window.is_maximized());
+    update_info.fullscreen = Some(window.fullscreen().is_some());
+    update_info.focused = Some(window.has_focus());
+
+    update_info
+}
+
 #[allow(clippy::needless_pass_by_value)]
 pub(crate) fn active_viewports_retain(
     viewports: &mut ViewportIdMap<Viewport>,
@@ -1065,8 +1063,8 @@ fn handle_viewport_output(
     egui_ctx: &egui::Context,
     viewport_output: ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
-    _painter: &mut egui_wgpu::winit::Painter,
-    _viewport_from_window: &mut HashMap<WindowId, ViewportId>,
+    painter: &mut egui_wgpu::winit::Painter,
+    viewport_from_window: &mut HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
 ) {
     for (
@@ -1079,7 +1077,7 @@ fn handle_viewport_output(
             commands,
             repaint_delay: _, // ignored - we listened to the repaint callback instead
         },
-    ) in viewport_output
+    ) in viewport_output.clone()
     {
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1106,8 +1104,7 @@ fn handle_viewport_output(
         }
     }
 
-    // Deprecated
-    // active_viewports_retain(viewports, painter, viewport_from_window, viewport_output);
+    active_viewports_retain(viewports, painter, viewport_from_window, viewport_output);
 }
 
 fn initialize_or_update_viewport<'vp>(
