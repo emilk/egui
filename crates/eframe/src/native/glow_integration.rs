@@ -993,8 +993,7 @@ impl GlutinWindowContext {
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            info.minimized = window.is_minimized();
-            info.maximized = Some(window.is_maximized());
+            info = Self::get_update_viewport_info(&ViewportInfo::default(), window);
         }
 
         let mut viewports = ViewportIdMap::default();
@@ -1085,8 +1084,7 @@ impl GlutinWindowContext {
                 &window,
                 &viewport.builder,
             );
-            viewport.info.minimized = window.is_minimized();
-            viewport.info.maximized = Some(window.is_maximized());
+            viewport.info = Self::get_update_viewport_info(&viewport.info, &window);
             viewport.window.insert(Arc::new(window))
         };
 
@@ -1185,6 +1183,17 @@ impl GlutinWindowContext {
             .expect("winit window doesn't exist")
     }
 
+    fn get_update_viewport_info(info: &ViewportInfo, window: &Window) -> ViewportInfo {
+        let mut update_info = info.clone();
+
+        update_info.minimized = window.is_minimized();
+        update_info.maximized = Some(window.is_maximized());
+        update_info.fullscreen = Some(window.fullscreen().is_some());
+        update_info.focused = Some(window.has_focus());
+
+        update_info
+    }
+
     #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn active_viewports_retain(
         &mut self,
@@ -1249,7 +1258,7 @@ impl GlutinWindowContext {
                 commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
-        ) in viewport_output
+        ) in viewport_output.clone()
         {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1279,8 +1288,7 @@ impl GlutinWindowContext {
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        // Deprecated
-        // self.active_viewports_retain(viewport_output);
+        self.active_viewports_retain(viewport_output);
     }
 }
 
