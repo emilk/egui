@@ -353,8 +353,8 @@ impl WinitApp for GlowWinitApp {
     fn is_focused(&self, window_id: WindowId) -> bool {
         if let Some(running) = &self.running {
             let glutin = running.glutin.borrow();
-            if let Some(window_id) = glutin.viewport_from_window.get(&window_id) {
-                return glutin.focused_viewport == Some(*window_id);
+            if let Some(viewport_id) = glutin.viewport_from_window.get(&window_id) {
+                return glutin.focused_viewport == Some(*viewport_id);
             }
         }
 
@@ -797,9 +797,11 @@ impl GlowWinitRunning {
                         // and perhaps twice (once to notice the close-event, once again to enforce it).
                         // `request_repaint_of` does a double-repaint though:
                         self.integration.egui_ctx.request_repaint_of(viewport_id);
-                        self.integration
-                            .egui_ctx
-                            .request_repaint_of(viewport.ids.parent);
+                        if viewport_id != ViewportId::ROOT {
+                            self.integration
+                                .egui_ctx
+                                .request_repaint_of(viewport.ids.parent);
+                        }
 
                         if viewport_id == ViewportId::ROOT {
                             return EventResult::Wait;
@@ -1084,6 +1086,7 @@ impl GlutinWindowContext {
                 &window,
                 &viewport.builder,
             );
+
             viewport.info = Self::get_update_viewport_info(&viewport.info, &window);
             viewport.window.insert(Arc::new(window))
         };
