@@ -810,7 +810,9 @@ impl WgpuWinitRunning {
                         // and perhaps twice (once to notice the close-event, once again to enforce it).
                         // `request_repaint_of` does a double-repaint though:
                         integration.egui_ctx.request_repaint_of(viewport_id);
-                        integration.egui_ctx.request_repaint_of(viewport.ids.parent);
+                        if viewport_id != ViewportId::ROOT {
+                            integration.egui_ctx.request_repaint_of(viewport.ids.parent);
+                        }
 
                         if viewport_id == ViewportId::ROOT {
                             return EventResult::Wait;
