@@ -73,8 +73,6 @@ use epaint::{Pos2, Vec2};
 
 use crate::{Context, Id};
 
-use crate::XWindowType;
-
 // ----------------------------------------------------------------------------
 
 /// The different types of viewports supported by egui.
@@ -305,7 +303,7 @@ pub struct ViewportBuilder {
     pub mouse_passthrough: Option<bool>,
 
     // X11
-    pub window_type: Option<XWindowType>,
+    pub window_type: Option<WindowType>,
 }
 
 impl ViewportBuilder {
@@ -592,7 +590,7 @@ impl ViewportBuilder {
     /// This sets the window type.
     /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm-spec/wm-spec-1.5.html).
     #[inline]
-    pub fn with_window_type(mut self, value: XWindowType) -> Self {
+    pub fn with_window_type(mut self, value: WindowType) -> Self {
         self.window_type = Some(value);
         self
     }
@@ -817,6 +815,48 @@ pub enum WindowLevel {
     Normal,
     AlwaysOnBottom,
     AlwaysOnTop,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum WindowType {
+    /// A desktop feature. This can include a single window containing desktop icons with the same dimensions as the
+    /// screen, allowing the desktop environment to have full control of the desktop, without the need for proxying
+    /// root window clicks.
+    Desktop,
+    /// A dock or panel feature. Typically a Window Manager would keep such windows on top of all other windows.
+    Dock,
+    /// Toolbar windows. "Torn off" from the main application.
+    Toolbar,
+    /// Pinnable menu windows. "Torn off" from the main application.
+    Menu,
+    /// A small persistent utility window, such as a palette or toolbox.
+    Utility,
+    /// The window is a splash screen displayed as an application is starting up.
+    Splash,
+    /// This is a dialog window.
+    Dialog,
+    /// A dropdown menu that usually appears when the user clicks on an item in a menu bar.
+    /// This property is typically used on override-redirect windows.
+    DropdownMenu,
+    /// A popup menu that usually appears when the user right clicks on an object.
+    /// This property is typically used on override-redirect windows.
+    PopupMenu,
+    /// A tooltip window. Usually used to show additional information when hovering over an object with the cursor.
+    /// This property is typically used on override-redirect windows.
+    Tooltip,
+    /// The window is a notification.
+    /// This property is typically used on override-redirect windows.
+    Notification,
+    /// This should be used on the windows that are popped up by combo boxes.
+    /// This property is typically used on override-redirect windows.
+    Combo,
+    /// This indicates the the window is being dragged.
+    /// This property is typically used on override-redirect windows.
+    Dnd,
+    /// This is a normal, top-level window.
+    #[default]
+    Normal,
 }
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]

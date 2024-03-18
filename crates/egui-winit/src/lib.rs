@@ -1622,7 +1622,23 @@ pub fn create_winit_window_builder<T>(
     {
         if let Some(window_type) = window_type {
             use winit::platform::x11::WindowBuilderExtX11 as _;
-            window_builder = window_builder.with_x11_window_type(vec![window_type]);
+            use winit::platform::x11::XWindowType;
+            window_builder = window_builder.with_x11_window_type(vec![match window_type {
+                egui::WindowType::Normal => XWindowType::Normal,
+                egui::WindowType::Utility => XWindowType::Utility,
+                egui::WindowType::Dock => XWindowType::Dock,
+                egui::WindowType::Desktop => XWindowType::Desktop,
+                egui::WindowType::Toolbar => XWindowType::Toolbar,
+                egui::WindowType::Menu => XWindowType::Menu,
+                egui::WindowType::Splash => XWindowType::Splash,
+                egui::WindowType::Dialog => XWindowType::Dialog,
+                egui::WindowType::DropdownMenu => XWindowType::DropdownMenu,
+                egui::WindowType::PopupMenu => XWindowType::PopupMenu,
+                egui::WindowType::Tooltip => XWindowType::Tooltip,
+                egui::WindowType::Notification => XWindowType::Notification,
+                egui::WindowType::Combo => XWindowType::Combo,
+                egui::WindowType::Dnd => XWindowType::Dnd,
+            }]);
         }
     }
 
