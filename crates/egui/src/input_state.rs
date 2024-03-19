@@ -976,11 +976,13 @@ impl PointerState {
         self.pointer_events.iter().any(|event| event.is_click())
     }
 
-    /// Was the button given clicked this frame?
+    /// Was the given pointer button given clicked this frame?
+    ///
+    /// Returns true on double- and triple- clicks too.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
         self.pointer_events
             .iter()
-            .any(|event| matches!(event, &PointerEvent::Pressed { button: b, .. } if button == b))
+            .any(|event| matches!(event, &PointerEvent::Released { button: b, click: Some(_) } if button == b))
     }
 
     /// Was the button given double clicked this frame?
