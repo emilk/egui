@@ -51,7 +51,21 @@ pub fn paint_text_selection(
 }
 
 /// Paint one end of the selection, e.g. the primary cursor.
-pub fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
+pub fn paint_cursor(
+    painter: &Painter,
+    visuals: &Visuals,
+    cursor_rect: Rect,
+    i_time: f64,
+    blink: bool,
+) -> bool {
+    if blink {
+        // Make i_time_piece between 0 to 9.
+        let i_time_piece = ((i_time % 1.0) * 10.0).trunc() as i64;
+        if i_time_piece >= 5 && i_time_piece <= 8 {
+            return false;
+        }
+    }
+
     let stroke = visuals.text_cursor;
 
     let top = cursor_rect.center_top();
@@ -72,4 +86,6 @@ pub fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
             (width, stroke.color),
         );
     }
+
+    true
 }
