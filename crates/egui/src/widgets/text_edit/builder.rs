@@ -76,6 +76,7 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     event_filter: EventFilter,
     cursor_at_end: bool,
+    blink: bool,
     min_size: Vec2,
     align: Align2,
     clip_text: bool,
@@ -132,6 +133,7 @@ impl<'t> TextEdit<'t> {
                 ..Default::default()
             },
             cursor_at_end: true,
+            blink: true,
             min_size: Vec2::ZERO,
             align: Align2::LEFT_TOP,
             clip_text: false,
@@ -305,6 +307,15 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// When `true` (default), the text cursor will blink.
+    ///
+    /// When `false`, the text cursor will not blink.
+    #[inline]
+    pub fn blink(mut self, b: bool) -> Self {
+        self.blink = b;
+        self
+    }
+
     /// When `true` (default), overflowing text will be clipped.
     ///
     /// When `false`, widget width will expand to make all text visible.
@@ -413,7 +424,7 @@ impl<'t> TextEdit<'t> {
                         frame_rect,
                         visuals.rounding,
                         ui.visuals().extreme_bg_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        ui.visuals().widgets.unhovered.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
             } else {
@@ -421,7 +432,7 @@ impl<'t> TextEdit<'t> {
                 epaint::RectShape::stroke(
                     frame_rect,
                     visuals.rounding,
-                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    ui.visuals().widgets.unhovered.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                 )
             };
 
@@ -449,6 +460,7 @@ impl<'t> TextEdit<'t> {
             desired_height_rows,
             event_filter,
             cursor_at_end,
+            blink,
             min_size,
             align,
             clip_text,
@@ -508,6 +520,7 @@ impl<'t> TextEdit<'t> {
             }
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let save_ccursor_range = state.cursor.char_range();
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
@@ -528,6 +541,7 @@ impl<'t> TextEdit<'t> {
         let mut response = ui.interact(rect, id, sense);
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
+        let i_time = ui.input(|i| i.time);
 
         if interactive {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
@@ -548,7 +562,8 @@ impl<'t> TextEdit<'t> {
                     // preview:
                     let cursor_rect =
                         cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
-                    paint_cursor(&painter, ui.visuals(), cursor_rect);
+                    let _is_cursor_preview_visible =
+                        paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, false);
                 }
 
                 let is_being_dragged = ui.ctx().is_being_dragged(response.id);
@@ -680,7 +695,25 @@ impl<'t> TextEdit<'t> {
                     }
 
                     if text.is_mutable() {
-                        paint_cursor(&painter, ui.visuals(), primary_cursor_rect);
+                        // is_blink: Stays displayed when the cursor is moving
+                        let is_blink = blink && (save_ccursor_range == state.cursor.char_range());
+                        let is_cursor_visible = paint_cursor(
+                            &painter,
+                            ui.visuals(),
+                            primary_cursor_rect,
+                            i_time,
+                            is_blink,
+                        );
+                        if is_blink {
+                            if is_cursor_visible {
+                                ui.ctx()
+                                    .request_repaint_after(std::time::Duration::from_millis(700));
+                            }
+                            if !is_cursor_visible {
+                                ui.ctx()
+                                    .request_repaint_after(std::time::Duration::from_millis(300));
+                            }
+                        }
 
                         if interactive {
                             // For IME, so only set it when text is editable and visible!
