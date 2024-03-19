@@ -9,11 +9,11 @@ use crate::*;
 
 use super::{Cursor, LabelFormatter, PlotBounds, PlotTransform};
 use rect_elem::*;
-use values::{ClosestElem, PlotGeometry};
+use values::ClosestElem;
 
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
-pub use values::{LineStyle, MarkerShape, Orientation, PlotPoint, PlotPoints};
+pub use values::{LineStyle, MarkerShape, Orientation, PlotGeometry, PlotPoint, PlotPoints};
 
 mod bar;
 mod box_elem;
