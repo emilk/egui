@@ -29,7 +29,7 @@ impl<'a> DatePickerButton<'a> {
             calendar: true,
             calendar_week: true,
             show_icon: true,
-            format: "%Y-%m-%d".to_string(),
+            format: "%Y-%m-%d".to_owned(),
         }
     }
 
@@ -77,7 +77,7 @@ impl<'a> DatePickerButton<'a> {
     }
 
     /// Change the format shown on the button. (Default: %Y-%m-%d)
-    /// See [chrono::format::strftime] for valid formats.
+    /// See [`chrono::format::strftime`] for valid formats.
     #[inline]
     pub fn format(mut self, format: impl Into<String>) -> Self {
         self.format = format.into();
