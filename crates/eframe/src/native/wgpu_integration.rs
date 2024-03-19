@@ -283,7 +283,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
-                info: get_update_viewport_info(&ViewportInfo::default(), &window),
+                info: egui_winit::get_update_viewport_info(&ViewportInfo::default(), &window, None),
                 screenshot_requested: false,
                 viewport_ui_cb: None,
                 window: Some(window),
@@ -885,7 +885,7 @@ impl Viewport {
                     painter.max_texture_side(),
                 ));
 
-                self.info = get_update_viewport_info(&self.info, &window);
+                self.info = egui_winit::get_update_viewport_info(&self.info, &window, None);
                 self.window = Some(window);
             }
             Err(err) => {
@@ -1032,17 +1032,6 @@ fn render_immediate_viewport(
         viewport_from_window,
         *focused_viewport,
     );
-}
-
-fn get_update_viewport_info(info: &ViewportInfo, window: &Arc<Window>) -> ViewportInfo {
-    let mut update_info = info.clone();
-
-    update_info.minimized = window.is_minimized();
-    update_info.maximized = Some(window.is_maximized());
-    update_info.fullscreen = Some(window.fullscreen().is_some());
-    update_info.focused = Some(window.has_focus());
-
-    update_info
 }
 
 #[allow(clippy::needless_pass_by_value)]
