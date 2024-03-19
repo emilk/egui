@@ -995,7 +995,7 @@ impl GlutinWindowContext {
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            info = Self::get_update_viewport_info(&ViewportInfo::default(), window);
+            info = egui_winit::get_update_viewport_info(&ViewportInfo::default(), window, None);
         }
 
         let mut viewports = ViewportIdMap::default();
@@ -1087,7 +1087,7 @@ impl GlutinWindowContext {
                 &viewport.builder,
             );
 
-            viewport.info = Self::get_update_viewport_info(&viewport.info, &window);
+            viewport.info = egui_winit::get_update_viewport_info(&viewport.info, &window, None);
             viewport.window.insert(Arc::new(window))
         };
 
@@ -1184,17 +1184,6 @@ impl GlutinWindowContext {
             .window
             .clone()
             .expect("winit window doesn't exist")
-    }
-
-    fn get_update_viewport_info(info: &ViewportInfo, window: &Window) -> ViewportInfo {
-        let mut update_info = info.clone();
-
-        update_info.minimized = window.is_minimized();
-        update_info.maximized = Some(window.is_maximized());
-        update_info.fullscreen = Some(window.fullscreen().is_some());
-        update_info.focused = Some(window.has_focus());
-
-        update_info
     }
 
     #[allow(clippy::needless_pass_by_value)]
