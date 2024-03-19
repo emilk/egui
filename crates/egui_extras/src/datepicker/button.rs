@@ -79,8 +79,8 @@ impl<'a> DatePickerButton<'a> {
     /// Change the format shown on the button. (Default: %Y-%m-%d)
     /// See [chrono::format::strftime] for valid formats.
     #[inline]
-    pub fn format(mut self, format: &str) -> Self {
-        self.format = format.to_string();
+    pub fn format(mut self, format: impl Into<String>) -> Self {
+        self.format = format.into();
         self
     }
 }
