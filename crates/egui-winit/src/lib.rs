@@ -868,17 +868,17 @@ impl State {
     }
 }
 
-/// Update the given viewport info with the current state of the window.
-///
-/// Call before [`State::take_egui_input`].
-pub fn update_viewport_info(
-    viewport_info: &mut ViewportInfo,
-    egui_ctx: &egui::Context,
+pub fn get_update_viewport_info(
+    viewport_info: &ViewportInfo,
     window: &Window,
-) {
-    crate::profile_function!();
+    pixels_per_point: Option<f32>,
+) -> ViewportInfo {
+    let mut update_info = viewport_info.clone();
 
-    let pixels_per_point = pixels_per_point(egui_ctx, window);
+    let pixels_per_point = match pixels_per_point {
+        Some(pixels_per_point) => pixels_per_point,
+        None => window.scale_factor() as f32,
+    };
 
     let has_a_position = match window.is_minimized() {
         None | Some(true) => false,
@@ -942,21 +942,49 @@ pub fn update_viewport_info(
         }
     };
 
-    viewport_info.focused = Some(window.has_focus());
-    viewport_info.fullscreen = Some(window.fullscreen().is_some());
-    viewport_info.inner_rect = inner_rect;
-    viewport_info.monitor_size = monitor_size;
-    viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
-    viewport_info.outer_rect = outer_rect;
-    viewport_info.title = Some(window.title());
+    update_info.title = Some(window.title());
+    update_info.native_pixels_per_point = Some(window.scale_factor() as f32);
 
+    update_info.monitor_size = monitor_size;
+    update_info.inner_rect = inner_rect;
+    update_info.outer_rect = outer_rect;
+
+    /*
+    // Deprecated
     if cfg!(target_os = "windows") {
         // It's tempting to do this, but it leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
-        viewport_info.maximized = Some(window.is_maximized());
         viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
+        viewport_info.maximized = Some(window.is_maximized());
     }
+    */
+
+    update_info.minimized = match cfg!(target_os = "windows") {
+        true => Some(window.is_minimized().unwrap_or(false)),
+        false => window.is_minimized(),
+    };
+    update_info.maximized = Some(window.is_maximized());
+
+    update_info.fullscreen = Some(window.fullscreen().is_some());
+    update_info.focused = Some(window.has_focus());
+
+    update_info
+}
+
+/// Update the given viewport info with the current state of the window.
+///
+/// Call before [`State::take_egui_input`].
+pub fn update_viewport_info(
+    viewport_info: &mut ViewportInfo,
+    egui_ctx: &egui::Context,
+    window: &Window,
+) {
+    crate::profile_function!();
+
+    let pixels_per_point = Some(pixels_per_point(egui_ctx, window));
+
+    *viewport_info = get_update_viewport_info(viewport_info, window, pixels_per_point);
 }
 
 fn open_url_in_browser(_url: &str) {
