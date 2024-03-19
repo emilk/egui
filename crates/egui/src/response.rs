@@ -16,7 +16,7 @@ use crate::{
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
 ///
 /// ⚠️ The `Response` contains a clone of [`Context`], and many methods lock the `Context`.
-/// It can therefor be a deadlock to use `Context` from withing a context-locking closures,
+/// It can therefor be a deadlock to use `Context` from within a context-locking closures,
 /// such as [`Context::input`].
 #[derive(Clone, Debug)]
 pub struct Response {
