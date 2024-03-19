@@ -14,7 +14,10 @@ use crate::{
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
-// TODO(emilk): we should be using bit sets instead of so many bools
+///
+/// ⚠️ The `Response` contains a clone of [`Context`], and many methods lock the `Context`.
+/// It can therefor be a deadlock to use `Context` from withing a context-locking closures,
+/// such as [`Context::input`].
 #[derive(Clone, Debug)]
 pub struct Response {
     // CONTEXT:
