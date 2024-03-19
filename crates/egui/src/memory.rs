@@ -900,6 +900,15 @@ impl Areas {
         &self.order
     }
 
+    /// For each layer, which order is it in [`Self::order`]?
+    pub(crate) fn order_map(&self) -> HashMap<LayerId, usize> {
+        self.order
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (*id, i))
+            .collect()
+    }
+
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
         self.visible_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);

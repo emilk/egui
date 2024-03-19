@@ -2,7 +2,6 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use ahash::HashMap;
 use epaint::{
     emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
 };
@@ -446,17 +445,11 @@ impl ContextImpl {
         );
 
         let screen_rect = viewport.input.screen_rect;
+
         viewport.frame_state.begin_frame(screen_rect);
 
         {
-            let area_order: HashMap<LayerId, usize> = self
-                .memory
-                .areas()
-                .order()
-                .iter()
-                .enumerate()
-                .map(|(i, id)| (*id, i))
-                .collect();
+            let area_order = self.memory.areas().order_map();
 
             let mut layers: Vec<LayerId> = viewport.widgets_prev_frame.layer_ids().collect();
 
@@ -494,7 +487,6 @@ impl ContextImpl {
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = viewport.input.screen_rect();
         self.memory.areas_mut().set_state(
             LayerId::background(),
             containers::area::State {
