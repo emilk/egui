@@ -74,7 +74,7 @@ pub struct Response {
     /// This widget was clicked this frame.
     ///
     /// Which pointer and how many times we don't know,
-    /// and ask [`InputState`] about at runtime.
+    /// and ask [`crate::InputState`] about at runtime.
     ///
     /// This is only set to true if the widget was clicked
     /// by an actual mouse.
