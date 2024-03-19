@@ -421,18 +421,23 @@ impl ContextImpl {
                 // but the `screen_rect` is the most important part.
             }
         }
-        let pixels_per_point = self.memory.options.zoom_factor
-            * new_raw_input
-                .viewport()
-                .native_pixels_per_point
-                .unwrap_or(1.0);
+        let native_pixels_per_point = new_raw_input
+            .viewport()
+            .native_pixels_per_point
+            .unwrap_or(1.0);
+        let pixels_per_point = self.memory.options.zoom_factor * native_pixels_per_point;
 
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
+        self.memory.begin_frame(viewport_id, &all_viewport_ids);
+
         self.memory
-            .begin_frame(&viewport.input, &new_raw_input, &all_viewport_ids);
+            .interactions
+            .entry(viewport_id)
+            .or_default()
+            .begin_frame(&viewport.input, &new_raw_input);
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,

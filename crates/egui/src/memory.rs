@@ -363,7 +363,7 @@ impl InteractionState {
         self.potential_click_id.is_some() || self.potential_drag_id.is_some()
     }
 
-    fn begin_frame(
+    pub(crate) fn begin_frame(
         &mut self,
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
@@ -603,23 +603,15 @@ impl Focus {
 }
 
 impl Memory {
-    pub(crate) fn begin_frame(
-        &mut self,
-        prev_input: &crate::input_state::InputState,
-        new_input: &crate::data::input::RawInput,
-        viewports: &ViewportIdSet,
-    ) {
+    pub(crate) fn begin_frame(&mut self, viewport_id: ViewportId, viewports: &ViewportIdSet) {
         crate::profile_function!();
 
         // Cleanup
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
 
-        self.viewport_id = new_input.viewport_id;
-        self.interactions
-            .entry(self.viewport_id)
-            .or_default()
-            .begin_frame(prev_input, new_input);
+        self.viewport_id = viewport_id;
+        // self.interactions is handled elsewhere
         self.areas.entry(self.viewport_id).or_default();
     }
 
