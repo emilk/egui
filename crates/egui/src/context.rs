@@ -430,13 +430,13 @@ impl ContextImpl {
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
-        self.memory.begin_frame(viewport_id, &all_viewport_ids);
+        self.memory.begin_frame(&new_raw_input, &all_viewport_ids);
 
         self.memory
             .interactions
             .entry(viewport_id)
             .or_default()
-            .begin_frame(&viewport.input, &new_raw_input);
+            .begin_frame(&viewport.input);
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
@@ -1954,7 +1954,10 @@ impl ContextImpl {
                         })
                         .collect()
                 };
-                let focus_id = self.memory.focus().map_or(root_id, |id| id.accesskit_id());
+                let focus_id = self
+                    .memory
+                    .focused()
+                    .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
@@ -2219,7 +2222,7 @@ impl Context {
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory(|m| m.interaction().focus.focused().is_some())
+        self.memory(|m| m.focused().is_some())
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -2479,7 +2482,7 @@ impl Context {
         .on_hover_text("Is egui currently listening for text input?");
         ui.label(format!(
             "Keyboard focus widget: {}",
-            self.memory(|m| m.interaction().focus.focused())
+            self.memory(|m| m.focused())
                 .as_ref()
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
