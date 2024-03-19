@@ -281,6 +281,9 @@ pub struct Spacing {
     /// Default width of a [`Slider`].
     pub slider_width: f32,
 
+    /// Default rail height of a [`Slider`].
+    pub slider_rail_height: f32,
+
     /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
     pub combo_width: f32,
 
@@ -1051,6 +1054,9 @@ pub struct Widgets {
     /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
 
+    /// The style of a unhovered widget.
+    pub unhovered: WidgetVisuals,
+
     /// The style of an interactive widget while you hover it, or when it is highlighted.
     ///
     /// See [`Response::hovered`], [`Response::highlighted`] and [`Response::highlight`].
@@ -1224,6 +1230,7 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
+            slider_rail_height: 9.6,
             combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
@@ -1372,6 +1379,14 @@ impl Widgets {
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
+            unhovered: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(27),
+                bg_fill: Color32::from_gray(27),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(140)),
+                rounding: Rounding::same(2.0),
+                expansion: 0.0,
+            },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(70),
                 bg_fill: Color32::from_gray(70),
@@ -1414,6 +1429,14 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
+                rounding: Rounding::same(2.0),
+                expansion: 0.0,
+            },
+            unhovered: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(248),
+                bg_fill: Color32::from_gray(248),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
@@ -1573,6 +1596,7 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            slider_rail_height,
             combo_width,
             text_edit_width,
             icon_width,
@@ -1600,6 +1624,10 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
             ui.label("Slider width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
+            ui.label("Slider rail height");
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
@@ -1747,10 +1775,11 @@ impl Interaction {
 impl Widgets {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            active,
-            hovered,
-            inactive,
             noninteractive,
+            inactive,
+            unhovered,
+            hovered,
+            active,
             open,
         } = self;
 
@@ -1763,6 +1792,10 @@ impl Widgets {
         ui.collapsing("Interactive but inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");
             inactive.ui(ui);
+        });
+        ui.collapsing("Interactive and unhovered", |ui| {
+            ui.label("The style of an interactive widget while you unhover it.");
+            unhovered.ui(ui);
         });
         ui.collapsing("Interactive and hovered", |ui| {
             ui.label("The style of an interactive widget while you hover it.");
