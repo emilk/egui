@@ -440,7 +440,8 @@ impl ContextImpl {
             pixels_per_point,
         );
 
-        viewport.frame_state.begin_frame(&viewport.input);
+        let screen_rect = viewport.input.screen_rect;
+        viewport.frame_state.begin_frame(screen_rect);
 
         {
             let area_order: HashMap<LayerId, usize> = self
