@@ -819,7 +819,10 @@ pub enum WindowLevel {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum X11WindowType {
+    /// This is a normal, top-level window.
+    #[default]
+    Normal,
+    
     /// A desktop feature. This can include a single window containing desktop icons with the same dimensions as the
     /// screen, allowing the desktop environment to have full control of the desktop, without the need for proxying
     /// root window clicks.
@@ -865,10 +868,6 @@ pub enum X11WindowType {
     /// This indicates the the window is being dragged.
     /// This property is typically used on override-redirect windows.
     Dnd,
-    
-    /// This is a normal, top-level window.
-    #[default]
-    Normal,
 }
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
