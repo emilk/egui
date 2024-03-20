@@ -489,11 +489,7 @@ impl InputState {
     /// delivers a synthetic zoom factor based on ctrl-scroll events, as a fallback.
     pub fn multi_touch(&self) -> Option<MultiTouchInfo> {
         // In case of multiple touch devices simply pick the touch_state of the first active device
-        if let Some(touch_state) = self.touch_states.values().find(|t| t.is_active()) {
-            touch_state.info()
-        } else {
-            None
-        }
+        self.touch_states.values().find_map(|t| t.info())
     }
 
     /// True if there currently are any fingers touching egui.
@@ -976,11 +972,13 @@ impl PointerState {
         self.pointer_events.iter().any(|event| event.is_click())
     }
 
-    /// Was the button given clicked this frame?
+    /// Was the given pointer button given clicked this frame?
+    ///
+    /// Returns true on double- and triple- clicks too.
     pub fn button_clicked(&self, button: PointerButton) -> bool {
         self.pointer_events
             .iter()
-            .any(|event| matches!(event, &PointerEvent::Pressed { button: b, .. } if button == b))
+            .any(|event| matches!(event, &PointerEvent::Released { button: b, click: Some(_) } if button == b))
     }
 
     /// Was the button given double clicked this frame?
