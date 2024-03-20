@@ -201,6 +201,7 @@ impl PaintStats {
             }
             Shape::Noop
             | Shape::Circle { .. }
+            | Shape::Ellipse { .. }
             | Shape::LineSegment { .. }
             | Shape::Rect { .. }
             | Shape::CubicBezier(_)

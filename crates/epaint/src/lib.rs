@@ -47,8 +47,8 @@ pub use {
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::{
-        CircleShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Rounding, Shape,
-        TextShape,
+        CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape,
+        Rounding, Shape, TextShape,
     },
     stats::PaintStats,
     stroke::Stroke,
