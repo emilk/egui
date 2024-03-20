@@ -7,6 +7,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## Unreleased
+
+### ⚠️ BREAKING
+* `Response::clicked*` and `Response::dragged*` may lock the `Context`, so don't call it from a `Context`-locking closure.
+* `Response::clicked_by` will no longer be true if clicked with keyboard. Use `Response::clicked` instead.
+
+
 ## 0.26.2 - 2024-02-14
 * Avoid interacting twice when not required [#4041](https://github.com/emilk/egui/pull/4041) (thanks [@abey79](https://github.com/abey79)!)
 
