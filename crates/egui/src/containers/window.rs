@@ -429,7 +429,7 @@ impl<'open> Window<'open> {
             (0.0, 0.0)
         };
 
-        let max_rect = ctx.input(|i| i.viewport().inner_rect.unwrap_or(ctx.screen_rect()));
+        let max_rect = ctx.input(|i| i.viewport().inner_rect.unwrap_or(Rect::EVERYTHING));
         let max_width = max_rect.width();
         let max_height = max_rect.height() - title_bar_height;
         resize.max_size.x = resize.max_size.x.min(max_width);
