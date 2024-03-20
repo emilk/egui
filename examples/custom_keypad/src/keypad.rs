@@ -174,7 +174,7 @@ impl Keypad {
     pub fn show(&self, ctx: &egui::Context) {
         let (focus, mut state) = ctx.memory(|m| {
             (
-                m.focus(),
+                m.focused(),
                 m.data.get_temp::<State>(self.id).unwrap_or_default(),
             )
         });

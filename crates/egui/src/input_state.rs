@@ -11,8 +11,13 @@ use touch_state::TouchState;
 /// If the pointer moves more than this, it won't become a click (but it is still a drag)
 const MAX_CLICK_DIST: f32 = 6.0; // TODO(emilk): move to settings
 
-/// If the pointer is down for longer than this, it won't become a click (but it is still a drag)
-const MAX_CLICK_DURATION: f64 = 0.6; // TODO(emilk): move to settings
+/// If the pointer is down for longer than this it will no longer register as a click.
+///
+/// If a touch is held for this many seconds while still,
+/// then it will register as a "long-touch" which is equivalent to a secondary click.
+///
+/// This is to support "press and hold for context menu" on touch screens.
+const MAX_CLICK_DURATION: f64 = 0.8; // TODO(emilk): move to settings
 
 /// The new pointer press must come within this many seconds from previous pointer release
 const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
@@ -544,6 +549,14 @@ impl InputState {
             .cloned()
             .collect()
     }
+
+    /// A long press is something we detect on touch screens
+    /// to trigger a secondary click (context menu).
+    ///
+    /// Returns `true` only on one frame.
+    pub(crate) fn is_long_touch(&self) -> bool {
+        self.any_touches() && self.pointer.is_long_press()
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -651,6 +664,8 @@ pub struct PointerState {
     pub(crate) has_moved_too_much_for_a_click: bool,
 
     /// Did [`Self::is_decidedly_dragging`] go from `false` to `true` this frame?
+    ///
+    /// This could also be the trigger point for a long-touch.
     pub(crate) started_decidedly_dragging: bool,
 
     /// When did the pointer get click last?
@@ -751,6 +766,7 @@ impl PointerState {
                             button,
                         });
                     } else {
+                        // Released
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
@@ -1027,21 +1043,21 @@ impl PointerState {
     ///
     /// See also [`Self::is_decidedly_dragging`].
     pub fn could_any_button_be_click(&self) -> bool {
-        if !self.any_down() {
-            return false;
-        }
-
-        if self.has_moved_too_much_for_a_click {
-            return false;
-        }
-
-        if let Some(press_start_time) = self.press_start_time {
-            if self.time - press_start_time > MAX_CLICK_DURATION {
+        if self.any_down() || self.any_released() {
+            if self.has_moved_too_much_for_a_click {
                 return false;
             }
-        }
 
-        true
+            if let Some(press_start_time) = self.press_start_time {
+                if self.time - press_start_time > MAX_CLICK_DURATION {
+                    return false;
+                }
+            }
+
+            true
+        } else {
+            false
+        }
     }
 
     /// Just because the mouse is down doesn't mean we are dragging.
@@ -1058,6 +1074,19 @@ impl PointerState {
             && !self.any_pressed()
             && !self.could_any_button_be_click()
             && !self.any_click()
+    }
+
+    /// A long press is something we detect on touch screens
+    /// to trigger a secondary click (context menu).
+    ///
+    /// Returns `true` only on one frame.
+    pub(crate) fn is_long_press(&self) -> bool {
+        self.started_decidedly_dragging
+            && !self.has_moved_too_much_for_a_click
+            && self.button_down(PointerButton::Primary)
+            && self.press_start_time.map_or(false, |press_start_time| {
+                self.time - press_start_time > MAX_CLICK_DURATION
+            })
     }
 
     /// Is the primary button currently down?
