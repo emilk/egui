@@ -75,6 +75,7 @@ impl super::Demo for CodeExample {
             .default_size([800.0, 400.0])
             .vscroll(false)
             .hscroll(true)
+            .resizable([true, false])
             .show(ctx, |ui| self.ui(ui));
     }
 }

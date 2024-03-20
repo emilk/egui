@@ -99,44 +99,45 @@ pub fn web_location() -> epi::Location {
         .search()
         .unwrap_or_default()
         .strip_prefix('?')
-        .map(percent_decode)
-        .unwrap_or_default();
-
-    let query_map = parse_query_map(&query)
-        .iter()
-        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
-        .collect();
+        .unwrap_or_default()
+        .to_owned();
 
     epi::Location {
+        // TODO(emilk): should we really percent-decode the url? 🤷‍♂️
         url: percent_decode(&location.href().unwrap_or_default()),
         protocol: percent_decode(&location.protocol().unwrap_or_default()),
         host: percent_decode(&location.host().unwrap_or_default()),
         hostname: percent_decode(&location.hostname().unwrap_or_default()),
         port: percent_decode(&location.port().unwrap_or_default()),
         hash,
+        query_map: parse_query_map(&query),
         query,
-        query_map,
         origin: percent_decode(&location.origin().unwrap_or_default()),
     }
 }
 
-fn parse_query_map(query: &str) -> BTreeMap<&str, &str> {
-    query
-        .split('&')
-        .filter_map(|pair| {
-            if pair.is_empty() {
-                None
+/// query is percent-encoded
+fn parse_query_map(query: &str) -> BTreeMap<String, Vec<String>> {
+    let mut map: BTreeMap<String, Vec<String>> = Default::default();
+
+    for pair in query.split('&') {
+        if !pair.is_empty() {
+            if let Some((key, value)) = pair.split_once('=') {
+                map.entry(percent_decode(key))
+                    .or_default()
+                    .push(percent_decode(value));
             } else {
-                Some(if let Some((key, value)) = pair.split_once('=') {
-                    (key, value)
-                } else {
-                    (pair, "")
-                })
+                map.entry(percent_decode(pair))
+                    .or_default()
+                    .push(String::new());
             }
-        })
-        .collect()
+        }
+    }
+
+    map
 }
 
+// TODO(emilk): this test is never acgtually run, because this whole module is wasm32 only 🤦‍♂️
 #[test]
 fn test_parse_query() {
     assert_eq!(parse_query_map(""), BTreeMap::default());
@@ -156,5 +157,12 @@ fn test_parse_query() {
     assert_eq!(
         parse_query_map("foo&baz&&"),
         BTreeMap::from_iter([("foo", ""), ("baz", "")])
+    );
+    assert_eq!(
+        parse_query_map("badger=data.rrd%3Fparam1%3Dfoo%26param2%3Dbar&mushroom=snake"),
+        BTreeMap::from_iter([
+            ("badger", "data.rrd?param1=foo&param2=bar"),
+            ("mushroom", "snake")
+        ])
     );
 }

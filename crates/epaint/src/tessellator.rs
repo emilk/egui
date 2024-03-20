@@ -1215,6 +1215,9 @@ impl Tessellator {
             Shape::Circle(circle) => {
                 self.tessellate_circle(circle, out);
             }
+            Shape::Ellipse(ellipse) => {
+                self.tessellate_ellipse(ellipse, out);
+            }
             Shape::Mesh(mesh) => {
                 crate::profile_scope!("mesh");
 
@@ -1310,6 +1313,73 @@ impl Tessellator {
 
         self.scratchpad_path.clear();
         self.scratchpad_path.add_circle(center, radius);
+        self.scratchpad_path.fill(self.feathering, fill, out);
+        self.scratchpad_path
+            .stroke_closed(self.feathering, stroke, out);
+    }
+
+    /// Tessellate a single [`EllipseShape`] into a [`Mesh`].
+    ///
+    /// * `shape`: the ellipse to tessellate.
+    /// * `out`: triangles are appended to this.
+    pub fn tessellate_ellipse(&mut self, shape: EllipseShape, out: &mut Mesh) {
+        let EllipseShape {
+            center,
+            radius,
+            fill,
+            stroke,
+        } = shape;
+
+        if radius.x <= 0.0 || radius.y <= 0.0 {
+            return;
+        }
+
+        if self.options.coarse_tessellation_culling
+            && !self
+                .clip_rect
+                .expand2(radius + Vec2::splat(stroke.width))
+                .contains(center)
+        {
+            return;
+        }
+
+        // Get the max pixel radius
+        let max_radius = (radius.max_elem() * self.pixels_per_point) as u32;
+
+        // Ensure there is at least 8 points in each quarter of the ellipse
+        let num_points = u32::max(8, max_radius / 16);
+
+        // Create an ease ratio based the ellipses a and b
+        let ratio = ((radius.y / radius.x) / 2.0).clamp(0.0, 1.0);
+
+        // Generate points between the 0 to pi/2
+        let quarter: Vec<Vec2> = (1..num_points)
+            .map(|i| {
+                let percent = i as f32 / num_points as f32;
+
+                // Ease the percent value, concentrating points around tight bends
+                let eased = 2.0 * (percent - percent.powf(2.0)) * ratio + percent.powf(2.0);
+
+                // Scale the ease to the quarter
+                let t = eased * std::f32::consts::FRAC_PI_2;
+                Vec2::new(radius.x * f32::cos(t), radius.y * f32::sin(t))
+            })
+            .collect();
+
+        // Build the ellipse from the 4 known vertices filling arcs between
+        // them by mirroring the points between 0 and pi/2
+        let mut points = Vec::new();
+        points.push(center + Vec2::new(radius.x, 0.0));
+        points.extend(quarter.iter().map(|p| center + *p));
+        points.push(center + Vec2::new(0.0, radius.y));
+        points.extend(quarter.iter().rev().map(|p| center + Vec2::new(-p.x, p.y)));
+        points.push(center + Vec2::new(-radius.x, 0.0));
+        points.extend(quarter.iter().map(|p| center - *p));
+        points.push(center + Vec2::new(0.0, -radius.y));
+        points.extend(quarter.iter().rev().map(|p| center + Vec2::new(p.x, -p.y)));
+
+        self.scratchpad_path.clear();
+        self.scratchpad_path.add_line_loop(&points);
         self.scratchpad_path.fill(self.feathering, fill, out);
         self.scratchpad_path
             .stroke_closed(self.feathering, stroke, out);
@@ -1776,7 +1846,7 @@ impl Tessellator {
 
                 Shape::Path(path_shape) => 32 < path_shape.points.len(),
 
-                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) => true,
+                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) | Shape::Ellipse(_) => true,
 
                 Shape::Noop
                 | Shape::Text(_)
