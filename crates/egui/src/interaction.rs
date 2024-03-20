@@ -60,7 +60,7 @@ impl InteractionSnapshot {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             clicked,
-            long_touched: long_pressed,
+            long_touched,
             drag_started,
             dragged,
             drag_stopped,
@@ -79,8 +79,8 @@ impl InteractionSnapshot {
             id_ui(ui, clicked);
             ui.end_row();
 
-            ui.label("long_pressed");
-            id_ui(ui, long_pressed);
+            ui.label("long_touched");
+            id_ui(ui, long_touched);
             ui.end_row();
 
             ui.label("drag_started");
@@ -201,7 +201,6 @@ pub(crate) fn interact(
                 };
 
                 if is_dragged {
-                    eprintln!("Started dragging {:?}", widget.id);
                     dragged = Some(widget.id);
                 }
             }

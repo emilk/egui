@@ -13,8 +13,8 @@ const MAX_CLICK_DIST: f32 = 6.0; // TODO(emilk): move to settings
 
 /// If the pointer is down for longer than this it will no longer register as a click.
 ///
-/// If the _primary_ pointer is held for this many seconds while the pointer is still,
-/// then it will register as a secondary click.
+/// If a touch is held for this many seconds while still,
+/// then it will register as a "long-touch" which is equivalent to a secondary click.
 ///
 /// This is to support "press and hold for context menu" on touch screens.
 const MAX_CLICK_DURATION: f64 = 0.6; // TODO(emilk): move to settings
