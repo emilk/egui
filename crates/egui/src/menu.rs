@@ -367,6 +367,9 @@ impl MenuRoot {
     /// Interaction with a context menu (secondary click).
     fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
         let response = response.interact(Sense::click());
+        let hovered = response.hovered();
+        let secondary_clicked = response.secondary_clicked();
+
         response.ctx.input(|input| {
             let pointer = &input.pointer;
             if let Some(pos) = pointer.interact_pos() {
@@ -377,9 +380,9 @@ impl MenuRoot {
                     destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
                 }
                 if !in_old_menu {
-                    if response.hovered() && response.secondary_clicked() {
+                    if hovered && secondary_clicked {
                         return MenuResponse::Create(pos, response.id);
-                    } else if (response.hovered() && pointer.primary_down()) || destroy {
+                    } else if destroy || hovered && pointer.primary_down() {
                         return MenuResponse::Close;
                     }
                 }
