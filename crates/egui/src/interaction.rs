@@ -135,10 +135,6 @@ pub(crate) fn interact(
     let mut long_touched = None;
 
     if input.is_long_touch() {
-        eprintln!("Long touch press, dragged: {dragged:?}");
-    }
-
-    if input.is_long_touch() {
         // We implement "press-and-hold for context menu" on touch screens here
         if let Some(widget) = interaction
             .potential_click_id
