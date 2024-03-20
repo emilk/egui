@@ -826,34 +826,46 @@ pub enum X11WindowType {
     Desktop,
     /// A dock or panel feature. Typically a Window Manager would keep such windows on top of all other windows.
     Dock,
+    
     /// Toolbar windows. "Torn off" from the main application.
     Toolbar,
+    
     /// Pinnable menu windows. "Torn off" from the main application.
     Menu,
+    
     /// A small persistent utility window, such as a palette or toolbox.
     Utility,
+    
     /// The window is a splash screen displayed as an application is starting up.
     Splash,
+    
     /// This is a dialog window.
     Dialog,
+    
     /// A dropdown menu that usually appears when the user clicks on an item in a menu bar.
     /// This property is typically used on override-redirect windows.
     DropdownMenu,
+    
     /// A popup menu that usually appears when the user right clicks on an object.
     /// This property is typically used on override-redirect windows.
     PopupMenu,
+    
     /// A tooltip window. Usually used to show additional information when hovering over an object with the cursor.
     /// This property is typically used on override-redirect windows.
     Tooltip,
+    
     /// The window is a notification.
     /// This property is typically used on override-redirect windows.
     Notification,
+    
     /// This should be used on the windows that are popped up by combo boxes.
     /// This property is typically used on override-redirect windows.
     Combo,
+    
     /// This indicates the the window is being dragged.
     /// This property is typically used on override-redirect windows.
     Dnd,
+    
     /// This is a normal, top-level window.
     #[default]
     Normal,
