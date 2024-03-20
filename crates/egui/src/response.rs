@@ -89,6 +89,10 @@ pub struct Response {
     #[doc(hidden)]
     pub fake_primary_click: bool,
 
+    /// This widget was long-pressed on a touch screen to simulate a secondary click.
+    #[doc(hidden)]
+    pub long_touched: bool,
+
     /// The widget started being dragged this frame.
     #[doc(hidden)]
     pub drag_started: bool,
@@ -142,15 +146,28 @@ impl Response {
     /// This will NOT return true if the widget was "clicked" via
     /// some accessibility integration, or if the widget had keyboard focus and the
     /// user pressed Space/Enter. For that, use [`Self::clicked`] instead.
+    ///
+    /// This will likewise ignore the press-and-hold action on touch screens.
+    /// Use [`Self::secondary_clicked`] instead to also detect that.
     #[inline]
     pub fn clicked_by(&self, button: PointerButton) -> bool {
         self.clicked && self.ctx.input(|i| i.pointer.button_clicked(button))
     }
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
+    ///
+    /// This also returns true if the widget was pressed-and-held on a touch screen.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
-        self.clicked_by(PointerButton::Secondary)
+        self.long_touched || self.clicked_by(PointerButton::Secondary)
+    }
+
+    /// Was this long-pressed on a touch screen?
+    ///
+    /// Usually you want to check [`Self::secondary_clicked`] instead.
+    #[inline]
+    pub fn long_touched(&self) -> bool {
+        self.long_touched
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
@@ -933,6 +950,7 @@ impl Response {
             highlighted: self.highlighted || other.highlighted,
             clicked: self.clicked || other.clicked,
             fake_primary_click: self.fake_primary_click || other.fake_primary_click,
+            long_touched: self.long_touched || other.long_touched,
             drag_started: self.drag_started || other.drag_started,
             dragged: self.dragged || other.dragged,
             drag_stopped: self.drag_stopped || other.drag_stopped,

@@ -75,7 +75,7 @@ impl Default for FrameState {
 }
 
 impl FrameState {
-    pub(crate) fn begin_frame(&mut self, input: &InputState) {
+    pub(crate) fn begin_frame(&mut self, screen_rect: Rect) {
         crate::profile_function!();
         let Self {
             used_ids,
@@ -94,8 +94,8 @@ impl FrameState {
         } = self;
 
         used_ids.clear();
-        *available_rect = input.screen_rect();
-        *unused_rect = input.screen_rect();
+        *available_rect = screen_rect;
+        *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
         *tooltip_state = None;
         *scroll_target = [None, None];

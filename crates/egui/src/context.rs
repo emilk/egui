@@ -2,7 +2,6 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use ahash::HashMap;
 use epaint::{
     emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
 };
@@ -421,18 +420,17 @@ impl ContextImpl {
                 // but the `screen_rect` is the most important part.
             }
         }
-        let pixels_per_point = self.memory.options.zoom_factor
-            * new_raw_input
-                .viewport()
-                .native_pixels_per_point
-                .unwrap_or(1.0);
+        let native_pixels_per_point = new_raw_input
+            .viewport()
+            .native_pixels_per_point
+            .unwrap_or(1.0);
+        let pixels_per_point = self.memory.options.zoom_factor * native_pixels_per_point;
 
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
-        self.memory
-            .begin_frame(&viewport.input, &new_raw_input, &all_viewport_ids);
+        self.memory.begin_frame(&new_raw_input, &all_viewport_ids);
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
@@ -440,17 +438,12 @@ impl ContextImpl {
             pixels_per_point,
         );
 
-        viewport.frame_state.begin_frame(&viewport.input);
+        let screen_rect = viewport.input.screen_rect;
+
+        viewport.frame_state.begin_frame(screen_rect);
 
         {
-            let area_order: HashMap<LayerId, usize> = self
-                .memory
-                .areas()
-                .order()
-                .iter()
-                .enumerate()
-                .map(|(i, id)| (*id, i))
-                .collect();
+            let area_order = self.memory.areas().order_map();
 
             let mut layers: Vec<LayerId> = viewport.widgets_prev_frame.layer_ids().collect();
 
@@ -488,7 +481,6 @@ impl ContextImpl {
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = viewport.input.screen_rect();
         self.memory.areas_mut().set_state(
             LayerId::background(),
             containers::area::State {
@@ -1106,6 +1098,7 @@ impl Context {
             highlighted,
             clicked: false,
             fake_primary_click: false,
+            long_touched: false,
             drag_started: false,
             dragged: false,
             drag_stopped: false,
@@ -1141,6 +1134,10 @@ impl Context {
                 res.fake_primary_click = true;
             }
 
+            if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
+                res.long_touched = true;
+            }
+
             let interaction = memory.interaction();
 
             res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
@@ -1168,7 +1165,8 @@ impl Context {
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_stopped;
+            let is_interacted_with =
+                res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
                 if let (Some(transform), Some(pos)) = (
@@ -1179,7 +1177,7 @@ impl Context {
                 }
             }
 
-            if input.pointer.any_down() && !res.is_pointer_button_down_on {
+            if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
                 res.hovered = false;
             }
@@ -1847,6 +1845,7 @@ impl Context {
                 let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
                 let InteractionSnapshot {
                     clicked,
+                    long_touched: _,
                     drag_started: _,
                     dragged,
                     drag_stopped: _,
@@ -1956,7 +1955,10 @@ impl ContextImpl {
                         })
                         .collect()
                 };
-                let focus_id = self.memory.focus().map_or(root_id, |id| id.accesskit_id());
+                let focus_id = self
+                    .memory
+                    .focused()
+                    .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
@@ -2221,7 +2223,7 @@ impl Context {
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory(|m| m.interaction().focus.focused().is_some())
+        self.memory(|m| m.focused().is_some())
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -2481,7 +2483,7 @@ impl Context {
         .on_hover_text("Is egui currently listening for text input?");
         ui.label(format!(
             "Keyboard focus widget: {}",
-            self.memory(|m| m.interaction().focus.focused())
+            self.memory(|m| m.focused())
                 .as_ref()
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
