@@ -432,12 +432,6 @@ impl ContextImpl {
 
         self.memory.begin_frame(&new_raw_input, &all_viewport_ids);
 
-        self.memory
-            .interactions
-            .entry(viewport_id)
-            .or_default()
-            .begin_frame(&viewport.input);
-
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_frame(),
@@ -1104,6 +1098,7 @@ impl Context {
             highlighted,
             clicked: false,
             fake_primary_click: false,
+            long_touched: false,
             drag_started: false,
             dragged: false,
             drag_stopped: false,
@@ -1139,6 +1134,10 @@ impl Context {
                 res.fake_primary_click = true;
             }
 
+            if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
+                res.long_touched = true;
+            }
+
             let interaction = memory.interaction();
 
             res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
@@ -1166,7 +1165,8 @@ impl Context {
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_stopped;
+            let is_interacted_with =
+                res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
                 if let (Some(transform), Some(pos)) = (
@@ -1177,7 +1177,7 @@ impl Context {
                 }
             }
 
-            if input.pointer.any_down() && !res.is_pointer_button_down_on {
+            if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
                 res.hovered = false;
             }
@@ -1845,6 +1845,7 @@ impl Context {
                 let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
                 let InteractionSnapshot {
                     clicked,
+                    long_touched: _,
                     drag_started: _,
                     dragged,
                     drag_stopped: _,

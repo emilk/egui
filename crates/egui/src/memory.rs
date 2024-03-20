@@ -364,18 +364,6 @@ impl InteractionState {
     pub fn is_using_pointer(&self) -> bool {
         self.potential_click_id.is_some() || self.potential_drag_id.is_some()
     }
-
-    pub(crate) fn begin_frame(&mut self, prev_input: &crate::input_state::InputState) {
-        if !prev_input.pointer.could_any_button_be_click() {
-            self.potential_click_id = None;
-        }
-
-        if !prev_input.pointer.any_down() || prev_input.pointer.latest_pos().is_none() {
-            // pointer button was not down last frame
-            self.potential_click_id = None;
-            self.potential_drag_id = None;
-        }
-    }
 }
 
 impl Focus {
