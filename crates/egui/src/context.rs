@@ -1104,9 +1104,8 @@ impl Context {
             contains_pointer: false,
             hovered: false,
             highlighted,
-            clicked: Default::default(),
-            double_clicked: Default::default(),
-            triple_clicked: Default::default(),
+            clicked: false,
+            fake_primary_click: false,
             drag_started: false,
             dragged: false,
             drag_stopped: false,
@@ -1131,7 +1130,7 @@ impl Context {
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                res.clicked[PointerButton::Primary as usize] = true;
+                res.fake_primary_click = true;
             }
 
             #[cfg(feature = "accesskit")]
@@ -1139,7 +1138,7 @@ impl Context {
                 && sense.click
                 && input.has_accesskit_action_request(id, accesskit::Action::Default)
             {
-                res.clicked[PointerButton::Primary as usize] = true;
+                res.fake_primary_click = true;
             }
 
             let interaction = memory.interaction();
@@ -1157,13 +1156,9 @@ impl Context {
             let clicked = Some(id) == viewport.interact_widgets.clicked;
 
             for pointer_event in &input.pointer.pointer_events {
-                if let PointerEvent::Released { click, button } = pointer_event {
-                    if enabled && sense.click && clicked {
-                        if let Some(click) = click {
-                            res.clicked[*button as usize] = true;
-                            res.double_clicked[*button as usize] = click.is_double();
-                            res.triple_clicked[*button as usize] = click.is_triple();
-                        }
+                if let PointerEvent::Released { click, .. } = pointer_event {
+                    if enabled && sense.click && clicked && click.is_some() {
+                        res.clicked = true;
                     }
 
                     res.is_pointer_button_down_on = false;
