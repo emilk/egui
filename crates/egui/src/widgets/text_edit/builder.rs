@@ -76,7 +76,6 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     event_filter: EventFilter,
     cursor_at_end: bool,
-    blink: bool,
     min_size: Vec2,
     align: Align2,
     clip_text: bool,
@@ -133,7 +132,6 @@ impl<'t> TextEdit<'t> {
                 ..Default::default()
             },
             cursor_at_end: true,
-            blink: true,
             min_size: Vec2::ZERO,
             align: Align2::LEFT_TOP,
             clip_text: false,
@@ -307,15 +305,6 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// When `true` (default), the text cursor will blink.
-    ///
-    /// When `false`, the text cursor will not blink.
-    #[inline]
-    pub fn blink(mut self, b: bool) -> Self {
-        self.blink = b;
-        self
-    }
-
     /// When `true` (default), overflowing text will be clipped.
     ///
     /// When `false`, widget width will expand to make all text visible.
@@ -460,7 +449,6 @@ impl<'t> TextEdit<'t> {
             desired_height_rows,
             event_filter,
             cursor_at_end,
-            blink,
             min_size,
             align,
             clip_text,
@@ -696,6 +684,7 @@ impl<'t> TextEdit<'t> {
 
                     if text.is_mutable() {
                         // is_blink: Stays displayed when the cursor is moving
+                        let blink = ui.visuals().text_cursor_blink;
                         let is_blink = blink && (save_ccursor_range == state.cursor.char_range());
                         let is_cursor_visible = paint_cursor(
                             &painter,
