@@ -249,20 +249,6 @@ impl InputState {
             }
         }
 
-        let mut modifiers = new.modifiers;
-
-        let focused_changed = self.focused != new.focused
-            || new
-                .events
-                .iter()
-                .any(|e| matches!(e, Event::WindowFocused(_)));
-        if focused_changed {
-            // It is very common for keys to become stuck when we alt-tab, or a save-dialog opens by Ctrl+S.
-            // Therefore we clear all the modifiers and down keys here to avoid that.
-            modifiers = Default::default();
-            keys_down = Default::default();
-        }
-
         Self {
             pointer,
             touch_states: self.touch_states,
@@ -278,7 +264,7 @@ impl InputState {
             predicted_dt: new.predicted_dt,
             stable_dt,
             focused: new.focused,
-            modifiers,
+            modifiers: new.modifiers,
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
