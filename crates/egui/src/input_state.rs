@@ -17,7 +17,7 @@ const MAX_CLICK_DIST: f32 = 6.0; // TODO(emilk): move to settings
 /// then it will register as a "long-touch" which is equivalent to a secondary click.
 ///
 /// This is to support "press and hold for context menu" on touch screens.
-const MAX_CLICK_DURATION: f64 = 0.6; // TODO(emilk): move to settings
+const MAX_CLICK_DURATION: f64 = 0.8; // TODO(emilk): move to settings
 
 /// The new pointer press must come within this many seconds from previous pointer release
 const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
