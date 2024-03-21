@@ -17,6 +17,7 @@ pub struct DatePickerButton<'a> {
     calendar_week: bool,
     show_icon: bool,
     format: String,
+    highlight_weekends: bool,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -30,6 +31,7 @@ impl<'a> DatePickerButton<'a> {
             calendar_week: true,
             show_icon: true,
             format: "%Y-%m-%d".to_owned(),
+            highlight_weekends: true,
         }
     }
 
@@ -81,6 +83,13 @@ impl<'a> DatePickerButton<'a> {
     #[inline]
     pub fn format(mut self, format: impl Into<String>) -> Self {
         self.format = format.into();
+        self
+    }
+
+    /// Highlight weekend days. (Default: true)
+    #[inline]
+    pub fn highlight_weekends(mut self, highlight_weekends: bool) -> Self {
+        self.highlight_weekends = highlight_weekends;
         self
     }
 }
@@ -148,6 +157,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                                 arrows: self.arrows,
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
+                                highlight_weekends: self.highlight_weekends,
                             }
                             .draw(ui)
                         })
