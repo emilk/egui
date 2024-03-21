@@ -92,11 +92,7 @@ pub fn paint_text_cursor(
     let total_duration = on_duration + off_duration;
 
     if is_blink_mode {
-        if (i_time % total_duration) < on_duration {
-            is_cursor_visible = true;
-        } else {
-            is_cursor_visible = false;
-        }
+        is_cursor_visible = (i_time % total_duration) < on_duration;
     }
 
     if is_cursor_visible {
