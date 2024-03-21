@@ -376,9 +376,6 @@ impl State {
             }
             WindowEvent::Focused(focused) => {
                 self.egui_input.focused = *focused;
-                // We will not be given a KeyboardInput event when the modifiers are released while
-                // the window does not have focus. Unset all modifier state to be safe.
-                self.egui_input.modifiers = egui::Modifiers::default();
                 self.egui_input
                     .events
                     .push(egui::Event::WindowFocused(*focused));
