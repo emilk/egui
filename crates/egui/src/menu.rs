@@ -641,7 +641,7 @@ impl MenuState {
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 let rect = sub_menu.read().rect;
-                return rect.intesects_ray(pos, pointer.velocity().normalized());
+                return rect.intersects_ray(pos, pointer.velocity().normalized());
             }
         }
         false
