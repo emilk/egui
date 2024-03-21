@@ -90,6 +90,7 @@ impl<'a> DatePickerButton<'a> {
     #[inline]
     pub fn highlight_weekends(mut self, highlight_weekends: bool) -> Self {
         self.highlight_weekends = highlight_weekends;
+        self
     }
 }
 
