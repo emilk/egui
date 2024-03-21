@@ -87,10 +87,14 @@ pub fn paint_text_cursor(
 
     let mut is_cursor_visible = true;
 
+    let on_duration = ui.visuals().text_cursor_on_duration;
+    let off_duration = ui.visuals().text_cursor_off_duratio;
+    let total_duration = on_duration + off_duration;
+
     if is_blink_mode {
-        // Make i_time_piece between 0 to 9.
-        let i_time_piece = ((i_time % 1.0) * 10.0).trunc() as i64;
-        if i_time_piece >= 5 && i_time_piece <= 8 {
+        if (i_time % total_duration as f64) < on_duration as f64 {
+            is_cursor_visible = true;
+        } else {
             is_cursor_visible = false;
         }
     }
@@ -102,11 +106,11 @@ pub fn paint_text_cursor(
     if is_blink_mode {
         if is_cursor_visible {
             ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(700));
+                .request_repaint_after(std::time::Duration::from_millis((on_duration * 1000.0) as u64));
         }
         if !is_cursor_visible {
             ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(300));
+                .request_repaint_after(std::time::Duration::from_millis((off_duration * 1000.0) as u64));
         }
     }
 }
