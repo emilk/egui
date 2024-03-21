@@ -1298,7 +1298,7 @@ impl Visuals {
             text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
             text_cursor_blink: true,
-            text_cursor_on_duration: 0.7,
+            text_cursor_on_duration: 1.0,
             text_cursor_off_duratio: 0.3,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
