@@ -33,6 +33,7 @@ pub(crate) struct DatePickerPopup<'a> {
     pub arrows: bool,
     pub calendar: bool,
     pub calendar_week: bool,
+    pub highlight_weekends: bool,
 }
 
 impl<'a> DatePickerPopup<'a> {
@@ -304,8 +305,9 @@ impl<'a> DatePickerPopup<'a> {
                                                             && popup_state.day == day.day()
                                                         {
                                                             ui.visuals().selection.bg_fill
-                                                        } else if day.weekday() == Weekday::Sat
-                                                            || day.weekday() == Weekday::Sun
+                                                        } else if (day.weekday() == Weekday::Sat
+                                                            || day.weekday() == Weekday::Sun)
+                                                            && self.highlight_weekends
                                                         {
                                                             if ui.visuals().dark_mode {
                                                                 Color32::DARK_RED
