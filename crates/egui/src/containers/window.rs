@@ -439,7 +439,7 @@ impl<'open> Window<'open> {
             let max_height = max_rect.height() - title_bar_height;
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
-        {
+        }
 
         // First check for resize to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
