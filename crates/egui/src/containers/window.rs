@@ -432,7 +432,7 @@ impl<'open> Window<'open> {
         };
 
         {
-            // Prevent window from becoming larger than the contraint rect and/or screen rect.
+            // Prevent window from becoming larger than the constraint rect and/or screen rect.
             let screen_rect = ctx.screen_rect();
             let max_rect = area.constrain_rect().unwrap_or(screen_rect);
             let max_width = max_rect.width();
