@@ -1234,6 +1234,7 @@ impl GlutinWindowContext {
 
             if let Some(window) = &viewport.window {
                 let is_viewport_focused = self.focused_viewport == Some(viewport_id);
+                let inner_size = window.inner_size();
                 egui_winit::process_viewport_commands(
                     egui_ctx,
                     &mut viewport.info,
@@ -1242,6 +1243,11 @@ impl GlutinWindowContext {
                     is_viewport_focused,
                     &mut viewport.screenshot_requested,
                 );
+
+                let new_inner_size = window.inner_size();
+                if inner_size != new_inner_size {
+                    self.resize(viewport_id, new_inner_size);
+                }
             }
         }
 
