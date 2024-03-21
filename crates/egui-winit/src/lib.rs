@@ -1544,7 +1544,7 @@ pub fn create_winit_window_builder<T>(
         app_id: _app_id,
 
         // x11
-        window_type,
+        window_type: _window_type,
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
     } = viewport_builder;
@@ -1620,7 +1620,7 @@ pub fn create_winit_window_builder<T>(
 
     #[cfg(all(feature = "x11", target_os = "linux"))]
     {
-        if let Some(window_type) = window_type {
+        if let Some(window_type) = _window_type {
             use winit::platform::x11::WindowBuilderExtX11 as _;
             use winit::platform::x11::XWindowType;
             window_builder = window_builder.with_x11_window_type(vec![match window_type {
