@@ -946,22 +946,13 @@ pub fn get_update_viewport_info(
     update_info.inner_rect = inner_rect;
     update_info.outer_rect = outer_rect;
 
-    /*
-    // Deprecated
     if cfg!(target_os = "windows") {
         // It's tempting to do this, but it leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
-        viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
-        viewport_info.maximized = Some(window.is_maximized());
+        update_info.maximized = Some(window.is_maximized());
+        update_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
-    */
-
-    update_info.minimized = match cfg!(target_os = "windows") {
-        true => Some(window.is_minimized().unwrap_or(false)),
-        false => window.is_minimized(),
-    };
-    update_info.maximized = Some(window.is_maximized());
 
     update_info.fullscreen = Some(window.fullscreen().is_some());
     update_info.focused = Some(window.has_focus());
