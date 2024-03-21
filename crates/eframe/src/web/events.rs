@@ -5,12 +5,12 @@ use super::*;
 /// Calls `request_animation_frame` to schedule repaint.
 ///
 /// It will only paint if needed, but will always call `request_animation_frame` immediately.
-fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
     // Only paint and schedule if there has been no panic
     if let Some(mut runner_lock) = runner_ref.try_lock() {
         paint_if_needed(&mut runner_lock);
         drop(runner_lock);
-        request_animation_frame(runner_ref.clone())?;
+        runner_ref.request_animation_frame()?;
     }
     Ok(())
 }
@@ -43,14 +43,6 @@ fn paint_if_needed(runner: &mut AppRunner) {
         }
     }
     runner.auto_save_if_needed();
-}
-
-pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
-    let closure = Closure::once(move || paint_and_schedule(&runner_ref));
-    window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-    closure.forget(); // We must forget it, or else the callback is canceled on drop
-    Ok(())
 }
 
 // ------------------------------------------------------------------------
@@ -275,7 +267,7 @@ pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Resul
 }
 
 pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    let canvas = canvas_element(runner_ref.try_lock().unwrap().canvas_id()).unwrap();
+    let canvas = runner_ref.try_lock().unwrap().canvas().clone();
 
     {
         let prevent_default_events = [
@@ -304,7 +296,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
             let modifiers = modifiers_from_mouse_event(&event);
             runner.input.raw.modifiers = modifiers;
             if let Some(button) = button_from_mouse_event(&event) {
-                let pos = pos_from_mouse_event(runner.canvas_id(), &event);
+                let pos = pos_from_mouse_event(runner.canvas(), &event);
                 let modifiers = runner.input.raw.modifiers;
                 runner.input.raw.events.push(egui::Event::PointerButton {
                     pos,
@@ -331,7 +323,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         |event: web_sys::MouseEvent, runner| {
             let modifiers = modifiers_from_mouse_event(&event);
             runner.input.raw.modifiers = modifiers;
-            let pos = pos_from_mouse_event(runner.canvas_id(), &event);
+            let pos = pos_from_mouse_event(runner.canvas(), &event);
             runner.input.raw.events.push(egui::Event::PointerMoved(pos));
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
@@ -343,7 +335,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         let modifiers = modifiers_from_mouse_event(&event);
         runner.input.raw.modifiers = modifiers;
         if let Some(button) = button_from_mouse_event(&event) {
-            let pos = pos_from_mouse_event(runner.canvas_id(), &event);
+            let pos = pos_from_mouse_event(runner.canvas(), &event);
             let modifiers = runner.input.raw.modifiers;
             runner.input.raw.events.push(egui::Event::PointerButton {
                 pos,
@@ -381,7 +373,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         "touchstart",
         |event: web_sys::TouchEvent, runner| {
             let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-            let pos = pos_from_touch_event(runner.canvas_id(), &event, &mut latest_touch_pos_id);
+            let pos = pos_from_touch_event(runner.canvas(), &event, &mut latest_touch_pos_id);
             runner.input.latest_touch_pos_id = latest_touch_pos_id;
             runner.input.latest_touch_pos = Some(pos);
             let modifiers = runner.input.raw.modifiers;
@@ -404,7 +396,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         "touchmove",
         |event: web_sys::TouchEvent, runner| {
             let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-            let pos = pos_from_touch_event(runner.canvas_id(), &event, &mut latest_touch_pos_id);
+            let pos = pos_from_touch_event(runner.canvas(), &event, &mut latest_touch_pos_id);
             runner.input.latest_touch_pos_id = latest_touch_pos_id;
             runner.input.latest_touch_pos = Some(pos);
             runner.input.raw.events.push(egui::Event::PointerMoved(pos));
@@ -467,7 +459,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         });
 
         let scroll_multiplier = match unit {
-            egui::MouseWheelUnit::Page => canvas_size_in_points(runner.canvas_id()).y,
+            egui::MouseWheelUnit::Page => canvas_size_in_points(runner.canvas()).y,
             egui::MouseWheelUnit::Line => {
                 #[allow(clippy::let_and_return)]
                 let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.

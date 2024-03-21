@@ -20,6 +20,12 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             fill,
             stroke,
         })
+        | Shape::Ellipse(EllipseShape {
+            center: _,
+            radius: _,
+            fill,
+            stroke,
+        })
         | Shape::Path(PathShape {
             points: _,
             closed: _,

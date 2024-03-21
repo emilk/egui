@@ -284,12 +284,14 @@ impl GlowWinitApp {
             // Use latest raw_window_handle for eframe compatibility
             use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
+            let get_proc_address = |addr: &_| glutin.get_proc_address(addr);
             let window = glutin.window(ViewportId::ROOT);
             let cc = CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
                 integration_info: integration.frame.info().clone(),
                 storage: integration.frame.storage(),
                 gl: Some(gl),
+                get_proc_address: Some(&get_proc_address),
                 #[cfg(feature = "wgpu")]
                 wgpu_render_state: None,
                 raw_display_handle: window.display_handle().map(|h| h.as_raw()),

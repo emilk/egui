@@ -67,6 +67,10 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "glow")]
     pub gl: Option<std::sync::Arc<glow::Context>>,
 
+    /// The `get_proc_address` wrapper of underlying GL context
+    #[cfg(feature = "glow")]
+    pub get_proc_address: Option<&'s dyn Fn(&std::ffi::CStr) -> *const std::ffi::c_void>,
+
     /// The underlying WGPU render state.
     ///
     /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
@@ -714,7 +718,7 @@ pub struct WebInfo {
 #[cfg(target_arch = "wasm32")]
 #[derive(Clone, Debug)]
 pub struct Location {
-    /// The full URL (`location.href`) without the hash.
+    /// The full URL (`location.href`) without the hash, percent-decoded.
     ///
     /// Example: `"http://www.example.com:80/index.html?foo=bar"`.
     pub url: String,
@@ -754,8 +758,8 @@ pub struct Location {
 
     /// The parsed "query" part of "www.example.com/index.html?query#fragment".
     ///
-    /// "foo=42&bar%20" is parsed as `{"foo": "42",  "bar ": ""}`
-    pub query_map: std::collections::BTreeMap<String, String>,
+    /// "foo=hello&bar%20&foo=world" is parsed as `{"bar ": [""], "foo": ["hello", "world"]}`
+    pub query_map: std::collections::BTreeMap<String, Vec<String>>,
 
     /// `location.origin`
     ///
