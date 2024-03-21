@@ -607,7 +607,7 @@ impl Rect {
 
 impl Rect {
     /// Does this Rect intersect the given ray (where `d` is normalized)?
-    pub fn intesects_ray(&self, o: Pos2, d: Vec2) -> bool {
+    pub fn intersects_ray(&self, o: Pos2, d: Vec2) -> bool {
         let mut tmin = -f32::INFINITY;
         let mut tmax = f32::INFINITY;
 
