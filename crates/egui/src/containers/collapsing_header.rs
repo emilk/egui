@@ -281,7 +281,7 @@ impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
     }
 
     pub fn toggle(&mut self) {
-        self.state.toggle(&self.ui);
+        self.state.toggle(self.ui);
     }
 
     /// Returns the response of the collapsing button, the custom header, and the custom body.
