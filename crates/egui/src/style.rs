@@ -934,6 +934,12 @@ pub struct Visuals {
     /// set the text cursor to blink
     pub text_cursor_blink: bool,
 
+    /// set the text cursor on duration
+    pub text_cursor_on_duration: f64,
+
+    /// set the text cursor off duration
+    pub text_cursor_off_duratio: f64,
+
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
 
@@ -1056,6 +1062,9 @@ pub struct Widgets {
 
     /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
+
+    /// The style of a unhovered widget.
+    pub unhovered: WidgetVisuals,
 
     /// The style of an interactive widget while you hover it, or when it is highlighted.
     ///
@@ -1289,6 +1298,8 @@ impl Visuals {
             text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
             text_cursor_blink: true,
+            text_cursor_on_duration: 0.7,
+            text_cursor_off_duratio: 0.3,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
@@ -1380,6 +1391,14 @@ impl Widgets {
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
+            unhovered: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(27),
+                bg_fill: Color32::from_gray(27),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(140)),
+                rounding: Rounding::same(2.0),
+                expansion: 0.0,
+            },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(70),
                 bg_fill: Color32::from_gray(70),
@@ -1422,6 +1441,14 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
+                rounding: Rounding::same(2.0),
+                expansion: 0.0,
+            },
+            unhovered: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(248),
+                bg_fill: Color32::from_gray(248),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)),
+                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
@@ -1760,10 +1787,11 @@ impl Interaction {
 impl Widgets {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            active,
-            hovered,
-            inactive,
             noninteractive,
+            inactive,
+            unhovered,
+            hovered,
+            active,
             open,
         } = self;
 
@@ -1776,6 +1804,10 @@ impl Widgets {
         ui.collapsing("Interactive but inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");
             inactive.ui(ui);
+        });
+        ui.collapsing("Interactive and unhovered", |ui| {
+            ui.label("The style of an interactive widget while you unhover it.");
+            unhovered.ui(ui);
         });
         ui.collapsing("Interactive and hovered", |ui| {
             ui.label("The style of an interactive widget while you hover it.");
@@ -1889,6 +1921,8 @@ impl Visuals {
             text_cursor,
             text_cursor_preview,
             text_cursor_blink,
+            text_cursor_on_duration,
+            text_cursor_off_duratio,
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
@@ -1957,6 +1991,8 @@ impl Visuals {
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
         ui.checkbox(text_cursor_blink, "text cursor to blink");
+        ui.add(Slider::new(text_cursor_on_duration, 0.0..=2.0).text("text cursor on duration"));
+        ui.add(Slider::new(text_cursor_off_duratio, 0.0..=2.0).text("text cursor off duration"));
         ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
         ui.checkbox(button_frame, "Button has a frame");
