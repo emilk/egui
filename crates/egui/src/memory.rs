@@ -665,7 +665,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().focused()
+        self.focus.get(&self.viewport_id).and_then(|f| f.focused())
     }
 
     /// Set an event filter for a widget.
