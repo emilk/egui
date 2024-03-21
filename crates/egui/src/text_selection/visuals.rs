@@ -85,11 +85,11 @@ pub fn paint_text_cursor(
     let blink_mode = ui.visuals().text_cursor_blink;
     let is_blink_mode = blink_mode && is_stay_cursor;
 
-    let mut is_cursor_visible = true;
-
     let on_duration = ui.visuals().text_cursor_on_duration;
     let off_duration = ui.visuals().text_cursor_off_duratio;
     let total_duration = on_duration + off_duration;
+
+    let mut is_cursor_visible = true;
 
     if is_blink_mode {
         is_cursor_visible = (i_time % total_duration) < on_duration;
