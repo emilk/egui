@@ -5,10 +5,7 @@ use std::{any::Any, hash::Hash, ops::Deref, sync::Arc};
 
 use epaint::mutex::RwLock;
 
-use crate::{
-    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    util::IdTypeMap, widgets::*, *,
-};
+use crate::{containers::*, ecolor::*, layout::*, menu::MenuState, placer::Placer, widgets::*, *};
 
 // ----------------------------------------------------------------------------
 
