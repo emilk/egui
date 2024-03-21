@@ -529,7 +529,6 @@ impl<'t> TextEdit<'t> {
         let mut response = ui.interact(rect, id, sense);
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
-        let i_time = ui.input(|i| i.time);
 
         if interactive {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
@@ -547,11 +546,10 @@ impl<'t> TextEdit<'t> {
                     && response.hovered()
                     && ui.input(|i| i.pointer.is_moving())
                 {
-                    // preview:
+                    // text cursor preview:
                     let cursor_rect =
                         cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
-                    let _is_cursor_preview_visible =
-                        paint_cursor(&painter, ui.visuals(), cursor_rect, i_time, false);
+                    paint_cursor(&painter, ui.visuals(), cursor_rect);
                 }
 
                 let is_being_dragged = ui.ctx().is_being_dragged(response.id);
@@ -683,26 +681,13 @@ impl<'t> TextEdit<'t> {
                     }
 
                     if text.is_mutable() {
-                        // is_blink: Stays displayed when the cursor is moving
-                        let blink = ui.visuals().text_cursor_blink;
-                        let is_blink = blink && (save_ccursor_range == state.cursor.char_range());
-                        let is_cursor_visible = paint_cursor(
+                        let is_stay_cursor = save_ccursor_range == state.cursor.char_range();
+                        text_selection::visuals::paint_text_cursor(
+                            ui,
                             &painter,
-                            ui.visuals(),
                             primary_cursor_rect,
-                            i_time,
-                            is_blink,
+                            is_stay_cursor,
                         );
-                        if is_blink {
-                            if is_cursor_visible {
-                                ui.ctx()
-                                    .request_repaint_after(std::time::Duration::from_millis(700));
-                            }
-                            if !is_cursor_visible {
-                                ui.ctx()
-                                    .request_repaint_after(std::time::Duration::from_millis(300));
-                            }
-                        }
 
                         if interactive {
                             // For IME, so only set it when text is editable and visible!
