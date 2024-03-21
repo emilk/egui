@@ -92,7 +92,7 @@ pub fn paint_text_cursor(
     let total_duration = on_duration + off_duration;
 
     if is_blink_mode {
-        if (i_time % total_duration as f64) < on_duration as f64 {
+        if (i_time % total_duration) < on_duration {
             is_cursor_visible = true;
         } else {
             is_cursor_visible = false;
@@ -100,7 +100,7 @@ pub fn paint_text_cursor(
     }
 
     if is_cursor_visible {
-        paint_cursor(&painter, ui.visuals(), primary_cursor_rect);
+        paint_cursor(painter, ui.visuals(), primary_cursor_rect);
     }
 
     if is_blink_mode {
