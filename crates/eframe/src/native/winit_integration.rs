@@ -106,8 +106,10 @@ pub enum EventResult {
 
     RepaintAt(WindowId, Instant),
 
+    /// Child Viewport Exit
     ViewportExit(WindowId),
 
+    /// Root Viewport Exit
     Exit(WindowId),
 }
 
