@@ -592,11 +592,11 @@ impl ContextImpl {
     ///
     /// For the root viewport this will return [`ViewportId::ROOT`].
     pub(crate) fn parent_viewport_id(&self) -> ViewportId {
-        self.viewport_stack
-            .last()
-            .copied()
-            .unwrap_or_default()
-            .parent
+        let viewport_id = self.viewport_id();
+        *self
+            .viewport_parents
+            .get(&viewport_id)
+            .unwrap_or(&ViewportId::ROOT)
     }
 
     fn all_viewport_ids(&self) -> ViewportIdSet {
