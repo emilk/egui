@@ -1540,6 +1540,9 @@ pub fn create_winit_window_builder<T>(
         // wayland:
         app_id: _app_id,
 
+        // x11
+        window_type: _window_type,
+
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
     } = viewport_builder;
 
@@ -1610,6 +1613,30 @@ pub fn create_winit_window_builder<T>(
     if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
         window_builder = window_builder.with_name(app_id, "");
+    }
+
+    #[cfg(all(feature = "x11", target_os = "linux"))]
+    {
+        if let Some(window_type) = _window_type {
+            use winit::platform::x11::WindowBuilderExtX11 as _;
+            use winit::platform::x11::XWindowType;
+            window_builder = window_builder.with_x11_window_type(vec![match window_type {
+                egui::X11WindowType::Normal => XWindowType::Normal,
+                egui::X11WindowType::Utility => XWindowType::Utility,
+                egui::X11WindowType::Dock => XWindowType::Dock,
+                egui::X11WindowType::Desktop => XWindowType::Desktop,
+                egui::X11WindowType::Toolbar => XWindowType::Toolbar,
+                egui::X11WindowType::Menu => XWindowType::Menu,
+                egui::X11WindowType::Splash => XWindowType::Splash,
+                egui::X11WindowType::Dialog => XWindowType::Dialog,
+                egui::X11WindowType::DropdownMenu => XWindowType::DropdownMenu,
+                egui::X11WindowType::PopupMenu => XWindowType::PopupMenu,
+                egui::X11WindowType::Tooltip => XWindowType::Tooltip,
+                egui::X11WindowType::Notification => XWindowType::Notification,
+                egui::X11WindowType::Combo => XWindowType::Combo,
+                egui::X11WindowType::Dnd => XWindowType::Dnd,
+            }]);
+        }
     }
 
     #[cfg(target_os = "windows")]
