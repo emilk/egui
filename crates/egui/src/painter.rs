@@ -152,6 +152,12 @@ impl Painter {
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         self.ctx().round_pos_to_pixels(pos)
     }
+
+    /// Useful for pixel-perfect rendering.
+    #[inline]
+    pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
+        self.ctx().round_rect_to_pixels(rect)
+    }
 }
 
 /// ## Low level

@@ -116,6 +116,11 @@ impl PlotUi {
         self.last_plot_transform.value_from_position(position)
     }
 
+    /// Add an arbitrary item.
+    pub fn add(&mut self, item: impl PlotItem + 'static) {
+        self.items.push(Box::new(item));
+    }
+
     /// Add a data line.
     pub fn line(&mut self, mut line: Line) {
         if line.series.is_empty() {

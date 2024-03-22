@@ -486,6 +486,10 @@ fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
         }
     }
 
+    if response.long_touched() {
+        writeln!(new_info, "Clicked with long-press").ok();
+    }
+
     new_info
 }
 

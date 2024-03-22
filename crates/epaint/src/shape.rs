@@ -30,6 +30,9 @@ pub enum Shape {
     /// Circle with optional outline and fill.
     Circle(CircleShape),
 
+    /// Ellipse with optional outline and fill.
+    Ellipse(EllipseShape),
+
     /// A line between two points.
     LineSegment { points: [Pos2; 2], stroke: Stroke },
 
@@ -237,6 +240,16 @@ impl Shape {
     }
 
     #[inline]
+    pub fn ellipse_filled(center: Pos2, radius: Vec2, fill_color: impl Into<Color32>) -> Self {
+        Self::Ellipse(EllipseShape::filled(center, radius, fill_color))
+    }
+
+    #[inline]
+    pub fn ellipse_stroke(center: Pos2, radius: Vec2, stroke: impl Into<Stroke>) -> Self {
+        Self::Ellipse(EllipseShape::stroke(center, radius, stroke))
+    }
+
+    #[inline]
     pub fn rect_filled(
         rect: Rect,
         rounding: impl Into<Rounding>,
@@ -324,6 +337,7 @@ impl Shape {
                 rect
             }
             Self::Circle(circle_shape) => circle_shape.visual_bounding_rect(),
+            Self::Ellipse(ellipse_shape) => ellipse_shape.visual_bounding_rect(),
             Self::LineSegment { points, stroke } => {
                 if stroke.is_empty() {
                     Rect::NOTHING
@@ -355,6 +369,22 @@ impl Shape {
         }
     }
 
+    /// Scale the shape by `factor`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
+    pub fn scale(&mut self, factor: f32) {
+        self.transform(TSTransform::from_scaling(factor));
+    }
+
+    /// Move the shape by `delta`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
+    pub fn translate(&mut self, delta: Vec2) {
+        self.transform(TSTransform::from_translation(delta));
+    }
+
     /// Move the shape by this many points, in-place.
     ///
     /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
@@ -372,6 +402,11 @@ impl Shape {
                 circle_shape.radius *= transform.scaling;
                 circle_shape.stroke.width *= transform.scaling;
             }
+            Self::Ellipse(ellipse_shape) => {
+                ellipse_shape.center = transform * ellipse_shape.center;
+                ellipse_shape.radius *= transform.scaling;
+                ellipse_shape.stroke.width *= transform.scaling;
+            }
             Self::LineSegment { points, stroke } => {
                 for p in points {
                     *p = transform * *p;
@@ -387,6 +422,7 @@ impl Shape {
             Self::Rect(rect_shape) => {
                 rect_shape.rect = transform * rect_shape.rect;
                 rect_shape.stroke.width *= transform.scaling;
+                rect_shape.rounding *= transform.scaling;
             }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
@@ -475,6 +511,61 @@ impl From<CircleShape> for Shape {
     #[inline(always)]
     fn from(shape: CircleShape) -> Self {
         Self::Circle(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How to paint an ellipse.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct EllipseShape {
+    pub center: Pos2,
+
+    /// Radius is the vector (a, b) where the width of the Ellipse is 2a and the height is 2b
+    pub radius: Vec2,
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl EllipseShape {
+    #[inline]
+    pub fn filled(center: Pos2, radius: Vec2, fill_color: impl Into<Color32>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn stroke(center: Pos2, radius: Vec2, stroke: impl Into<Stroke>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            Rect::from_center_size(
+                self.center,
+                self.radius * 2.0 + Vec2::splat(self.stroke.width),
+            )
+        }
+    }
+}
+
+impl From<EllipseShape> for Shape {
+    #[inline(always)]
+    fn from(shape: EllipseShape) -> Self {
+        Self::Ellipse(shape)
     }
 }
 
@@ -736,6 +827,130 @@ impl Rounding {
             sw: self.sw.min(max),
             se: self.se.min(max),
         }
+    }
+}
+
+impl std::ops::Add for Rounding {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            nw: self.nw + rhs.nw,
+            ne: self.ne + rhs.ne,
+            sw: self.sw + rhs.sw,
+            se: self.se + rhs.se,
+        }
+    }
+}
+
+impl std::ops::AddAssign for Rounding {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Self {
+            nw: self.nw + rhs.nw,
+            ne: self.ne + rhs.ne,
+            sw: self.sw + rhs.sw,
+            se: self.se + rhs.se,
+        };
+    }
+}
+
+impl std::ops::AddAssign<f32> for Rounding {
+    #[inline]
+    fn add_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw + rhs,
+            ne: self.ne + rhs,
+            sw: self.sw + rhs,
+            se: self.se + rhs,
+        };
+    }
+}
+
+impl std::ops::Sub for Rounding {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: Self) -> Self {
+        Self {
+            nw: self.nw - rhs.nw,
+            ne: self.ne - rhs.ne,
+            sw: self.sw - rhs.sw,
+            se: self.se - rhs.se,
+        }
+    }
+}
+
+impl std::ops::SubAssign for Rounding {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = Self {
+            nw: self.nw - rhs.nw,
+            ne: self.ne - rhs.ne,
+            sw: self.sw - rhs.sw,
+            se: self.se - rhs.se,
+        };
+    }
+}
+
+impl std::ops::SubAssign<f32> for Rounding {
+    #[inline]
+    fn sub_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw - rhs,
+            ne: self.ne - rhs,
+            sw: self.sw - rhs,
+            se: self.se - rhs,
+        };
+    }
+}
+
+impl std::ops::Div<f32> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn div(self, rhs: f32) -> Self {
+        Self {
+            nw: self.nw / rhs,
+            ne: self.ne / rhs,
+            sw: self.sw / rhs,
+            se: self.se / rhs,
+        }
+    }
+}
+
+impl std::ops::DivAssign<f32> for Rounding {
+    #[inline]
+    fn div_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw / rhs,
+            ne: self.ne / rhs,
+            sw: self.sw / rhs,
+            se: self.se / rhs,
+        };
+    }
+}
+
+impl std::ops::Mul<f32> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn mul(self, rhs: f32) -> Self {
+        Self {
+            nw: self.nw * rhs,
+            ne: self.ne * rhs,
+            sw: self.sw * rhs,
+            se: self.se * rhs,
+        }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Rounding {
+    #[inline]
+    fn mul_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw * rhs,
+            ne: self.ne * rhs,
+            sw: self.sw * rhs,
+            se: self.se * rhs,
+        };
     }
 }
 

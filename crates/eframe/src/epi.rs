@@ -67,6 +67,10 @@ pub struct CreationContext<'s> {
     #[cfg(feature = "glow")]
     pub gl: Option<std::sync::Arc<glow::Context>>,
 
+    /// The `get_proc_address` wrapper of underlying GL context
+    #[cfg(feature = "glow")]
+    pub get_proc_address: Option<&'s dyn Fn(&std::ffi::CStr) -> *const std::ffi::c_void>,
+
     /// The underlying WGPU render state.
     ///
     /// Only available when compiling with the `wgpu` feature and using [`Renderer::Wgpu`].
@@ -196,6 +200,24 @@ pub trait App {
     fn persist_egui_memory(&self) -> bool {
         true
     }
+
+    /// A hook for manipulating or filtering raw input before it is processed by [`Self::update`].
+    ///
+    /// This function provides a way to modify or filter input events before they are processed by egui.
+    ///
+    /// It can be used to prevent specific keyboard shortcuts or mouse events from being processed by egui.
+    ///
+    /// Additionally, it can be used to inject custom keyboard or mouse events into the input stream, which can be useful for implementing features like a virtual keyboard.
+    ///
+    /// # Arguments
+    ///
+    /// * `_ctx` - The context of the egui, which provides access to the current state of the egui.
+    /// * `_raw_input` - The raw input events that are about to be processed. This can be modified to change the input that egui processes.
+    ///
+    /// # Note
+    ///
+    /// This function does not return a value. Any changes to the input should be made directly to `_raw_input`.
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, _raw_input: &mut egui::RawInput) {}
 }
 
 /// Selects the level of hardware graphics acceleration.
@@ -696,7 +718,7 @@ pub struct WebInfo {
 #[cfg(target_arch = "wasm32")]
 #[derive(Clone, Debug)]
 pub struct Location {
-    /// The full URL (`location.href`) without the hash.
+    /// The full URL (`location.href`) without the hash, percent-decoded.
     ///
     /// Example: `"http://www.example.com:80/index.html?foo=bar"`.
     pub url: String,
@@ -736,8 +758,8 @@ pub struct Location {
 
     /// The parsed "query" part of "www.example.com/index.html?query#fragment".
     ///
-    /// "foo=42&bar%20" is parsed as `{"foo": "42",  "bar ": ""}`
-    pub query_map: std::collections::BTreeMap<String, String>,
+    /// "foo=hello&bar%20&foo=world" is parsed as `{"bar ": [""], "foo": ["hello", "world"]}`
+    pub query_map: std::collections::BTreeMap<String, Vec<String>>,
 
     /// `location.origin`
     ///

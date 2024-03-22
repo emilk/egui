@@ -113,6 +113,17 @@ impl Widget for ProgressBar {
         let (outer_rect, response) =
             ui.allocate_exact_size(vec2(desired_width, height), Sense::hover());
 
+        response.widget_info(|| {
+            let mut info = if let Some(ProgressBarText::Custom(text)) = &text {
+                WidgetInfo::labeled(WidgetType::ProgressIndicator, text.text())
+            } else {
+                WidgetInfo::new(WidgetType::ProgressIndicator)
+            };
+            info.value = Some((progress as f64 * 100.0).floor());
+
+            info
+        });
+
         if ui.is_rect_visible(response.rect) {
             if animate {
                 ui.ctx().request_repaint();

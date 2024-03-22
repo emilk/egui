@@ -100,26 +100,23 @@ fn theme_from_dark_mode(dark_mode: bool) -> Theme {
     }
 }
 
-fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
+fn get_canvas_element_by_id(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
     let document = web_sys::window()?.document()?;
     let canvas = document.get_element_by_id(canvas_id)?;
     canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
 }
 
-fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    canvas_element(canvas_id)
+fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
+    get_canvas_element_by_id(canvas_id)
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
-fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
-    let rect = canvas_element(canvas_id)
-        .unwrap()
-        .get_bounding_client_rect();
+fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
+    let rect = canvas.get_bounding_client_rect();
     egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
-fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
-    let canvas = canvas_element(canvas_id).unwrap();
+fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement) -> egui::Vec2 {
     let pixels_per_point = native_pixels_per_point();
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
@@ -127,8 +124,10 @@ fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     )
 }
 
-fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
-    let canvas = canvas_element(canvas_id)?;
+fn resize_canvas_to_screen_size(
+    canvas: &web_sys::HtmlCanvasElement,
+    max_size_points: egui::Vec2,
+) -> Option<()> {
     let parent = canvas.parent_element()?;
 
     // Prefer the client width and height so that if the parent

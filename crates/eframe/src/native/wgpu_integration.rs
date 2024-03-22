@@ -262,6 +262,8 @@ impl WgpuWinitApp {
             storage: integration.frame.storage(),
             #[cfg(feature = "glow")]
             gl: None,
+            #[cfg(feature = "glow")]
+            get_proc_address: None,
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
             raw_window_handle: window.window_handle().map(|h| h.as_raw()),

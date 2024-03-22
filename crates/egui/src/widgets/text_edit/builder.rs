@@ -940,6 +940,7 @@ fn events(
                     if !text_mark.is_empty() {
                         text.insert_text_at(&mut ccursor, text_mark, char_limit);
                     }
+                    state.ime_cursor_range = cursor_range;
                     Some(CCursorRange::two(start_cursor, ccursor))
                 } else {
                     None
@@ -947,12 +948,16 @@ fn events(
             }
 
             Event::CompositionEnd(prediction) => {
-                // CompositionEnd only characters may be typed into TextEdit without trigger CompositionStart first, so do not check `state.has_ime = true` in the following statement.
+                // CompositionEnd only characters may be typed into TextEdit without trigger CompositionStart first,
+                // so do not check `state.has_ime = true` in the following statement.
                 if prediction != "\n" && prediction != "\r" {
                     state.has_ime = false;
-                    let mut ccursor = text.delete_selected(&cursor_range);
-                    if !prediction.is_empty() {
+                    let mut ccursor;
+                    if !prediction.is_empty() && cursor_range == state.ime_cursor_range {
+                        ccursor = text.delete_selected(&cursor_range);
                         text.insert_text_at(&mut ccursor, prediction, char_limit);
+                    } else {
+                        ccursor = cursor_range.primary.ccursor;
                     }
                     Some(CCursorRange::one(ccursor))
                 } else {

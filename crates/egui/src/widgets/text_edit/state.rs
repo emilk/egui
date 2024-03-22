@@ -44,6 +44,10 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) has_ime: bool,
 
+    // cursor range for IME candidate.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) ime_cursor_range: CursorRange,
+
     // Visual offset when editing singleline text bigger than the width.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) singleline_offset: f32,

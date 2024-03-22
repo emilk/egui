@@ -78,6 +78,16 @@ pub fn hit_test(
         let top_layer = closest_hit.layer_id;
         close.retain(|w| w.layer_id == top_layer);
 
+        // If the widget is disabled, treat it as if it isn't sensing anything.
+        // This simplifies the code in `hit_test_on_close` so it doesn't have to check
+        // the `enabled` flag everywhere:
+        for w in &mut close {
+            if !w.enabled {
+                w.sense.click = false;
+                w.sense.drag = false;
+            }
+        }
+
         let pos_in_layer = pos_in_layers.get(&top_layer).copied().unwrap_or(pos);
         let hits = hit_test_on_close(&close, pos_in_layer);
 

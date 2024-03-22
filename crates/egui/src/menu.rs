@@ -367,6 +367,9 @@ impl MenuRoot {
     /// Interaction with a context menu (secondary click).
     fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
         let response = response.interact(Sense::click());
+        let hovered = response.hovered();
+        let secondary_clicked = response.secondary_clicked();
+
         response.ctx.input(|input| {
             let pointer = &input.pointer;
             if let Some(pos) = pointer.interact_pos() {
@@ -377,9 +380,9 @@ impl MenuRoot {
                     destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
                 }
                 if !in_old_menu {
-                    if response.hovered() && response.secondary_clicked() {
+                    if hovered && secondary_clicked {
                         return MenuResponse::Create(pos, response.id);
-                    } else if (response.hovered() && pointer.primary_down()) || destroy {
+                    } else if destroy || hovered && pointer.primary_down() {
                         return MenuResponse::Close;
                     }
                 }
@@ -613,20 +616,20 @@ impl MenuState {
         let pointer = ui.input(|i| i.pointer.clone());
         let open = self.is_open(sub_id);
         if self.moving_towards_current_submenu(&pointer) {
+            // We don't close the submenu if the pointer is on its way to hover it.
             // ensure to repaint once even when pointer is not moving
             ui.ctx().request_repaint();
         } else if !open && button.hovered() {
             let pos = button.rect.right_top();
             self.open_submenu(sub_id, pos);
+        } else if open
+            && ui.interact_bg(Sense::hover()).contains_pointer()
+            && !button.hovered()
+            && !self.hovering_current_submenu(&pointer)
+        {
+            // We are hovering something else in the menu, so close the submenu.
+            self.close_submenu();
         }
-    }
-
-    /// Check if `dir` points from `pos` towards left side of `rect`.
-    fn points_at_left_of_rect(pos: Pos2, dir: Vec2, rect: Rect) -> bool {
-        let vel_a = dir.angle();
-        let top_a = (rect.left_top() - pos).angle();
-        let bottom_a = (rect.left_bottom() - pos).angle();
-        bottom_a - vel_a >= 0.0 && top_a - vel_a <= 0.0
     }
 
     /// Check if pointer is moving towards current submenu.
@@ -634,9 +637,21 @@ impl MenuState {
         if pointer.is_still() {
             return false;
         }
+
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
-                return Self::points_at_left_of_rect(pos, pointer.velocity(), sub_menu.read().rect);
+                let rect = sub_menu.read().rect;
+                return rect.intersects_ray(pos, pointer.velocity().normalized());
+            }
+        }
+        false
+    }
+
+    /// Check if pointer is hovering current submenu.
+    fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
+        if let Some(sub_menu) = self.current_submenu() {
+            if let Some(pos) = pointer.hover_pos() {
+                return sub_menu.read().area_contains(pos);
             }
         }
         false
@@ -672,5 +687,9 @@ impl MenuState {
         if !self.is_open(id) {
             self.sub_menu = Some((id, Arc::new(RwLock::new(Self::new(pos)))));
         }
+    }
+
+    fn close_submenu(&mut self) {
+        self.sub_menu = None;
     }
 }
