@@ -521,9 +521,7 @@ impl Focus {
             }
         }
 
-        let Some(current_focused) = self.focused_widget else {
-            return None;
-        };
+        let current_focused = self.focused_widget?;
 
         // In what direction we are looking for the next widget.
         let search_direction = match self.focus_direction {
@@ -546,9 +544,7 @@ impl Focus {
             }
         });
 
-        let Some(current_rect) = self.focus_widgets_cache.get(&current_focused.id) else {
-            return None;
-        };
+        let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
 
         let mut best_score = std::f32::INFINITY;
         let mut best_id = None;
