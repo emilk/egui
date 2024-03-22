@@ -878,8 +878,9 @@ pub fn update_viewport_info(
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
-        None | Some(true) => false,
+        Some(true) => false,
         Some(false) => true,
+        None => true,
     };
 
     let inner_pos_px = if has_a_position {
