@@ -639,7 +639,7 @@ impl Memory {
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
-        self.focus().id_previous_frame == Some(id)
+        self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
     /// True if the given widget had keyboard focus last frame, but not this one.
@@ -665,7 +665,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().focused()
+        self.focus().and_then(|f| f.focused())
     }
 
     /// Set an event filter for a widget.
@@ -797,10 +797,8 @@ impl Memory {
         self.interactions.entry(self.viewport_id).or_default()
     }
 
-    pub(crate) fn focus(&self) -> &Focus {
-        self.focus
-            .get(&self.viewport_id)
-            .expect("Failed to get focus")
+    pub(crate) fn focus(&self) -> Option<&Focus> {
+        self.focus.get(&self.viewport_id)
     }
 
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
