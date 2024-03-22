@@ -2,7 +2,7 @@ mod button;
 mod popup;
 
 pub use button::DatePickerButton;
-use chrono::{Datelike, Duration, NaiveDate, Weekday};
+use chrono::{Datelike, NaiveDate, TimeDelta, Weekday};
 
 #[derive(Debug)]
 struct Week {
@@ -14,7 +14,9 @@ fn month_data(year: i32, month: u32) -> Vec<Week> {
     let first = NaiveDate::from_ymd_opt(year, month, 1).expect("Could not create NaiveDate");
     let mut start = first;
     while start.weekday() != Weekday::Mon {
-        start = start.checked_sub_signed(Duration::days(1)).unwrap();
+        start = start
+            .checked_sub_signed(TimeDelta::try_days(1 as i64).expect("chrono try_days() error"))
+            .unwrap();
     }
     let mut weeks = vec![];
     let mut week = vec![];
@@ -27,7 +29,9 @@ fn month_data(year: i32, month: u32) -> Vec<Week> {
                 days: std::mem::take(&mut week),
             });
         }
-        start = start.checked_add_signed(Duration::days(1)).unwrap();
+        start = start
+            .checked_add_signed(TimeDelta::try_days(1 as i64).expect("chrono try_days() error"))
+            .unwrap();
     }
 
     weeks
