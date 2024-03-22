@@ -521,9 +521,7 @@ impl Focus {
             }
         }
 
-        let Some(current_focused) = self.focused_widget else {
-            return None;
-        };
+        let current_focused = self.focused_widget?;
 
         // In what direction we are looking for the next widget.
         let search_direction = match self.focus_direction {
@@ -546,9 +544,7 @@ impl Focus {
             }
         });
 
-        let Some(current_rect) = self.focus_widgets_cache.get(&current_focused.id) else {
-            return None;
-        };
+        let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
 
         let mut best_score = std::f32::INFINITY;
         let mut best_id = None;
@@ -639,7 +635,7 @@ impl Memory {
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
-        self.focus().id_previous_frame == Some(id)
+        self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
     /// True if the given widget had keyboard focus last frame, but not this one.
@@ -665,7 +661,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().focused()
+        self.focus().and_then(|f| f.focused())
     }
 
     /// Set an event filter for a widget.
@@ -797,10 +793,8 @@ impl Memory {
         self.interactions.entry(self.viewport_id).or_default()
     }
 
-    pub(crate) fn focus(&self) -> &Focus {
-        self.focus
-            .get(&self.viewport_id)
-            .expect("Failed to get focus")
+    pub(crate) fn focus(&self) -> Option<&Focus> {
+        self.focus.get(&self.viewport_id)
     }
 
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
