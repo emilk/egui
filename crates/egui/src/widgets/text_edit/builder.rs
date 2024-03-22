@@ -961,8 +961,8 @@ fn events(
                     state.has_ime = false;
                     let mut ccursor;
                     if !prediction.is_empty()
-                        && cursor_range.primary.ccursor.index
-                            == state.ime_cursor_range.primary.ccursor.index
+                        && cursor_range.secondary.ccursor.index
+                            == state.ime_cursor_range.secondary.ccursor.index
                     {
                         ccursor = text.delete_selected(&cursor_range);
                         text.insert_text_at(&mut ccursor, prediction, char_limit);
