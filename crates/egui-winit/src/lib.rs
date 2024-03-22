@@ -879,7 +879,8 @@ pub fn get_update_viewport_info(
 
     let has_a_position = match window.is_minimized() {
         Some(true) => false,
-        Some(false) | None => true,
+        Some(false) => true,
+        None => true,
     };
 
     let inner_pos_px = if has_a_position {
