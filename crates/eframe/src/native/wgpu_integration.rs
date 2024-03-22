@@ -759,20 +759,6 @@ impl WgpuWinitRunning {
 
         let viewport_id = shared.viewport_from_window.get(&window_id).copied();
 
-        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
-        // event handler.
-        //
-        // If this is not done, the compositor will assume that the window does not want to redraw,
-        // and continue ahead.
-        //
-        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
-        // new frames to the compositor in time.
-        //
-        // The flickering is technically glutin or glow's fault, but we should be responding properly
-        // to resizes anyway, as doing so avoids dropping frames.
-        //
-        // See: https://github.com/emilk/egui/issues/903
-
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
                 shared.focused_viewport = new_focused.then(|| viewport_id).flatten();
