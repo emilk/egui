@@ -1260,9 +1260,11 @@ impl GlutinWindowContext {
                 );
 
                 // For Wayland : https://github.com/emilk/egui/issues/4196
-                let inner_size = window.inner_size();
-                if inner_size != save_inner_size {
-                    self.resize(viewport_id, inner_size);
+                if cfg!(target_os = "linux") {
+                    let inner_size = window.inner_size();
+                    if inner_size != save_inner_size {
+                        Self::resize_for_other_os(self, viewport_id, inner_size);
+                    }
                 }
             }
         }
@@ -1271,6 +1273,34 @@ impl GlutinWindowContext {
         self.initialize_all_windows(event_loop);
 
         self.active_viewports_retain(viewport_output);
+    }
+
+    fn resize_for_other_os(&mut self, viewport_id: ViewportId, inner_size: PhysicalSize<u32>) {
+        self.resize(viewport_id, inner_size);
+
+        let Some(viewport) = self.viewports.get(&viewport_id) else {
+            return;
+        };
+        let Some(window) = &viewport.window else {
+            return;
+        };
+
+        let pixels_per_point = egui_winit::pixels_per_point(&self.egui_ctx, &window);
+
+        self.egui_ctx.input_mut(|input| {
+            let inner_rect = egui_winit::math_inner_rect(window, Some(pixels_per_point));
+            let outer_rect = egui_winit::math_outer_rect(window, Some(pixels_per_point));
+            input
+                .raw
+                .viewports
+                .get_mut(&viewport_id)
+                .map(|info| info.inner_rect = inner_rect);
+            input
+                .raw
+                .viewports
+                .get_mut(&viewport_id)
+                .map(|info| info.outer_rect = outer_rect);
+        });
     }
 }
 
