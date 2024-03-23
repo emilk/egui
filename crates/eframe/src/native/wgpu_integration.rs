@@ -1028,6 +1028,21 @@ fn render_immediate_viewport(
     );
 }
 
+#[allow(clippy::needless_pass_by_value)]
+pub(crate) fn active_viewports_retain(
+    viewports: &mut ViewportIdMap<Viewport>,
+    painter: &mut egui_wgpu::winit::Painter,
+    viewport_from_window: &mut HashMap<WindowId, ViewportId>,
+    viewport_output: ViewportIdMap<ViewportOutput>,
+) {
+    let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+    // Prune dead viewports:
+    viewports.retain(|id, _| active_viewports_ids.contains(id));
+    viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
+    painter.gc_viewports(&active_viewports_ids);
+}
+
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
     shared: &RefCell<SharedState>,
