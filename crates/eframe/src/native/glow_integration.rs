@@ -1172,22 +1172,6 @@ impl GlutinWindowContext {
             .expect("winit window doesn't exist")
     }
 
-    #[allow(clippy::needless_pass_by_value)]
-    pub(crate) fn active_viewports_retain(
-        &mut self,
-        viewport_output: ViewportIdMap<ViewportOutput>,
-    ) {
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
-        // GC old viewports
-        self.viewports
-            .retain(|id, _| active_viewports_ids.contains(id));
-        self.viewport_from_window
-            .retain(|_, id| active_viewports_ids.contains(id));
-        self.window_from_viewport
-            .retain(|id, _| active_viewports_ids.contains(id));
-    }
-
     fn resize(&mut self, viewport_id: ViewportId, physical_size: winit::dpi::PhysicalSize<u32>) {
         let width_px = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
         let height_px = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
@@ -1216,6 +1200,22 @@ impl GlutinWindowContext {
 
     fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
         self.gl_config.display().get_proc_address(addr)
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub(crate) fn active_viewports_retain(
+        &mut self,
+        viewport_output: ViewportIdMap<ViewportOutput>,
+    ) {
+        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+        // GC old viewports
+        self.viewports
+            .retain(|id, _| active_viewports_ids.contains(id));
+        self.viewport_from_window
+            .retain(|_, id| active_viewports_ids.contains(id));
+        self.window_from_viewport
+            .retain(|id, _| active_viewports_ids.contains(id));
     }
 
     fn handle_viewport_output(
