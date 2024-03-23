@@ -635,7 +635,7 @@ impl WgpuWinitRunning {
 
         // ------------------------------------------------------------
 
-        let mut shared = shared.borrow_mut();
+        let mut shared_mut = shared.borrow_mut();
 
         let SharedState {
             egui_ctx,
@@ -643,7 +643,7 @@ impl WgpuWinitRunning {
             painter,
             viewport_from_window,
             focused_viewport,
-        } = &mut *shared;
+        } = &mut *shared_mut;
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
@@ -696,9 +696,12 @@ impl WgpuWinitRunning {
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
         handle_viewport_output(
+            shared,
             &integration.egui_ctx,
             viewport_output,
             viewports,
+            painter,
+            viewport_from_window,
             *focused_viewport,
         );
 
@@ -976,13 +979,13 @@ fn render_immediate_viewport(
 
     // ------------------------------------------
 
-    let mut shared = shared.borrow_mut();
+    let mut shared_mut = shared.borrow_mut();
     let SharedState {
         viewports,
         painter,
         focused_viewport,
         ..
-    } = &mut *shared;
+    } = &mut *shared_mut;
 
     let Some(viewport) = viewports.get_mut(&ids.this) else {
         return;
@@ -1014,14 +1017,25 @@ fn render_immediate_viewport(
 
     egui_winit.handle_platform_output(window, platform_output);
 
-    handle_viewport_output(&egui_ctx, viewport_output, viewports, *focused_viewport);
+    handle_viewport_output(
+        shared,
+        &egui_ctx,
+        viewport_output,
+        viewports,
+        painter,
+        viewport_from_window,
+        *focused_viewport,
+    );
 }
 
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
+    shared: &RefCell<SharedState>,
     egui_ctx: &egui::Context,
     viewport_output: ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
+    painter: &mut egui_wgpu::winit::Painter,
+    viewport_from_window: &mut HashMap<WindowId, ViewportId>,
     focused_viewport: Option<ViewportId>,
 ) {
     for (
@@ -1034,7 +1048,7 @@ fn handle_viewport_output(
             commands,
             repaint_delay: _, // ignored - we listened to the repaint callback instead
         },
-    ) in viewport_output
+    ) in viewport_output.clone()
     {
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1049,6 +1063,8 @@ fn handle_viewport_output(
         );
 
         if let Some(window) = viewport.window.as_ref() {
+            let save_inner_size = window.inner_size();
+
             let is_viewport_focused = focused_viewport == Some(viewport_id);
             egui_winit::process_viewport_commands(
                 egui_ctx,
@@ -1058,8 +1074,23 @@ fn handle_viewport_output(
                 is_viewport_focused,
                 &mut viewport.screenshot_requested,
             );
+
+            // For Wayland : https://github.com/emilk/egui/issues/4196
+            let inner_size = window.inner_size();
+            if inner_size != save_inner_size {
+                use std::num::NonZeroU32;
+                if let (Some(width), Some(height)) = (
+                    NonZeroU32::new(inner_size.width),
+                    NonZeroU32::new(inner_size.height),
+                ) {
+                    let mut shared = shared.borrow_mut();
+                    shared.painter.on_window_resized(viewport_id, width, height);
+                }
+            }
         }
     }
+
+    active_viewports_retain(viewports, painter, viewport_from_window, viewport_output);
 }
 
 fn initialize_or_update_viewport<'vp>(
