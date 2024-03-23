@@ -844,13 +844,16 @@ impl Viewport {
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
     ) {
+        let viewport_id = self.ids.this;
+
+        self.info.this = Some(viewport_id);
+        self.info.parent = Some(egui_ctx.get_parent_viewport_id(viewport_id));
+
         if self.window.is_some() {
             return; // we already have one
         }
 
         crate::profile_function!();
-
-        let viewport_id = self.ids.this;
 
         match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
             Ok(window) => {
