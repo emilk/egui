@@ -7,6 +7,7 @@
 
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
+use egui_winit::pixels_per_point;
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 use winit::{
@@ -1088,21 +1089,52 @@ fn handle_viewport_output(
             );
 
             // For Wayland : https://github.com/emilk/egui/issues/4196
-            let inner_size = window.inner_size();
-            if inner_size != save_inner_size {
-                use std::num::NonZeroU32;
-                if let (Some(width), Some(height)) = (
-                    NonZeroU32::new(inner_size.width),
-                    NonZeroU32::new(inner_size.height),
-                ) {
-                    let mut shared = shared.borrow_mut();
-                    shared.painter.on_window_resized(viewport_id, width, height);
+            if cfg!(target_os = "linux") {
+                let inner_size = window.inner_size();
+                if inner_size != save_inner_size {
+                    resize_for_other_os(shared, egui_ctx, &viewport_id, window);
                 }
             }
         }
     }
 
     active_viewports_retain(viewports, painter, viewport_from_window, viewport_output);
+}
+
+fn resize_for_other_os(
+    shared: &RefCell<SharedState>,
+    egui_ctx: &egui::Context,
+    viewport_id: &ViewportId,
+    window: &Arc<Window>,
+) {
+    use std::num::NonZeroU32;
+
+    let inner_size = window.inner_size();
+
+    if let (Some(width), Some(height)) = (
+        NonZeroU32::new(inner_size.width),
+        NonZeroU32::new(inner_size.height),
+    ) {
+        let mut shared = shared.borrow_mut();
+        shared
+            .painter
+            .on_window_resized(*viewport_id, width, height);
+        shared.egui_ctx.input_mut(|input| {
+            let pixels_per_point = egui_winit::pixels_per_point(egui_ctx, window);
+            let inner_rect = egui_winit::math_inner_rect(window, Some(pixels_per_point));
+            let outer_rect = egui_winit::math_outer_rect(window, Some(pixels_per_point));
+            input
+                .raw
+                .viewports
+                .get_mut(viewport_id)
+                .map(|info| info.inner_rect = inner_rect);
+            input
+                .raw
+                .viewports
+                .get_mut(viewport_id)
+                .map(|info| info.outer_rect = outer_rect);
+        });
+    }
 }
 
 fn initialize_or_update_viewport<'vp>(
