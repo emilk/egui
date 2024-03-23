@@ -195,7 +195,7 @@ pub struct Options {
     /// If `false` (default), egui is only updated if are input events (like mouse movements) or there are some animations in the GUI.
     ///
     /// ```
-    ///     ui.ctx().options_mut(|options| { options.continuous_mode = true });
+    ///     ui.ctx().options_mut(|options| options.continuous_mode = true);
     /// ```
     pub continuous_mode: bool,
 
