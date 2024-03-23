@@ -1198,6 +1198,22 @@ impl GlutinWindowContext {
         self.gl_config.display().get_proc_address(addr)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
+    pub(crate) fn active_viewports_retain(
+        &mut self,
+        viewport_output: ViewportIdMap<ViewportOutput>,
+    ) {
+        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+        // GC old viewports
+        self.viewports
+            .retain(|id, _| active_viewports_ids.contains(id));
+        self.viewport_from_window
+            .retain(|_, id| active_viewports_ids.contains(id));
+        self.window_from_viewport
+            .retain(|id, _| active_viewports_ids.contains(id));
+    }
+
     fn handle_viewport_output(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
