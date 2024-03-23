@@ -983,6 +983,7 @@ fn render_immediate_viewport(
     let SharedState {
         viewports,
         painter,
+        viewport_from_window,
         focused_viewport,
         ..
     } = &mut *shared_mut;
