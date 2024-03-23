@@ -529,6 +529,7 @@ impl GlowWinitRunning {
             crate::profile_scope!("Prepare");
 
             let mut glutin = self.glutin.borrow_mut();
+
             let original_viewport = &glutin.viewports[&viewport_id];
             let is_immediate = original_viewport.viewport_ui_cb.is_none();
 
@@ -1051,6 +1052,9 @@ impl GlutinWindowContext {
             .viewports
             .get_mut(&viewport_id)
             .expect("viewport doesn't exist");
+
+        viewport.info.this = Some(viewport_id);
+        viewport.info.parent = Some(self.egui_ctx.get_parent_viewport_id(viewport_id));
 
         let window = if let Some(window) = &mut viewport.window {
             window
