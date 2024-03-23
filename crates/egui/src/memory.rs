@@ -191,6 +191,14 @@ pub struct Options {
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
+    /// If `true`, This will call `egui::Context::request_repaint()` at the end of each frame
+    /// If `false` (default), egui is only updated if are input events (like mouse movements) or there are some animations in the GUI.
+    ///
+    /// ```
+    ///     ui.ctx().options_mut(|options| { options.continuous_mode = true});
+    /// ```
+    pub continuous_mode: bool,
+
     /// If any widget moves or changes id, repaint everything.
     ///
     /// It is recommended you keep this OFF, because
@@ -230,6 +238,7 @@ impl Default for Options {
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
+            continuous_mode: false,
             repaint_on_widget_change: false,
             screen_reader: false,
             preload_font_glyphs: true,
@@ -246,6 +255,7 @@ impl Options {
             zoom_factor: _, // TODO
             zoom_with_keyboard,
             tessellation_options,
+            continuous_mode,
             repaint_on_widget_change,
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
@@ -257,6 +267,8 @@ impl Options {
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
             .show(ui, |ui| {
+                ui.checkbox(continuous_mode, "Repaint at the end of each frame");
+
                 ui.checkbox(
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
@@ -521,7 +533,9 @@ impl Focus {
             }
         }
 
-        let current_focused = self.focused_widget?;
+        let Some(current_focused) = self.focused_widget else {
+            return None;
+        };
 
         // In what direction we are looking for the next widget.
         let search_direction = match self.focus_direction {
@@ -544,7 +558,9 @@ impl Focus {
             }
         });
 
-        let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
+        let Some(current_rect) = self.focus_widgets_cache.get(&current_focused.id) else {
+            return None;
+        };
 
         let mut best_score = std::f32::INFINITY;
         let mut best_id = None;
@@ -635,7 +651,7 @@ impl Memory {
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
-        self.focus().and_then(|f| f.id_previous_frame) == Some(id)
+        self.focus().id_previous_frame == Some(id)
     }
 
     /// True if the given widget had keyboard focus last frame, but not this one.
@@ -661,7 +677,7 @@ impl Memory {
 
     /// Which widget has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.focus().and_then(|f| f.focused())
+        self.focus().focused()
     }
 
     /// Set an event filter for a widget.
@@ -793,8 +809,10 @@ impl Memory {
         self.interactions.entry(self.viewport_id).or_default()
     }
 
-    pub(crate) fn focus(&self) -> Option<&Focus> {
-        self.focus.get(&self.viewport_id)
+    pub(crate) fn focus(&self) -> &Focus {
+        self.focus
+            .get(&self.viewport_id)
+            .expect("Failed to get focus")
     }
 
     pub(crate) fn focus_mut(&mut self) -> &mut Focus {
