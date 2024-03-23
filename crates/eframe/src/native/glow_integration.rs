@@ -1275,7 +1275,11 @@ impl GlutinWindowContext {
         self.active_viewports_retain(viewport_output);
     }
 
-    fn resize_for_other_os(&mut self, viewport_id: ViewportId, inner_size: PhysicalSize<u32>) {
+    fn resize_for_other_os(
+        &mut self,
+        viewport_id: ViewportId,
+        inner_size: winit::dpi::PhysicalSize<u32>,
+    ) {
         self.resize(viewport_id, inner_size);
 
         let Some(viewport) = self.viewports.get(&viewport_id) else {
