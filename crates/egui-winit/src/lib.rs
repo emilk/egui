@@ -887,9 +887,7 @@ pub fn math_inner_rect(window: &Window, pixels_per_point: Option<f32>) -> Option
         None
     };
 
-    let inner_rect = inner_rect_px.map(|r| r / pixels_per_point);
-
-    inner_rect
+    inner_rect_px.map(|r| r / pixels_per_point)
 }
 
 pub fn math_outer_rect(window: &Window, pixels_per_point: Option<f32>) -> Option<Rect> {
@@ -914,9 +912,7 @@ pub fn math_outer_rect(window: &Window, pixels_per_point: Option<f32>) -> Option
         None
     };
 
-    let outer_rect = outer_rect_px.map(|r| r / pixels_per_point);
-
-    outer_rect
+    outer_rect_px.map(|r| r / pixels_per_point)
 }
 
 pub fn get_update_viewport_info(
