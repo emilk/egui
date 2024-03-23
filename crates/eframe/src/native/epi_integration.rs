@@ -186,6 +186,9 @@ impl EpiIntegration {
         Self {
             frame,
             last_auto_save: Instant::now(),
+            beginning: Instant::now(),
+            is_first_frame: true,
+            frame_start: Instant::now(),
             egui_ctx,
             pending_full_output: Default::default(),
             close: false,
@@ -194,9 +197,6 @@ impl EpiIntegration {
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
             app_icon_setter,
-            beginning: Instant::now(),
-            is_first_frame: true,
-            frame_start: Instant::now(),
         }
     }
 
@@ -287,11 +287,14 @@ impl EpiIntegration {
                 app.update(egui_ctx, &mut self.frame);
             }
 
-            let viewport_id = egui_ctx.viewport_id();
-            // TODO : Do not recall until the next repaint.
-            // 1000 millis / 60 fps = 16.67 millis
-            self.egui_ctx
-                .request_repaint_after_for(std::time::Duration::from_millis(8), viewport_id);
+            let continuous_mode = egui_ctx.options(|options| options.continuous_mode);
+            if continuous_mode {
+                let viewport_id = egui_ctx.viewport_id();
+                // TODO : Do not recall until the next repaint.
+                // 1000 millis / 60 fps = 16.67 millis
+                self.egui_ctx
+                    .request_repaint_after_for(std::time::Duration::from_millis(8), viewport_id);
+            }
         });
 
         let is_root_viewport = viewport_ui_cb.is_none();
