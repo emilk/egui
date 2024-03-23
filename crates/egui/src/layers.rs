@@ -150,7 +150,7 @@ impl PaintList {
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
         if self.0.len() <= idx.0 {
-            log::warn!("PaintList length is missing : PaintList.0.len() <= idx.0");
+            log::warn!("PaintList length is missing : PaintList.0.len() <= ShapeIdx.0");
             self.add(clip_rect, Shape::Noop);
         }
 
