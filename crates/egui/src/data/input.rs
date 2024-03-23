@@ -177,10 +177,10 @@ pub enum ViewportEvent {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
     /// this viewport, if known.
-    pub this: Option<crate::ViewportId>,
+    pub this: Option<ViewportId>,
 
     /// Parent viewport, if known.
-    pub parent: Option<crate::ViewportId>,
+    pub parent: Option<ViewportId>,
 
     /// Name of the viewport, if known.
     pub title: Option<String>,
