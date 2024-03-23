@@ -193,6 +193,10 @@ pub struct Options {
 
     /// If `true`, This will call `egui::Context::request_repaint()` at the end of each frame
     /// If `false` (default), egui is only updated if are input events (like mouse movements) or there are some animations in the GUI.
+    ///
+    /// ```
+    ///     ui.ctx().options_mut(|options| { options.continuous_mode = true });
+    /// ```
     pub continuous_mode: bool,
 
     /// If any widget moves or changes id, repaint everything.
