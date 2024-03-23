@@ -1206,8 +1206,6 @@ impl GlutinWindowContext {
     ) {
         crate::profile_function!();
 
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
         for (
             viewport_id,
             ViewportOutput {
@@ -1218,7 +1216,7 @@ impl GlutinWindowContext {
                 commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
-        ) in viewport_output
+        ) in viewport_output.clone()
         {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1233,6 +1231,8 @@ impl GlutinWindowContext {
             );
 
             if let Some(window) = &viewport.window {
+                let save_inner_size = window.inner_size();
+
                 let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                 egui_winit::process_viewport_commands(
                     egui_ctx,
@@ -1242,89 +1242,19 @@ impl GlutinWindowContext {
                     is_viewport_focused,
                     &mut viewport.screenshot_requested,
                 );
+
+                // For Wayland : https://github.com/emilk/egui/issues/4196
+                let inner_size = window.inner_size();
+                if inner_size != save_inner_size {
+                    self.resize(viewport_id, inner_size);
+                }
             }
         }
 
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        // GC old viewports
-        self.viewports
-            .retain(|id, _| active_viewports_ids.contains(id));
-        self.viewport_from_window
-            .retain(|_, id| active_viewports_ids.contains(id));
-        self.window_from_viewport
-            .retain(|id, _| active_viewports_ids.contains(id));
-    }
-}
-
-fn initialize_or_update_viewport<'vp>(
-    egu_ctx: &egui::Context,
-    viewports: &'vp mut ViewportIdMap<Viewport>,
-    ids: ViewportIdPair,
-    class: ViewportClass,
-    mut builder: ViewportBuilder,
-    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-    focused_viewport: Option<ViewportId>,
-) -> &'vp mut Viewport {
-    crate::profile_function!();
-
-    if builder.icon.is_none() {
-        // Inherit icon from parent
-        builder.icon = viewports
-            .get_mut(&ids.parent)
-            .and_then(|vp| vp.builder.icon.clone());
-    }
-
-    match viewports.entry(ids.this) {
-        std::collections::hash_map::Entry::Vacant(entry) => {
-            // New viewport:
-            log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
-            entry.insert(Viewport {
-                ids,
-                class,
-                builder,
-                info: Default::default(),
-                screenshot_requested: false,
-                viewport_ui_cb,
-                window: None,
-                egui_winit: None,
-                gl_surface: None,
-            })
-        }
-
-        std::collections::hash_map::Entry::Occupied(mut entry) => {
-            // Patch an existing viewport:
-            let viewport = entry.get_mut();
-
-            viewport.ids.parent = ids.parent;
-            viewport.class = class;
-            viewport.viewport_ui_cb = viewport_ui_cb;
-
-            let (delta_commands, recreate) = viewport.builder.patch(builder);
-
-            if recreate {
-                log::debug!(
-                    "Recreating window for viewport {:?} ({:?})",
-                    ids.this,
-                    viewport.builder.title
-                );
-                viewport.window = None;
-                viewport.egui_winit = None;
-            } else if let Some(window) = &viewport.window {
-                let is_viewport_focused = focused_viewport == Some(ids.this);
-                egui_winit::process_viewport_commands(
-                    egu_ctx,
-                    &mut viewport.info,
-                    delta_commands,
-                    window,
-                    is_viewport_focused,
-                    &mut viewport.screenshot_requested,
-                );
-            }
-
-            entry.into_mut()
-        }
+        self.active_viewports_retain(viewport_output);
     }
 }
 
