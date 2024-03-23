@@ -1251,6 +1251,8 @@ impl GlutinWindowContext {
             );
 
             if let Some(window) = &viewport.window {
+                let save_inner_size = window.inner_size();
+
                 let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                 egui_winit::process_viewport_commands(
                     egui_ctx,
@@ -1260,6 +1262,12 @@ impl GlutinWindowContext {
                     is_viewport_focused,
                     &mut viewport.screenshot_requested,
                 );
+
+                // For Wayland : https://github.com/emilk/egui/issues/4196
+                let inner_size = window.inner_size();
+                if inner_size != save_inner_size {
+                    self.resize(viewport_id, inner_size);
+                }
             }
         }
 
