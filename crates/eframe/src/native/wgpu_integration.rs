@@ -1123,7 +1123,7 @@ fn resize_for_other_os(
             .painter
             .on_window_resized(*viewport_id, width, height);
         shared.egui_ctx.input_mut(|input| {
-            let pixels_per_point = pixels_per_point(egui_ctx, window);
+            let pixels_per_point = egui_winit::pixels_per_point(egui_ctx, window);
             let inner_rect = egui_winit::math_inner_rect(window, Some(pixels_per_point));
             let outer_rect = egui_winit::math_outer_rect(window, Some(pixels_per_point));
             input
