@@ -854,6 +854,9 @@ impl Viewport {
 
         let viewport_id = self.ids.this;
 
+        self.info.this = Some(viewport_id);
+        self.info.parent = Some(egui_ctx.get_parent_viewport_id(viewport_id));
+
         match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
