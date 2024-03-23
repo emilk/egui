@@ -7,7 +7,6 @@
 
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
-use egui_winit::pixels_per_point;
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 use winit::{
