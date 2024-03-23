@@ -1289,7 +1289,7 @@ impl GlutinWindowContext {
             return;
         };
 
-        let pixels_per_point = egui_winit::pixels_per_point(&self.egui_ctx, &window);
+        let pixels_per_point = egui_winit::pixels_per_point(&self.egui_ctx, window);
 
         self.egui_ctx.input_mut(|input| {
             let inner_rect = egui_winit::math_inner_rect(window, Some(pixels_per_point));
