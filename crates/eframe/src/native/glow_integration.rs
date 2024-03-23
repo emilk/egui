@@ -1258,6 +1258,76 @@ impl GlutinWindowContext {
     }
 }
 
+fn initialize_or_update_viewport<'vp>(
+    egu_ctx: &egui::Context,
+    viewports: &'vp mut ViewportIdMap<Viewport>,
+    ids: ViewportIdPair,
+    class: ViewportClass,
+    mut builder: ViewportBuilder,
+    viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+    focused_viewport: Option<ViewportId>,
+) -> &'vp mut Viewport {
+    crate::profile_function!();
+
+    if builder.icon.is_none() {
+        // Inherit icon from parent
+        builder.icon = viewports
+            .get_mut(&ids.parent)
+            .and_then(|vp| vp.builder.icon.clone());
+    }
+
+    match viewports.entry(ids.this) {
+        std::collections::hash_map::Entry::Vacant(entry) => {
+            // New viewport:
+            log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
+            entry.insert(Viewport {
+                ids,
+                class,
+                builder,
+                info: Default::default(),
+                screenshot_requested: false,
+                viewport_ui_cb,
+                window: None,
+                egui_winit: None,
+                gl_surface: None,
+            })
+        }
+
+        std::collections::hash_map::Entry::Occupied(mut entry) => {
+            // Patch an existing viewport:
+            let viewport = entry.get_mut();
+
+            viewport.ids.parent = ids.parent;
+            viewport.class = class;
+            viewport.viewport_ui_cb = viewport_ui_cb;
+
+            let (delta_commands, recreate) = viewport.builder.patch(builder);
+
+            if recreate {
+                log::debug!(
+                    "Recreating window for viewport {:?} ({:?})",
+                    ids.this,
+                    viewport.builder.title
+                );
+                viewport.window = None;
+                viewport.egui_winit = None;
+            } else if let Some(window) = &viewport.window {
+                let is_viewport_focused = focused_viewport == Some(ids.this);
+                egui_winit::process_viewport_commands(
+                    egu_ctx,
+                    &mut viewport.info,
+                    delta_commands,
+                    window,
+                    is_viewport_focused,
+                    &mut viewport.screenshot_requested,
+                );
+            }
+
+            entry.into_mut()
+        }
+    }
+}
+
 /// This is called (via a callback) by user code to render immediate viewports,
 /// i.e. viewport that are directly nested inside a parent viewport.
 fn render_immediate_viewport(
