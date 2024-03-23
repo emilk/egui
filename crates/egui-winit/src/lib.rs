@@ -1310,11 +1310,14 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            if window
-                .request_inner_size(PhysicalSize::new(width_px, height_px))
-                .is_some()
+            if let Some(_inner_size) =
+                window.request_inner_size(PhysicalSize::new(width_px, height_px))
             {
-                log::debug!("ViewportCommand::InnerSize ignored by winit");
+                log::info!("ViewportCommand::InnerSize ignored by winit");
+            } else {
+                log::trace!(
+                    "the actual size will be delivered later with the [WindowEvent::Resized]"
+                );
             }
         }
         ViewportCommand::BeginResize(direction) => {
