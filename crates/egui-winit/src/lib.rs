@@ -970,6 +970,7 @@ pub fn get_update_viewport_info(
     }
 
     update_info.fullscreen = Some(window.fullscreen().is_some());
+    update_info.decorations = Some(window.is_decorated());
     update_info.focused = Some(window.has_focus());
 
     update_info
