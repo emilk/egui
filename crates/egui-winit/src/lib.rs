@@ -1348,8 +1348,19 @@ fn process_viewport_command(
             if let Some(_inner_size) =
                 window.request_inner_size(PhysicalSize::new(width_px, height_px))
             {
+                // ex) linux
+                //
+                // 1. On platforms where the size is entirely controlled by the user the applied size will be returned immediately,
+                // resize event in such case may not be generated.
+                //
+                // 2. On platforms where resizing is disallowed by the windowing system, the current inner size is returned immidiatelly,
+                // and the user one is ignored.
                 log::info!("ViewportCommand::InnerSize ignored by winit");
             } else {
+                // ex) Windows, MacOS
+                //
+                // When None is returned, it means that the request went to the display system,
+                // and the actual size will be delivered later with the [WindowEvent::Resized].
                 log::trace!(
                     "the actual size will be delivered later with the [WindowEvent::Resized]"
                 );
@@ -1429,7 +1440,10 @@ fn process_viewport_command(
         ViewportCommand::Fullscreen(v) => {
             window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
         }
-        ViewportCommand::Decorations(v) => window.set_decorations(v),
+        ViewportCommand::Decorations(v) => {
+            window.set_decorations(v);
+            info.decorations = Some(v);
+        }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
