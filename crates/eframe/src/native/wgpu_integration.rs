@@ -848,7 +848,6 @@ impl Viewport {
 
         self.info.this = Some(viewport_id);
         self.info.parent = Some(egui_ctx.get_parent_viewport_id(viewport_id));
-        self.info.transparent = self.builder.transparent;
 
         if self.window.is_some() {
             return; // we already have one
@@ -876,6 +875,7 @@ impl Viewport {
                     painter.max_texture_side(),
                 ));
 
+                self.info.transparent = self.builder.transparent;
                 self.info = egui_winit::get_update_viewport_info(&self.info, &window, None);
                 self.window = Some(window);
             }
