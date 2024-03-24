@@ -217,6 +217,12 @@ pub struct ViewportInfo {
     /// Are we in fullscreen mode?
     pub fullscreen: Option<bool>,
 
+    // Are we transparent mode?
+    pub transparent: Option<bool>,
+
+    // Are we decorations mode?
+    pub decorations: Option<bool>,
+
     /// Is the window focused and able to receive input?
     ///
     /// This should be the same as [`RawInput::focused`].
@@ -251,6 +257,8 @@ impl ViewportInfo {
             minimized,
             maximized,
             fullscreen,
+            transparent,
+            decorations,
             focused,
         } = self;
 
@@ -297,6 +305,14 @@ impl ViewportInfo {
 
             ui.label("Fullscreen:");
             ui.label(opt_as_str(fullscreen));
+            ui.end_row();
+
+            ui.label("Transparent:");
+            ui.label(opt_as_str(transparent));
+            ui.end_row();
+
+            ui.label("Decorations:");
+            ui.label(opt_as_str(decorations));
             ui.end_row();
 
             ui.label("Focused:");
