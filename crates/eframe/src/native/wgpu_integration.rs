@@ -1095,7 +1095,7 @@ fn handle_viewport_output(
             if cfg!(target_os = "linux") {
                 let inner_size = window.inner_size();
                 if inner_size != save_inner_size {
-                    resize_for_other_os(shared, egui_ctx, &viewport_id, window);
+                    resize_for_other_os(shared, egui_ctx, &viewport_id, window, inner_size);
                 }
             }
         }
@@ -1109,10 +1109,9 @@ fn resize_for_other_os(
     egui_ctx: &egui::Context,
     viewport_id: &ViewportId,
     window: &Arc<Window>,
+    inner_size: winit::dpi::PhysicalSize<u32>,
 ) {
     use std::num::NonZeroU32;
-
-    let inner_size = window.inner_size();
 
     if let (Some(width), Some(height)) = (
         NonZeroU32::new(inner_size.width),
