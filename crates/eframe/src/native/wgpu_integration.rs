@@ -848,6 +848,7 @@ impl Viewport {
 
         self.info.this = Some(viewport_id);
         self.info.parent = Some(egui_ctx.get_parent_viewport_id(viewport_id));
+        self.info.transparent = viewport.builder.transparent;
 
         if self.window.is_some() {
             return; // we already have one
