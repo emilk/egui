@@ -961,7 +961,7 @@ pub fn get_update_viewport_info(
     update_info.inner_rect = inner_rect;
     update_info.outer_rect = outer_rect;
 
-    if cfg!(target_os = "windows") {
+    if !cfg!(target_os = "macos") {
         // It's tempting to do this, but it leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
