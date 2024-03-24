@@ -1353,7 +1353,7 @@ fn process_viewport_command(
                 // 1. On platforms where the size is entirely controlled by the user the applied size will be returned immediately,
                 // resize event in such case may not be generated.
                 //
-                // 2. On platforms where resizing is disallowed by the windowing system, the current inner size is returned immidiatelly,
+                // 2. On platforms where resizing is disallowed by the windowing system, the current inner size is returned immediately,
                 // and the user one is ignored.
                 log::info!("ViewportCommand::InnerSize ignored by winit");
             } else {
