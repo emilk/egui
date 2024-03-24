@@ -1372,7 +1372,10 @@ fn process_viewport_command(
         ViewportCommand::Title(title) => {
             window.set_title(&title);
         }
-        ViewportCommand::Transparent(v) => window.set_transparent(v),
+        ViewportCommand::Transparent(v) => {
+            window.set_transparent(v);
+            info.transparent = Some(v);
+        }
         ViewportCommand::Visible(v) => window.set_visible(v),
         ViewportCommand::OuterPosition(pos) => {
             window.set_outer_position(PhysicalPosition::new(
