@@ -1055,7 +1055,6 @@ impl GlutinWindowContext {
 
         viewport.info.this = Some(viewport_id);
         viewport.info.parent = Some(self.egui_ctx.get_parent_viewport_id(viewport_id));
-        viewport.info.transparent = viewport.builder.transparent;
 
         let window = if let Some(window) = &mut viewport.window {
             window
@@ -1078,6 +1077,7 @@ impl GlutinWindowContext {
                 &viewport.builder,
             );
 
+            viewport.info.transparent = viewport.builder.transparent;
             viewport.info = egui_winit::get_update_viewport_info(&viewport.info, &window, None);
             viewport.window.insert(Arc::new(window))
         };
