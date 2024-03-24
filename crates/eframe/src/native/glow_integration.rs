@@ -1055,6 +1055,7 @@ impl GlutinWindowContext {
 
         viewport.info.this = Some(viewport_id);
         viewport.info.parent = Some(self.egui_ctx.get_parent_viewport_id(viewport_id));
+        viewport.info.transparent = viewport.builder.transparent;
 
         let window = if let Some(window) = &mut viewport.window {
             window
