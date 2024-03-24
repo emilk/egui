@@ -290,8 +290,6 @@ impl EpiIntegration {
             let continuous_mode = egui_ctx.options(|options| options.continuous_mode);
             if continuous_mode {
                 let viewport_id = egui_ctx.viewport_id();
-                // let viewport_info = raw_input.viewport().pending_repaint;
-                // let viewport_state: ViewportOutput
                 // TODO(rustbasic) : Do not recall until the next repaint.
                 // 1000 millis / 60 fps = 16.67 millis
                 self.egui_ctx
