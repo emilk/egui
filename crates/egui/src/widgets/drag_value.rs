@@ -445,7 +445,10 @@ impl<'a> Widget for DragValue<'a> {
         }
 
         value = clamp_to_range(value, clamp_range.clone());
-        if old_value != value {
+
+        let old_rounded = emath::round_to_decimals(old_value, auto_decimals);
+        let new_rounded = emath::round_to_decimals(value, auto_decimals);
+        if old_rounded != new_rounded {
             set(&mut get_set_value, value);
             ui.data_mut(|data| data.remove::<String>(id));
         }
