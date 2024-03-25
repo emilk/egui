@@ -227,6 +227,8 @@ pub struct ViewportInfo {
     ///
     /// This should be the same as [`RawInput::focused`].
     pub focused: Option<bool>,
+
+    pub close_requested: Option<bool>,
 }
 
 impl ViewportInfo {
@@ -260,6 +262,7 @@ impl ViewportInfo {
             transparent,
             decorations,
             focused,
+            close_requested,
         } = self;
 
         crate::Grid::new("viewport_info").show(ui, |ui| {
@@ -317,6 +320,10 @@ impl ViewportInfo {
 
             ui.label("Focused:");
             ui.label(opt_as_str(focused));
+            ui.end_row();
+
+            ui.label("Close_requested:");
+            ui.label(opt_as_str(close_requested));
             ui.end_row();
 
             fn opt_rect_as_string(v: &Option<Rect>) -> String {
