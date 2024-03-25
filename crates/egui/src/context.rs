@@ -600,7 +600,7 @@ impl ContextImpl {
     }
 
     /// Return the `ViewportId` of his parent.
-    pub(crate) fn get_parent_viewport_id(&self, viewport_id: ViewportId) -> ViewportId {
+    pub(crate) fn viewport_parent_id_of(&self, viewport_id: ViewportId) -> ViewportId {
         *self
             .viewport_parents
             .get(&viewport_id)
