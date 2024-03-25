@@ -192,8 +192,11 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState) {
     ui.horizontal(|ui| {
         ui.label("Title:");
         if ui.text_edit_singleline(&mut vp_state.title).changed() {
-            // Title changes happen at the parent level:
-            ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
+            // Title changes
+            ui.ctx().send_viewport_cmd_to(
+                vp_state.id,
+                egui::ViewportCommand::Title(vp_state.title.clone()),
+            );
         }
     });
 
