@@ -696,7 +696,6 @@ impl WgpuWinitRunning {
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
         handle_viewport_output(
-            shared,
             &integration.egui_ctx,
             viewport_output,
             viewports,
@@ -1019,7 +1018,6 @@ fn render_immediate_viewport(
     egui_winit.handle_platform_output(window, platform_output);
 
     handle_viewport_output(
-        shared,
         &egui_ctx,
         viewport_output,
         viewports,
@@ -1046,7 +1044,6 @@ pub(crate) fn remove_viewports_not_in(
 
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
-    shared: &RefCell<SharedState>,
     egui_ctx: &egui::Context,
     viewport_output: ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
@@ -1095,7 +1092,7 @@ fn handle_viewport_output(
             if cfg!(target_os = "linux") {
                 let inner_size = window.inner_size();
                 if inner_size != save_inner_size {
-                    resize_for_other_os(shared, &viewport_id, inner_size);
+                    resize_for_other_os(painter, &viewport_id, inner_size);
                 }
             }
         }
@@ -1105,7 +1102,7 @@ fn handle_viewport_output(
 }
 
 fn resize_for_other_os(
-    shared: &RefCell<SharedState>,
+    painter: &mut egui_wgpu::winit::Painter,
     viewport_id: &ViewportId,
     inner_size: winit::dpi::PhysicalSize<u32>,
 ) {
@@ -1115,10 +1112,7 @@ fn resize_for_other_os(
         NonZeroU32::new(inner_size.width),
         NonZeroU32::new(inner_size.height),
     ) {
-        let mut shared = shared.borrow_mut();
-        shared
-            .painter
-            .on_window_resized(*viewport_id, width, height);
+        painter.on_window_resized(*viewport_id, width, height);
     }
 }
 
