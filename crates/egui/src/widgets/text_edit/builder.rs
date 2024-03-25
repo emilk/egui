@@ -80,6 +80,7 @@ pub struct TextEdit<'t> {
     align: Align2,
     clip_text: bool,
     char_limit: usize,
+    return_key: KeyboardShortcut,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -107,7 +108,7 @@ impl<'t> TextEdit<'t> {
         }
     }
 
-    /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line.
+    /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`](TextEdit::return_key)).
     pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
             text,
@@ -136,6 +137,7 @@ impl<'t> TextEdit<'t> {
             align: Align2::LEFT_TOP,
             clip_text: false,
             char_limit: usize::MAX,
+            return_key: KeyboardShortcut::new(Modifiers::NONE, Key::Enter),
         }
     }
 
@@ -348,6 +350,16 @@ impl<'t> TextEdit<'t> {
         self.min_size = min_size;
         self
     }
+
+    /// Set the return key combination.
+    ///
+    /// This combination will cause a newline on multiline,
+    /// whereas on singleline it will cause the widget to lose focus.
+    #[inline]
+    pub fn return_key(mut self, return_key: KeyboardShortcut) -> Self {
+        self.return_key = return_key;
+        self
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -453,6 +465,7 @@ impl<'t> TextEdit<'t> {
             align,
             clip_text,
             char_limit,
+            return_key,
         } = self;
 
         let text_color = text_color
@@ -594,6 +607,7 @@ impl<'t> TextEdit<'t> {
                 default_cursor_range,
                 char_limit,
                 event_filter,
+                return_key,
             );
 
             if changed {
@@ -785,6 +799,7 @@ fn events(
     default_cursor_range: CursorRange,
     char_limit: usize,
     event_filter: EventFilter,
+    return_key: KeyboardShortcut,
 ) -> (bool, CursorRange) {
     let os = ui.ctx().os();
 
@@ -867,10 +882,13 @@ fn events(
                 Some(CCursorRange::one(ccursor))
             }
             Event::Key {
-                key: Key::Enter,
+                key,
                 pressed: true,
+                modifiers,
                 ..
-            } => {
+            } if *key == return_key.logical_key
+                && modifiers.matches_logically(return_key.modifiers) =>
+            {
                 if multiline {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     text.insert_text_at(&mut ccursor, "\n", char_limit);
