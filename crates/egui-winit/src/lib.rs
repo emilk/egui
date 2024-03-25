@@ -1326,9 +1326,18 @@ fn process_viewport_command(
     match command {
         ViewportCommand::Close => {
             info.events.push(egui::ViewportEvent::Close);
+            info.close_requested = Some(true);
         }
         ViewportCommand::CancelClose => {
             // Need to be handled elsewhere
+            info.close_requested = Some(false);
+            if let Some(position) = info
+                .events
+                .iter()
+                .position(|x| *x == egui::ViewportEvent::Close)
+            {
+                info.events.remove(position);
+            }
         }
         ViewportCommand::StartDrag => {
             // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
@@ -1349,22 +1358,14 @@ fn process_viewport_command(
                 window.request_inner_size(PhysicalSize::new(width_px, height_px))
             {
                 // ex) linux
-                //
-                // 1. On platforms where the size is entirely controlled by the user the applied size will be returned immediately,
-                // resize event in such case may not be generated.
-                //
-                // 2. On platforms where resizing is disallowed by the windowing system, the current inner size is returned immediately,
-                // and the user one is ignored.
-                log::info!("ViewportCommand::InnerSize ignored by winit");
+                log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
             } else {
                 // ex) Windows, MacOS
-                //
-                // When None is returned, it means that the request went to the display system,
-                // and the actual size will be delivered later with the [WindowEvent::Resized].
-                log::trace!(
-                    "the actual size will be delivered later with the [WindowEvent::Resized]"
-                );
+                log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
             }
+
+            info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
+            info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
         }
         ViewportCommand::BeginResize(direction) => {
             if let Err(err) = window.drag_resize_window(match direction {
