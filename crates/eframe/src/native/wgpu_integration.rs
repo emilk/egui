@@ -792,6 +792,7 @@ impl WgpuWinitRunning {
                     if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
                         // Tell viewport it should close:
                         viewport.info.events.push(egui::ViewportEvent::Close);
+                        viewport.info.close_requested = Some(true);
 
                         // We may need to repaint both us and our parent to close the window,
                         // and perhaps twice (once to notice the close-event, once again to enforce it).
@@ -847,7 +848,7 @@ impl Viewport {
         let viewport_id = self.ids.this;
 
         self.info.this = Some(viewport_id);
-        self.info.parent = Some(egui_ctx.get_parent_viewport_id(viewport_id));
+        self.info.parent = Some(egui_ctx.viewport_parent_id_of(viewport_id));
 
         if self.window.is_some() {
             return; // we already have one
@@ -1092,7 +1093,7 @@ fn handle_viewport_output(
             if cfg!(target_os = "linux") {
                 let inner_size = window.inner_size();
                 if inner_size != save_inner_size {
-                    resize_for_other_os(shared, egui_ctx, &viewport_id, window, inner_size);
+                    resize_for_other_os(shared, &viewport_id, inner_size);
                 }
             }
         }
@@ -1103,9 +1104,7 @@ fn handle_viewport_output(
 
 fn resize_for_other_os(
     shared: &RefCell<SharedState>,
-    egui_ctx: &egui::Context,
     viewport_id: &ViewportId,
-    window: &Arc<Window>,
     inner_size: winit::dpi::PhysicalSize<u32>,
 ) {
     use std::num::NonZeroU32;
@@ -1118,15 +1117,6 @@ fn resize_for_other_os(
         shared
             .painter
             .on_window_resized(*viewport_id, width, height);
-        shared.egui_ctx.input_mut(|input| {
-            let pixels_per_point = egui_winit::pixels_per_point(egui_ctx, window);
-            let inner_rect = egui_winit::math_inner_rect(window, Some(pixels_per_point));
-            let outer_rect = egui_winit::math_outer_rect(window, Some(pixels_per_point));
-            if let Some(info) = input.raw.viewports.get_mut(viewport_id) {
-                info.inner_rect = inner_rect;
-                info.outer_rect = outer_rect;
-            }
-        });
     }
 }
 
