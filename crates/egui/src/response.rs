@@ -3,7 +3,6 @@ use std::{any::Any, sync::Arc};
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
     menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect, WidgetText,
-    NUM_POINTER_BUTTONS,
 };
 
 // ----------------------------------------------------------------------------
@@ -15,7 +14,10 @@ use crate::{
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
-// TODO(emilk): we should be using bit sets instead of so many bools
+///
+/// ⚠️ The `Response` contains a clone of [`Context`], and many methods lock the `Context`.
+/// It can therefor be a deadlock to use `Context` from within a context-locking closures,
+/// such as [`Context::input`].
 #[derive(Clone, Debug)]
 pub struct Response {
     // CONTEXT:
@@ -69,18 +71,27 @@ pub struct Response {
     #[doc(hidden)]
     pub highlighted: bool,
 
-    /// The pointer clicked this thing this frame.
+    /// This widget was clicked this frame.
+    ///
+    /// Which pointer and how many times we don't know,
+    /// and ask [`crate::InputState`] about at runtime.
+    ///
+    /// This is only set to true if the widget was clicked
+    /// by an actual mouse.
     #[doc(hidden)]
-    pub clicked: [bool; NUM_POINTER_BUTTONS],
+    pub clicked: bool,
 
-    // TODO(emilk): `released` for sliders
-    /// The thing was double-clicked.
+    /// This widget should act as if clicked due
+    /// to something else than a click.
+    ///
+    /// This is set to true if the widget has keyboard focus and
+    /// the user hit the Space or Enter key.
     #[doc(hidden)]
-    pub double_clicked: [bool; NUM_POINTER_BUTTONS],
+    pub fake_primary_click: bool,
 
-    /// The thing was triple-clicked.
+    /// This widget was long-pressed on a touch screen to simulate a secondary click.
     #[doc(hidden)]
-    pub triple_clicked: [bool; NUM_POINTER_BUTTONS],
+    pub long_touched: bool,
 
     /// The widget started being dragged this frame.
     #[doc(hidden)]
@@ -118,55 +129,75 @@ impl Response {
     /// A click is registered when the mouse or touch is released within
     /// a certain amount of time and distance from when and where it was pressed.
     ///
+    /// This will also return true if the widget was clicked via accessibility integration,
+    /// or if the widget had keyboard focus and the use pressed Space/Enter.
+    ///
     /// Note that the widget must be sensing clicks with [`Sense::click`].
     /// [`crate::Button`] senses clicks; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     ///
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn clicked(&self) -> bool {
-        self.clicked[PointerButton::Primary as usize]
+        self.fake_primary_click || self.clicked_by(PointerButton::Primary)
     }
 
-    /// Returns true if this widget was clicked this frame by the given button.
+    /// Returns true if this widget was clicked this frame by the given mouse button.
+    ///
+    /// This will NOT return true if the widget was "clicked" via
+    /// some accessibility integration, or if the widget had keyboard focus and the
+    /// user pressed Space/Enter. For that, use [`Self::clicked`] instead.
+    ///
+    /// This will likewise ignore the press-and-hold action on touch screens.
+    /// Use [`Self::secondary_clicked`] instead to also detect that.
     #[inline]
     pub fn clicked_by(&self, button: PointerButton) -> bool {
-        self.clicked[button as usize]
+        self.clicked && self.ctx.input(|i| i.pointer.button_clicked(button))
     }
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
+    ///
+    /// This also returns true if the widget was pressed-and-held on a touch screen.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
-        self.clicked[PointerButton::Secondary as usize]
+        self.long_touched || self.clicked_by(PointerButton::Secondary)
+    }
+
+    /// Was this long-pressed on a touch screen?
+    ///
+    /// Usually you want to check [`Self::secondary_clicked`] instead.
+    #[inline]
+    pub fn long_touched(&self) -> bool {
+        self.long_touched
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
     #[inline]
     pub fn middle_clicked(&self) -> bool {
-        self.clicked[PointerButton::Middle as usize]
+        self.clicked_by(PointerButton::Middle)
     }
 
     /// Returns true if this widget was double-clicked this frame by the primary button.
     #[inline]
     pub fn double_clicked(&self) -> bool {
-        self.double_clicked[PointerButton::Primary as usize]
+        self.double_clicked_by(PointerButton::Primary)
     }
 
     /// Returns true if this widget was triple-clicked this frame by the primary button.
     #[inline]
     pub fn triple_clicked(&self) -> bool {
-        self.triple_clicked[PointerButton::Primary as usize]
+        self.triple_clicked_by(PointerButton::Primary)
     }
 
     /// Returns true if this widget was double-clicked this frame by the given button.
     #[inline]
     pub fn double_clicked_by(&self, button: PointerButton) -> bool {
-        self.double_clicked[button as usize]
+        self.clicked && self.ctx.input(|i| i.pointer.button_double_clicked(button))
     }
 
     /// Returns true if this widget was triple-clicked this frame by the given button.
     #[inline]
     pub fn triple_clicked_by(&self, button: PointerButton) -> bool {
-        self.triple_clicked[button as usize]
+        self.clicked && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
     }
 
     /// `true` if there was a click *outside* this widget this frame.
@@ -917,27 +948,9 @@ impl Response {
             contains_pointer: self.contains_pointer || other.contains_pointer,
             hovered: self.hovered || other.hovered,
             highlighted: self.highlighted || other.highlighted,
-            clicked: [
-                self.clicked[0] || other.clicked[0],
-                self.clicked[1] || other.clicked[1],
-                self.clicked[2] || other.clicked[2],
-                self.clicked[3] || other.clicked[3],
-                self.clicked[4] || other.clicked[4],
-            ],
-            double_clicked: [
-                self.double_clicked[0] || other.double_clicked[0],
-                self.double_clicked[1] || other.double_clicked[1],
-                self.double_clicked[2] || other.double_clicked[2],
-                self.double_clicked[3] || other.double_clicked[3],
-                self.double_clicked[4] || other.double_clicked[4],
-            ],
-            triple_clicked: [
-                self.triple_clicked[0] || other.triple_clicked[0],
-                self.triple_clicked[1] || other.triple_clicked[1],
-                self.triple_clicked[2] || other.triple_clicked[2],
-                self.triple_clicked[3] || other.triple_clicked[3],
-                self.triple_clicked[4] || other.triple_clicked[4],
-            ],
+            clicked: self.clicked || other.clicked,
+            fake_primary_click: self.fake_primary_click || other.fake_primary_click,
+            long_touched: self.long_touched || other.long_touched,
             drag_started: self.drag_started || other.drag_started,
             dragged: self.dragged || other.dragged,
             drag_stopped: self.drag_stopped || other.drag_stopped,

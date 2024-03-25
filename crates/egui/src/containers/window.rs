@@ -431,6 +431,16 @@ impl<'open> Window<'open> {
             (0.0, 0.0)
         };
 
+        {
+            // Prevent window from becoming larger than the constraint rect and/or screen rect.
+            let screen_rect = ctx.screen_rect();
+            let max_rect = area.constrain_rect().unwrap_or(screen_rect);
+            let max_width = max_rect.width();
+            let max_height = max_rect.height() - title_bar_height;
+            resize.max_size.x = resize.max_size.x.min(max_width);
+            resize.max_size.y = resize.max_size.y.min(max_height);
+        }
+
         // First check for resize to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let resize_interaction =

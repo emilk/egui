@@ -272,6 +272,18 @@ pub struct HeaderResponse<'ui, HeaderRet> {
 }
 
 impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
+    pub fn is_open(&self) -> bool {
+        self.state.is_open()
+    }
+
+    pub fn set_open(&mut self, open: bool) {
+        self.state.set_open(open);
+    }
+
+    pub fn toggle(&mut self) {
+        self.state.toggle(self.ui);
+    }
+
     /// Returns the response of the collapsing button, the custom header, and the custom body.
     pub fn body<BodyRet>(
         mut self,

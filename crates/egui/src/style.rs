@@ -213,6 +213,9 @@ pub struct Style {
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
 
+    /// Show the URL of hyperlinks in a tooltip when hovered.
+    pub url_in_tooltip: bool,
+
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
 }
@@ -280,6 +283,9 @@ pub struct Spacing {
 
     /// Default width of a [`Slider`].
     pub slider_width: f32,
+
+    /// Default rail height of a [`Slider`].
+    pub slider_rail_height: f32,
 
     /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
     pub combo_width: f32,
@@ -1209,6 +1215,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
+            url_in_tooltip: false,
             always_scroll_the_only_direction: false,
         }
     }
@@ -1224,6 +1231,7 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
+            slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
@@ -1470,6 +1478,7 @@ impl Style {
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
+            url_in_tooltip,
             always_scroll_the_only_direction,
         } = self;
 
@@ -1540,6 +1549,8 @@ impl Style {
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
 
+        ui.checkbox(url_in_tooltip, "Show url when hovering links");
+
         ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
             .on_hover_text(
                 "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
@@ -1573,6 +1584,7 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            slider_rail_height,
             combo_width,
             text_edit_width,
             icon_width,
@@ -1600,6 +1612,10 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
             ui.label("Slider width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
+            ui.label("Slider rail height");
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));

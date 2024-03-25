@@ -4,7 +4,7 @@ use ahash::HashMap;
 use epaint::emath::TSTransform;
 
 use crate::{
-    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, Rect, Style, Vec2,
+    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
     ViewportId, ViewportIdMap, ViewportIdSet,
 };
 
@@ -95,6 +95,9 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interactions: ViewportIdMap<InteractionState>,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) focus: ViewportIdMap<Focus>,
 }
 
 impl Default for Memory {
@@ -105,6 +108,7 @@ impl Default for Memory {
             caches: Default::default(),
             new_font_definitions: Default::default(),
             interactions: Default::default(),
+            focus: Default::default(),
             viewport_id: Default::default(),
             areas: Default::default(),
             layer_transforms: Default::default(),
@@ -308,8 +312,6 @@ pub(crate) struct InteractionState {
     /// as that can only happen after the mouse has moved a bit
     /// (at least if the widget is interesated in both clicks and drags).
     pub potential_drag_id: Option<Id>,
-
-    pub focus: Focus,
 }
 
 /// Keeps tracks of what widget has keyboard focus
@@ -361,24 +363,6 @@ impl InteractionState {
     /// Are we currently clicking or dragging an egui widget?
     pub fn is_using_pointer(&self) -> bool {
         self.potential_click_id.is_some() || self.potential_drag_id.is_some()
-    }
-
-    fn begin_frame(
-        &mut self,
-        prev_input: &crate::input_state::InputState,
-        new_input: &crate::data::input::RawInput,
-    ) {
-        if !prev_input.pointer.could_any_button_be_click() {
-            self.potential_click_id = None;
-        }
-
-        if !prev_input.pointer.any_down() || prev_input.pointer.latest_pos().is_none() {
-            // pointer button was not down last frame
-            self.potential_click_id = None;
-            self.potential_drag_id = None;
-        }
-
-        self.focus.begin_frame(new_input);
     }
 }
 
@@ -537,9 +521,7 @@ impl Focus {
             }
         }
 
-        let Some(current_focused) = self.focused_widget else {
-            return None;
-        };
+        let current_focused = self.focused_widget?;
 
         // In what direction we are looking for the next widget.
         let search_direction = match self.focus_direction {
@@ -562,9 +544,7 @@ impl Focus {
             }
         });
 
-        let Some(current_rect) = self.focus_widgets_cache.get(&current_focused.id) else {
-            return None;
-        };
+        let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
 
         let mut best_score = std::f32::INFINITY;
         let mut best_id = None;
@@ -603,30 +583,29 @@ impl Focus {
 }
 
 impl Memory {
-    pub(crate) fn begin_frame(
-        &mut self,
-        prev_input: &crate::input_state::InputState,
-        new_input: &crate::data::input::RawInput,
-        viewports: &ViewportIdSet,
-    ) {
+    pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
         crate::profile_function!();
+
+        self.viewport_id = new_raw_input.viewport_id;
 
         // Cleanup
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
 
-        self.viewport_id = new_input.viewport_id;
-        self.interactions
+        self.areas.entry(self.viewport_id).or_default();
+
+        // self.interactions  is handled elsewhere
+
+        self.focus
             .entry(self.viewport_id)
             .or_default()
-            .begin_frame(prev_input, new_input);
-        self.areas.entry(self.viewport_id).or_default();
+            .begin_frame(new_raw_input);
     }
 
     pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
         self.caches.update();
         self.areas_mut().end_frame();
-        self.interaction_mut().focus.end_frame(used_ids);
+        self.focus_mut().end_frame(used_ids);
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -656,7 +635,7 @@ impl Memory {
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
-        self.interaction().focus.id_previous_frame == Some(id)
+        self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
     /// True if the given widget had keyboard focus last frame, but not this one.
@@ -677,12 +656,12 @@ impl Memory {
     /// from the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
-        self.interaction().focus.focused() == Some(id)
+        self.focused() == Some(id)
     }
 
     /// Which widget has keyboard focus?
-    pub fn focus(&self) -> Option<Id> {
-        self.interaction().focus.focused()
+    pub fn focused(&self) -> Option<Id> {
+        self.focus().and_then(|f| f.focused())
     }
 
     /// Set an event filter for a widget.
@@ -693,7 +672,7 @@ impl Memory {
     /// You must first give focus to the widget before calling this.
     pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
-            if let Some(focused) = &mut self.interaction_mut().focus.focused_widget {
+            if let Some(focused) = &mut self.focus_mut().focused_widget {
                 if focused.id == id {
                     focused.filter = event_filter;
                 }
@@ -705,16 +684,16 @@ impl Memory {
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        self.interaction_mut().focus.focused_widget = Some(FocusWidget::new(id));
+        self.focus_mut().focused_widget = Some(FocusWidget::new(id));
     }
 
     /// Surrender keyboard focus for a specific widget.
     /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
-        let interaction = self.interaction_mut();
-        if interaction.focus.focused() == Some(id) {
-            interaction.focus.focused_widget = None;
+        let focus = self.focus_mut();
+        if focus.focused() == Some(id) {
+            focus.focused_widget = None;
         }
     }
 
@@ -727,13 +706,13 @@ impl Memory {
     /// and rendered correctly in a single frame.
     #[inline(always)]
     pub fn interested_in_focus(&mut self, id: Id) {
-        self.interaction_mut().focus.interested_in_focus(id);
+        self.focus_mut().interested_in_focus(id);
     }
 
     /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
-        self.interaction_mut().focus.focused_widget = None;
+        self.focus_mut().focused_widget = None;
     }
 
     /// Is any widget being dragged?
@@ -812,6 +791,14 @@ impl Memory {
 
     pub(crate) fn interaction_mut(&mut self) -> &mut InteractionState {
         self.interactions.entry(self.viewport_id).or_default()
+    }
+
+    pub(crate) fn focus(&self) -> Option<&Focus> {
+        self.focus.get(&self.viewport_id)
+    }
+
+    pub(crate) fn focus_mut(&mut self) -> &mut Focus {
+        self.focus.entry(self.viewport_id).or_default()
     }
 }
 
@@ -906,6 +893,15 @@ impl Areas {
     /// Back-to-front. Top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
+    }
+
+    /// For each layer, which order is it in [`Self::order`]?
+    pub(crate) fn order_map(&self) -> HashMap<LayerId, usize> {
+        self.order
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (*id, i))
+            .collect()
     }
 
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
