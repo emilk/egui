@@ -197,7 +197,6 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState) {
                 vp_state.id,
                 egui::ViewportCommand::Title(vp_state.title.clone()),
             );
-            ui.ctx().request_repaint_of(vp_state.id);
         }
     });
 
