@@ -1347,12 +1347,15 @@ fn process_viewport_command(
             if let Some(_inner_size) =
                 window.request_inner_size(PhysicalSize::new(width_px, height_px))
             {
-                log::info!("ViewportCommand::InnerSize ignored by winit");
+                // ex) linux
+                log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
             } else {
-                log::trace!(
-                    "the actual size will be delivered later with the [WindowEvent::Resized]"
-                );
+                // ex) Windows, MacOS
+                log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
             }
+
+            info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
+            info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
         }
         ViewportCommand::BeginResize(direction) => {
             if let Err(err) = window.drag_resize_window(match direction {
