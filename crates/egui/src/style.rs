@@ -213,6 +213,9 @@ pub struct Style {
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
 
+    /// Show the URL of hyperlinks in a tooltip when hovered.
+    pub url_in_tooltip: bool,
+
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
 }
@@ -1212,6 +1215,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
+            url_in_tooltip: false,
             always_scroll_the_only_direction: false,
         }
     }
@@ -1474,6 +1478,7 @@ impl Style {
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
+            url_in_tooltip,
             always_scroll_the_only_direction,
         } = self;
 
@@ -1543,6 +1548,8 @@ impl Style {
             .on_hover_text(
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
+
+        ui.checkbox(url_in_tooltip, "Show url when hovering links");
 
         ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
             .on_hover_text(

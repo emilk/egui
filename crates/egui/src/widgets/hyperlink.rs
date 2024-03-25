@@ -136,6 +136,11 @@ impl Widget for Hyperlink {
                 new_tab: true,
             });
         }
-        response.on_hover_text(url)
+
+        if ui.style().url_in_tooltip {
+            response.on_hover_text(url)
+        } else {
+            response
+        }
     }
 }
