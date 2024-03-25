@@ -3066,8 +3066,8 @@ impl Context {
     }
 
     /// Return the `ViewportId` of his parent.
-    pub fn parent_viewport_id_of(&self, viewport_id: ViewportId) -> ViewportId {
-        self.read(|ctx| ctx.get_parent_viewport_id(viewport_id))
+    pub fn viewport_parent_id_of(&self, viewport_id: ViewportId) -> ViewportId {
+        self.read(|ctx| ctx.viewport_parent_id_of(viewport_id))
     }
 
     /// For integrations: Set this to render a sync viewport.
