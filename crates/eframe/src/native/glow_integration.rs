@@ -1199,7 +1199,7 @@ impl GlutinWindowContext {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub(crate) fn active_viewports_retain(
+    pub(crate) fn remove_viewports_not_in(
         &mut self,
         viewport_output: ViewportIdMap<ViewportOutput>,
     ) {
@@ -1272,7 +1272,7 @@ impl GlutinWindowContext {
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        self.active_viewports_retain(viewport_output);
+        self.remove_viewports_not_in(viewport_output);
     }
 
     fn resize_for_other_os(
