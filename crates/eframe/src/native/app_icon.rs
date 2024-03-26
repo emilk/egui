@@ -118,7 +118,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         if image_scaled
             .write_to(
                 &mut std::io::Cursor::new(&mut image_scaled_bytes),
-                image::ImageOutputFormat::Png,
+                image::ImageFormat::Png,
             )
             .is_err()
         {
