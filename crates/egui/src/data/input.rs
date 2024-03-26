@@ -223,10 +223,10 @@ pub struct ViewportInfo {
     /// Are we in fullscreen mode?
     pub fullscreen: Option<bool>,
 
-    // Are we transparent mode?
+    /// Are we transparent mode?
     pub transparent: Option<bool>,
 
-    // Are we decorations mode?
+    /// Are we decorations mode?
     pub decorations: Option<bool>,
 
     /// Is the window focused and able to receive input?
@@ -234,6 +234,8 @@ pub struct ViewportInfo {
     /// This should be the same as [`RawInput::focused`].
     pub focused: Option<bool>,
 
+    /// If this is 'true', you can wait for the selection result without Close.
+    /// If this is 'false' (default), it closes immediately without waiting.
     pub close_cancelable: bool,
 
     pub close_requested: bool,
