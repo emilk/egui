@@ -100,6 +100,12 @@ impl RawInput {
         self.viewports.get(&self.viewport_id).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
     }
 
+    /// Read-write access to [`ViewportInfo`].
+    #[inline]
+    pub fn viewport_mut(&mut self) -> &mut ViewportInfo {
+        self.viewports.get_mut(&self.viewport_id).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
+    }
+
     /// Helper: move volatile (deltas and events), clone the rest.
     ///
     /// * [`Self::hovered_files`] is cloned.
@@ -228,7 +234,9 @@ pub struct ViewportInfo {
     /// This should be the same as [`RawInput::focused`].
     pub focused: Option<bool>,
 
-    pub close_requested: Option<bool>,
+    pub close_cancelable: bool,
+
+    pub close_requested: bool,
 }
 
 impl ViewportInfo {
@@ -241,9 +249,22 @@ impl ViewportInfo {
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
     pub fn close_requested(&self) -> bool {
-        self.events
-            .iter()
-            .any(|&event| event == ViewportEvent::Close)
+        self.close_requested
+        // self.events
+        //     .iter()
+        //     .any(|&event| event == ViewportEvent::Close)
+    }
+
+    pub fn set_close_cancelable(&mut self, v: bool) {
+        self.close_cancelable = v;
+    }
+
+    pub fn close_cancelable(&self) -> bool {
+        self.close_cancelable
+    }
+
+    pub fn should_close(&self) -> bool {
+        self.close_requested && !self.close_cancelable
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
@@ -262,6 +283,7 @@ impl ViewportInfo {
             transparent,
             decorations,
             focused,
+            close_cancelable,
             close_requested,
         } = self;
 
@@ -322,8 +344,12 @@ impl ViewportInfo {
             ui.label(opt_as_str(focused));
             ui.end_row();
 
-            ui.label("Close_requested:");
-            ui.label(opt_as_str(close_requested));
+            ui.label("Close Cancelable:");
+            ui.label(format!("{:?}", close_cancelable));
+            ui.end_row();
+
+            ui.label("Close Requested:");
+            ui.label(format!("{:?}", close_requested));
             ui.end_row();
 
             fn opt_rect_as_string(v: &Option<Rect>) -> String {
