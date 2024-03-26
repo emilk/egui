@@ -1864,7 +1864,7 @@ impl Tessellator {
             .filter(|(_, clipped_shape)| should_parallelize(&clipped_shape.shape))
             .map(|(index, clipped_shape)| {
                 crate::profile_scope!("tessellate_big_shape");
-                // TODO: reuse tessellator in a thread local
+                // TODO(emilk): reuse tessellator in a thread local
                 let mut tessellator = (*self).clone();
                 let mut mesh = Mesh::default();
                 tessellator.tessellate_shape(clipped_shape.shape.clone(), &mut mesh);

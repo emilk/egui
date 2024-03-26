@@ -800,7 +800,7 @@ impl Plot {
         let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
 
         let ([x_axis_widgets, y_axis_widgets], plot_rect) = axis_widgets(
-            PlotMemory::load(ui.ctx(), plot_id).as_ref(), // TODO: avoid loading plot memory twice
+            PlotMemory::load(ui.ctx(), plot_id).as_ref(), // TODO(emilk): avoid loading plot memory twice
             show_axes,
             complete_rect,
             [&x_axes, &y_axes],
