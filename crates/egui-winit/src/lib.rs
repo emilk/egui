@@ -1326,11 +1326,11 @@ fn process_viewport_command(
     match command {
         ViewportCommand::Close => {
             info.events.push(egui::ViewportEvent::Close);
-            info.close_requested = Some(true);
+            info.close_requested = true;
         }
         ViewportCommand::CancelClose => {
             // Need to be handled elsewhere
-            info.close_requested = Some(false);
+            info.close_requested = false;
             if let Some(position) = info
                 .events
                 .iter()
@@ -1359,13 +1359,13 @@ fn process_viewport_command(
             {
                 // ex) linux
                 log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
+
+                info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
+                info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
             } else {
                 // ex) Windows, MacOS
                 log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
             }
-
-            info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
-            info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
         }
         ViewportCommand::BeginResize(direction) => {
             if let Err(err) = window.drag_resize_window(match direction {
