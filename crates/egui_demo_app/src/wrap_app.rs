@@ -68,7 +68,7 @@ impl eframe::App for ColorTestApp {
                 );
                 ui.separator();
             }
-            egui::ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 self.color_test.ui(ui);
             });
         });
@@ -82,6 +82,8 @@ enum Anchor {
     EasyMarkEditor,
     #[cfg(feature = "http")]
     Http,
+    #[cfg(feature = "image_viewer")]
+    ImageViewer,
     Clock,
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     Custom3d,
@@ -92,14 +94,14 @@ impl Anchor {
     #[cfg(target_arch = "wasm32")]
     fn all() -> Vec<Self> {
         vec![
-            Anchor::Demo,
-            Anchor::EasyMarkEditor,
+            Self::Demo,
+            Self::EasyMarkEditor,
             #[cfg(feature = "http")]
-            Anchor::Http,
-            Anchor::Clock,
+            Self::Http,
+            Self::Clock,
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            Anchor::Custom3d,
-            Anchor::Colors,
+            Self::Custom3d,
+            Self::Colors,
         ]
     }
 }
@@ -142,6 +144,8 @@ pub struct State {
     easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
+    #[cfg(feature = "image_viewer")]
+    image_viewer: crate::apps::ImageViewer,
     clock: FractalClockApp,
     color_test: ColorTestApp,
 
@@ -160,19 +164,22 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // This gives us image support:
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            custom3d: crate::apps::Custom3d::new(_cc),
+            custom3d: crate::apps::Custom3d::new(cc),
 
             dropped_files: Default::default(),
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = _cc.storage {
+        if let Some(storage) = cc.storage {
             if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
                 slf.state = state;
             }
@@ -203,6 +210,12 @@ impl WrapApp {
                 "🕑 Fractal Clock",
                 Anchor::Clock,
                 &mut self.state.clock as &mut dyn eframe::App,
+            ),
+            #[cfg(feature = "image_viewer")]
+            (
+                "🖼 Image Viewer",
+                Anchor::ImageViewer,
+                &mut self.state.image_viewer as &mut dyn eframe::App,
             ),
         ];
 
@@ -246,12 +259,12 @@ impl eframe::App for WrapApp {
 
         #[cfg(not(target_arch = "wasm32"))]
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
-            frame.set_fullscreen(!frame.info().window_info.fullscreen);
+            let fullscreen = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
         }
 
         let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            egui::trace!(ui);
             ui.horizontal_wrapped(|ui| {
                 ui.visuals_mut().button_frame = false;
                 self.bar_contents(ui, frame, &mut cmd);
@@ -269,11 +282,6 @@ impl eframe::App for WrapApp {
         self.state.backend_panel.end_of_frame(ctx);
 
         self.ui_file_drag_and_drop(ctx);
-
-        // On web, the browser controls `pixels_per_point`.
-        if !frame.is_web() {
-            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
-        }
 
         self.run_cmd(ctx, cmd);
     }
@@ -384,7 +392,8 @@ impl WrapApp {
             {
                 selected_anchor = anchor;
                 if frame.is_web() {
-                    ui.output_mut(|o| o.open_url(format!("#{anchor}")));
+                    ui.ctx()
+                        .open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
                 }
             }
         }
@@ -396,7 +405,7 @@ impl WrapApp {
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
                     self.state.selected_anchor = Anchor::Clock;
                     if frame.is_web() {
-                        ui.output_mut(|o| o.open_url("#clock"));
+                        ui.ctx().open_url(egui::OpenUrl::same_tab("#clock"));
                     }
                 }
             }
@@ -460,9 +469,18 @@ impl WrapApp {
                         } else {
                             "???".to_owned()
                         };
-                        if let Some(bytes) = &file.bytes {
-                            write!(info, " ({} bytes)", bytes.len()).ok();
+
+                        let mut additional_info = vec![];
+                        if !file.mime.is_empty() {
+                            additional_info.push(format!("type: {}", file.mime));
                         }
+                        if let Some(bytes) = &file.bytes {
+                            additional_info.push(format!("{} bytes", bytes.len()));
+                        }
+                        if !additional_info.is_empty() {
+                            info += &format!(" ({})", additional_info.join(", "));
+                        }
+
                         ui.label(info);
                     }
                 });

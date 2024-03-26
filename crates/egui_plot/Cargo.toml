@@ -1,0 +1,42 @@
+[package]
+name = "egui_plot"
+version.workspace = true
+authors = [
+    "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",    # https://github.com/emilk
+    "Jan Haller <bromeon@gmail.com>",                 # https://github.com/Bromeon
+    "Sven Niederberger <s-niederberger@outlook.com>", # https://github.com/EmbersArc
+]
+description = "Immediate mode plotting for the egui GUI library"
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/emilk/egui"
+license.workspace = true
+readme = "README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["visualization", "gui"]
+keywords = ["egui", "plot", "plotting"]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+
+
+[features]
+default = []
+
+
+## Allow serialization using [`serde`](https://docs.rs/serde).
+serde = ["dep:serde", "egui/serde"]
+
+
+[dependencies]
+egui = { workspace = true, default-features = false }
+
+
+#! ### Optional dependencies
+## Enable this when generating docs.
+document-features = { workspace = true, optional = true }
+
+serde = { version = "1", optional = true, features = ["derive"] }

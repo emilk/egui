@@ -1,15 +1,15 @@
 [package]
 name = "ecolor"
-version = "0.22.0"
+version.workspace = true
 authors = [
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
   "Andreas Reich <reichandreas@gmx.de>",
 ]
 description = "Color structs and color conversion utilities"
-edition = "2021"
-rust-version = "1.67"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["mathematics", "encoding"]
@@ -44,7 +44,7 @@ cint = { version = "0.3.1", optional = true }
 color-hex = { version = "0.2.0", optional = true }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = { version = "1", optional = true, features = ["derive"] }

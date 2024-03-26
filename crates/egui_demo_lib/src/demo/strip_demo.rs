@@ -1,4 +1,4 @@
-use egui::Color32;
+use egui::{Color32, TextStyle};
 use egui_extras::{Size, StripBuilder};
 
 /// Shows off a table with dynamic layout
@@ -33,11 +33,12 @@ impl super::View for StripDemo {
             egui::lerp(Rgba::from(color)..=Rgba::from(faded_color), t).into()
         };
 
+        let body_text_size = TextStyle::Body.resolve(ui.style()).size;
         StripBuilder::new(ui)
             .size(Size::exact(50.0))
             .size(Size::remainder())
             .size(Size::relative(0.5).at_least(60.0))
-            .size(Size::exact(10.5))
+            .size(Size::exact(body_text_size))
             .vertical(|mut strip| {
                 strip.cell(|ui| {
                     ui.painter().rect_filled(

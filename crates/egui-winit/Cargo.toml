@@ -1,12 +1,12 @@
 [package]
 name = "egui-winit"
-version = "0.22.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
-edition = "2021"
-rust-version = "1.67"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
 categories = ["gui", "game-development"]
@@ -23,6 +23,15 @@ default = ["clipboard", "links", "wayland", "winit/default", "x11"]
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["accesskit_winit", "egui/accesskit"]
 
+# Allow crates to choose an android-activity backend via Winit
+# - It's important that most applications should not have to depend on android-activity directly, and can
+#   rely on Winit to pull in a suitable version (unlike most Rust crates, any version conflicts won't link)
+# - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
+## Enable the `game-activity` backend via Winit on Android
+android-game-activity = ["winit/android-game-activity"]
+## Enable the `native-activity` backend via Winit on Android
+android-native-activity = ["winit/android-native-activity"]
+
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
 bytemuck = ["egui/bytemuck"]
 
@@ -34,58 +43,38 @@ clipboard = ["arboard", "smithay-clipboard"]
 links = ["webbrowser"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin"]
+puffin = ["dep:puffin", "egui/puffin"]
 
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland"]
+wayland = ["winit/wayland", "bytemuck"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11"]
-
-# Allow crates to choose an android-activity backend via Winit
-# - It's important that most applications should not have to depend on android-activity directly, and can
-#   rely on Winit to pull in a suitable version (unlike most Rust crates, any version conflicts won't link)
-# - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
-
-## Enable the `native-activity` backend via Winit on Android
-android-native-activity = ["winit/android-native-activity"]
-## Enable the `game-activity` backend via Winit on Android
-android-game-activity = ["winit/android-game-activity"]
+x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
-egui = { version = "0.22.0", path = "../egui", default-features = false, features = [
-  "log",
-] }
-log = { version = "0.4", features = ["std"] }
-winit = { version = "0.28", default-features = false }
-raw-window-handle = "0.5.0"
+egui = { workspace = true, default-features = false, features = ["log"] }
+log.workspace = true
+raw-window-handle.workspace = true
+web-time.workspace = true
+winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.14.0", optional = true }
+accesskit_winit = { version = "0.16.0", optional = true }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
-
 webbrowser = { version = "0.8.3", optional = true }
 
-[target.'cfg(not(target_arch="wasm32"))'.dependencies]
-instant = { version = "0.1" }
-
-[target.'cfg(target_arch="wasm32")'.dependencies]
-instant = { version = "0.1", features = [
-  "wasm-bindgen",
-] } # We use instant so we can (maybe) compile for web
-
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
-smithay-clipboard = { version = "0.6.3", optional = true }
+smithay-clipboard = { version = "0.7.0", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-arboard = { version = "3.2", optional = true, default-features = false }
+arboard = { version = "3.3", optional = true, default-features = false }

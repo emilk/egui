@@ -26,7 +26,7 @@ impl eframe::App for Content {
                 self.text.clear();
             }
             ScrollArea::vertical()
-                .auto_shrink([false; 2])
+                .auto_shrink(false)
                 .stick_to_bottom(true)
                 .show(ui, |ui| {
                     ui.label(&self.text);

@@ -1,12 +1,12 @@
 [package]
 name = "egui_glow"
-version = "0.22.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
-edition = "2021"
-rust-version = "1.67"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
 categories = ["gui", "game-development"]
@@ -37,43 +37,56 @@ clipboard = ["egui-winit?/clipboard"]
 links = ["egui-winit?/links"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin", "egui-winit?/puffin"]
+puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
 
-## Enable [`winit`](https://docs.rs/winit) integration.
-winit = ["egui-winit"]
+## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
+winit = ["egui-winit", "dep:winit"]
+
+## Enables Wayland support for winit.
+wayland = ["winit?/wayland"]
+
+## Enables x11 support for winit.
+x11 = ["winit?/x11"]
 
 
 [dependencies]
-egui = { version = "0.22.0", path = "../egui", default-features = false, features = [
-  "bytemuck",
-] }
+egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 bytemuck = "1.7"
-glow = "0.12"
-log = { version = "0.4", features = ["std"] }
-memoffset = "0.6"
+glow.workspace = true
+log.workspace = true
+memoffset = "0.9"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.22.0", path = "../egui-winit", optional = true, default-features = false }
-puffin = { version = "0.16", optional = true }
+egui-winit = { workspace = true, optional = true, default-features = false }
+puffin = { workspace = true, optional = true }
+winit = { workspace = true, optional = true, default-features = false, features = [
+  "rwh_06", # for compatibility with egui-winit
+] }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }
-wasm-bindgen = { version = "0.2" }
+wasm-bindgen = "0.2"
 
 
 [dev-dependencies]
-glutin = "0.30"             # examples/pure_glow
-raw-window-handle = "0.5.0"
-glutin-winit = "0.3.0"
-
+glutin = "0.31"        # examples/pure_glow
+glutin-winit = "0.4.0"
+# glutin stuck on old version of raw-window-handle:
+rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
+  "std",
+] }
 
 [[example]]
 name = "pure_glow"
-required-features = ["winit", "egui/default_fonts"]
+required-features = [
+  "winit",
+  "egui/default_fonts",
+  "winit/rwh_05",       # glutin stuck on old version of raw-window-handle
+]

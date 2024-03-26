@@ -1,4 +1,4 @@
-use egui::{text_edit::CCursorRange, *};
+use egui::{text::CCursorRange, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -95,10 +95,10 @@ impl EasyMarkEditor {
         };
 
         if let Some(mut state) = TextEdit::load_state(ui.ctx(), response.id) {
-            if let Some(mut ccursor_range) = state.ccursor_range() {
+            if let Some(mut ccursor_range) = state.cursor.char_range() {
                 let any_change = shortcuts(ui, code, &mut ccursor_range);
                 if any_change {
-                    state.set_ccursor_range(Some(ccursor_range));
+                    state.cursor.set_char_range(Some(ccursor_range));
                     state.store(ui.ctx(), response.id);
                 }
             }

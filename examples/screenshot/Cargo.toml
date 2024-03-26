@@ -7,15 +7,18 @@ authors = [
 ]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.67"
+rust-version = "1.72"
 publish = false
 
 
 [dependencies]
-eframe = { path = "../../crates/eframe", features = [
+eframe = { workspace = true, features = [
+    "default",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
     "wgpu",
 ] }
-env_logger = "0.10"
-itertools = "0.10.3"
+env_logger = { version = "0.10", default-features = false, features = [
+    "auto-color",
+    "humantime",
+] }
 image = { version = "0.24", default-features = false, features = ["png"] }

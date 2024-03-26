@@ -28,6 +28,7 @@ pub struct Rot2 {
 /// Identity rotation
 impl Default for Rot2 {
     /// Identity rotation
+    #[inline]
     fn default() -> Self {
         Self { s: 0.0, c: 1.0 }
     }
@@ -39,30 +40,36 @@ impl Rot2 {
 
     /// Angle is clockwise in radians.
     /// A 𝞃/4 = 90° rotation means rotating the X axis to the Y axis.
+    #[inline]
     pub fn from_angle(angle: f32) -> Self {
         let (s, c) = angle.sin_cos();
         Self { s, c }
     }
 
+    #[inline]
     pub fn angle(self) -> f32 {
         self.s.atan2(self.c)
     }
 
     /// The factor by which vectors will be scaled.
+    #[inline]
     pub fn length(self) -> f32 {
         self.c.hypot(self.s)
     }
 
+    #[inline]
     pub fn length_squared(self) -> f32 {
         self.c.powi(2) + self.s.powi(2)
     }
 
+    #[inline]
     pub fn is_finite(self) -> bool {
         self.c.is_finite() && self.s.is_finite()
     }
 
     #[must_use]
-    pub fn inverse(self) -> Rot2 {
+    #[inline]
+    pub fn inverse(self) -> Self {
         Self {
             s: -self.s,
             c: self.c,
@@ -70,6 +77,7 @@ impl Rot2 {
     }
 
     #[must_use]
+    #[inline]
     pub fn normalized(self) -> Self {
         let l = self.length();
         let ret = Self {
@@ -92,15 +100,16 @@ impl std::fmt::Debug for Rot2 {
     }
 }
 
-impl std::ops::Mul<Rot2> for Rot2 {
-    type Output = Rot2;
+impl std::ops::Mul<Self> for Rot2 {
+    type Output = Self;
 
-    fn mul(self, r: Rot2) -> Rot2 {
+    #[inline]
+    fn mul(self, r: Self) -> Self {
         /*
         |lc -ls| * |rc -rs|
         |ls  lc|   |rs  rc|
         */
-        Rot2 {
+        Self {
             c: self.c * r.c - self.s * r.s,
             s: self.s * r.c + self.c * r.s,
         }
@@ -111,6 +120,7 @@ impl std::ops::Mul<Rot2> for Rot2 {
 impl std::ops::Mul<Vec2> for Rot2 {
     type Output = Vec2;
 
+    #[inline]
     fn mul(self, v: Vec2) -> Vec2 {
         Vec2 {
             x: self.c * v.x - self.s * v.y,
@@ -123,6 +133,7 @@ impl std::ops::Mul<Vec2> for Rot2 {
 impl std::ops::Mul<Rot2> for f32 {
     type Output = Rot2;
 
+    #[inline]
     fn mul(self, r: Rot2) -> Rot2 {
         Rot2 {
             c: self * r.c,
@@ -133,10 +144,11 @@ impl std::ops::Mul<Rot2> for f32 {
 
 /// Scales the rotor.
 impl std::ops::Mul<f32> for Rot2 {
-    type Output = Rot2;
+    type Output = Self;
 
-    fn mul(self, r: f32) -> Rot2 {
-        Rot2 {
+    #[inline]
+    fn mul(self, r: f32) -> Self {
+        Self {
             c: self.c * r,
             s: self.s * r,
         }
@@ -145,10 +157,11 @@ impl std::ops::Mul<f32> for Rot2 {
 
 /// Scales the rotor.
 impl std::ops::Div<f32> for Rot2 {
-    type Output = Rot2;
+    type Output = Self;
 
-    fn div(self, r: f32) -> Rot2 {
-        Rot2 {
+    #[inline]
+    fn div(self, r: f32) -> Self {
+        Self {
             c: self.c / r,
             s: self.s / r,
         }

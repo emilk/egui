@@ -5,7 +5,7 @@ use std::{cell::Cell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use super::{canvas_element, AppRunner, WebRunner};
+use super::{AppRunner, WebRunner};
 
 static AGENT_ID: &str = "egui_text_agent";
 
@@ -101,14 +101,13 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
 
     // When input lost focus, focus on it again.
     // It is useful when user click somewhere outside canvas.
+    let input_refocus = input.clone();
     runner_ref.add_event_listener(&input, "focusout", move |_event: web_sys::MouseEvent, _| {
         // Delay 10 ms, and focus again.
-        let func = js_sys::Function::new_no_args(&format!(
-            "document.getElementById('{AGENT_ID}').focus()"
-        ));
-        window
-            .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
-            .unwrap();
+        let input_refocus = input_refocus.clone();
+        call_after_delay(std::time::Duration::from_millis(10), move || {
+            input_refocus.focus().ok();
+        });
     })?;
 
     body.append_child(&input)?;
@@ -122,7 +121,7 @@ pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
     let window = web_sys::window()?;
     let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let canvas_style = canvas_element(runner.canvas_id())?.style();
+    let canvas_style = runner.canvas().style();
 
     if runner.mutable_text_under_cursor {
         let is_already_editing = input.hidden();
@@ -206,12 +205,16 @@ fn is_mobile() -> Option<bool> {
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-pub fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
+pub fn move_text_cursor(
+    ime: Option<egui::output::IMEOutput>,
+    canvas: &web_sys::HtmlCanvasElement,
+) -> Option<()> {
     let style = text_agent().style();
-    // Note: movint agent on mobile devices will lead to unpredictable scroll.
+    // Note: moving agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
-        cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
-            let canvas = canvas_element(canvas_id)?;
+        ime.as_ref().and_then(|ime| {
+            let egui::Pos2 { x, y } = ime.cursor_rect.left_top();
+
             let bounding_rect = text_agent().get_bounding_client_rect();
             let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
                 .min(canvas.client_height() as f32 - bounding_rect.height() as f32);

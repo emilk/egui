@@ -34,7 +34,7 @@ impl RectTransform {
         self.to.size() / self.from.size()
     }
 
-    pub fn inverse(&self) -> RectTransform {
+    pub fn inverse(&self) -> Self {
         Self::from_to(self.to, self.from)
     }
 

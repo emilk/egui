@@ -34,7 +34,7 @@ pub struct Resize {
     id_source: Option<Id>,
 
     /// If false, we are no enabled
-    resizable: bool,
+    resizable: Vec2b,
 
     pub(crate) min_size: Vec2,
     pub(crate) max_size: Vec2,
@@ -49,7 +49,7 @@ impl Default for Resize {
         Self {
             id: None,
             id_source: None,
-            resizable: true,
+            resizable: Vec2b::TRUE,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
             default_size: vec2(320.0, 128.0), // TODO(emilk): preferred size of [`Resize`] area.
@@ -60,12 +60,14 @@ impl Default for Resize {
 
 impl Resize {
     /// Assign an explicit and globally unique id.
+    #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
+    #[inline]
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
@@ -77,6 +79,7 @@ impl Resize {
     /// * if the contents is text, this will decide where we break long lines.
     /// * if the contents is a canvas, this decides the width of it,
     /// * if the contents is some buttons, this is ignored and we will auto-size.
+    #[inline]
     pub fn default_width(mut self, width: f32) -> Self {
         self.default_size.x = width;
         self
@@ -89,37 +92,57 @@ impl Resize {
     /// * if the contents is a canvas, this decides the height of it,
     /// * if the contents is text and buttons, then the `default_height` is ignored
     ///   and the height is picked automatically..
+    #[inline]
     pub fn default_height(mut self, height: f32) -> Self {
         self.default_size.y = height;
         self
     }
 
+    #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.default_size = default_size.into();
         self
     }
 
     /// Won't shrink to smaller than this
+    #[inline]
     pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
         self.min_size = min_size.into();
         self
     }
 
     /// Won't shrink to smaller than this
+    #[inline]
     pub fn min_width(mut self, min_width: f32) -> Self {
         self.min_size.x = min_width;
         self
     }
 
     /// Won't shrink to smaller than this
+    #[inline]
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.min_size.y = min_height;
         self
     }
 
     /// Won't expand to larger than this
+    #[inline]
     pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
         self.max_size = max_size.into();
+        self
+    }
+
+    /// Won't expand to larger than this
+    #[inline]
+    pub fn max_width(mut self, max_width: f32) -> Self {
+        self.max_size.x = max_width;
+        self
+    }
+
+    /// Won't expand to larger than this
+    #[inline]
+    pub fn max_height(mut self, max_height: f32) -> Self {
+        self.max_size.y = max_height;
         self
     }
 
@@ -128,12 +151,14 @@ impl Resize {
     /// Note that a window can still auto-resize.
     ///
     /// Default is `true`.
-    pub fn resizable(mut self, resizable: bool) -> Self {
-        self.resizable = resizable;
+    #[inline]
+    pub fn resizable(mut self, resizable: impl Into<Vec2b>) -> Self {
+        self.resizable = resizable.into();
         self
     }
 
-    pub fn is_resizable(&self) -> bool {
+    #[inline]
+    pub fn is_resizable(&self) -> Vec2b {
         self.resizable
     }
 
@@ -145,15 +170,17 @@ impl Resize {
             .resizable(false)
     }
 
+    #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         let size = size.into();
         self.default_size = size;
         self.min_size = size;
         self.max_size = size;
-        self.resizable = false;
+        self.resizable = Vec2b::FALSE;
         self
     }
 
+    #[inline]
     pub fn with_stroke(mut self, with_stroke: bool) -> Self {
         self.with_stroke = with_stroke;
         self
@@ -162,8 +189,8 @@ impl Resize {
 
 struct Prepared {
     id: Id,
+    corner_id: Option<Id>,
     state: State,
-    corner_response: Option<Response>,
     content_ui: Ui,
 }
 
@@ -200,22 +227,17 @@ impl Resize {
 
         let mut user_requested_size = state.requested_size.take();
 
-        let corner_response = if self.resizable {
-            // Resize-corner:
-            let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
-            let corner_rect =
-                Rect::from_min_size(position + state.desired_size - corner_size, corner_size);
-            let corner_response = ui.interact(corner_rect, id.with("corner"), Sense::drag());
+        let corner_id = self.resizable.any().then(|| id.with("__resize_corner"));
 
-            if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
-                user_requested_size =
-                    Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+        if let Some(corner_id) = corner_id {
+            if let Some(corner_response) = ui.ctx().read_response(corner_id) {
+                if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
+                    // Respond to the interaction early to avoid frame delay.
+                    user_requested_size =
+                        Some(pointer_pos - position + 0.5 * corner_response.rect.size());
+                }
             }
-
-            Some(corner_response)
-        } else {
-            None
-        };
+        }
 
         if let Some(user_requested_size) = user_requested_size {
             state.desired_size = user_requested_size;
@@ -253,8 +275,8 @@ impl Resize {
 
         Prepared {
             id,
+            corner_id,
             state,
-            corner_response,
             content_ui,
         }
     }
@@ -269,8 +291,8 @@ impl Resize {
     fn end(self, ui: &mut Ui, prepared: Prepared) {
         let Prepared {
             id,
+            corner_id,
             mut state,
-            corner_response,
             content_ui,
         } = prepared;
 
@@ -278,19 +300,36 @@ impl Resize {
 
         // ------------------------------
 
-        let size = if self.with_stroke || self.resizable {
-            // We show how large we are,
-            // so we must follow the contents:
+        let mut size = state.last_content_size;
+        for d in 0..2 {
+            if self.with_stroke || self.resizable[d] {
+                // We show how large we are,
+                // so we must follow the contents:
 
-            state.desired_size = state.desired_size.max(state.last_content_size);
+                state.desired_size[d] = state.desired_size[d].max(state.last_content_size[d]);
 
-            // We are as large as we look
-            state.desired_size
-        } else {
-            // Probably a window.
-            state.last_content_size
-        };
+                // We are as large as we look
+                size[d] = state.desired_size[d];
+            } else {
+                // Probably a window.
+                size[d] = state.last_content_size[d];
+            }
+        }
         ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
+
+        // ------------------------------
+
+        let corner_response = if let Some(corner_id) = corner_id {
+            // We do the corner interaction last to place it on top of the content:
+            let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
+            let corner_rect = Rect::from_min_size(
+                content_ui.min_rect().left_top() + size - corner_size,
+                corner_size,
+            );
+            Some(ui.interact(corner_rect, corner_id, Sense::drag()))
+        } else {
+            None
+        };
 
         // ------------------------------
 
@@ -314,6 +353,7 @@ impl Resize {
 
         state.store(ui.ctx(), id);
 
+        #[cfg(debug_assertions)]
         if ui.ctx().style().debug.show_resize {
             ui.ctx().debug_painter().debug_rect(
                 Rect::from_min_size(content_ui.min_rect().left_top(), state.desired_size),
@@ -331,15 +371,24 @@ impl Resize {
 
 use epaint::Stroke;
 
-pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
+pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
-    paint_resize_corner_with_style(ui, &response.rect, stroke, Align2::RIGHT_BOTTOM);
+    paint_resize_corner_with_style(ui, &response.rect, stroke.color, Align2::RIGHT_BOTTOM);
 }
 
-pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, stroke: Stroke, corner: Align2) {
+pub fn paint_resize_corner_with_style(
+    ui: &Ui,
+    rect: &Rect,
+    color: impl Into<Color32>,
+    corner: Align2,
+) {
     let painter = ui.painter();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;
+    let stroke = Stroke {
+        width: 1.0, // Set width to 1.0 to prevent overlapping
+        color: color.into(),
+    };
 
     while w <= rect.width() && w <= rect.height() {
         painter.line_segment(

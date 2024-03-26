@@ -65,16 +65,19 @@ pub struct PanicSummary {
 }
 
 impl PanicSummary {
+    /// Construct a summary from a panic.
     pub fn new(info: &std::panic::PanicInfo<'_>) -> Self {
         let message = info.to_string();
         let callstack = Error::new().stack();
         Self { message, callstack }
     }
 
+    /// The panic message.
     pub fn message(&self) -> String {
         self.message.clone()
     }
 
+    /// The backtrace.
     pub fn callstack(&self) -> String {
         self.callstack.clone()
     }

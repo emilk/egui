@@ -7,3 +7,15 @@
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
 This is a crate that adds some features on top top of [`egui`](https://github.com/emilk/egui). This crate is for experimental features, and features that require big dependencies that do not belong in `egui`.
+
+## Images
+One thing `egui_extras` is commonly used for is to install image loaders for `egui`:
+
+```toml
+egui_extras = { version = "*", features = ["all_loaders"] }
+image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
+```
+
+```rs
+egui_extras::install_image_loaders(egui_ctx);
+```

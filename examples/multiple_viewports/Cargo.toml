@@ -1,0 +1,21 @@
+[package]
+name = "multiple_viewports"
+version = "0.1.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.72"
+publish = false
+
+[features]
+wgpu = ["eframe/wgpu"]
+
+[dependencies]
+eframe = { workspace = true, features = [
+    "default",
+    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+] }
+env_logger = { version = "0.10", default-features = false, features = [
+    "auto-color",
+    "humantime",
+] }

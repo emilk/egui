@@ -1,3 +1,5 @@
+/// An `enum` of common operating systems.
+#[allow(clippy::upper_case_acronyms)] // `Ios` looks too ugly
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OperatingSystem {
     /// Unknown OS - could be wasm
@@ -26,6 +28,7 @@ impl Default for OperatingSystem {
 }
 
 impl OperatingSystem {
+    /// Uses the compile-time `target_arch` to identify the OS.
     pub const fn from_target_os() -> Self {
         if cfg!(target_arch = "wasm32") {
             Self::Unknown

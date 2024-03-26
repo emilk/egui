@@ -1,10 +1,9 @@
 mod builder;
-mod cursor_range;
 mod output;
 mod state;
 mod text_buffer;
 
 pub use {
-    builder::TextEdit, cursor_range::*, output::TextEditOutput, state::TextEditState,
-    text_buffer::TextBuffer,
+    crate::text_selection::TextCursorState, builder::TextEdit, output::TextEditOutput,
+    state::TextEditState, text_buffer::TextBuffer,
 };

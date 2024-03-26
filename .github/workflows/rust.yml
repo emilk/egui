@@ -15,11 +15,11 @@ jobs:
     name: Format + check + test
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.67.0
+          toolchain: 1.72.0
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -49,7 +49,7 @@ jobs:
         run: cargo check --locked --all-features --all-targets
 
       - name: check egui_extras --all-features
-        run: cargo check --locked --all-features --all-targets -p egui_extras
+        run: cargo check --locked --all-features -p egui_extras
 
       - name: check default features
         run: cargo check --locked --all-targets
@@ -57,11 +57,14 @@ jobs:
       - name: check --no-default-features
         run: cargo check --locked --no-default-features --lib --all-targets
 
-      - name: check epaint --no-default-features
-        run: cargo check --locked --no-default-features --lib --all-targets -p epaint
-
       - name: check eframe --no-default-features
-        run: cargo check --locked --no-default-features --features x11 --lib --all-targets -p eframe
+        run: cargo check --locked --no-default-features --features x11 --lib -p eframe
+
+      - name: check egui_extras --no-default-features
+        run: cargo check --locked --no-default-features --lib -p egui_extras
+
+      - name: check epaint --no-default-features
+        run: cargo check --locked --no-default-features --lib -p epaint
 
       - name: Test doc-tests
         run: cargo test --doc --all-features
@@ -78,19 +81,22 @@ jobs:
       - name: Cranky
         run: cargo cranky --all-targets --all-features -- -D warnings
 
+      - name: Cranky release
+        run: cargo cranky --all-targets --all-features --release -- -D warnings
+
   # ---------------------------------------------------------------------------
 
   check_wasm:
     name: Check wasm32 + wasm-bindgen
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.67.0
+          toolchain: 1.72.0
           targets: wasm32-unknown-unknown
 
-      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev
+      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
@@ -112,7 +118,7 @@ jobs:
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          version: "0.2.87"
+          version: "0.2.88"
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
@@ -142,10 +148,10 @@ jobs:
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
-          rust-version: "1.67.0"
+          rust-version: "1.72.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
@@ -156,11 +162,11 @@ jobs:
     name: android
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.67.0
+          toolchain: 1.72.0
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
@@ -175,13 +181,16 @@ jobs:
     name: Check Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.67.0
+          toolchain: 1.72.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Check
+      - name: Check all
         run: cargo check --all-targets --all-features
+
+      - name: Check hello_world
+        run: cargo check -p hello_world

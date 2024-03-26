@@ -1,6 +1,6 @@
 //! Frame container
 
-use crate::{layers::ShapeIdx, style::Margin, *};
+use crate::{layers::ShapeIdx, *};
 use epaint::*;
 
 /// Add a background, frame and/or margin to a rectangular background of a [`Ui`].
@@ -14,6 +14,43 @@ use epaint::*;
 ///     });
 /// # });
 /// ```
+///
+/// ## Dynamic color
+/// If you want to change the color of the frame based on the response of
+/// the widget, you needs to break it up into multiple steps:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// let mut frame = egui::Frame::default().inner_margin(4.0).begin(ui);
+/// {
+///     let response = frame.content_ui.label("Inside the frame");
+///     if response.hovered() {
+///         frame.frame.fill = egui::Color32::RED;
+///     }
+/// }
+/// frame.end(ui); // Will "close" the frame.
+/// # });
+/// ```
+///
+/// You can also respond to the hovering of the frame itself:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// let mut frame = egui::Frame::default().inner_margin(4.0).begin(ui);
+/// {
+///     frame.content_ui.label("Inside the frame");
+///     frame.content_ui.label("This too");
+/// }
+/// let response = frame.allocate_space(ui);
+/// if response.hovered() {
+///     frame.frame.fill = egui::Color32::RED;
+/// }
+/// frame.paint(ui);
+/// # });
+/// ```
+///
+/// Note that you cannot change the margins after calling `begin`.
+#[doc(alias = "border")]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[must_use = "You should call .show()"]
 pub struct Frame {
@@ -127,8 +164,8 @@ impl Frame {
     }
 
     #[inline]
-    pub fn stroke(mut self, stroke: Stroke) -> Self {
-        self.stroke = stroke;
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = stroke.into();
         self
     }
 
@@ -152,18 +189,13 @@ impl Frame {
         self
     }
 
-    #[deprecated = "Renamed inner_margin in egui 0.18"]
-    #[inline]
-    pub fn margin(self, margin: impl Into<Margin>) -> Self {
-        self.inner_margin(margin)
-    }
-
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = shadow;
         self
     }
 
+    #[inline]
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
         self.fill = self.fill.linear_multiply(opacity);
         self.stroke.color = self.stroke.color.linear_multiply(opacity);
@@ -183,12 +215,26 @@ impl Frame {
 // ----------------------------------------------------------------------------
 
 pub struct Prepared {
+    /// The frame that was prepared.
+    ///
+    /// The margin has already been read and used,
+    /// but the rest of the fields may be modified.
     pub frame: Frame,
+
+    /// This is where we will insert the frame shape so it ends up behind the content.
     where_to_put_background: ShapeIdx,
+
+    /// Add your widgets to this UI so it ends up within the frame.
     pub content_ui: Ui,
 }
 
 impl Frame {
+    /// Begin a dynamically colored frame.
+    ///
+    /// This is a more advanced API.
+    /// Usually you want to use [`Self::show`] instead.
+    ///
+    /// See docs for [`Frame`] for an example.
     pub fn begin(self, ui: &mut Ui) -> Prepared {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
@@ -210,6 +256,7 @@ impl Frame {
         }
     }
 
+    /// Show the given ui surrounded by this frame.
     pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(add_contents))
     }
@@ -225,6 +272,9 @@ impl Frame {
         InnerResponse::new(ret, response)
     }
 
+    /// Paint this frame as a shape.
+    ///
+    /// The margin is ignored.
     pub fn paint(&self, outer_rect: Rect) -> Shape {
         let Self {
             inner_margin: _,
@@ -248,30 +298,37 @@ impl Frame {
 }
 
 impl Prepared {
-    fn paint_rect(&self) -> Rect {
-        self.frame
-            .inner_margin
-            .expand_rect(self.content_ui.min_rect())
-    }
-
     fn content_with_margin(&self) -> Rect {
         (self.frame.inner_margin + self.frame.outer_margin).expand_rect(self.content_ui.min_rect())
     }
 
-    pub fn end(self, ui: &mut Ui) -> Response {
-        let paint_rect = self.paint_rect();
+    /// Allocate the the space that was used by [`Self::content_ui`].
+    ///
+    /// This MUST be called, or the parent ui will not know how much space this widget used.
+    ///
+    /// This can be called before or after [`Self::paint`].
+    pub fn allocate_space(&self, ui: &mut Ui) -> Response {
+        ui.allocate_rect(self.content_with_margin(), Sense::hover())
+    }
 
-        let Prepared {
-            frame,
-            where_to_put_background,
-            ..
-        } = self;
+    /// Paint the frame.
+    ///
+    /// This can be called before or after [`Self::allocate_space`].
+    pub fn paint(&self, ui: &Ui) {
+        let paint_rect = self
+            .frame
+            .inner_margin
+            .expand_rect(self.content_ui.min_rect());
 
         if ui.is_rect_visible(paint_rect) {
-            let shape = frame.paint(paint_rect);
-            ui.painter().set(where_to_put_background, shape);
+            let shape = self.frame.paint(paint_rect);
+            ui.painter().set(self.where_to_put_background, shape);
         }
+    }
 
-        ui.allocate_rect(self.content_with_margin(), Sense::hover())
+    /// Convenience for calling [`Self::allocate_space`] and [`Self::paint`].
+    pub fn end(self, ui: &mut Ui) -> Response {
+        self.paint(ui);
+        self.allocate_space(ui)
     }
 }

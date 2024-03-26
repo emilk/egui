@@ -1,16 +1,16 @@
 [package]
 name = "egui_extras"
-version = "0.22.0"
+version.workspace = true
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
   "René Rössler <rene@freshx.de>",
 ]
 description = "Extra functionality and widgets for the egui GUI library"
-edition = "2021"
-rust-version = "1.67"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
@@ -24,21 +24,46 @@ all-features = true
 
 
 [features]
-default = []
+default = ["dep:mime_guess2"]
+
+## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
+all_loaders = ["file", "http", "image", "svg"]
 
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
-## Support loading svg images.
-svg = ["resvg", "tiny-skia", "usvg"]
+## Add support for loading images from `file://` URIs.
+file = ["dep:mime_guess2"]
 
-## Log warnings using [`log`](https://docs.rs/log) crate.
-log = ["dep:log", "egui/log"]
+## Add support for loading images via HTTP.
+http = ["dep:ehttp"]
+
+## Add support for loading images with the [`image`](https://docs.rs/image) crate.
+##
+## You also need to ALSO opt-in to the image formats you want to support, like so:
+## ```toml
+## image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
+
+## ```
+image = ["dep:image"]
+
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
+##
+## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
+puffin = ["dep:puffin", "egui/puffin"]
+
+## Support loading svg images.
+svg = ["resvg"]
+
+## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
+syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.22.0", path = "../egui", default-features = false }
+egui = { workspace = true, default-features = false, features = ["serde"] }
 
+enum-map = { version = "2", features = ["serde"] }
+log.workspace = true
 serde = { version = "1", features = ["derive"] }
 
 #! ### Optional dependencies
@@ -52,20 +77,21 @@ chrono = { version = "0.4", optional = true, default-features = false, features 
 ] }
 
 ## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+document-features = { workspace = true, optional = true }
 
-## Add support for loading images with the [`image`](https://docs.rs/image) crate.
-##
-## You also need to ALSO opt-in to the image formats you want to support, like so:
-## ```toml
-## image = { version = "0.24", features = ["jpeg", "png"] }
-## ```
 image = { version = "0.24", optional = true, default-features = false }
 
-# feature "log"
-log = { version = "0.4", optional = true, features = ["std"] }
+# file feature
+mime_guess2 = { version = "2", optional = true, default-features = false }
+
+puffin = { workspace = true, optional = true }
+
+syntect = { version = "5", optional = true, default-features = false, features = [
+  "default-fancy",
+] }
 
 # svg feature
-resvg = { version = "0.28", optional = true, default-features = false }
-tiny-skia = { version = "0.8", optional = true, default-features = false } # must be updated in lock-step with resvg
-usvg = { version = "0.28", optional = true, default-features = false }
+resvg = { version = "0.37", optional = true, default-features = false }
+
+# http feature
+ehttp = { version = "0.5", optional = true, default-features = false }

@@ -1,16 +1,16 @@
 [package]
 name = "egui-wgpu"
-version = "0.22.0"
+version.workspace = true
 description = "Bindings for using egui natively using the wgpu library"
 authors = [
   "Nils Hasenbanck <nils@hasenbanck.de>",
   "embotech <opensource@embotech.com>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
 ]
-edition = "2021"
-rust-version = "1.67"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
 categories = ["gui", "game-development"]
@@ -28,30 +28,39 @@ all-features = true
 
 
 [features]
+default = []
+
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin"]
 
-## Enable [`winit`](https://docs.rs/winit) integration.
+## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["dep:winit"]
+
+## Enables Wayland support for winit.
+wayland = ["winit?/wayland"]
+
+## Enables x11 support for winit.
+x11 = ["winit?/x11"]
 
 
 [dependencies]
-epaint = { version = "0.22.0", path = "../epaint", default-features = false, features = [
-  "bytemuck",
-] }
+egui = { workspace = true, default-features = false }
+epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 bytemuck = "1.7"
-log = { version = "0.4", features = ["std"] }
+document-features.workspace = true
+log.workspace = true
 thiserror.workspace = true
 type-map = "0.5.0"
-wgpu.workspace = true
+web-time.workspace = true
+wgpu = { workspace = true, features = ["wgsl"] }
 
-#! ### Optional dependencies
-## Enable this when generating docs.
-document-features = { version = "0.2", optional = true }
+# Optional dependencies:
 
-winit = { version = "0.28", default-features = false, optional = true }
+winit = { workspace = true, optional = true, default-features = false, features = [
+  "rwh_06",
+] }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }

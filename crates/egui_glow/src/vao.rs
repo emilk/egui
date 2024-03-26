@@ -34,30 +34,32 @@ impl VertexArrayObject {
         buffer_infos: Vec<BufferInfo>,
     ) -> Self {
         let vao = if supports_vao(gl) {
-            let vao = gl.create_vertex_array().unwrap();
-            check_for_gl_error!(gl, "create_vertex_array");
+            unsafe {
+                let vao = gl.create_vertex_array().unwrap();
+                check_for_gl_error!(gl, "create_vertex_array");
 
-            // Store state in the VAO:
-            gl.bind_vertex_array(Some(vao));
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+                // Store state in the VAO:
+                gl.bind_vertex_array(Some(vao));
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
 
-            for attribute in &buffer_infos {
-                gl.vertex_attrib_pointer_f32(
-                    attribute.location,
-                    attribute.vector_size,
-                    attribute.data_type,
-                    attribute.normalized,
-                    attribute.stride,
-                    attribute.offset,
-                );
-                check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
-                gl.enable_vertex_attrib_array(attribute.location);
-                check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                for attribute in &buffer_infos {
+                    gl.vertex_attrib_pointer_f32(
+                        attribute.location,
+                        attribute.vector_size,
+                        attribute.data_type,
+                        attribute.normalized,
+                        attribute.stride,
+                        attribute.offset,
+                    );
+                    check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
+                    gl.enable_vertex_attrib_array(attribute.location);
+                    check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                }
+
+                gl.bind_vertex_array(None);
+
+                Some(vao)
             }
-
-            gl.bind_vertex_array(None);
-
-            Some(vao)
         } else {
             log::debug!("VAO not supported");
             None
@@ -71,36 +73,40 @@ impl VertexArrayObject {
     }
 
     pub(crate) unsafe fn bind(&self, gl: &glow::Context) {
-        if let Some(vao) = self.vao {
-            gl.bind_vertex_array(Some(vao));
-            check_for_gl_error!(gl, "bind_vertex_array");
-        } else {
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
-            check_for_gl_error!(gl, "bind_buffer");
+        unsafe {
+            if let Some(vao) = self.vao {
+                gl.bind_vertex_array(Some(vao));
+                check_for_gl_error!(gl, "bind_vertex_array");
+            } else {
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
+                check_for_gl_error!(gl, "bind_buffer");
 
-            for attribute in &self.buffer_infos {
-                gl.vertex_attrib_pointer_f32(
-                    attribute.location,
-                    attribute.vector_size,
-                    attribute.data_type,
-                    attribute.normalized,
-                    attribute.stride,
-                    attribute.offset,
-                );
-                check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
-                gl.enable_vertex_attrib_array(attribute.location);
-                check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                for attribute in &self.buffer_infos {
+                    gl.vertex_attrib_pointer_f32(
+                        attribute.location,
+                        attribute.vector_size,
+                        attribute.data_type,
+                        attribute.normalized,
+                        attribute.stride,
+                        attribute.offset,
+                    );
+                    check_for_gl_error!(gl, "vertex_attrib_pointer_f32");
+                    gl.enable_vertex_attrib_array(attribute.location);
+                    check_for_gl_error!(gl, "enable_vertex_attrib_array");
+                }
             }
         }
     }
 
     pub(crate) unsafe fn unbind(&self, gl: &glow::Context) {
-        if self.vao.is_some() {
-            gl.bind_vertex_array(None);
-        } else {
-            gl.bind_buffer(glow::ARRAY_BUFFER, None);
-            for attribute in &self.buffer_infos {
-                gl.disable_vertex_attrib_array(attribute.location);
+        unsafe {
+            if self.vao.is_some() {
+                gl.bind_vertex_array(None);
+            } else {
+                gl.bind_buffer(glow::ARRAY_BUFFER, None);
+                for attribute in &self.buffer_infos {
+                    gl.disable_vertex_attrib_array(attribute.location);
+                }
             }
         }
     }

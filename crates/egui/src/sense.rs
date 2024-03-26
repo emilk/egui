@@ -2,13 +2,14 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Sense {
-    /// buttons, sliders, windows, …
+    /// Buttons, sliders, windows, …
     pub click: bool,
 
-    /// sliders, windows, scroll bars, scroll areas, …
+    /// Sliders, windows, scroll bars, scroll areas, …
     pub drag: bool,
 
-    /// this widgets want focus.
+    /// This widget wants focus.
+    ///
     /// Anything interactive + labels that can be focused
     /// for the benefit of screen readers.
     pub focusable: bool,
@@ -17,6 +18,7 @@ pub struct Sense {
 impl Sense {
     /// Senses no clicks or drags. Only senses mouse hover.
     #[doc(alias = "none")]
+    #[inline]
     pub fn hover() -> Self {
         Self {
             click: false,
@@ -27,6 +29,7 @@ impl Sense {
 
     /// Senses no clicks or drags, but can be focused with the keyboard.
     /// Used for labels that can be focused for the benefit of screen readers.
+    #[inline]
     pub fn focusable_noninteractive() -> Self {
         Self {
             click: false,
@@ -36,6 +39,7 @@ impl Sense {
     }
 
     /// Sense clicks and hover, but not drags.
+    #[inline]
     pub fn click() -> Self {
         Self {
             click: true,
@@ -45,6 +49,7 @@ impl Sense {
     }
 
     /// Sense drags and hover, but not clicks.
+    #[inline]
     pub fn drag() -> Self {
         Self {
             click: false,
@@ -54,6 +59,14 @@ impl Sense {
     }
 
     /// Sense both clicks, drags and hover (e.g. a slider or window).
+    ///
+    /// Note that this will introduce a latency when dragging,
+    /// because when the user starts a press egui can't know if this is the start
+    /// of a click or a drag, and it won't know until the cursor has
+    /// either moved a certain distance, or the user has released the mouse button.
+    ///
+    /// See [`crate::PointerState::is_decidedly_dragging`] for details.
+    #[inline]
     pub fn click_and_drag() -> Self {
         Self {
             click: true,
@@ -64,6 +77,7 @@ impl Sense {
 
     /// The logical "or" of two [`Sense`]s.
     #[must_use]
+    #[inline]
     pub fn union(self, other: Self) -> Self {
         Self {
             click: self.click | other.click,
@@ -73,7 +87,24 @@ impl Sense {
     }
 
     /// Returns true if we sense either clicks or drags.
+    #[inline]
     pub fn interactive(&self) -> bool {
         self.click || self.drag
+    }
+}
+
+impl std::ops::BitOr for Sense {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(self, rhs: Self) -> Self {
+        self.union(rhs)
+    }
+}
+
+impl std::ops::BitOrAssign for Sense {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = self.union(rhs);
     }
 }

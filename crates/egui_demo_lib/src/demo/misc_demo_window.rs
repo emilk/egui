@@ -1,13 +1,11 @@
 use super::*;
-use egui::{epaint::text::TextWrapping, *};
+use egui::*;
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct MiscDemoWindow {
     num_columns: usize,
-
-    text_break: TextBreakDemo,
 
     widgets: Widgets,
     colors: ColorWidgets,
@@ -17,14 +15,13 @@ pub struct MiscDemoWindow {
 
     dummy_bool: bool,
     dummy_usize: usize,
+    checklist: [bool; 3],
 }
 
 impl Default for MiscDemoWindow {
-    fn default() -> MiscDemoWindow {
-        MiscDemoWindow {
+    fn default() -> Self {
+        Self {
             num_columns: 2,
-
-            text_break: Default::default(),
 
             widgets: Default::default(),
             colors: Default::default(),
@@ -34,6 +31,7 @@ impl Default for MiscDemoWindow {
 
             dummy_bool: false,
             dummy_usize: 0,
+            checklist: std::array::from_fn(|i| i == 0),
         }
     }
 }
@@ -72,8 +70,6 @@ impl View for MiscDemoWindow {
             .default_open(false)
             .show(ui, |ui| {
                 text_layout_demo(ui);
-                ui.separator();
-                self.text_break.ui(ui);
                 ui.vertical_centered(|ui| {
                     ui.add(crate::egui_github_link_file_line!());
                 });
@@ -113,6 +109,24 @@ impl View for MiscDemoWindow {
                     }
                 });
                 ui.radio_value(&mut self.dummy_usize, 64, "radio_value");
+                ui.label("Checkboxes can be in an indeterminate state:");
+                let mut all_checked = self.checklist.iter().all(|item| *item);
+                let any_checked = self.checklist.iter().any(|item| *item);
+                let indeterminate = any_checked && !all_checked;
+                if ui
+                    .add(
+                        Checkbox::new(&mut all_checked, "Check/uncheck all")
+                            .indeterminate(indeterminate),
+                    )
+                    .changed()
+                {
+                    self.checklist
+                        .iter_mut()
+                        .for_each(|checked| *checked = all_checked);
+                }
+                for (i, checked) in self.checklist.iter_mut().enumerate() {
+                    ui.checkbox(checked, format!("Item {}", i + 1));
+                }
             });
 
         ui.collapsing("Columns", |ui| {
@@ -219,6 +233,7 @@ fn label_ui(ui: &mut egui::Ui) {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     angle: f32,
+    enabled: bool,
     password: String,
 }
 
@@ -226,6 +241,7 @@ impl Default for Widgets {
     fn default() -> Self {
         Self {
             angle: std::f32::consts::TAU / 3.0,
+            enabled: true,
             password: "hunter2".to_owned(),
         }
     }
@@ -233,7 +249,11 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self { angle, password } = self;
+        let Self {
+            angle,
+            enabled,
+            password,
+        } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file_line!());
         });
@@ -246,8 +266,20 @@ impl Widgets {
             });
             let _ = ui.button("A button you can never press");
         };
-        ui.label("Tooltips can be more than just simple text.")
-            .on_hover_ui(tooltip_ui);
+        let disabled_tooltip_ui = |ui: &mut Ui| {
+            ui.heading("Different tooltip when widget is disabled");
+            ui.horizontal(|ui| {
+                ui.label("This tooltip was created with");
+                ui.monospace(".on_disabled_hover_ui(…)");
+            });
+        };
+        ui.checkbox(enabled, "Enabled");
+        ui.add_enabled(
+            *enabled,
+            egui::Label::new("Tooltips can be more than just simple text."),
+        )
+        .on_hover_ui(tooltip_ui)
+        .on_disabled_hover_ui(disabled_tooltip_ui);
 
         ui.separator();
 
@@ -285,7 +317,7 @@ struct ColorWidgets {
 impl Default for ColorWidgets {
     fn default() -> Self {
         // Approximately the same color.
-        ColorWidgets {
+        Self {
             srgba_unmul: [0, 255, 183, 127],
             srgba_premul: [0, 187, 140, 127],
             rgba_unmul: [0.0, 1.0, 0.5, 0.5],
@@ -377,7 +409,7 @@ impl BoxPainting {
                 ui.painter().rect(
                     rect,
                     self.rounding,
-                    Color32::from_gray(64),
+                    ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
                 );
             }
@@ -438,8 +470,8 @@ struct Tree(Vec<Tree>);
 impl Tree {
     pub fn demo() -> Self {
         Self(vec![
-            Tree(vec![Tree::default(); 4]),
-            Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
+            Self(vec![Self::default(); 4]),
+            Self(vec![Self(vec![Self::default(); 2]); 3]),
         ])
     }
 
@@ -480,7 +512,7 @@ impl Tree {
             .collect();
 
         if ui.button("+").clicked() {
-            self.0.push(Tree::default());
+            self.0.push(Self::default());
         }
 
         Action::Keep
@@ -643,64 +675,4 @@ fn text_layout_demo(ui: &mut Ui) {
     );
 
     ui.label(job);
-}
-
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-struct TextBreakDemo {
-    break_anywhere: bool,
-    max_rows: usize,
-    overflow_character: Option<char>,
-}
-
-impl Default for TextBreakDemo {
-    fn default() -> Self {
-        Self {
-            max_rows: 1,
-            break_anywhere: true,
-            overflow_character: Some('…'),
-        }
-    }
-}
-
-impl TextBreakDemo {
-    pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            break_anywhere,
-            max_rows,
-            overflow_character,
-        } = self;
-
-        use egui::text::LayoutJob;
-
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(max_rows));
-            ui.label("Max rows");
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Line-break:");
-            ui.radio_value(break_anywhere, false, "word boundaries");
-            ui.radio_value(break_anywhere, true, "anywhere");
-        });
-
-        ui.horizontal(|ui| {
-            ui.selectable_value(overflow_character, None, "None");
-            ui.selectable_value(overflow_character, Some('…'), "…");
-            ui.selectable_value(overflow_character, Some('—'), "—");
-            ui.selectable_value(overflow_character, Some('-'), "  -  ");
-            ui.label("Overflow character");
-        });
-
-        let mut job =
-            LayoutJob::single_section(crate::LOREM_IPSUM_LONG.to_owned(), TextFormat::default());
-        job.wrap = TextWrapping {
-            max_rows: *max_rows,
-            break_anywhere: *break_anywhere,
-            overflow_character: *overflow_character,
-            ..Default::default()
-        };
-
-        ui.label(job); // `Label` overrides some of the wrapping settings, e.g. wrap width
-    }
 }

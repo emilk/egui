@@ -1,14 +1,12 @@
-use eframe::{
-    egui::{Button, CentralPanel, Context, UserAttentionType},
-    CreationContext, NativeOptions,
-};
+use eframe::{egui, CreationContext, NativeOptions};
+use egui::{Button, CentralPanel, Context, UserAttentionType};
 
 use std::time::{Duration, SystemTime};
 
 fn main() -> eframe::Result<()> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let native_options = NativeOptions {
-        initial_window_size: Some(eframe::egui::vec2(400., 200.)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([400., 200.]),
         ..Default::default()
     };
     eframe::run_native(
@@ -54,11 +52,11 @@ impl Application {
 }
 
 impl eframe::App for Application {
-    fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         if let Some(request_at) = self.request_at {
             if request_at < SystemTime::now() {
                 self.request_at = None;
-                frame.request_user_attention(self.attention);
+                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
                 if self.auto_reset {
                     self.auto_reset = false;
                     self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
@@ -69,7 +67,9 @@ impl eframe::App for Application {
         if let Some(reset_at) = self.reset_at {
             if reset_at < SystemTime::now() {
                 self.reset_at = None;
-                frame.request_user_attention(UserAttentionType::Reset);
+                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
+                    UserAttentionType::Reset,
+                ));
             }
         }
 
@@ -77,7 +77,7 @@ impl eframe::App for Application {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.label("Attention type:");
-                    eframe::egui::ComboBox::new("attention", "")
+                    egui::ComboBox::new("attention", "")
                         .selected_text(repr(self.attention))
                         .show_ui(ui, |ui| {
                             for kind in [

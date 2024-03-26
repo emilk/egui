@@ -1,4 +1,4 @@
-use egui::*;
+use egui::{style::HandleShape, *};
 use std::f64::INFINITY;
 
 /// Showcase sliders
@@ -17,6 +17,7 @@ pub struct Sliders {
     pub vertical: bool,
     pub value: f64,
     pub trailing_fill: bool,
+    pub handle_shape: HandleShape,
 }
 
 impl Default for Sliders {
@@ -33,6 +34,7 @@ impl Default for Sliders {
             vertical: false,
             value: 10.0,
             trailing_fill: false,
+            handle_shape: HandleShape::Circle,
         }
     }
 }
@@ -67,6 +69,7 @@ impl super::View for Sliders {
             vertical,
             value,
             trailing_fill,
+            handle_shape,
         } = self;
 
         ui.label("You can click a slider value to edit it with the keyboard.");
@@ -99,7 +102,8 @@ impl super::View for Sliders {
                     .orientation(orientation)
                     .text("i32 demo slider")
                     .step_by(istep)
-                    .trailing_fill(*trailing_fill),
+                    .trailing_fill(*trailing_fill)
+                    .handle_shape(*handle_shape),
             );
             *value = value_i32 as f64;
         } else {
@@ -111,7 +115,8 @@ impl super::View for Sliders {
                     .orientation(orientation)
                     .text("f64 demo slider")
                     .step_by(istep)
-                    .trailing_fill(*trailing_fill),
+                    .trailing_fill(*trailing_fill)
+                    .handle_shape(*handle_shape),
             );
 
             ui.label(
@@ -132,20 +137,26 @@ impl super::View for Sliders {
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("left")
-                .trailing_fill(*trailing_fill),
+                .trailing_fill(*trailing_fill)
+                .handle_shape(*handle_shape),
         );
         ui.add(
             Slider::new(max, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
                 .text("right")
-                .trailing_fill(*trailing_fill),
+                .trailing_fill(*trailing_fill)
+                .handle_shape(*handle_shape),
         );
 
         ui.separator();
 
         ui.checkbox(trailing_fill, "Toggle trailing color");
-        ui.label("When enabled, trailing color will be painted up until the circle.");
+        ui.label("When enabled, trailing color will be painted up until the handle.");
+
+        ui.separator();
+
+        handle_shape.ui(ui);
 
         ui.separator();
 

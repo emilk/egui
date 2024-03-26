@@ -37,7 +37,7 @@ impl CodeExample {
 
         show_code(
             ui,
-            r#"egui::Slider::new(&mut self.age, 0..=120).text("age")"#,
+            r#"ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));"#,
         );
         ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
         ui.end_row();
@@ -45,11 +45,11 @@ impl CodeExample {
         show_code(
             ui,
             r#"
-            if ui.button("Click each year").clicked() {
+            if ui.button("Increment").clicked() {
                 self.age += 1;
             }"#,
         );
-        if ui.button("Click each year").clicked() {
+        if ui.button("Increment").clicked() {
             self.age += 1;
         }
         ui.end_row();
@@ -75,19 +75,18 @@ impl super::Demo for CodeExample {
             .default_size([800.0, 400.0])
             .vscroll(false)
             .hscroll(true)
+            .resizable([true, false])
             .show(ctx, |ui| self.ui(ui));
     }
 }
 
 impl super::View for CodeExample {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        use crate::syntax_highlighting::code_view_ui;
-
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
 
-        code_view_ui(
+        crate::rust_view_ui(
             ui,
             r"
 pub struct CodeExample {
@@ -117,15 +116,15 @@ impl CodeExample {
                 });
         });
 
-        code_view_ui(ui, "    }\n}");
+        crate::rust_view_ui(ui, "    }\n}");
 
         ui.separator();
 
-        code_view_ui(ui, &format!("{self:#?}"));
+        crate::rust_view_ui(ui, &format!("{self:#?}"));
 
         ui.separator();
 
-        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let mut theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
         ui.collapsing("Theme", |ui| {
             theme.ui(ui);
             theme.store_in_memory(ui.ctx());
@@ -135,7 +134,7 @@ impl CodeExample {
 
 fn show_code(ui: &mut egui::Ui, code: &str) {
     let code = remove_leading_indentation(code.trim_start_matches('\n'));
-    crate::syntax_highlighting::code_view_ui(ui, &code);
+    crate::rust_view_ui(ui, &code);
 }
 
 fn remove_leading_indentation(code: &str) -> String {

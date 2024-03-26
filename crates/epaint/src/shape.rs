@@ -30,6 +30,9 @@ pub enum Shape {
     /// Circle with optional outline and fill.
     Circle(CircleShape),
 
+    /// Ellipse with optional outline and fill.
+    Ellipse(EllipseShape),
+
     /// A line between two points.
     LineSegment { points: [Pos2; 2], stroke: Stroke },
 
@@ -66,9 +69,9 @@ fn shape_impl_send_sync() {
     assert_send_sync::<Shape>();
 }
 
-impl From<Vec<Shape>> for Shape {
+impl From<Vec<Self>> for Shape {
     #[inline(always)]
-    fn from(shapes: Vec<Shape>) -> Self {
+    fn from(shapes: Vec<Self>) -> Self {
         Self::Vec(shapes)
     }
 }
@@ -95,7 +98,7 @@ impl Shape {
     /// A horizontal line.
     pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> Self {
         let x = x.into();
-        Shape::LineSegment {
+        Self::LineSegment {
             points: [pos2(x.min, y), pos2(x.max, y)],
             stroke: stroke.into(),
         }
@@ -104,7 +107,7 @@ impl Shape {
     /// A vertical line.
     pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> Self {
         let y = y.into();
-        Shape::LineSegment {
+        Self::LineSegment {
             points: [pos2(x, y.min), pos2(x, y.max)],
             stroke: stroke.into(),
         }
@@ -144,20 +147,74 @@ impl Shape {
         gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(path, stroke.into(), dash_length, gap_length, &mut shapes);
+        dashes_from_line(
+            path,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            &mut shapes,
+            0.,
+        );
+        shapes
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset.
+    pub fn dashed_line_with_offset(
+        path: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+    ) -> Vec<Self> {
+        let mut shapes = Vec::new();
+        dashes_from_line(
+            path,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            &mut shapes,
+            dash_offset,
+        );
         shapes
     }
 
     /// Turn a line into dashes. If you need to create many dashed lines use this instead of
-    /// [`Self::dashed_line`]
+    /// [`Self::dashed_line`].
     pub fn dashed_line_many(
         points: &[Pos2],
         stroke: impl Into<Stroke>,
         dash_length: f32,
         gap_length: f32,
-        shapes: &mut Vec<Shape>,
+        shapes: &mut Vec<Self>,
     ) {
-        dashes_from_line(points, stroke.into(), dash_length, gap_length, shapes);
+        dashes_from_line(
+            points,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            shapes,
+            0.,
+        );
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset. If you need to
+    /// create many dashed lines use this instead of [`Self::dashed_line_with_offset`].
+    pub fn dashed_line_many_with_offset(
+        points: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+        shapes: &mut Vec<Self>,
+    ) {
+        dashes_from_line(
+            points,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            shapes,
+            dash_offset,
+        );
     }
 
     /// A convex polygon with a fill and optional stroke.
@@ -180,6 +237,16 @@ impl Shape {
     #[inline]
     pub fn circle_stroke(center: Pos2, radius: f32, stroke: impl Into<Stroke>) -> Self {
         Self::Circle(CircleShape::stroke(center, radius, stroke))
+    }
+
+    #[inline]
+    pub fn ellipse_filled(center: Pos2, radius: Vec2, fill_color: impl Into<Color32>) -> Self {
+        Self::Ellipse(EllipseShape::filled(center, radius, fill_color))
+    }
+
+    #[inline]
+    pub fn ellipse_stroke(center: Pos2, radius: Vec2, stroke: impl Into<Stroke>) -> Self {
+        Self::Ellipse(EllipseShape::stroke(center, radius, stroke))
     }
 
     #[inline]
@@ -210,25 +277,37 @@ impl Shape {
         color: Color32,
     ) -> Self {
         let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
-        let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
-        Self::galley(rect.min, galley)
+        let rect = anchor.anchor_size(pos, galley.size());
+        Self::galley(rect.min, galley, color)
+    }
+
+    /// Any uncolored parts of the [`Galley`] (using [`Color32::PLACEHOLDER`]) will be replaced with the given color.
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
+    #[inline]
+    pub fn galley(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
+        TextShape::new(pos, galley, fallback_color).into()
+    }
+
+    /// All text color in the [`Galley`] will be replaced with the given color.
+    #[inline]
+    pub fn galley_with_override_text_color(
+        pos: Pos2,
+        galley: Arc<Galley>,
+        text_color: Color32,
+    ) -> Self {
+        TextShape::new(pos, galley, text_color)
+            .with_override_text_color(text_color)
+            .into()
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: Arc<Galley>) -> Self {
-        TextShape::new(pos, galley).into()
-    }
-
-    #[inline]
-    /// The text color in the [`Galley`] will be replaced with the given color.
+    #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
     pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
-        TextShape {
-            override_text_color: Some(text_color),
-            ..TextShape::new(pos, galley)
-        }
-        .into()
+        Self::galley_with_override_text_color(pos, galley, text_color)
     }
 
+    #[inline]
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
@@ -243,7 +322,7 @@ impl Shape {
     pub fn image(texture_id: TextureId, rect: Rect, uv: Rect, tint: Color32) -> Self {
         let mut mesh = Mesh::with_texture(texture_id);
         mesh.add_rect_with_uv(rect, uv, tint);
-        Shape::mesh(mesh)
+        Self::mesh(mesh)
     }
 
     /// The visual bounding rectangle (includes stroke widths)
@@ -258,6 +337,7 @@ impl Shape {
                 rect
             }
             Self::Circle(circle_shape) => circle_shape.visual_bounding_rect(),
+            Self::Ellipse(ellipse_shape) => ellipse_shape.visual_bounding_rect(),
             Self::LineSegment { points, stroke } => {
                 if stroke.is_empty() {
                     Rect::NOTHING
@@ -280,58 +360,102 @@ impl Shape {
 impl Shape {
     #[inline(always)]
     pub fn texture_id(&self) -> super::TextureId {
-        if let Shape::Mesh(mesh) = self {
+        if let Self::Mesh(mesh) = self {
             mesh.texture_id
-        } else if let Shape::Rect(rect_shape) = self {
+        } else if let Self::Rect(rect_shape) = self {
             rect_shape.fill_texture_id
         } else {
             super::TextureId::default()
         }
     }
 
-    /// Move the shape by this many points, in-place.
+    /// Scale the shape by `factor`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
+    pub fn scale(&mut self, factor: f32) {
+        self.transform(TSTransform::from_scaling(factor));
+    }
+
+    /// Move the shape by `delta`, in-place.
+    ///
+    /// A wrapper around [`Self::transform`].
+    #[inline(always)]
     pub fn translate(&mut self, delta: Vec2) {
+        self.transform(TSTransform::from_translation(delta));
+    }
+
+    /// Move the shape by this many points, in-place.
+    ///
+    /// If using a [`PaintCallback`], note that only the rect is scaled as opposed
+    /// to other shapes where the stroke is also scaled.
+    pub fn transform(&mut self, transform: TSTransform) {
         match self {
-            Shape::Noop => {}
-            Shape::Vec(shapes) => {
+            Self::Noop => {}
+            Self::Vec(shapes) => {
                 for shape in shapes {
-                    shape.translate(delta);
+                    shape.transform(transform);
                 }
             }
-            Shape::Circle(circle_shape) => {
-                circle_shape.center += delta;
+            Self::Circle(circle_shape) => {
+                circle_shape.center = transform * circle_shape.center;
+                circle_shape.radius *= transform.scaling;
+                circle_shape.stroke.width *= transform.scaling;
             }
-            Shape::LineSegment { points, .. } => {
+            Self::Ellipse(ellipse_shape) => {
+                ellipse_shape.center = transform * ellipse_shape.center;
+                ellipse_shape.radius *= transform.scaling;
+                ellipse_shape.stroke.width *= transform.scaling;
+            }
+            Self::LineSegment { points, stroke } => {
                 for p in points {
-                    *p += delta;
+                    *p = transform * *p;
                 }
+                stroke.width *= transform.scaling;
             }
-            Shape::Path(path_shape) => {
+            Self::Path(path_shape) => {
                 for p in &mut path_shape.points {
-                    *p += delta;
+                    *p = transform * *p;
                 }
+                path_shape.stroke.width *= transform.scaling;
             }
-            Shape::Rect(rect_shape) => {
-                rect_shape.rect = rect_shape.rect.translate(delta);
+            Self::Rect(rect_shape) => {
+                rect_shape.rect = transform * rect_shape.rect;
+                rect_shape.stroke.width *= transform.scaling;
+                rect_shape.rounding *= transform.scaling;
             }
-            Shape::Text(text_shape) => {
-                text_shape.pos += delta;
+            Self::Text(text_shape) => {
+                text_shape.pos = transform * text_shape.pos;
+
+                // Scale text:
+                let galley = Arc::make_mut(&mut text_shape.galley);
+                for row in &mut galley.rows {
+                    row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
+                    for v in &mut row.visuals.mesh.vertices {
+                        v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);
+                    }
+                }
+
+                galley.mesh_bounds = transform.scaling * galley.mesh_bounds;
+                galley.rect = transform.scaling * galley.rect;
             }
-            Shape::Mesh(mesh) => {
-                mesh.translate(delta);
+            Self::Mesh(mesh) => {
+                mesh.transform(transform);
             }
-            Shape::QuadraticBezier(bezier_shape) => {
-                bezier_shape.points[0] += delta;
-                bezier_shape.points[1] += delta;
-                bezier_shape.points[2] += delta;
+            Self::QuadraticBezier(bezier_shape) => {
+                bezier_shape.points[0] = transform * bezier_shape.points[0];
+                bezier_shape.points[1] = transform * bezier_shape.points[1];
+                bezier_shape.points[2] = transform * bezier_shape.points[2];
+                bezier_shape.stroke.width *= transform.scaling;
             }
-            Shape::CubicBezier(cubic_curve) => {
+            Self::CubicBezier(cubic_curve) => {
                 for p in &mut cubic_curve.points {
-                    *p += delta;
+                    *p = transform * *p;
                 }
+                cubic_curve.stroke.width *= transform.scaling;
             }
-            Shape::Callback(shape) => {
-                shape.rect = shape.rect.translate(delta);
+            Self::Callback(shape) => {
+                shape.rect = transform * shape.rect;
             }
         }
     }
@@ -392,6 +516,61 @@ impl From<CircleShape> for Shape {
 
 // ----------------------------------------------------------------------------
 
+/// How to paint an ellipse.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct EllipseShape {
+    pub center: Pos2,
+
+    /// Radius is the vector (a, b) where the width of the Ellipse is 2a and the height is 2b
+    pub radius: Vec2,
+    pub fill: Color32,
+    pub stroke: Stroke,
+}
+
+impl EllipseShape {
+    #[inline]
+    pub fn filled(center: Pos2, radius: Vec2, fill_color: impl Into<Color32>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: fill_color.into(),
+            stroke: Default::default(),
+        }
+    }
+
+    #[inline]
+    pub fn stroke(center: Pos2, radius: Vec2, stroke: impl Into<Stroke>) -> Self {
+        Self {
+            center,
+            radius,
+            fill: Default::default(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            Rect::from_center_size(
+                self.center,
+                self.radius * 2.0 + Vec2::splat(self.stroke.width),
+            )
+        }
+    }
+}
+
+impl From<EllipseShape> for Shape {
+    #[inline(always)]
+    fn from(shape: EllipseShape) -> Self {
+        Self::Ellipse(shape)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A path which can be stroked and/or filled (if closed).
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -418,7 +597,7 @@ impl PathShape {
     /// Use [`Shape::line_segment`] instead if your line only connects two points.
     #[inline]
     pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        PathShape {
+        Self {
             points,
             closed: false,
             fill: Default::default(),
@@ -429,7 +608,7 @@ impl PathShape {
     /// A line that closes back to the start point again.
     #[inline]
     pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
-        PathShape {
+        Self {
             points,
             closed: true,
             fill: Default::default(),
@@ -446,7 +625,7 @@ impl PathShape {
         fill: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        PathShape {
+        Self {
             points,
             closed: true,
             fill: fill.into(),
@@ -498,6 +677,8 @@ pub struct RectShape {
     ///
     /// To display a texture, set [`Self::fill_texture_id`],
     /// and set this to `Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))`.
+    ///
+    /// Use [`Rect::ZERO`] to turn off texturing.
     pub uv: Rect,
 }
 
@@ -611,23 +792,12 @@ impl Rounding {
     };
 
     #[inline]
-    pub fn same(radius: f32) -> Self {
+    pub const fn same(radius: f32) -> Self {
         Self {
             nw: radius,
             ne: radius,
             sw: radius,
             se: radius,
-        }
-    }
-
-    #[inline]
-    #[deprecated = "Use Rounding::ZERO"]
-    pub fn none() -> Self {
-        Self {
-            nw: 0.0,
-            ne: 0.0,
-            sw: 0.0,
-            se: 0.0,
         }
     }
 
@@ -660,6 +830,130 @@ impl Rounding {
     }
 }
 
+impl std::ops::Add for Rounding {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            nw: self.nw + rhs.nw,
+            ne: self.ne + rhs.ne,
+            sw: self.sw + rhs.sw,
+            se: self.se + rhs.se,
+        }
+    }
+}
+
+impl std::ops::AddAssign for Rounding {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Self {
+            nw: self.nw + rhs.nw,
+            ne: self.ne + rhs.ne,
+            sw: self.sw + rhs.sw,
+            se: self.se + rhs.se,
+        };
+    }
+}
+
+impl std::ops::AddAssign<f32> for Rounding {
+    #[inline]
+    fn add_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw + rhs,
+            ne: self.ne + rhs,
+            sw: self.sw + rhs,
+            se: self.se + rhs,
+        };
+    }
+}
+
+impl std::ops::Sub for Rounding {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: Self) -> Self {
+        Self {
+            nw: self.nw - rhs.nw,
+            ne: self.ne - rhs.ne,
+            sw: self.sw - rhs.sw,
+            se: self.se - rhs.se,
+        }
+    }
+}
+
+impl std::ops::SubAssign for Rounding {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = Self {
+            nw: self.nw - rhs.nw,
+            ne: self.ne - rhs.ne,
+            sw: self.sw - rhs.sw,
+            se: self.se - rhs.se,
+        };
+    }
+}
+
+impl std::ops::SubAssign<f32> for Rounding {
+    #[inline]
+    fn sub_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw - rhs,
+            ne: self.ne - rhs,
+            sw: self.sw - rhs,
+            se: self.se - rhs,
+        };
+    }
+}
+
+impl std::ops::Div<f32> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn div(self, rhs: f32) -> Self {
+        Self {
+            nw: self.nw / rhs,
+            ne: self.ne / rhs,
+            sw: self.sw / rhs,
+            se: self.se / rhs,
+        }
+    }
+}
+
+impl std::ops::DivAssign<f32> for Rounding {
+    #[inline]
+    fn div_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw / rhs,
+            ne: self.ne / rhs,
+            sw: self.sw / rhs,
+            se: self.se / rhs,
+        };
+    }
+}
+
+impl std::ops::Mul<f32> for Rounding {
+    type Output = Self;
+    #[inline]
+    fn mul(self, rhs: f32) -> Self {
+        Self {
+            nw: self.nw * rhs,
+            ne: self.ne * rhs,
+            sw: self.sw * rhs,
+            se: self.se * rhs,
+        }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Rounding {
+    #[inline]
+    fn mul_assign(&mut self, rhs: f32) {
+        *self = Self {
+            nw: self.nw * rhs,
+            ne: self.ne * rhs,
+            sw: self.sw * rhs,
+            se: self.se * rhs,
+        };
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// How to paint some text on screen.
@@ -678,10 +972,19 @@ pub struct TextShape {
     /// You can also set an underline when creating the galley.
     pub underline: Stroke,
 
+    /// Any [`Color32::PLACEHOLDER`] in the galley will be replaced by the given color.
+    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    pub fallback_color: Color32,
+
     /// If set, the text color in the galley will be ignored and replaced
     /// with the given color.
-    /// This will NOT replace background color nor strikethrough/underline color.
+    ///
+    /// This only affects the glyphs and will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
+
+    /// If set, the text will be rendered with the given opacity in gamma space
+    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    pub opacity_factor: f32,
 
     /// Rotate text by this many radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
@@ -689,13 +992,18 @@ pub struct TextShape {
 }
 
 impl TextShape {
+    /// The given fallback color will be used for any uncolored part of the galley (using [`Color32::PLACEHOLDER`]).
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
     #[inline]
-    pub fn new(pos: Pos2, galley: Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
         Self {
             pos,
             galley,
             underline: Stroke::NONE,
+            fallback_color,
             override_text_color: None,
+            opacity_factor: 1.0,
             angle: 0.0,
         }
     }
@@ -704,6 +1012,34 @@ impl TextShape {
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
         self.galley.mesh_bounds.translate(self.pos.to_vec2())
+    }
+
+    #[inline]
+    pub fn with_underline(mut self, underline: Stroke) -> Self {
+        self.underline = underline;
+        self
+    }
+
+    /// Use the given color for the text, regardless of what color is already in the galley.
+    #[inline]
+    pub fn with_override_text_color(mut self, override_text_color: Color32) -> Self {
+        self.override_text_color = Some(override_text_color);
+        self
+    }
+
+    /// Rotate text by this many radians clockwise.
+    /// The pivot is `pos` (the upper left corner of the text).
+    #[inline]
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    /// Render text with this opacity in gamma space
+    #[inline]
+    pub fn with_opacity_factor(mut self, opacity_factor: f32) -> Self {
+        self.opacity_factor = opacity_factor;
+        self
     }
 }
 
@@ -742,12 +1078,16 @@ fn points_from_line(
 fn dashes_from_line(
     path: &[Pos2],
     stroke: Stroke,
-    dash_length: f32,
-    gap_length: f32,
+    dash_lengths: &[f32],
+    gap_lengths: &[f32],
     shapes: &mut Vec<Shape>,
+    dash_offset: f32,
 ) {
-    let mut position_on_segment = 0.0;
+    assert_eq!(dash_lengths.len(), gap_lengths.len());
+    let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
+    let mut step = 0;
+    let steps = dash_lengths.len();
     path.windows(2).for_each(|window| {
         let (start, end) = (window[0], window[1]);
         let vector = end - start;
@@ -759,11 +1099,16 @@ fn dashes_from_line(
             if drawing_dash {
                 // This is the end point.
                 shapes.push(Shape::line_segment([start_point, new_point], stroke));
-                position_on_segment += gap_length;
+                position_on_segment += gap_lengths[step];
+                // Increment step counter
+                step += 1;
+                if step >= steps {
+                    step = 0;
+                }
             } else {
                 // Start a new dash.
                 start_point = new_point;
-                position_on_segment += dash_length;
+                position_on_segment += dash_lengths[step];
             }
             drawing_dash = !drawing_dash;
         }
@@ -787,6 +1132,8 @@ pub struct PaintCallbackInfo {
     /// Rect is the [-1, +1] of the Normalized Device Coordinates.
     ///
     /// Note than only a portion of this may be visible due to [`Self::clip_rect`].
+    ///
+    /// This comes from [`PaintCallback::rect`].
     pub viewport: Rect,
 
     /// Clip rectangle in points.
@@ -799,44 +1146,83 @@ pub struct PaintCallbackInfo {
     pub screen_size_px: [u32; 2],
 }
 
+/// Size of the viewport in whole, physical pixels.
 pub struct ViewportInPixels {
     /// Physical pixel offset for left side of the viewport.
-    pub left_px: f32,
+    pub left_px: i32,
 
     /// Physical pixel offset for top side of the viewport.
-    pub top_px: f32,
+    pub top_px: i32,
 
     /// Physical pixel offset for bottom side of the viewport.
     ///
     /// This is what `glViewport`, `glScissor` etc expects for the y axis.
-    pub from_bottom_px: f32,
+    pub from_bottom_px: i32,
 
     /// Viewport width in physical pixels.
-    pub width_px: f32,
+    pub width_px: i32,
 
     /// Viewport height in physical pixels.
-    pub height_px: f32,
+    pub height_px: i32,
+}
+
+impl ViewportInPixels {
+    fn from_points(rect: &Rect, pixels_per_point: f32, screen_size_px: [u32; 2]) -> Self {
+        // Fractional pixel values for viewports are generally valid, but may cause sampling issues
+        // and rounding errors might cause us to get out of bounds.
+
+        // Round:
+        let left_px = (pixels_per_point * rect.min.x).round() as i32; // inclusive
+        let top_px = (pixels_per_point * rect.min.y).round() as i32; // inclusive
+        let right_px = (pixels_per_point * rect.max.x).round() as i32; // exclusive
+        let bottom_px = (pixels_per_point * rect.max.y).round() as i32; // exclusive
+
+        // Clamp to screen:
+        let screen_width = screen_size_px[0] as i32;
+        let screen_height = screen_size_px[1] as i32;
+        let left_px = left_px.clamp(0, screen_width);
+        let right_px = right_px.clamp(left_px, screen_width);
+        let top_px = top_px.clamp(0, screen_height);
+        let bottom_px = bottom_px.clamp(top_px, screen_height);
+
+        let width_px = right_px - left_px;
+        let height_px = bottom_px - top_px;
+
+        Self {
+            left_px,
+            top_px,
+            from_bottom_px: screen_height - height_px - top_px,
+            width_px,
+            height_px,
+        }
+    }
+}
+
+#[test]
+fn test_viewport_rounding() {
+    for i in 0..=10_000 {
+        // Two adjacent viewports should never overlap:
+        let x = i as f32 / 97.0;
+        let left = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_max_x(x);
+        let right = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_min_x(x);
+
+        for pixels_per_point in [0.618, 1.0, std::f32::consts::PI] {
+            let left = ViewportInPixels::from_points(&left, pixels_per_point, [100, 100]);
+            let right = ViewportInPixels::from_points(&right, pixels_per_point, [100, 100]);
+            assert_eq!(left.left_px + left.width_px, right.left_px);
+        }
+    }
 }
 
 impl PaintCallbackInfo {
-    fn points_to_pixels(&self, rect: &Rect) -> ViewportInPixels {
-        ViewportInPixels {
-            left_px: rect.min.x * self.pixels_per_point,
-            top_px: rect.min.y * self.pixels_per_point,
-            from_bottom_px: self.screen_size_px[1] as f32 - rect.max.y * self.pixels_per_point,
-            width_px: rect.width() * self.pixels_per_point,
-            height_px: rect.height() * self.pixels_per_point,
-        }
-    }
-
     /// The viewport rectangle. This is what you would use in e.g. `glViewport`.
     pub fn viewport_in_pixels(&self) -> ViewportInPixels {
-        self.points_to_pixels(&self.viewport)
+        ViewportInPixels::from_points(&self.viewport, self.pixels_per_point, self.screen_size_px)
     }
 
     /// The "scissor" or "clip" rectangle. This is what you would use in e.g. `glScissor`.
     pub fn clip_rect_in_pixels(&self) -> ViewportInPixels {
-        self.points_to_pixels(&self.clip_rect)
+        ViewportInPixels::from_points(&self.clip_rect, self.pixels_per_point, self.screen_size_px)
     }
 }
 
@@ -846,6 +1232,8 @@ impl PaintCallbackInfo {
 #[derive(Clone)]
 pub struct PaintCallback {
     /// Where to paint.
+    ///
+    /// This will become [`PaintCallbackInfo::viewport`].
     pub rect: Rect,
 
     /// Paint something custom (e.g. 3D stuff).

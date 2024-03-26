@@ -2,9 +2,14 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{ecolor::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
-use epaint::{Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
+
+use epaint::{Rounding, Shadow, Stroke};
+
+use crate::{
+    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Margin, Response, RichText,
+    WidgetText,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -199,12 +204,21 @@ pub struct Style {
     pub animation_time: f32,
 
     /// Options to help debug why egui behaves strangely.
+    ///
+    /// Only available in debug builds.
+    #[cfg(debug_assertions)]
     pub debug: DebugOptions,
 
     /// Show tooltips explaining [`DragValue`]:s etc when hovered.
     ///
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
+
+    /// Show the URL of hyperlinks in a tooltip when hovered.
+    pub url_in_tooltip: bool,
+
+    /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
+    pub always_scroll_the_only_direction: bool,
 }
 
 impl Style {
@@ -271,6 +285,9 @@ pub struct Spacing {
     /// Default width of a [`Slider`].
     pub slider_width: f32,
 
+    /// Default rail height of a [`Slider`].
+    pub slider_rail_height: f32,
+
     /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
     pub combo_width: f32,
 
@@ -292,22 +309,20 @@ pub struct Spacing {
     /// Width of a tooltip (`on_hover_ui`, `on_hover_text` etc).
     pub tooltip_width: f32,
 
+    /// The default width of a menu.
+    pub menu_width: f32,
+
+    /// Horizontal distance between a menu and a submenu.
+    pub menu_spacing: f32,
+
     /// End indented regions with a horizontal line
     pub indent_ends_with_horizontal_line: bool,
 
     /// Height of a combo-box before showing scroll bars.
     pub combo_height: f32,
 
-    pub scroll_bar_width: f32,
-
-    /// Make sure the scroll handle is at least this big
-    pub scroll_handle_min_length: f32,
-
-    /// Margin between contents and scroll bar.
-    pub scroll_bar_inner_margin: f32,
-
-    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
-    pub scroll_bar_outer_margin: f32,
+    /// Controls the spacing of a [`crate::ScrollArea`].
+    pub scroll: ScrollStyle,
 }
 
 impl Spacing {
@@ -328,100 +343,271 @@ impl Spacing {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+/// Controls the spacing and visuals of a [`crate::ScrollArea`].
+///
+/// There are three presets to chose from:
+/// * [`Self::solid`]
+/// * [`Self::thin`]
+/// * [`Self::floating`]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Margin {
-    pub left: f32,
-    pub right: f32,
-    pub top: f32,
-    pub bottom: f32,
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollStyle {
+    /// If `true`, scroll bars float above the content, partially covering it.
+    ///
+    /// If `false`, the scroll bars allocate space, shrinking the area
+    /// available to the contents.
+    ///
+    /// This also changes the colors of the scroll-handle to make
+    /// it more promiment.
+    pub floating: bool,
+
+    /// The width of the scroll bars at it largest.
+    pub bar_width: f32,
+
+    /// Make sure the scroll handle is at least this big
+    pub handle_min_length: f32,
+
+    /// Margin between contents and scroll bar.
+    pub bar_inner_margin: f32,
+
+    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
+    /// Only makes sense for non-floating scroll bars.
+    pub bar_outer_margin: f32,
+
+    /// The thin width of floating scroll bars that the user is NOT hovering.
+    ///
+    /// When the user hovers the scroll bars they expand to [`Self::bar_width`].
+    pub floating_width: f32,
+
+    /// How much space i allocated for a floating scroll bar?
+    ///
+    /// Normally this is zero, but you could set this to something small
+    /// like 4.0 and set [`Self::dormant_handle_opacity`] and
+    /// [`Self::dormant_background_opacity`] to e.g. 0.5
+    /// so as to always show a thin scroll bar.
+    pub floating_allocated_width: f32,
+
+    /// If true, use colors with more contrast. Good for floating scroll bars.
+    pub foreground_color: bool,
+
+    /// The opaqueness of the background when the user is neither scrolling
+    /// nor hovering the scroll area.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub dormant_background_opacity: f32,
+
+    /// The opaqueness of the background when the user is hovering
+    /// the scroll area, but not the scroll bar.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub active_background_opacity: f32,
+
+    /// The opaqueness of the background when the user is hovering
+    /// over the scroll bars.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub interact_background_opacity: f32,
+
+    /// The opaqueness of the handle when the user is neither scrolling
+    /// nor hovering the scroll area.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub dormant_handle_opacity: f32,
+
+    /// The opaqueness of the handle when the user is hovering
+    /// the scroll area, but not the scroll bar.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub active_handle_opacity: f32,
+
+    /// The opaqueness of the handle when the user is hovering
+    /// over the scroll bars.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub interact_handle_opacity: f32,
 }
 
-impl Margin {
-    pub const ZERO: Self = Self {
-        left: 0.0,
-        right: 0.0,
-        top: 0.0,
-        bottom: 0.0,
-    };
+impl Default for ScrollStyle {
+    fn default() -> Self {
+        Self::floating()
+    }
+}
 
-    #[inline]
-    pub fn same(margin: f32) -> Self {
+impl ScrollStyle {
+    /// Solid scroll bars that always use up space
+    pub fn solid() -> Self {
         Self {
-            left: margin,
-            right: margin,
-            top: margin,
-            bottom: margin,
+            floating: false,
+            bar_width: 6.0,
+            handle_min_length: 12.0,
+            bar_inner_margin: 4.0,
+            bar_outer_margin: 0.0,
+            floating_width: 2.0,
+            floating_allocated_width: 0.0,
+
+            foreground_color: false,
+
+            dormant_background_opacity: 0.0,
+            active_background_opacity: 0.4,
+            interact_background_opacity: 0.7,
+
+            dormant_handle_opacity: 0.0,
+            active_handle_opacity: 0.6,
+            interact_handle_opacity: 1.0,
         }
     }
 
-    /// Margins with the same size on opposing sides
-    #[inline]
-    pub fn symmetric(x: f32, y: f32) -> Self {
+    /// Thin scroll bars that expand on hover
+    pub fn thin() -> Self {
         Self {
-            left: x,
-            right: x,
-            top: y,
-            bottom: y,
+            floating: true,
+            bar_width: 10.0,
+            floating_allocated_width: 6.0,
+            foreground_color: false,
+
+            dormant_background_opacity: 1.0,
+            dormant_handle_opacity: 1.0,
+
+            active_background_opacity: 1.0,
+            active_handle_opacity: 1.0,
+
+            // Be tranlucent when expanded so we can see the content
+            interact_background_opacity: 0.6,
+            interact_handle_opacity: 0.6,
+
+            ..Self::solid()
         }
     }
 
-    /// Total margins on both sides
-    #[inline]
-    pub fn sum(&self) -> Vec2 {
-        vec2(self.left + self.right, self.top + self.bottom)
-    }
-
-    #[inline]
-    pub fn left_top(&self) -> Vec2 {
-        vec2(self.left, self.top)
-    }
-
-    #[inline]
-    pub fn right_bottom(&self) -> Vec2 {
-        vec2(self.right, self.bottom)
-    }
-
-    #[inline]
-    pub fn is_same(&self) -> bool {
-        self.left == self.right && self.left == self.top && self.left == self.bottom
-    }
-
-    #[inline]
-    pub fn expand_rect(&self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
-    }
-
-    #[inline]
-    pub fn shrink_rect(&self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
-    }
-}
-
-impl From<f32> for Margin {
-    #[inline]
-    fn from(v: f32) -> Self {
-        Self::same(v)
-    }
-}
-
-impl From<Vec2> for Margin {
-    #[inline]
-    fn from(v: Vec2) -> Self {
-        Self::symmetric(v.x, v.y)
-    }
-}
-
-impl std::ops::Add for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
+    /// No scroll bars until you hover the scroll area,
+    /// at which time they appear faintly, and then expand
+    /// when you hover the scroll bars.
+    pub fn floating() -> Self {
         Self {
-            left: self.left + other.left,
-            right: self.right + other.right,
-            top: self.top + other.top,
-            bottom: self.bottom + other.bottom,
+            floating: true,
+            bar_width: 10.0,
+            foreground_color: true,
+            floating_allocated_width: 0.0,
+            dormant_background_opacity: 0.0,
+            dormant_handle_opacity: 0.0,
+            ..Self::solid()
+        }
+    }
+
+    /// Width of a solid vertical scrollbar, or height of a horizontal scroll bar, when it is at its widest.
+    pub fn allocated_width(&self) -> f32 {
+        if self.floating {
+            self.floating_allocated_width
+        } else {
+            self.bar_inner_margin + self.bar_width + self.bar_outer_margin
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Presets:");
+            ui.selectable_value(self, Self::solid(), "Solid");
+            ui.selectable_value(self, Self::thin(), "Thin");
+            ui.selectable_value(self, Self::floating(), "Floating");
+        });
+
+        ui.collapsing("Details", |ui| {
+            self.details_ui(ui);
+        });
+    }
+
+    pub fn details_ui(&mut self, ui: &mut Ui) {
+        let Self {
+            floating,
+            bar_width,
+            handle_min_length,
+            bar_inner_margin,
+            bar_outer_margin,
+            floating_width,
+            floating_allocated_width,
+
+            foreground_color,
+
+            dormant_background_opacity,
+            active_background_opacity,
+            interact_background_opacity,
+            dormant_handle_opacity,
+            active_handle_opacity,
+            interact_handle_opacity,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.label("Type:");
+            ui.selectable_value(floating, false, "Solid");
+            ui.selectable_value(floating, true, "Floating");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_width).clamp_range(0.0..=32.0));
+            ui.label("Full bar width");
+        });
+        if *floating {
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(floating_width).clamp_range(0.0..=32.0));
+                ui.label("Thin bar width");
+            });
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(floating_allocated_width).clamp_range(0.0..=32.0));
+                ui.label("Allocated width");
+            });
+        }
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(handle_min_length).clamp_range(0.0..=32.0));
+            ui.label("Minimum handle length");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
+            ui.label("Outer margin");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Color:");
+            ui.selectable_value(foreground_color, false, "Background");
+            ui.selectable_value(foreground_color, true, "Foreground");
+        });
+
+        if *floating {
+            crate::Grid::new("opacity").show(ui, |ui| {
+                fn opacity_ui(ui: &mut Ui, opacity: &mut f32) {
+                    ui.add(DragValue::new(opacity).speed(0.01).clamp_range(0.0..=1.0));
+                }
+
+                ui.label("Opacity");
+                ui.label("Dormant");
+                ui.label("Active");
+                ui.label("Interacting");
+                ui.end_row();
+
+                ui.label("Background:");
+                opacity_ui(ui, dormant_background_opacity);
+                opacity_ui(ui, active_background_opacity);
+                opacity_ui(ui, interact_background_opacity);
+                ui.end_row();
+
+                ui.label("Handle:");
+                opacity_ui(ui, dormant_handle_opacity);
+                opacity_ui(ui, active_handle_opacity);
+                opacity_ui(ui, interact_handle_opacity);
+                ui.end_row();
+            });
+        } else {
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+                ui.label("Inner margin");
+            });
         }
     }
 }
@@ -433,17 +619,32 @@ impl std::ops::Add for Margin {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Interaction {
-    /// Mouse must be this close to the side of a window to resize
+    /// How close a widget must be to the mouse to have a chance to register as a click or drag.
+    ///
+    /// If this is larger than zero, it gets easier to hit widgets,
+    /// which is important for e.g. touch screens.
+    pub interact_radius: f32,
+
+    /// Radius of the interactive area of the side of a window during drag-to-resize.
     pub resize_grab_radius_side: f32,
 
-    /// Mouse must be this close to the corner of a window to resize
+    /// Radius of the interactive area of the corner of a window during drag-to-resize.
     pub resize_grab_radius_corner: f32,
 
     /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
     pub show_tooltips_only_when_still: bool,
 
     /// Delay in seconds before showing tooltips after the mouse stops moving
-    pub tooltip_delay: f64,
+    pub tooltip_delay: f32,
+
+    /// Can you select the text on a [`crate::Label`] by default?
+    pub selectable_labels: bool,
+
+    /// Can the user select text that span multiple labels?
+    ///
+    /// The default is `true`, but text seelction can be slightly glitchy,
+    /// so you may want to disable it.
+    pub multi_widget_text_select: bool,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -509,6 +710,9 @@ pub struct Visuals {
     pub window_fill: Color32,
     pub window_stroke: Stroke,
 
+    /// Highlight the topmost window.
+    pub window_highlight_topmost: bool,
+
     pub menu_rounding: Rounding,
 
     /// Panel background color
@@ -544,6 +748,24 @@ pub struct Visuals {
     ///
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
     pub slider_trailing_fill: bool,
+
+    /// Shape of the handle for sliders and similar widgets.
+    ///
+    /// Changing this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::handle_shape`].
+    pub handle_shape: HandleShape,
+
+    /// Should the cursor change when the user hovers over an interactive/clickable item?
+    ///
+    /// This is consistent with a lot of browser-based applications (vscode, github
+    /// all turn your cursor into [`CursorIcon::PointingHand`] when a button is
+    /// hovered) but it is inconsistent with native UI toolkits.
+    pub interact_cursor: Option<CursorIcon>,
+
+    /// Show a spinner when loading an image.
+    pub image_loading_spinners: bool,
+
+    /// How to display numeric color values.
+    pub numeric_color_space: NumericColorSpace,
 }
 
 impl Visuals {
@@ -552,6 +774,7 @@ impl Visuals {
         &self.widgets.noninteractive
     }
 
+    // Non-interactive text color.
     pub fn text_color(&self) -> Color32 {
         self.override_text_color
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())
@@ -600,6 +823,20 @@ pub struct Selection {
     pub stroke: Stroke,
 }
 
+/// Shape of the handle for sliders and similar widgets.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum HandleShape {
+    /// Circular handle
+    Circle,
+
+    /// Rectangular handle
+    Rect {
+        /// Aspect ratio of the rectangle. Set to < 1.0 to make it narrower.
+        aspect_ratio: f32,
+    },
+}
+
 /// The visuals of widgets for different states of interaction.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -630,7 +867,8 @@ impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if !response.sense.interactive() {
             &self.noninteractive
-        } else if response.is_pointer_button_down_on() || response.has_focus() {
+        } else if response.is_pointer_button_down_on() || response.has_focus() || response.clicked()
+        {
             &self.active
         } else if response.hovered() || response.highlighted() {
             &self.hovered
@@ -678,11 +916,35 @@ impl WidgetVisuals {
 }
 
 /// Options for help debug egui by adding extra visualization
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg(debug_assertions)]
 pub struct DebugOptions {
-    /// However over widgets to see their rectangles
+    /// Always show callstack to ui on hover.
+    ///
+    /// Useful for figuring out where in the code some UI is being created.
+    ///
+    /// Only works in debug builds.
+    /// Requires the `callstack` feature.
+    /// Does not work on web.
+    #[cfg(debug_assertions)]
     pub debug_on_hover: bool,
+
+    /// Show callstack for the current widget on hover if all modifier keys are pressed down.
+    ///
+    /// Useful for figuring out where in the code some UI is being created.
+    ///
+    /// Only works in debug builds.
+    /// Requires the `callstack` feature.
+    /// Does not work on web.
+    ///
+    /// Default is `true` in debug builds, on native, if the `callstack` feature is enabled.
+    #[cfg(debug_assertions)]
+    pub debug_on_hover_with_all_modifiers: bool,
+
+    /// If we show the hover ui, include where the next widget is placed.
+    #[cfg(debug_assertions)]
+    pub hover_shows_next: bool,
 
     /// Show which widgets make their parent wider
     pub show_expand_width: bool,
@@ -695,8 +957,25 @@ pub struct DebugOptions {
     /// Show an overlay on all interactive widgets.
     pub show_interactive_widgets: bool,
 
-    /// Show what widget blocks the interaction of another widget.
-    pub show_blocking_widget: bool,
+    /// Show interesting widgets under the mouse cursor.
+    pub show_widget_hits: bool,
+}
+
+#[cfg(debug_assertions)]
+impl Default for DebugOptions {
+    fn default() -> Self {
+        Self {
+            debug_on_hover: false,
+            debug_on_hover_with_all_modifiers: cfg!(feature = "callstack")
+                && !cfg!(target_arch = "wasm32"),
+            hover_shows_next: false,
+            show_expand_width: false,
+            show_expand_height: false,
+            show_resize: false,
+            show_interactive_widgets: false,
+            show_widget_hits: false,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -727,8 +1006,11 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
+            #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
+            url_in_tooltip: false,
+            always_scroll_the_only_direction: false,
         }
     }
 }
@@ -743,17 +1025,17 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
+            slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
             tooltip_width: 600.0,
+            menu_width: 150.0,
+            menu_spacing: 2.0,
             combo_height: 200.0,
-            scroll_bar_width: 8.0,
-            scroll_handle_min_length: 12.0,
-            scroll_bar_inner_margin: 4.0,
-            scroll_bar_outer_margin: 0.0,
+            scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
         }
     }
@@ -764,8 +1046,11 @@ impl Default for Interaction {
         Self {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
+            interact_radius: 5.0,
             show_tooltips_only_when_still: true,
-            tooltip_delay: 0.0,
+            tooltip_delay: 0.3,
+            selectable_labels: true,
+            multi_widget_text_select: true,
         }
     }
 }
@@ -786,18 +1071,32 @@ impl Visuals {
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
             window_rounding: Rounding::same(6.0),
-            window_shadow: Shadow::big_dark(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+            window_highlight_topmost: true,
 
             menu_rounding: Rounding::same(6.0),
 
             panel_fill: Color32::from_gray(27),
 
-            popup_shadow: Shadow::small_dark(),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
+
             resize_corner_size: 12.0,
+
             text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
+
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
@@ -806,6 +1105,13 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
+            handle_shape: HandleShape::Circle,
+
+            interact_cursor: None,
+
+            image_loading_spinners: true,
+
+            numeric_color_space: NumericColorSpace::GammaByte,
         }
     }
 
@@ -822,14 +1128,26 @@ impl Visuals {
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
-            window_shadow: Shadow::big_light(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
             window_fill: Color32::from_gray(248),
             window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
 
             panel_fill: Color32::from_gray(248),
 
-            popup_shadow: Shadow::small_light(),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
+
             text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+
             ..Self::dark()
         }
     }
@@ -899,7 +1217,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(27),
+                weak_bg_fill: Color32::from_gray(45),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
@@ -977,8 +1295,11 @@ impl Style {
             interaction,
             visuals,
             animation_time,
+            #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
+            url_in_tooltip,
+            always_scroll_the_only_direction,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -1039,11 +1360,20 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
+
+        #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
+            );
+
+        ui.checkbox(url_in_tooltip, "Show url when hovering links");
+
+        ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
+            .on_hover_text(
+                "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
@@ -1053,7 +1383,7 @@ impl Style {
 fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) -> Response {
     ui.vertical(|ui| {
         crate::Grid::new("text_styles").show(ui, |ui| {
-            for (text_style, font_id) in text_styles.iter_mut() {
+            for (text_style, font_id) in &mut *text_styles {
                 ui.label(RichText::new(text_style.to_string()).font(font_id.clone()));
                 crate::introspection::font_id_ui(ui, font_id);
                 ui.end_row();
@@ -1074,18 +1404,18 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            slider_rail_height,
             combo_width,
             text_edit_width,
             icon_width,
             icon_width_inner,
             icon_spacing,
             tooltip_width,
+            menu_width,
+            menu_spacing,
             indent_ends_with_horizontal_line,
             combo_height,
-            scroll_bar_width,
-            scroll_handle_min_length,
-            scroll_bar_inner_margin,
-            scroll_bar_outer_margin,
+            scroll,
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
@@ -1105,6 +1435,10 @@ impl Spacing {
             ui.label("Slider width");
         });
         ui.horizontal(|ui| {
+            ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
+            ui.label("Slider rail height");
+        });
+        ui.horizontal(|ui| {
             ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
             ui.label("ComboBox width");
         });
@@ -1112,21 +1446,9 @@ impl Spacing {
             ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
             ui.label("TextEdit width");
         });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar width");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_handle_min_length).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar handle min length");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_inner_margin).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar inner margin");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_outer_margin).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar outer margin");
+
+        ui.collapsing("Scroll Area", |ui| {
+            scroll.ui(ui);
         });
 
         ui.horizontal(|ui| {
@@ -1151,6 +1473,16 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
             ui.label("Tooltip wrap width");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
+            ui.label("Default width of a menu");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
+            ui.label("Horizontal spacing between menus");
         });
 
         ui.checkbox(
@@ -1219,11 +1551,16 @@ fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
 impl Interaction {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
+            interact_radius,
             resize_grab_radius_side,
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
             tooltip_delay,
+            selectable_labels,
+            multi_widget_text_select,
         } = self;
+        ui.add(Slider::new(interact_radius, 0.0..=20.0).text("interact_radius"))
+            .on_hover_text("Interact with the closest widget within this radius.");
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
             Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
@@ -1232,7 +1569,18 @@ impl Interaction {
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
         );
-        ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
+        ui.add(
+            Slider::new(tooltip_delay, 0.0..=1.0)
+                .suffix(" s")
+                .text("tooltip_delay"),
+        );
+
+        ui.horizontal(|ui| {
+            ui.checkbox(selectable_labels, "Selectable text in labels");
+            if *selectable_labels {
+                ui.checkbox(multi_widget_text_select, "Across multiple labels");
+            }
+        });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1358,6 +1706,7 @@ impl Visuals {
             window_shadow,
             window_fill,
             window_stroke,
+            window_highlight_topmost,
 
             menu_rounding,
 
@@ -1376,6 +1725,12 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
+            handle_shape,
+            interact_cursor,
+
+            image_loading_spinners,
+
+            numeric_color_space,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1394,6 +1749,7 @@ impl Visuals {
             stroke_ui(ui, window_stroke, "Outline");
             rounding_ui(ui, window_rounding);
             shadow_ui(ui, window_shadow, "Shadow");
+            ui.checkbox(window_highlight_topmost, "Highlight topmost Window");
         });
 
         ui.collapsing("Menus and popups", |ui| {
@@ -1441,22 +1797,54 @@ impl Visuals {
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
+        handle_shape.ui(ui);
+
+        ComboBox::from_label("Interact Cursor")
+            .selected_text(format!("{interact_cursor:?}"))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(interact_cursor, None, "None");
+
+                for icon in CursorIcon::ALL {
+                    ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
+                }
+            });
+
+        ui.checkbox(image_loading_spinners, "Image loading spinners")
+            .on_hover_text("Show a spinner when an Image is loading");
+
+        ui.horizontal(|ui| {
+            ui.label("Color picker type:");
+            numeric_color_space.toggle_button_ui(ui);
+        });
+
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
+#[cfg(debug_assertions)]
 impl DebugOptions {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             debug_on_hover,
+            debug_on_hover_with_all_modifiers,
+            hover_shows_next,
             show_expand_width,
             show_expand_height,
             show_resize,
             show_interactive_widgets,
-            show_blocking_widget,
+            show_widget_hits,
         } = self;
 
-        ui.checkbox(debug_on_hover, "Show debug info on hover");
+        {
+            ui.checkbox(debug_on_hover, "Show widget info on hover.");
+            ui.checkbox(
+                debug_on_hover_with_all_modifiers,
+                "Show widget info on hover if holding all modifier keys",
+            );
+
+            ui.checkbox(hover_shows_next, "Show next widget placement on hover");
+        }
+
         ui.checkbox(
             show_expand_width,
             "Show which widgets make their parent wider",
@@ -1472,10 +1860,7 @@ impl DebugOptions {
             "Show an overlay on all interactive widgets",
         );
 
-        ui.checkbox(
-            show_blocking_widget,
-            "Show which widget blocks the interaction of another widget",
-        );
+        ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1537,4 +1922,64 @@ fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
             }
         }
     });
+}
+
+impl HandleShape {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.label("Widget handle shape");
+        ui.horizontal(|ui| {
+            ui.radio_value(self, Self::Circle, "Circle");
+            if ui
+                .radio(matches!(self, Self::Rect { .. }), "Rectangle")
+                .clicked()
+            {
+                *self = Self::Rect { aspect_ratio: 0.5 };
+            }
+            if let Self::Rect { aspect_ratio } = self {
+                ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
+            }
+        });
+    }
+}
+
+/// How to display numeric color values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum NumericColorSpace {
+    /// RGB is 0-255 in gamma space.
+    ///
+    /// Alpha is 0-255 in linear space .
+    GammaByte,
+
+    /// 0-1 in linear space.
+    Linear,
+    // TODO(emilk): add Hex as an option
+}
+
+impl NumericColorSpace {
+    pub fn toggle_button_ui(&mut self, ui: &mut Ui) -> crate::Response {
+        let tooltip = match self {
+            Self::GammaByte => "Showing color values in 0-255 gamma space",
+            Self::Linear => "Showing color values in 0-1 linear space",
+        };
+
+        let mut response = ui.button(self.to_string()).on_hover_text(tooltip);
+        if response.clicked() {
+            *self = match self {
+                Self::GammaByte => Self::Linear,
+                Self::Linear => Self::GammaByte,
+            };
+            response.mark_changed();
+        }
+        response
+    }
+}
+
+impl std::fmt::Display for NumericColorSpace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GammaByte => write!(f, "U8"),
+            Self::Linear => write!(f, "F"),
+        }
+    }
 }

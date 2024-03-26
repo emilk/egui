@@ -146,6 +146,8 @@ impl Widget for &mut epaint::TessellationOptions {
                 debug_ignore_clip_rects,
                 bezier_tolerance,
                 epsilon: _,
+                parallel_tessellation,
+                validate_meshes,
             } = self;
 
             ui.checkbox(feathering, "Feathering (antialias)")
@@ -176,19 +178,27 @@ impl Widget for &mut epaint::TessellationOptions {
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
                 ui.checkbox(debug_paint_text_rects, "Paint text bounds");
             });
+
+            ui.add_enabled(epaint::HAS_RAYON, crate::Checkbox::new(parallel_tessellation, "Parallelize tessellation")
+                ).on_hover_text("Only available if epaint was compiled with the rayon feature")
+                .on_disabled_hover_text("epaint was not compiled with the rayon feature");
+
+            ui.checkbox(validate_meshes, "Validate meshes").on_hover_text("Check that incoming meshes are valid, i.e. that all indices are in range, etc.");
         })
         .response
     }
 }
 
-impl Widget for &memory::Interaction {
+impl Widget for &memory::InteractionState {
     fn ui(self, ui: &mut Ui) -> Response {
+        let memory::InteractionState {
+            potential_click_id,
+            potential_drag_id,
+        } = self;
+
         ui.vertical(|ui| {
-            ui.label(format!("click_id: {:?}", self.click_id));
-            ui.label(format!("drag_id: {:?}", self.drag_id));
-            ui.label(format!("drag_is_window: {:?}", self.drag_is_window));
-            ui.label(format!("click_interest: {:?}", self.click_interest));
-            ui.label(format!("drag_interest: {:?}", self.drag_interest));
+            ui.label(format!("potential_click_id: {potential_click_id:?}"));
+            ui.label(format!("potential_drag_id: {potential_drag_id:?}"));
         })
         .response
     }

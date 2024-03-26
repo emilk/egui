@@ -1,12 +1,12 @@
-/// Showcase [`TextEdit`].
+/// Showcase [`egui::TextEdit`].
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct TextEdit {
+pub struct TextEditDemo {
     pub text: String,
 }
 
-impl Default for TextEdit {
+impl Default for TextEditDemo {
     fn default() -> Self {
         Self {
             text: "Edit this text".to_owned(),
@@ -14,7 +14,7 @@ impl Default for TextEdit {
     }
 }
 
-impl super::Demo for TextEdit {
+impl super::Demo for TextEditDemo {
     fn name(&self) -> &'static str {
         "🖹 TextEdit"
     }
@@ -30,8 +30,12 @@ impl super::Demo for TextEdit {
     }
 }
 
-impl super::View for TextEdit {
+impl super::View for TextEditDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
+        });
+
         let Self { text } = self;
 
         ui.horizontal(|ui| {
@@ -49,9 +53,7 @@ impl super::View for TextEdit {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("Selected text: ");
             if let Some(text_cursor_range) = output.cursor_range {
-                use egui::TextBuffer as _;
-                let selected_chars = text_cursor_range.as_sorted_char_range();
-                let selected_text = text.char_range(selected_chars);
+                let selected_text = text_cursor_range.slice_str(text);
                 ui.code(selected_text);
             }
         });
@@ -88,7 +90,9 @@ impl super::View for TextEdit {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
                     let ccursor = egui::text::CCursor::new(0);
-                    state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
+                    state
+                        .cursor
+                        .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
                     ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
@@ -98,7 +102,9 @@ impl super::View for TextEdit {
                 let text_edit_id = output.response.id;
                 if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id) {
                     let ccursor = egui::text::CCursor::new(text.chars().count());
-                    state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
+                    state
+                        .cursor
+                        .set_char_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
                     ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }

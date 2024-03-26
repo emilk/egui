@@ -10,4 +10,4 @@ set -x
 # Use scripts/clippy_wasm/clippy.toml
 export CLIPPY_CONF_DIR="scripts/clippy_wasm"
 
-cargo cranky --all-features --target wasm32-unknown-unknown --target-dir target_wasm -p egui_demo_app --lib -- --deny warnings
+cargo cranky --quiet --all-features --target wasm32-unknown-unknown --target-dir target_wasm -p egui_demo_app --lib -- --deny warnings

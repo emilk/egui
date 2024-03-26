@@ -1,4 +1,4 @@
-use egui::{Pos2, Rect, Response, Sense, Ui};
+use egui::{Id, Pos2, Rect, Response, Sense, Ui};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -26,6 +26,15 @@ pub(crate) enum CellDirection {
     Vertical,
 }
 
+/// Flags used by [`StripLayout::add`].
+#[derive(Clone, Copy, Default)]
+pub(crate) struct StripLayoutFlags {
+    pub(crate) clip: bool,
+    pub(crate) striped: bool,
+    pub(crate) hovered: bool,
+    pub(crate) selected: bool,
+}
+
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
 pub struct StripLayout<'l> {
     pub(crate) ui: &'l mut Ui,
@@ -38,10 +47,16 @@ pub struct StripLayout<'l> {
     max: Pos2,
 
     cell_layout: egui::Layout,
+    sense: Sense,
 }
 
 impl<'l> StripLayout<'l> {
-    pub(crate) fn new(ui: &'l mut Ui, direction: CellDirection, cell_layout: egui::Layout) -> Self {
+    pub(crate) fn new(
+        ui: &'l mut Ui,
+        direction: CellDirection,
+        cell_layout: egui::Layout,
+        sense: Sense,
+    ) -> Self {
         let rect = ui.available_rect_before_wrap();
         let pos = rect.left_top();
 
@@ -52,6 +67,7 @@ impl<'l> StripLayout<'l> {
             cursor: pos,
             max: pos,
             cell_layout,
+            sense,
         }
     }
 
@@ -94,34 +110,57 @@ impl<'l> StripLayout<'l> {
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     pub(crate) fn add(
         &mut self,
-        clip: bool,
-        striped: bool,
+        flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
+        child_ui_id_source: Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
 
-        if striped {
-            // Make sure we don't have a gap in the stripe background:
-            let stripe_rect = max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
+        // Make sure we don't have a gap in the stripe/frame/selection background:
+        let item_spacing = self.ui.spacing().item_spacing;
+        let gapless_rect = max_rect.expand2(0.5 * item_spacing);
 
-            self.ui
-                .painter()
-                .rect_filled(stripe_rect, 0.0, self.ui.visuals().faint_bg_color);
+        if flags.striped {
+            self.ui.painter().rect_filled(
+                gapless_rect,
+                egui::Rounding::ZERO,
+                self.ui.visuals().faint_bg_color,
+            );
         }
 
-        let used_rect = self.cell(clip, max_rect, add_cell_contents);
+        if flags.selected {
+            self.ui.painter().rect_filled(
+                gapless_rect,
+                egui::Rounding::ZERO,
+                self.ui.visuals().selection.bg_fill,
+            );
+        }
+
+        if flags.hovered && !flags.selected && self.sense.interactive() {
+            self.ui.painter().rect_filled(
+                gapless_rect,
+                egui::Rounding::ZERO,
+                self.ui.visuals().widgets.hovered.bg_fill,
+            );
+        }
+
+        let child_ui = self.cell(flags, max_rect, child_ui_id_source, add_cell_contents);
+
+        let used_rect = child_ui.min_rect();
 
         self.set_pos(max_rect);
 
-        let allocation_rect = if clip {
+        let allocation_rect = if flags.clip {
             max_rect
         } else {
             max_rect.union(used_rect)
         };
 
-        let response = self.ui.allocate_rect(allocation_rect, Sense::hover());
+        self.ui.advance_cursor_after_rect(allocation_rect);
+
+        let response = child_ui.interact(max_rect, child_ui.id(), self.sense);
 
         (used_rect, response)
     }
@@ -148,18 +187,33 @@ impl<'l> StripLayout<'l> {
         self.ui.allocate_rect(rect, Sense::hover());
     }
 
-    fn cell(&mut self, clip: bool, rect: Rect, add_cell_contents: impl FnOnce(&mut Ui)) -> Rect {
-        let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
+    /// Return the Ui to which the contents where added
+    fn cell(
+        &mut self,
+        flags: StripLayoutFlags,
+        rect: Rect,
+        child_ui_id_source: egui::Id,
+        add_cell_contents: impl FnOnce(&mut Ui),
+    ) -> Ui {
+        let mut child_ui =
+            self.ui
+                .child_ui_with_id_source(rect, self.cell_layout, child_ui_id_source);
 
-        if clip {
+        if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
         }
 
+        if flags.selected {
+            let stroke_color = child_ui.style().visuals.selection.stroke.color;
+            child_ui.style_mut().visuals.override_text_color = Some(stroke_color);
+        }
+
         add_cell_contents(&mut child_ui);
-        child_ui.min_rect()
+
+        child_ui
     }
 
     /// Allocate the rect in [`Self::ui`] so that the scrollview knows about our size

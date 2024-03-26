@@ -6,28 +6,6 @@ use crate::*;
 
 // ----------------------------------------------------------------------------
 
-/// Same state for all [`DragValue`]s.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct MonoState {
-    last_dragged_id: Option<Id>,
-    last_dragged_value: Option<f64>,
-
-    /// For temporary edit of a [`DragValue`] value.
-    /// Couples with the current focus id.
-    edit_string: Option<String>,
-}
-
-impl MonoState {
-    pub(crate) fn end_frame(&mut self, input: &InputState) {
-        if input.pointer.any_pressed() || input.pointer.any_released() {
-            self.last_dragged_id = None;
-            self.last_dragged_value = None;
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 type NumFormatter<'a> = Box<dyn 'a + Fn(f64, RangeInclusive<usize>) -> String>;
 type NumParser<'a> = Box<dyn 'a + Fn(&str) -> Option<f64>>;
 
@@ -101,24 +79,30 @@ impl<'a> DragValue<'a> {
     }
 
     /// How much the value changes when dragged one point (logical pixel).
+    ///
+    /// Should be finite and greater than zero.
+    #[inline]
     pub fn speed(mut self, speed: impl Into<f64>) -> Self {
         self.speed = speed.into();
         self
     }
 
     /// Clamp incoming and outgoing values to this range.
+    #[inline]
     pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
         self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
         self
     }
 
     /// Show a prefix before the number, e.g. "x: "
+    #[inline]
     pub fn prefix(mut self, prefix: impl ToString) -> Self {
         self.prefix = prefix.to_string();
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    #[inline]
     pub fn suffix(mut self, suffix: impl ToString) -> Self {
         self.suffix = suffix.to_string();
         self
@@ -128,6 +112,7 @@ impl<'a> DragValue<'a> {
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
         self.min_decimals = min_decimals;
         self
@@ -138,11 +123,13 @@ impl<'a> DragValue<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
         self.max_decimals = Some(max_decimals);
         self
     }
 
+    #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
         self.max_decimals = max_decimals;
         self
@@ -152,6 +139,7 @@ impl<'a> DragValue<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
@@ -238,6 +226,7 @@ impl<'a> DragValue<'a> {
     ///     }));
     /// # });
     /// ```
+    #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
         self.custom_parser = Some(Box::new(parser));
         self
@@ -271,7 +260,7 @@ impl<'a> DragValue<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$b}", n.abs() as i64)
             })
         }
@@ -306,7 +295,7 @@ impl<'a> DragValue<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$o}", n.abs() as i64)
             })
         }
@@ -345,11 +334,11 @@ impl<'a> DragValue<'a> {
                 self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as i64))
             }
             (false, true) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$X}", n.abs() as i64)
             }),
             (false, false) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$x}", n.abs() as i64)
             }),
         }
@@ -360,6 +349,7 @@ impl<'a> DragValue<'a> {
     ///
     /// Default: `true`.
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
+    #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
         self.update_while_editing = update;
         self
@@ -384,7 +374,7 @@ impl<'a> Widget for DragValue<'a> {
         let shift = ui.input(|i| i.modifiers.shift_only());
         // The widget has the same ID whether it's in edit or button mode.
         let id = ui.next_auto_id();
-        let is_slow_speed = shift && ui.memory(|mem| mem.is_being_dragged(id));
+        let is_slow_speed = shift && ui.ctx().is_being_dragged(id);
 
         // The following ensures that when a `DragValue` receives focus,
         // it is immediately rendered in edit mode, rather than being rendered
@@ -392,12 +382,12 @@ impl<'a> Widget for DragValue<'a> {
         // screen readers.
         let is_kb_editing = ui.memory_mut(|mem| {
             mem.interested_in_focus(id);
-            let is_kb_editing = mem.has_focus(id);
-            if mem.gained_focus(id) {
-                mem.drag_value.edit_string = None;
-            }
-            is_kb_editing
+            mem.has_focus(id)
         });
+
+        if ui.memory_mut(|mem| mem.gained_focus(id)) {
+            ui.data_mut(|data| data.remove::<String>(id));
+        }
 
         let old_value = get(&mut get_set_value);
         let mut value = old_value;
@@ -457,7 +447,7 @@ impl<'a> Widget for DragValue<'a> {
         value = clamp_to_range(value, clamp_range.clone());
         if old_value != value {
             set(&mut get_set_value, value);
-            ui.memory_mut(|mem| mem.drag_value.edit_string = None);
+            ui.data_mut(|data| data.remove::<String>(id));
         }
 
         let value_text = match custom_formatter {
@@ -473,11 +463,27 @@ impl<'a> Widget for DragValue<'a> {
 
         let text_style = ui.style().drag_value_text_style.clone();
 
+        if ui.memory(|mem| mem.lost_focus(id)) {
+            let value_text = ui.data_mut(|data| data.remove_temp::<String>(id));
+            if let Some(value_text) = value_text {
+                // We were editing the value as text last frame, but lost focus.
+                // Make sure we applied the last text value:
+                let parsed_value = match &custom_parser {
+                    Some(parser) => parser(&value_text),
+                    None => value_text.parse().ok(),
+                };
+                if let Some(parsed_value) = parsed_value {
+                    let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
+                    set(&mut get_set_value, parsed_value);
+                }
+            }
+        }
+
         // some clones below are redundant if AccessKit is disabled
         #[allow(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
             let mut value_text = ui
-                .memory_mut(|mem| mem.drag_value.edit_string.take())
+                .data_mut(|data| data.remove_temp::<String>(id))
                 .unwrap_or_else(|| value_text.clone());
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
@@ -499,7 +505,7 @@ impl<'a> Widget for DragValue<'a> {
                 response.lost_focus()
             };
             if update {
-                let parsed_value = match custom_parser {
+                let parsed_value = match &custom_parser {
                     Some(parser) => parser(&value_text),
                     None => value_text.parse().ok(),
                 };
@@ -508,7 +514,7 @@ impl<'a> Widget for DragValue<'a> {
                     set(&mut get_set_value, parsed_value);
                 }
             }
-            ui.memory_mut(|mem| mem.drag_value.edit_string = Some(value_text));
+            ui.data_mut(|data| data.insert_temp(id, value_text));
             response
         } else {
             let button = Button::new(
@@ -523,7 +529,7 @@ impl<'a> Widget for DragValue<'a> {
             let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
 
             if ui.style().explanation_tooltips {
-                response = response .on_hover_text(format!(
+                response = response.on_hover_text(format!(
                     "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     prefix,
                     value as f32, // Show full precision value on-hover. TODO(emilk): figure out f64 vs f32
@@ -531,15 +537,18 @@ impl<'a> Widget for DragValue<'a> {
                 ));
             }
 
+            if ui.input(|i| i.pointer.any_pressed() || i.pointer.any_released()) {
+                // Reset memory of preciely dagged value.
+                ui.data_mut(|data| data.remove::<f64>(id));
+            }
+
             if response.clicked() {
-                ui.memory_mut(|mem| {
-                    mem.drag_value.edit_string = None;
-                    mem.request_focus(id);
-                });
+                ui.data_mut(|data| data.remove::<String>(id));
+                ui.memory_mut(|mem| mem.request_focus(id));
                 let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
-                state.set_ccursor_range(Some(text::CCursorRange::two(
-                    epaint::text::cursor::CCursor::default(),
-                    epaint::text::cursor::CCursor::new(value_text.chars().count()),
+                state.cursor.set_char_range(Some(text::CCursorRange::two(
+                    text::CCursor::default(),
+                    text::CCursor::new(value_text.chars().count()),
                 )));
                 state.store(ui.ctx(), response.id);
             } else if response.dragged() {
@@ -553,28 +562,22 @@ impl<'a> Widget for DragValue<'a> {
                 let delta_value = delta_points as f64 * speed;
 
                 if delta_value != 0.0 {
-                    let mut drag_state = ui.memory_mut(|mem| std::mem::take(&mut mem.drag_value));
-
                     // Since we round the value being dragged, we need to store the full precision value in memory:
-                    let stored_value = (drag_state.last_dragged_id == Some(response.id))
-                        .then_some(drag_state.last_dragged_value)
-                        .flatten();
-                    let stored_value = stored_value.unwrap_or(value);
-                    let stored_value = stored_value + delta_value;
+                    let precise_value = ui.data_mut(|data| data.get_temp::<f64>(id));
+                    let precise_value = precise_value.unwrap_or(value);
+                    let precise_value = precise_value + delta_value;
 
                     let aim_delta = aim_rad * speed;
                     let rounded_new_value = emath::smart_aim::best_in_range_f64(
-                        stored_value - aim_delta,
-                        stored_value + aim_delta,
+                        precise_value - aim_delta,
+                        precise_value + aim_delta,
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
                     let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range.clone());
                     set(&mut get_set_value, rounded_new_value);
 
-                    drag_state.last_dragged_id = Some(response.id);
-                    drag_state.last_dragged_value = Some(stored_value);
-                    ui.memory_mut(|mem| mem.drag_value = drag_state);
+                    ui.data_mut(|data| data.insert_temp::<f64>(id, precise_value));
                 }
             }
 

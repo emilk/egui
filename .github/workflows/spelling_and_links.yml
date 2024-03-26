@@ -1,0 +1,38 @@
+name: Check spelling and links
+on: [pull_request]
+
+jobs:
+  typos:
+    # https://github.com/crate-ci/typos
+    # Add exceptions to _typos.toml
+    # install and run locally: cargo install typos-cli && typos
+    name: typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
+
+      - name: Check spelling of entire workspace
+        uses: crate-ci/typos@master
+  # Disabled: too many names of crates and user-names etc
+  # spellcheck:
+  #   name: Spellcheck
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: streetsidesoftware/cspell-action@v2
+  #       with:
+  #         files: "**/*.md"
+  linkinator:
+    name: linkinator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jprochazk/linkinator-action@main
+        with:
+          linksToSkip: "https://crates.io/crates/.*, http://localhost:.*" # Avoid crates.io rate-limiting
+          retry: true
+          retryErrors: true
+          retryErrorsCount: 5
+          retryErrorsJitter: 2000
+

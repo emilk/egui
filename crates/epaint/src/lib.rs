@@ -5,16 +5,29 @@
 //! Create some [`Shape`]:s and pass them to [`tessellate_shapes`] to generate [`Mesh`]:es
 //! that you can then paint using some graphics API of your choice (e.g. OpenGL).
 //!
+//! ## Coordinate system
+//! The left-top corner of the screen is `(0.0, 0.0)`,
+//! with X increasing to the right and Y increasing downwards.
+//!
+//! `epaint` uses logical _points_ as its coordinate system.
+//! Those related to physical _pixels_ by the `pixels_per_point` scale factor.
+//! For example, a high-dpi screeen can have `pixels_per_point = 2.0`,
+//! meaning there are two physical screen pixels for each logical point.
+//!
+//! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![forbid(unsafe_code)]
+#![cfg_attr(feature = "puffin", deny(unsafe_code))]
+#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 mod bezier;
 pub mod image;
+mod margin;
 mod mesh;
 pub mod mutex;
 mod shadow;
@@ -29,23 +42,27 @@ mod texture_handle;
 pub mod textures;
 pub mod util;
 
-pub use {
+pub use self::{
     bezier::{CubicBezierShape, QuadraticBezierShape},
     image::{ColorImage, FontImage, ImageData, ImageDelta},
+    margin::Margin,
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::{
-        CircleShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Rounding, Shape,
-        TextShape,
+        CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape,
+        Rounding, Shape, TextShape,
     },
     stats::PaintStats,
     stroke::Stroke,
-    tessellator::{tessellate_shapes, TessellationOptions, Tessellator},
+    tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
 };
+
+#[allow(deprecated)]
+pub use tessellator::tessellate_shapes;
 
 pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
@@ -160,3 +177,38 @@ pub(crate) fn f64_hash<H: std::hash::Hasher>(state: &mut H, f: f64) {
         f.to_bits().hash(state);
     }
 }
+
+// ---------------------------------------------------------------------------
+
+/// Was epaint compiled with the `rayon` feature?
+pub const HAS_RAYON: bool = cfg!(feature = "rayon");
+
+// ---------------------------------------------------------------------------
+
+mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_function!($($arg)*);
+        };
+    }
+    pub(crate) use profile_function;
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_scope!($($arg)*);
+        };
+    }
+    pub(crate) use profile_scope;
+}
+
+#[allow(unused_imports)]
+pub(crate) use profiling_scopes::*;

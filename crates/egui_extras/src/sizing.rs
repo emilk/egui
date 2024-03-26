@@ -47,6 +47,7 @@ impl Size {
     }
 
     /// Won't shrink below this size (in points).
+    #[inline]
     pub fn at_least(mut self, minimum: f32) -> Self {
         match &mut self {
             Self::Absolute { range, .. }
@@ -59,6 +60,7 @@ impl Size {
     }
 
     /// Won't grow above this size (in points).
+    #[inline]
     pub fn at_most(mut self, maximum: f32) -> Self {
         match &mut self {
             Self::Absolute { range, .. }
@@ -153,7 +155,7 @@ impl From<Vec<Size>> for Sizing {
 #[test]
 fn test_sizing() {
     let sizing: Sizing = vec![].into();
-    assert_eq!(sizing.to_lengths(50.0, 0.0), vec![]);
+    assert_eq!(sizing.to_lengths(50.0, 0.0), Vec::<f32>::new());
 
     let sizing: Sizing = vec![Size::remainder().at_least(20.0), Size::remainder()].into();
     assert_eq!(sizing.to_lengths(50.0, 0.0), vec![25.0, 25.0]);

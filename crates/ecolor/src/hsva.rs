@@ -21,55 +21,61 @@ pub struct Hsva {
 }
 
 impl Hsva {
+    #[inline]
     pub fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
         Self { h, s, v, a }
     }
 
     /// From `sRGBA` with premultiplied alpha
-    pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
+    #[inline]
+    pub fn from_srgba_premultiplied([r, g, b, a]: [u8; 4]) -> Self {
         Self::from_rgba_premultiplied(
-            linear_f32_from_gamma_u8(srgba[0]),
-            linear_f32_from_gamma_u8(srgba[1]),
-            linear_f32_from_gamma_u8(srgba[2]),
-            linear_f32_from_linear_u8(srgba[3]),
+            linear_f32_from_gamma_u8(r),
+            linear_f32_from_gamma_u8(g),
+            linear_f32_from_gamma_u8(b),
+            linear_f32_from_linear_u8(a),
         )
     }
 
     /// From `sRGBA` without premultiplied alpha
-    pub fn from_srgba_unmultiplied(srgba: [u8; 4]) -> Self {
+    #[inline]
+    pub fn from_srgba_unmultiplied([r, g, b, a]: [u8; 4]) -> Self {
         Self::from_rgba_unmultiplied(
-            linear_f32_from_gamma_u8(srgba[0]),
-            linear_f32_from_gamma_u8(srgba[1]),
-            linear_f32_from_gamma_u8(srgba[2]),
-            linear_f32_from_linear_u8(srgba[3]),
+            linear_f32_from_gamma_u8(r),
+            linear_f32_from_gamma_u8(g),
+            linear_f32_from_gamma_u8(b),
+            linear_f32_from_linear_u8(a),
         )
     }
 
     /// From linear RGBA with premultiplied alpha
+    #[inline]
     pub fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         #![allow(clippy::many_single_char_names)]
         if a == 0.0 {
             if r == 0.0 && b == 0.0 && a == 0.0 {
-                Hsva::default()
+                Self::default()
             } else {
-                Hsva::from_additive_rgb([r, g, b])
+                Self::from_additive_rgb([r, g, b])
             }
         } else {
             let (h, s, v) = hsv_from_rgb([r / a, g / a, b / a]);
-            Hsva { h, s, v, a }
+            Self { h, s, v, a }
         }
     }
 
     /// From linear RGBA without premultiplied alpha
+    #[inline]
     pub fn from_rgba_unmultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         #![allow(clippy::many_single_char_names)]
         let (h, s, v) = hsv_from_rgb([r, g, b]);
-        Hsva { h, s, v, a }
+        Self { h, s, v, a }
     }
 
+    #[inline]
     pub fn from_additive_rgb(rgb: [f32; 3]) -> Self {
         let (h, s, v) = hsv_from_rgb(rgb);
-        Hsva {
+        Self {
             h,
             s,
             v,
@@ -77,11 +83,22 @@ impl Hsva {
         }
     }
 
-    pub fn from_rgb(rgb: [f32; 3]) -> Self {
-        let (h, s, v) = hsv_from_rgb(rgb);
-        Hsva { h, s, v, a: 1.0 }
+    #[inline]
+    pub fn from_additive_srgb([r, g, b]: [u8; 3]) -> Self {
+        Self::from_additive_rgb([
+            linear_f32_from_gamma_u8(r),
+            linear_f32_from_gamma_u8(g),
+            linear_f32_from_gamma_u8(b),
+        ])
     }
 
+    #[inline]
+    pub fn from_rgb(rgb: [f32; 3]) -> Self {
+        let (h, s, v) = hsv_from_rgb(rgb);
+        Self { h, s, v, a: 1.0 }
+    }
+
+    #[inline]
     pub fn from_srgb([r, g, b]: [u8; 3]) -> Self {
         Self::from_rgb([
             linear_f32_from_gamma_u8(r),
@@ -92,14 +109,17 @@ impl Hsva {
 
     // ------------------------------------------------------------------------
 
+    #[inline]
     pub fn to_opaque(self) -> Self {
         Self { a: 1.0, ..self }
     }
 
+    #[inline]
     pub fn to_rgb(&self) -> [f32; 3] {
         rgb_from_hsv((self.h, self.s, self.v))
     }
 
+    #[inline]
     pub fn to_srgb(&self) -> [u8; 3] {
         let [r, g, b] = self.to_rgb();
         [
@@ -109,6 +129,7 @@ impl Hsva {
         ]
     }
 
+    #[inline]
     pub fn to_rgba_premultiplied(&self) -> [f32; 4] {
         let [r, g, b, a] = self.to_rgba_unmultiplied();
         let additive = a < 0.0;
@@ -119,13 +140,17 @@ impl Hsva {
         }
     }
 
+    /// To linear space rgba in 0-1 range.
+    ///
     /// Represents additive colors using a negative alpha.
+    #[inline]
     pub fn to_rgba_unmultiplied(&self) -> [f32; 4] {
-        let Hsva { h, s, v, a } = *self;
+        let Self { h, s, v, a } = *self;
         let [r, g, b] = rgb_from_hsv((h, s, v));
         [r, g, b, a]
     }
 
+    #[inline]
     pub fn to_srgba_premultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_rgba_premultiplied();
         [
@@ -136,6 +161,8 @@ impl Hsva {
         ]
     }
 
+    /// To gamma-space 0-255.
+    #[inline]
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_rgba_unmultiplied();
         [
@@ -148,30 +175,35 @@ impl Hsva {
 }
 
 impl From<Hsva> for Rgba {
-    fn from(hsva: Hsva) -> Rgba {
-        Rgba(hsva.to_rgba_premultiplied())
+    #[inline]
+    fn from(hsva: Hsva) -> Self {
+        Self(hsva.to_rgba_premultiplied())
     }
 }
 
 impl From<Rgba> for Hsva {
-    fn from(rgba: Rgba) -> Hsva {
+    #[inline]
+    fn from(rgba: Rgba) -> Self {
         Self::from_rgba_premultiplied(rgba.0[0], rgba.0[1], rgba.0[2], rgba.0[3])
     }
 }
 
 impl From<Hsva> for Color32 {
-    fn from(hsva: Hsva) -> Color32 {
-        Color32::from(Rgba::from(hsva))
+    #[inline]
+    fn from(hsva: Hsva) -> Self {
+        Self::from(Rgba::from(hsva))
     }
 }
 
 impl From<Color32> for Hsva {
-    fn from(srgba: Color32) -> Hsva {
-        Hsva::from(Rgba::from(srgba))
+    #[inline]
+    fn from(srgba: Color32) -> Self {
+        Self::from(Rgba::from(srgba))
     }
 }
 
 /// All ranges in 0-1, rgb is linear.
+#[inline]
 pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
     #![allow(clippy::many_single_char_names)]
     let min = r.min(g.min(b));
@@ -195,6 +227,7 @@ pub fn hsv_from_rgb([r, g, b]: [f32; 3]) -> (f32, f32, f32) {
 }
 
 /// All ranges in 0-1, rgb is linear.
+#[inline]
 pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> [f32; 3] {
     #![allow(clippy::many_single_char_names)]
     let h = (h.fract() + 1.0).fract(); // wrap

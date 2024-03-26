@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WebDisplayHandle, WebWindowHandle, WindowHandle,
+};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
+use egui_wgpu::{RenderState, SurfaceErrorAction};
 
 use crate::WebOptions;
 
@@ -12,25 +16,32 @@ use super::web_painter::WebPainter;
 struct EguiWebWindow(u32);
 
 #[allow(unsafe_code)]
-unsafe impl raw_window_handle::HasRawWindowHandle for EguiWebWindow {
-    fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-        let mut window_handle = raw_window_handle::WebWindowHandle::empty();
-        window_handle.id = self.0;
-        raw_window_handle::RawWindowHandle::Web(window_handle)
+impl HasWindowHandle for EguiWebWindow {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // SAFETY: there is no lifetime here.
+        unsafe {
+            Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(
+                WebWindowHandle::new(self.0),
+            )))
+        }
     }
 }
 
 #[allow(unsafe_code)]
-unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
-    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-        raw_window_handle::RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
+impl HasDisplayHandle for EguiWebWindow {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // SAFETY: there is no lifetime here.
+        unsafe {
+            Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(
+                WebDisplayHandle::new(),
+            )))
+        }
     }
 }
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
-    canvas_id: String,
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
@@ -75,49 +86,107 @@ impl WebPainterWgpu {
     pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: options.wgpu_options.supported_backends,
-            dx12_shader_compiler: Default::default(),
-        });
+        let mut backends = options.wgpu_options.supported_backends;
 
-        let canvas = super::canvas_element_or_die(canvas_id);
+        // Don't try WebGPU if we're not in a secure context.
+        if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
+            let is_secure_context = web_sys::window().map_or(false, |w| w.is_secure_context());
+            if !is_secure_context {
+                log::info!(
+                    "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
+                );
 
-        let surface = if false {
-            instance.create_surface_from_canvas(canvas.clone())
-        } else {
-            // Workaround for https://github.com/gfx-rs/wgpu/issues/3710:
-            // Don't use `create_surface_from_canvas`, but `create_surface` instead!
-            let raw_window = EguiWebWindow(egui::util::hash(("egui on wgpu", canvas_id)) as u32);
-            canvas.set_attribute("data-raw-handle", &raw_window.0.to_string());
+                // Don't try WebGPU since we established now that it will fail.
+                backends.remove(wgpu::Backends::BROWSER_WEBGPU);
 
-            #[allow(unsafe_code)]
-            unsafe {
-                instance.create_surface(&raw_window)
+                if backends.is_empty() {
+                    return Err("No available supported graphics backends.".to_owned());
+                }
             }
         }
-        .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
+
+        log::debug!("Creating wgpu instance with backends {:?}", backends);
+        let mut instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends,
+            ..Default::default()
+        });
+
+        // It can happen that a browser advertises WebGPU support, but then fails to create a
+        // suitable adapter. As of writing this happens for example on Linux with Chrome 121.
+        //
+        // Since WebGPU is handled in a special way in wgpu, we have to recreate the instance
+        // if we instead want to try with WebGL.
+        //
+        // To make matters worse, once a canvas has been used with either WebGL or WebGPU,
+        // we can't go back and change that without replacing the canvas (which is hard to do from here).
+        // Therefore, we have to create the surface *after* requesting the adapter.
+        // However, wgpu offers to pass in a surface on adapter creation to ensure it is actually compatible with the chosen backend.
+        // This in turn isn't all that important on the web, but it still makes sense for the design of
+        // `egui::RenderState`!
+        // Therefore, we have to first check if it's possible to create a WebGPU adapter,
+        // and if it is not, start over with a WebGL instance.
+        //
+        // Note that we also might needlessly try this here if wgpu already determined that there's no
+        // WebGPU support in the first place. This is not a huge problem since it fails very fast, but
+        // it would be nice to avoid this. See https://github.com/gfx-rs/wgpu/issues/5142
+        if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
+            log::debug!("Attempting to create WebGPU adapter to check for support.");
+            if let Some(adapter) = instance
+                .request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: options.wgpu_options.power_preference,
+                    compatible_surface: None,
+                    force_fallback_adapter: false,
+                })
+                .await
+            {
+                // WebGPU doesn't spec yet a destroy on the adapter, only on the device.
+                //adapter.destroy();
+                log::debug!(
+                    "Successfully created WebGPU adapter, WebGPU confirmed to be supported!"
+                );
+            } else {
+                log::debug!("Failed to create WebGPU adapter.");
+
+                if backends.contains(wgpu::Backends::GL) {
+                    log::debug!("Recreating wgpu instance with WebGL backend only.");
+                    backends = wgpu::Backends::GL;
+                    instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                        backends,
+                        ..Default::default()
+                    });
+                } else {
+                    return Err(
+                        "Failed to create WebGPU adapter and WebGL was not enabled.".to_owned()
+                    );
+                }
+            }
+        }
+
+        let canvas = super::get_canvas_element_by_id_or_die(canvas_id);
+        let surface = instance
+            .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
+            .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
+
         let render_state =
             RenderState::create(&options.wgpu_options, &instance, &surface, depth_format, 1)
                 .await
                 .map_err(|err| err.to_string())?;
 
         let surface_configuration = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
-            width: 0,
-            height: 0,
             present_mode: options.wgpu_options.present_mode,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
+            ..surface
+                .get_default_config(&render_state.adapter, 0, 0) // Width/height is set later.
+                .ok_or("The surface isn't supported by this adapter")?
         };
 
         log::debug!("wgpu painter initialized.");
 
         Ok(Self {
             canvas,
-            canvas_id: canvas_id.to_owned(),
             render_state: Some(render_state),
             surface,
             surface_configuration,
@@ -129,8 +198,8 @@ impl WebPainterWgpu {
 }
 
 impl WebPainter for WebPainterWgpu {
-    fn canvas_id(&self) -> &str {
-        &self.canvas_id
+    fn canvas(&self) -> &HtmlCanvasElement {
+        &self.canvas
     }
 
     fn max_texture_side(&self) -> usize {
@@ -148,9 +217,7 @@ impl WebPainter for WebPainterWgpu {
     ) -> Result<(), JsValue> {
         let size_in_pixels = [self.canvas.width(), self.canvas.height()];
 
-        let render_state = if let Some(render_state) = &self.render_state {
-            render_state
-        } else {
+        let Some(render_state) = &self.render_state else {
             return Err(JsValue::from_str(
                 "Can't paint, wgpu renderer was already disposed",
             ));
@@ -164,7 +231,7 @@ impl WebPainter for WebPainterWgpu {
                 });
 
         // Upload all resources for the GPU.
-        let screen_descriptor = ScreenDescriptor {
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
             size_in_pixels,
             pixels_per_point,
         };
@@ -210,8 +277,7 @@ impl WebPainter for WebPainterWgpu {
 
             let frame = match self.surface.get_current_texture() {
                 Ok(frame) => frame,
-                #[allow(clippy::single_match_else)]
-                Err(e) => match (*self.on_surface_error)(e) {
+                Err(err) => match (*self.on_surface_error)(err) {
                     SurfaceErrorAction::RecreateSurface => {
                         self.surface
                             .configure(&render_state.device, &self.surface_configuration);
@@ -239,7 +305,7 @@ impl WebPainter for WebPainterWgpu {
                                 b: clear_color[2] as f64,
                                 a: clear_color[3] as f64,
                             }),
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
                     })],
                     depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
@@ -247,12 +313,16 @@ impl WebPainter for WebPainterWgpu {
                             view,
                             depth_ops: Some(wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(1.0),
-                                store: false,
+                                // It is very unlikely that the depth buffer is needed after egui finished rendering
+                                // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
+                                store: wgpu::StoreOp::Discard,
                             }),
                             stencil_ops: None,
                         }
                     }),
                     label: Some("egui_render"),
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
                 });
 
                 renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
@@ -269,11 +339,9 @@ impl WebPainter for WebPainterWgpu {
         }
 
         // Submit the commands: both the main buffer and user-defined ones.
-        render_state.queue.submit(
-            user_cmd_bufs
-                .into_iter()
-                .chain(std::iter::once(encoder.finish())),
-        );
+        render_state
+            .queue
+            .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
         if let Some(frame) = frame {
             frame.present();

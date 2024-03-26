@@ -2,10 +2,43 @@
 All notable changes to the `egui_glow` integration will be noted in this file.
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+
+## 0.26.2 - 2024-02-14
+* Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
+
+
+## 0.26.1 - 2024-02-11
+* Only disable sRGB framebuffer on supported platforms [#3994](https://github.com/emilk/egui/pull/3994) (thanks [@Nopey](https://github.com/Nopey)!)
+
+
+## 0.26.0 - 2024-02-05
+* Add `x11` and `wayland` features [#3909](https://github.com/emilk/egui/pull/3909) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+
+
+## 0.25.0 - 2024-01-08
+* Update to glow 0.13 [#3715](https://github.com/emilk/egui/pull/3715)
+* Make glow `Send + Sync` again [#3646](https://github.com/emilk/egui/pull/3646) (thanks [@surban](https://github.com/surban)!)
+
+
+## 0.24.1 - 2023-11-30
+* Improve a docstring
+
+
+## 0.24.0 - 2023-11-23
+* Change `Arc<glow::Context>` to `Rc<glow::Context>` [#3598](https://github.com/emilk/egui/pull/3598)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Clamp viewport values [#3604](https://github.com/emilk/egui/pull/3604) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
+## 0.23.0 - 2023-09-27
+* Update `egui`
 
 
 ## 0.22.0 - 2023-05-23
+* Update `egui`
 
 
 ## 0.21.0 - 2023-02-08

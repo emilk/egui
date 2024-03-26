@@ -7,6 +7,7 @@ pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 
+/// Shows a date, and will open a date picker popup when clicked.
 pub struct DatePickerButton<'a> {
     selection: &'a mut NaiveDate,
     id_source: Option<&'a str>,
@@ -15,6 +16,8 @@ pub struct DatePickerButton<'a> {
     calendar: bool,
     calendar_week: bool,
     show_icon: bool,
+    format: String,
+    highlight_weekends: bool,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -27,43 +30,66 @@ impl<'a> DatePickerButton<'a> {
             calendar: true,
             calendar_week: true,
             show_icon: true,
+            format: "%Y-%m-%d".to_owned(),
+            highlight_weekends: true,
         }
     }
 
     /// Add id source.
     /// Must be set if multiple date picker buttons are in the same Ui.
+    #[inline]
     pub fn id_source(mut self, id_source: &'a str) -> Self {
         self.id_source = Some(id_source);
         self
     }
 
     /// Show combo boxes in date picker popup. (Default: true)
+    #[inline]
     pub fn combo_boxes(mut self, combo_boxes: bool) -> Self {
         self.combo_boxes = combo_boxes;
         self
     }
 
     /// Show arrows in date picker popup. (Default: true)
+    #[inline]
     pub fn arrows(mut self, arrows: bool) -> Self {
         self.arrows = arrows;
         self
     }
 
     /// Show calendar in date picker popup. (Default: true)
+    #[inline]
     pub fn calendar(mut self, calendar: bool) -> Self {
         self.calendar = calendar;
         self
     }
 
     /// Show calendar week in date picker popup. (Default: true)
+    #[inline]
     pub fn calendar_week(mut self, week: bool) -> Self {
         self.calendar_week = week;
         self
     }
 
     /// Show the calendar icon on the button. (Default: true)
+    #[inline]
     pub fn show_icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
+        self
+    }
+
+    /// Change the format shown on the button. (Default: %Y-%m-%d)
+    /// See [`chrono::format::strftime`] for valid formats.
+    #[inline]
+    pub fn format(mut self, format: impl Into<String>) -> Self {
+        self.format = format.into();
+        self
+    }
+
+    /// Highlight weekend days. (Default: true)
+    #[inline]
+    pub fn highlight_weekends(mut self, highlight_weekends: bool) -> Self {
+        self.highlight_weekends = highlight_weekends;
         self
     }
 }
@@ -72,13 +98,13 @@ impl<'a> Widget for DatePickerButton<'a> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         let id = ui.make_persistent_id(self.id_source);
         let mut button_state = ui
-            .memory_mut(|mem| mem.data.get_persisted::<DatePickerButtonState>(id))
+            .data_mut(|data| data.get_persisted::<DatePickerButtonState>(id))
             .unwrap_or_default();
 
         let mut text = if self.show_icon {
-            RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")))
+            RichText::new(format!("{} 📆", self.selection.format(&self.format)))
         } else {
-            RichText::new(format!("{}", self.selection.format("%Y-%m-%d")))
+            RichText::new(format!("{}", self.selection.format(&self.format)))
         };
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {
@@ -91,7 +117,7 @@ impl<'a> Widget for DatePickerButton<'a> {
         let mut button_response = ui.add(button);
         if button_response.clicked() {
             button_state.picker_visible = true;
-            ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state.clone()));
+            ui.data_mut(|data| data.insert_persisted(id, button_state.clone()));
         }
 
         if button_state.picker_visible {
@@ -116,6 +142,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             } = Area::new(ui.make_persistent_id(self.id_source))
                 .order(Order::Foreground)
                 .fixed_pos(pos)
+                .constrain_to(ui.ctx().screen_rect())
                 .show(ui.ctx(), |ui| {
                     let frame = Frame::popup(ui.style());
                     frame
@@ -130,6 +157,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                                 arrows: self.arrows,
                                 calendar: self.calendar,
                                 calendar_week: self.calendar_week,
+                                highlight_weekends: self.highlight_weekends,
                             }
                             .draw(ui)
                         })
@@ -144,7 +172,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                 && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
-                ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state));
+                ui.data_mut(|data| data.insert_persisted(id, button_state));
             }
         }
 

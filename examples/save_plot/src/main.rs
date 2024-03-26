@@ -1,14 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
-use eframe::egui::plot::{Legend, Line, Plot, PlotPoints};
-use eframe::egui::ColorImage;
+use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(350.0, 400.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([350.0, 200.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -19,64 +18,46 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 #[derive(Default)]
-struct MyApp {
-    screenshot: Option<ColorImage>,
-}
+struct MyApp {}
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut plot_rect = None;
         egui::CentralPanel::default().show(ctx, |ui| {
-            // these are just some dummy variables for the example,
-            // such that the plot is not at position (0,0)
-            let height = 200.0;
-            let border_x = 11.0;
-            let border_y = 18.0;
-            let width = 300.0;
-
-            ui.heading("My egui Application");
-
-            // add some whitespace in y direction
-            ui.add_space(border_y);
-
             if ui.button("Save Plot").clicked() {
-                frame.request_screenshot();
+                ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
             }
 
-            // add some whitespace in y direction
-            ui.add_space(border_y);
+            let my_plot = Plot::new("My Plot").legend(Legend::default());
 
-            ui.horizontal(|ui| {
-                // add some whitespace in x direction
-                ui.add_space(border_x);
-
-                let my_plot = Plot::new("My Plot")
-                    .height(height)
-                    .width(width)
-                    .legend(Legend::default());
-
-                // let's create a dummy line in the plot
-                let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-                let inner = my_plot.show(ui, |plot_ui| {
-                    plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
-                });
-                // Remember the position of the plot
-                plot_rect = Some(inner.response.rect);
+            // let's create a dummy line in the plot
+            let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
+            let inner = my_plot.show(ui, |plot_ui| {
+                plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
             });
-
-            // add some whitespace in y direction
-            ui.add_space(border_y);
+            // Remember the position of the plot
+            plot_rect = Some(inner.response.rect);
         });
 
-        if let (Some(screenshot), Some(plot_location)) = (self.screenshot.take(), plot_rect) {
+        // Check for returned screenshot:
+        let screenshot = ctx.input(|i| {
+            for event in &i.raw.events {
+                if let egui::Event::Screenshot { image, .. } = event {
+                    return Some(image.clone());
+                }
+            }
+            None
+        });
+
+        if let (Some(screenshot), Some(plot_location)) = (screenshot, plot_rect) {
             if let Some(mut path) = rfd::FileDialog::new().save_file() {
                 path.set_extension("png");
 
                 // for a full size application, we should put this in a different thread,
                 // so that the GUI doesn't lag during saving
 
-                let pixels_per_point = frame.info().native_pixels_per_point;
-                let plot = screenshot.region(&plot_location, pixels_per_point);
+                let pixels_per_point = ctx.pixels_per_point();
+                let plot = screenshot.region(&plot_location, Some(pixels_per_point));
                 // save the plot to png
                 image::save_buffer(
                     &path,
@@ -86,14 +67,8 @@ impl eframe::App for MyApp {
                     image::ColorType::Rgba8,
                 )
                 .unwrap();
+                eprintln!("Image saved to {path:?}.");
             }
-        }
-    }
-
-    fn post_rendering(&mut self, _screen_size_px: [u32; 2], frame: &eframe::Frame) {
-        // this is inspired by the Egui screenshot example
-        if let Some(screenshot) = frame.screenshot() {
-            self.screenshot = Some(screenshot);
         }
     }
 }

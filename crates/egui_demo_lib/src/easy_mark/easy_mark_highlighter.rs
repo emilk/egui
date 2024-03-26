@@ -188,5 +188,6 @@ fn format_from_style(
         underline,
         strikethrough,
         valign,
+        ..Default::default()
     }
 }

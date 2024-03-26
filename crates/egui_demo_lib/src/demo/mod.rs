@@ -11,6 +11,7 @@ pub mod context_menu;
 pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;
+pub mod extra_viewport;
 pub mod font_book;
 pub mod highlighting;
 pub mod layout_test;
@@ -18,6 +19,8 @@ pub mod misc_demo_window;
 pub mod multi_touch;
 pub mod paint_bezier;
 pub mod painting;
+pub mod pan_zoom;
+pub mod panels;
 pub mod password;
 pub mod plot_demo;
 pub mod scrolling;
@@ -26,10 +29,10 @@ pub mod strip_demo;
 pub mod table_demo;
 pub mod tests;
 pub mod text_edit;
+pub mod text_layout;
 pub mod toggle_switch;
 pub mod widget_gallery;
 pub mod window_options;
-pub mod window_with_panels;
 
 pub use {
     about::About, demo_app_windows::DemoWindows, misc_demo_window::MiscDemoWindow,
@@ -45,6 +48,11 @@ pub trait View {
 
 /// Something to view
 pub trait Demo {
+    /// Is the demo enabled for this integration?
+    fn is_enabled(&self, _ctx: &egui::Context) -> bool {
+        true
+    }
+
     /// `&'static` so we can also use it as a key to store open/close state.
     fn name(&self) -> &'static str;
 

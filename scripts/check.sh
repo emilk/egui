@@ -9,51 +9,68 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-cargo install cargo-cranky # Uses lints defined in Cranky.toml. See https://github.com/ericseppanen/cargo-cranky
+cargo install --quiet cargo-cranky # Uses lints defined in Cranky.toml. See https://github.com/ericseppanen/cargo-cranky
+cargo +1.75.0 install --quiet typos-cli
 
 # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
 # as well as by the wasm32-backend of the wgpu crate.
 export RUSTFLAGS="--cfg=web_sys_unstable_apis -D warnings"
 export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 
-cargo check --all-targets
-cargo check --all-targets --all-features
-cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
-cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-cargo cranky --all-targets --all-features -- -D warnings
-cargo test --all-targets --all-features
-cargo test --doc # slow - checks all doc-tests
+# Fast checks first:
+typos
+./scripts/lint.py
 cargo fmt --all -- --check
+cargo doc --quiet --lib --no-deps --all-features
+cargo doc --quiet --document-private-items --no-deps --all-features
 
-cargo doc --lib --no-deps --all-features
-cargo doc --document-private-items --no-deps --all-features
+cargo cranky --quiet --all-targets --all-features -- -D warnings
+./scripts/clippy_wasm.sh
 
-(cd crates/eframe && cargo check --no-default-features --features "glow")
-(cd crates/eframe && cargo check --no-default-features --features "wgpu")
-(cd crates/egui && cargo check --no-default-features --features "serde")
-(cd crates/egui_demo_app && cargo check --no-default-features --features "glow")
-(cd crates/egui_demo_app && cargo check --no-default-features --features "wgpu")
-(cd crates/egui_demo_lib && cargo check --no-default-features)
-(cd crates/egui_extras && cargo check --no-default-features)
-(cd crates/egui_glow && cargo check --no-default-features)
-(cd crates/egui-winit && cargo check --no-default-features --features "wayland")
-(cd crates/egui-winit && cargo check --no-default-features --features "winit/x11")
-(cd crates/emath && cargo check --no-default-features)
-(cd crates/epaint && cargo check --no-default-features --release)
-(cd crates/epaint && cargo check --no-default-features)
+cargo check --quiet  --all-targets
+cargo check --quiet  --all-targets --all-features
+cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown
+cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
+cargo test  --quiet --all-targets --all-features
+cargo test  --quiet --doc # slow - checks all doc-tests
 
-(cd crates/eframe && cargo check --all-features)
-(cd crates/egui && cargo check --all-features)
-(cd crates/egui_demo_app && cargo check --all-features)
-(cd crates/egui_extras && cargo check --all-features)
-(cd crates/egui_glow && cargo check --all-features)
-(cd crates/egui-winit && cargo check --all-features)
-(cd crates/emath && cargo check --all-features)
-(cd crates/epaint && cargo check --all-features)
+cargo check --quiet -p eframe --no-default-features --features "glow"
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  cargo check --quiet -p eframe --no-default-features --features "wgpu","x11"
+  cargo check --quiet -p eframe --no-default-features --features "wgpu","wayland"
+else
+  cargo check --quiet -p eframe --no-default-features --features "wgpu"
+fi
+
+cargo check --quiet -p egui --no-default-features --features "serde"
+cargo check --quiet -p egui_demo_app --no-default-features --features "glow"
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","x11"
+  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu","wayland"
+else
+  cargo check --quiet -p egui_demo_app --no-default-features --features "wgpu"
+fi
+
+cargo check --quiet -p egui_demo_lib --no-default-features
+cargo check --quiet -p egui_extras --no-default-features
+cargo check --quiet -p egui_glow --no-default-features
+cargo check --quiet -p egui-winit --no-default-features --features "wayland"
+cargo check --quiet -p egui-winit --no-default-features --features "x11"
+cargo check --quiet -p emath --no-default-features
+cargo check --quiet -p epaint --no-default-features --release
+cargo check --quiet -p epaint --no-default-features
+
+cargo check --quiet -p eframe --all-features
+cargo check --quiet -p egui --all-features
+cargo check --quiet -p egui_demo_app --all-features
+cargo check --quiet -p egui_extras --all-features
+cargo check --quiet -p egui_glow --all-features
+cargo check --quiet -p egui-winit --all-features
+cargo check --quiet -p emath --all-features
+cargo check --quiet -p epaint --all-features
 
 ./scripts/wasm_bindgen_check.sh
-
-cargo cranky --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
 
 ./scripts/cargo_deny.sh
 

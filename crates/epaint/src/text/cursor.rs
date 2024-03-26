@@ -1,6 +1,8 @@
 //! Different types of text cursors, i.e. ways to point into a [`super::Galley`].
 
-/// Character cursor
+/// Character cursor.
+///
+/// The default cursor is zero.
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CCursor {
@@ -15,6 +17,7 @@ pub struct CCursor {
 }
 
 impl CCursor {
+    #[inline]
     pub fn new(index: usize) -> Self {
         Self {
             index,
@@ -23,19 +26,27 @@ impl CCursor {
     }
 }
 
+impl From<Cursor> for CCursor {
+    #[inline]
+    fn from(c: Cursor) -> Self {
+        c.ccursor
+    }
+}
+
 /// Two `CCursor`s are considered equal if they refer to the same character boundary,
 /// even if one prefers the start of the next row.
 impl PartialEq for CCursor {
-    fn eq(&self, other: &CCursor) -> bool {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
         self.index == other.index
     }
 }
 
 impl std::ops::Add<usize> for CCursor {
-    type Output = CCursor;
+    type Output = Self;
 
     fn add(self, rhs: usize) -> Self::Output {
-        CCursor {
+        Self {
             index: self.index.saturating_add(rhs),
             prefer_next_row: self.prefer_next_row,
         }
@@ -43,10 +54,10 @@ impl std::ops::Add<usize> for CCursor {
 }
 
 impl std::ops::Sub<usize> for CCursor {
-    type Output = CCursor;
+    type Output = Self;
 
     fn sub(self, rhs: usize) -> Self::Output {
-        CCursor {
+        Self {
             index: self.index.saturating_sub(rhs),
             prefer_next_row: self.prefer_next_row,
         }
@@ -104,15 +115,19 @@ pub struct PCursor {
 /// Two `PCursor`s are considered equal if they refer to the same character boundary,
 /// even if one prefers the start of the next row.
 impl PartialEq for PCursor {
-    fn eq(&self, other: &PCursor) -> bool {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
         self.paragraph == other.paragraph && self.offset == other.offset
     }
 }
 
 /// All different types of cursors together.
+///
 /// They all point to the same place, but in their own different ways.
 /// pcursor/rcursor can also point to after the end of the paragraph/row.
 /// Does not implement `PartialEq` because you must think which cursor should be equivalent.
+///
+/// The default cursor is the zero-cursor, to the first character.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Cursor {

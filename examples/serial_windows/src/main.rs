@@ -6,12 +6,15 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     if cfg!(target_os = "macos") {
-        eprintln!("WARNING: this example does not work on Mac! See https://github.com/emilk/egui/issues/1918");
+        eprintln!(
+            "This example does not work on Mac! See https://github.com/emilk/egui/issues/1918"
+        );
+        return Ok(());
     }
 
     let options = eframe::NativeOptions {
         run_and_return: true,
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
         ..Default::default()
     };
 
@@ -46,7 +49,7 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let label_text = if self.has_next {
                 "When this window is closed the next will be opened after a short delay"
@@ -54,9 +57,14 @@ impl eframe::App for MyApp {
                 "This is the last window. Program will end when closed"
             };
             ui.label(label_text);
+
+            if ctx.os() == egui::os::OperatingSystem::Mac {
+                ui.label("This example doesn't work on Mac!");
+            }
+
             if ui.button("Close").clicked() {
                 eprintln!("Pressed Close button");
-                frame.close();
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         });
     }

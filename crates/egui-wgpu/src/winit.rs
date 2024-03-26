@@ -1,9 +1,11 @@
-use std::sync::Arc;
+use std::{num::NonZeroU32, sync::Arc};
+
+use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
 
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
@@ -71,19 +73,23 @@ impl BufferPadding {
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
 ///
-/// Alternatively you can use [`crate::renderer`] directly.
+/// Alternatively you can use [`crate::Renderer`] directly.
+///
+/// NOTE: all egui viewports share the same painter.
 pub struct Painter {
     configuration: WgpuConfiguration,
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
     depth_format: Option<wgpu::TextureFormat>,
-    depth_texture_view: Option<wgpu::TextureView>,
-    msaa_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
-    surface_state: Option<SurfaceState>,
+
+    // Per viewport/window:
+    depth_texture_view: ViewportIdMap<wgpu::TextureView>,
+    msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
+    surfaces: ViewportIdMap<SurfaceState>,
 }
 
 impl Painter {
@@ -107,7 +113,7 @@ impl Painter {
     ) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: configuration.supported_backends,
-            dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
 
         Self {
@@ -115,13 +121,14 @@ impl Painter {
             msaa_samples,
             support_transparent_backbuffer,
             depth_format,
-            depth_texture_view: None,
             screen_capture_state: None,
 
             instance,
             render_state: None,
-            surface_state: None,
-            msaa_texture_view: None,
+
+            depth_texture_view: Default::default(),
+            surfaces: Default::default(),
+            msaa_texture_view: Default::default(),
         }
     }
 
@@ -135,25 +142,38 @@ impl Painter {
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
-        present_mode: wgpu::PresentMode,
+        config: &WgpuConfiguration,
     ) {
+        crate::profile_function!();
+
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
             wgpu::TextureUsages::RENDER_ATTACHMENT
         };
-        surface_state.surface.configure(
-            &render_state.device,
-            &wgpu::SurfaceConfiguration {
-                usage,
-                format: render_state.target_format,
-                width: surface_state.width,
-                height: surface_state.height,
-                present_mode,
-                alpha_mode: surface_state.alpha_mode,
-                view_formats: vec![render_state.target_format],
-            },
-        );
+
+        let width = surface_state.width;
+        let height = surface_state.height;
+
+        let mut surf_config = wgpu::SurfaceConfiguration {
+            usage,
+            format: render_state.target_format,
+            present_mode: config.present_mode,
+            alpha_mode: surface_state.alpha_mode,
+            view_formats: vec![render_state.target_format],
+            ..surface_state
+                .surface
+                .get_default_config(&render_state.adapter, width, height)
+                .expect("The surface isn't supported by this adapter")
+        };
+
+        if let Some(desired_maximum_frame_latency) = config.desired_maximum_frame_latency {
+            surf_config.desired_maximum_frame_latency = desired_maximum_frame_latency;
+        }
+
+        surface_state
+            .surface
+            .configure(&render_state.device, &surf_config);
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
@@ -175,72 +195,112 @@ impl Painter {
     /// [`set_window`](Self::set_window) may be called with `Some(window)` as soon as you have a
     /// valid [`winit::window::Window`].
     ///
-    /// # Safety
-    ///
-    /// The raw Window handle associated with the given `window` must be a valid object to create a
-    /// surface upon and must remain valid for the lifetime of the created surface. (The surface may
-    /// be cleared by passing `None`).
-    ///
     /// # Errors
     /// If the provided wgpu configuration does not match an available device.
     pub async fn set_window(
         &mut self,
+        viewport_id: ViewportId,
+        window: Option<Arc<winit::window::Window>>,
+    ) -> Result<(), crate::WgpuError> {
+        crate::profile_scope!("Painter::set_window"); // profile_function gives bad names for async functions
+
+        if let Some(window) = window {
+            let size = window.inner_size();
+            if self.surfaces.get(&viewport_id).is_none() {
+                let surface = self.instance.create_surface(window)?;
+                self.add_surface(surface, viewport_id, size).await?;
+            }
+        } else {
+            log::warn!("No window - clearing all surfaces");
+            self.surfaces.clear();
+        }
+        Ok(())
+    }
+
+    /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`] without taking ownership of the window.
+    ///
+    /// Like [`set_window`](Self::set_window) except:
+    ///
+    /// # Safety
+    /// The user is responsible for ensuring that the window is alive for as long as it is set.
+    pub async unsafe fn set_window_unsafe(
+        &mut self,
+        viewport_id: ViewportId,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
-        match window {
-            Some(window) => {
-                let surface = unsafe { self.instance.create_surface(&window)? };
+        crate::profile_scope!("Painter::set_window_unsafe"); // profile_function gives bad names for async functions
 
-                let render_state = if let Some(render_state) = &self.render_state {
-                    render_state
-                } else {
-                    let render_state = RenderState::create(
-                        &self.configuration,
-                        &self.instance,
-                        &surface,
-                        self.depth_format,
-                        self.msaa_samples,
-                    )
-                    .await?;
-                    self.render_state.get_or_insert(render_state)
+        if let Some(window) = window {
+            let size = window.inner_size();
+            if self.surfaces.get(&viewport_id).is_none() {
+                let surface = unsafe {
+                    self.instance
+                        .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(&window)?)?
                 };
-
-                let alpha_mode = if self.support_transparent_backbuffer {
-                    let supported_alpha_modes =
-                        surface.get_capabilities(&render_state.adapter).alpha_modes;
-
-                    // Prefer pre multiplied over post multiplied!
-                    if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                        wgpu::CompositeAlphaMode::PreMultiplied
-                    } else if supported_alpha_modes
-                        .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-                    {
-                        wgpu::CompositeAlphaMode::PostMultiplied
-                    } else {
-                        log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
-                        wgpu::CompositeAlphaMode::Auto
-                    }
-                } else {
-                    wgpu::CompositeAlphaMode::Auto
-                };
-
-                let supports_screenshot =
-                    !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
-
-                let size = window.inner_size();
-                self.surface_state = Some(SurfaceState {
-                    surface,
-                    width: size.width,
-                    height: size.height,
-                    alpha_mode,
-                    supports_screenshot,
-                });
-                self.resize_and_generate_depth_texture_view_and_msaa_view(size.width, size.height);
+                self.add_surface(surface, viewport_id, size).await?;
             }
-            None => {
-                self.surface_state = None;
-            }
+        } else {
+            log::warn!("No window - clearing all surfaces");
+            self.surfaces.clear();
         }
+        Ok(())
+    }
+
+    async fn add_surface(
+        &mut self,
+        surface: wgpu::Surface<'static>,
+        viewport_id: ViewportId,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) -> Result<(), crate::WgpuError> {
+        let render_state = if let Some(render_state) = &self.render_state {
+            render_state
+        } else {
+            let render_state = RenderState::create(
+                &self.configuration,
+                &self.instance,
+                &surface,
+                self.depth_format,
+                self.msaa_samples,
+            )
+            .await?;
+            self.render_state.get_or_insert(render_state)
+        };
+        let alpha_mode = if self.support_transparent_backbuffer {
+            let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
+
+            // Prefer pre multiplied over post multiplied!
+            if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                wgpu::CompositeAlphaMode::PreMultiplied
+            } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
+                wgpu::CompositeAlphaMode::PostMultiplied
+            } else {
+                log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                wgpu::CompositeAlphaMode::Auto
+            }
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
+        let supports_screenshot =
+            !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
+        self.surfaces.insert(
+            viewport_id,
+            SurfaceState {
+                surface,
+                width: size.width,
+                height: size.height,
+                alpha_mode,
+                supports_screenshot,
+            },
+        );
+        let Some(width) = NonZeroU32::new(size.width) else {
+            log::debug!("The window width was zero; skipping generate textures");
+            return Ok(());
+        };
+        let Some(height) = NonZeroU32::new(size.height) else {
+            log::debug!("The window height was zero; skipping generate textures");
+            return Ok(());
+        };
+        self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
         Ok(())
     }
 
@@ -257,50 +317,61 @@ impl Painter {
 
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
-        width_in_pixels: u32,
-        height_in_pixels: u32,
+        viewport_id: ViewportId,
+        width_in_pixels: NonZeroU32,
+        height_in_pixels: NonZeroU32,
     ) {
+        crate::profile_function!();
+
+        let width = width_in_pixels.get();
+        let height = height_in_pixels.get();
+
         let render_state = self.render_state.as_ref().unwrap();
-        let surface_state = self.surface_state.as_mut().unwrap();
+        let surface_state = self.surfaces.get_mut(&viewport_id).unwrap();
 
-        surface_state.width = width_in_pixels;
-        surface_state.height = height_in_pixels;
+        surface_state.width = width;
+        surface_state.height = height;
 
-        Self::configure_surface(surface_state, render_state, self.configuration.present_mode);
+        Self::configure_surface(surface_state, render_state, &self.configuration);
 
-        self.depth_texture_view = self.depth_format.map(|depth_format| {
-            render_state
-                .device
-                .create_texture(&wgpu::TextureDescriptor {
-                    label: Some("egui_depth_texture"),
-                    size: wgpu::Extent3d {
-                        width: width_in_pixels,
-                        height: height_in_pixels,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: self.msaa_samples,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: depth_format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                        | wgpu::TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[depth_format],
-                })
-                .create_view(&wgpu::TextureViewDescriptor::default())
-        });
+        if let Some(depth_format) = self.depth_format {
+            self.depth_texture_view.insert(
+                viewport_id,
+                render_state
+                    .device
+                    .create_texture(&wgpu::TextureDescriptor {
+                        label: Some("egui_depth_texture"),
+                        size: wgpu::Extent3d {
+                            width,
+                            height,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: self.msaa_samples,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: depth_format,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                        view_formats: &[depth_format],
+                    })
+                    .create_view(&wgpu::TextureViewDescriptor::default()),
+            );
+        }
 
-        self.msaa_texture_view = (self.msaa_samples > 1)
+        if let Some(render_state) = (self.msaa_samples > 1)
             .then_some(self.render_state.as_ref())
             .flatten()
-            .map(|render_state| {
-                let texture_format = render_state.target_format;
+        {
+            let texture_format = render_state.target_format;
+            self.msaa_texture_view.insert(
+                viewport_id,
                 render_state
                     .device
                     .create_texture(&wgpu::TextureDescriptor {
                         label: Some("egui_msaa_texture"),
                         size: wgpu::Extent3d {
-                            width: width_in_pixels,
-                            height: height_in_pixels,
+                            width,
+                            height,
                             depth_or_array_layers: 1,
                         },
                         mip_level_count: 1,
@@ -310,13 +381,22 @@ impl Painter {
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                         view_formats: &[texture_format],
                     })
-                    .create_view(&wgpu::TextureViewDescriptor::default())
-            });
+                    .create_view(&wgpu::TextureViewDescriptor::default()),
+            );
+        };
     }
 
-    pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
-        if self.surface_state.is_some() {
+    pub fn on_window_resized(
+        &mut self,
+        viewport_id: ViewportId,
+        width_in_pixels: NonZeroU32,
+        height_in_pixels: NonZeroU32,
+    ) {
+        crate::profile_function!();
+
+        if self.surfaces.contains_key(&viewport_id) {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
+                viewport_id,
                 width_in_pixels,
                 height_in_pixels,
             );
@@ -424,42 +504,28 @@ impl Painter {
         })
     }
 
-    // Returns a vector with the frame's pixel data if it was requested.
+    /// Returns two things:
+    ///
+    /// The approximate number of seconds spent on vsync-waiting (if any),
+    /// and the captures captured screenshot if it was requested.
     pub fn paint_and_update_textures(
         &mut self,
+        viewport_id: ViewportId,
         pixels_per_point: f32,
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
         capture: bool,
-    ) -> Option<epaint::ColorImage> {
+    ) -> (f32, Option<epaint::ColorImage>) {
         crate::profile_function!();
 
-        let render_state = self.render_state.as_mut()?;
-        let surface_state = self.surface_state.as_ref()?;
+        let mut vsync_sec = 0.0;
 
-        let output_frame = {
-            crate::profile_scope!("get_current_texture");
-            // This is what vsync-waiting happens, at least on Mac.
-            surface_state.surface.get_current_texture()
+        let Some(render_state) = self.render_state.as_mut() else {
+            return (vsync_sec, None);
         };
-
-        let output_frame = match output_frame {
-            Ok(frame) => frame,
-            #[allow(clippy::single_match_else)]
-            Err(e) => match (*self.configuration.on_surface_error)(e) {
-                SurfaceErrorAction::RecreateSurface => {
-                    Self::configure_surface(
-                        surface_state,
-                        render_state,
-                        self.configuration.present_mode,
-                    );
-                    return None;
-                }
-                SurfaceErrorAction::SkipFrame => {
-                    return None;
-                }
-            },
+        let Some(surface_state) = self.surfaces.get(&viewport_id) else {
+            return (vsync_sec, None);
         };
 
         let mut encoder =
@@ -504,6 +570,28 @@ impl Painter {
             }
         };
 
+        let output_frame = {
+            crate::profile_scope!("get_current_texture");
+            // This is what vsync-waiting happens on my Mac.
+            let start = web_time::Instant::now();
+            let output_frame = surface_state.surface.get_current_texture();
+            vsync_sec += start.elapsed().as_secs_f32();
+            output_frame
+        };
+
+        let output_frame = match output_frame {
+            Ok(frame) => frame,
+            Err(err) => match (*self.configuration.on_surface_error)(err) {
+                SurfaceErrorAction::RecreateSurface => {
+                    Self::configure_surface(surface_state, render_state, &self.configuration);
+                    return (vsync_sec, None);
+                }
+                SurfaceErrorAction::SkipFrame => {
+                    return (vsync_sec, None);
+                }
+            },
+        };
+
         {
             let renderer = render_state.renderer.read();
             let frame_view = if capture {
@@ -513,8 +601,11 @@ impl Painter {
                     render_state,
                 );
                 self.screen_capture_state
-                    .as_ref()?
-                    .texture
+                    .as_ref()
+                    .map_or_else(
+                        || &output_frame.texture,
+                        |capture_state| &capture_state.texture,
+                    )
                     .create_view(&wgpu::TextureViewDescriptor::default())
             } else {
                 output_frame
@@ -523,13 +614,14 @@ impl Painter {
             };
 
             let (view, resolve_target) = (self.msaa_samples > 1)
-                .then_some(self.msaa_texture_view.as_ref())
+                .then_some(self.msaa_texture_view.get(&viewport_id))
                 .flatten()
                 .map_or((&frame_view, None), |texture_view| {
                     (texture_view, Some(&frame_view))
                 });
 
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("egui_render"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target,
@@ -540,20 +632,23 @@ impl Painter {
                             b: clear_color[2] as f64,
                             a: clear_color[3] as f64,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
+                depth_stencil_attachment: self.depth_texture_view.get(&viewport_id).map(|view| {
                     wgpu::RenderPassDepthStencilAttachment {
                         view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
-                            store: true,
+                            // It is very unlikely that the depth buffer is needed after egui finished rendering
+                            // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
+                            store: wgpu::StoreOp::Discard,
                         }),
                         stencil_ops: None,
                     }
                 }),
-                label: Some("egui_render"),
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
 
             renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
@@ -574,23 +669,41 @@ impl Painter {
         // Submit the commands: both the main buffer and user-defined ones.
         {
             crate::profile_scope!("Queue::submit");
+            // wgpu doesn't document where vsync can happen. Maybe here?
+            let start = web_time::Instant::now();
             render_state
                 .queue
-                .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
+                .submit(user_cmd_bufs.into_iter().chain([encoded]));
+            vsync_sec += start.elapsed().as_secs_f32();
         };
 
         let screenshot = if capture {
-            let screen_capture_state = self.screen_capture_state.as_ref()?;
-            Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+            self.screen_capture_state
+                .as_ref()
+                .and_then(|screen_capture_state| {
+                    Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+                })
         } else {
             None
         };
 
         {
             crate::profile_scope!("present");
+            // wgpu doesn't document where vsync can happen. Maybe here?
+            let start = web_time::Instant::now();
             output_frame.present();
+            vsync_sec += start.elapsed().as_secs_f32();
         }
-        screenshot
+
+        (vsync_sec, screenshot)
+    }
+
+    pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
+        self.surfaces.retain(|id, _| active_viewports.contains(id));
+        self.depth_texture_view
+            .retain(|id, _| active_viewports.contains(id));
+        self.msaa_texture_view
+            .retain(|id, _| active_viewports.contains(id));
     }
 
     #[allow(clippy::unused_self)]

@@ -99,7 +99,7 @@ impl eframe::App for Custom3d {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::both()
-                .auto_shrink([false; 2])
+                .auto_shrink(false)
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = 0.0;
@@ -148,6 +148,7 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
+        _screen_descriptor: &egui_wgpu::ScreenDescriptor,
         _egui_encoder: &mut wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
@@ -172,7 +173,7 @@ impl Custom3d {
         let (rect, response) =
             ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
-        self.angle += response.drag_delta().x * 0.01;
+        self.angle += response.drag_motion().x * 0.01;
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             CustomTriangleCallback { angle: self.angle },

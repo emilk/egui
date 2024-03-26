@@ -16,6 +16,7 @@ use std::collections::VecDeque;
 /// or for smoothed velocity (e.g. mouse pointer speed).
 /// All times are in seconds.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct History<T> {
     /// In elements, i.e. of `values.len()`.
     /// The length is initially zero, but once past `min_len` will not shrink below it.
@@ -109,11 +110,11 @@ where
     /// `(time, value)` pairs
     /// Time difference between values can be zero, but never negative.
     // TODO(emilk): impl IntoIter
-    pub fn iter(&'_ self) -> impl ExactSizeIterator<Item = (f64, T)> + '_ {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (f64, T)> + '_ {
         self.values.iter().map(|(time, value)| (*time, *value))
     }
 
-    pub fn values(&'_ self) -> impl ExactSizeIterator<Item = T> + '_ {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = T> + '_ {
         self.values.iter().map(|(_time, value)| *value)
     }
 

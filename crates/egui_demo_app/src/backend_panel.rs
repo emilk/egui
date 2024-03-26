@@ -35,7 +35,7 @@ enum RunMode {
 ///    so there are no events to miss.
 impl Default for RunMode {
     fn default() -> Self {
-        RunMode::Reactive
+        Self::Reactive
     }
 }
 
@@ -51,10 +51,6 @@ pub struct BackendPanel {
     // go back to [`RunMode::Reactive`] mode each time we start
     run_mode: RunMode,
 
-    /// current slider value for current gui scale
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pixels_per_point: Option<f32>,
-
     #[cfg_attr(feature = "serde", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
 
@@ -62,7 +58,7 @@ pub struct BackendPanel {
 }
 
 impl BackendPanel {
-    pub fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    pub fn update(&mut self, ctx: &egui::Context, frame: &eframe::Frame) {
         self.frame_history
             .on_new_frame(ctx.input(|i| i.time), frame.info().cpu_usage);
 
@@ -82,9 +78,7 @@ impl BackendPanel {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        egui::trace!(ui);
-
-        self.integration_ui(ui, frame);
+        integration_ui(ui, frame);
 
         ui.separator();
 
@@ -99,30 +93,18 @@ impl BackendPanel {
         ui.label("egui windows:");
         self.egui_windows.checkboxes(ui);
 
-        ui.separator();
-
-        {
-            let mut debug_on_hover = ui.ctx().debug_on_hover();
-            ui.checkbox(&mut debug_on_hover, "🐛 Debug on hover")
-                .on_hover_text("Show structure of the ui when you hover with the mouse");
-            ui.ctx().set_debug_on_hover(debug_on_hover);
+        #[cfg(debug_assertions)]
+        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+            ui.separator();
+            ui.label("Press down all modifiers and hover a widget to see a callstack for it");
         }
 
         #[cfg(target_arch = "wasm32")]
-        #[cfg(feature = "web_screen-reader")]
         {
             ui.separator();
             let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
             ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            ui.separator();
-            if ui.button("Quit").clicked() {
-                frame.close();
-            }
         }
 
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
@@ -133,116 +115,12 @@ impl BackendPanel {
                 panic!("intentional panic!");
             }
         }
-    }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("egui running inside ");
-            ui.hyperlink_to(
-                "eframe",
-                "https://github.com/emilk/egui/tree/master/crates/eframe",
-            );
-            ui.label(".");
-        });
-
-        #[cfg(target_arch = "wasm32")]
-        ui.collapsing("Web info (location)", |ui| {
-            ui.style_mut().wrap = Some(false);
-            ui.monospace(format!("{:#?}", frame.info().web_info.location));
-        });
-
-        // On web, the browser controls `pixels_per_point`.
-        let integration_controls_pixels_per_point = frame.is_web();
-        if !integration_controls_pixels_per_point {
-            self.pixels_per_point_ui(ui, &frame.info());
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            ui.horizontal(|ui| {
-                {
-                    let mut fullscreen = frame.info().window_info.fullscreen;
-                    if ui
-                        .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
-                        .on_hover_text("Fullscreen the window")
-                        .changed()
-                    {
-                        frame.set_fullscreen(fullscreen);
-                    }
-                }
-
-                if ui
-                    .button("📱 Phone Size")
-                    .on_hover_text("Resize the window to be small like a phone.")
-                    .clicked()
-                {
-                    // frame.set_window_size(egui::vec2(375.0, 812.0)); // iPhone 12 mini
-                    frame.set_window_size(egui::vec2(375.0, 667.0)); //  iPhone SE 2nd gen
-                    frame.set_fullscreen(false);
-                    ui.close_menu();
-                }
-            });
-
-            if !frame.info().window_info.fullscreen
-                && ui
-                    .button("Drag me to drag window")
-                    .is_pointer_button_down_on()
-            {
-                frame.drag_window();
+        if !cfg!(target_arch = "wasm32") {
+            ui.separator();
+            if ui.button("Quit").clicked() {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
-
-            ui.button("Native window info (hover me)")
-                .on_hover_ui(|ui| {
-                    window_info_ui(ui, &frame.info().window_info);
-                });
-        }
-    }
-
-    fn pixels_per_point_ui(&mut self, ui: &mut egui::Ui, info: &eframe::IntegrationInfo) {
-        let pixels_per_point = self
-            .pixels_per_point
-            .get_or_insert_with(|| ui.ctx().pixels_per_point());
-
-        let mut reset = false;
-
-        ui.horizontal(|ui| {
-            ui.spacing_mut().slider_width = 90.0;
-
-            let response = ui
-                .add(
-                    egui::Slider::new(pixels_per_point, 0.5..=5.0)
-                        .logarithmic(true)
-                        .clamp_to_range(true)
-                        .text("Scale"),
-                )
-                .on_hover_text("Physical pixels per point.");
-
-            if response.drag_released() {
-                // We wait until mouse release to activate:
-                ui.ctx().set_pixels_per_point(*pixels_per_point);
-                reset = true;
-            } else if !response.is_pointer_button_down_on() {
-                // When not dragging, show the current pixels_per_point so others can change it.
-                reset = true;
-            }
-
-            if let Some(native_pixels_per_point) = info.native_pixels_per_point {
-                let enabled = ui.ctx().pixels_per_point() != native_pixels_per_point;
-                if ui
-                    .add_enabled(enabled, egui::Button::new("Reset"))
-                    .on_hover_text(format!(
-                        "Reset scale to native value ({native_pixels_per_point:.1})"
-                    ))
-                    .clicked()
-                {
-                    ui.ctx().set_pixels_per_point(native_pixels_per_point);
-                }
-            }
-        });
-
-        if reset {
-            self.pixels_per_point = None;
         }
     }
 
@@ -289,53 +167,165 @@ impl BackendPanel {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn window_info_ui(ui: &mut egui::Ui, window_info: &eframe::WindowInfo) {
-    let eframe::WindowInfo {
-        position,
-        fullscreen,
-        minimized,
-        maximized,
-        focused,
-        size,
-        monitor_size,
-    } = window_info;
+fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.label("egui running inside ");
+        ui.hyperlink_to(
+            "eframe",
+            "https://github.com/emilk/egui/tree/master/crates/eframe",
+        );
+        ui.label(".");
+    });
 
-    egui::Grid::new("window_info_grid")
-        .num_columns(2)
-        .show(ui, |ui| {
-            if let Some(egui::Pos2 { x, y }) = position {
-                ui.label("Position:");
-                ui.monospace(format!("{x:.0}, {y:.0}"));
+    #[cfg(target_arch = "wasm32")]
+    ui.collapsing("Web info (location)", |ui| {
+        ui.style_mut().wrap = Some(false);
+        ui.monospace(format!("{:#?}", _frame.info().web_info.location));
+    });
+
+    #[cfg(feature = "glow")]
+    if _frame.gl().is_some() {
+        ui.horizontal(|ui| {
+            ui.label("Renderer:");
+            ui.hyperlink_to("glow", "https://github.com/grovesNL/glow");
+        });
+    }
+
+    #[cfg(feature = "wgpu")]
+    if let Some(render_state) = _frame.wgpu_render_state() {
+        let wgpu_adapter_details_ui = |ui: &mut egui::Ui, adapter: &eframe::wgpu::Adapter| {
+            let info = &adapter.get_info();
+
+            let wgpu::AdapterInfo {
+                name,
+                vendor,
+                device,
+                device_type,
+                driver,
+                driver_info,
+                backend,
+            } = &info;
+
+            // Example values:
+            // > name: "llvmpipe (LLVM 16.0.6, 256 bits)", device_type: Cpu, backend: Vulkan, driver: "llvmpipe", driver_info: "Mesa 23.1.6-arch1.4 (LLVM 16.0.6)"
+            // > name: "Apple M1 Pro", device_type: IntegratedGpu, backend: Metal, driver: "", driver_info: ""
+            // > name: "ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)", device_type: IntegratedGpu, backend: Gl, driver: "", driver_info: ""
+
+            egui::Grid::new("adapter_info").show(ui, |ui| {
+                ui.label("Backend:");
+                ui.label(format!("{backend:?}"));
                 ui.end_row();
-            }
 
-            ui.label("Fullscreen:");
-            ui.label(fullscreen.to_string());
+                ui.label("Device Type:");
+                ui.label(format!("{device_type:?}"));
+                ui.end_row();
+
+                if !name.is_empty() {
+                    ui.label("Name:");
+                    ui.label(format!("{name:?}"));
+                    ui.end_row();
+                }
+                if !driver.is_empty() {
+                    ui.label("Driver:");
+                    ui.label(format!("{driver:?}"));
+                    ui.end_row();
+                }
+                if !driver_info.is_empty() {
+                    ui.label("Driver info:");
+                    ui.label(format!("{driver_info:?}"));
+                    ui.end_row();
+                }
+                if *vendor != 0 {
+                    // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/767ac03245ee937d3dc552edc13fe7ab0a860eec/wgpu-hal/src/auxil/mod.rs#L7
+                    ui.label("Vendor:");
+                    ui.label(format!("0x{vendor:04X}"));
+                    ui.end_row();
+                }
+                if *device != 0 {
+                    ui.label("Device:");
+                    ui.label(format!("0x{device:02X}"));
+                    ui.end_row();
+                }
+            });
+        };
+
+        let wgpu_adapter_ui = |ui: &mut egui::Ui, adapter: &eframe::wgpu::Adapter| {
+            let info = &adapter.get_info();
+            ui.label(format!("{:?}", info.backend)).on_hover_ui(|ui| {
+                wgpu_adapter_details_ui(ui, adapter);
+            });
+        };
+
+        egui::Grid::new("wgpu_info").num_columns(2).show(ui, |ui| {
+            ui.label("Renderer:");
+            ui.hyperlink_to("wgpu", "https://wgpu.rs/");
             ui.end_row();
 
-            ui.label("Minimized:");
-            ui.label(minimized.to_string());
+            ui.label("Backend:");
+            wgpu_adapter_ui(ui, &render_state.adapter);
             ui.end_row();
 
-            ui.label("Maximized:");
-            ui.label(maximized.to_string());
-            ui.end_row();
-
-            ui.label("Focused:");
-            ui.label(focused.to_string());
-            ui.end_row();
-
-            ui.label("Window size:");
-            ui.monospace(format!("{x:.0} x {y:.0}", x = size.x, y = size.y));
-            ui.end_row();
-
-            if let Some(egui::Vec2 { x, y }) = monitor_size {
-                ui.label("Monitor size:");
-                ui.monospace(format!("{x:.0} x {y:.0}"));
+            #[cfg(not(target_arch = "wasm32"))]
+            if 1 < render_state.available_adapters.len() {
+                ui.label("Others:");
+                ui.vertical(|ui| {
+                    for adapter in &*render_state.available_adapters {
+                        if adapter.get_info() != render_state.adapter.get_info() {
+                            wgpu_adapter_ui(ui, adapter);
+                        }
+                    }
+                });
                 ui.end_row();
             }
         });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        ui.horizontal(|ui| {
+            {
+                let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
+                if ui
+                    .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
+                    .on_hover_text("Fullscreen the window")
+                    .changed()
+                {
+                    ui.ctx()
+                        .send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
+                }
+            }
+
+            let mut size = None;
+            egui::ComboBox::from_id_source("viewport-size-combo")
+                .selected_text("Resize to...")
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(375.0, 667.0)),
+                        "📱 iPhone SE 2nd Gen",
+                    );
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(1280.0, 720.0)),
+                        "🖥 Desktop 720p",
+                    );
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(1920.0, 1080.0)),
+                        "🖥 Desktop 1080p",
+                    );
+                });
+
+            if let Some(size) = size {
+                ui.ctx()
+                    .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                ui.ctx()
+                    .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
+                ui.close_menu();
+            }
+        });
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -354,7 +344,7 @@ struct EguiWindows {
 
 impl Default for EguiWindows {
     fn default() -> Self {
-        EguiWindows::none()
+        Self::none()
     }
 }
 
@@ -451,10 +441,13 @@ impl EguiWindows {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
-    std::thread::spawn(move || {
-        std::thread::sleep(delay);
-        f();
-    });
+    std::thread::Builder::new()
+        .name("call_after_delay".to_owned())
+        .spawn(move || {
+            std::thread::sleep(delay);
+            f();
+        })
+        .unwrap();
 }
 
 #[cfg(target_arch = "wasm32")]

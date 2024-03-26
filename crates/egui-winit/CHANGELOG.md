@@ -2,7 +2,43 @@
 All notable changes to the `egui-winit` integration will be noted in this file.
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.26.2 - 2024-02-14
+* Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
+
+
+## 0.26.1 - 2024-02-11
+* Nothing new
+
+
+## 0.26.0 - 2024-02-05
+* Don't consume clipboard shortcuts [#3812](https://github.com/emilk/egui/pull/3812) (thanks [@Dinnerbone](https://github.com/Dinnerbone)!)
+* Make the `clipboard_text` and `allow_ime` state public [#3724](https://github.com/emilk/egui/pull/3724) (thanks [@tosti007](https://github.com/tosti007)!)
+
+
+## 0.25.0 - 2024-01-08
+* Update to winit 0.29 [#3649](https://github.com/emilk/egui/pull/3649) (thanks [@fornwall](https://github.com/fornwall)!)
+* Fix: Let `accesskit` process window events [#3733](https://github.com/emilk/egui/pull/3733) (thanks [@DataTriny](https://github.com/DataTriny)!)
+* Simplify `egui_winit::State` [#3678](https://github.com/emilk/egui/pull/3678)
+
+
+## 0.24.1 - 2023-11-30
+* Don't treat `WindowEvent::CloseRequested` as consumed [#3627](https://github.com/emilk/egui/pull/3627) (thanks [@Aaron1011](https://github.com/Aaron1011)!)
+* Fix windowing problems when using the `x11` feature on Linux [#3643](https://github.com/emilk/egui/pull/3643)
+
+
+## 0.24.0 - 2023-11-23
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Some breaking changes required for multi-viewport support
+
+
+## 0.23.0 - 2023-09-27
+* Only show on-screen-keyboard and IME when editing text [#3362](https://github.com/emilk/egui/pull/3362) (thanks [@Barugon](https://github.com/Barugon)!)
+* Replace `instant` with `web_time` [#3296](https://github.com/emilk/egui/pull/3296)
+* Allow users to opt-out of default `winit` features [#3228](https://github.com/emilk/egui/pull/3228)
+* Recognize numpad enter/plus/minus [#3285](https://github.com/emilk/egui/pull/3285)
 
 
 ## 0.22.0 - 2023-05-23

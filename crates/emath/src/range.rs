@@ -1,6 +1,6 @@
 use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
-/// Includive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
+/// Inclusive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -49,6 +49,12 @@ impl Rangef {
         self.max - self.min
     }
 
+    /// The center of the range
+    #[inline]
+    pub fn center(self) -> f32 {
+        0.5 * (self.min + self.max)
+    }
+
     #[inline]
     #[must_use]
     pub fn contains(self, x: f32) -> bool {
@@ -65,7 +71,7 @@ impl Rangef {
     /// Flip `min` and `max` if needed, so that `min <= max` after.
     #[inline]
     pub fn as_positive(self) -> Self {
-        Rangef {
+        Self {
             min: self.min.min(self.max),
             max: self.min.max(self.max),
         }
@@ -89,6 +95,50 @@ impl Rangef {
             min: self.min - amnt,
             max: self.max + amnt,
         }
+    }
+
+    /// Flip the min and the max
+    #[inline]
+    #[must_use]
+    pub fn flip(self) -> Self {
+        Self {
+            min: self.max,
+            max: self.min,
+        }
+    }
+
+    /// The overlap of two ranges, i.e. the range that is contained by both.
+    ///
+    /// If the ranges do not overlap, returns a range with `span() < 0.0`.
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert_eq!(Rangef::new(0.0, 10.0).intersection(Rangef::new(5.0, 15.0)), Rangef::new(5.0, 10.0));
+    /// assert_eq!(Rangef::new(0.0, 10.0).intersection(Rangef::new(10.0, 20.0)), Rangef::new(10.0, 10.0));
+    /// assert!(Rangef::new(0.0, 10.0).intersection(Rangef::new(20.0, 30.0)).span() < 0.0);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn intersection(self, other: Self) -> Self {
+        Self {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
+        }
+    }
+
+    /// Do the two ranges intersect?
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert!(Rangef::new(0.0, 10.0).intersects(Rangef::new(5.0, 15.0)));
+    /// assert!(Rangef::new(0.0, 10.0).intersects(Rangef::new(5.0, 6.0)));
+    /// assert!(Rangef::new(0.0, 10.0).intersects(Rangef::new(10.0, 20.0)));
+    /// assert!(!Rangef::new(0.0, 10.0).intersects(Rangef::new(20.0, 30.0)));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn intersects(self, other: Self) -> bool {
+        other.min <= self.max && self.min <= other.max
     }
 }
 

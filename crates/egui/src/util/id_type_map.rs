@@ -3,8 +3,7 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 // -----------------------------------------------------------------------------------------------
 
@@ -32,6 +31,8 @@ impl From<std::any::TypeId> for TypeId {
     }
 }
 
+impl nohash_hasher::IsEnabled for TypeId {}
+
 // -----------------------------------------------------------------------------------------------
 
 #[cfg(feature = "persistence")]
@@ -54,11 +55,21 @@ impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sy
 
 // -----------------------------------------------------------------------------------------------
 
-#[cfg(feature = "persistence")]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Debug)]
 struct SerializedElement {
+    /// The type of value we are storing.
     type_id: TypeId,
+
+    /// The ron data we can deserialize.
     ron: Arc<str>,
+
+    /// Increased by one each time we re-serialize an element that was never deserialized.
+    ///
+    /// Large value = old value that hasn't been read in a while.
+    ///
+    /// Used to garbage collect old values that hasn't been read in a while.
+    generation: usize,
 }
 
 #[cfg(feature = "persistence")]
@@ -80,13 +91,7 @@ enum Element {
     },
 
     /// A serialized value
-    Serialized {
-        /// The type of value we are storing.
-        type_id: TypeId,
-
-        /// The ron data we can deserialize.
-        ron: Arc<str>,
-    },
+    Serialized(SerializedElement),
 }
 
 impl Clone for Element {
@@ -104,10 +109,7 @@ impl Clone for Element {
                 serialize_fn: *serialize_fn,
             },
 
-            Self::Serialized { type_id, ron } => Self::Serialized {
-                type_id: *type_id,
-                ron: ron.clone(),
-            },
+            Self::Serialized(element) => Self::Serialized(element.clone()),
         }
     }
 }
@@ -116,13 +118,18 @@ impl std::fmt::Debug for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             Self::Value { value, .. } => f
-                .debug_struct("MaybeSerializable::Value")
-                .field("type_id", &value.type_id())
+                .debug_struct("Element::Value")
+                .field("type_id", &(**value).type_id())
                 .finish_non_exhaustive(),
-            Self::Serialized { type_id, ron } => f
-                .debug_struct("MaybeSerializable::Serialized")
-                .field("type_id", &type_id)
-                .field("ron", &ron)
+            Self::Serialized(SerializedElement {
+                type_id,
+                ron,
+                generation,
+            }) => f
+                .debug_struct("Element::Serialized")
+                .field("type_id", type_id)
+                .field("ron", ron)
+                .field("generation", generation)
                 .finish(),
         }
     }
@@ -165,7 +172,7 @@ impl Element {
     pub(crate) fn type_id(&self) -> TypeId {
         match self {
             Self::Value { value, .. } => (**value).type_id().into(),
-            Self::Serialized { type_id, .. } => *type_id,
+            Self::Serialized(SerializedElement { type_id, .. }) => *type_id,
         }
     }
 
@@ -173,7 +180,7 @@ impl Element {
     pub(crate) fn get_temp<T: 'static>(&self) -> Option<&T> {
         match self {
             Self::Value { value, .. } => value.downcast_ref(),
-            Self::Serialized { .. } => None,
+            Self::Serialized(_) => None,
         }
     }
 
@@ -181,7 +188,7 @@ impl Element {
     pub(crate) fn get_mut_temp<T: 'static>(&mut self) -> Option<&mut T> {
         match self {
             Self::Value { value, .. } => value.downcast_mut(),
-            Self::Serialized { .. } => None,
+            Self::Serialized(_) => None,
         }
     }
 
@@ -196,14 +203,14 @@ impl Element {
                     *self = Self::new_temp(insert_with());
                 }
             }
-            Self::Serialized { .. } => {
+            Self::Serialized(_) => {
                 *self = Self::new_temp(insert_with());
             }
         }
 
         match self {
             Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
-            Self::Serialized { .. } => unreachable!(),
+            Self::Serialized(_) => unreachable!(),
         }
     }
 
@@ -220,19 +227,19 @@ impl Element {
             }
 
             #[cfg(feature = "persistence")]
-            Self::Serialized { ron, .. } => {
+            Self::Serialized(SerializedElement { ron, .. }) => {
                 *self = Self::new_persisted(from_ron_str::<T>(ron).unwrap_or_else(insert_with));
             }
 
             #[cfg(not(feature = "persistence"))]
-            Self::Serialized { .. } => {
+            Self::Serialized(_) => {
                 *self = Self::new_persisted(insert_with());
             }
         }
 
         match self {
             Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
-            Self::Serialized { .. } => unreachable!(),
+            Self::Serialized(_) => unreachable!(),
         }
     }
 
@@ -241,17 +248,17 @@ impl Element {
             Self::Value { value, .. } => value.downcast_mut(),
 
             #[cfg(feature = "persistence")]
-            Self::Serialized { ron, .. } => {
+            Self::Serialized(SerializedElement { ron, .. }) => {
                 *self = Self::new_persisted(from_ron_str::<T>(ron)?);
 
                 match self {
                     Self::Value { value, .. } => value.downcast_mut(),
-                    Self::Serialized { .. } => unreachable!(),
+                    Self::Serialized(_) => unreachable!(),
                 }
             }
 
             #[cfg(not(feature = "persistence"))]
-            Self::Serialized { .. } => None,
+            Self::Serialized(_) => None,
         }
     }
 
@@ -268,15 +275,13 @@ impl Element {
                     Some(SerializedElement {
                         type_id: (**value).type_id().into(),
                         ron: ron.into(),
+                        generation: 1,
                     })
                 } else {
                     None
                 }
             }
-            Self::Serialized { type_id, ron } => Some(SerializedElement {
-                type_id: *type_id,
-                ron: ron.clone(),
-            }),
+            Self::Serialized(element) => Some(element.clone()),
         }
     }
 }
@@ -313,7 +318,7 @@ use crate::Id;
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
-/// You can store state using the key [`Id::null`]. The state will then only be identified by its type.
+/// You can store state using the key [`Id::NULL`]. The state will then only be identified by its type.
 ///
 /// ```
 /// # use egui::{Id, util::IdTypeMap};
@@ -341,23 +346,36 @@ use crate::Id;
 /// assert_eq!(map.get_persisted::<f64>(b), Some(13.37));
 /// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
 /// ```
-#[derive(Clone, Debug, Default)]
-// We store use `id XOR typeid` as a key, so we don't need to hash again!
-pub struct IdTypeMap(nohash_hasher::IntMap<u64, Element>);
+#[derive(Clone, Debug)]
+// We use `id XOR typeid` as a key, so we don't need to hash again!
+pub struct IdTypeMap {
+    map: nohash_hasher::IntMap<u64, Element>,
+
+    max_bytes_per_type: usize,
+}
+
+impl Default for IdTypeMap {
+    fn default() -> Self {
+        Self {
+            map: Default::default(),
+            max_bytes_per_type: 256 * 1024,
+        }
+    }
+}
 
 impl IdTypeMap {
     /// Insert a value that will not be persisted.
     #[inline]
     pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.insert(hash, Element::new_temp(value));
+        self.map.insert(hash, Element::new_temp(value));
     }
 
     /// Insert a value that will be persisted next time you start the app.
     #[inline]
     pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.insert(hash, Element::new_persisted(value));
+        self.map.insert(hash, Element::new_persisted(value));
     }
 
     /// Read a value without trying to deserialize a persisted value.
@@ -366,7 +384,7 @@ impl IdTypeMap {
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.get(&hash).and_then(|x| x.get_temp()).cloned()
+        self.map.get(&hash).and_then(|x| x.get_temp()).cloned()
     }
 
     /// Read a value, optionally deserializing it if available.
@@ -378,7 +396,7 @@ impl IdTypeMap {
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0
+        self.map
             .get_mut(&hash)
             .and_then(|x| x.get_mut_persisted())
             .cloned()
@@ -418,7 +436,7 @@ impl IdTypeMap {
     ) -> &mut T {
         let hash = hash(TypeId::of::<T>(), id);
         use std::collections::hash_map::Entry;
-        match self.0.entry(hash) {
+        match self.map.entry(hash) {
             Entry::Vacant(vacant) => vacant
                 .insert(Element::new_temp(insert_with()))
                 .get_mut_temp()
@@ -436,7 +454,7 @@ impl IdTypeMap {
     ) -> &mut T {
         let hash = hash(TypeId::of::<T>(), id);
         use std::collections::hash_map::Entry;
-        match self.0.entry(hash) {
+        match self.map.entry(hash) {
             Entry::Vacant(vacant) => vacant
                 .insert(Element::new_persisted(insert_with()))
                 .get_mut_persisted()
@@ -447,17 +465,36 @@ impl IdTypeMap {
         }
     }
 
-    /// Remove the state of this type an id.
+    /// For tests
+    #[cfg(feature = "persistence")]
+    #[allow(unused)]
+    fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
+        let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
+        match element {
+            Element::Value { .. } => Some(0),
+            Element::Serialized(SerializedElement { generation, .. }) => Some(*generation),
+        }
+    }
+
+    /// Remove the state of this type and id.
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.remove(&hash);
+        self.map.remove(&hash);
+    }
+
+    /// Remove and fetch the state of this type and id.
+    #[inline]
+    pub fn remove_temp<T: 'static + Default>(&mut self, id: Id) -> Option<T> {
+        let hash = hash(TypeId::of::<T>(), id);
+        let mut element = self.map.remove(&hash)?;
+        Some(std::mem::take(element.get_mut_temp()?))
     }
 
     /// Note all state of the given type.
     pub fn remove_by_type<T: 'static>(&mut self) {
         let key = TypeId::of::<T>();
-        self.0.retain(|_, e| {
+        self.map.retain(|_, e| {
             let e: &Element = e;
             e.type_id() != key
         });
@@ -465,38 +502,60 @@ impl IdTypeMap {
 
     #[inline]
     pub fn clear(&mut self) {
-        self.0.clear();
+        self.map.clear();
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.map.is_empty()
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.map.len()
     }
 
     /// Count how many values are stored but not yet deserialized.
     #[inline]
     pub fn count_serialized(&self) -> usize {
-        self.0
+        self.map
             .values()
-            .filter(|e| matches!(e, Element::Serialized { .. }))
+            .filter(|e| matches!(e, Element::Serialized(_)))
             .count()
     }
 
     /// Count the number of values are stored with the given type.
     pub fn count<T: 'static>(&self) -> usize {
         let key = TypeId::of::<T>();
-        self.0
+        self.map
             .iter()
             .filter(|(_, e)| {
                 let e: &Element = e;
                 e.type_id() == key
             })
             .count()
+    }
+
+    /// The maximum number of bytes that will be used to
+    /// store the persisted state of a single widget type.
+    ///
+    /// Some egui widgets store persisted state that is
+    /// serialized to disk by some backends (e.g. `eframe`).
+    ///
+    /// Example of such widgets is `CollapsingHeader` and `Window`.
+    /// If you keep creating widgets with unique ids (e.g. `Windows` with many different names),
+    /// egui will use up more and more space for these widgets, until this limit is reached.
+    ///
+    /// Once this limit is reached, the state that was read the longest time ago will be dropped first.
+    ///
+    /// This value in itself will not be serialized.
+    pub fn max_bytes_per_type(&self) -> usize {
+        self.max_bytes_per_type
+    }
+
+    /// See [`Self::max_bytes_per_type`].
+    pub fn set_max_bytes_per_type(&mut self, max_bytes_per_type: usize) {
+        self.max_bytes_per_type = max_bytes_per_type;
     }
 }
 
@@ -515,24 +574,94 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 #[cfg(feature = "persistence")]
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
-        // filter out the elements which cannot be serialized:
-        Self(
-            map.0
-                .iter()
-                .filter_map(|(&hash, element)| Some((hash, element.to_serialize()?)))
-                .collect(),
-        )
+        crate::profile_function!();
+
+        use std::collections::BTreeMap;
+
+        let mut types_map: nohash_hasher::IntMap<TypeId, TypeStats> = Default::default();
+        #[derive(Default)]
+        struct TypeStats {
+            num_bytes: usize,
+            generations: BTreeMap<usize, GenerationStats>,
+        }
+        #[derive(Default)]
+        struct GenerationStats {
+            num_bytes: usize,
+            elements: Vec<(u64, SerializedElement)>,
+        }
+
+        let max_bytes_per_type = map.max_bytes_per_type;
+
+        {
+            crate::profile_scope!("gather");
+            for (hash, element) in &map.map {
+                if let Some(element) = element.to_serialize() {
+                    let stats = types_map.entry(element.type_id).or_default();
+                    stats.num_bytes += element.ron.len();
+                    let generation_stats = stats.generations.entry(element.generation).or_default();
+                    generation_stats.num_bytes += element.ron.len();
+                    generation_stats.elements.push((*hash, element));
+                } else {
+                    // temporary value that shouldn't be serialized
+                }
+            }
+        }
+
+        let mut persisted = vec![];
+
+        {
+            crate::profile_scope!("gc");
+            for stats in types_map.values() {
+                let mut bytes_written = 0;
+
+                // Start with the most recently read values, and then go as far as we are allowed.
+                // Always include at least one generation.
+                for generation in stats.generations.values() {
+                    if bytes_written == 0
+                        || bytes_written + generation.num_bytes <= max_bytes_per_type
+                    {
+                        persisted.append(&mut generation.elements.clone());
+                        bytes_written += generation.num_bytes;
+                    } else {
+                        // Omit the rest. The user hasn't read the values in a while.
+                        break;
+                    }
+                }
+            }
+        }
+
+        Self(persisted)
     }
 
     fn into_map(self) -> IdTypeMap {
-        IdTypeMap(
-            self.0
-                .into_iter()
-                .map(|(hash, SerializedElement { type_id, ron })| {
-                    (hash, Element::Serialized { type_id, ron })
-                })
-                .collect(),
-        )
+        crate::profile_function!();
+        let map = self
+            .0
+            .into_iter()
+            .map(
+                |(
+                    hash,
+                    SerializedElement {
+                        type_id,
+                        ron,
+                        generation,
+                    },
+                )| {
+                    (
+                        hash,
+                        Element::Serialized(SerializedElement {
+                            type_id,
+                            ron,
+                            generation: generation + 1, // This is where we increment the generation!
+                        }),
+                    )
+                },
+            )
+            .collect();
+        IdTypeMap {
+            map,
+            ..Default::default()
+        }
     }
 }
 
@@ -542,6 +671,7 @@ impl serde::Serialize for IdTypeMap {
     where
         S: serde::Serializer,
     {
+        crate::profile_scope!("IdTypeMap::serialize");
         PersistedMap::from_map(self).serialize(serializer)
     }
 }
@@ -552,6 +682,7 @@ impl<'de> serde::Deserialize<'de> for IdTypeMap {
     where
         D: serde::Deserializer<'de>,
     {
+        crate::profile_scope!("IdTypeMap::deserialize");
         <PersistedMap>::deserialize(deserializer).map(PersistedMap::into_map)
     }
 }
@@ -726,4 +857,130 @@ fn test_mix_serialize() {
         Some(Serializable(555))
     );
     assert_eq!(map.get_temp::<Serializable>(id), Some(Serializable(555)));
+}
+
+#[cfg(feature = "persistence")]
+#[test]
+fn test_serialize_generations() {
+    use serde::{Deserialize, Serialize};
+
+    fn serialize_and_deserialize(map: &IdTypeMap) -> IdTypeMap {
+        let serialized = ron::to_string(map).unwrap();
+        ron::from_str(&serialized).unwrap()
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct A(i32);
+
+    let mut map: IdTypeMap = Default::default();
+    for i in 0..3 {
+        map.insert_persisted(Id::new(i), A(i));
+    }
+    for i in 0..3 {
+        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(0));
+    }
+
+    map = serialize_and_deserialize(&map);
+
+    // We use generation 0 for non-serilized,
+    // 1 for things that have been serialized but never deserialized,
+    // and then we increment with 1 on each deserialize.
+    // So we should have generation 2 now:
+    for i in 0..3 {
+        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(2));
+    }
+
+    // Reading should reset:
+    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
+    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(0));
+
+    // Generations should increment:
+    map = serialize_and_deserialize(&map);
+    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(2));
+    assert_eq!(map.get_generation::<A>(Id::new(1)), Some(3));
+}
+
+#[cfg(feature = "persistence")]
+#[test]
+fn test_serialize_gc() {
+    use serde::{Deserialize, Serialize};
+
+    fn serialize_and_deserialize(mut map: IdTypeMap, max_bytes_per_type: usize) -> IdTypeMap {
+        map.set_max_bytes_per_type(max_bytes_per_type);
+        let serialized = ron::to_string(&map).unwrap();
+        ron::from_str(&serialized).unwrap()
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct A(usize);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct B(usize);
+
+    let mut map: IdTypeMap = Default::default();
+
+    let num_a = 1_000;
+    let num_b = 10;
+
+    for i in 0..num_a {
+        map.insert_persisted(Id::new(i), A(i));
+    }
+    for i in 0..num_b {
+        map.insert_persisted(Id::new(i), B(i));
+    }
+
+    map = serialize_and_deserialize(map, 100);
+
+    // We always serialize at least one generation:
+    assert_eq!(map.count::<A>(), num_a);
+    assert_eq!(map.count::<B>(), num_b);
+
+    // Create a new small generation:
+    map.insert_persisted(Id::new(1_000_000), A(1_000_000));
+    map.insert_persisted(Id::new(1_000_000), B(1_000_000));
+
+    assert_eq!(map.count::<A>(), num_a + 1);
+    assert_eq!(map.count::<B>(), num_b + 1);
+
+    // And read a value:
+    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
+    assert_eq!(map.get_persisted::<B>(Id::new(0)), Some(B(0)));
+
+    map = serialize_and_deserialize(map, 100);
+
+    assert_eq!(
+        map.count::<A>(),
+        2,
+        "We should have dropped the oldest generation, but kept the new value and the read value"
+    );
+    assert_eq!(
+        map.count::<B>(),
+        num_b + 1,
+        "B should fit under the byte limit"
+    );
+
+    // Create another small generation:
+    map.insert_persisted(Id::new(2_000_000), A(2_000_000));
+    map.insert_persisted(Id::new(2_000_000), B(2_000_000));
+
+    map = serialize_and_deserialize(map, 100);
+
+    assert_eq!(map.count::<A>(), 3); // The read value, plus the two new ones
+    assert_eq!(map.count::<B>(), num_b + 2); // all the old ones, plus two new ones
+
+    // Lower the limit, and we should only have the latest generation:
+
+    map = serialize_and_deserialize(map, 1);
+
+    assert_eq!(map.count::<A>(), 1);
+    assert_eq!(map.count::<B>(), 1);
+
+    assert_eq!(
+        map.get_persisted::<A>(Id::new(2_000_000)),
+        Some(A(2_000_000))
+    );
+    assert_eq!(
+        map.get_persisted::<B>(Id::new(2_000_000)),
+        Some(B(2_000_000))
+    );
 }

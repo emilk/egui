@@ -1,5 +1,5 @@
 use crate::{
-    layout::{CellDirection, CellSize, StripLayout},
+    layout::{CellDirection, CellSize, StripLayout, StripLayoutFlags},
     sizing::Sizing,
     Size,
 };
@@ -46,6 +46,7 @@ pub struct StripBuilder<'a> {
     sizing: Sizing,
     clip: bool,
     cell_layout: egui::Layout,
+    sense: egui::Sense,
 }
 
 impl<'a> StripBuilder<'a> {
@@ -55,30 +56,42 @@ impl<'a> StripBuilder<'a> {
         Self {
             ui,
             sizing: Default::default(),
-            cell_layout,
             clip: false,
+            cell_layout,
+            sense: egui::Sense::hover(),
         }
     }
 
     /// Should we clip the contents of each cell? Default: `false`.
+    #[inline]
     pub fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
         self
     }
 
     /// What layout should we use for the individual cells?
+    #[inline]
     pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
         self.cell_layout = cell_layout;
         self
     }
 
+    /// What should strip cells sense for? Default: [`egui::Sense::hover()`].
+    #[inline]
+    pub fn sense(mut self, sense: egui::Sense) -> Self {
+        self.sense = sense;
+        self
+    }
+
     /// Allocate space for one column/row.
+    #[inline]
     pub fn size(mut self, size: Size) -> Self {
         self.sizing.add(size);
         self
     }
 
     /// Allocate space for several columns/rows at once.
+    #[inline]
     pub fn sizes(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add(size);
@@ -98,7 +111,12 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().width(),
             self.ui.spacing().item_spacing.x,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal, self.cell_layout);
+        let mut layout = StripLayout::new(
+            self.ui,
+            CellDirection::Horizontal,
+            self.cell_layout,
+            self.sense,
+        );
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
@@ -121,7 +139,12 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().height(),
             self.ui.spacing().item_spacing.y,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical, self.cell_layout);
+        let mut layout = StripLayout::new(
+            self.ui,
+            CellDirection::Vertical,
+            self.cell_layout,
+            self.sense,
+        );
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
@@ -167,9 +190,17 @@ impl<'a, 'b> Strip<'a, 'b> {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
-        let striped = false;
-        self.layout
-            .add(self.clip, striped, width, height, add_contents);
+        let flags = StripLayoutFlags {
+            clip: self.clip,
+            ..Default::default()
+        };
+        self.layout.add(
+            flags,
+            width,
+            height,
+            egui::Id::new(self.size_index),
+            add_contents,
+        );
     }
 
     /// Add an empty cell.

@@ -1,35 +1,38 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::WidgetType;
+use crate::{ViewportIdMap, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
 /// The backend should use this.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default)]
 pub struct FullOutput {
     /// Non-rendering related output.
     pub platform_output: PlatformOutput,
-
-    /// If `Duration::is_zero()`, egui is requesting immediate repaint (i.e. on the next frame).
-    ///
-    /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
-    ///
-    /// If `Duration` is greater than zero, egui wants to be repainted at or before the specified
-    /// duration elapses. when in reactive mode, egui spends forever waiting for input and only then,
-    /// will it repaint itself. this can be used to make sure that backend will only wait for a
-    /// specified amount of time, and repaint egui without any new input.
-    pub repaint_after: std::time::Duration,
 
     /// Texture changes since last frame (including the font texture).
     ///
     /// The backend needs to apply [`crate::TexturesDelta::set`] _before_ painting,
     /// and free any texture in [`crate::TexturesDelta::free`] _after_ painting.
+    ///
+    /// It is assumed that all egui viewports share the same painter and texture namespace.
     pub textures_delta: epaint::textures::TexturesDelta,
 
     /// What to paint.
     ///
     /// You can use [`crate::Context::tessellate`] to turn this into triangles.
     pub shapes: Vec<epaint::ClippedShape>,
+
+    /// The number of physical pixels per logical ui point, for the viewport that was updated.
+    ///
+    /// You can pass this to [`crate::Context::tessellate`] together with [`Self::shapes`].
+    pub pixels_per_point: f32,
+
+    /// All the active viewports, including the root.
+    ///
+    /// It is up to the integration to spawn a native window for each viewport,
+    /// and to close any window that no longer has a viewport in this map.
+    pub viewport_output: ViewportIdMap<ViewportOutput>,
 }
 
 impl FullOutput {
@@ -37,16 +40,43 @@ impl FullOutput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             platform_output,
-            repaint_after,
             textures_delta,
             shapes,
+            pixels_per_point,
+            viewport_output: viewports,
         } = newer;
 
         self.platform_output.append(platform_output);
-        self.repaint_after = repaint_after; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
+        self.pixels_per_point = pixels_per_point; // Use latest
+
+        for (id, new_viewport) in viewports {
+            match self.viewport_output.entry(id) {
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(new_viewport);
+                }
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    entry.get_mut().append(new_viewport);
+                }
+            }
+        }
     }
+}
+
+/// Information about text being edited.
+///
+/// Useful for IME.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct IMEOutput {
+    /// Where the [`crate::TextEdit`] is located on screen.
+    pub rect: crate::Rect,
+
+    /// Where the primary cursor is.
+    ///
+    /// This is a very thin rectangle.
+    pub cursor_rect: crate::Rect,
 }
 
 /// The non-rendering part of what egui emits each frame.
@@ -83,20 +113,19 @@ pub struct PlatformOutput {
     /// Use by `eframe` web to show/hide mobile keyboard and IME agent.
     pub mutable_text_under_cursor: bool,
 
-    /// Screen-space position of text edit cursor (used for IME).
-    pub text_cursor_pos: Option<crate::Pos2>,
+    /// This is et if, and only if, the user is currently editing text.
+    ///
+    /// Useful for IME.
+    pub ime: Option<IMEOutput>,
 
+    /// The difference in the widget tree since last frame.
+    ///
+    /// NOTE: this needs to be per-viewport.
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
 
 impl PlatformOutput {
-    /// Open the given url in a web browser.
-    /// If egui is running in a browser, the same tab will be reused.
-    pub fn open_url(&mut self, url: impl ToString) {
-        self.open_url = Some(OpenUrl::same_tab(url));
-    }
-
     /// This can be used by a text-to-speech system to describe the events (if any).
     pub fn events_description(&self) -> String {
         // only describe last event:
@@ -123,7 +152,7 @@ impl PlatformOutput {
             copied_text,
             mut events,
             mutable_text_under_cursor,
-            text_cursor_pos,
+            ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
         } = newer;
@@ -137,7 +166,7 @@ impl PlatformOutput {
         }
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
-        self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+        self.ime = ime.or(self.ime);
 
         #[cfg(feature = "accesskit")]
         {
@@ -156,6 +185,8 @@ impl PlatformOutput {
 }
 
 /// What URL to open, and how.
+///
+/// Use with [`crate::Context::open_url`].
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
@@ -191,6 +222,7 @@ impl OpenUrl {
 ///
 /// [user_attention_type]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum UserAttentionType {
     /// Request an elevated amount of animations and flair for the window and the task bar or dock icon.
     Critical,
@@ -331,42 +363,42 @@ pub enum CursorIcon {
 }
 
 impl CursorIcon {
-    pub const ALL: [CursorIcon; 35] = [
-        CursorIcon::Default,
-        CursorIcon::None,
-        CursorIcon::ContextMenu,
-        CursorIcon::Help,
-        CursorIcon::PointingHand,
-        CursorIcon::Progress,
-        CursorIcon::Wait,
-        CursorIcon::Cell,
-        CursorIcon::Crosshair,
-        CursorIcon::Text,
-        CursorIcon::VerticalText,
-        CursorIcon::Alias,
-        CursorIcon::Copy,
-        CursorIcon::Move,
-        CursorIcon::NoDrop,
-        CursorIcon::NotAllowed,
-        CursorIcon::Grab,
-        CursorIcon::Grabbing,
-        CursorIcon::AllScroll,
-        CursorIcon::ResizeHorizontal,
-        CursorIcon::ResizeNeSw,
-        CursorIcon::ResizeNwSe,
-        CursorIcon::ResizeVertical,
-        CursorIcon::ResizeEast,
-        CursorIcon::ResizeSouthEast,
-        CursorIcon::ResizeSouth,
-        CursorIcon::ResizeSouthWest,
-        CursorIcon::ResizeWest,
-        CursorIcon::ResizeNorthWest,
-        CursorIcon::ResizeNorth,
-        CursorIcon::ResizeNorthEast,
-        CursorIcon::ResizeColumn,
-        CursorIcon::ResizeRow,
-        CursorIcon::ZoomIn,
-        CursorIcon::ZoomOut,
+    pub const ALL: [Self; 35] = [
+        Self::Default,
+        Self::None,
+        Self::ContextMenu,
+        Self::Help,
+        Self::PointingHand,
+        Self::Progress,
+        Self::Wait,
+        Self::Cell,
+        Self::Crosshair,
+        Self::Text,
+        Self::VerticalText,
+        Self::Alias,
+        Self::Copy,
+        Self::Move,
+        Self::NoDrop,
+        Self::NotAllowed,
+        Self::Grab,
+        Self::Grabbing,
+        Self::AllScroll,
+        Self::ResizeHorizontal,
+        Self::ResizeNeSw,
+        Self::ResizeNwSe,
+        Self::ResizeVertical,
+        Self::ResizeEast,
+        Self::ResizeSouthEast,
+        Self::ResizeSouth,
+        Self::ResizeSouthWest,
+        Self::ResizeWest,
+        Self::ResizeNorthWest,
+        Self::ResizeNorth,
+        Self::ResizeNorthEast,
+        Self::ResizeColumn,
+        Self::ResizeRow,
+        Self::ZoomIn,
+        Self::ZoomOut,
     ];
 }
 
@@ -404,12 +436,12 @@ pub enum OutputEvent {
 impl OutputEvent {
     pub fn widget_info(&self) -> &WidgetInfo {
         match self {
-            OutputEvent::Clicked(info)
-            | OutputEvent::DoubleClicked(info)
-            | OutputEvent::TripleClicked(info)
-            | OutputEvent::FocusGained(info)
-            | OutputEvent::TextSelectionChanged(info)
-            | OutputEvent::ValueChanged(info) => info,
+            Self::Clicked(info)
+            | Self::DoubleClicked(info)
+            | Self::TripleClicked(info)
+            | Self::FocusGained(info)
+            | Self::TextSelectionChanged(info)
+            | Self::ValueChanged(info) => info,
         }
     }
 }
@@ -601,6 +633,7 @@ impl WidgetInfo {
             WidgetType::ColorButton => "color button",
             WidgetType::ImageButton => "image button",
             WidgetType::CollapsingHeader => "collapsing header",
+            WidgetType::ProgressIndicator => "progress indicator",
             WidgetType::Label | WidgetType::Other => "",
         };
 
@@ -620,16 +653,15 @@ impl WidgetInfo {
         }
 
         if typ == &WidgetType::TextEdit {
-            let text;
-            if let Some(text_value) = text_value {
+            let text = if let Some(text_value) = text_value {
                 if text_value.is_empty() {
-                    text = "blank".into();
+                    "blank".into()
                 } else {
-                    text = text_value.to_string();
+                    text_value.to_string()
                 }
             } else {
-                text = "blank".into();
-            }
+                "blank".into()
+            };
             description = format!("{text}: {description}");
         }
 

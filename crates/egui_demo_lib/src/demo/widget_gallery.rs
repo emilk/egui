@@ -12,6 +12,7 @@ pub struct WidgetGallery {
     enabled: bool,
     visible: bool,
     boolean: bool,
+    opacity: f32,
     radio: Enum,
     scalar: f32,
     string: String,
@@ -21,9 +22,6 @@ pub struct WidgetGallery {
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
     date: Option<chrono::NaiveDate>,
-
-    #[cfg_attr(feature = "serde", serde(skip))]
-    texture: Option<egui::TextureHandle>,
 }
 
 impl Default for WidgetGallery {
@@ -31,6 +29,7 @@ impl Default for WidgetGallery {
         Self {
             enabled: true,
             visible: true,
+            opacity: 1.0,
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
@@ -39,7 +38,6 @@ impl Default for WidgetGallery {
             animate_progress_bar: false,
             #[cfg(feature = "chrono")]
             date: None,
-            texture: None,
         }
     }
 }
@@ -52,7 +50,7 @@ impl super::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(true)
+            .resizable([true, false])
             .default_width(280.0)
             .show(ctx, |ui| {
                 use super::View as _;
@@ -65,6 +63,7 @@ impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add_enabled_ui(self.enabled, |ui| {
             ui.set_visible(self.visible);
+            ui.set_opacity(self.opacity);
 
             egui::Grid::new("my_grid")
                 .num_columns(2)
@@ -83,6 +82,12 @@ impl super::View for WidgetGallery {
             if self.visible {
                 ui.checkbox(&mut self.enabled, "Interactive")
                     .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
+                (ui.add(
+                    egui::DragValue::new(&mut self.opacity)
+                        .speed(0.01)
+                        .clamp_range(0.0..=1.0),
+                ) | ui.label("Opacity"))
+                .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
         });
 
@@ -103,6 +108,7 @@ impl WidgetGallery {
         let Self {
             enabled: _,
             visible: _,
+            opacity: _,
             boolean,
             radio,
             scalar,
@@ -111,15 +117,9 @@ impl WidgetGallery {
             animate_progress_bar,
             #[cfg(feature = "chrono")]
             date,
-            texture,
         } = self;
 
-        let texture: &egui::TextureHandle = texture.get_or_insert_with(|| {
-            ui.ctx()
-                .load_texture("example", egui::ColorImage::example(), Default::default())
-        });
-
-        ui.add(doc_link_label("Label", "label,heading"));
+        ui.add(doc_link_label("Label", "label"));
         ui.label("Welcome to the widget gallery!");
         ui.end_row();
 
@@ -131,7 +131,7 @@ impl WidgetGallery {
         );
         ui.end_row();
 
-        ui.add(doc_link_label("TextEdit", "TextEdit,text_edit"));
+        ui.add(doc_link_label("TextEdit", "TextEdit"));
         ui.add(egui::TextEdit::singleline(string).hint_text("Write something here"));
         ui.end_row();
 
@@ -159,10 +159,7 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label(
-            "SelectableLabel",
-            "selectable_value,SelectableLabel",
-        ));
+        ui.add(doc_link_label("SelectableLabel", "SelectableLabel"));
         ui.horizontal(|ui| {
             ui.selectable_value(radio, Enum::First, "First");
             ui.selectable_value(radio, Enum::Second, "Second");
@@ -206,14 +203,19 @@ impl WidgetGallery {
         ui.color_edit_button_srgba(color);
         ui.end_row();
 
-        let img_size = 16.0 * texture.size_vec2() / texture.size_vec2().y;
-
         ui.add(doc_link_label("Image", "Image"));
-        ui.image(texture, img_size);
+        let egui_icon = egui::include_image!("../../data/icon.png");
+        ui.add(egui::Image::new(egui_icon.clone()));
         ui.end_row();
 
-        ui.add(doc_link_label("ImageButton", "ImageButton"));
-        if ui.add(egui::ImageButton::new(texture, img_size)).clicked() {
+        ui.add(doc_link_label(
+            "Button with image",
+            "Button::image_and_text",
+        ));
+        if ui
+            .add(egui::Button::image_and_text(egui_icon, "Click me!"))
+            .clicked()
+        {
             *boolean = !*boolean;
         }
         ui.end_row();
@@ -221,7 +223,11 @@ impl WidgetGallery {
         #[cfg(feature = "chrono")]
         {
             let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
-            ui.add(doc_link_label("DatePickerButton", "DatePickerButton"));
+            ui.add(doc_link_label_with_crate(
+                "egui_extras",
+                "DatePickerButton",
+                "DatePickerButton",
+            ));
             ui.add(egui_extras::DatePickerButton::new(date));
             ui.end_row();
         }
@@ -242,7 +248,7 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label("Plot", "plot"));
+        ui.add(doc_link_label_with_crate("egui_plot", "Plot", "plot"));
         example_plot(ui);
         ui.end_row();
 
@@ -259,7 +265,7 @@ impl WidgetGallery {
 }
 
 fn example_plot(ui: &mut egui::Ui) -> egui::Response {
-    use egui::plot::{Line, PlotPoints};
+    use egui_plot::{Line, PlotPoints};
     let n = 128;
     let line_points: PlotPoints = (0..=n)
         .map(|i| {
@@ -269,7 +275,7 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
         })
         .collect();
     let line = Line::new(line_points);
-    egui::plot::Plot::new("example_plot")
+    egui_plot::Plot::new("example_plot")
         .height(32.0)
         .show_axes(false)
         .data_aspect(1.0)
@@ -278,8 +284,16 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
 }
 
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {
+    doc_link_label_with_crate("egui", title, search_term)
+}
+
+fn doc_link_label_with_crate<'a>(
+    crate_name: &'a str,
+    title: &'a str,
+    search_term: &'a str,
+) -> impl egui::Widget + 'a {
     let label = format!("{title}:");
-    let url = format!("https://docs.rs/egui?search={search_term}");
+    let url = format!("https://docs.rs/{crate_name}?search={search_term}");
     move |ui: &mut egui::Ui| {
         ui.hyperlink_to(label, url).on_hover_ui(|ui| {
             ui.horizontal_wrapped(|ui| {

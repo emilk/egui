@@ -2,7 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::*;
+use crate::{style::HandleShape, *};
 
 // ----------------------------------------------------------------------------
 
@@ -87,6 +87,7 @@ pub struct Slider<'a> {
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
     trailing_fill: Option<bool>,
+    handle_shape: Option<HandleShape>,
 }
 
 impl<'a> Slider<'a> {
@@ -133,46 +134,54 @@ impl<'a> Slider<'a> {
             custom_formatter: None,
             custom_parser: None,
             trailing_fill: None,
+            handle_shape: None,
         }
     }
 
     /// Control whether or not the slider shows the current value.
     /// Default: `true`.
+    #[inline]
     pub fn show_value(mut self, show_value: bool) -> Self {
         self.show_value = show_value;
         self
     }
 
     /// Show a prefix before the number, e.g. "x: "
+    #[inline]
     pub fn prefix(mut self, prefix: impl ToString) -> Self {
         self.prefix = prefix.to_string();
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    #[inline]
     pub fn suffix(mut self, suffix: impl ToString) -> Self {
         self.suffix = suffix.to_string();
         self
     }
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
+    #[inline]
     pub fn text(mut self, text: impl Into<WidgetText>) -> Self {
         self.text = text.into();
         self
     }
 
+    #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text = self.text.color(text_color);
         self
     }
 
     /// Vertical or horizontal slider? The default is horizontal.
+    #[inline]
     pub fn orientation(mut self, orientation: SliderOrientation) -> Self {
         self.orientation = orientation;
         self
     }
 
     /// Make this a vertical slider.
+    #[inline]
     pub fn vertical(mut self) -> Self {
         self.orientation = SliderOrientation::Vertical;
         self
@@ -182,6 +191,7 @@ impl<'a> Slider<'a> {
     /// This is great for when the slider spans a huge range,
     /// e.g. from one to a million.
     /// The default is OFF.
+    #[inline]
     pub fn logarithmic(mut self, logarithmic: bool) -> Self {
         self.spec.logarithmic = logarithmic;
         self
@@ -190,6 +200,7 @@ impl<'a> Slider<'a> {
     /// For logarithmic sliders that includes zero:
     /// what is the smallest positive value you want to be able to select?
     /// The default is `1` for integer sliders and `1e-6` for real sliders.
+    #[inline]
     pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
         self.spec.smallest_positive = smallest_positive;
         self
@@ -198,6 +209,7 @@ impl<'a> Slider<'a> {
     /// For logarithmic sliders, the largest positive value we are interested in
     /// before the slider switches to `INFINITY`, if that is the higher end.
     /// Default: INFINITY.
+    #[inline]
     pub fn largest_finite(mut self, largest_finite: f64) -> Self {
         self.spec.largest_finite = largest_finite;
         self
@@ -205,6 +217,7 @@ impl<'a> Slider<'a> {
 
     /// If set to `true`, all incoming and outgoing values will be clamped to the slider range.
     /// Default: `true`.
+    #[inline]
     pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
         self
@@ -212,6 +225,7 @@ impl<'a> Slider<'a> {
 
     /// Turn smart aim on/off. Default is ON.
     /// There is almost no point in turning this off.
+    #[inline]
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
         self
@@ -223,6 +237,7 @@ impl<'a> Slider<'a> {
     /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
     ///
     /// Default: `0.0` (disabled).
+    #[inline]
     pub fn step_by(mut self, step: f64) -> Self {
         self.step = if step != 0.0 { Some(step) } else { None };
         self
@@ -236,6 +251,7 @@ impl<'a> Slider<'a> {
     /// By default this is the same speed as when dragging the slider,
     /// but you can change it here to for instance have a much finer control
     /// by dragging the slider value rather than the slider itself.
+    #[inline]
     pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
         self.drag_value_speed = Some(drag_value_speed);
         self
@@ -246,6 +262,7 @@ impl<'a> Slider<'a> {
     ///
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
         self.min_decimals = min_decimals;
         self
@@ -257,6 +274,7 @@ impl<'a> Slider<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
         self.max_decimals = Some(max_decimals);
         self
@@ -267,6 +285,7 @@ impl<'a> Slider<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
@@ -279,8 +298,19 @@ impl<'a> Slider<'a> {
     /// Toggling it here will override the above setting ONLY for this individual slider.
     ///
     /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
+    #[inline]
     pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
         self.trailing_fill = Some(trailing_fill);
+        self
+    }
+
+    /// Change the shape of the slider handle
+    ///
+    /// This setting can be enabled globally for all sliders with [`Visuals::handle_shape`].
+    /// Changing it here will override the above setting ONLY for this individual slider.
+    #[inline]
+    pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
+        self.handle_shape = Some(handle_shape);
         self
     }
 
@@ -362,6 +392,7 @@ impl<'a> Slider<'a> {
     ///     }));
     /// # });
     /// ```
+    #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
         self.custom_parser = Some(Box::new(parser));
         self
@@ -395,7 +426,7 @@ impl<'a> Slider<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$b}", n.abs() as i64)
             })
         }
@@ -430,7 +461,7 @@ impl<'a> Slider<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$o}", n.abs() as i64)
             })
         }
@@ -469,11 +500,11 @@ impl<'a> Slider<'a> {
                 self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as i64))
             }
             (false, true) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$X}", n.abs() as i64)
             }),
             (false, false) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$x}", n.abs() as i64)
             }),
         }
@@ -508,7 +539,8 @@ impl<'a> Slider<'a> {
             value = emath::round_to_decimals(value, max_decimals);
         }
         if let Some(step) = self.step {
-            value = (value / step).round() * step;
+            let start = *self.range.start();
+            value = start + ((value - start) / step).round() * step;
         }
         set(&mut self.get_set_value, value);
     }
@@ -548,9 +580,12 @@ impl<'a> Slider<'a> {
     }
 
     /// Just the slider, no text
-    fn slider_ui(&mut self, ui: &mut Ui, response: &Response) {
+    fn slider_ui(&mut self, ui: &Ui, response: &Response) {
         let rect = &response.rect;
-        let position_range = self.position_range(rect);
+        let handle_shape = self
+            .handle_shape
+            .unwrap_or_else(|| ui.style().visuals.handle_shape);
+        let position_range = self.position_range(rect, &handle_shape);
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let position = self.pointer_position(pointer_position_2d);
@@ -570,6 +605,22 @@ impl<'a> Slider<'a> {
         let mut increment = 0usize;
 
         if response.has_focus() {
+            ui.ctx().memory_mut(|m| {
+                m.set_focus_lock_filter(
+                    response.id,
+                    EventFilter {
+                        // pressing arrows in the orientation of the
+                        // slider should not move focus to next widget
+                        horizontal_arrows: matches!(
+                            self.orientation,
+                            SliderOrientation::Horizontal
+                        ),
+                        vertical_arrows: matches!(self.orientation, SliderOrientation::Vertical),
+                        ..Default::default()
+                    },
+                );
+            });
+
             let (dec_key, inc_key) = match self.orientation {
                 SliderOrientation::Horizontal => (Key::ArrowLeft, Key::ArrowRight),
                 // Note that this is for moving the slider position,
@@ -595,13 +646,14 @@ impl<'a> Slider<'a> {
         let kb_step = increment as f32 - decrement as f32;
 
         if kb_step != 0.0 {
+            let ui_point_per_step = 1.0; // move this many ui points for each kb_step
             let prev_value = self.get_value();
             let prev_position = self.position_from_value(prev_value, position_range);
-            let new_position = prev_position + kb_step;
+            let new_position = prev_position + ui_point_per_step * kb_step;
             let new_value = match self.step {
                 Some(step) => prev_value + (kb_step as f64 * step),
                 None if self.smart_aim => {
-                    let aim_radius = ui.input(|i| i.aim_radius());
+                    let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
                     emath::smart_aim::best_in_range_f64(
                         self.value_from_position(new_position - aim_radius, position_range),
                         self.value_from_position(new_position + aim_radius, position_range),
@@ -628,11 +680,12 @@ impl<'a> Slider<'a> {
         if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
 
-            let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
-            let rail_rect = self.rail_rect(rect, rail_radius);
-
             let visuals = ui.style().interact(response);
             let widget_visuals = &ui.visuals().widgets;
+            let spacing = &ui.style().spacing;
+
+            let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
+            let rail_rect = self.rail_rect(rect, rail_radius);
 
             ui.painter().rect_filled(
                 rail_rect,
@@ -665,12 +718,37 @@ impl<'a> Slider<'a> {
                 );
             }
 
-            ui.painter().add(epaint::CircleShape {
-                center,
-                radius: self.handle_radius(rect) + visuals.expansion,
-                fill: visuals.bg_fill,
-                stroke: visuals.fg_stroke,
-            });
+            let radius = self.handle_radius(rect);
+
+            let handle_shape = self
+                .handle_shape
+                .unwrap_or_else(|| ui.style().visuals.handle_shape);
+            match handle_shape {
+                style::HandleShape::Circle => {
+                    ui.painter().add(epaint::CircleShape {
+                        center,
+                        radius: radius + visuals.expansion,
+                        fill: visuals.bg_fill,
+                        stroke: visuals.fg_stroke,
+                    });
+                }
+                style::HandleShape::Rect { aspect_ratio } => {
+                    let v = match self.orientation {
+                        SliderOrientation::Horizontal => Vec2::new(radius * aspect_ratio, radius),
+                        SliderOrientation::Vertical => Vec2::new(radius, radius * aspect_ratio),
+                    };
+                    let v = v + Vec2::splat(visuals.expansion);
+                    let rect = Rect::from_center_size(center, 2.0 * v);
+                    ui.painter().add(epaint::RectShape {
+                        fill: visuals.bg_fill,
+                        stroke: visuals.fg_stroke,
+                        rect,
+                        rounding: visuals.rounding,
+                        fill_texture_id: Default::default(),
+                        uv: Rect::ZERO,
+                    });
+                }
+            }
         }
     }
 
@@ -688,11 +766,17 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn position_range(&self, rect: &Rect) -> Rangef {
+    fn position_range(&self, rect: &Rect, handle_shape: &style::HandleShape) -> Rangef {
         let handle_radius = self.handle_radius(rect);
+        let handle_radius = match handle_shape {
+            style::HandleShape::Circle => handle_radius,
+            style::HandleShape::Rect { aspect_ratio } => handle_radius * aspect_ratio,
+        };
         match self.orientation {
             SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
-            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius),
+            // The vertical case has to be flipped because the largest slider value maps to the
+            // lowest y value (which is at the top)
+            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius).flip(),
         }
     }
 
@@ -715,13 +799,6 @@ impl<'a> Slider<'a> {
             SliderOrientation::Vertical => rect.width(),
         };
         limit / 2.5
-    }
-
-    fn rail_radius_limit(&self, rect: &Rect) -> f32 {
-        match self.orientation {
-            SliderOrientation::Horizontal => (rect.height() / 4.0).at_least(2.0),
-            SliderOrientation::Vertical => (rect.width() / 4.0).at_least(2.0),
-        }
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
@@ -809,7 +886,10 @@ impl<'a> Slider<'a> {
         let slider_response = response.clone();
 
         let value_response = if self.show_value {
-            let position_range = self.position_range(&response.rect);
+            let handle_shape = self
+                .handle_shape
+                .unwrap_or_else(|| ui.style().visuals.handle_shape);
+            let position_range = self.position_range(&response.rect, &handle_shape);
             let value_response = self.value_ui(ui, position_range);
             if value_response.gained_focus()
                 || value_response.has_focus()
