@@ -688,7 +688,8 @@ impl<'t> TextEdit<'t> {
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
                     let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
-                    if (response.changed || selection_changed) && !is_fully_visible {
+                    // if (response.changed || selection_changed) && !is_fully_visible {
+                    if (response.changed() || selection_changed) && !is_fully_visible {
                         // Scroll to keep primary cursor in view:
                         ui.scroll_to_rect(primary_cursor_rect, None);
                     }
@@ -712,7 +713,8 @@ impl<'t> TextEdit<'t> {
 
         state.clone().store(ui.ctx(), id);
 
-        if response.changed {
+        // if response.changed {
+        if response.changed() {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     mask_if_password(password, prev_text.as_str()),

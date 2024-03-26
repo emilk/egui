@@ -9,6 +9,7 @@ use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     util::IdTypeMap, widgets::*, *,
 };
+use crate::response::ResponseBitfield;
 
 // ----------------------------------------------------------------------------
 
@@ -1577,7 +1578,8 @@ impl Ui {
         // only touch `*radians` if we actually changed the degree value
         if degrees != radians.to_degrees() {
             *radians = degrees.to_radians();
-            response.changed = true;
+            // response.changed = true;
+            response.modify_field(true, ResponseBitfield::Clicked);
         }
 
         response
@@ -1600,7 +1602,8 @@ impl Ui {
         // only touch `*radians` if we actually changed the value
         if taus != *radians / TAU {
             *radians = taus * TAU;
-            response.changed = true;
+            // response.changed = true;
+            response.modify_field(true, ResponseBitfield::Changed);
         }
 
         response
