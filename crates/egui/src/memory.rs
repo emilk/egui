@@ -243,7 +243,7 @@ impl Options {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             style,          // covered above
-            zoom_factor: _, // TODO
+            zoom_factor: _, // TODO(emilk)
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
