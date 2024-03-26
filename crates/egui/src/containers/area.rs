@@ -441,8 +441,8 @@ impl Prepared {
         let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
         let clip_rect = Rect::from_min_max(self.state.left_top_pos(), constrain_rect.max)
-            .expand(clip_rect_margin)
-            .intersect(constrain_rect);
+            .intersect(constrain_rect)
+            .expand(clip_rect_margin);
 
         let mut ui = Ui::new(
             ctx.clone(),
