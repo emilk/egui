@@ -213,6 +213,9 @@ pub struct Style {
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
 
+    /// Show the URL of hyperlinks in a tooltip when hovered.
+    pub url_in_tooltip: bool,
+
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
 }
@@ -931,6 +934,15 @@ pub struct Visuals {
     /// show where the text cursor would be if you clicked
     pub text_cursor_preview: bool,
 
+    /// set the text cursor to blink
+    pub text_cursor_blink: bool,
+
+    /// set the text cursor on duration
+    pub text_cursor_on_duration: f64,
+
+    /// set the text cursor off duration
+    pub text_cursor_off_duratio: f64,
+
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
 
@@ -1215,6 +1227,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
+            url_in_tooltip: false,
             always_scroll_the_only_direction: false,
         }
     }
@@ -1230,7 +1243,7 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
-            slider_rail_height: 9.6,
+            slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
@@ -1288,6 +1301,9 @@ impl Visuals {
             resize_corner_size: 12.0,
             text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
+            text_cursor_blink: true,
+            text_cursor_on_duration: 1.0,
+            text_cursor_off_duratio: 0.3,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
@@ -1493,6 +1509,7 @@ impl Style {
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
+            url_in_tooltip,
             always_scroll_the_only_direction,
         } = self;
 
@@ -1562,6 +1579,8 @@ impl Style {
             .on_hover_text(
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
+
+        ui.checkbox(url_in_tooltip, "Show url when hovering links");
 
         ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
             .on_hover_text(
@@ -1908,6 +1927,9 @@ impl Visuals {
             resize_corner_size,
             text_cursor,
             text_cursor_preview,
+            text_cursor_blink,
+            text_cursor_on_duration,
+            text_cursor_off_duratio,
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
@@ -1975,6 +1997,9 @@ impl Visuals {
 
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
+        ui.checkbox(text_cursor_blink, "text cursor to blink");
+        ui.add(Slider::new(text_cursor_on_duration, 0.0..=2.0).text("text cursor on duration"));
+        ui.add(Slider::new(text_cursor_off_duratio, 0.0..=2.0).text("text cursor off duration"));
         ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
         ui.checkbox(button_frame, "Button has a frame");
