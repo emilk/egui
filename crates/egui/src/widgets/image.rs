@@ -452,7 +452,7 @@ impl ImageSize {
     }
 }
 
-// TODO: unit-tests
+// TODO(jprochazk): unit-tests
 fn scale_to_fit(image_size: Vec2, available_size: Vec2, maintain_aspect_ratio: bool) -> Vec2 {
     if maintain_aspect_ratio {
         let ratio_x = available_size.x / image_size.x;

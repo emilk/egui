@@ -960,7 +960,7 @@ fn is_kana(c: char) -> bool {
 
 #[inline]
 fn is_cjk(c: char) -> bool {
-    // TODO: Add support for Korean Hangul.
+    // TODO(bigfarts): Add support for Korean Hangul.
     is_cjk_ideograph(c) || is_kana(c)
 }
 
