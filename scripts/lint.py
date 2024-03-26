@@ -66,6 +66,12 @@ def lint_lines(filepath, lines_in):
                 )
                 lines_out.append("#[inline]")
 
+
+        if re.search(r"TODO[^(]", line):
+            errors.append(
+                f"{filepath}:{line_nr}: write 'TODO(username):' instead"
+            )
+
         if (
             "(target_os" in line
             and filepath.startswith("./crates/egui/")
