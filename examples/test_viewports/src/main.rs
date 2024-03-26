@@ -441,7 +441,7 @@ fn drag_source<R>(
     }
 }
 
-// TODO: Update to be more like `crates/egui_demo_lib/src/debo/drag_and_drop.rs`
+// TODO(emilk): Update to be more like `crates/egui_demo_lib/src/debo/drag_and_drop.rs`
 fn drop_target<R>(
     ui: &mut egui::Ui,
     body: impl FnOnce(&mut egui::Ui) -> R,

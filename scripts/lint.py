@@ -36,7 +36,7 @@ def lint_lines(filepath, lines_in):
     for line_nr, line in enumerate(lines_in):
         line_nr = line_nr + 1
 
-        # TODO: only # and /// on lines before a keyword
+        # TODO(emilk): only # and /// on lines before a keyword
 
         pattern = (
             r"^\s*((///)|((pub(\(\w*\))? )?((impl|fn|struct|enum|union|trait)\b))).*$"
