@@ -308,7 +308,7 @@ impl State {
                     consumed: false,
                 }
             }
-            // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO
+            // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO(emilk)
             WindowEvent::Touch(touch) => {
                 self.on_touch(window, touch);
                 let consumed = match touch.phase {
@@ -1298,7 +1298,7 @@ fn process_viewport_command(
         ViewportCommand::StartDrag => {
             // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
 
-            // TODO: check that the left mouse-button was pressed down recently,
+            // TODO(emilk): check that the left mouse-button was pressed down recently,
             // or we will have bugs on Windows.
             // See https://github.com/emilk/egui/pull/1108
             if is_viewport_focused {

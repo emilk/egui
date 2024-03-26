@@ -7,7 +7,8 @@ use std::collections::BTreeMap;
 use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Response, RichText, WidgetText,
+    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Margin, Response, RichText,
+    WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -311,6 +312,9 @@ pub struct Spacing {
     /// The default width of a menu.
     pub menu_width: f32,
 
+    /// Horizontal distance between a menu and a submenu.
+    pub menu_spacing: f32,
+
     /// End indented regions with a horizontal line
     pub indent_ends_with_horizontal_line: bool,
 
@@ -605,216 +609,6 @@ impl ScrollStyle {
                 ui.label("Inner margin");
             });
         }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Margin {
-    pub left: f32,
-    pub right: f32,
-    pub top: f32,
-    pub bottom: f32,
-}
-
-impl Margin {
-    pub const ZERO: Self = Self {
-        left: 0.0,
-        right: 0.0,
-        top: 0.0,
-        bottom: 0.0,
-    };
-
-    #[inline]
-    pub const fn same(margin: f32) -> Self {
-        Self {
-            left: margin,
-            right: margin,
-            top: margin,
-            bottom: margin,
-        }
-    }
-
-    /// Margins with the same size on opposing sides
-    #[inline]
-    pub const fn symmetric(x: f32, y: f32) -> Self {
-        Self {
-            left: x,
-            right: x,
-            top: y,
-            bottom: y,
-        }
-    }
-
-    /// Total margins on both sides
-    #[inline]
-    pub fn sum(&self) -> Vec2 {
-        vec2(self.left + self.right, self.top + self.bottom)
-    }
-
-    #[inline]
-    pub const fn left_top(&self) -> Vec2 {
-        vec2(self.left, self.top)
-    }
-
-    #[inline]
-    pub const fn right_bottom(&self) -> Vec2 {
-        vec2(self.right, self.bottom)
-    }
-
-    #[inline]
-    pub fn is_same(&self) -> bool {
-        self.left == self.right && self.left == self.top && self.left == self.bottom
-    }
-
-    #[inline]
-    pub fn expand_rect(&self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
-    }
-
-    #[inline]
-    pub fn shrink_rect(&self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
-    }
-}
-
-impl From<f32> for Margin {
-    #[inline]
-    fn from(v: f32) -> Self {
-        Self::same(v)
-    }
-}
-
-impl From<Vec2> for Margin {
-    #[inline]
-    fn from(v: Vec2) -> Self {
-        Self::symmetric(v.x, v.y)
-    }
-}
-
-impl std::ops::Add for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        Self {
-            left: self.left + other.left,
-            right: self.right + other.right,
-            top: self.top + other.top,
-            bottom: self.bottom + other.bottom,
-        }
-    }
-}
-
-impl std::ops::Add<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, v: f32) -> Self {
-        Self {
-            left: self.left + v,
-            right: self.right + v,
-            top: self.top + v,
-            bottom: self.bottom + v,
-        }
-    }
-}
-
-impl std::ops::AddAssign<f32> for Margin {
-    #[inline]
-    fn add_assign(&mut self, v: f32) {
-        self.left += v;
-        self.right += v;
-        self.top += v;
-        self.bottom += v;
-    }
-}
-
-impl std::ops::Div<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn div(self, v: f32) -> Self {
-        Self {
-            left: self.left / v,
-            right: self.right / v,
-            top: self.top / v,
-            bottom: self.bottom / v,
-        }
-    }
-}
-
-impl std::ops::DivAssign<f32> for Margin {
-    #[inline]
-    fn div_assign(&mut self, v: f32) {
-        self.left /= v;
-        self.right /= v;
-        self.top /= v;
-        self.bottom /= v;
-    }
-}
-
-impl std::ops::Mul<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, v: f32) -> Self {
-        Self {
-            left: self.left * v,
-            right: self.right * v,
-            top: self.top * v,
-            bottom: self.bottom * v,
-        }
-    }
-}
-
-impl std::ops::MulAssign<f32> for Margin {
-    #[inline]
-    fn mul_assign(&mut self, v: f32) {
-        self.left *= v;
-        self.right *= v;
-        self.top *= v;
-        self.bottom *= v;
-    }
-}
-
-impl std::ops::Sub for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn sub(self, other: Self) -> Self {
-        Self {
-            left: self.left - other.left,
-            right: self.right - other.right,
-            top: self.top - other.top,
-            bottom: self.bottom - other.bottom,
-        }
-    }
-}
-
-impl std::ops::Sub<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn sub(self, v: f32) -> Self {
-        Self {
-            left: self.left - v,
-            right: self.right - v,
-            top: self.top - v,
-            bottom: self.bottom - v,
-        }
-    }
-}
-
-impl std::ops::SubAssign<f32> for Margin {
-    #[inline]
-    fn sub_assign(&mut self, v: f32) {
-        self.left -= v;
-        self.right -= v;
-        self.top -= v;
-        self.bottom -= v;
     }
 }
 
@@ -1239,6 +1033,7 @@ impl Default for Spacing {
             icon_spacing: 4.0,
             tooltip_width: 600.0,
             menu_width: 150.0,
+            menu_spacing: 2.0,
             combo_height: 200.0,
             scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
@@ -1276,7 +1071,12 @@ impl Visuals {
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
             window_rounding: Rounding::same(6.0),
-            window_shadow: Shadow::big_dark(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
             window_highlight_topmost: true,
@@ -1285,10 +1085,18 @@ impl Visuals {
 
             panel_fill: Color32::from_gray(27),
 
-            popup_shadow: Shadow::small_dark(),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
+
             resize_corner_size: 12.0,
+
             text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
+
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
@@ -1320,14 +1128,26 @@ impl Visuals {
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
-            window_shadow: Shadow::big_light(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
             window_fill: Color32::from_gray(248),
             window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
 
             panel_fill: Color32::from_gray(248),
 
-            popup_shadow: Shadow::small_light(),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
+
             text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+
             ..Self::dark()
         }
     }
@@ -1592,6 +1412,7 @@ impl Spacing {
             icon_spacing,
             tooltip_width,
             menu_width,
+            menu_spacing,
             indent_ends_with_horizontal_line,
             combo_height,
             scroll,
@@ -1657,6 +1478,11 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
             ui.label("Default width of a menu");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
+            ui.label("Horizontal spacing between menus");
         });
 
         ui.checkbox(

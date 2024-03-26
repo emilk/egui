@@ -12,6 +12,7 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 ### ⚠️ BREAKING
 * `Response::clicked*` and `Response::dragged*` may lock the `Context`, so don't call it from a `Context`-locking closure.
 * `Response::clicked_by` will no longer be true if clicked with keyboard. Use `Response::clicked` instead.
+* `Memory::focus` has been renamed `Memory::focused`
 
 
 ## 0.26.2 - 2024-02-14
