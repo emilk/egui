@@ -1033,7 +1033,7 @@ impl Default for Spacing {
             icon_spacing: 4.0,
             tooltip_width: 600.0,
             menu_width: 150.0,
-            menu_spacing: 3.0,
+            menu_spacing: 2.0,
             combo_height: 200.0,
             scroll: Default::default(),
             indent_ends_with_horizontal_line: false,

@@ -43,11 +43,11 @@ impl BarState {
     /// Should be called from [`Context`] on a [`Response`]
     pub fn bar_menu<R>(
         &mut self,
-        response: &Response,
+        button: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        MenuRoot::stationary_click_interaction(response, &mut self.open_menu);
-        self.open_menu.show(response, add_contents)
+        MenuRoot::stationary_click_interaction(button, &mut self.open_menu);
+        self.open_menu.show(button, add_contents)
     }
 
     pub(crate) fn has_root(&self) -> bool {
@@ -251,11 +251,11 @@ impl MenuRootManager {
     /// Should be called from [`Context`] on a [`Response`]
     pub fn show<R>(
         &mut self,
-        response: &Response,
+        button: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
         if let Some(root) = self.inner.as_mut() {
-            let (menu_response, inner_response) = root.show(response, add_contents);
+            let (menu_response, inner_response) = root.show(button, add_contents);
             if MenuResponse::Close == menu_response {
                 self.inner = None;
             }
@@ -301,12 +301,12 @@ impl MenuRoot {
 
     pub fn show<R>(
         &mut self,
-        response: &Response,
+        button: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
-        if self.id == response.id {
+        if self.id == button.id {
             let inner_response =
-                MenuState::show(&response.ctx, &self.menu_state, self.id, add_contents);
+                MenuState::show(&button.ctx, &self.menu_state, self.id, add_contents);
             let menu_state = self.menu_state.read();
 
             if menu_state.response.is_close() {
@@ -319,26 +319,31 @@ impl MenuRoot {
     /// Interaction with a stationary menu, i.e. fixed in another Ui.
     ///
     /// Responds to primary clicks.
-    fn stationary_interaction(response: &Response, root: &mut MenuRootManager) -> MenuResponse {
-        let id = response.id;
+    fn stationary_interaction(button: &Response, root: &mut MenuRootManager) -> MenuResponse {
+        let id = button.id;
 
-        if (response.clicked() && root.is_menu_open(id))
-            || response.ctx.input(|i| i.key_pressed(Key::Escape))
+        if (button.clicked() && root.is_menu_open(id))
+            || button.ctx.input(|i| i.key_pressed(Key::Escape))
         {
             // menu open and button clicked or esc pressed
             return MenuResponse::Close;
-        } else if (response.clicked() && !root.is_menu_open(id))
-            || (response.hovered() && root.is_some())
+        } else if (button.clicked() && !root.is_menu_open(id))
+            || (button.hovered() && root.is_some())
         {
             // menu not open and button clicked
             // or button hovered while other menu is open
-            let mut pos = response.rect.left_bottom();
+            let mut pos = button.rect.left_bottom();
+
+            let menu_frame = Frame::menu(&button.ctx.style());
+            pos.x -= menu_frame.total_margin().left; // Make fist button in menu align with the parent button
+            pos.y += button.ctx.style().spacing.menu_spacing;
+
             if let Some(root) = root.inner.as_mut() {
                 let menu_rect = root.menu_state.read().rect;
-                let screen_rect = response.ctx.input(|i| i.screen_rect);
+                let screen_rect = button.ctx.input(|i| i.screen_rect);
 
                 if pos.y + menu_rect.height() > screen_rect.max.y {
-                    pos.y = screen_rect.max.y - menu_rect.height() - response.rect.height();
+                    pos.y = screen_rect.max.y - menu_rect.height() - button.rect.height();
                 }
 
                 if pos.x + menu_rect.width() > screen_rect.max.x {
@@ -347,11 +352,11 @@ impl MenuRoot {
             }
 
             return MenuResponse::Create(pos, id);
-        } else if response
+        } else if button
             .ctx
             .input(|i| i.pointer.any_pressed() && i.pointer.primary_down())
         {
-            if let Some(pos) = response.ctx.input(|i| i.pointer.interact_pos()) {
+            if let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos()) {
                 if let Some(root) = root.inner.as_mut() {
                     if root.id == id {
                         // pressed somewhere while this menu is open
@@ -410,8 +415,8 @@ impl MenuRoot {
     }
 
     // Responds to primary clicks.
-    pub fn stationary_click_interaction(response: &Response, root: &mut MenuRootManager) {
-        let menu_response = Self::stationary_interaction(response, root);
+    pub fn stationary_click_interaction(button: &Response, root: &mut MenuRootManager) {
+        let menu_response = Self::stationary_interaction(button, root);
         Self::handle_menu_response(root, menu_response);
     }
 }
@@ -623,8 +628,11 @@ impl MenuState {
             // ensure to repaint once even when pointer is not moving
             ui.ctx().request_repaint();
         } else if !open && button.hovered() {
+            // TODO(emilk): open menu to the left if there isn't enough space to the right
             let mut pos = button.rect.right_top();
             pos.x = self.rect.right() + ui.spacing().menu_spacing;
+            pos.y -= Frame::menu(ui.style()).total_margin().top; // align the first button in the submenu with the parent button
+
             self.open_submenu(sub_id, pos);
         } else if open
             && ui.interact_bg(Sense::hover()).contains_pointer()
