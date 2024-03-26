@@ -1072,8 +1072,8 @@ impl Visuals {
 
             window_rounding: Rounding::same(6.0),
             window_shadow: Shadow {
-                offset: vec2(2.0, 8.0),
-                blur: 12.0,
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
                 spread: 0.0,
                 color: Color32::from_black_alpha(96),
             },
@@ -1086,8 +1086,8 @@ impl Visuals {
             panel_fill: Color32::from_gray(27),
 
             popup_shadow: Shadow {
-                offset: vec2(2.0, 8.0),
-                blur: 10.0,
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
                 spread: 0.0,
                 color: Color32::from_black_alpha(96),
             },
@@ -1129,10 +1129,10 @@ impl Visuals {
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
             window_shadow: Shadow {
-                offset: vec2(2.0, 8.0),
-                blur: 12.0,
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
                 spread: 0.0,
-                color: Color32::from_black_alpha(20),
+                color: Color32::from_black_alpha(25),
             },
             window_fill: Color32::from_gray(248),
             window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
@@ -1140,10 +1140,10 @@ impl Visuals {
             panel_fill: Color32::from_gray(248),
 
             popup_shadow: Shadow {
-                offset: vec2(2.0, 8.0),
-                blur: 10.0,
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
                 spread: 0.0,
-                color: Color32::from_black_alpha(20),
+                color: Color32::from_black_alpha(25),
             },
 
             text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
