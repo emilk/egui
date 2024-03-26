@@ -311,6 +311,9 @@ pub struct Spacing {
     /// The default width of a menu.
     pub menu_width: f32,
 
+    /// Horizontal distance between a menu and a submenu.
+    pub menu_spacing: f32,
+
     /// End indented regions with a horizontal line
     pub indent_ends_with_horizontal_line: bool,
 
@@ -1239,6 +1242,7 @@ impl Default for Spacing {
             icon_spacing: 4.0,
             tooltip_width: 600.0,
             menu_width: 150.0,
+            menu_spacing: 3.0,
             combo_height: 200.0,
             scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
@@ -1592,6 +1596,7 @@ impl Spacing {
             icon_spacing,
             tooltip_width,
             menu_width,
+            menu_spacing,
             indent_ends_with_horizontal_line,
             combo_height,
             scroll,
@@ -1657,6 +1662,11 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
             ui.label("Default width of a menu");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
+            ui.label("Horizontal spacing between menus");
         });
 
         ui.checkbox(

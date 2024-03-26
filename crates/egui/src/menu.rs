@@ -151,20 +151,22 @@ pub(crate) fn menu_ui<'c, R>(
         .constrain_to(ctx.screen_rect())
         .interactable(true);
 
-    area.show(ctx, |ui| {
+    let area_response = area.show(ctx, |ui| {
         set_menu_style(ui.style_mut());
 
-        let frame = Frame::menu(ui.style()).show(ui, |ui| {
-            ui.set_max_width(ui.spacing().menu_width);
-            ui.set_menu_state(Some(menu_state_arc.clone()));
-            ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
-                .inner
-        });
+        Frame::menu(ui.style())
+            .show(ui, |ui| {
+                ui.set_max_width(ui.spacing().menu_width);
+                ui.set_menu_state(Some(menu_state_arc.clone()));
+                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
+                    .inner
+            })
+            .inner
+    });
 
-        menu_state_arc.write().rect = frame.response.rect;
+    menu_state_arc.write().rect = area_response.response.rect;
 
-        frame.inner
-    })
+    area_response
 }
 
 /// Build a top level menu with a button.
@@ -549,7 +551,8 @@ pub(crate) struct MenuState {
     /// The opened sub-menu and its [`Id`]
     sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
 
-    /// Bounding box of this menu (without the sub-menu)
+    /// Bounding box of this menu (without the sub-menu),
+    /// including the frame and everything.
     pub rect: Rect,
 
     /// Used to check if any menu in the tree wants to close
@@ -620,7 +623,8 @@ impl MenuState {
             // ensure to repaint once even when pointer is not moving
             ui.ctx().request_repaint();
         } else if !open && button.hovered() {
-            let pos = button.rect.right_top();
+            let mut pos = button.rect.right_top();
+            pos.x = self.rect.right() + ui.spacing().menu_spacing;
             self.open_submenu(sub_id, pos);
         } else if open
             && ui.interact_bg(Sense::hover()).contains_pointer()
