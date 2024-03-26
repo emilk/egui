@@ -1349,13 +1349,13 @@ fn process_viewport_command(
             {
                 // ex) linux
                 log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
+
+                info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
+                info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
             } else {
                 // ex) Windows, MacOS
                 log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
             }
-
-            info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
-            info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
         }
         ViewportCommand::BeginResize(direction) => {
             if let Err(err) = window.drag_resize_window(match direction {
