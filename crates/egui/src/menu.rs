@@ -149,7 +149,8 @@ pub(crate) fn menu_ui<'c, R>(
         .order(Order::Foreground)
         .fixed_pos(pos)
         .constrain_to(ctx.screen_rect())
-        .interactable(true);
+        .interactable(true)
+        .sense(Sense::hover());
 
     let area_response = area.show(ctx, |ui| {
         set_menu_style(ui.style_mut());
