@@ -5,6 +5,16 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.27.0 - 2024-03-26
+* Add scroll bar visibility option to `Table` widget [#3981](https://github.com/emilk/egui/pull/3981) (thanks [@richardhozak](https://github.com/richardhozak)!)
+* Update `ehttp` to 0.5 [#4055](https://github.com/emilk/egui/pull/4055)
+* Fix: assign a different id to each table cell, avoiding id clashes [#4076](https://github.com/emilk/egui/pull/4076)
+* Fix interaction with widgets inside selectable rows of `Table` [#4077](https://github.com/emilk/egui/pull/4077)
+* Fixed handling of `file://` protocol for images [#4107](https://github.com/emilk/egui/pull/4107) (thanks [@varphone](https://github.com/varphone)!)
+* Option to change date picker format [#4180](https://github.com/emilk/egui/pull/4180) (thanks [@zaaarf](https://github.com/zaaarf)!)
+* Added ability to disable highlighting of weekend days in `DatePickerPopup`. [#4151](https://github.com/emilk/egui/pull/4151) (thanks [@hiyosilver](https://github.com/hiyosilver)!)
+
+
 ## 0.26.2 - 2024-02-14
 * Nothing new
 
