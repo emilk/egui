@@ -423,7 +423,7 @@ impl Prepared {
                 .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
         );
 
-        let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
+        let shadow_radius = ctx.style().visuals.window_shadow.margin().sum().max_elem(); // hacky
         let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
         let clip_rect = Rect::from_min_max(self.state.left_top_pos(), constrain_rect.max)

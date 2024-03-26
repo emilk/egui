@@ -1071,7 +1071,12 @@ impl Visuals {
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
             window_rounding: Rounding::same(6.0),
-            window_shadow: Shadow::big_dark(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
             window_highlight_topmost: true,
@@ -1080,10 +1085,18 @@ impl Visuals {
 
             panel_fill: Color32::from_gray(27),
 
-            popup_shadow: Shadow::small_dark(),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
+
             resize_corner_size: 12.0,
+
             text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
+
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
@@ -1115,14 +1128,26 @@ impl Visuals {
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
-            window_shadow: Shadow::big_light(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
             window_fill: Color32::from_gray(248),
             window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
 
             panel_fill: Color32::from_gray(248),
 
-            popup_shadow: Shadow::small_light(),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
+
             text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+
             ..Self::dark()
         }
     }
