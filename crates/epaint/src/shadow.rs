@@ -27,52 +27,13 @@ pub struct Shadow {
 }
 
 impl Shadow {
+    /// No shadow at all.
     pub const NONE: Self = Self {
         offset: Vec2::ZERO,
         blur: 0.0,
         spread: 0.0,
         color: Color32::TRANSPARENT,
     };
-
-    /// Tooltips, menus, …, for dark mode.
-    pub const fn small_dark() -> Self {
-        Self {
-            offset: vec2(2.0, 8.0),
-            blur: 10.0,
-            spread: 0.0,
-            color: Color32::from_black_alpha(96),
-        }
-    }
-
-    /// Tooltips, menus, …, for light mode.
-    pub const fn small_light() -> Self {
-        Self {
-            offset: vec2(2.0, 8.0),
-            blur: 10.0,
-            spread: 0.0,
-            color: Color32::from_black_alpha(20),
-        }
-    }
-
-    /// Used for egui windows in dark mode.
-    pub const fn big_dark() -> Self {
-        Self {
-            offset: vec2(2.0, 8.0),
-            blur: 12.0,
-            spread: 0.0,
-            color: Color32::from_black_alpha(96),
-        }
-    }
-
-    /// Used for egui windows in light mode.
-    pub const fn big_light() -> Self {
-        Self {
-            offset: vec2(2.0, 8.0),
-            blur: 12.0,
-            spread: 0.0,
-            color: Color32::from_black_alpha(20),
-        }
-    }
 
     pub fn tessellate(&self, rect: Rect, rounding: impl Into<Rounding>) -> Mesh {
         // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
