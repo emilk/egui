@@ -600,7 +600,7 @@ impl ContextImpl {
     }
 
     /// Return the `ViewportId` of his parent.
-    pub(crate) fn viewport_parent_id_of(&self, viewport_id: ViewportId) -> ViewportId {
+    pub(crate) fn parent_viewport_id_of(&self, viewport_id: ViewportId) -> ViewportId {
         *self
             .viewport_parents
             .get(&viewport_id)
@@ -3066,8 +3066,8 @@ impl Context {
     }
 
     /// Return the `ViewportId` of his parent.
-    pub fn viewport_parent_id_of(&self, viewport_id: ViewportId) -> ViewportId {
-        self.read(|ctx| ctx.viewport_parent_id_of(viewport_id))
+    pub fn parent_viewport_id_of(&self, viewport_id: ViewportId) -> ViewportId {
+        self.read(|ctx| ctx.parent_viewport_id_of(viewport_id))
     }
 
     /// For integrations: Set this to render a sync viewport.
