@@ -236,7 +236,7 @@ impl InputState {
             // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
             unprocessed_scroll_delta += raw_scroll_delta;
             let dt = stable_dt.at_most(0.1);
-            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO: parameterize
+            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
             for d in 0..2 {
                 if unprocessed_scroll_delta[d].abs() < 1.0 {
