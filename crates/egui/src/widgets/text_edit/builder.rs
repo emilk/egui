@@ -421,7 +421,7 @@ impl<'t> TextEdit<'t> {
                 epaint::RectShape::stroke(
                     frame_rect,
                     visuals.rounding,
-                    ui.visuals().widgets.unhovered.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                 )
             };
 
