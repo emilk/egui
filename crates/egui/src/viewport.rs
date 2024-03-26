@@ -966,13 +966,16 @@ pub enum ViewportCommand {
     /// The results are returned in `crate::Event::Screenshot`.
     Screenshot,
 
-    /// Request a cut from the clipboard
+    /// Request cut of the current selection
+    /// this is equivalent to the system keyboard shortcut for cut (e.g. CTRL + X)
     RequestCut,
 
-    /// Request a copy from the clipboard
+    /// Request a copy of the current selection
+    /// this is equivalent to the system keyboard shortcut for copy (e.g. CTRL + C)
     RequestCopy,
 
-    /// Request a paste from the clipboard
+    /// Request a paste from the clipboard to the current focused TextEdit if any
+    /// this is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V)
     RequestPaste,
 }
 
