@@ -149,7 +149,7 @@ impl HLine {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -297,7 +297,7 @@ impl VLine {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -446,7 +446,7 @@ impl Line {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -649,7 +649,7 @@ impl Polygon {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -801,7 +801,7 @@ impl Text {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -962,7 +962,7 @@ impl Points {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -1217,7 +1217,7 @@ impl Arrows {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -1387,7 +1387,7 @@ impl PlotImage {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -1635,7 +1635,7 @@ impl BarChart {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
@@ -1834,7 +1834,7 @@ impl BoxPlot {
         self
     }
 
-    /// Allowed hovering this item in the plot. Default: `true`.    
+    /// Allowed hovering this item in the plot. Default: `true`.
     #[inline]
     pub fn allow_hover(mut self, hovering: bool) -> Self {
         self.allow_hover = hovering;
