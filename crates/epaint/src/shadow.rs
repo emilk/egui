@@ -11,31 +11,44 @@ pub struct Shadow {
 
     /// Color of the opaque center of the shadow.
     pub color: Color32,
+
+    /// Move the shadow by this much.
+    ///
+    /// For instance, a value of `[1.0, 2.0]` will move the shadow 1 point to the right and 2 points down,
+    /// causing a drop-shadow effet.
+    pub offset: Vec2,
 }
 
 impl Shadow {
     pub const NONE: Self = Self {
         extrusion: 0.0,
         color: Color32::TRANSPARENT,
+        offset: Vec2::ZERO,
     };
 
     pub const fn new(extrusion: f32, color: Color32) -> Self {
-        Self { extrusion, color }
+        Self {
+            extrusion,
+            color,
+            offset: Vec2::ZERO,
+        }
     }
 
     /// Tooltips, menus, …, for dark mode.
     pub const fn small_dark() -> Self {
         Self {
-            extrusion: 16.0,
+            extrusion: 12.0,
             color: Color32::from_black_alpha(96),
+            offset: Vec2::splat(4.0),
         }
     }
 
     /// Tooltips, menus, …, for light mode.
     pub const fn small_light() -> Self {
         Self {
-            extrusion: 16.0,
+            extrusion: 12.0,
             color: Color32::from_black_alpha(20),
+            offset: Vec2::splat(4.0),
         }
     }
 
@@ -44,6 +57,7 @@ impl Shadow {
         Self {
             extrusion: 32.0,
             color: Color32::from_black_alpha(96),
+            offset: Vec2::splat(0.0),
         }
     }
 
@@ -52,13 +66,20 @@ impl Shadow {
         Self {
             extrusion: 32.0,
             color: Color32::from_black_alpha(16),
+            offset: Vec2::splat(0.0),
         }
     }
 
     pub fn tessellate(&self, rect: Rect, rounding: impl Into<Rounding>) -> Mesh {
         // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
 
-        let Self { extrusion, color } = *self;
+        let Self {
+            extrusion,
+            color,
+            offset,
+        } = *self;
+
+        let rect = rect.translate(offset);
 
         let rounding: Rounding = rounding.into();
         let half_ext = 0.5 * extrusion;
