@@ -100,6 +100,12 @@ impl RawInput {
         self.viewports.get(&self.viewport_id).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
     }
 
+    /// Read-write access to [`ViewportInfo`].
+    #[inline]
+    pub fn viewport_mut(&mut self) -> &mut ViewportInfo {
+        self.viewports.get_mut(&self.viewport_id).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
+    }
+
     /// Helper: move volatile (deltas and events), clone the rest.
     ///
     /// * [`Self::hovered_files`] is cloned.
@@ -176,8 +182,11 @@ pub enum ViewportEvent {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
+    /// this viewport, if known.
+    pub this: Option<ViewportId>,
+
     /// Parent viewport, if known.
-    pub parent: Option<crate::ViewportId>,
+    pub parent: Option<ViewportId>,
 
     /// Name of the viewport, if known.
     pub title: Option<String>,
@@ -214,10 +223,22 @@ pub struct ViewportInfo {
     /// Are we in fullscreen mode?
     pub fullscreen: Option<bool>,
 
+    /// Are we transparent mode?
+    pub transparent: Option<bool>,
+
+    /// Are we decorations mode?
+    pub decorations: Option<bool>,
+
     /// Is the window focused and able to receive input?
     ///
     /// This should be the same as [`RawInput::focused`].
     pub focused: Option<bool>,
+
+    /// If this is 'true', you can wait for the selection result without Close.
+    /// If this is 'false' (default), it closes immediately without waiting.
+    pub close_cancelable: bool,
+
+    pub close_requested: bool,
 }
 
 impl ViewportInfo {
@@ -230,13 +251,27 @@ impl ViewportInfo {
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
     pub fn close_requested(&self) -> bool {
-        self.events
-            .iter()
-            .any(|&event| event == ViewportEvent::Close)
+        self.close_requested
+        // self.events
+        //     .iter()
+        //     .any(|&event| event == ViewportEvent::Close)
+    }
+
+    pub fn set_close_cancelable(&mut self, v: bool) {
+        self.close_cancelable = v;
+    }
+
+    pub fn close_cancelable(&self) -> bool {
+        self.close_cancelable
+    }
+
+    pub fn should_close(&self) -> bool {
+        self.close_requested && !self.close_cancelable
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
+            this,
             parent,
             title,
             events,
@@ -247,10 +282,18 @@ impl ViewportInfo {
             minimized,
             maximized,
             fullscreen,
+            transparent,
+            decorations,
             focused,
+            close_cancelable,
+            close_requested,
         } = self;
 
         crate::Grid::new("viewport_info").show(ui, |ui| {
+            ui.label("this:");
+            ui.label(opt_as_str(this));
+            ui.end_row();
+
             ui.label("Parent:");
             ui.label(opt_as_str(parent));
             ui.end_row();
@@ -291,8 +334,24 @@ impl ViewportInfo {
             ui.label(opt_as_str(fullscreen));
             ui.end_row();
 
+            ui.label("Transparent:");
+            ui.label(opt_as_str(transparent));
+            ui.end_row();
+
+            ui.label("Decorations:");
+            ui.label(opt_as_str(decorations));
+            ui.end_row();
+
             ui.label("Focused:");
             ui.label(opt_as_str(focused));
+            ui.end_row();
+
+            ui.label("Close Cancelable:");
+            ui.label(format!("{close_cancelable:?}"));
+            ui.end_row();
+
+            ui.label("Close Requested:");
+            ui.label(format!("{close_requested:?}"));
             ui.end_row();
 
             fn opt_rect_as_string(v: &Option<Rect>) -> String {

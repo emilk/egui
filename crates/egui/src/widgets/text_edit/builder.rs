@@ -425,7 +425,7 @@ impl<'t> TextEdit<'t> {
                         frame_rect,
                         visuals.rounding,
                         ui.visuals().extreme_bg_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        ui.visuals().widgets.noninteractive.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
             } else {
@@ -521,6 +521,7 @@ impl<'t> TextEdit<'t> {
             }
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let save_ccursor_range = state.cursor.char_range();
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
@@ -558,7 +559,7 @@ impl<'t> TextEdit<'t> {
                     && response.hovered()
                     && ui.input(|i| i.pointer.is_moving())
                 {
-                    // preview:
+                    // text cursor preview:
                     let cursor_rect =
                         cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
                     paint_cursor(&painter, ui.visuals(), cursor_rect);
@@ -694,7 +695,13 @@ impl<'t> TextEdit<'t> {
                     }
 
                     if text.is_mutable() {
-                        paint_cursor(&painter, ui.visuals(), primary_cursor_rect);
+                        let is_stay_cursor = save_ccursor_range == state.cursor.char_range();
+                        text_selection::visuals::paint_text_cursor(
+                            ui,
+                            &painter,
+                            primary_cursor_rect,
+                            is_stay_cursor,
+                        );
 
                         if interactive {
                             // For IME, so only set it when text is editable and visible!

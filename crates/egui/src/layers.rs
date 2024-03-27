@@ -149,6 +149,10 @@ impl PaintList {
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
+        if self.0.len() <= idx.0 {
+            self.add(clip_rect, Shape::Noop);
+        }
+
         self.0[idx.0] = ClippedShape { clip_rect, shape };
     }
 

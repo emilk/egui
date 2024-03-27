@@ -865,69 +865,84 @@ impl State {
     }
 }
 
-/// Update the given viewport info with the current state of the window.
-///
-/// Call before [`State::take_egui_input`].
-pub fn update_viewport_info(
-    viewport_info: &mut ViewportInfo,
-    egui_ctx: &egui::Context,
-    window: &Window,
-) {
-    crate::profile_function!();
-
-    let pixels_per_point = pixels_per_point(egui_ctx, window);
-
-    let has_a_position = match window.is_minimized() {
-        None | Some(true) => false,
-        Some(false) => true,
+pub fn math_inner_rect(window: &Window, pixels_per_point: Option<f32>) -> Option<Rect> {
+    let pixels_per_point = match pixels_per_point {
+        Some(pixels_per_point) => pixels_per_point,
+        None => window.scale_factor() as f32,
     };
 
-    let inner_pos_px = if has_a_position {
-        window
-            .inner_position()
-            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-            .ok()
-    } else {
-        None
-    };
+    let inner_pos_px = window
+        .inner_position()
+        .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
+        .ok();
 
-    let outer_pos_px = if has_a_position {
-        window
-            .outer_position()
-            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-            .ok()
-    } else {
-        None
-    };
-
-    let inner_size_px = if has_a_position {
+    let inner_size_px = {
         let size = window.inner_size();
-        Some(Vec2::new(size.width as f32, size.height as f32))
-    } else {
-        None
-    };
-
-    let outer_size_px = if has_a_position {
-        let size = window.outer_size();
-        Some(Vec2::new(size.width as f32, size.height as f32))
-    } else {
-        None
+        Some(egui::Vec2::new(size.width as f32, size.height as f32))
     };
 
     let inner_rect_px = if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
-        Some(Rect::from_min_size(pos, size))
+        Some(egui::Rect::from_min_size(pos, size))
     } else {
         None
+    };
+
+    inner_rect_px.map(|r| r / pixels_per_point)
+}
+
+pub fn math_outer_rect(window: &Window, pixels_per_point: Option<f32>) -> Option<Rect> {
+    let pixels_per_point = match pixels_per_point {
+        Some(pixels_per_point) => pixels_per_point,
+        None => window.scale_factor() as f32,
+    };
+
+    let outer_pos_px = window
+        .outer_position()
+        .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
+        .ok();
+
+    let outer_size_px = {
+        let size = window.outer_size();
+        Some(egui::Vec2::new(size.width as f32, size.height as f32))
     };
 
     let outer_rect_px = if let (Some(pos), Some(size)) = (outer_pos_px, outer_size_px) {
-        Some(Rect::from_min_size(pos, size))
+        Some(egui::Rect::from_min_size(pos, size))
     } else {
         None
     };
 
-    let inner_rect = inner_rect_px.map(|r| r / pixels_per_point);
-    let outer_rect = outer_rect_px.map(|r| r / pixels_per_point);
+    outer_rect_px.map(|r| r / pixels_per_point)
+}
+
+pub fn get_update_viewport_info(
+    viewport_info: &ViewportInfo,
+    window: &Window,
+    pixels_per_point: Option<f32>,
+) -> ViewportInfo {
+    let mut update_info = viewport_info.clone();
+
+    let pixels_per_point = match pixels_per_point {
+        Some(pixels_per_point) => pixels_per_point,
+        None => window.scale_factor() as f32,
+    };
+
+    let has_a_position = match window.is_minimized() {
+        Some(true) => false,
+        Some(false) | None => true,
+    };
+
+    let inner_rect = if has_a_position {
+        math_inner_rect(window, Some(pixels_per_point))
+    } else {
+        None
+    };
+
+    let outer_rect = if has_a_position {
+        math_outer_rect(window, Some(pixels_per_point))
+    } else {
+        None
+    };
 
     let monitor_size = {
         crate::profile_scope!("monitor_size");
@@ -939,21 +954,41 @@ pub fn update_viewport_info(
         }
     };
 
-    viewport_info.focused = Some(window.has_focus());
-    viewport_info.fullscreen = Some(window.fullscreen().is_some());
-    viewport_info.inner_rect = inner_rect;
-    viewport_info.monitor_size = monitor_size;
-    viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
-    viewport_info.outer_rect = outer_rect;
-    viewport_info.title = Some(window.title());
+    update_info.title = Some(window.title());
+    update_info.native_pixels_per_point = Some(window.scale_factor() as f32);
 
-    if cfg!(target_os = "windows") {
+    update_info.monitor_size = monitor_size;
+    update_info.inner_rect = inner_rect;
+    update_info.outer_rect = outer_rect;
+
+    if !cfg!(target_os = "macos") {
         // It's tempting to do this, but it leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
-        viewport_info.maximized = Some(window.is_maximized());
-        viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
+        update_info.maximized = Some(window.is_maximized());
+        update_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
+
+    update_info.fullscreen = Some(window.fullscreen().is_some());
+    update_info.decorations = Some(window.is_decorated());
+    update_info.focused = Some(window.has_focus());
+
+    update_info
+}
+
+/// Update the given viewport info with the current state of the window.
+///
+/// Call before [`State::take_egui_input`].
+pub fn update_viewport_info(
+    viewport_info: &mut ViewportInfo,
+    egui_ctx: &egui::Context,
+    window: &Window,
+) {
+    crate::profile_function!();
+
+    let pixels_per_point = Some(pixels_per_point(egui_ctx, window));
+
+    *viewport_info = get_update_viewport_info(viewport_info, window, pixels_per_point);
 }
 
 fn open_url_in_browser(_url: &str) {
@@ -1291,9 +1326,18 @@ fn process_viewport_command(
     match command {
         ViewportCommand::Close => {
             info.events.push(egui::ViewportEvent::Close);
+            info.close_requested = true;
         }
         ViewportCommand::CancelClose => {
             // Need to be handled elsewhere
+            info.close_requested = false;
+            if let Some(position) = info
+                .events
+                .iter()
+                .position(|x| *x == egui::ViewportEvent::Close)
+            {
+                info.events.remove(position);
+            }
         }
         ViewportCommand::StartDrag => {
             // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
@@ -1310,11 +1354,17 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            if window
-                .request_inner_size(PhysicalSize::new(width_px, height_px))
-                .is_some()
+            if let Some(_inner_size) =
+                window.request_inner_size(PhysicalSize::new(width_px, height_px))
             {
-                log::debug!("ViewportCommand::InnerSize ignored by winit");
+                // ex) linux
+                log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
+
+                info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
+                info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
+            } else {
+                // ex) Windows, MacOS
+                log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
             }
         }
         ViewportCommand::BeginResize(direction) => {
@@ -1334,7 +1384,10 @@ fn process_viewport_command(
         ViewportCommand::Title(title) => {
             window.set_title(&title);
         }
-        ViewportCommand::Transparent(v) => window.set_transparent(v),
+        ViewportCommand::Transparent(v) => {
+            window.set_transparent(v);
+            info.transparent = Some(v);
+        }
         ViewportCommand::Visible(v) => window.set_visible(v),
         ViewportCommand::OuterPosition(pos) => {
             window.set_outer_position(PhysicalPosition::new(
@@ -1388,7 +1441,10 @@ fn process_viewport_command(
         ViewportCommand::Fullscreen(v) => {
             window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
         }
-        ViewportCommand::Decorations(v) => window.set_decorations(v),
+        ViewportCommand::Decorations(v) => {
+            window.set_decorations(v);
+            info.decorations = Some(v);
+        }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,

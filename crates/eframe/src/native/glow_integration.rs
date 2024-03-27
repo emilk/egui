@@ -353,8 +353,8 @@ impl WinitApp for GlowWinitApp {
     fn is_focused(&self, window_id: WindowId) -> bool {
         if let Some(running) = &self.running {
             let glutin = running.glutin.borrow();
-            if let Some(window_id) = glutin.viewport_from_window.get(&window_id) {
-                return glutin.focused_viewport == Some(*window_id);
+            if let Some(viewport_id) = glutin.viewport_from_window.get(&window_id) {
+                return glutin.focused_viewport == Some(*viewport_id);
             }
         }
 
@@ -463,7 +463,7 @@ impl WinitApp for GlowWinitApp {
                         }
 
                         if let Some(window) = viewport.window.as_ref() {
-                            EventResult::RepaintNext(window.id())
+                            EventResult::RepaintNow(window.id())
                         } else {
                             EventResult::Wait
                         }
@@ -509,7 +509,7 @@ impl GlowWinitRunning {
     ) -> EventResult {
         crate::profile_function!();
 
-        let Some(viewport_id) = self
+        let Some(mut viewport_id) = self
             .glutin
             .borrow()
             .viewport_from_window
@@ -525,32 +525,45 @@ impl GlowWinitRunning {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        {
-            let glutin = self.glutin.borrow();
-            let viewport = &glutin.viewports[&viewport_id];
-            let is_immediate = viewport.viewport_ui_cb.is_none();
+        let (raw_input, viewport_ui_cb) = {
+            crate::profile_scope!("Prepare");
+
+            let mut glutin = self.glutin.borrow_mut();
+
+            let original_viewport = &glutin.viewports[&viewport_id];
+            let is_immediate = original_viewport.viewport_ui_cb.is_none();
+
+            // This will only happens when a Immediate Viewport.
             if is_immediate && viewport_id != ViewportId::ROOT {
-                // This will only happen if this is an immediate viewport.
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
-                    if let Some(window) = parent_viewport.window.as_ref() {
-                        return EventResult::RepaintNext(window.id());
+                if let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent) {
+                    let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
+                    if is_deferred_parent {
+                        // This will only happens when the parent is a Deferred Viewport.
+                        viewport_id = parent_viewport.ids.this;
+                    } else if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
+                        // This will only happen when the parent is a Immediate Viewport.
+                        // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
+                        viewport_id = root_viewport.ids.this;
+                    } else {
+                        // Not actually used. Because there is always a `Some()` value.
+                        return EventResult::Wait;
                     }
                 }
-                return EventResult::Wait;
             }
-        }
 
-        let (raw_input, viewport_ui_cb) = {
-            let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
-            let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
+            let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
+                return EventResult::Wait;
+            };
+
             let Some(window) = viewport.window.as_ref() else {
                 return EventResult::Wait;
             };
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window);
 
-            let egui_winit = viewport.egui_winit.as_mut().unwrap();
+            let Some(egui_winit) = viewport.egui_winit.as_mut() else {
+                return EventResult::Wait;
+            };
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
@@ -628,13 +641,18 @@ impl GlowWinitRunning {
             viewport_output,
         } = full_output;
 
+        glutin.active_viewports_retain(viewport_output.clone());
+
         let GlutinWindowContext {
             viewports,
             current_gl_context,
             ..
         } = &mut *glutin;
 
-        let viewport = viewports.get_mut(&viewport_id).unwrap();
+        let Some(viewport) = viewports.get_mut(&viewport_id) else {
+            return EventResult::Wait;
+        };
+
         viewport.info.events.clear(); // they should have been processed
         let window = viewport.window.clone().unwrap();
         let gl_surface = viewport.gl_surface.as_ref().unwrap();
@@ -707,15 +725,19 @@ impl GlowWinitRunning {
 
         integration.maybe_autosave(app.as_mut(), Some(&window));
 
-        if window.is_minimized() == Some(true) {
-            // On Mac, a minimized Window uses up all CPU:
-            // https://github.com/emilk/egui/issues/325
-            crate::profile_scope!("minimized_sleep");
-            std::thread::sleep(std::time::Duration::from_millis(10));
+        let is_windows = cfg!(target_os = "windows");
+        if !is_windows {
+            let is_minimized = window.is_minimized().unwrap_or(false);
+            if is_minimized {
+                // On Mac, a minimized Window uses up all CPU:
+                // https://github.com/emilk/egui/issues/325
+                crate::profile_scope!("minimized_sleep");
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
         }
 
         if integration.should_close() {
-            EventResult::Exit
+            EventResult::Exit(window_id)
         } else {
             EventResult::Wait
         }
@@ -731,35 +753,15 @@ impl GlowWinitRunning {
         let mut glutin = self.glutin.borrow_mut();
         let viewport_id = glutin.viewport_from_window.get(&window_id).copied();
 
-        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
-        // event handler.
-        //
-        // If this is not done, the compositor will assume that the window does not want to redraw,
-        // and continue ahead.
-        //
-        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
-        // new frames to the compositor in time.
-        //
-        // The flickering is technically glutin or glow's fault, but we should be responding properly
-        // to resizes anyway, as doing so avoids dropping frames.
-        //
-        // See: https://github.com/emilk/egui/issues/903
-        let mut repaint_asap = false;
-
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
                 glutin.focused_viewport = new_focused.then(|| viewport_id).flatten();
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
-                // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
-                // See: https://github.com/rust-windowing/winit/issues/208
-                // This solves an issue where the app would panic when minimizing on Windows.
-                if 0 < physical_size.width && 0 < physical_size.height {
-                    if let Some(viewport_id) = viewport_id {
-                        repaint_asap = true;
-                        glutin.resize(viewport_id, *physical_size);
-                    }
+                if let Some(viewport_id) = viewport_id {
+                    glutin.resize(viewport_id, *physical_size);
+                    return EventResult::RepaintNext(window_id);
                 }
             }
 
@@ -768,7 +770,7 @@ impl GlowWinitRunning {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
-                    return EventResult::Exit;
+                    return EventResult::Exit(window_id);
                 }
 
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
@@ -777,14 +779,23 @@ impl GlowWinitRunning {
                     if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                         // Tell viewport it should close:
                         viewport.info.events.push(egui::ViewportEvent::Close);
+                        viewport.info.close_requested = true;
 
                         // We may need to repaint both us and our parent to close the window,
                         // and perhaps twice (once to notice the close-event, once again to enforce it).
                         // `request_repaint_of` does a double-repaint though:
                         self.integration.egui_ctx.request_repaint_of(viewport_id);
-                        self.integration
-                            .egui_ctx
-                            .request_repaint_of(viewport.ids.parent);
+                        if viewport_id != ViewportId::ROOT {
+                            self.integration
+                                .egui_ctx
+                                .request_repaint_of(viewport.ids.parent);
+                        }
+
+                        if viewport_id == ViewportId::ROOT {
+                            return EventResult::Wait;
+                        } else {
+                            return EventResult::ViewportExit(window_id);
+                        }
                     }
                 }
             }
@@ -793,7 +804,7 @@ impl GlowWinitRunning {
         }
 
         if self.integration.should_close() {
-            return EventResult::Exit;
+            return EventResult::Exit(window_id);
         }
 
         let mut event_response = egui_winit::EventResponse {
@@ -815,11 +826,7 @@ impl GlowWinitRunning {
         }
 
         if event_response.repaint {
-            if repaint_asap {
-                EventResult::RepaintNow(window_id)
-            } else {
-                EventResult::RepaintNext(window_id)
-            }
+            EventResult::RepaintNow(window_id)
         } else {
             EventResult::Wait
         }
@@ -976,8 +983,7 @@ impl GlutinWindowContext {
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            info.minimized = window.is_minimized();
-            info.maximized = Some(window.is_maximized());
+            info = egui_winit::get_update_viewport_info(&ViewportInfo::default(), window, None);
         }
 
         let mut viewports = ViewportIdMap::default();
@@ -1048,6 +1054,9 @@ impl GlutinWindowContext {
             .get_mut(&viewport_id)
             .expect("viewport doesn't exist");
 
+        viewport.info.this = Some(viewport_id);
+        viewport.info.parent = Some(self.egui_ctx.parent_viewport_id_of(viewport_id));
+
         let window = if let Some(window) = &mut viewport.window {
             window
         } else {
@@ -1068,8 +1077,9 @@ impl GlutinWindowContext {
                 &window,
                 &viewport.builder,
             );
-            viewport.info.minimized = window.is_minimized();
-            viewport.info.maximized = Some(window.is_maximized());
+
+            viewport.info.transparent = viewport.builder.transparent;
+            viewport.info = egui_winit::get_update_viewport_info(&viewport.info, &window, None);
             viewport.window.insert(Arc::new(window))
         };
 
@@ -1198,6 +1208,22 @@ impl GlutinWindowContext {
         self.gl_config.display().get_proc_address(addr)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
+    pub(crate) fn active_viewports_retain(
+        &mut self,
+        viewport_output: ViewportIdMap<ViewportOutput>,
+    ) {
+        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+        // GC old viewports
+        self.viewports
+            .retain(|id, _| active_viewports_ids.contains(id));
+        self.viewport_from_window
+            .retain(|_, id| active_viewports_ids.contains(id));
+        self.window_from_viewport
+            .retain(|id, _| active_viewports_ids.contains(id));
+    }
+
     fn handle_viewport_output(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -1205,8 +1231,6 @@ impl GlutinWindowContext {
         viewport_output: ViewportIdMap<ViewportOutput>,
     ) {
         crate::profile_function!();
-
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
         for (
             viewport_id,
@@ -1218,7 +1242,7 @@ impl GlutinWindowContext {
                 commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
-        ) in viewport_output
+        ) in viewport_output.clone()
         {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1233,6 +1257,8 @@ impl GlutinWindowContext {
             );
 
             if let Some(window) = &viewport.window {
+                let save_inner_size = window.inner_size();
+
                 let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                 egui_winit::process_viewport_commands(
                     egui_ctx,
@@ -1242,19 +1268,29 @@ impl GlutinWindowContext {
                     is_viewport_focused,
                     &mut viewport.screenshot_requested,
                 );
+
+                // For Wayland : https://github.com/emilk/egui/issues/4196
+                if cfg!(target_os = "linux") {
+                    let inner_size = window.inner_size();
+                    if inner_size != save_inner_size {
+                        Self::resize_for_other_os(self, viewport_id, inner_size);
+                    }
+                }
             }
         }
 
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        // GC old viewports
-        self.viewports
-            .retain(|id, _| active_viewports_ids.contains(id));
-        self.viewport_from_window
-            .retain(|_, id| active_viewports_ids.contains(id));
-        self.window_from_viewport
-            .retain(|id, _| active_viewports_ids.contains(id));
+        self.active_viewports_retain(viewport_output);
+    }
+
+    fn resize_for_other_os(
+        &mut self,
+        viewport_id: ViewportId,
+        inner_size: winit::dpi::PhysicalSize<u32>,
+    ) {
+        self.resize(viewport_id, inner_size);
     }
 }
 

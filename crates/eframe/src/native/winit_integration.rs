@@ -106,7 +106,11 @@ pub enum EventResult {
 
     RepaintAt(WindowId, Instant),
 
-    Exit,
+    /// Child Viewport Exit
+    ViewportExit(WindowId),
+
+    /// Root Viewport Exit
+    Exit(WindowId),
 }
 
 pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<crate::Theme> {
