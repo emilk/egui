@@ -224,24 +224,6 @@ fn run_and_return(
 
     drop(winit_app);
 
-    /*
-    // Deprecated
-
-    // On Windows this clears out events so that we can later create another window.
-    // See https://github.com/emilk/egui/pull/1889 for details.
-    //
-    // Note that this approach may cause issues on macOS (emilk/egui#2768); therefore,
-    // we only apply this approach on Windows to minimize the affect.
-    #[cfg(target_os = "windows")]
-    {
-        event_loop
-            .run_on_demand(|_, event_loop_window_target| {
-                event_loop_window_target.exit();
-            })
-            .ok();
-    }
-    */
-
     returned_result
 }
 
