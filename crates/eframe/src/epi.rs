@@ -696,7 +696,7 @@ impl Frame {
     }
 
     /// Register your own [`glow::Texture`],
-    /// and then you can use the returned [`egui::TextureId`] to render your texture with `egui`.
+    /// and then you can use the returned [`egui::TextureId`] to render your texture with [`egui`].
     ///
     /// This function will take the ownership of your [`glow::Texture`], so please do not delete your [`glow::Texture`] after registering.
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
