@@ -7,11 +7,79 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
-## Unreleased
+## 0.27.0 - 2024-03-26 - Nicer menus and new hit test logic
+The hit test logic (what is the user clicking on?) has been completely rewritten, and should now be much more accurate and helpful.
+The hit test and interaction logic is run at the start of the frame, using the widgets rects from the previous frame, but the latest mouse coordinates.
+It enabled getting a `Response` for a widget _before_ creating it using `Context::read_response`.
+This will in the future unlock more powerful widget styling options.
+The new hit test also allows clicking slightly outside a button and still hit it, improving the support for touch screens.
+
+The menus have also been improved so that they both act and feel better, with no change in API.
+Included in this is much nicer looking shadows, supporting an offset.
+
+<img width="580" alt="Screenshot 2024-03-26 at 17 00 23" src="https://github.com/emilk/egui/assets/1148717/f1eea39f-17a7-41ca-a983-ee142b04ef26">
+
 
 ### ⚠️ BREAKING
 * `Response::clicked*` and `Response::dragged*` may lock the `Context`, so don't call it from a `Context`-locking closure.
 * `Response::clicked_by` will no longer be true if clicked with keyboard. Use `Response::clicked` instead.
+* `Memory::focus` has been renamed `Memory::focused`
+* `Area::new` now takes an `Id` by argument [#4115](https://github.com/emilk/egui/pull/4115)
+* Change the definition of `clicked_by` [#4192](https://github.com/emilk/egui/pull/4192)
+
+### ☰ Menu related improvements
+* Add some distance between parent menu and submenu [#4230](https://github.com/emilk/egui/pull/4230)
+* Add `Area::sense` and improve hit-testing of buttons in menus [#4234](https://github.com/emilk/egui/pull/4234)
+* Improve logic for when submenus are kept open [#4166](https://github.com/emilk/egui/pull/4166)
+* Better align menus with the button that opened them [#4233](https://github.com/emilk/egui/pull/4233)
+* Hide hover UI when showing the context menu [#4138](https://github.com/emilk/egui/pull/4138) (thanks [@abey79](https://github.com/abey79)!)
+* CSS-like `Shadow` with offset, spread, and blur [#4232](https://github.com/emilk/egui/pull/4232)
+* On touch screens, press-and-hold equals a secondary click [#4195](https://github.com/emilk/egui/pull/4195)
+
+### ⭐ Added
+* Add with_taskbar to viewport builder [#3958](https://github.com/emilk/egui/pull/3958) (thanks [@AnotherNathan](https://github.com/AnotherNathan)!)
+* Add F21 to F35 key bindings [#4004](https://github.com/emilk/egui/pull/4004) (thanks [@oscargus](https://github.com/oscargus)!)
+* Add `Options::debug_paint_interactive_widgets` [#4018](https://github.com/emilk/egui/pull/4018)
+* Add `Ui::set_opacity` [#3965](https://github.com/emilk/egui/pull/3965) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Add `Response::paint_debug_info()` to make it easy to visualize a widget's id and state [#4056](https://github.com/emilk/egui/pull/4056) (thanks [@abey79](https://github.com/abey79)!)
+* Add layer transforms, interaction in layer [#3906](https://github.com/emilk/egui/pull/3906) (thanks [@Tweoss](https://github.com/Tweoss)!)
+* Add `ColorImage::from_gray_iter` [#3536](https://github.com/emilk/egui/pull/3536) (thanks [@wangxiaochuTHU](https://github.com/wangxiaochuTHU)!)
+* Add API for raw mouse motion [#4063](https://github.com/emilk/egui/pull/4063) (thanks [@GiantBlargg](https://github.com/GiantBlargg)!)
+* Add accessibility to `ProgressBar` and `Spinner` [#4139](https://github.com/emilk/egui/pull/4139) (thanks [@DataTriny](https://github.com/DataTriny)!)
+* Add x11 window type settings to viewport builder [#4175](https://github.com/emilk/egui/pull/4175) (thanks [@psethwick](https://github.com/psethwick)!)
+* Add an API for customizing the return key in TextEdit [#4085](https://github.com/emilk/egui/pull/4085) (thanks [@lemon-sh](https://github.com/lemon-sh)!)
+* Convenience `const fn` for `Margin`, `Rounding` and `Shadow` [#4080](https://github.com/emilk/egui/pull/4080) (thanks [@0Qwel](https://github.com/0Qwel)!)
+* Serde feature: add serde derives to input related structs [#4100](https://github.com/emilk/egui/pull/4100) (thanks [@gweisert](https://github.com/gweisert)!)
+* Give each menu `Area` an id distinct from the id of what was clicked  [#4114](https://github.com/emilk/egui/pull/4114)
+* `epaint`: Added `Shape::{scale,translate}` wrappers [#4090](https://github.com/emilk/egui/pull/4090) (thanks [@varphone](https://github.com/varphone)!)
+* A `Window` can now be resizable in only one direction [#4155](https://github.com/emilk/egui/pull/4155)
+* Add `EllipseShape` [#4122](https://github.com/emilk/egui/pull/4122) (thanks [@TheTacBanana](https://github.com/TheTacBanana)!)
+* Adjustable Slider rail height [#4092](https://github.com/emilk/egui/pull/4092) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Expose state override for `HeaderResponse` [#4200](https://github.com/emilk/egui/pull/4200) (thanks [@Zeenobit](https://github.com/Zeenobit)!)
+
+### 🔧 Changed
+* `TextEdit`: Change `margin` property to `egui::Margin` type [#3993](https://github.com/emilk/egui/pull/3993) (thanks [@bu5hm4nn](https://github.com/bu5hm4nn)!)
+* New widget interaction logic [#4026](https://github.com/emilk/egui/pull/4026)
+* `ui.dnd_drop_zone()` now returns `InnerResponse`. [#4079](https://github.com/emilk/egui/pull/4079) (thanks [@sowbug](https://github.com/sowbug)!)
+* Support interacting with the background of a `Ui` [#4074](https://github.com/emilk/egui/pull/4074)
+* Quickly animate scroll when calling `ui.scroll_to_cursor` etc  [#4119](https://github.com/emilk/egui/pull/4119)
+* Don't clear modifier state on focus change [#4157](https://github.com/emilk/egui/pull/4157) (thanks [@ming08108](https://github.com/ming08108)!)
+* Prevent `egui::Window` from becoming larger than viewport [#4199](https://github.com/emilk/egui/pull/4199) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Don't show URLs when hovering hyperlinks [#4218](https://github.com/emilk/egui/pull/4218)
+
+### 🐛 Fixed
+* Fix incorrect handling of item spacing in `Window` title bar [#3995](https://github.com/emilk/egui/pull/3995) (thanks [@varphone](https://github.com/varphone)!)
+* Make `on_disabled_hover_ui` respect `tooltip_delay` [#4012](https://github.com/emilk/egui/pull/4012) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Fix `TextEdit` being too short whenever there is horizontal margin [#4005](https://github.com/emilk/egui/pull/4005) (thanks [@gweisert](https://github.com/gweisert)!)
+* Fix `Response::interact` and `Ui:interact_with_hovered` [#4013](https://github.com/emilk/egui/pull/4013)
+* Fix: `Response.interact_pointer_pos` is `Some` on click and drag released [#4014](https://github.com/emilk/egui/pull/4014)
+* Fix custom `Window` `Frame`s [#4009](https://github.com/emilk/egui/pull/4009) (thanks [@varphone](https://github.com/varphone)!)
+* Fix: images with background color now respects rounding [#4029](https://github.com/emilk/egui/pull/4029) (thanks [@vincent-sparks](https://github.com/vincent-sparks)!)
+* Fixed the incorrect display of the `Window` frame with a wide border or large rounding [#4032](https://github.com/emilk/egui/pull/4032) (thanks [@varphone](https://github.com/varphone)!)
+* TextEdit: fix crash when hitting SHIFT + TAB around non-ASCII text [#3984](https://github.com/emilk/egui/pull/3984) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Fix two `ScrollArea` bugs: leaking scroll target and broken animation to target offset [#4174](https://github.com/emilk/egui/pull/4174) (thanks [@abey79](https://github.com/abey79)!)
+* Fix bug in `Context::parent_viewport_id` [#4190](https://github.com/emilk/egui/pull/4190) (thanks [@rustbasic](https://github.com/rustbasic)!)
+* Remove unnecessary allocation in `RepaintCause::new` [#4146](https://github.com/emilk/egui/pull/4146) (thanks [@valsteen](https://github.com/valsteen)!)
 
 
 ## 0.26.2 - 2024-02-14

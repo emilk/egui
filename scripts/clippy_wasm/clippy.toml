@@ -38,6 +38,7 @@ disallowed-methods = [
 disallowed-types = [
   { path = "instant::SystemTime", reason = "Known bugs. Use web-time." },
   { path = "std::thread::Builder", reason = "Cannot spawn threads on wasm" },
+  { path = "std::time::Instant", reason = "Use web-time instead." },
   # { path = "std::path::PathBuf", reason = "Can't read/write files on web" }, // TODO(emilk): consider banning Path on wasm
 ]
 
