@@ -1305,19 +1305,21 @@ impl Style {
         visuals.light_dark_radio_buttons(ui);
 
         crate::Grid::new("_options").show(ui, |ui| {
-            ui.label("Override font id:");
-            ui.horizontal(|ui| {
-                ui.radio_value(override_font_id, None, "None");
-                if ui.radio(override_font_id.is_some(), "override").clicked() {
-                    *override_font_id = Some(FontId::default());
-                }
+            ui.label("Override font id");
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.radio_value(override_font_id, None, "None");
+                    if ui.radio(override_font_id.is_some(), "override").clicked() {
+                        *override_font_id = Some(FontId::default());
+                    }
+                });
                 if let Some(override_font_id) = override_font_id {
                     crate::introspection::font_id_ui(ui, override_font_id);
                 }
             });
             ui.end_row();
 
-            ui.label("Override text style:");
+            ui.label("Override text style");
             crate::ComboBox::from_id_source("Override text style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
@@ -1334,7 +1336,7 @@ impl Style {
                 });
             ui.end_row();
 
-            ui.label("Text style of DragValue:");
+            ui.label("Text style of DragValue");
             crate::ComboBox::from_id_source("drag_value_text_style")
                 .selected_text(drag_value_text_style.to_string())
                 .show_ui(ui, |ui| {
@@ -1347,7 +1349,7 @@ impl Style {
                 });
             ui.end_row();
 
-            ui.label("Animation duration:");
+            ui.label("Animation duration");
             ui.add(
                 DragValue::new(animation_time)
                     .clamp_range(0.0..=1.0)
@@ -1788,65 +1790,76 @@ impl Visuals {
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
 
-        ui.horizontal(|ui| {
-            ui_color(
-                ui,
-                &mut widgets.noninteractive.fg_stroke.color,
-                "Text color",
-            );
-            ui_color(ui, warn_fg_color, RichText::new("Warnings"));
-            ui_color(ui, error_fg_color, RichText::new("Errors"));
-        });
-
-        ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(|ui| {
+        ui.collapsing("Other colors", |ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("For monospaced inlined text ");
-                ui.code("like this");
-                ui.label(".");
+                ui_color(
+                    ui,
+                    &mut widgets.noninteractive.fg_stroke.color,
+                    "Text color",
+                );
+                ui_color(ui, warn_fg_color, RichText::new("Warnings"));
+                ui_color(ui, error_fg_color, RichText::new("Errors"));
+            });
+
+            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
+                |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label("For monospaced inlined text ");
+                        ui.code("like this");
+                        ui.label(".");
+                    });
+                },
+            );
+
+            ui_color(ui, hyperlink_color, "hyperlink_color");
+
+            ui.horizontal(|ui| {
+                ui.label("Text cursor");
+                ui.add(text_cursor);
             });
         });
 
-        ui_color(ui, hyperlink_color, "hyperlink_color");
+        ui.collapsing("Misc", |ui| {
+            ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
+            ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
+            ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
-        ui.horizontal(|ui| {
-            ui.label("Text Cursor");
-            ui.add(text_cursor);
-        });
+            ui.checkbox(button_frame, "Button has a frame");
+            ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
+            ui.checkbox(
+                indent_has_left_vline,
+                "Paint a vertical line to the left of indented regions",
+            );
 
-        ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
-        ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
+            ui.checkbox(striped, "Default stripes on grids and tables");
 
-        ui.checkbox(button_frame, "Button has a frame");
-        ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
-        ui.checkbox(
-            indent_has_left_vline,
-            "Paint a vertical line to the left of indented regions",
-        );
+            ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
-        ui.checkbox(striped, "Default stripes on grids and tables");
+            handle_shape.ui(ui);
 
-        ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
+            ComboBox::from_label("Interact cursor")
+                .selected_text(
+                    interact_cursor.map_or_else(|| "-".to_owned(), |cursor| format!("{cursor:?}")),
+                )
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(interact_cursor, None, "-");
 
-        handle_shape.ui(ui);
+                    for cursor in CursorIcon::ALL {
+                        ui.selectable_value(interact_cursor, Some(cursor), format!("{cursor:?}"))
+                            .on_hover_cursor(cursor);
+                    }
+                })
+                .response
+                .on_hover_text("Use this cursor when hovering buttons etc");
 
-        ComboBox::from_label("Interact Cursor")
-            .selected_text(format!("{interact_cursor:?}"))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(interact_cursor, None, "None");
+            ui.checkbox(image_loading_spinners, "Image loading spinners")
+                .on_hover_text("Show a spinner when an Image is loading");
 
-                for icon in CursorIcon::ALL {
-                    ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
-                }
+            ui.horizontal(|ui| {
+                ui.label("Color picker type");
+                numeric_color_space.toggle_button_ui(ui);
             });
-
-        ui.checkbox(image_loading_spinners, "Image loading spinners")
-            .on_hover_text("Show a spinner when an Image is loading");
-
-        ui.horizontal(|ui| {
-            ui.label("Color picker type:");
-            numeric_color_space.toggle_button_ui(ui);
         });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
