@@ -9,7 +9,10 @@ use crate::Color32;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    all(feature = "serde", not(feature = "serde-hexcolor")),
+    derive(serde::Deserialize, serde::Serialize)
+)]
 /// A wrapper around Color32 that converts to and from a hex-color string
 ///
 /// Implements [`Display`] and [`FromStr`] to convert to and from the hex string.
@@ -25,6 +28,57 @@ pub enum HexColor {
 
     /// 8 hexadecimal digits, one for each of the r, g, b, a channels
     Hex8(Color32),
+}
+
+#[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
+impl serde::Serialize for HexColor {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.collect_str(&self)
+    }
+}
+
+#[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
+impl<'de> serde::Deserialize<'de> for HexColor {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(HexColorVisitor)
+    }
+}
+
+#[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
+struct HexColorVisitor;
+
+#[cfg(all(feature = "serde", feature = "serde-hexcolor"))]
+impl<'de> serde::de::Visitor<'de> for HexColorVisitor {
+    type Value = HexColor;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a string containing a hex color code")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        HexColor::from_str(v).map_err(|e| match e {
+            ParseHexColorError::MissingHash => serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(v),
+                &format!("#{v} (missing hash)").as_str(),
+            ),
+            ParseHexColorError::InvalidLength => {
+                serde::de::Error::invalid_length(v.len(), &"length 3, 4, 6 or 8 expected")
+            }
+            ParseHexColorError::InvalidInt(i) => serde::de::Error::invalid_type(
+                serde::de::Unexpected::Str(v),
+                &format!("invalid int: {i}").as_str(),
+            ),
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
