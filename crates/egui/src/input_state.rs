@@ -326,6 +326,10 @@ impl InputState {
         self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
             || !self.events.is_empty()
+
+        // We need to wake up and check for press-and-hold for the context menu.
+        // TODO(emilk): wake up after `MAX_CLICK_DURATION` instead of every frame.
+        || (self.any_touches() && !self.pointer.is_decidedly_dragging())
     }
 
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
