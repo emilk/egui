@@ -283,11 +283,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
-                info: ViewportInfo {
-                    minimized: window.is_minimized(),
-                    maximized: Some(window.is_maximized()),
-                    ..Default::default()
-                },
+                info: egui_winit::get_update_viewport_info(&ViewportInfo::default(), &window, None),
                 screenshot_requested: false,
                 viewport_ui_cb: None,
                 window: Some(window),
@@ -876,9 +872,7 @@ impl Viewport {
                     painter.max_texture_side(),
                 ));
 
-                self.info.minimized = window.is_minimized();
-                self.info.maximized = Some(window.is_maximized());
-
+                self.info = egui_winit::get_update_viewport_info(&self.info, &window, None);
                 self.window = Some(window);
             }
             Err(err) => {
