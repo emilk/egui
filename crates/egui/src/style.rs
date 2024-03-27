@@ -1983,3 +1983,213 @@ impl std::fmt::Display for NumericColorSpace {
         }
     }
 }
+
+impl Widget for &mut Margin {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let mut same = self.is_same();
+
+        let response = if same {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                let mut value = self.left;
+                ui.add(DragValue::new(&mut value));
+                *self = Margin::same(value);
+            })
+            .response
+        } else {
+            ui.vertical(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                crate::Grid::new("margin").num_columns(2).show(ui, |ui| {
+                    ui.label("Left");
+                    ui.add(DragValue::new(&mut self.left));
+                    ui.end_row();
+
+                    ui.label("Right");
+                    ui.add(DragValue::new(&mut self.right));
+                    ui.end_row();
+
+                    ui.label("Top");
+                    ui.add(DragValue::new(&mut self.top));
+                    ui.end_row();
+
+                    ui.label("Bottom");
+                    ui.add(DragValue::new(&mut self.bottom));
+                    ui.end_row();
+                });
+            })
+            .response
+        };
+
+        // Apply the checkbox:
+        if same {
+            *self = Margin::same((self.left + self.right + self.top + self.bottom) / 4.0);
+        } else if self.is_same() {
+            self.right *= 1.00001; // prevent collapsing into sameness
+        }
+
+        response
+    }
+}
+
+impl Widget for &mut Rounding {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let mut same = self.is_same();
+
+        let response = if same {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                let mut cr = self.nw;
+                ui.add(DragValue::new(&mut cr).clamp_range(0.0..=f32::INFINITY));
+                *self = Rounding::same(cr);
+            })
+            .response
+        } else {
+            ui.vertical(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                crate::Grid::new("rounding").num_columns(2).show(ui, |ui| {
+                    ui.label("NW");
+                    ui.add(DragValue::new(&mut self.nw).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+
+                    ui.label("NE");
+                    ui.add(DragValue::new(&mut self.ne).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+
+                    ui.label("SW");
+                    ui.add(DragValue::new(&mut self.sw).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+
+                    ui.label("SE");
+                    ui.add(DragValue::new(&mut self.se).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+                });
+            })
+            .response
+        };
+
+        // Apply the checkbox:
+        if same {
+            *self = Rounding::same((self.nw + self.ne + self.sw + self.se) / 4.0);
+        } else if self.is_same() {
+            self.se *= 1.00001; // prevent collapsing into sameness
+        }
+
+        response
+    }
+}
+
+impl Widget for &mut Shadow {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let epaint::Shadow {
+            offset,
+            blur,
+            spread,
+            color,
+        } = self;
+
+        ui.vertical(|ui| {
+            crate::Grid::new("shadow_ui").show(ui, |ui| {
+                ui.add(
+                    DragValue::new(&mut offset.x)
+                        .speed(1.0)
+                        .clamp_range(-100.0..=100.0)
+                        .prefix("x: "),
+                );
+                ui.add(
+                    DragValue::new(&mut offset.y)
+                        .speed(1.0)
+                        .clamp_range(-100.0..=100.0)
+                        .prefix("y: "),
+                );
+                ui.end_row();
+
+                ui.add(
+                    DragValue::new(blur)
+                        .speed(1.0)
+                        .clamp_range(0.0..=100.0)
+                        .prefix("blur: "),
+                );
+
+                ui.add(
+                    DragValue::new(spread)
+                        .speed(1.0)
+                        .clamp_range(0.0..=100.0)
+                        .prefix("spread: "),
+                );
+            });
+            ui.color_edit_button_srgba(color);
+        })
+        .response
+    }
+}
+
+impl Widget for &mut Stroke {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let Stroke { width, color } = self;
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(width)
+                    .speed(0.1)
+                    .clamp_range(0.0..=f32::INFINITY),
+            )
+            .on_hover_text("Width");
+            ui.color_edit_button_srgba(color);
+
+            // stroke preview:
+            let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
+            let left = stroke_rect.left_center();
+            let right = stroke_rect.right_center();
+            ui.painter().line_segment([left, right], (*width, *color));
+        })
+        .response
+    }
+}
+
+impl Widget for &mut crate::Frame {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let crate::Frame {
+            inner_margin,
+            outer_margin,
+            rounding,
+            shadow,
+            fill,
+            stroke,
+        } = self;
+
+        crate::Grid::new("frame")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Inner margin");
+                ui.add(inner_margin);
+                ui.end_row();
+
+                ui.label("Outer margin");
+                ui.add(outer_margin);
+                ui.end_row();
+
+                ui.label("Rounding");
+                ui.add(rounding);
+                ui.end_row();
+
+                ui.label("Shadow");
+                ui.add(shadow);
+                ui.end_row();
+
+                ui.label("Fill");
+                ui.color_edit_button_srgba(fill);
+                ui.end_row();
+
+                ui.label("Stroke");
+                ui.add(stroke);
+                ui.end_row();
+            })
+            .response
+    }
+}
