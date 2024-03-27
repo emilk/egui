@@ -1419,72 +1419,85 @@ impl Spacing {
             scroll,
         } = self;
 
-        ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
+        Grid::new("spacing")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Item spacing");
+                ui.add(two_drag_values(item_spacing, 0.0..=20.0));
+                ui.end_row();
 
-        margin_ui(ui, "Window margin:", window_margin);
-        margin_ui(ui, "Menu margin:", menu_margin);
+                ui.label("Window margin");
+                ui.add(window_margin);
+                ui.end_row();
 
-        ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
-        ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
-            .on_hover_text("Minimum size of an interactive widget");
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
-            ui.label("Indent");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
-            ui.label("Slider width");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
-            ui.label("Slider rail height");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
-            ui.label("ComboBox width");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
-            ui.label("TextEdit width");
-        });
+                ui.label("Menu margin");
+                ui.add(menu_margin);
+                ui.end_row();
 
-        ui.collapsing("Scroll Area", |ui| {
-            scroll.ui(ui);
-        });
+                ui.label("Button padding");
+                ui.add(two_drag_values(button_padding, 0.0..=20.0));
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.label("Checkboxes etc:");
-            ui.add(
-                DragValue::new(icon_width)
-                    .prefix("outer icon width:")
-                    .clamp_range(0.0..=60.0),
-            );
-            ui.add(
-                DragValue::new(icon_width_inner)
-                    .prefix("inner icon width:")
-                    .clamp_range(0.0..=60.0),
-            );
-            ui.add(
-                DragValue::new(icon_spacing)
-                    .prefix("spacing:")
-                    .clamp_range(0.0..=10.0),
-            );
-        });
+                ui.label("Interact size")
+                    .on_hover_text("Minimum size of an interactive widget");
+                ui.add(two_drag_values(interact_size, 4.0..=60.0));
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
-            ui.label("Tooltip wrap width");
-        });
+                ui.label("Indent");
+                ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
-            ui.label("Default width of a menu");
-        });
+                ui.label("Slider width");
+                ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
-            ui.label("Horizontal spacing between menus");
-        });
+                ui.label("Slider rail height");
+                ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
+                ui.end_row();
+
+                ui.label("ComboBox width");
+                ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("TextEdit width");
+                ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Tooltip wrap width");
+                ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Default menu width");
+                ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Menu spacing")
+                    .on_hover_text("Horizontal spacing between menus");
+                ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
+                ui.end_row();
+
+                ui.label("Checkboxes etc");
+                ui.vertical(|ui| {
+                    ui.add(
+                        DragValue::new(icon_width)
+                            .prefix("outer icon width:")
+                            .clamp_range(0.0..=60.0),
+                    );
+                    ui.add(
+                        DragValue::new(icon_width_inner)
+                            .prefix("inner icon width:")
+                            .clamp_range(0.0..=60.0),
+                    );
+                    ui.add(
+                        DragValue::new(icon_spacing)
+                            .prefix("spacing:")
+                            .clamp_range(0.0..=10.0),
+                    );
+                });
+                ui.end_row();
+            });
 
         ui.checkbox(
             indent_ends_with_horizontal_line,
@@ -1496,57 +1509,12 @@ impl Spacing {
             ui.add(DragValue::new(combo_height).clamp_range(0.0..=1000.0));
         });
 
+        ui.collapsing("Scroll Area", |ui| {
+            scroll.ui(ui);
+        });
+
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
-}
-
-pub fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
-    let margin_range = 0.0..=20.0;
-
-    ui.horizontal(|ui| {
-        ui.label(text);
-
-        let mut same = margin.is_same();
-        ui.checkbox(&mut same, "Same");
-
-        if same {
-            let mut value = margin.left;
-            ui.add(DragValue::new(&mut value).clamp_range(margin_range.clone()));
-            *margin = Margin::same(value);
-        } else {
-            if margin.is_same() {
-                // HACK: prevent collapse:
-                margin.right = margin.left + 1.0;
-                margin.bottom = margin.left + 2.0;
-                margin.top = margin.left + 3.0;
-            }
-
-            ui.add(
-                DragValue::new(&mut margin.left)
-                    .clamp_range(margin_range.clone())
-                    .prefix("L: "),
-            )
-            .on_hover_text("Left margin");
-            ui.add(
-                DragValue::new(&mut margin.right)
-                    .clamp_range(margin_range.clone())
-                    .prefix("R: "),
-            )
-            .on_hover_text("Right margin");
-            ui.add(
-                DragValue::new(&mut margin.top)
-                    .clamp_range(margin_range.clone())
-                    .prefix("T: "),
-            )
-            .on_hover_text("Top margin");
-            ui.add(
-                DragValue::new(&mut margin.bottom)
-                    .clamp_range(margin_range)
-                    .prefix("B: "),
-            )
-            .on_hover_text("Bottom margin");
-        }
-    });
 }
 
 impl Interaction {
@@ -1857,7 +1825,7 @@ impl Visuals {
             "Paint a vertical line to the left of indented regions",
         );
 
-        ui.checkbox(striped, "By default, add stripes to grids and tables?");
+        ui.checkbox(striped, "Default stripes on grids and tables");
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
@@ -1930,11 +1898,10 @@ impl DebugOptions {
     }
 }
 
-// TODO(emilk): improve and standardize `slider_vec2`
-fn slider_vec2<'a>(
+// TODO(emilk): improve and standardize
+fn two_drag_values<'a>(
     value: &'a mut Vec2,
     range: std::ops::RangeInclusive<f32>,
-    text: &'a str,
 ) -> impl Widget + 'a {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {
@@ -1948,7 +1915,6 @@ fn slider_vec2<'a>(
                     .clamp_range(range.clone())
                     .prefix("y: "),
             );
-            ui.label(text);
         })
         .response
     }
@@ -1964,8 +1930,8 @@ fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> R
 
 impl HandleShape {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.label("Widget handle shape");
         ui.horizontal(|ui| {
+            ui.label("Slider handle");
             ui.radio_value(self, Self::Circle, "Circle");
             if ui
                 .radio(matches!(self, Self::Rect { .. }), "Rectangle")
