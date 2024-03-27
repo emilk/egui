@@ -56,7 +56,7 @@ impl Shadow {
         // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
         // Thats because the tessellator approximate very thin rectangles as line segments,
         // and these line segments don't have rounded corners.
-        // When the feathering is small (the size of a pixel), this is ususally fine,
+        // When the feathering is small (the size of a pixel), this is usually fine,
         // but here we have a huge feathering to simulate blur,
         // so we need to avoid this optimization in the tessellator,
         // which is also why we add this rather big epsilon:
