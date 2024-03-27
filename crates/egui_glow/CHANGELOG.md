@@ -6,6 +6,11 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.27.0 - 2024-03-26
+* Only disable sRGB framebuffer on supported platforms [#3994](https://github.com/emilk/egui/pull/3994) (thanks [@Nopey](https://github.com/Nopey)!)
+* Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
+
+
 ## 0.26.2 - 2024-02-14
 * Update memoffset to 0.9.0, arboard to 3.3.1, and remove egui_glow's needless dependency on pure_glow's deps  [#4036](https://github.com/emilk/egui/pull/4036) (thanks [@Nopey](https://github.com/Nopey)!)
 
