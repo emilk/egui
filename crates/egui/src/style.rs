@@ -1349,8 +1349,9 @@ impl Style {
 
             ui.label("Animation duration:");
             ui.add(
-                Slider::new(animation_time, 0.0..=1.0)
-                    .clamp_to_range(true)
+                DragValue::new(animation_time)
+                    .clamp_range(0.0..=1.0)
+                    .speed(0.02)
                     .suffix(" s"),
             );
             ui.end_row();
@@ -1627,8 +1628,16 @@ impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
         ui.label("Selectable labels");
-        ui_color(ui, bg_fill, "background fill");
-        stroke_ui(ui, stroke, "stroke");
+
+        Grid::new("selectiom").num_columns(2).show(ui, |ui| {
+            ui.label("Background fill");
+            ui.color_edit_button_srgba(bg_fill);
+            ui.end_row();
+
+            ui.label("Stroke");
+            ui.add(stroke);
+            ui.end_row();
+        });
     }
 }
 
@@ -1831,7 +1840,11 @@ impl Visuals {
         });
 
         ui_color(ui, hyperlink_color, "hyperlink_color");
-        stroke_ui(ui, text_cursor, "Text Cursor");
+
+        ui.horizontal(|ui| {
+            ui.label("Text Cursor");
+            ui.add(text_cursor);
+        });
 
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
         ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
