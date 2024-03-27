@@ -125,49 +125,6 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
     });
 }
 
-pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
-    let epaint::Shadow {
-        offset,
-        blur,
-        spread,
-        color,
-    } = shadow;
-
-    ui.label(text);
-    ui.indent(text, |ui| {
-        crate::Grid::new("shadow_ui").show(ui, |ui| {
-            ui.add(
-                DragValue::new(&mut offset.x)
-                    .speed(1.0)
-                    .clamp_range(-100.0..=100.0)
-                    .prefix("x: "),
-            );
-            ui.add(
-                DragValue::new(&mut offset.y)
-                    .speed(1.0)
-                    .clamp_range(-100.0..=100.0)
-                    .prefix("y: "),
-            );
-            ui.end_row();
-
-            ui.add(
-                DragValue::new(blur)
-                    .speed(1.0)
-                    .clamp_range(0.0..=100.0)
-                    .prefix("Blur:"),
-            );
-
-            ui.add(
-                DragValue::new(spread)
-                    .speed(1.0)
-                    .clamp_range(0.0..=100.0)
-                    .prefix("Spread:"),
-            );
-        });
-        ui.color_edit_button_srgba(color);
-    });
-}
-
 /// Show a small button to switch to/from dark/light mode (globally).
 pub fn global_dark_light_mode_switch(ui: &mut Ui) {
     let style: crate::Style = (*ui.ctx().style()).clone();

@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Margin, Response, RichText,
-    WidgetText,
+    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
+    RichText, WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -1499,7 +1499,7 @@ impl Spacing {
     }
 }
 
-fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
+pub fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
     let margin_range = 0.0..=20.0;
 
     ui.horizontal(|ui| {
@@ -1642,17 +1642,39 @@ impl WidgetVisuals {
             fg_stroke,
             expansion,
         } = self;
-        ui_color(ui, weak_bg_fill, "optional background fill")
-            .on_hover_text("For buttons, combo-boxes, etc");
-        ui_color(ui, mandatory_bg_fill, "mandatory background fill")
-            .on_hover_text("For checkboxes, sliders, etc");
-        stroke_ui(ui, bg_stroke, "background stroke");
 
-        rounding_ui(ui, rounding);
+        Grid::new("widget")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Optional background fill")
+                    .on_hover_text("For buttons, combo-boxes, etc");
+                ui.color_edit_button_srgba(weak_bg_fill);
+                ui.end_row();
 
-        stroke_ui(ui, fg_stroke, "foreground stroke (text)");
-        ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
-            .on_hover_text("make shapes this much larger");
+                ui.label("Mandatory background fill")
+                    .on_hover_text("For checkboxes, sliders, etc");
+                ui.color_edit_button_srgba(mandatory_bg_fill);
+                ui.end_row();
+
+                ui.label("Background stroke");
+                ui.add(bg_stroke);
+                ui.end_row();
+
+                ui.label("Rounding");
+                ui.add(rounding);
+                ui.end_row();
+
+                ui.label("Foreground stroke (text)");
+                ui.add(fg_stroke);
+                ui.end_row();
+
+                ui.label("Expansion")
+                    .on_hover_text("make shapes this much larger");
+                ui.add(DragValue::new(expansion).speed(0.1));
+                ui.end_row();
+            });
     }
 }
 
@@ -1745,16 +1767,45 @@ impl Visuals {
         });
 
         ui.collapsing("Window", |ui| {
-            ui_color(ui, window_fill, "Fill");
-            stroke_ui(ui, window_stroke, "Outline");
-            rounding_ui(ui, window_rounding);
-            shadow_ui(ui, window_shadow, "Shadow");
+            Grid::new("window")
+                .num_columns(2)
+                .spacing([12.0, 8.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Fill");
+                    ui.color_edit_button_srgba(window_fill);
+                    ui.end_row();
+
+                    ui.label("Stroke");
+                    ui.add(window_stroke);
+                    ui.end_row();
+
+                    ui.label("Rounding");
+                    ui.add(window_rounding);
+                    ui.end_row();
+
+                    ui.label("Shadow");
+                    ui.add(window_shadow);
+                    ui.end_row();
+                });
+
             ui.checkbox(window_highlight_topmost, "Highlight topmost Window");
         });
 
         ui.collapsing("Menus and popups", |ui| {
-            rounding_ui(ui, menu_rounding);
-            shadow_ui(ui, popup_shadow, "Shadow");
+            Grid::new("menus_and_popups")
+                .num_columns(2)
+                .spacing([12.0, 8.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Rounding");
+                    ui.add(menu_rounding);
+                    ui.end_row();
+
+                    ui.label("Shadow");
+                    ui.add(popup_shadow);
+                    ui.end_row();
+                });
         });
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
@@ -1896,32 +1947,6 @@ fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> R
         ui.label(label);
     })
     .response
-}
-
-fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
-    const MAX: f32 = 20.0;
-    let mut same = rounding.is_same();
-    ui.group(|ui| {
-        ui.horizontal(|ui| {
-            ui.label("Rounding: ");
-            ui.radio_value(&mut same, true, "Same");
-            ui.radio_value(&mut same, false, "Separate");
-        });
-
-        if same {
-            let mut cr = rounding.nw;
-            ui.add(Slider::new(&mut cr, 0.0..=MAX));
-            *rounding = Rounding::same(cr);
-        } else {
-            ui.add(Slider::new(&mut rounding.nw, 0.0..=MAX).text("North-West"));
-            ui.add(Slider::new(&mut rounding.ne, 0.0..=MAX).text("North-East"));
-            ui.add(Slider::new(&mut rounding.sw, 0.0..=MAX).text("South-West"));
-            ui.add(Slider::new(&mut rounding.se, 0.0..=MAX).text("South-East"));
-            if rounding.is_same() {
-                rounding.se *= 1.00001;
-            }
-        }
-    });
 }
 
 impl HandleShape {
