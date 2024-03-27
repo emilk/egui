@@ -688,7 +688,7 @@ impl<'t> TextEdit<'t> {
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
-                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO(emilk): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
                     if (response.changed || selection_changed) && !is_fully_visible {
                         // Scroll to keep primary cursor in view:
                         ui.scroll_to_rect(primary_cursor_rect, None);

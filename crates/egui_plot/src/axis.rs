@@ -106,7 +106,7 @@ pub struct AxisHints {
     pub(super) label_spacing: Rangef,
 }
 
-// TODO: this just a guess. It might cease to work if a user changes font size.
+// TODO(JohannesProgrammiert): this just a guess. It might cease to work if a user changes font size.
 const LINE_HEIGHT: f32 = 12.0;
 
 impl AxisHints {
@@ -366,7 +366,7 @@ impl AxisWidget {
 
                         match HPlacement::from(self.hints.placement) {
                             HPlacement::Left => {
-                                let angle = 0.0; // TODO: allow users to rotate text
+                                let angle = 0.0; // TODO(emilk): allow users to rotate text
 
                                 if angle == 0.0 {
                                     let x = self.rect.max.x - galley.size().x;
