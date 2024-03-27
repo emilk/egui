@@ -252,13 +252,19 @@ struct ViewportState {
 }
 
 /// What called [`Context::request_repaint`]?
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RepaintCause {
     /// What file had the call that requested the repaint?
     pub file: &'static str,
 
     /// What line number of the the call that requested the repaint?
     pub line: u32,
+}
+
+impl std::fmt::Debug for RepaintCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.file, self.line)
+    }
 }
 
 impl RepaintCause {
@@ -1465,7 +1471,7 @@ impl Context {
         self.read(|ctx| {
             ctx.viewports
                 .get(&ctx.viewport_id())
-                .map(|v| v.repaint.causes.clone())
+                .map(|v| v.repaint.prev_causes.clone())
         })
         .unwrap_or_default()
     }
