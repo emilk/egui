@@ -109,19 +109,11 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: 
 
 // ----------------------------------------------------------------------------
 
+#[deprecated = "Use `ui.add(&mut stroke)` instead"]
 pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
-    let epaint::Stroke { width, color } = stroke;
     ui.horizontal(|ui| {
-        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
-            .on_hover_text("Width");
-        ui.color_edit_button_srgba(color);
         ui.label(text);
-
-        // stroke preview:
-        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-        let left = stroke_rect.left_center();
-        let right = stroke_rect.right_center();
-        ui.painter().line_segment([left, right], (*width, *color));
+        ui.add(stroke);
     });
 }
 
