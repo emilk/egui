@@ -347,11 +347,11 @@ impl ViewportInfo {
             ui.end_row();
 
             ui.label("Close Cancelable:");
-            ui.label(format!("{:?}", close_cancelable));
+            ui.label(format!("{close_cancelable:?}"));
             ui.end_row();
 
             ui.label("Close Requested:");
-            ui.label(format!("{:?}", close_requested));
+            ui.label(format!("{close_requested:?}"));
             ui.end_row();
 
             fn opt_rect_as_string(v: &Option<Rect>) -> String {
