@@ -1530,20 +1530,41 @@ impl Interaction {
             selectable_labels,
             multi_widget_text_select,
         } = self;
-        ui.add(Slider::new(interact_radius, 0.0..=20.0).text("interact_radius"))
-            .on_hover_text("Interact with the closest widget within this radius.");
-        ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
-        ui.add(
-            Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
-        );
+
+        ui.spacing_mut().item_spacing = vec2(12.0, 8.0);
+
+        Grid::new("interaction")
+            .num_columns(2)
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("interact_radius")
+                    .on_hover_text("Interact with the closest widget within this radius.");
+                ui.add(DragValue::new(interact_radius).clamp_range(0.0..=20.0));
+                ui.end_row();
+
+                ui.label("resize_grab_radius_side").on_hover_text("Radius of the interactive area of the side of a window during drag-to-resize");
+                ui.add(DragValue::new(resize_grab_radius_side).clamp_range(0.0..=20.0));
+                ui.end_row();
+
+                ui.label("resize_grab_radius_corner").on_hover_text("Radius of the interactive area of the corner of a window during drag-to-resize.");
+                ui.add(DragValue::new(resize_grab_radius_corner).clamp_range(0.0..=20.0));
+                ui.end_row();
+
+                ui.label("Tooltip delay").on_hover_text(
+                    "Delay in seconds before showing tooltips after the mouse stops moving",
+                );
+                ui.add(
+                    DragValue::new(tooltip_delay)
+                        .clamp_range(0.0..=1.0)
+                        .speed(0.05)
+                        .suffix(" s"),
+                );
+                ui.end_row();
+            });
+
         ui.checkbox(
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
-        );
-        ui.add(
-            Slider::new(tooltip_delay, 0.0..=1.0)
-                .suffix(" s")
-                .text("tooltip_delay"),
         );
 
         ui.horizontal(|ui| {
