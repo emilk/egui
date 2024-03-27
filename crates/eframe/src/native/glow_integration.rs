@@ -976,8 +976,7 @@ impl GlutinWindowContext {
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            info.minimized = window.is_minimized();
-            info.maximized = Some(window.is_maximized());
+            info = egui_winit::get_update_viewport_info(&ViewportInfo::default(), window, None);
         }
 
         let mut viewports = ViewportIdMap::default();
@@ -1068,8 +1067,8 @@ impl GlutinWindowContext {
                 &window,
                 &viewport.builder,
             );
-            viewport.info.minimized = window.is_minimized();
-            viewport.info.maximized = Some(window.is_maximized());
+
+            info = egui_winit::get_update_viewport_info(&ViewportInfo::default(), window, None);
             viewport.window.insert(Arc::new(window))
         };
 
