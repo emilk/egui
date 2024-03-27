@@ -6,6 +6,7 @@ use epaint::{
     emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
 };
 
+use crate::response::ResponseBitfield;
 use crate::{
     animation_manager::AnimationManager,
     data::output::PlatformOutput,
@@ -1026,17 +1027,20 @@ impl Context {
             // but also to know when we have reached the widget we are checking for cover.
             viewport.widgets_this_frame.insert(w.layer_id, w);
 
-            if w.sense.focusable {
+            // if w.sense.focusable {
+            if w.sense.focusable() {
                 ctx.memory.interested_in_focus(w.id);
             }
         });
 
-        if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
+        // if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
+        if !w.enabled || !w.sense.focusable() || !w.layer_id.allow_interaction() {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
 
-        if w.sense.interactive() || w.sense.focusable {
+        // if w.sense.interactive() || w.sense.focusable {
+        if w.sense.interactive() || w.sense.focusable() {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
@@ -1044,7 +1048,8 @@ impl Context {
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
-        if w.sense.focusable {
+        // if w.sense.focusable {
+        if w.sense.focusable() {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
@@ -1075,7 +1080,10 @@ impl Context {
     #[deprecated = "Use Response.contains_pointer or Context::read_response instead"]
     pub fn widget_contains_pointer(&self, id: Id) -> bool {
         self.read_response(id)
-            .map_or(false, |response| response.contains_pointer)
+            // .map_or(false, |response| response.contains_pointer)
+            .map_or(false, |response| {
+                response.response_has(ResponseBitfield::ContainsPointer)
+            })
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.
@@ -1098,19 +1106,21 @@ impl Context {
             rect,
             interact_rect,
             sense,
-            enabled,
-            contains_pointer: false,
-            hovered: false,
-            highlighted,
-            clicked: false,
-            fake_primary_click: false,
-            long_touched: false,
-            drag_started: false,
-            dragged: false,
-            drag_stopped: false,
-            is_pointer_button_down_on: false,
+            bitfields: Response::response_bit_from_fields(
+                enabled,
+                false,
+                false,
+                highlighted,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
             interact_pointer_pos: None,
-            changed: false,
         };
 
         let clicked_elsewhere = res.clicked_elsewhere();
@@ -1118,61 +1128,103 @@ impl Context {
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
-            res.contains_pointer = viewport.interact_widgets.contains_pointer.contains(&id);
+            // res.contains_pointer = viewport.interact_widgets.contains_pointer.contains(&id);
+            // res.contains_pointer = viewport.interact_widgets.contains_pointer.contains(&id);
+            res.modify_field(
+                viewport.interact_widgets.contains_pointer.contains(&id),
+                ResponseBitfield::ContainsPointer,
+            );
 
             let input = &viewport.input;
             let memory = &mut ctx.memory;
 
             if enabled
-                && sense.click
+                // && sense.click
+                && sense.has_click()
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                res.fake_primary_click = true;
+                // res.fake_primary_click = true;
+                res.modify_field(true, ResponseBitfield::FakePrimaryClick);
             }
 
             #[cfg(feature = "accesskit")]
             if enabled
-                && sense.click
+                // && sense.click
+                && sense.has_click()
                 && input.has_accesskit_action_request(id, accesskit::Action::Default)
             {
-                res.fake_primary_click = true;
+                // res.fake_primary_click = true;
+                res.modify_field(true, ResponseBitfield::FakePrimaryClick);
             }
 
-            if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
-                res.long_touched = true;
+            // if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
+            if enabled && sense.has_click() && Some(id) == viewport.interact_widgets.long_touched {
+                // res.long_touched = true;
+                res.modify_field(true, ResponseBitfield::LongTouched);
             }
 
             let interaction = memory.interaction();
 
-            res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
-                || interaction.potential_drag_id == Some(id);
+            // res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
+            // || interaction.potential_drag_id == Some(id);
+            res.modify_field(
+                interaction.potential_click_id == Some(id)
+                || interaction.potential_drag_id == Some(id),
+                ResponseBitfield::IsPointerButtonDownOn,
+            );
 
-            if res.enabled {
-                res.hovered = viewport.interact_widgets.hovered.contains(&id);
-                res.dragged = Some(id) == viewport.interact_widgets.dragged;
-                res.drag_started = Some(id) == viewport.interact_widgets.drag_started;
-                res.drag_stopped = Some(id) == viewport.interact_widgets.drag_stopped;
+            // if res.enabled {
+            //     res.hovered = viewport.interact_widgets.hovered.contains(&id);
+            //     res.dragged = Some(id) == viewport.interact_widgets.dragged;
+            //     res.drag_started = Some(id) == viewport.interact_widgets.drag_started;
+            //     res.drag_stopped = Some(id) == viewport.interact_widgets.drag_stopped;
+            // }
+            if res.response_has(ResponseBitfield::Enabled) {
+                res.modify_field(
+                    viewport.interact_widgets.hovered.contains(&id),
+                    ResponseBitfield::Hovered,
+                );
+                res.modify_field(
+                    Some(id) == viewport.interact_widgets.dragged,
+                    ResponseBitfield::Dragged,
+                );
+                res.modify_field(
+                    Some(id) == viewport.interact_widgets.dragged,
+                    ResponseBitfield::DragStarted,
+                );
+                res.modify_field(
+                    Some(id) == viewport.interact_widgets.dragged,
+                    ResponseBitfield::DragStopped,
+                );
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
 
             for pointer_event in &input.pointer.pointer_events {
                 if let PointerEvent::Released { click, .. } = pointer_event {
-                    if enabled && sense.click && clicked && click.is_some() {
-                        res.clicked = true;
+                    // if enabled && sense.click && clicked && click.is_some() {
+                    if enabled && sense.has_click() && clicked && click.is_some() {
+                        // res.clicked = true;
+                        res.modify_field(true, ResponseBitfield::Clicked);
                     }
 
-                    res.is_pointer_button_down_on = false;
-                    res.dragged = false;
+                    // res.is_pointer_button_down_on = false;
+                    // res.dragged = false;
+                    res.modify_field(false, ResponseBitfield::IsPointerButtonDownOn);
+                    res.modify_field(false, ResponseBitfield::Dragged);
                 }
             }
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let is_interacted_with =
-                res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
+            // let is_interacted_with =
+            //     res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
+            let is_interacted_with = res.response_has(ResponseBitfield::IsPointerButtonDownOn)
+                || res.response_has(ResponseBitfield::LongTouched)
+                || clicked
+                || res.response_has(ResponseBitfield::DragStopped);
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
                 if let (Some(transform), Some(pos)) = (
@@ -1185,7 +1237,8 @@ impl Context {
 
             if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
-                res.hovered = false;
+                // res.hovered = false;
+                res.modify_field(false, ResponseBitfield::Hovered);
             }
 
             if clicked_elsewhere && memory.has_focus(id) {
@@ -1831,11 +1884,21 @@ impl Context {
                 let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
                     if rect.sense.interactive() {
-                        let (color, text) = if rect.sense.click && rect.sense.drag {
+                        // let (color, text) = if rect.sense.click && rect.sense.drag {
+                        //     (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
+                        // } else if rect.sense.click {
+                        //     (Color32::from_rgb(0x88, 0, 0), "click")
+                        // } else if rect.sense.drag {
+                        //     (Color32::from_rgb(0, 0, 0x88), "drag")
+                        // } else {
+                        //     continue;
+                        //     // (Color32::from_rgb(0, 0, 0x88), "hover")
+                        // };
+                        let (color, text) = if rect.sense.has_click() && rect.sense.has_drag() {
                             (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
-                        } else if rect.sense.click {
+                        } else if rect.sense.has_click() {
                             (Color32::from_rgb(0x88, 0, 0), "click")
-                        } else if rect.sense.drag {
+                        } else if rect.sense.has_drag() {
                             (Color32::from_rgb(0, 0, 0x88), "drag")
                         } else {
                             continue;
@@ -2669,7 +2732,8 @@ impl Context {
                     // TODO(emilk): `Sense::hover_highlight()`
                     if ui
                         .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
-                        .hovered
+                        // .hovered
+                        .response_has(ResponseBitfield::Hovered)
                         && is_visible
                     {
                         ui.ctx()

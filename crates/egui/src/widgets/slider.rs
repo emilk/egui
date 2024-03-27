@@ -862,7 +862,8 @@ impl<'a> Slider<'a> {
         self.slider_ui(ui, &response);
 
         let value = self.get_value();
-        response.changed = value != old_value;
+        // response.changed = value != old_value;
+        response.modify_field(value != old_value, ResponseBitfield::Changed);
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
@@ -940,6 +941,7 @@ impl<'a> Widget for Slider<'a> {
 // Logarithmic sliders are allowed to include zero and infinity,
 // even though mathematically it doesn't make sense.
 
+use crate::response::ResponseBitfield;
 use std::f64::INFINITY;
 
 /// When the user asks for an infinitely large range (e.g. logarithmic from zero),

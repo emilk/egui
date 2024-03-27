@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::*;
+use crate::sense::SenseBitField;
 
 use self::text_selection::LabelSelectionState;
 
@@ -135,7 +136,8 @@ impl Label {
             } else {
                 Sense::click()
             };
-            select_sense.focusable = false; // Don't move focus to labels with TAB key.
+            // select_sense.focusable = false; // Don't move focus to labels with TAB key.
+            select_sense.modify_field(false, SenseBitField::Focusable);
 
             sense = sense.union(select_sense);
         }

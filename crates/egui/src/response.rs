@@ -7,6 +7,62 @@ use crate::{
 
 // ----------------------------------------------------------------------------
 
+#[derive(Debug, Clone)]
+#[repr(u64)]
+pub enum ResponseBitfield {
+    /// Was the widget enabled?
+    /// If `false`, there was no interaction attempted (not even hover).
+    Enabled = 1 << 0,
+
+    // OUT:
+    /// The pointer is hovering above this widget.
+    ContainsPointer = 1 << 1,
+
+    /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
+    Hovered = 1 << 2,
+
+    /// The widget is highlighted via a call to [`crate::response::Response::highlight`] or [`Context::highlight_widget`].
+    Highlighted = 1 << 3,
+
+    /// This widget was clicked this frame.
+    ///
+    /// Which pointer and how many times we don't know,
+    /// and ask [`crate::InputState`] about at runtime.
+    ///
+    /// This is only set to true if the widget was clicked
+    /// by an actual mouse.
+    Clicked = 1 << 4,
+
+    /// This widget should act as if clicked due
+    /// to something else than a click.
+    ///
+    /// This is set to true if the widget has keyboard focus and
+    /// the user hit the Space or Enter key.
+    FakePrimaryClick = 1 << 5,
+
+    /// This widget was long-pressed on a touch screen to simulate a secondary click.
+    LongTouched = 1 << 6,
+
+    /// The widget started being dragged this frame.
+    DragStarted = 1 << 7,
+
+    /// The widget is being dragged.
+    Dragged = 1 << 8,
+
+    /// The widget was being dragged, but now it has been released.
+    DragStopped = 1 << 9,
+
+    /// Is the pointer button currently down on this widget?
+    /// This is true if the pointer is pressing down or dragging a widget
+    IsPointerButtonDownOn = 1 << 10,
+
+    /// Was the underlying data changed?
+    ///
+    /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
+    /// Always `false` for something like a [`Button`](crate::Button).
+    Changed = 1 << 11,
+}
+
 /// The result of adding a widget to a [`Ui`].
 ///
 /// A [`Response`] lets you know whether or not a widget is being hovered, clicked or dragged.
@@ -53,77 +109,104 @@ pub struct Response {
     /// (that is handled by the `Painter` directly).
     pub sense: Sense,
 
-    /// Was the widget enabled?
-    /// If `false`, there was no interaction attempted (not even hover).
-    #[doc(hidden)]
-    pub enabled: bool,
-
-    // OUT:
-    /// The pointer is hovering above this widget.
-    #[doc(hidden)]
-    pub contains_pointer: bool,
-
-    /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
-    #[doc(hidden)]
-    pub hovered: bool,
-
-    /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
-    #[doc(hidden)]
-    pub highlighted: bool,
-
-    /// This widget was clicked this frame.
-    ///
-    /// Which pointer and how many times we don't know,
-    /// and ask [`crate::InputState`] about at runtime.
-    ///
-    /// This is only set to true if the widget was clicked
-    /// by an actual mouse.
-    #[doc(hidden)]
-    pub clicked: bool,
-
-    /// This widget should act as if clicked due
-    /// to something else than a click.
-    ///
-    /// This is set to true if the widget has keyboard focus and
-    /// the user hit the Space or Enter key.
-    #[doc(hidden)]
-    pub fake_primary_click: bool,
-
-    /// This widget was long-pressed on a touch screen to simulate a secondary click.
-    #[doc(hidden)]
-    pub long_touched: bool,
-
-    /// The widget started being dragged this frame.
-    #[doc(hidden)]
-    pub drag_started: bool,
-
-    /// The widget is being dragged.
-    #[doc(hidden)]
-    pub dragged: bool,
-
-    /// The widget was being dragged, but now it has been released.
-    #[doc(hidden)]
-    pub drag_stopped: bool,
-
-    /// Is the pointer button currently down on this widget?
-    /// This is true if the pointer is pressing down or dragging a widget
-    #[doc(hidden)]
-    pub is_pointer_button_down_on: bool,
-
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
     /// `None` if the widget is not being interacted with.
     #[doc(hidden)]
     pub interact_pointer_pos: Option<Pos2>,
 
-    /// Was the underlying data changed?
-    ///
-    /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
-    /// Always `false` for something like a [`Button`](crate::Button).
-    #[doc(hidden)]
-    pub changed: bool,
+    /// Bitfields containing bool data, documented in Enum
+    pub bitfields: u64,
 }
 
 impl Response {
+    pub fn response_has(&self, field: ResponseBitfield) -> bool {
+        (self.bitfields & (field as u64)) != 0
+    }
+    pub fn modify_field(&mut self, add_or_remove: bool, field: ResponseBitfield) -> u64 {
+        match add_or_remove {
+            true => {
+                if !self.response_has(field.clone()) {
+                    self.bitfields += field as u64
+                }
+            }
+            false => {
+                if self.response_has(field.clone()) {
+                    self.bitfields -= field as u64
+                }
+            }
+        };
+        self.bitfields
+    }
+    pub fn modify_field_has(&mut self, add_or_remove: bool, field: ResponseBitfield) -> bool {
+        match add_or_remove {
+            true => {
+                if !self.response_has(field.clone()) {
+                    self.bitfields += field.clone() as u64
+                }
+            }
+            false => {
+                if self.response_has(field.clone()) {
+                    self.bitfields -= field.clone() as u64
+                }
+            }
+        };
+        self.response_has(field)
+    }
+    pub fn response_bit_from_fields(
+        enabled: bool,
+        contains_pointer: bool,
+        hovered: bool,
+        highlighted: bool,
+        clicked: bool,
+        fake_primary_click: bool,
+        long_touched: bool,
+        drag_started: bool,
+        dragged: bool,
+        drag_stopped: bool,
+        is_pointer_button_down_on: bool,
+        changed: bool,
+    ) -> u64 {
+        let mut bitfield: u64 = 0;
+
+        // Not sure if this is the best way to do this...
+        if enabled {
+            bitfield |= ResponseBitfield::Enabled as u64;
+        }
+        if contains_pointer {
+            bitfield |= ResponseBitfield::ContainsPointer as u64;
+        }
+        if hovered {
+            bitfield |= ResponseBitfield::Hovered as u64;
+        }
+        if highlighted {
+            bitfield |= ResponseBitfield::Highlighted as u64;
+        }
+        if clicked {
+            bitfield |= ResponseBitfield::Clicked as u64;
+        }
+        if fake_primary_click {
+            bitfield |= ResponseBitfield::FakePrimaryClick as u64;
+        }
+        if long_touched {
+            bitfield |= ResponseBitfield::LongTouched as u64;
+        }
+        if drag_started {
+            bitfield |= ResponseBitfield::DragStarted as u64;
+        }
+        if dragged {
+            bitfield |= ResponseBitfield::Dragged as u64;
+        }
+        if drag_stopped {
+            bitfield |= ResponseBitfield::DragStopped as u64;
+        }
+        if is_pointer_button_down_on {
+            bitfield |= ResponseBitfield::IsPointerButtonDownOn as u64;
+        }
+        if changed {
+            bitfield |= ResponseBitfield::Changed as u64;
+        }
+        bitfield
+    }
     /// Returns true if this widget was clicked this frame by the primary button.
     ///
     /// A click is registered when the mouse or touch is released within
@@ -138,7 +221,14 @@ impl Response {
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn clicked(&self) -> bool {
-        self.fake_primary_click || self.clicked_by(PointerButton::Primary)
+        // self.fake_primary_click || self.clicked_by(PointerButton::Primary)
+        self.response_has(ResponseBitfield::FakePrimaryClick)
+            || self.clicked_by(PointerButton::Primary)
+    }
+
+    #[inline(always)]
+    pub fn fake_primary_click(&self) -> bool {
+        self.response_has(ResponseBitfield::FakePrimaryClick)
     }
 
     /// Returns true if this widget was clicked this frame by the given mouse button.
@@ -151,7 +241,8 @@ impl Response {
     /// Use [`Self::secondary_clicked`] instead to also detect that.
     #[inline]
     pub fn clicked_by(&self, button: PointerButton) -> bool {
-        self.clicked && self.ctx.input(|i| i.pointer.button_clicked(button))
+        // self.clicked && self.ctx.input(|i| i.pointer.button_clicked(button))
+        self.response_has(ResponseBitfield::Clicked)  && self.ctx.input(|i| i.pointer.button_clicked(button))
     }
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
@@ -159,7 +250,9 @@ impl Response {
     /// This also returns true if the widget was pressed-and-held on a touch screen.
     #[inline]
     pub fn secondary_clicked(&self) -> bool {
-        self.long_touched || self.clicked_by(PointerButton::Secondary)
+        // self.long_touched || self.clicked_by(PointerButton::Secondary)
+        self.response_has(ResponseBitfield::LongTouched)
+            || self.clicked_by(PointerButton::Secondary)
     }
 
     /// Was this long-pressed on a touch screen?
@@ -167,7 +260,8 @@ impl Response {
     /// Usually you want to check [`Self::secondary_clicked`] instead.
     #[inline]
     pub fn long_touched(&self) -> bool {
-        self.long_touched
+        // self.long_touched
+        self.response_has(ResponseBitfield::LongTouched)
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
@@ -191,13 +285,15 @@ impl Response {
     /// Returns true if this widget was double-clicked this frame by the given button.
     #[inline]
     pub fn double_clicked_by(&self, button: PointerButton) -> bool {
-        self.clicked && self.ctx.input(|i| i.pointer.button_double_clicked(button))
+        // self.clicked && self.ctx.input(|i| i.pointer.button_double_clicked(button))
+        self.clicked() && self.ctx.input(|i| i.pointer.button_double_clicked(button))
     }
 
     /// Returns true if this widget was triple-clicked this frame by the given button.
     #[inline]
     pub fn triple_clicked_by(&self, button: PointerButton) -> bool {
-        self.clicked && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
+        // self.clicked && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
+        self.clicked() && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
     }
 
     /// `true` if there was a click *outside* this widget this frame.
@@ -231,7 +327,8 @@ impl Response {
     /// and the widget should be drawn in a gray disabled look.
     #[inline(always)]
     pub fn enabled(&self) -> bool {
-        self.enabled
+        // self.enabled
+        self.response_has(ResponseBitfield::Enabled)
     }
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
@@ -240,7 +337,8 @@ impl Response {
     /// `hovered` is always `false` for disabled widgets.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
-        self.hovered
+        // self.hovered
+        self.response_has(ResponseBitfield::Hovered)
     }
 
     /// Returns true if the pointer is contained by the response rect.
@@ -254,14 +352,16 @@ impl Response {
     /// [`Self::contains_pointer`] also checks that no other widget is covering this response rectangle.
     #[inline(always)]
     pub fn contains_pointer(&self) -> bool {
-        self.contains_pointer
+        // self.contains_pointer
+        self.response_has(ResponseBitfield::ContainsPointer)
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
     #[doc(hidden)]
     #[inline(always)]
     pub fn highlighted(&self) -> bool {
-        self.highlighted
+        // self.highlighted
+        self.response_has(ResponseBitfield::Highlighted)
     }
 
     /// This widget has the keyboard focus (i.e. is receiving key presses).
@@ -314,7 +414,8 @@ impl Response {
     /// This will only be true for a single frame.
     #[inline]
     pub fn drag_started(&self) -> bool {
-        self.drag_started
+        // self.drag_started
+        self.response_has(ResponseBitfield::DragStarted)
     }
 
     /// Did a drag on this widgets by the button begin this frame?
@@ -344,7 +445,8 @@ impl Response {
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
     pub fn dragged(&self) -> bool {
-        self.dragged
+        // self.dragged
+        self.response_has(ResponseBitfield::Dragged)
     }
 
     /// See [`Self::dragged`].
@@ -356,7 +458,8 @@ impl Response {
     /// The widget was being dragged, but now it has been released.
     #[inline]
     pub fn drag_stopped(&self) -> bool {
-        self.drag_stopped
+        // self.drag_stopped
+        self.response_has(ResponseBitfield::DragStopped)
     }
 
     /// The widget was being dragged by the button, but now it has been released.
@@ -368,7 +471,8 @@ impl Response {
     #[inline]
     #[deprecated = "Renamed 'dragged_stopped'"]
     pub fn drag_released(&self) -> bool {
-        self.drag_stopped
+        // self.drag_stopped
+        self.drag_stopped()
     }
 
     /// The widget was being dragged by the button, but now it has been released.
@@ -415,7 +519,8 @@ impl Response {
             crate::DragAndDrop::set_payload(&self.ctx, payload);
         }
 
-        if self.hovered() && !self.sense.click {
+        // if self.hovered() && !self.sense.click {
+        if self.hovered() && !self.sense.has_click() {
             // Things that can be drag-dropped should use the Grab cursor icon,
             // but if the thing is _also_ clickable, that can be annoying.
             self.ctx.set_cursor_icon(CursorIcon::Grab);
@@ -488,7 +593,8 @@ impl Response {
     /// This could also be thought of as "is this widget being interacted with?".
     #[inline(always)]
     pub fn is_pointer_button_down_on(&self) -> bool {
-        self.is_pointer_button_down_on
+        // self.is_pointer_button_down_on
+        self.response_has(ResponseBitfield::IsPointerButtonDownOn)
     }
 
     /// Was the underlying data changed?
@@ -503,7 +609,8 @@ impl Response {
     /// For instance, moving the cursor in a [`TextEdit`](crate::TextEdit) does not set this to `true`.
     #[inline(always)]
     pub fn changed(&self) -> bool {
-        self.changed
+        // self.changed
+        self.response_has(ResponseBitfield::Changed)
     }
 
     /// Report the data shown by this widget changed.
@@ -515,7 +622,8 @@ impl Response {
     /// So we call this when the text of a [`crate::TextEdit`], but not when the cursors changes.
     #[inline(always)]
     pub fn mark_changed(&mut self) {
-        self.changed = true;
+        // self.changed = true;
+        self.modify_field(true, ResponseBitfield::Changed);
     }
 
     /// Show this UI if the widget was hovered (i.e. a tooltip).
@@ -526,7 +634,8 @@ impl Response {
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.enabled && self.should_show_hover_ui() {
+        // if self.enabled && self.should_show_hover_ui() {
+        if self.enabled() && self.should_show_hover_ui() {
             crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -539,7 +648,8 @@ impl Response {
 
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if !self.enabled && self.should_show_hover_ui() {
+        // if !self.enabled && self.should_show_hover_ui() {
+        if !self.enabled() && self.should_show_hover_ui() {
             crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -552,7 +662,8 @@ impl Response {
 
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.enabled && self.should_show_hover_ui() {
+        // if self.enabled && self.should_show_hover_ui() {
+        if self.enabled() && self.should_show_hover_ui() {
             crate::containers::show_tooltip_at_pointer(
                 &self.ctx,
                 self.id.with("__tooltip"),
@@ -576,8 +687,10 @@ impl Response {
             return false;
         }
 
-        if self.enabled {
-            if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
+        // if self.enabled {
+        //     if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
+        if self.enabled() {
+            if !self.hovered() || !self.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
             }
         } else if !self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
@@ -649,7 +762,8 @@ impl Response {
     #[inline]
     pub fn highlight(mut self) -> Self {
         self.ctx.highlight_widget(self.id);
-        self.highlighted = true;
+        // self.highlighted = true;
+        self.modify_field(true, ResponseBitfield::Highlighted);
         self
     }
 
@@ -715,7 +829,8 @@ impl Response {
             rect: self.rect,
             interact_rect: self.interact_rect,
             sense: self.sense | sense,
-            enabled: self.enabled,
+            // enabled: self.enabled,
+            enabled: self.enabled(),
         })
     }
 
@@ -758,7 +873,8 @@ impl Response {
             Some(OutputEvent::TripleClicked(make_info()))
         } else if self.gained_focus() {
             Some(OutputEvent::FocusGained(make_info()))
-        } else if self.changed {
+        // } else if self.changed {
+        } else if self.changed() {
             Some(OutputEvent::ValueChanged(make_info()))
         } else {
             None
@@ -789,10 +905,11 @@ impl Response {
             x1: self.rect.max.x.into(),
             y1: self.rect.max.y.into(),
         });
-        if self.sense.focusable {
+        if self.sense.focusable() {
             builder.add_action(accesskit::Action::Focus);
         }
-        if self.sense.click && builder.default_action_verb().is_none() {
+        // if self.sense.click && builder.default_action_verb().is_none() {
+        if self.sense.has_click() && builder.default_action_verb().is_none() {
             builder.set_default_action_verb(accesskit::DefaultActionVerb::Click);
         }
     }
@@ -912,9 +1029,11 @@ impl Response {
     pub fn paint_debug_info(&self) {
         self.ctx.debug_painter().debug_rect(
             self.rect,
-            if self.hovered {
+            // if self.hovered {
+            if self.hovered() {
                 crate::Color32::DARK_GREEN
-            } else if self.enabled {
+            // } else if self.enabled {
+            } else if self.enabled() {
                 crate::Color32::BLUE
             } else {
                 crate::Color32::RED
@@ -938,26 +1057,41 @@ impl Response {
             "It makes no sense to combine Responses from two different layers"
         );
         Self {
-            ctx: other.ctx,
+            ctx: other.ctx.clone(),
             layer_id: self.layer_id,
             id: self.id,
             rect: self.rect.union(other.rect),
             interact_rect: self.interact_rect.union(other.interact_rect),
             sense: self.sense.union(other.sense),
-            enabled: self.enabled || other.enabled,
-            contains_pointer: self.contains_pointer || other.contains_pointer,
-            hovered: self.hovered || other.hovered,
-            highlighted: self.highlighted || other.highlighted,
-            clicked: self.clicked || other.clicked,
-            fake_primary_click: self.fake_primary_click || other.fake_primary_click,
-            long_touched: self.long_touched || other.long_touched,
-            drag_started: self.drag_started || other.drag_started,
-            dragged: self.dragged || other.dragged,
-            drag_stopped: self.drag_stopped || other.drag_stopped,
-            is_pointer_button_down_on: self.is_pointer_button_down_on
-                || other.is_pointer_button_down_on,
+            // enabled: self.enabled || other.enabled,
+            // contains_pointer: self.contains_pointer || other.contains_pointer,
+            // hovered: self.hovered || other.hovered,
+            // highlighted: self.highlighted || other.highlighted,
+            // clicked: self.clicked || other.clicked,
+            // fake_primary_click: self.fake_primary_click || other.fake_primary_click,
+            // long_touched: self.long_touched || other.long_touched,
+            // drag_started: self.drag_started || other.drag_started,
+            // dragged: self.dragged || other.dragged,
+            // drag_stopped: self.drag_stopped || other.drag_stopped,
+            // is_pointer_button_down_on: self.is_pointer_button_down_on
+            //     || other.is_pointer_button_down_on,
+            // changed: self.changed || other.changed,
+            bitfields: Self::response_bit_from_fields(
+                self.enabled() || other.enabled(),
+                self.contains_pointer() || other.contains_pointer(),
+                self.hovered() || other.hovered(),
+                self.highlighted() || other.highlighted(),
+                self.clicked() || other.clicked(),
+                self.fake_primary_click() || other.fake_primary_click(),
+                self.long_touched() || other.long_touched(),
+                self.drag_started() || other.drag_started(),
+                self.dragged() || other.dragged(),
+                self.drag_stopped() || other.drag_stopped(),
+                self.is_pointer_button_down_on()
+                    || other.is_pointer_button_down_on(),
+                self.changed() || other.changed(),
+            ),
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
-            changed: self.changed || other.changed,
         }
     }
 }

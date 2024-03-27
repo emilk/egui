@@ -471,7 +471,8 @@ impl LabelSelectionState {
     fn on_label(&mut self, ui: &Ui, response: &Response, galley_pos: Pos2, galley: &Galley) {
         let widget_id = response.id;
 
-        if response.hovered {
+        // if response.hovered {
+        if response.hovered() {
             ui.ctx().set_cursor_icon(CursorIcon::Text);
         }
 

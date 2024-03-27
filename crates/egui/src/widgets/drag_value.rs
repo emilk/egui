@@ -3,6 +3,7 @@
 use std::{cmp::Ordering, ops::RangeInclusive};
 
 use crate::*;
+use crate::response::ResponseBitfield;
 
 // ----------------------------------------------------------------------------
 
@@ -584,7 +585,8 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        response.changed = get(&mut get_set_value) != old_value;
+        // response.changed = get(&mut get_set_value) != old_value;
+        response.modify_field(get(&mut get_set_value) != old_value, ResponseBitfield::Changed);
 
         response.widget_info(|| WidgetInfo::drag_value(value));
 
