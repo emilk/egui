@@ -520,7 +520,7 @@ pub mod path {
         let min = rect.min;
         let max = rect.max;
 
-        let r = clamp_radius(rounding, rect);
+        let r = clamp_rounding(rounding, rect);
 
         if r == Rounding::ZERO {
             let min = rect.min;
@@ -531,11 +531,33 @@ pub mod path {
             path.push(pos2(max.x, max.y)); // right bottom
             path.push(pos2(min.x, max.y)); // left bottom
         } else {
-            add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0);
-            add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
-            add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
-            add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
-            path.dedup(); // We get duplicates for thin rectangles, producing visual artifats
+            // We need to avoid duplicated vertices, because that leads to visual artifacts later.
+            // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
+            let eps = f32::EPSILON * rect.size().max_elem();
+
+            add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0); // south east
+
+            if rect.width() <= r.se + r.sw + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0); // south west
+
+            if rect.height() <= r.sw + r.nw + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0); // north west
+
+            if rect.width() <= r.nw + r.ne + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0); // north east
+
+            if rect.height() <= r.ne + r.se + eps {
+                path.pop(); // avoid duplicated vertex
+            }
         }
     }
 
@@ -589,7 +611,7 @@ pub mod path {
     }
 
     // Ensures the radius of each corner is within a valid range
-    fn clamp_radius(rounding: Rounding, rect: Rect) -> Rounding {
+    fn clamp_rounding(rounding: Rounding, rect: Rect) -> Rounding {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
@@ -1864,7 +1886,7 @@ impl Tessellator {
             .filter(|(_, clipped_shape)| should_parallelize(&clipped_shape.shape))
             .map(|(index, clipped_shape)| {
                 crate::profile_scope!("tessellate_big_shape");
-                // TODO: reuse tessellator in a thread local
+                // TODO(emilk): reuse tessellator in a thread local
                 let mut tessellator = (*self).clone();
                 let mut mesh = Mesh::default();
                 tessellator.tessellate_shape(clipped_shape.shape.clone(), &mut mesh);

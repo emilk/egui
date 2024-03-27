@@ -236,7 +236,7 @@ impl InputState {
             // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
             unprocessed_scroll_delta += raw_scroll_delta;
             let dt = stable_dt.at_most(0.1);
-            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO: parameterize
+            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
             for d in 0..2 {
                 if unprocessed_scroll_delta[d].abs() < 1.0 {
@@ -326,6 +326,10 @@ impl InputState {
         self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
             || !self.events.is_empty()
+
+        // We need to wake up and check for press-and-hold for the context menu.
+        // TODO(emilk): wake up after `MAX_CLICK_DURATION` instead of every frame.
+        || (self.any_touches() && !self.pointer.is_decidedly_dragging())
     }
 
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
@@ -485,6 +489,11 @@ impl InputState {
 
     /// True if there currently are any fingers touching egui.
     pub fn any_touches(&self) -> bool {
+        self.touch_states.values().any(|t| t.any_touches())
+    }
+
+    /// True if we have ever received a touch event.
+    pub fn has_touch_screen(&self) -> bool {
         !self.touch_states.is_empty()
     }
 

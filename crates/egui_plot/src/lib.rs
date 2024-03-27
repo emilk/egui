@@ -800,7 +800,7 @@ impl Plot {
         let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
 
         let ([x_axis_widgets, y_axis_widgets], plot_rect) = axis_widgets(
-            PlotMemory::load(ui.ctx(), plot_id).as_ref(), // TODO: avoid loading plot memory twice
+            PlotMemory::load(ui.ctx(), plot_id).as_ref(), // TODO(emilk): avoid loading plot memory twice
             show_axes,
             complete_rect,
             [&x_axes, &y_axes],
@@ -1649,12 +1649,15 @@ impl PreparedPlot {
 
         let interact_radius_sq = (16.0_f32).powi(2);
 
-        let candidates = items.iter().filter_map(|item| {
-            let item = &**item;
-            let closest = item.find_closest(pointer, transform);
+        let candidates = items
+            .iter()
+            .filter(|entry| entry.allow_hover())
+            .filter_map(|item| {
+                let item = &**item;
+                let closest = item.find_closest(pointer, transform);
 
-            Some(item).zip(closest)
-        });
+                Some(item).zip(closest)
+            });
 
         let closest = candidates
             .min_by_key(|(_, elem)| elem.dist_sq.ord())

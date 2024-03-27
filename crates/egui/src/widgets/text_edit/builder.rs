@@ -527,7 +527,7 @@ impl<'t> TextEdit<'t> {
         // Since currently copying selected text in not supported on `eframe` web,
         // we prioritize touch-scrolling:
         let allow_drag_to_select =
-            ui.input(|i| !i.any_touches()) || ui.memory(|mem| mem.has_focus(id));
+            ui.input(|i| !i.has_touch_screen()) || ui.memory(|mem| mem.has_focus(id));
 
         let sense = if interactive {
             if allow_drag_to_select {
@@ -686,6 +686,7 @@ impl<'t> TextEdit<'t> {
 
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
+
 
                     let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
                     // if (response.changed || selection_changed) && !is_fully_visible {

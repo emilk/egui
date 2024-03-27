@@ -249,8 +249,8 @@ pub(crate) fn interact(
         hits.click.iter().chain(&hits.drag).map(|w| w.id).collect()
     } else {
         // Whatever is topmost is what we are hovering.
-        // TODO: consider handle hovering over multiple top-most widgets?
-        // TODO: allow hovering close widgets?
+        // TODO(emilk): consider handle hovering over multiple top-most widgets?
+        // TODO(emilk): allow hovering close widgets?
         hits.contains_pointer
             .last()
             .map(|w| w.id)
