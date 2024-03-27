@@ -860,9 +860,6 @@ pub struct Widgets {
     /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
 
-    /// The style of a unhovered widget.
-    pub unhovered: WidgetVisuals,
-
     /// The style of an interactive widget while you hover it, or when it is highlighted.
     ///
     /// See [`Response::hovered`], [`Response::highlighted`] and [`Response::highlight`].
