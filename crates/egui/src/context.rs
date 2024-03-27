@@ -1567,7 +1567,7 @@ impl Context {
 
     /// The [`Style`] used by all new windows, panels etc.
     ///
-    /// You can also change this using [`Self::style_mut]`
+    /// You can also change this using [`Self::style_mut`]
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
