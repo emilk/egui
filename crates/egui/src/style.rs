@@ -1395,14 +1395,6 @@ impl Widgets {
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
-            unhovered: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(27),
-                bg_fill: Color32::from_gray(27),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(140)),
-                rounding: Rounding::same(2.0),
-                expansion: 0.0,
-            },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(70),
                 bg_fill: Color32::from_gray(70),
@@ -1445,14 +1437,6 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
-                rounding: Rounding::same(2.0),
-                expansion: 0.0,
-            },
-            unhovered: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(248),
-                bg_fill: Color32::from_gray(248),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
@@ -1796,7 +1780,6 @@ impl Widgets {
         let Self {
             noninteractive,
             inactive,
-            unhovered,
             hovered,
             active,
             open,
@@ -1811,10 +1794,6 @@ impl Widgets {
         ui.collapsing("Interactive but inactive", |ui| {
             ui.label("The style of an interactive widget, such as a button, at rest.");
             inactive.ui(ui);
-        });
-        ui.collapsing("Interactive and unhovered", |ui| {
-            ui.label("The style of an interactive widget while you unhover it.");
-            unhovered.ui(ui);
         });
         ui.collapsing("Interactive and hovered", |ui| {
             ui.label("The style of an interactive widget while you hover it.");
