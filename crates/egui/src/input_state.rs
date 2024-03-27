@@ -485,6 +485,11 @@ impl InputState {
 
     /// True if there currently are any fingers touching egui.
     pub fn any_touches(&self) -> bool {
+        self.touch_states.values().any(|t| t.any_touches())
+    }
+
+    /// True if we have ever received a touch event.
+    pub fn has_touch_screen(&self) -> bool {
         !self.touch_states.is_empty()
     }
 
