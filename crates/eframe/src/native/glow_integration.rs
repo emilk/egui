@@ -779,7 +779,7 @@ impl GlowWinitRunning {
                     if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                         // Tell viewport it should close:
                         viewport.info.events.push(egui::ViewportEvent::Close);
-                        viewport.info.close_requested = Some(true);
+                        viewport.info.close_requested = true;
 
                         // We may need to repaint both us and our parent to close the window,
                         // and perhaps twice (once to notice the close-event, once again to enforce it).
