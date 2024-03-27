@@ -1068,7 +1068,7 @@ impl GlutinWindowContext {
                 &viewport.builder,
             );
 
-            info = egui_winit::get_update_viewport_info(&ViewportInfo::default(), window, None);
+            viewport.info = egui_winit::get_update_viewport_info(&viewport.info, &window, None);
             viewport.window.insert(Arc::new(window))
         };
 
