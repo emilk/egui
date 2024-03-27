@@ -519,7 +519,8 @@ impl Response {
             crate::DragAndDrop::set_payload(&self.ctx, payload);
         }
 
-        if self.hovered() && !self.sense.click {
+        // if self.hovered() && !self.sense.click {
+        if self.hovered() && !self.sense.has_click() {
             // Things that can be drag-dropped should use the Grab cursor icon,
             // but if the thing is _also_ clickable, that can be annoying.
             self.ctx.set_cursor_icon(CursorIcon::Grab);
@@ -904,10 +905,11 @@ impl Response {
             x1: self.rect.max.x.into(),
             y1: self.rect.max.y.into(),
         });
-        if self.sense.focusable {
+        if self.sense.focusable() {
             builder.add_action(accesskit::Action::Focus);
         }
-        if self.sense.click && builder.default_action_verb().is_none() {
+        // if self.sense.click && builder.default_action_verb().is_none() {
+        if self.sense.has_click() && builder.default_action_verb().is_none() {
             builder.set_default_action_verb(accesskit::DefaultActionVerb::Click);
         }
     }

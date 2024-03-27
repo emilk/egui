@@ -186,14 +186,16 @@ pub(crate) fn interact(
         // Check if we started dragging something new:
         if let Some(widget) = interaction.potential_drag_id.and_then(|id| widgets.get(id)) {
             if widget.enabled {
-                let is_dragged = if widget.sense.click && widget.sense.drag {
+                // let is_dragged = if widget.sense.click && widget.sense.drag {
+                let is_dragged = if widget.sense.has_click() && widget.sense.has_drag() {
                     // This widget is sensitive to both clicks and drags.
                     // When the mouse first is pressed, it could be either,
                     // so we postpone the decision until we know.
                     input.pointer.is_decidedly_dragging()
                 } else {
                     // This widget is just sensitive to drags, so we can mark it as dragged right away:
-                    widget.sense.drag
+                    // widget.sense.drag
+                    widget.sense.has_drag()
                 };
 
                 if is_dragged {

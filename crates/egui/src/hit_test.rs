@@ -83,8 +83,10 @@ pub fn hit_test(
         // the `enabled` flag everywhere:
         for w in &mut close {
             if !w.enabled {
-                w.sense.click = false;
-                w.sense.drag = false;
+                // w.sense.click = false;
+                // w.sense.drag = false;
+                w.sense.set_click(false);
+                w.sense.set_drag(false);
             }
         }
 
@@ -92,10 +94,12 @@ pub fn hit_test(
         let hits = hit_test_on_close(&close, pos_in_layer);
 
         if let Some(drag) = hits.drag {
-            debug_assert!(drag.sense.drag);
+            // debug_assert!(drag.sense.drag);
+            debug_assert!(drag.sense.has_drag());
         }
         if let Some(click) = hits.click {
-            debug_assert!(click.sense.click);
+            // debug_assert!(click.sense.click);
+            debug_assert!(click.sense.has_click());
         }
 
         hits
@@ -115,9 +119,10 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
         .copied()
         .collect();
 
-    let hit_click = hits.iter().copied().filter(|w| w.sense.click).last();
-    let hit_drag = hits.iter().copied().filter(|w| w.sense.drag).last();
-
+    // let hit_click = hits.iter().copied().filter(|w| w.sense.click).last();
+    // let hit_drag = hits.iter().copied().filter(|w| w.sense.drag).last();
+    let hit_click = hits.iter().copied().filter(|w| w.sense.has_click()).last();
+    let hit_drag = hits.iter().copied().filter(|w| w.sense.has_drag()).last();
     match (hit_click, hit_drag) {
         (None, None) => {
             // No direct hit on anything. Find the closest interactive widget.
@@ -126,15 +131,18 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                 close
                     .iter()
                     .copied()
-                    .filter(|w| w.sense.click || w.sense.drag),
+                    // .filter(|w| w.sense.click || w.sense.drag),
+                    .filter(|w| w.sense.has_click() || w.sense.has_drag()),
                 pos,
             );
 
             if let Some(closest) = closest {
                 WidgetHits {
                     contains_pointer: hits,
-                    click: closest.sense.click.then_some(closest),
-                    drag: closest.sense.drag.then_some(closest),
+                    // click: closest.sense.click.then_some(closest),
+                    // drag: closest.sense.drag.then_some(closest),
+                    click: closest.sense.has_click().then_some(closest),
+                    drag: closest.sense.has_drag().then_some(closest),
                 }
             } else {
                 // Found nothing
@@ -154,9 +162,11 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
             // or a moveable window.
             // It could also be something small, like a slider, or panel resize handle.
 
-            let closest_click = find_closest(close.iter().copied().filter(|w| w.sense.click), pos);
+            // let closest_click = find_closest(close.iter().copied().filter(|w| w.sense.click), pos);
+            let closest_click = find_closest(close.iter().copied().filter(|w| w.sense.has_click()), pos);
             if let Some(closest_click) = closest_click {
-                if closest_click.sense.drag {
+                // if closest_click.sense.drag {
+                if closest_click.sense.has_drag() {
                     // We have something close that sense both clicks and drag.
                     // Should we use it over the direct drag-hit?
                     if hit_drag
@@ -213,7 +223,8 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                     close
                         .iter()
                         .copied()
-                        .filter(|w| w.sense.drag && w.id != hit_drag.id),
+                        // .filter(|w| w.sense.drag && w.id != hit_drag.id),
+                        .filter(|w| w.sense.has_drag() && w.id != hit_drag.id),
                     pos,
                 );
 
@@ -267,7 +278,8 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
             let click_is_on_top_of_drag = drag_idx < click_idx;
             if click_is_on_top_of_drag {
-                if hit_click.sense.drag {
+                if hit_click.sense.has_drag() {
+                // if hit_click.sense.drag {
                     // The top thing senses both clicks and drags.
                     WidgetHits {
                         contains_pointer: hits,
@@ -285,7 +297,8 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                     }
                 }
             } else {
-                if hit_drag.sense.click {
+                // if hit_drag.sense.click {
+                if hit_drag.sense.has_click() {
                     // The top thing senses both clicks and drags.
                     WidgetHits {
                         contains_pointer: hits,

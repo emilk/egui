@@ -1021,17 +1021,20 @@ impl Context {
             // but also to know when we have reached the widget we are checking for cover.
             viewport.widgets_this_frame.insert(w.layer_id, w);
 
-            if w.sense.focusable {
+            // if w.sense.focusable {
+            if w.sense.focusable() {
                 ctx.memory.interested_in_focus(w.id);
             }
         });
 
-        if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
+        // if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
+        if !w.enabled || !w.sense.focusable() || !w.layer_id.allow_interaction() {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
 
-        if w.sense.interactive() || w.sense.focusable {
+        // if w.sense.interactive() || w.sense.focusable {
+        if w.sense.interactive() || w.sense.focusable() {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
@@ -1039,7 +1042,8 @@ impl Context {
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
-        if w.sense.focusable {
+        // if w.sense.focusable {
+        if w.sense.focusable() {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
@@ -1129,7 +1133,8 @@ impl Context {
             let memory = &mut ctx.memory;
 
             if enabled
-                && sense.click
+                // && sense.click
+                && sense.has_click()
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
@@ -1140,14 +1145,16 @@ impl Context {
 
             #[cfg(feature = "accesskit")]
             if enabled
-                && sense.click
+                // && sense.click
+                && sense.has_click()
                 && input.has_accesskit_action_request(id, accesskit::Action::Default)
             {
                 // res.fake_primary_click = true;
                 res.modify_field(true, ResponseBitfield::FakePrimaryClick);
             }
 
-            if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
+            // if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
+            if enabled && sense.has_click() && Some(id) == viewport.interact_widgets.long_touched {
                 // res.long_touched = true;
                 res.modify_field(true, ResponseBitfield::LongTouched);
             }
@@ -1191,7 +1198,8 @@ impl Context {
 
             for pointer_event in &input.pointer.pointer_events {
                 if let PointerEvent::Released { click, .. } = pointer_event {
-                    if enabled && sense.click && clicked && click.is_some() {
+                    // if enabled && sense.click && clicked && click.is_some() {
+                    if enabled && sense.has_click() && clicked && click.is_some() {
                         // res.clicked = true;
                         res.modify_field(true, ResponseBitfield::Clicked);
                     }
@@ -1870,11 +1878,21 @@ impl Context {
                 let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
                     if rect.sense.interactive() {
-                        let (color, text) = if rect.sense.click && rect.sense.drag {
+                        // let (color, text) = if rect.sense.click && rect.sense.drag {
+                        //     (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
+                        // } else if rect.sense.click {
+                        //     (Color32::from_rgb(0x88, 0, 0), "click")
+                        // } else if rect.sense.drag {
+                        //     (Color32::from_rgb(0, 0, 0x88), "drag")
+                        // } else {
+                        //     continue;
+                        //     // (Color32::from_rgb(0, 0, 0x88), "hover")
+                        // };
+                        let (color, text) = if rect.sense.has_click() && rect.sense.has_drag() {
                             (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
-                        } else if rect.sense.click {
+                        } else if rect.sense.has_click() {
                             (Color32::from_rgb(0x88, 0, 0), "click")
-                        } else if rect.sense.drag {
+                        } else if rect.sense.has_drag() {
                             (Color32::from_rgb(0, 0, 0x88), "drag")
                         } else {
                             continue;

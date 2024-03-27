@@ -119,7 +119,8 @@ impl TextCursorState {
                 secondary: galley.from_ccursor(ccursor_range.secondary),
             }));
             true
-        } else if response.sense.drag {
+        // } else if response.sense.drag {
+            } else if response.sense.has_drag() {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 // The start of a drag (or a click).
                 if ui.input(|i| i.modifiers.shift) {
