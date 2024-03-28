@@ -177,6 +177,11 @@ impl TouchState {
         }
     }
 
+    /// Are there currently any fingers touching the surface?
+    pub fn any_touches(&self) -> bool {
+        !self.active_touches.is_empty()
+    }
+
     pub fn info(&self) -> Option<MultiTouchInfo> {
         self.gesture_state.as_ref().map(|state| {
             // state.previous can be `None` when the number of simultaneous touches has just
