@@ -48,7 +48,7 @@ impl EasyMarkEditor {
             let _ = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
             ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.end_row();
         });
         ui.separator();

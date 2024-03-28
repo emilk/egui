@@ -131,7 +131,7 @@ impl super::Demo for ManualLayoutTest {
 
 impl super::View for ManualLayoutTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::reset_button(ui, self);
+        egui::reset_button(ui, self, "Reset");
 
         let Self {
             widget_offset,
@@ -298,7 +298,7 @@ impl super::View for TableTest {
         });
 
         ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.add(crate::egui_github_link_file!());
         });
     }
