@@ -25,6 +25,8 @@ pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
 /// Used to restore egui state, glium window position/size and app state.
 pub struct FileStorage {
     ron_filepath: PathBuf,
+    properly_read: bool,
+    last_save_success: Option<bool>,
     kv: HashMap<String, String>,
     dirty: bool,
     last_save_join_handle: Option<std::thread::JoinHandle<()>>,
@@ -41,12 +43,20 @@ impl Drop for FileStorage {
 
 impl FileStorage {
     /// Store the state in this .ron file.
-    fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
+    ///
+    /// This may internally fail to correctly read the app-state from the given path.
+    /// See [`Self::was_properly_read()`] for finding out, if the app-state was correctly read.
+    /// If it wasn't, you may also want to read [`Self::attempt_reinit()`]
+    pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         crate::profile_function!();
         let ron_filepath: PathBuf = ron_filepath.into();
         log::debug!("Loading app state from {:?}…", ron_filepath);
+        let kv = read_ron(&ron_filepath);
+        let properly_read = kv.is_some();
         Self {
-            kv: read_ron(&ron_filepath).unwrap_or_default(),
+            kv: kv.unwrap_or_default(),
+            properly_read,
+            last_save_success: None,
             ron_filepath,
             dirty: false,
             last_save_join_handle: None,
@@ -70,6 +80,52 @@ impl FileStorage {
         } else {
             log::warn!("Saving disabled: Failed to find path to data_dir.");
             None
+        }
+    }
+
+    ///Returns true, if the contents of this store were
+    ///properly read during initialisation, or if the
+    ///contents of this store are empty.
+    #[allow(dead_code)] //part of api
+    pub const fn was_properly_read(&self) -> bool {
+        self.properly_read
+    }
+
+    ///Returns true, if the last save to disk for this store
+    ///succeeded. May return None, in case this store has not attempted
+    /// to save anything to disk.
+    ///
+    /// This will get reset to `None`, if all the following criteria are met:
+    /// - [`Self::was_properly_read()`] returns false,
+    /// - [`Self::attempt_reinit()`] is used and returns `Some(true)`.
+    #[allow(dead_code)] //part of api
+    pub const fn last_save_success(&self) -> Option<bool> {
+        self.last_save_success
+    }
+
+    /// Attempts to re-initialize this store, if [`Self::was_properly_read()`] returns false.
+    ///
+    /// if [`Self::was_properly_read()`] returns true, this will return None.
+    /// if this function fails to properly read the app-state `Some(false)` is returned.
+    /// if this function can properly read the app-state from the given path `Some(true)` is returned,
+    /// and [`Self::last_save_success()`] is reset
+    #[allow(dead_code)] //part of api
+    pub fn attempt_reinit(&mut self, ron_filepath: impl Into<PathBuf>) -> Option<bool> {
+        if self.was_properly_read() {
+            None
+        } else {
+            crate::profile_function!();
+            let ron_filepath: PathBuf = ron_filepath.into();
+            log::debug!("Attempting to re-load app state from {:?} instead of from {:?}, because the last attempt to read the app-state failed.", ron_filepath, self.ron_filepath);
+            let kv = read_ron(&ron_filepath);
+            match kv {
+                None => Some(false),
+                Some(kv) => {
+                    self.kv = kv;
+                    self.last_save_success = None;
+                    Some(true)
+                }
+            }
         }
     }
 }
@@ -116,7 +172,9 @@ impl crate::Storage for FileStorage {
     }
 }
 
-fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
+///Saves the provided `kv` store to disk at the provided `file_path`.
+///Returns true, if the `kv` store has been successfully written.
+fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) -> bool {
     crate::profile_function!();
 
     if let Some(parent_dir) = file_path.parent() {
@@ -137,12 +195,15 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
                 log::warn!("Failed to serialize app state: {}", err);
+                false
             } else {
                 log::trace!("Persisted to {:?}", file_path);
+                true
             }
         }
         Err(err) => {
             log::warn!("Failed to create file {file_path:?}: {err}");
+            false
         }
     }
 }
