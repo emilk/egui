@@ -64,6 +64,12 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
             // we don't preview indentation, because it is confusing
             skip = 1;
         } else if start_of_line && text.starts_with("# ") {
+            style.heading3 = true;
+            skip = 2;
+        } else if start_of_line && text.starts_with("## ") {
+            style.heading2 = true;
+            skip = 2;
+        } else if start_of_line && text.starts_with("### ") {
             style.heading = true;
             skip = 2;
         } else if start_of_line && text.starts_with("> ") {
