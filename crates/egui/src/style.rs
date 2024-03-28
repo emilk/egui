@@ -1933,10 +1933,7 @@ impl DebugOptions {
 }
 
 // TODO(emilk): improve and standardize
-fn two_drag_values<'a>(
-    value: &'a mut Vec2,
-    range: std::ops::RangeInclusive<f32>,
-) -> impl Widget + 'a {
+fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> impl Widget + '_ {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {
             ui.add(
