@@ -1379,7 +1379,7 @@ impl Style {
                 "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset style"));
     }
 }
 
@@ -1392,7 +1392,7 @@ fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) ->
                 ui.end_row();
             }
         });
-        crate::reset_button_with(ui, text_styles, default_text_styles());
+        crate::reset_button_with(ui, text_styles, "Reset text styles", default_text_styles());
     })
     .response
 }
@@ -1515,7 +1515,7 @@ impl Spacing {
             scroll.ui(ui);
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset spacing"));
     }
 }
 
@@ -1574,7 +1574,7 @@ impl Interaction {
             }
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset interaction settings"));
     }
 }
 
@@ -1883,7 +1883,7 @@ impl Visuals {
             });
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
     }
 }
 
@@ -1928,7 +1928,7 @@ impl DebugOptions {
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
     }
 }
 

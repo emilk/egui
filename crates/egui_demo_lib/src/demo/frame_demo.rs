@@ -48,7 +48,7 @@ impl super::View for FrameDemo {
 
                 ui.add_space(8.0);
                 ui.set_max_width(ui.min_size().x);
-                ui.vertical_centered(|ui| egui::reset_button(ui, self));
+                ui.vertical_centered(|ui| egui::reset_button(ui, self, "Reset"));
             });
 
             ui.separator();
