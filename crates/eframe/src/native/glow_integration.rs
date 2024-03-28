@@ -980,8 +980,7 @@ impl GlutinWindowContext {
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            info.minimized = window.is_minimized();
-            info.maximized = Some(window.is_maximized());
+            info = egui_winit::get_update_viewport_info(&ViewportInfo::default(), window, None);
         }
 
         let mut viewports = ViewportIdMap::default();
@@ -1072,8 +1071,8 @@ impl GlutinWindowContext {
                 &window,
                 &viewport.builder,
             );
-            viewport.info.minimized = window.is_minimized();
-            viewport.info.maximized = Some(window.is_maximized());
+
+            viewport.info = egui_winit::get_update_viewport_info(&viewport.info, &window, None);
             viewport.window.insert(Arc::new(window))
         };
 
@@ -1202,6 +1201,22 @@ impl GlutinWindowContext {
         self.gl_config.display().get_proc_address(addr)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
+    pub(crate) fn remove_viewports_not_in(
+        &mut self,
+        viewport_output: ViewportIdMap<ViewportOutput>,
+    ) {
+        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+        // GC old viewports
+        self.viewports
+            .retain(|id, _| active_viewports_ids.contains(id));
+        self.viewport_from_window
+            .retain(|_, id| active_viewports_ids.contains(id));
+        self.window_from_viewport
+            .retain(|id, _| active_viewports_ids.contains(id));
+    }
+
     fn handle_viewport_output(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -1209,8 +1224,6 @@ impl GlutinWindowContext {
         viewport_output: ViewportIdMap<ViewportOutput>,
     ) {
         crate::profile_function!();
-
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
         for (
             viewport_id,
@@ -1222,7 +1235,7 @@ impl GlutinWindowContext {
                 commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
-        ) in viewport_output
+        ) in viewport_output.clone()
         {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
@@ -1237,6 +1250,8 @@ impl GlutinWindowContext {
             );
 
             if let Some(window) = &viewport.window {
+                let save_inner_size = window.inner_size();
+
                 let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                 egui_winit::process_viewport_commands(
                     egui_ctx,
@@ -1246,19 +1261,29 @@ impl GlutinWindowContext {
                     is_viewport_focused,
                     &mut viewport.screenshot_requested,
                 );
+
+                // For Wayland : https://github.com/emilk/egui/issues/4196
+                if cfg!(target_os = "linux") {
+                    let inner_size = window.inner_size();
+                    if inner_size != save_inner_size {
+                        Self::resize_for_other_os(self, viewport_id, inner_size);
+                    }
+                }
             }
         }
 
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        // GC old viewports
-        self.viewports
-            .retain(|id, _| active_viewports_ids.contains(id));
-        self.viewport_from_window
-            .retain(|_, id| active_viewports_ids.contains(id));
-        self.window_from_viewport
-            .retain(|id, _| active_viewports_ids.contains(id));
+        self.remove_viewports_not_in(viewport_output);
+    }
+
+    fn resize_for_other_os(
+        &mut self,
+        viewport_id: ViewportId,
+        inner_size: winit::dpi::PhysicalSize<u32>,
+    ) {
+        self.resize(viewport_id, inner_size);
     }
 }
 
