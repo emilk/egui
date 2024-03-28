@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::time::{Duration, Instant};
 
 use crate::load::TextureLoadResult;
 use crate::{
@@ -43,7 +44,8 @@ use epaint::{util::FloatOrd, RectShape};
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
-    source: ImageSource<'a>,
+    id: Id,
+    sources: ImageSources<'a>,
     texture_options: TextureOptions,
     image_options: ImageOptions,
     sense: Sense,
@@ -51,7 +53,84 @@ pub struct Image<'a> {
     pub(crate) show_loading_spinner: Option<bool>,
 }
 
+#[derive(Debug, Clone)]
+pub enum ImageSources<'a> {
+    Multi(Vec<(ImageSource<'a>, Duration)>),
+    Single(ImageSource<'a>),
+}
+
+impl<'a> ImageSources<'a> {
+    pub fn get_source(&self, ctx: &Context, id: Id) -> &'a ImageSource<'_> {
+        match self {
+            ImageSources::Multi(imgs) => {
+                let now = Instant::now();
+                let index = ctx.data_mut(|data| {
+                    let data = data.get_temp_mut_or_insert_with(id, || ImageData {
+                        image: 0,
+                        last_refresh: now,
+                    });
+                    let dur = imgs[data.image].1;
+                    if data.last_refresh + dur < now {
+                        data.image = (data.image + 1) % imgs.len();
+                        data.last_refresh = now;
+                        //TODO:
+                        //ctx.request_repaint_after(dur);
+                    }
+                    data.image
+                });
+                imgs.get(index).map(|(img, _)| img).unwrap()
+            }
+            ImageSources::Single(img) => img,
+        }
+    }
+}
+
+impl<'a> From<ImageSource<'a>> for ImageSources<'a> {
+    fn from(value: ImageSource<'a>) -> Self {
+        Self::Single(value)
+    }
+}
+
+impl<'a> From<Vec<(ImageSource<'a>, Duration)>> for ImageSources<'a> {
+    fn from(value: Vec<(ImageSource<'a>, Duration)>) -> Self {
+        Self::Multi(value)
+    }
+}
+
 impl<'a> Image<'a> {
+    /// Loads gif from id & `[ImageSources]`
+    /// `egui::Image::new_gif(egui_extras::include_gif!("../../assets/ferris.gif"))`
+    pub fn new_gif((id, sources): (impl ToString, impl Into<ImageSources<'a>>)) -> Self {
+        fn new_mono(id: String, sources: ImageSources<'_>) -> Image<'_> {
+            let img_source = match &sources {
+                ImageSources::Multi(v) => v.first().map(|v| &v.0),
+                ImageSources::Single(v) => Some(v),
+            };
+            let size = if let Some(ImageSource::Texture(tex)) = img_source {
+                // User is probably expecting their texture to have
+                // the exact size of the provided `SizedTexture`.
+                ImageSize {
+                    maintain_aspect_ratio: true,
+                    max_size: Vec2::INFINITY,
+                    fit: ImageFit::Exact(tex.size),
+                }
+            } else {
+                Default::default()
+            };
+            Image {
+                id: Id::new(id),
+                sources,
+                texture_options: Default::default(),
+                image_options: Default::default(),
+                sense: Sense::hover(),
+                size,
+                show_loading_spinner: None,
+            }
+        }
+
+        new_mono(id.to_string(), sources.into())
+    }
+
     /// Load the image from some source.
     pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
         fn new_mono(source: ImageSource<'_>) -> Image<'_> {
@@ -66,9 +145,9 @@ impl<'a> Image<'a> {
             } else {
                 Default::default()
             };
-
             Image {
-                source,
+                id: Id::NULL,
+                sources: source.into(),
                 texture_options: Default::default(),
                 image_options: Default::default(),
                 sense: Sense::hover(),
@@ -275,8 +354,8 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
-    pub fn size(&self) -> Option<Vec2> {
-        match &self.source {
+    pub fn size(&self, ctx: &Context) -> Option<Vec2> {
+        match self.source(ctx) {
             ImageSource::Texture(texture) => Some(texture.size),
             ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,
         }
@@ -288,8 +367,13 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
-    pub fn source(&self) -> &ImageSource<'a> {
-        &self.source
+    pub fn source(&'a self, ctx: &Context) -> &ImageSource<'a> {
+        self.sources.get_source(ctx, self.id)
+    }
+
+    #[inline]
+    pub fn sources(&'a self) -> &ImageSources<'a> {
+        &self.sources
     }
 
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
@@ -300,7 +384,7 @@ impl<'a> Image<'a> {
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load_for_size(&self, ctx: &Context, available_size: Vec2) -> TextureLoadResult {
         let size_hint = self.size.hint(available_size);
-        self.source
+        self.source(ctx)
             .clone()
             .load(ctx, self.texture_options, size_hint)
     }
@@ -344,7 +428,7 @@ impl<'a> Widget for Image<'a> {
                 &self.image_options,
             );
         }
-        texture_load_result_response(&self.source, &tlr, response)
+        texture_load_result_response(self.source(ui.ctx()), &tlr, response)
     }
 }
 
@@ -554,6 +638,18 @@ impl<'a> ImageSource<'a> {
                 ctx.include_bytes(uri.clone(), bytes);
                 ctx.try_load_texture(uri.as_ref(), texture_options, size_hint)
             }
+        }
+    }
+
+    /// Release all memory and textures related to the given image URI.
+    /// If you attempt to load the image again, it will be reloaded from scratch.
+    /// returns false if no uri was found and therefor the memory wasn't released
+    pub fn forget(&self, ctx: &Context) -> bool {
+        if let Some(uri) = self.uri() {
+            ctx.forget_image(uri);
+            true
+        } else {
+            false
         }
     }
 
@@ -767,4 +863,10 @@ pub fn paint_texture_at(
             });
         }
     }
+}
+
+#[derive(Clone, Copy)]
+struct ImageData {
+    image: usize,
+    last_refresh: Instant,
 }

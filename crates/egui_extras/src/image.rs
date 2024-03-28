@@ -1,6 +1,8 @@
 #![allow(deprecated)]
 
 use egui::{mutex::Mutex, TextureOptions};
+#[cfg(feature = "gif")]
+use image::AnimationDecoder;
 
 #[cfg(feature = "svg")]
 use egui::SizeHint;
@@ -190,6 +192,8 @@ impl RetainedImage {
 
 // ----------------------------------------------------------------------------
 
+#[cfg(feature = "image")]
+use egui::load::Bytes;
 use egui::ColorImage;
 
 /// Load a (non-svg) image.
@@ -278,4 +282,99 @@ pub fn load_svg_bytes_with_size(
     let image = egui::ColorImage::from_rgba_unmultiplied([w as _, h as _], pixmap.data());
 
     Ok(image)
+}
+
+#[cfg(feature = "image")]
+const RGBA8_IMAGE_MAGIC_HEADER: &[u8] = b"WIDTH_HEIGHT_RGBA8";
+
+#[cfg(feature = "image")]
+/// `DynamicImage` -> Bytes
+pub fn convert_image_to_bytes(image: &image::DynamicImage) -> Bytes {
+    let image_buffer = image.to_rgba8();
+    convert_rgba8_image_to_bytes(&image_buffer)
+}
+
+#[cfg(feature = "image")]
+/// `RgbaImage` -> Bytes
+pub fn convert_rgba8_image_to_bytes(image: &image::RgbaImage) -> Bytes {
+    let pixels = image.as_flat_samples();
+    let mut result: Vec<u8> = Vec::new();
+    result.extend_from_slice(RGBA8_IMAGE_MAGIC_HEADER);
+    result.extend_from_slice(&(image.width() as usize).to_le_bytes());
+    result.extend_from_slice(&(image.height() as usize).to_le_bytes());
+    result.extend_from_slice(pixels.as_slice());
+    result.into()
+}
+
+#[cfg(feature = "image")]
+/// Bytes -> `ColorImage`
+pub fn load_rgba(image_bytes: &[u8]) -> Result<ColorImage, String> {
+    crate::profile_function!();
+    let header_size = RGBA8_IMAGE_MAGIC_HEADER.len();
+    let size_of_usize = std::mem::size_of::<usize>();
+    if image_bytes.len() < std::mem::size_of::<usize>() * 2 + header_size {
+        return Err("Not enough bytes for image".to_owned());
+    }
+
+    if &image_bytes[..header_size] != RGBA8_IMAGE_MAGIC_HEADER {
+        return Err("Invalid magic header".to_owned());
+    }
+
+    let width = usize::from_le_bytes(
+        image_bytes[header_size..header_size + size_of_usize]
+            .try_into()
+            .unwrap(),
+    );
+    let height = usize::from_le_bytes(
+        image_bytes[header_size + size_of_usize..header_size + size_of_usize * 2]
+            .try_into()
+            .unwrap(),
+    );
+    let size = [width, height];
+    Ok(ColorImage::from_rgba_unmultiplied(
+        size,
+        &image_bytes[header_size + size_of_usize * 2..],
+    ))
+}
+
+#[cfg(feature = "image")]
+pub fn include_dynamic_image(
+    uri: &impl ToString,
+    image: &image::DynamicImage,
+) -> egui::ImageSource<'static> {
+    egui::ImageSource::Bytes {
+        uri: std::borrow::Cow::Owned(format!("rgba8://{}", uri.to_string())),
+        bytes: convert_image_to_bytes(image),
+    }
+}
+
+#[cfg(feature = "gif")]
+#[macro_export]
+macro_rules! include_gif {
+    ($path: literal) => {
+        egui_extras::image::gif_to_sources(
+            concat!("gif://", $path),
+            Cursor::new(include_bytes!($path)),
+        )
+    };
+}
+
+#[cfg(feature = "gif")]
+pub fn gif_to_sources<R: std::io::Read>(uri: &str, data: R) -> (&str, egui::ImageSources<'_>) {
+    let decoder = image::codecs::gif::GifDecoder::new(data).unwrap();
+    let mut res = vec![];
+    for (index, frame) in decoder.into_frames().enumerate() {
+        let frame = frame.unwrap();
+        let img = frame.buffer();
+        let bytes = convert_rgba8_image_to_bytes(img);
+        let delay: std::time::Duration = frame.delay().into();
+        res.push((
+            egui::ImageSource::Bytes {
+                uri: std::borrow::Cow::Owned(format!("rgba8://{uri}-{index}")),
+                bytes,
+            },
+            delay,
+        ));
+    }
+    (uri, res.into())
 }

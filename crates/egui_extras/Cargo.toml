@@ -46,6 +46,7 @@ http = ["dep:ehttp"]
 
 ## ```
 image = ["dep:image"]
+gif = ["image", "image/gif"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 ##

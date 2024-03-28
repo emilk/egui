@@ -294,8 +294,11 @@ impl Widget for Button<'_> {
                     image.show_loading_spinner,
                     image.image_options(),
                 );
-                response =
-                    widgets::image::texture_load_result_response(image.source(), &tlr, response);
+                response = widgets::image::texture_load_result_response(
+                    image.source(ui.ctx()),
+                    &tlr,
+                    response,
+                );
             }
 
             if image.is_some() && galley.is_some() {
@@ -709,6 +712,6 @@ impl<'a> Widget for ImageButton<'a> {
                 .rect_stroke(rect.expand2(expansion), rounding, stroke);
         }
 
-        widgets::image::texture_load_result_response(self.image.source(), &tlr, response)
+        widgets::image::texture_load_result_response(self.image.source(ui.ctx()), &tlr, response)
     }
 }
