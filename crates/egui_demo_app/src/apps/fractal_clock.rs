@@ -79,7 +79,7 @@ impl FractalClock {
         ui.add(Slider::new(&mut self.luminance_factor, 0.0..=1.0).text("luminance factor"));
         ui.add(Slider::new(&mut self.width_factor, 0.0..=1.0).text("width factor"));
 
-        egui::reset_button(ui, self);
+        egui::reset_button(ui, self, "Reset");
 
         ui.hyperlink_to(
             "Inspired by a screensaver by Rob Mayoff",

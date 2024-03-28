@@ -40,7 +40,7 @@ impl Default for TableDemo {
 
 impl super::Demo for TableDemo {
     fn name(&self) -> &'static str {
-        "☰ Table Demo"
+        "☰ Table"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
