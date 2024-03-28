@@ -52,6 +52,7 @@ use epaint::*;
 /// Note that you cannot change the margins after calling `begin`.
 #[doc(alias = "border")]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "You should call .show()"]
 pub struct Frame {
     /// Margin within the painted frame.

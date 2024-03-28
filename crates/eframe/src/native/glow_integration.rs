@@ -217,6 +217,7 @@ impl GlowWinitApp {
 
         let system_theme =
             winit_integration::system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
+        let painter = Rc::new(RefCell::new(painter));
 
         let integration = EpiIntegration::new(
             egui_ctx,
@@ -226,6 +227,10 @@ impl GlowWinitApp {
             &self.native_options,
             storage,
             Some(gl.clone()),
+            Some(Box::new({
+                let painter = painter.clone();
+                move |native| painter.borrow_mut().register_native_texture(native)
+            })),
             #[cfg(feature = "wgpu")]
             None,
         );
@@ -302,7 +307,6 @@ impl GlowWinitApp {
         };
 
         let glutin = Rc::new(RefCell::new(glutin));
-        let painter = Rc::new(RefCell::new(painter));
 
         {
             // Create weak pointers so that we don't keep

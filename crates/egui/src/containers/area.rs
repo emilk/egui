@@ -384,7 +384,7 @@ impl Area {
         let layer_id = LayerId::new(self.order, self.id);
         let area_rect = ctx.memory(|mem| mem.areas().get(self.id).map(|area| area.rect()));
         if let Some(area_rect) = area_rect {
-            let clip_rect = ctx.available_rect();
+            let clip_rect = Rect::EVERYTHING;
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
 
             // shrinkage: looks kinda a bad on its own
@@ -437,12 +437,7 @@ impl Prepared {
                 .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
         );
 
-        let shadow_radius = ctx.style().visuals.window_shadow.margin().sum().max_elem(); // hacky
-        let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
-
-        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), constrain_rect.max)
-            .expand(clip_rect_margin)
-            .intersect(constrain_rect);
+        let clip_rect = constrain_rect; // Don't paint outside our bounds
 
         let mut ui = Ui::new(
             ctx.clone(),
