@@ -1052,6 +1052,9 @@ impl GlutinWindowContext {
             .get_mut(&viewport_id)
             .expect("viewport doesn't exist");
 
+        viewport.info.this = Some(viewport_id);
+        viewport.info.parent = Some(self.egui_ctx.parent_viewport_id_of(viewport_id));
+
         let window = if let Some(window) = &mut viewport.window {
             window
         } else {
