@@ -29,6 +29,7 @@ impl Default for Demos {
             Box::<super::drag_and_drop::DragAndDropDemo>::default(),
             Box::<super::extra_viewport::ExtraViewport>::default(),
             Box::<super::font_book::FontBook>::default(),
+            Box::<super::frame_demo::FrameDemo>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),

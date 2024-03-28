@@ -245,7 +245,13 @@ impl eframe::App for WrapApp {
     }
 
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
-        visuals.panel_fill.to_normalized_gamma_f32()
+        // Give the area behind the floating windows a different color, because it looks better:
+        let color = egui::lerp(
+            egui::Rgba::from(visuals.panel_fill)..=egui::Rgba::from(visuals.extreme_bg_color),
+            0.5,
+        );
+        let color = egui::Color32::from(color);
+        color.to_normalized_gamma_f32()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

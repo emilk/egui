@@ -614,6 +614,11 @@ pub struct Frame {
     #[cfg(feature = "glow")]
     pub(crate) gl: Option<std::sync::Arc<glow::Context>>,
 
+    /// Used to convert user custom [`glow::Texture`] to [`egui::TextureId`]
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+    pub(crate) glow_register_native_texture:
+        Option<Box<dyn FnMut(glow::Texture) -> egui::TextureId>>,
+
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
@@ -688,6 +693,15 @@ impl Frame {
     #[cfg(feature = "glow")]
     pub fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
         self.gl.as_ref()
+    }
+
+    /// Register your own [`glow::Texture`],
+    /// and then you can use the returned [`egui::TextureId`] to render your texture with [`egui`].
+    ///
+    /// This function will take the ownership of your [`glow::Texture`], so please do not delete your [`glow::Texture`] after registering.
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+    pub fn register_native_glow_texture(&mut self, native: glow::Texture) -> egui::TextureId {
+        self.glow_register_native_texture.as_mut().unwrap()(native)
     }
 
     /// The underlying WGPU render state.

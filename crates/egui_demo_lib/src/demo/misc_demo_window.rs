@@ -328,7 +328,7 @@ impl Default for ColorWidgets {
 
 impl ColorWidgets {
     fn ui(&mut self, ui: &mut Ui) {
-        egui::reset_button(ui, self);
+        egui::reset_button(ui, self, "Reset");
 
         ui.label("egui lets you edit colors stored as either sRGBA or linear RGBA and with or without premultiplied alpha");
 

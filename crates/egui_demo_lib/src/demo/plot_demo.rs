@@ -62,7 +62,7 @@ impl super::Demo for PlotDemo {
 impl super::View for PlotDemo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.collapsing("Instructions", |ui| {
                 ui.label("Pan by dragging, or scroll (+ shift = horizontal).");
                 ui.label("Box zooming: Right click to zoom in and zoom out using a selection.");
