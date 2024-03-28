@@ -152,6 +152,9 @@ impl EpiIntegration {
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
+        #[cfg(feature = "glow")] glow_register_native_texture: Option<
+            Box<dyn FnMut(glow::Texture) -> egui::TextureId>,
+        >,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
         let frame = epi::Frame {
@@ -162,6 +165,8 @@ impl EpiIntegration {
             storage,
             #[cfg(feature = "glow")]
             gl,
+            #[cfg(feature = "glow")]
+            glow_register_native_texture,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
