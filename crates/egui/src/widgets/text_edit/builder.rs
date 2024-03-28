@@ -527,7 +527,7 @@ impl<'t> TextEdit<'t> {
         // Since currently copying selected text in not supported on `eframe` web,
         // we prioritize touch-scrolling:
         let allow_drag_to_select =
-            ui.input(|i| !i.any_touches()) || ui.memory(|mem| mem.has_focus(id));
+            ui.input(|i| !i.has_touch_screen()) || ui.memory(|mem| mem.has_focus(id));
 
         let sense = if interactive {
             if allow_drag_to_select {

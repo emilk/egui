@@ -92,15 +92,19 @@ pub trait WidgetWithState {
 
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
-pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T) {
-    reset_button_with(ui, value, T::default());
+///
+/// The `text` could be something like "Reset foo".
+pub fn reset_button<T: Default + PartialEq>(ui: &mut Ui, value: &mut T, text: &str) {
+    reset_button_with(ui, value, text, T::default());
 }
 
 /// Show a button to reset a value to its default.
 /// The button is only enabled if the value does not already have its original value.
-pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: T) {
+///
+/// The `text` could be something like "Reset foo".
+pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, text: &str, reset_value: T) {
     if ui
-        .add_enabled(*value != reset_value, Button::new("Reset"))
+        .add_enabled(*value != reset_value, Button::new(text))
         .clicked()
     {
         *value = reset_value;
@@ -109,62 +113,11 @@ pub fn reset_button_with<T: PartialEq>(ui: &mut Ui, value: &mut T, reset_value: 
 
 // ----------------------------------------------------------------------------
 
+#[deprecated = "Use `ui.add(&mut stroke)` instead"]
 pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
-    let epaint::Stroke { width, color } = stroke;
     ui.horizontal(|ui| {
-        ui.add(DragValue::new(width).speed(0.1).clamp_range(0.0..=5.0))
-            .on_hover_text("Width");
-        ui.color_edit_button_srgba(color);
         ui.label(text);
-
-        // stroke preview:
-        let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-        let left = stroke_rect.left_center();
-        let right = stroke_rect.right_center();
-        ui.painter().line_segment([left, right], (*width, *color));
-    });
-}
-
-pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
-    let epaint::Shadow {
-        offset,
-        blur,
-        spread,
-        color,
-    } = shadow;
-
-    ui.label(text);
-    ui.indent(text, |ui| {
-        crate::Grid::new("shadow_ui").show(ui, |ui| {
-            ui.add(
-                DragValue::new(&mut offset.x)
-                    .speed(1.0)
-                    .clamp_range(-100.0..=100.0)
-                    .prefix("x: "),
-            );
-            ui.add(
-                DragValue::new(&mut offset.y)
-                    .speed(1.0)
-                    .clamp_range(-100.0..=100.0)
-                    .prefix("y: "),
-            );
-            ui.end_row();
-
-            ui.add(
-                DragValue::new(blur)
-                    .speed(1.0)
-                    .clamp_range(0.0..=100.0)
-                    .prefix("Blur:"),
-            );
-
-            ui.add(
-                DragValue::new(spread)
-                    .speed(1.0)
-                    .clamp_range(0.0..=100.0)
-                    .prefix("Spread:"),
-            );
-        });
-        ui.color_edit_button_srgba(color);
+        ui.add(stroke);
     });
 }
 

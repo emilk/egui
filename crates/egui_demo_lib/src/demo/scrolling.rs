@@ -336,7 +336,7 @@ impl super::View for ScrollTo {
 
         ui.separator();
         ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.add(crate::egui_github_link_file!());
         });
     }
