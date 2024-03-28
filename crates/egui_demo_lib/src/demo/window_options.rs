@@ -146,7 +146,7 @@ impl super::View for WindowOptions {
             if ui.button("Disable for 2 seconds").clicked() {
                 self.disabled_time = ui.input(|i| i.time);
             }
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.add(crate::egui_github_link_file!());
         });
     }

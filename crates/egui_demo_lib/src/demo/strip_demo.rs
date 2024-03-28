@@ -8,7 +8,7 @@ pub struct StripDemo {}
 
 impl super::Demo for StripDemo {
     fn name(&self) -> &'static str {
-        "▣ Strip Demo"
+        "▣ Strip"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
