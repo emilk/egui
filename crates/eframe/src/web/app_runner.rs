@@ -60,7 +60,9 @@ impl AppRunner {
         super::storage::load_memory(&egui_ctx);
 
         egui_ctx.options_mut(|o| {
-            // On web, the browser controls the zoom factor:
+            // On web by default egui follows the zoom factor of the browser,
+            // and lets the browser handle the zoom shortscuts.
+            // A user can still zoom egui separately by calling [`egui::Context::set_zoom_factor`].
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
         });
