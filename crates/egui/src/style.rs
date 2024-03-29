@@ -663,6 +663,9 @@ pub struct TextCursorStyle {
 
     /// set the text cursor off duration
     pub off_duration: f64,
+
+    /// This is the time when the key was last pressed.
+    pub last_edit_time: f64,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -1118,6 +1121,7 @@ impl Visuals {
                 blink: true,
                 on_duration: 1.0,
                 off_duration: 0.3,
+                last_edit_time: Default::default(),
             },
 
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
