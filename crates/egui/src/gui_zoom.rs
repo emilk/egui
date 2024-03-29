@@ -70,10 +70,20 @@ pub fn zoom_out(ctx: &Context) {
 ///
 /// This is meant to be called from within a menu (See [`Ui::menu_button`]).
 pub fn zoom_menu_buttons(ui: &mut Ui) {
+    fn button(ctx: &Context, text: &str, shortcut: &KeyboardShortcut) -> Button<'static> {
+        let btn = Button::new(text);
+        let zoom_with_keyboard = ctx.options(|o| o.zoom_with_keyboard);
+        if zoom_with_keyboard {
+            btn.shortcut_text(ctx.format_shortcut(shortcut))
+        } else {
+            btn
+        }
+    }
+
     if ui
         .add_enabled(
             ui.ctx().zoom_factor() < MAX_ZOOM_FACTOR,
-            Button::new("Zoom In").shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_IN)),
+            button(ui.ctx(), "Zoom In", &kb_shortcuts::ZOOM_IN),
         )
         .clicked()
     {
@@ -84,8 +94,7 @@ pub fn zoom_menu_buttons(ui: &mut Ui) {
     if ui
         .add_enabled(
             ui.ctx().zoom_factor() > MIN_ZOOM_FACTOR,
-            Button::new("Zoom Out")
-                .shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_OUT)),
+            button(ui.ctx(), "Zoom Out", &kb_shortcuts::ZOOM_OUT),
         )
         .clicked()
     {
@@ -96,8 +105,7 @@ pub fn zoom_menu_buttons(ui: &mut Ui) {
     if ui
         .add_enabled(
             ui.ctx().zoom_factor() != 1.0,
-            Button::new("Reset Zoom")
-                .shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_RESET)),
+            button(ui.ctx(), "Reset Zoom", &kb_shortcuts::ZOOM_RESET),
         )
         .clicked()
     {
