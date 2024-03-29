@@ -23,7 +23,7 @@ use winit::{
 
 use egui::{
     epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
-    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet,
+    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair,
     ViewportInfo, ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
@@ -548,13 +548,17 @@ impl GlowWinitRunning {
         let (raw_input, viewport_ui_cb) = {
             let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
-            let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
+            let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
+                return EventResult::Wait;
+            };
             let Some(window) = viewport.window.as_ref() else {
                 return EventResult::Wait;
             };
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window);
 
-            let egui_winit = viewport.egui_winit.as_mut().unwrap();
+            let Some(egui_winit) = viewport.egui_winit.as_mut() else {
+                return EventResult::Wait;
+            };
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
@@ -640,7 +644,10 @@ impl GlowWinitRunning {
             ..
         } = &mut *glutin;
 
-        let viewport = viewports.get_mut(&viewport_id).unwrap();
+        let Some(viewport) = viewports.get_mut(&viewport_id) else {
+            return EventResult::Wait;
+        };
+
         viewport.info.events.clear(); // they should have been processed
         let window = viewport.window.clone().unwrap();
         let gl_surface = viewport.gl_surface.as_ref().unwrap();
