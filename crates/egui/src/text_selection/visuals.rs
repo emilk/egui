@@ -79,11 +79,11 @@ pub fn paint_text_cursor(
     ui: &mut Ui,
     painter: &Painter,
     primary_cursor_rect: Rect,
-    is_stay_cursor: bool,
+    blink_pause: bool,
 ) {
     let i_time = ui.input(|i| i.time);
     let blink_mode = ui.visuals().text_cursor_style.blink;
-    let is_blink_mode = blink_mode && is_stay_cursor;
+    let is_blink_mode = blink_mode && !blink_pause;
 
     let on_duration = ui.visuals().text_cursor_style.on_duration;
     let off_duration = ui.visuals().text_cursor_style.off_duration;
