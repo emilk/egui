@@ -1081,7 +1081,7 @@ fn handle_viewport_output(
         );
 
         if let Some(window) = viewport.window.as_ref() {
-            let save_inner_size = window.inner_size();
+            let old_inner_size = window.inner_size();
 
             let is_viewport_focused = focused_viewport == Some(viewport_id);
             egui_winit::process_viewport_commands(
@@ -1095,12 +1095,12 @@ fn handle_viewport_output(
 
             // For Wayland : https://github.com/emilk/egui/issues/4196
             if cfg!(target_os = "linux") {
-                let inner_size = window.inner_size();
-                if inner_size != save_inner_size {
+                let new_inner_size = window.inner_size();
+                if new_inner_size != old_inner_size {
                     use std::num::NonZeroU32;
                     if let (Some(width), Some(height)) = (
-                        NonZeroU32::new(inner_size.width),
-                        NonZeroU32::new(inner_size.height),
+                        NonZeroU32::new(new_inner_size.width),
+                        NonZeroU32::new(new_inner_size.height),
                     ) {
                         painter.on_window_resized(viewport_id, width, height);
                     }
