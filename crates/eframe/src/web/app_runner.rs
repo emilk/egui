@@ -60,7 +60,9 @@ impl AppRunner {
         super::storage::load_memory(&egui_ctx);
 
         egui_ctx.options_mut(|o| {
-            // On web, the browser controls the zoom factor:
+            // On web by default egui follows the zoom factor of the browser,
+            // and lets the browser handle the zoom shortscuts.
+            // A user can still zoom egui separately by calling [`egui::Context::set_zoom_factor`].
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
         });
@@ -183,7 +185,7 @@ impl AppRunner {
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
         super::resize_canvas_to_screen_size(self.canvas(), self.web_options.max_size_points);
-        let canvas_size = super::canvas_size_in_points(self.canvas());
+        let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let raw_input = self.input.new_frame(canvas_size);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
