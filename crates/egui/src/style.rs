@@ -647,6 +647,24 @@ pub struct Interaction {
     pub multi_widget_text_select: bool,
 }
 
+/// Text Cursor Style
+#[derive(Clone, Default, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct TextCursorStyle {
+    /// show where the text cursor would be if you clicked
+    pub preview: bool,
+
+    /// set the text cursor to blink
+    pub blink: bool,
+
+    /// set the text cursor on duration
+    pub on_duration: f64,
+
+    /// set the text cursor off duration
+    pub off_duration: f64,
+}
+
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
@@ -725,17 +743,8 @@ pub struct Visuals {
     /// The color and width of the text cursor
     pub text_cursor: Stroke,
 
-    /// show where the text cursor would be if you clicked
-    pub text_cursor_preview: bool,
-
-    /// set the text cursor to blink
-    pub text_cursor_blink: bool,
-
-    /// set the text cursor on duration
-    pub text_cursor_on_duration: f64,
-
-    /// set the text cursor off duration
-    pub text_cursor_off_duration: f64,
+    /// Text Cursor Style for blink
+    pub text_cursor_style: TextCursorStyle,
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
@@ -1104,11 +1113,12 @@ impl Visuals {
             resize_corner_size: 12.0,
 
             text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
-            text_cursor_preview: false,
-
-            text_cursor_blink: true,
-            text_cursor_on_duration: 1.0,
-            text_cursor_off_duration: 0.3,
+            text_cursor_style: TextCursorStyle {
+                preview: false,
+                blink: true,
+                on_duration: 1.0,
+                off_duration: 0.3,
+            },
 
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
@@ -1751,10 +1761,7 @@ impl Visuals {
 
             resize_corner_size,
             text_cursor,
-            text_cursor_preview,
-            text_cursor_blink,
-            text_cursor_on_duration,
-            text_cursor_off_duration,
+            text_cursor_style,
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
@@ -1859,11 +1866,18 @@ impl Visuals {
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-            ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
-            ui.checkbox(text_cursor_blink, "text cursor to blink");
-            ui.add(Slider::new(text_cursor_on_duration, 0.0..=2.0).text("text cursor on duration"));
-            ui.add(Slider::new(
-                text_cursor_off_duration, 0.0..=2.0).text("text cursor off duration")
+            ui.checkbox(
+                &mut text_cursor_style.preview,
+                "Preview text cursor on hover",
+            );
+            ui.checkbox(&mut text_cursor_style.blink, "text cursor to blink");
+            ui.add(
+                Slider::new(&mut text_cursor_style.on_duration, 0.0..=2.0)
+                    .text("text cursor on duration"),
+            );
+            ui.add(
+                Slider::new(&mut text_cursor_style.off_duration, 0.0..=2.0)
+                    .text("text cursor off duration"),
             );
             ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
