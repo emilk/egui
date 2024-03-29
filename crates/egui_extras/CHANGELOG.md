@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.27.1 - 2024-03-29
+* Nothing new
+
+
 ## 0.27.0 - 2024-03-26
 * Add scroll bar visibility option to `Table` widget [#3981](https://github.com/emilk/egui/pull/3981) (thanks [@richardhozak](https://github.com/richardhozak)!)
 * Update `ehttp` to 0.5 [#4055](https://github.com/emilk/egui/pull/4055)
