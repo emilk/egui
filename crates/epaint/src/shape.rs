@@ -668,6 +668,14 @@ pub struct RectShape {
     /// The thickness and color of the outline.
     pub stroke: Stroke,
 
+    /// If larger than zero, the edges of the rectangle
+    /// (for both fill and stroke) will be blurred.
+    ///
+    /// This can be used to produce shadows and glow effects.
+    ///
+    /// The blur is currently implemented using a simple linear blur in sRGBA gamma space.
+    pub blur_width: f32,
+
     /// If the rect should be filled with a texture, which one?
     ///
     /// The texture is multiplied with [`Self::fill`].
@@ -695,6 +703,7 @@ impl RectShape {
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
+            blur_width: 0.0,
             fill_texture_id: Default::default(),
             uv: Rect::ZERO,
         }
@@ -711,6 +720,7 @@ impl RectShape {
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: Default::default(),
+            blur_width: 0.0,
             fill_texture_id: Default::default(),
             uv: Rect::ZERO,
         }
@@ -723,9 +733,22 @@ impl RectShape {
             rounding: rounding.into(),
             fill: Default::default(),
             stroke: stroke.into(),
+            blur_width: 0.0,
             fill_texture_id: Default::default(),
             uv: Rect::ZERO,
         }
+    }
+
+    /// If larger than zero, the edges of the rectangle
+    /// (for both fill and stroke) will be blurred.
+    ///
+    /// This can be used to produce shadows and glow effects.
+    ///
+    /// The blur is currently implemented using a simple linear blur in `sRGBA` gamma space.
+    #[inline]
+    pub fn with_blur_width(mut self, blur_width: f32) -> Self {
+        self.blur_width = blur_width;
+        self
     }
 
     /// The visual bounding rectangle (includes stroke width)
@@ -734,7 +757,8 @@ impl RectShape {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            self.rect.expand(self.stroke.width / 2.0)
+            self.rect
+                .expand((self.stroke.width + self.blur_width) / 2.0)
         }
     }
 }
