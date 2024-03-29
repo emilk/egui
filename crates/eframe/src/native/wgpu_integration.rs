@@ -215,8 +215,6 @@ impl WgpuWinitApp {
             storage,
             #[cfg(feature = "glow")]
             None,
-            #[cfg(feature = "glow")]
-            None,
             wgpu_render_state.clone(),
         );
 
@@ -663,11 +661,11 @@ impl WgpuWinitRunning {
             viewport_output,
         } = full_output;
 
-        active_viewports_retain(
+        remove_viewports_not_in(
             viewports,
             painter,
             viewport_from_window,
-            viewport_output.clone(),
+            &viewport_output,
         );
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
@@ -796,7 +794,7 @@ impl WgpuWinitRunning {
                     if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
                         // Tell viewport it should close:
                         viewport.info.events.push(egui::ViewportEvent::Close);
-                        viewport.info.close_requested = true;
+                        viewport.info.close_requested();
 
                         // We may need to repaint both us and our parent to close the window,
                         // and perhaps twice (once to notice the close-event, once again to enforce it).
@@ -851,7 +849,7 @@ impl Viewport {
     ) {
         let viewport_id = self.ids.this;
 
-        self.info.this = Some(viewport_id);
+        self.info.this = viewport_id;
         self.info.parent = Some(egui_ctx.parent_viewport_id_of(viewport_id));
 
         if self.window.is_some() {
@@ -1030,12 +1028,11 @@ fn render_immediate_viewport(
     );
 }
 
-#[allow(clippy::needless_pass_by_value)]
-pub(crate) fn active_viewports_retain(
+pub(crate) fn remove_viewports_not_in(
     viewports: &mut ViewportIdMap<Viewport>,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
-    viewport_output: ViewportIdMap<ViewportOutput>,
+    viewport_output: &ViewportIdMap<ViewportOutput>,
 ) {
     let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -1079,7 +1076,7 @@ fn handle_viewport_output(
         );
 
         if let Some(window) = viewport.window.as_ref() {
-            let save_inner_size = window.inner_size();
+            let old_inner_size = window.inner_size();
 
             let is_viewport_focused = focused_viewport == Some(viewport_id);
             egui_winit::process_viewport_commands(
@@ -1093,30 +1090,21 @@ fn handle_viewport_output(
 
             // For Wayland : https://github.com/emilk/egui/issues/4196
             if cfg!(target_os = "linux") {
-                let inner_size = window.inner_size();
-                if inner_size != save_inner_size {
-                    resize_for_other_os(painter, &viewport_id, inner_size);
+                let new_inner_size = window.inner_size();
+                if new_inner_size != old_inner_size {
+                    use std::num::NonZeroU32;
+                    if let (Some(width), Some(height)) = (
+                        NonZeroU32::new(new_inner_size.width),
+                        NonZeroU32::new(new_inner_size.height),
+                    ) {
+                        painter.on_window_resized(viewport_id, width, height);
+                    }
                 }
             }
         }
     }
 
-    active_viewports_retain(viewports, painter, viewport_from_window, viewport_output);
-}
-
-fn resize_for_other_os(
-    painter: &mut egui_wgpu::winit::Painter,
-    viewport_id: &ViewportId,
-    inner_size: winit::dpi::PhysicalSize<u32>,
-) {
-    use std::num::NonZeroU32;
-
-    if let (Some(width), Some(height)) = (
-        NonZeroU32::new(inner_size.width),
-        NonZeroU32::new(inner_size.height),
-    ) {
-        painter.on_window_resized(*viewport_id, width, height);
-    }
+    remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
 }
 
 fn initialize_or_update_viewport<'vp>(
