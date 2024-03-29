@@ -915,15 +915,17 @@ pub fn math_outer_rect(window: &Window, pixels_per_point: Option<f32>) -> Option
     outer_rect_px.map(|r| r / pixels_per_point)
 }
 
-pub fn update_viewport_info_with_ppp(
+/// Update the given viewport info with the current state of the window.
+///
+/// Call before [`State::take_egui_input`].
+pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
+    egui_ctx: &egui::Context,
     window: &Window,
-    pixels_per_point: Option<f32>,
 ) {
-    let pixels_per_point = match pixels_per_point {
-        Some(pixels_per_point) => pixels_per_point,
-        None => window.scale_factor() as f32,
-    };
+    crate::profile_function!();
+
+    let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
         Some(true) => false,
@@ -970,21 +972,6 @@ pub fn update_viewport_info_with_ppp(
     viewport_info.fullscreen = Some(window.fullscreen().is_some());
     viewport_info.decorations = Some(window.is_decorated());
     viewport_info.focused = Some(window.has_focus());
-}
-
-/// Update the given viewport info with the current state of the window.
-///
-/// Call before [`State::take_egui_input`].
-pub fn update_viewport_info(
-    viewport_info: &mut ViewportInfo,
-    egui_ctx: &egui::Context,
-    window: &Window,
-) {
-    crate::profile_function!();
-
-    let pixels_per_point = Some(pixels_per_point(egui_ctx, window));
-
-    update_viewport_info_with_ppp(viewport_info, window, pixels_per_point);
 }
 
 fn open_url_in_browser(_url: &str) {
