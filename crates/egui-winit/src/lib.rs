@@ -865,12 +865,7 @@ impl State {
     }
 }
 
-pub fn math_inner_rect(window: &Window, pixels_per_point: Option<f32>) -> Option<Rect> {
-    let pixels_per_point = match pixels_per_point {
-        Some(pixels_per_point) => pixels_per_point,
-        None => window.scale_factor() as f32,
-    };
-
+pub fn inner_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
     let inner_pos_px = window
         .inner_position()
         .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
@@ -890,12 +885,7 @@ pub fn math_inner_rect(window: &Window, pixels_per_point: Option<f32>) -> Option
     inner_rect_px.map(|r| r / pixels_per_point)
 }
 
-pub fn math_outer_rect(window: &Window, pixels_per_point: Option<f32>) -> Option<Rect> {
-    let pixels_per_point = match pixels_per_point {
-        Some(pixels_per_point) => pixels_per_point,
-        None => window.scale_factor() as f32,
-    };
-
+pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
     let outer_pos_px = window
         .outer_position()
         .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
@@ -933,13 +923,13 @@ pub fn update_viewport_info(
     };
 
     let inner_rect = if has_a_position {
-        math_inner_rect(window, Some(pixels_per_point))
+        inner_rect_in_points(window, pixels_per_point)
     } else {
         None
     };
 
     let outer_rect = if has_a_position {
-        math_outer_rect(window, Some(pixels_per_point))
+        outer_rect_in_points(window, pixels_per_point)
     } else {
         None
     };
@@ -1308,12 +1298,17 @@ fn process_viewport_command(
 
     match command {
         ViewportCommand::Close => {
+            info.close_requested_on();
+            info.close_cancelable_off();
+            // info.close_cancelable = false;
             info.events.push(egui::ViewportEvent::Close);
-            info.close_requested = true;
         }
         ViewportCommand::CancelClose => {
             // Need to be handled elsewhere
-            info.close_requested = false;
+            info.close_requested_off();
+            // info.close_cancelable_on();
+            // dbg!(&info.events);
+            // info.events.clear();
             if let Some(position) = info
                 .events
                 .iter()
@@ -1343,8 +1338,8 @@ fn process_viewport_command(
                 // ex) linux
                 log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
 
-                info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
-                info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
+                info.inner_rect = inner_rect_in_points(window, pixels_per_point);
+                info.outer_rect = outer_rect_in_points(window, pixels_per_point);
             } else {
                 // ex) Windows, MacOS
                 log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
