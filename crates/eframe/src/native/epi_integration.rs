@@ -152,9 +152,6 @@ impl EpiIntegration {
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
-        #[cfg(feature = "glow")] glow_register_native_texture: Option<
-            Box<dyn FnMut(glow::Texture) -> egui::TextureId>,
-        >,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
         let frame = epi::Frame {
@@ -165,8 +162,6 @@ impl EpiIntegration {
             storage,
             #[cfg(feature = "glow")]
             gl,
-            #[cfg(feature = "glow")]
-            glow_register_native_texture,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
@@ -228,7 +223,9 @@ impl EpiIntegration {
 
     /// If `true`, it is time to close the native window.
     pub fn should_close(&self) -> bool {
-        self.close
+        // self.close
+        // self.egui_ctx.input(|i| i.viewport().should_close())
+        self.egui_ctx.input(|i| i.viewport().should_close())
     }
 
     pub fn on_window_event(
@@ -244,7 +241,12 @@ impl EpiIntegration {
         match event {
             WindowEvent::Destroyed => {
                 log::debug!("Received WindowEvent::Destroyed");
-                self.close = true;
+                // self.close = true;
+                // dbg!(&self.egui_ctx.input(|i| i.viewport().should_close()));
+                // self.egui_ctx.input_mut(|i| i.viewport_mut().close_cancelable_off());
+                dbg!(WindowEvent::Destroyed);
+                self.egui_ctx
+                    .send_viewport_cmd(egui::ViewportCommand::Close);
             }
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
@@ -277,7 +279,7 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
-        let close_requested = raw_input.viewport().close_requested();
+        // let close_requested = raw_input.viewport().close_requested();
 
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
@@ -292,9 +294,36 @@ impl EpiIntegration {
                 app.update(egui_ctx, &mut self.frame);
             }
 
+            let viewport_id = egui_ctx.viewport_id();
+
+            // dbg!(&viewport_id);
+            if self.egui_ctx.input(|i| i.viewport().should_close()) {
+                // dbg!(&viewport_id);
+                // dbg!(&self.egui_ctx.input(|i| i.viewport().close_requested()));
+                // dbg!(&self.egui_ctx.input(|i| i.viewport().is_close_cancelable()));
+                // if let Some(viewport_id) = viewport_id {
+                if viewport_id == ViewportId::ROOT {
+                    log::debug!(
+                        "Received WindowEvent::CloseRequested for main viewport - shutting down."
+                    );
+                    // return EventResult::Exit(window_id);
+                } else {
+                    // return EventResult::ViewportExit(window_id);
+                }
+                // }
+                self.egui_ctx
+                    .send_viewport_cmd_to(viewport_id, egui::ViewportCommand::Close);
+                // self.egui_ctx.request_repaint_of(viewport_id);
+                self.egui_ctx.request_repaint_of(viewport_id);
+                if viewport_id != ViewportId::ROOT {
+                    self.egui_ctx
+                        .request_repaint_of(egui_ctx.parent_viewport_id_of(viewport_id));
+                }
+            }
+
             let continuous_mode = egui_ctx.options(|options| options.continuous_mode);
             if continuous_mode {
-                let viewport_id = egui_ctx.viewport_id();
+                // let viewport_id = egui_ctx.viewport_id();
                 // TODO(rustbasic) : Do not recall until the next repaint.
                 // 1000 millis / 60 fps = 16.67 millis
                 self.egui_ctx
@@ -302,6 +331,7 @@ impl EpiIntegration {
             }
         });
 
+        /*
         let is_root_viewport = viewport_ui_cb.is_none();
         if is_root_viewport && close_requested {
             let canceled = full_output.viewport_output[&ViewportId::ROOT]
@@ -311,9 +341,40 @@ impl EpiIntegration {
                 log::debug!("Closing of root viewport canceled with ViewportCommand::CancelClose");
             } else {
                 log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
-                self.close = true;
+                // self.close = true;
             }
         }
+        */
+
+        /*
+        let viewport_id = self.egui_ctx.input(|i| i.viewport().this.unwrap_or_default());
+        // dbg!(&viewport_id);
+        // if self.integration.should_close() {
+        if self.egui_ctx.input(|i| i.viewport().should_close()) {
+            // dbg!(&viewport_id);
+            dbg!(&self.egui_ctx.input(|i| i.viewport().close_requested()));
+            dbg!(&self.egui_ctx.input(|i| i.viewport().is_close_cancelable()));
+            // if let Some(viewport_id) = viewport_id {
+                if viewport_id == ViewportId::ROOT {
+                    log::debug!(
+                        "Received WindowEvent::CloseRequested for main viewport - shutting down."
+                    );
+                    // return EventResult::Exit(window_id);
+                } else {
+                    // return EventResult::ViewportExit(window_id);
+                }
+            // }
+            self.egui_ctx.send_viewport_cmd_to(viewport_id, egui::ViewportCommand::Close);
+            self.egui_ctx.request_repaint_of(viewport_id);
+            /*
+            if viewport_id != ViewportId::ROOT {
+                self
+                    .egui_ctx
+                    .request_repaint_of(viewport.ids.parent);
+            }
+            */
+        }
+        */
 
         self.pending_full_output.append(full_output);
         std::mem::take(&mut self.pending_full_output)
