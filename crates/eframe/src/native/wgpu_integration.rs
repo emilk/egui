@@ -669,6 +669,13 @@ impl WgpuWinitRunning {
             viewport_output,
         } = full_output;
 
+        remove_viewports_not_in(
+            viewports,
+            painter,
+            viewport_from_window,
+            &viewport_output,
+        );
+
         egui_winit.handle_platform_output(window, platform_output);
 
         let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
@@ -1026,12 +1033,11 @@ fn render_immediate_viewport(
     );
 }
 
-#[allow(clippy::needless_pass_by_value)]
 pub(crate) fn remove_viewports_not_in(
     viewports: &mut ViewportIdMap<Viewport>,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
-    viewport_output: ViewportIdMap<ViewportOutput>,
+    viewport_output: &ViewportIdMap<ViewportOutput>,
 ) {
     let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -1103,7 +1109,7 @@ fn handle_viewport_output(
         }
     }
 
-    remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
+    remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
 }
 
 fn initialize_or_update_viewport<'vp>(
