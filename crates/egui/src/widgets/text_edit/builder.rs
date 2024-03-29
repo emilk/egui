@@ -555,7 +555,7 @@ impl<'t> TextEdit<'t> {
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
 
-                if ui.visuals().text_cursor_preview
+                if ui.visuals().text_cursor_style.preview
                     && response.hovered()
                     && ui.input(|i| i.pointer.is_moving())
                 {
