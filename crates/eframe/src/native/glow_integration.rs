@@ -980,7 +980,7 @@ impl GlutinWindowContext {
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            info = egui_winit::get_update_viewport_info(&ViewportInfo::default(), window, None);
+            egui_winit::update_viewport_info(&mut info, egui_ctx, window);
         }
 
         let mut viewports = ViewportIdMap::default();
@@ -1072,7 +1072,7 @@ impl GlutinWindowContext {
                 &viewport.builder,
             );
 
-            viewport.info = egui_winit::get_update_viewport_info(&viewport.info, &window, None);
+            egui_winit::update_viewport_info(&mut viewport.info, &self.egui_ctx, &window);
             viewport.window.insert(Arc::new(window))
         };
 
