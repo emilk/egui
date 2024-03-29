@@ -279,7 +279,7 @@ impl WgpuWinitApp {
         viewport_from_window.insert(window.id(), ViewportId::ROOT);
 
         let mut info = ViewportInfo::default();
-        egui_winit::update_viewport_info_with_ppp(&mut info, &window, None);
+        egui_winit::update_viewport_info(&mut info, &egui_ctx, &window);
 
         let mut viewports = Viewports::default();
         viewports.insert(
