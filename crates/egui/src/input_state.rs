@@ -418,7 +418,7 @@ impl InputState {
 
     /// Tells whether there is a key currently being pressed down.
     pub fn has_key_down(&self) -> bool {
-        self.keys_down.len() > 0
+        !self.keys_down.is_empty()
     }
 
     /// Is the given key currently held down?
