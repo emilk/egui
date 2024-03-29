@@ -92,7 +92,15 @@ pub fn paint_text_cursor(
     let mut is_cursor_visible = true;
 
     if is_blink_mode {
+        // Check if the text cursor is on/off based on the time
         is_cursor_visible = (i_time % total_duration) < on_duration;
+    }
+
+    if blink_pause {
+        // Keep the text cursor visible for some time.
+        if i_time < ui.visuals().text_cursor_style.last_edit_time + 3.0 {
+            is_cursor_visible = true;
+        }
     }
 
     if is_cursor_visible {
