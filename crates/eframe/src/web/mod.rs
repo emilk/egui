@@ -116,8 +116,8 @@ fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
     egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
-fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement) -> egui::Vec2 {
-    let pixels_per_point = native_pixels_per_point();
+fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
+    let pixels_per_point = ctx.pixels_per_point();
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
