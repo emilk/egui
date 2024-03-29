@@ -632,6 +632,8 @@ impl GlowWinitRunning {
             viewport_output,
         } = full_output;
 
+        glutin.remove_viewports_not_in(&viewport_output);
+
         let GlutinWindowContext {
             viewports,
             current_gl_context,
@@ -1201,20 +1203,17 @@ impl GlutinWindowContext {
         self.gl_config.display().get_proc_address(addr)
     }
 
-    #[allow(clippy::needless_pass_by_value)]
     pub(crate) fn remove_viewports_not_in(
         &mut self,
-        viewport_output: ViewportIdMap<ViewportOutput>,
+        viewport_output: &ViewportIdMap<ViewportOutput>,
     ) {
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
         // GC old viewports
         self.viewports
-            .retain(|id, _| active_viewports_ids.contains(id));
+            .retain(|id, _| viewport_output.contains_key(id));
         self.viewport_from_window
-            .retain(|_, id| active_viewports_ids.contains(id));
+            .retain(|_, id| viewport_output.contains_key(id));
         self.window_from_viewport
-            .retain(|id, _| active_viewports_ids.contains(id));
+            .retain(|id, _| viewport_output.contains_key(id));
     }
 
     fn handle_viewport_output(
@@ -1275,7 +1274,7 @@ impl GlutinWindowContext {
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        self.remove_viewports_not_in(viewport_output);
+        self.remove_viewports_not_in(&viewport_output);
     }
 }
 
