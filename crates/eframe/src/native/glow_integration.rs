@@ -1266,7 +1266,7 @@ impl GlutinWindowContext {
                 if cfg!(target_os = "linux") {
                     let inner_size = window.inner_size();
                     if inner_size != save_inner_size {
-                        Self::resize_for_other_os(self, viewport_id, inner_size);
+                        self.resize(viewport_id, inner_size);
                     }
                 }
             }
@@ -1276,14 +1276,6 @@ impl GlutinWindowContext {
         self.initialize_all_windows(event_loop);
 
         self.remove_viewports_not_in(viewport_output);
-    }
-
-    fn resize_for_other_os(
-        &mut self,
-        viewport_id: ViewportId,
-        inner_size: winit::dpi::PhysicalSize<u32>,
-    ) {
-        self.resize(viewport_id, inner_size);
     }
 }
 
