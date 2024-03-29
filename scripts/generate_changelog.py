@@ -115,18 +115,22 @@ def print_section(crate: str, items: List[str]) -> None:
     print()
 
 
+def changelog_filepath(crate: str) -> str:
+    scripts_dirpath = os.path.dirname(os.path.realpath(__file__))
+    if crate == "egui":
+        file_path = f"{scripts_dirpath}/../CHANGELOG.md"
+    else:
+        file_path = f"{scripts_dirpath}/../crates/{crate}/CHANGELOG.md"
+    return os.path.normpath(file_path)
+
+
 def add_to_changelog_file(crate: str, items: List[str], version: str) -> None:
     insert_text = f"\n## {version} - {date.today()}\n"
     for item in items:
         insert_text += f"* {item}\n"
     insert_text += "\n"
 
-    scripts_dirpath = os.path.dirname(os.path.realpath(__file__))
-    if crate == "egui":
-        file_path = f"{scripts_dirpath}/../CHANGELOG.md"
-    else:
-        file_path = f"{scripts_dirpath}/../crates/{crate}/CHANGELOG.md"
-    file_path = os.path.normpath(file_path)
+    file_path = changelog_filepath(crate)
 
     with open(file_path, 'r') as file:
         content = file.read()
@@ -151,6 +155,28 @@ def main() -> None:
         print("ERROR: --version is required when --write is used")
         sys.exit(1)
 
+    crate_names = [
+        "ecolor",
+        "eframe",
+        "egui_extras",
+        "egui_plot",
+        "egui_glow",
+        "egui-wgpu",
+        "egui-winit",
+        "egui",
+        "epaint",
+    ]
+
+    # We read all existing changelogs to remove duplicate entries.
+    # For instance: the PRs that were part of 0.27.2 would also show up in the diff for `0.27.0..HEAD`
+    # when its time for a 0.28 release. We can't do `0.27.2..HEAD` because we would miss PRs that were
+    # merged before in `0.27.0..0.27.2` that were not cherry-picked into `0.27.2`.
+    all_changelogs = ""
+    for crate in crate_names:
+        file_path = changelog_filepath(crate)
+        with open(file_path, 'r') as file:
+            all_changelogs += file.read()
+
     repo = Repo(".")
     commits = list(repo.iter_commits(args.commit_range))
     commits.reverse()  # Most recent last
@@ -167,17 +193,6 @@ def main() -> None:
 
     ignore_labels = ["CI", "dependencies"]
 
-    crate_names = [
-        "ecolor",
-        "eframe",
-        "egui_extras",
-        "egui_plot",
-        "egui_glow",
-        "egui-wgpu",
-        "egui-winit",
-        "egui",
-        "epaint",
-    ]
     sections = {}
     unsorted_prs = []
     unsorted_commits = []
@@ -193,6 +208,10 @@ def main() -> None:
             summary = f"{title} [{hexsha[:7]}](https://github.com/{OWNER}/{REPO}/commit/{hexsha})"
             unsorted_commits.append(summary)
         else:
+            if f"[#{pr_number}]" in all_changelogs:
+                print(f"Ignoring PR that is already in the changelog: #{pr_number}")
+                continue
+
             # We prefer the PR title if available
             title = pr_info.pr_title if pr_info else title
             labels = pr_info.labels if pr_info else []
