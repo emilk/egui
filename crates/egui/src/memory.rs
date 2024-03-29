@@ -286,13 +286,15 @@ impl Options {
             });
 
         CollapsingHeader::new("✒ Painting")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| {
                 tessellation_options.ui(ui);
-                ui.vertical_centered(|ui| crate::reset_button(ui, tessellation_options));
+                ui.vertical_centered(|ui| {
+                    crate::reset_button(ui, tessellation_options, "Reset paint settings");
+                });
             });
 
-        ui.vertical_centered(|ui| crate::reset_button(ui, self));
+        ui.vertical_centered(|ui| crate::reset_button(ui, self, "Reset all"));
     }
 }
 

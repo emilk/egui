@@ -252,13 +252,19 @@ struct ViewportState {
 }
 
 /// What called [`Context::request_repaint`]?
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RepaintCause {
     /// What file had the call that requested the repaint?
     pub file: &'static str,
 
     /// What line number of the the call that requested the repaint?
     pub line: u32,
+}
+
+impl std::fmt::Debug for RepaintCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.file, self.line)
+    }
 }
 
 impl RepaintCause {
@@ -1473,7 +1479,7 @@ impl Context {
         self.read(|ctx| {
             ctx.viewports
                 .get(&ctx.viewport_id())
-                .map(|v| v.repaint.causes.clone())
+                .map(|v| v.repaint.prev_causes.clone())
         })
         .unwrap_or_default()
     }
@@ -1569,7 +1575,7 @@ impl Context {
 
     /// The [`Style`] used by all new windows, panels etc.
     ///
-    /// You can also change this using [`Self::style_mut]`
+    /// You can also change this using [`Self::style_mut`]
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {

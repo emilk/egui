@@ -215,6 +215,8 @@ impl WgpuWinitApp {
             storage,
             #[cfg(feature = "glow")]
             None,
+            #[cfg(feature = "glow")]
+            None,
             wgpu_render_state.clone(),
         );
 
