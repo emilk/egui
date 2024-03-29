@@ -646,21 +646,6 @@ impl WgpuWinitRunning {
             focused_viewport,
         } = &mut *shared_mut;
 
-        let Some(viewport) = viewports.get_mut(&viewport_id) else {
-            return EventResult::Wait;
-        };
-
-        viewport.info.events.clear(); // they should have been processed
-
-        let Viewport {
-            window: Some(window),
-            egui_winit: Some(egui_winit),
-            ..
-        } = viewport
-        else {
-            return EventResult::Wait;
-        };
-
         let FullOutput {
             platform_output,
             textures_delta,
@@ -675,6 +660,21 @@ impl WgpuWinitRunning {
             viewport_from_window,
             &viewport_output,
         );
+
+        let Some(viewport) = viewports.get_mut(&viewport_id) else {
+            return EventResult::Wait;
+        };
+
+        viewport.info.events.clear(); // they should have been processed
+
+        let Viewport {
+            window: Some(window),
+            egui_winit: Some(egui_winit),
+            ..
+        } = viewport
+        else {
+            return EventResult::Wait;
+        };
 
         egui_winit.handle_platform_output(window, platform_output);
 
