@@ -850,7 +850,7 @@ impl Viewport {
     ) {
         let viewport_id = self.ids.this;
 
-        self.info.this = Some(viewport_id);
+        self.info.this = viewport_id;
         self.info.parent = Some(egui_ctx.parent_viewport_id_of(viewport_id));
 
         if self.window.is_some() {
