@@ -177,7 +177,7 @@ pub enum ViewportEvent {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
     /// this viewport, if known.
-    pub this: Option<ViewportId>,
+    pub this: ViewportId,
 
     /// Parent viewport, if known.
     pub parent: Option<ViewportId>,
@@ -256,7 +256,7 @@ impl ViewportInfo {
 
         crate::Grid::new("viewport_info").show(ui, |ui| {
             ui.label("this:");
-            ui.label(opt_as_str(this));
+            ui.label(format!("{this:?}"));
             ui.end_row();
 
             ui.label("Parent:");
