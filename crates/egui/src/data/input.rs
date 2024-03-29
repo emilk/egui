@@ -15,7 +15,7 @@ use crate::{emath::*, Key, ViewportId, ViewportIdMap};
 ///
 /// Ii "points" can be calculated from native physical pixels
 /// using `pixels_per_point` = [`crate::Context::zoom_factor`] * `native_pixels_per_point`;
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
     /// The id of the active viewport.
@@ -179,11 +179,11 @@ pub enum ViewportEvent {
 ///
 /// All units are in ui "points", which can be calculated from native physical pixels
 /// using `pixels_per_point` = [`crate::Context::zoom_factor`] * `[Self::native_pixels_per_point`];
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
     /// this viewport, if known.
-    pub this: Option<ViewportId>,
+    pub this: ViewportId,
 
     /// Parent viewport, if known.
     pub parent: Option<ViewportId>,
@@ -236,9 +236,9 @@ pub struct ViewportInfo {
 
     /// If this is 'true', you can wait for the selection result without Close.
     /// If this is 'false' (default), it closes immediately without waiting.
-    pub close_cancelable: bool,
+    pub close_cancelable: std::sync::Arc<std::sync::Mutex<Option<bool>>>,
 
-    pub close_requested: bool,
+    pub close_requested: std::sync::Arc<std::sync::Mutex<bool>>,
 }
 
 impl ViewportInfo {
@@ -251,22 +251,71 @@ impl ViewportInfo {
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
     pub fn close_requested(&self) -> bool {
-        self.close_requested
-        // self.events
-        //     .iter()
-        //     .any(|&event| event == ViewportEvent::Close)
+        self.is_close_requested()
+        /*
+        self.events
+            .iter()
+            .any(|&event| event == ViewportEvent::Close)
+        */
     }
 
-    pub fn set_close_cancelable(&mut self, v: bool) {
-        self.close_cancelable = v;
+    pub fn is_close_requested(&self) -> bool {
+        let Ok(close_requested_lock) = self.close_requested.lock() else {
+            return false;
+        };
+        *close_requested_lock
     }
 
-    pub fn close_cancelable(&self) -> bool {
-        self.close_cancelable
+    pub fn close_requested_on(&self) {
+        let Ok(mut close_requested_lock) = self.close_requested.lock() else {
+            return;
+        };
+        *close_requested_lock = true;
+    }
+
+    pub fn close_requested_off(&self) {
+        let Ok(mut close_requested_lock) = self.close_requested.lock() else {
+            return;
+        };
+        *close_requested_lock = false;
+    }
+
+    pub fn close_cancelable_reset(&mut self) {
+        let Ok(mut close_cancelable_lock) = self.close_cancelable.lock() else {
+            return;
+        };
+        *close_cancelable_lock = None;
+    }
+
+    pub fn close_cancelable_on(&mut self) {
+        let Ok(mut close_cancelable_lock) = self.close_cancelable.lock() else {
+            return;
+        };
+
+        // Setting to ON only once. Setting will be ignored if it is already set.
+        if close_cancelable_lock.is_some() {
+            return;
+        }
+
+        *close_cancelable_lock = Some(true);
+    }
+
+    pub fn close_cancelable_off(&mut self) {
+        let Ok(mut close_cancelable_lock) = self.close_cancelable.lock() else {
+            return;
+        };
+        *close_cancelable_lock = Some(false);
+    }
+
+    pub fn is_close_cancelable(&self) -> bool {
+        let Ok(close_cancelable) = self.close_cancelable.lock() else {
+            return false;
+        };
+        close_cancelable.unwrap_or(false)
     }
 
     pub fn should_close(&self) -> bool {
-        self.close_requested && !self.close_cancelable
+        self.is_close_requested() && !self.is_close_cancelable()
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
@@ -291,7 +340,7 @@ impl ViewportInfo {
 
         crate::Grid::new("viewport_info").show(ui, |ui| {
             ui.label("this:");
-            ui.label(opt_as_str(this));
+            ui.label(format!("{this:?}"));
             ui.end_row();
 
             ui.label("Parent:");
