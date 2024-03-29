@@ -102,14 +102,14 @@ pub fn paint_text_cursor(
     if is_blink_mode {
         if is_cursor_visible {
             ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(
-                    (on_duration * 1000.0) as u64,
+                .request_repaint_after(std::time::Duration::from_secs_f64(
+                    on_duration
                 ));
         }
         if !is_cursor_visible {
             ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(
-                    (off_duration * 1000.0) as u64,
+                .request_repaint_after(std::time::Duration::from_secs_f64(
+                    off_duration
                 ));
         }
     }
