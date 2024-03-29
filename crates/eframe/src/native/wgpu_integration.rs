@@ -1091,28 +1091,19 @@ fn handle_viewport_output(
             if cfg!(target_os = "linux") {
                 let inner_size = window.inner_size();
                 if inner_size != save_inner_size {
-                    resize_for_other_os(painter, &viewport_id, inner_size);
+                    use std::num::NonZeroU32;
+                    if let (Some(width), Some(height)) = (
+                        NonZeroU32::new(inner_size.width),
+                        NonZeroU32::new(inner_size.height),
+                    ) {
+                        painter.on_window_resized(viewport_id, width, height);
+                    }
                 }
             }
         }
     }
 
     remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
-}
-
-fn resize_for_other_os(
-    painter: &mut egui_wgpu::winit::Painter,
-    viewport_id: &ViewportId,
-    inner_size: winit::dpi::PhysicalSize<u32>,
-) {
-    use std::num::NonZeroU32;
-
-    if let (Some(width), Some(height)) = (
-        NonZeroU32::new(inner_size.width),
-        NonZeroU32::new(inner_size.height),
-    ) {
-        painter.on_window_resized(*viewport_id, width, height);
-    }
 }
 
 fn initialize_or_update_viewport<'vp>(
