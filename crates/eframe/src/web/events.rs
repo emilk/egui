@@ -242,6 +242,7 @@ pub(crate) fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValu
     runner_ref.add_event_listener(&window, "hashchange", |_: web_sys::Event, runner| {
         // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
         runner.frame.info.web_info.location.hash = location_hash();
+        runner.needs_repaint.repaint_asap(); // tell the user about the new hash
     })?;
 
     Ok(())
