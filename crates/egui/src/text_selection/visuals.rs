@@ -82,11 +82,11 @@ pub fn paint_text_cursor(
     is_stay_cursor: bool,
 ) {
     let i_time = ui.input(|i| i.time);
-    let blink_mode = ui.visuals().text_cursor_blink;
+    let blink_mode = ui.visuals().text_cursor_style.blink;
     let is_blink_mode = blink_mode && is_stay_cursor;
 
-    let on_duration = ui.visuals().text_cursor_on_duration;
-    let off_duration = ui.visuals().text_cursor_off_duration;
+    let on_duration = ui.visuals().text_cursor_style.on_duration;
+    let off_duration = ui.visuals().text_cursor_style.off_duration;
     let total_duration = on_duration + off_duration;
 
     let mut is_cursor_visible = true;
@@ -102,15 +102,11 @@ pub fn paint_text_cursor(
     if is_blink_mode {
         if is_cursor_visible {
             ui.ctx()
-                .request_repaint_after(std::time::Duration::from_secs_f64(
-                    on_duration
-                ));
+                .request_repaint_after(std::time::Duration::from_secs_f64(on_duration));
         }
         if !is_cursor_visible {
             ui.ctx()
-                .request_repaint_after(std::time::Duration::from_secs_f64(
-                    off_duration
-                ));
+                .request_repaint_after(std::time::Duration::from_secs_f64(off_duration));
         }
     }
 }
