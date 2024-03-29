@@ -696,7 +696,9 @@ impl<'t> TextEdit<'t> {
 
                     if text.is_mutable() {
                         let has_key_down = ui.ctx().input(|i| i.has_key_down());
-                        let blink_pause = (save_ccursor_range != state.cursor.char_range()) || has_key_down;
+                        let blink_pause =
+                            (save_ccursor_range != state.cursor.char_range()) || has_key_down;
+
                         text_selection::visuals::paint_text_cursor(
                             ui,
                             &painter,
