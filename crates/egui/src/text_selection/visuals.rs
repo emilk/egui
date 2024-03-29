@@ -87,7 +87,7 @@ pub fn paint_text_cursor(
 
     let on_duration = ui.visuals().text_cursor_on_duration;
     let off_duration = ui.visuals().text_cursor_off_duration;
-    let total_duration = on_duration + off_durationn;
+    let total_duration = on_duration + off_duration;
 
     let mut is_cursor_visible = true;
 
