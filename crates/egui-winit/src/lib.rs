@@ -865,12 +865,7 @@ impl State {
     }
 }
 
-pub fn math_inner_rect(window: &Window, pixels_per_point: Option<f32>) -> Option<Rect> {
-    let pixels_per_point = match pixels_per_point {
-        Some(pixels_per_point) => pixels_per_point,
-        None => window.scale_factor() as f32,
-    };
-
+pub fn math_inner_rect(window: &Window, pixels_per_point: f32) -> Option<Rect> {
     let inner_pos_px = window
         .inner_position()
         .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
@@ -890,12 +885,7 @@ pub fn math_inner_rect(window: &Window, pixels_per_point: Option<f32>) -> Option
     inner_rect_px.map(|r| r / pixels_per_point)
 }
 
-pub fn math_outer_rect(window: &Window, pixels_per_point: Option<f32>) -> Option<Rect> {
-    let pixels_per_point = match pixels_per_point {
-        Some(pixels_per_point) => pixels_per_point,
-        None => window.scale_factor() as f32,
-    };
-
+pub fn math_outer_rect(window: &Window, pixels_per_point: f32) -> Option<Rect> {
     let outer_pos_px = window
         .outer_position()
         .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
@@ -933,13 +923,13 @@ pub fn update_viewport_info(
     };
 
     let inner_rect = if has_a_position {
-        math_inner_rect(window, Some(pixels_per_point))
+        math_inner_rect(window, pixels_per_point)
     } else {
         None
     };
 
     let outer_rect = if has_a_position {
-        math_outer_rect(window, Some(pixels_per_point))
+        math_outer_rect(window, pixels_per_point)
     } else {
         None
     };
@@ -1333,8 +1323,8 @@ fn process_viewport_command(
                 // ex) linux
                 log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
 
-                info.inner_rect = math_inner_rect(window, Some(pixels_per_point));
-                info.outer_rect = math_outer_rect(window, Some(pixels_per_point));
+                info.inner_rect = math_inner_rect(window, pixels_per_point);
+                info.outer_rect = math_outer_rect(window, pixels_per_point);
             } else {
                 // ex) Windows, MacOS
                 log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
