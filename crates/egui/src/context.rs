@@ -1977,7 +1977,7 @@ impl ContextImpl {
             .graphics
             .drain(self.memory.areas().order(), &self.memory.layer_transforms);
 
-        let mut repaint_needed = false;
+        let mut repaint_needed = self.memory.options.continuous_mode;
 
         {
             if self.memory.options.repaint_on_widget_change {
