@@ -3,11 +3,13 @@ use super::{canvas_origin, AppRunner};
 pub fn pos_from_mouse_event(
     canvas: &web_sys::HtmlCanvasElement,
     event: &web_sys::MouseEvent,
+    ctx: &egui::Context,
 ) -> egui::Pos2 {
     let rect = canvas.get_bounding_client_rect();
+    let zoom_factor = ctx.zoom_factor();
     egui::Pos2 {
-        x: event.client_x() as f32 - rect.left() as f32,
-        y: event.client_y() as f32 - rect.top() as f32,
+        x: (event.client_x() as f32 - rect.left() as f32) / zoom_factor,
+        y: (event.client_y() as f32 - rect.top() as f32) / zoom_factor,
     }
 }
 
@@ -32,6 +34,7 @@ pub fn pos_from_touch_event(
     canvas: &web_sys::HtmlCanvasElement,
     event: &web_sys::TouchEvent,
     touch_id_for_pos: &mut Option<egui::TouchId>,
+    egui_ctx: &egui::Context,
 ) -> egui::Pos2 {
     let touch_for_pos = if let Some(touch_id_for_pos) = touch_id_for_pos {
         // search for the touch we previously used for the position
@@ -49,14 +52,19 @@ pub fn pos_from_touch_event(
         .or_else(|| event.touches().get(0))
         .map_or(Default::default(), |touch| {
             *touch_id_for_pos = Some(egui::TouchId::from(touch.identifier()));
-            pos_from_touch(canvas_origin(canvas), &touch)
+            pos_from_touch(canvas_origin(canvas), &touch, egui_ctx)
         })
 }
 
-fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
+fn pos_from_touch(
+    canvas_origin: egui::Pos2,
+    touch: &web_sys::Touch,
+    egui_ctx: &egui::Context,
+) -> egui::Pos2 {
+    let zoom_factor = egui_ctx.zoom_factor();
     egui::Pos2 {
-        x: touch.page_x() as f32 - canvas_origin.x,
-        y: touch.page_y() as f32 - canvas_origin.y,
+        x: (touch.page_x() as f32 - canvas_origin.x) / zoom_factor,
+        y: (touch.page_y() as f32 - canvas_origin.y) / zoom_factor,
     }
 }
 
@@ -68,7 +76,7 @@ pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web
                 device_id: egui::TouchDeviceId(0),
                 id: egui::TouchId::from(touch.identifier()),
                 phase,
-                pos: pos_from_touch(canvas_origin, &touch),
+                pos: pos_from_touch(canvas_origin, &touch, runner.egui_ctx()),
                 force: Some(touch.force()),
             });
         }
