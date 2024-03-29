@@ -1,5 +1,3 @@
-use emath::NumExt as _;
-
 use super::*;
 
 /// The color and fuzziness of a fuzzy shape.
@@ -37,10 +35,9 @@ impl Shadow {
         color: Color32::TRANSPARENT,
     };
 
-    pub fn tessellate(&self, rect: Rect, rounding: impl Into<Rounding>) -> Mesh {
+    /// The argument is the rectangle of the shadow caster.
+    pub fn as_shape(&self, rect: Rect, rounding: impl Into<Rounding>) -> RectShape {
         // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
-
-        use crate::tessellator::*;
 
         let Self {
             offset,
@@ -50,40 +47,9 @@ impl Shadow {
         } = *self;
 
         let rect = rect.translate(offset).expand(spread);
+        let rounding = rounding.into() + Rounding::same(spread.abs());
 
-        // We simulate a blurry shadow by tessellating a solid rectangle using a very large feathering.
-        // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
-        // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
-        // Thats because the tessellator approximate very thin rectangles as line segments,
-        // and these line segments don't have rounded corners.
-        // When the feathering is small (the size of a pixel), this is usually fine,
-        // but here we have a huge feathering to simulate blur,
-        // so we need to avoid this optimization in the tessellator,
-        // which is also why we add this rather big epsilon:
-        let eps = 0.1;
-        let blur = blur.at_most(rect.size().min_elem() - eps).at_least(0.0);
-
-        // TODO(emilk): if blur <= 0, return a simple `Shape::Rect` instead of using the tessellator
-
-        let rounding_expansion = spread.abs() + 0.5 * blur;
-        let rounding = rounding.into() + Rounding::same(rounding_expansion);
-
-        let rect = RectShape::filled(rect, rounding, color);
-        let pixels_per_point = 1.0; // doesn't matter here
-        let font_tex_size = [1; 2]; // unused since we are not tessellating text.
-        let mut tessellator = Tessellator::new(
-            pixels_per_point,
-            TessellationOptions {
-                feathering: true,
-                feathering_size_in_pixels: blur * pixels_per_point,
-                ..Default::default()
-            },
-            font_tex_size,
-            vec![],
-        );
-        let mut mesh = Mesh::default();
-        tessellator.tessellate_rect(&rect, &mut mesh);
-        mesh
+        RectShape::filled(rect, rounding, color).with_blur_width(blur)
     }
 
     /// How much larger than the parent rect are we in each direction?
