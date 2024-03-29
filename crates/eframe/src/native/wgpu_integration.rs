@@ -288,7 +288,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
-                info: info,
+                info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
                 window: Some(window),
