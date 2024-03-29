@@ -278,6 +278,9 @@ impl WgpuWinitApp {
         let mut viewport_from_window = HashMap::default();
         viewport_from_window.insert(window.id(), ViewportId::ROOT);
 
+        let mut info = ViewportInfo::default();
+        egui_winit::update_viewport_info_with_ppp(&mut info, &window, None);
+
         let mut viewports = Viewports::default();
         viewports.insert(
             ViewportId::ROOT,
@@ -285,7 +288,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
-                info: egui_winit::get_update_viewport_info(&ViewportInfo::default(), &window, None),
+                info: info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
                 window: Some(window),
@@ -874,7 +877,7 @@ impl Viewport {
                     painter.max_texture_side(),
                 ));
 
-                self.info = egui_winit::get_update_viewport_info(&self.info, &window, None);
+                egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window);
                 self.window = Some(window);
             }
             Err(err) => {
