@@ -416,6 +416,11 @@ impl InputState {
             .count()
     }
 
+    /// Tells whether there is a key currently being pressed down.
+    pub fn has_key_down(&self) -> bool {
+        self.keys_down.len() > 0
+    }
+
     /// Is the given key currently held down?
     pub fn key_down(&self, desired_key: Key) -> bool {
         self.keys_down.contains(&desired_key)
