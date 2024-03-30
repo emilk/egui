@@ -44,7 +44,7 @@ impl CodeExample {
             ui.add(
                 egui::DragValue::new(age)
                     .clamp_range(0..=120)
-                    .suffix(" years")
+                    .suffix(" years"),
             );"#,
         );
         ui.add(
@@ -66,11 +66,7 @@ impl CodeExample {
         }
         ui.end_row();
 
-        show_code(
-            ui,
-            r#"
-            ui.label(format!("{name} is {age}"));"#,
-        );
+        show_code(ui, r#"ui.label(format!("{name} is {age}"));"#);
         ui.label(format!("{name} is {age}"));
         ui.end_row();
     }
