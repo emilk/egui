@@ -875,26 +875,24 @@ impl State {
 }
 
 pub fn inner_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
-    let pos = window.inner_position().ok()?;
-    let inner_pos_px = egui::emath::Pos2::new(pos.x as f32, pos.y as f32);
+    let inner_pos_px = window.inner_position().ok()?;
+    let inner_pos_px = egui::pos2(inner_pos_px.x as f32, inner_pos_px.y as f32);
 
-    let inner_size_px = {
-        let size = window.inner_size();
-        egui::Vec2::new(size.width as f32, size.height as f32)
-    };
+    let inner_size_px = window.inner_size();
+    let inner_size_px = egui::vec2(inner_size_px.width as f32, inner_size_px.height as f32);
+
     let inner_rect_px = egui::Rect::from_min_size(inner_pos_px, inner_size_px);
 
     Some(inner_rect_px / pixels_per_point)
 }
 
 pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
-    let pos = window.outer_position().ok()?;
-    let outer_pos_px = egui::emath::Pos2::new(pos.x as f32, pos.y as f32);
+    let outer_pos_px = window.outer_position().ok()?;
+    let outer_pos_px = egui::pos2(outer_pos_px.x as f32, outer_pos_px.y as f32);
 
-    let outer_size_px = {
-        let size = window.outer_size();
-        egui::Vec2::new(size.width as f32, size.height as f32)
-    };
+    let outer_size_px = window.outer_size();
+    let outer_size_px = egui::vec2(outer_size_px.width as f32, outer_size_px.height as f32);
+
     let outer_rect_px = egui::Rect::from_min_size(outer_pos_px, outer_size_px);
 
     Some(outer_rect_px / pixels_per_point)
@@ -950,7 +948,7 @@ pub fn update_viewport_info(
     viewport_info.outer_rect = outer_rect;
 
     if is_init || !cfg!(target_os = "macos") {
-        // It's tempting to do this, but it leads to a deadlock on Mac when running
+        // Asking for minimized/maximized state at runtime leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
         viewport_info.maximized = Some(window.is_maximized());
