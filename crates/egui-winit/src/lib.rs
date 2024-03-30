@@ -1313,16 +1313,27 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            if let Some(_inner_size) =
-                window.request_inner_size(PhysicalSize::new(width_px, height_px))
-            {
-                // ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]
-                // ex) linux
+            let requested_size = PhysicalSize::new(width_px, height_px);
+            if let Some(_returned_inner_size) = window.request_inner_size(requested_size) {
+                // On platforms where the size is entirely controlled by the user the
+                // applied size will be returned immediately, resize event in such case
+                // may not be generated.
+                // e.g. Linux
+
+                // On platforms where resizing is disallowed by the windowing system, the current
+                // inner size is returned immediately, and the user one is ignored.
+                // e.g. Android, iOS, …
+
+                // However, comparing the results is prone to numerical errors
+                // because the linux backend converts physical to logical and back again.
+                // So let's just assume it worked:
+
                 info.inner_rect = inner_rect_in_points(window, pixels_per_point);
                 info.outer_rect = outer_rect_in_points(window, pixels_per_point);
             } else {
-                // ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]
-                // ex) Windows, MacOS
+                // e.g. macOS, Windows
+                // The request went to the display system,
+                // and the actual size will be delivered later with the [`WindowEvent::Resized`].
             }
         }
         ViewportCommand::BeginResize(direction) => {
