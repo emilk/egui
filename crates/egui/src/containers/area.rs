@@ -355,7 +355,8 @@ impl Area {
         state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
 
         // Update responsbe with posisbly moved/constrained rect:
-        move_response = move_response.with_new_rect(state.rect());
+        move_response.rect = state.rect();
+        move_response.interact_rect = state.rect();
 
         Prepared {
             layer_id,
