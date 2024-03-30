@@ -4,6 +4,8 @@
 #![allow(unsafe_code)]
 #![allow(clippy::arc_with_non_send_sync)] // glow::Context was accidentally non-Sync in glow 0.13, but that will be fixed in future releases of glow: https://github.com/grovesNL/glow/commit/c4a5f7151b9b4bbb380faa06ec27415235d1bf7e
 
+use std::num::NonZeroU32;
+
 use egui_winit::winit;
 
 /// The majority of `GlutinWindowContext` is taken from `eframe`
@@ -19,7 +21,6 @@ impl GlutinWindowContext {
     // preferably add android support at the same time.
     #[allow(unsafe_code)]
     unsafe fn new(event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent>) -> Self {
-        use egui::NumExt;
         use glutin::context::NotCurrentGlContext;
         use glutin::display::GetGlDisplay;
         use glutin::display::GlDisplay;
@@ -87,8 +88,8 @@ impl GlutinWindowContext {
                 .expect("failed to finalize glutin window")
         });
         let (width, height): (u32, u32) = window.inner_size().into();
-        let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
-        let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
+        let width = NonZeroU32::new(width).unwrap_or(NonZeroU32::MIN);
+        let height = NonZeroU32::new(height).unwrap_or(NonZeroU32::MIN);
         let surface_attributes =
             glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
                 .build(window.raw_window_handle(), width, height);
@@ -107,7 +108,7 @@ impl GlutinWindowContext {
         gl_surface
             .set_swap_interval(
                 &gl_context,
-                glutin::surface::SwapInterval::Wait(std::num::NonZeroU32::new(1).unwrap()),
+                glutin::surface::SwapInterval::Wait(NonZeroU32::MIN),
             )
             .unwrap();
 
