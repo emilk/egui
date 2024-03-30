@@ -554,7 +554,7 @@ impl GlowWinitRunning {
             let Some(window) = viewport.window.as_ref() else {
                 return EventResult::Wait;
             };
-            egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window);
+            egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window, false);
 
             let Some(egui_winit) = viewport.egui_winit.as_mut() else {
                 return EventResult::Wait;
@@ -1001,7 +1001,7 @@ impl GlutinWindowContext {
         if let Some(window) = &window {
             viewport_from_window.insert(window.id(), ViewportId::ROOT);
             window_from_viewport.insert(ViewportId::ROOT, window.id());
-            egui_winit::update_viewport_info(&mut info, egui_ctx, window);
+            egui_winit::update_viewport_info(&mut info, egui_ctx, window, true);
         }
 
         let mut viewports = ViewportIdMap::default();
@@ -1094,7 +1094,7 @@ impl GlutinWindowContext {
                 &viewport.builder,
             );
 
-            egui_winit::update_viewport_info(&mut viewport.info, &self.egui_ctx, &window);
+            egui_winit::update_viewport_info(&mut viewport.info, &self.egui_ctx, &window, true);
             viewport.window.insert(Arc::new(window))
         };
 
@@ -1405,7 +1405,7 @@ fn render_immediate_viewport(
         let (Some(egui_winit), Some(window)) = (&mut viewport.egui_winit, &viewport.window) else {
             return;
         };
-        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
+        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window, false);
 
         let mut raw_input = egui_winit.take_egui_input(window);
         raw_input.viewports = glutin

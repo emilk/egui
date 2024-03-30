@@ -903,10 +903,13 @@ pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Re
 /// Update the given viewport info with the current state of the window.
 ///
 /// Call before [`State::take_egui_input`].
+///
+/// If this is called right after window creation, `is_init` should be `true`, otherwise `false`.
 pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
     egui_ctx: &egui::Context,
     window: &Window,
+    is_init: bool,
 ) {
     crate::profile_function!();
 
@@ -946,7 +949,7 @@ pub fn update_viewport_info(
     viewport_info.inner_rect = inner_rect;
     viewport_info.outer_rect = outer_rect;
 
-    if !cfg!(target_os = "macos") {
+    if is_init || !cfg!(target_os = "macos") {
         // It's tempting to do this, but it leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494

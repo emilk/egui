@@ -280,7 +280,7 @@ impl WgpuWinitApp {
         viewport_from_window.insert(window.id(), ViewportId::ROOT);
 
         let mut info = ViewportInfo::default();
-        egui_winit::update_viewport_info(&mut info, &egui_ctx, &window);
+        egui_winit::update_viewport_info(&mut info, &egui_ctx, &window, true);
 
         let mut viewports = Viewports::default();
         viewports.insert(
@@ -604,7 +604,7 @@ impl WgpuWinitRunning {
             let Some(window) = window else {
                 return EventResult::Wait;
             };
-            egui_winit::update_viewport_info(info, &integration.egui_ctx, window);
+            egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
 
             {
                 crate::profile_scope!("set_window");
@@ -881,7 +881,7 @@ impl Viewport {
                     painter.max_texture_side(),
                 ));
 
-                egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window);
+                egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
                 self.window = Some(window);
             }
             Err(err) => {
@@ -952,7 +952,7 @@ fn render_immediate_viewport(
         let (Some(window), Some(egui_winit)) = (&viewport.window, &mut viewport.egui_winit) else {
             return;
         };
-        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
+        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window, false);
 
         let mut input = egui_winit.take_egui_input(window);
         input.viewports = viewports
