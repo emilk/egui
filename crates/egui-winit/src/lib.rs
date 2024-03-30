@@ -874,69 +874,61 @@ impl State {
     }
 }
 
+pub fn inner_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
+    let inner_pos_px = window.inner_position().ok()?;
+    let inner_pos_px = egui::pos2(inner_pos_px.x as f32, inner_pos_px.y as f32);
+
+    let inner_size_px = window.inner_size();
+    let inner_size_px = egui::vec2(inner_size_px.width as f32, inner_size_px.height as f32);
+
+    let inner_rect_px = egui::Rect::from_min_size(inner_pos_px, inner_size_px);
+
+    Some(inner_rect_px / pixels_per_point)
+}
+
+pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
+    let outer_pos_px = window.outer_position().ok()?;
+    let outer_pos_px = egui::pos2(outer_pos_px.x as f32, outer_pos_px.y as f32);
+
+    let outer_size_px = window.outer_size();
+    let outer_size_px = egui::vec2(outer_size_px.width as f32, outer_size_px.height as f32);
+
+    let outer_rect_px = egui::Rect::from_min_size(outer_pos_px, outer_size_px);
+
+    Some(outer_rect_px / pixels_per_point)
+}
+
 /// Update the given viewport info with the current state of the window.
 ///
 /// Call before [`State::take_egui_input`].
+///
+/// If this is called right after window creation, `is_init` should be `true`, otherwise `false`.
 pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
     egui_ctx: &egui::Context,
     window: &Window,
+    is_init: bool,
 ) {
     crate::profile_function!();
 
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
-        None | Some(true) => false,
-        Some(false) => true,
+        Some(true) => false,
+        Some(false) | None => true,
     };
 
-    let inner_pos_px = if has_a_position {
-        window
-            .inner_position()
-            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-            .ok()
+    let inner_rect = if has_a_position {
+        inner_rect_in_points(window, pixels_per_point)
     } else {
         None
     };
 
-    let outer_pos_px = if has_a_position {
-        window
-            .outer_position()
-            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-            .ok()
+    let outer_rect = if has_a_position {
+        outer_rect_in_points(window, pixels_per_point)
     } else {
         None
     };
-
-    let inner_size_px = if has_a_position {
-        let size = window.inner_size();
-        Some(Vec2::new(size.width as f32, size.height as f32))
-    } else {
-        None
-    };
-
-    let outer_size_px = if has_a_position {
-        let size = window.outer_size();
-        Some(Vec2::new(size.width as f32, size.height as f32))
-    } else {
-        None
-    };
-
-    let inner_rect_px = if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
-        Some(Rect::from_min_size(pos, size))
-    } else {
-        None
-    };
-
-    let outer_rect_px = if let (Some(pos), Some(size)) = (outer_pos_px, outer_size_px) {
-        Some(Rect::from_min_size(pos, size))
-    } else {
-        None
-    };
-
-    let inner_rect = inner_rect_px.map(|r| r / pixels_per_point);
-    let outer_rect = outer_rect_px.map(|r| r / pixels_per_point);
 
     let monitor_size = {
         crate::profile_scope!("monitor_size");
@@ -948,21 +940,23 @@ pub fn update_viewport_info(
         }
     };
 
-    viewport_info.focused = Some(window.has_focus());
-    viewport_info.fullscreen = Some(window.fullscreen().is_some());
-    viewport_info.inner_rect = inner_rect;
-    viewport_info.monitor_size = monitor_size;
-    viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
-    viewport_info.outer_rect = outer_rect;
     viewport_info.title = Some(window.title());
+    viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
 
-    if cfg!(target_os = "windows") {
-        // It's tempting to do this, but it leads to a deadlock on Mac when running
+    viewport_info.monitor_size = monitor_size;
+    viewport_info.inner_rect = inner_rect;
+    viewport_info.outer_rect = outer_rect;
+
+    if is_init || !cfg!(target_os = "macos") {
+        // Asking for minimized/maximized state at runtime leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
         viewport_info.maximized = Some(window.is_maximized());
         viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
+
+    viewport_info.fullscreen = Some(window.fullscreen().is_some());
+    viewport_info.focused = Some(window.has_focus());
 }
 
 fn open_url_in_browser(_url: &str) {
@@ -1319,11 +1313,27 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            if window
-                .request_inner_size(PhysicalSize::new(width_px, height_px))
-                .is_some()
-            {
-                log::debug!("ViewportCommand::InnerSize ignored by winit");
+            let requested_size = PhysicalSize::new(width_px, height_px);
+            if let Some(_returned_inner_size) = window.request_inner_size(requested_size) {
+                // On platforms where the size is entirely controlled by the user the
+                // applied size will be returned immediately, resize event in such case
+                // may not be generated.
+                // e.g. Linux
+
+                // On platforms where resizing is disallowed by the windowing system, the current
+                // inner size is returned immediately, and the user one is ignored.
+                // e.g. Android, iOS, …
+
+                // However, comparing the results is prone to numerical errors
+                // because the linux backend converts physical to logical and back again.
+                // So let's just assume it worked:
+
+                info.inner_rect = inner_rect_in_points(window, pixels_per_point);
+                info.outer_rect = outer_rect_in_points(window, pixels_per_point);
+            } else {
+                // e.g. macOS, Windows
+                // The request went to the display system,
+                // and the actual size will be delivered later with the [`WindowEvent::Resized`].
             }
         }
         ViewportCommand::BeginResize(direction) => {
