@@ -1866,8 +1866,8 @@ impl Visuals {
             ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
             ui.checkbox(text_cursor_blink, "text cursor to blink");
             ui.add(Slider::new(text_cursor_on_duration, 0.0..=2.0).text("text cursor on duration"));
-            ui.add(Slider::new(
-                text_cursor_off_duration, 0.0..=2.0).text("text cursor off duration")
+            ui.add(
+                Slider::new(text_cursor_off_duration, 0.0..=2.0).text("text cursor off duration"),
             );
             ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
