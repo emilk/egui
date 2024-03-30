@@ -738,7 +738,9 @@ impl WgpuWinitRunning {
             }
         }
 
-        if integration.should_close() {
+        let should_close = shared_mut.egui_ctx.input(|i| i.viewport().should_close());
+        if should_close {
+        // if integration.should_close() {
             EventResult::Exit(window_id)
         } else {
             EventResult::Wait
@@ -780,7 +782,8 @@ impl WgpuWinitRunning {
             }
 
             winit::event::WindowEvent::CloseRequested => {
-                if viewport_id == Some(ViewportId::ROOT) && integration.should_close() {
+                let should_close = shared.egui_ctx.input(|i| i.viewport().should_close());
+                if viewport_id == Some(ViewportId::ROOT) && should_close {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
@@ -791,9 +794,9 @@ impl WgpuWinitRunning {
 
                 if let Some(viewport_id) = viewport_id {
                     if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
+                        viewport.info.close_requested_on();
                         // Tell viewport it should close:
                         viewport.info.events.push(egui::ViewportEvent::Close);
-                        viewport.info.close_requested();
 
                         // We may need to repaint both us and our parent to close the window,
                         // and perhaps twice (once to notice the close-event, once again to enforce it).
@@ -827,7 +830,9 @@ impl WgpuWinitRunning {
             })
             .unwrap_or_default();
 
-        if integration.should_close() {
+        let should_close = shared.egui_ctx.input(|i| i.viewport().should_close());
+        if should_close {
+        // if integration.should_close() {
             EventResult::Exit(window_id)
         } else if event_response.repaint {
             EventResult::RepaintNow(window_id)
