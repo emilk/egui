@@ -1239,9 +1239,8 @@ impl GlutinWindowContext {
                 parent,
                 class,
                 builder,
-                mut commands,
                 viewport_ui_cb,
-                commands,
+                mut commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
         ) in viewport_output.clone()
