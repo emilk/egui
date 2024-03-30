@@ -1799,6 +1799,37 @@ impl Visuals {
                 .on_hover_text("Background of plots and paintings");
         });
 
+        ui.collapsing("Text color", |ui| {
+            ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
+            ui_text_color(
+                ui,
+                &mut widgets.inactive.fg_stroke.color,
+                "Unhovered button",
+            );
+            ui_text_color(ui, &mut widgets.hovered.fg_stroke.color, "Hovered button");
+            ui_text_color(ui, &mut widgets.active.fg_stroke.color, "Clicked button");
+
+            ui_text_color(ui, warn_fg_color, RichText::new("Warnings"));
+            ui_text_color(ui, error_fg_color, RichText::new("Errors"));
+
+            ui_text_color(ui, hyperlink_color, "hyperlink_color");
+
+            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
+                |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label("For monospaced inlined text ");
+                        ui.code("like this");
+                        ui.label(".");
+                    });
+                },
+            );
+        });
+
+        ui.collapsing("Text cursor", |ui| {
+            text_cursor.ui(ui);
+        });
+
         ui.collapsing("Window", |ui| {
             Grid::new("window")
                 .num_columns(2)
@@ -1843,35 +1874,6 @@ impl Visuals {
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
-
-        ui.collapsing("Other colors", |ui| {
-            ui.horizontal(|ui| {
-                ui_color(
-                    ui,
-                    &mut widgets.noninteractive.fg_stroke.color,
-                    "Text color",
-                );
-                ui_color(ui, warn_fg_color, RichText::new("Warnings"));
-                ui_color(ui, error_fg_color, RichText::new("Errors"));
-            });
-
-            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
-                |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 0.0;
-                        ui.label("For monospaced inlined text ");
-                        ui.code("like this");
-                        ui.label(".");
-                    });
-                },
-            );
-
-            ui_color(ui, hyperlink_color, "hyperlink_color");
-        });
-
-        ui.collapsing("Text cursor", |ui| {
-            text_cursor.ui(ui);
-        });
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
@@ -2025,10 +2027,18 @@ fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> im
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
+fn ui_color(ui: &mut Ui, color: &mut Color32, label: impl Into<WidgetText>) -> Response {
     ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(srgba);
+        ui.color_edit_button_srgba(color);
         ui.label(label);
+    })
+    .response
+}
+
+fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) -> Response {
+    ui.horizontal(|ui| {
+        ui.color_edit_button_srgba(color);
+        ui.label(label.into().color(*color));
     })
     .response
 }
