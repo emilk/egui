@@ -291,9 +291,8 @@ impl Frame {
         if shadow == Default::default() {
             frame_shape
         } else {
-            let shadow = shadow.tessellate(outer_rect, rounding);
-            let shadow = Shape::Mesh(shadow);
-            Shape::Vec(vec![shadow, frame_shape])
+            let shadow = shadow.as_shape(outer_rect, rounding);
+            Shape::Vec(vec![Shape::from(shadow), frame_shape])
         }
     }
 }
