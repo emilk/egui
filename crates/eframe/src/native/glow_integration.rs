@@ -1291,13 +1291,13 @@ impl GlutinWindowContext {
 }
 
 fn initialize_or_update_viewport<'vp>(
-    egu_ctx: &egui::Context,
+    _egu_ctx: &egui::Context,
     viewports: &'vp mut ViewportIdMap<Viewport>,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-    focused_viewport: Option<ViewportId>,
+    _focused_viewport: Option<ViewportId>,
 ) -> &'vp mut Viewport {
     crate::profile_function!();
 
