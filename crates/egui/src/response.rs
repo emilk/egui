@@ -197,7 +197,10 @@ impl Response {
         self.clicked && self.ctx.input(|i| i.pointer.button_triple_clicked(button))
     }
 
-    /// `true` if there was a click *outside* this widget this frame.
+    /// `true` if there was a click *outside* the rect of this widget.
+    ///
+    /// Clicks on widgets contained in this one counts as clicks inside this widget,
+    /// so that clicking a button in an area will not be considered as clicking "elsewhere" from the area.
     pub fn clicked_elsewhere(&self) -> bool {
         // We do not use self.clicked(), because we want to catch all clicks within our frame,
         // even if we aren't clickable (or even enabled).
