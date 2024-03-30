@@ -76,7 +76,7 @@ pub struct Viewport {
     ids: ViewportIdPair,
     class: ViewportClass,
     builder: ViewportBuilder,
-    commands: Vec<egui::viewport::ViewportCommand>,
+    deferred_commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
     screenshot_requested: bool,
 
@@ -289,7 +289,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
-                commands: vec![],
+                deferred_commands: vec![],
                 info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
@@ -1083,17 +1083,16 @@ fn handle_viewport_output(
             let old_inner_size = window.inner_size();
 
             let is_viewport_focused = focused_viewport == Some(viewport_id);
-            viewport.commands.append(&mut commands);
+            viewport.deferred_commands.append(&mut commands);
 
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut viewport.info,
-                viewport.commands.clone(),
+                std::mem::take(&mut viewport.deferred_commands),
                 window,
                 is_viewport_focused,
                 &mut viewport.screenshot_requested,
             );
-            viewport.commands.clear();
 
             // For Wayland : https://github.com/emilk/egui/issues/4196
             if cfg!(target_os = "linux") {
@@ -1140,7 +1139,7 @@ fn initialize_or_update_viewport<'vp>(
                 ids,
                 class,
                 builder,
-                commands: vec![],
+                deferred_commands: vec![],
                 info: Default::default(),
                 screenshot_requested: false,
                 viewport_ui_cb,
@@ -1169,7 +1168,7 @@ fn initialize_or_update_viewport<'vp>(
                 viewport.egui_winit = None;
             }
 
-            viewport.commands.append(&mut delta_commands);
+            viewport.deferred_commands.append(&mut delta_commands);
 
             entry.into_mut()
         }
