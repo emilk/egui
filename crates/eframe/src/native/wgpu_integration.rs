@@ -656,12 +656,7 @@ impl WgpuWinitRunning {
             viewport_output,
         } = full_output;
 
-        remove_viewports_not_in(
-            viewports,
-            painter,
-            viewport_from_window,
-            &viewport_output,
-        );
+        remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
