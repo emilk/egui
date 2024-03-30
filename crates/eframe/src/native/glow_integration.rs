@@ -547,7 +547,9 @@ impl GlowWinitRunning {
                     if is_deferred_parent {
                         // This will only happens when the parent is a Deferred Viewport.
                         viewport_id = ViewportId::ROOT;
-                        glutin.egui_ctx.request_repaint_of(original_viewport.ids.parent);
+                        glutin
+                            .egui_ctx
+                            .request_repaint_of(original_viewport.ids.parent);
                         // viewport_id = parent_viewport.ids.this;
                     } else if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
                         // This will only happen when the parent is a Immediate Viewport.
@@ -753,7 +755,7 @@ impl GlowWinitRunning {
                 );
             }
             // if let Some(viewport_id) = viewport_id {
-            if viewport_id == ViewportId::ROOT || is_deferred_viewport {
+            if viewport_id == ViewportId::ROOT {
                 // dbg!(&viewport_id);
                 return EventResult::Exit(window_id);
             } else {
