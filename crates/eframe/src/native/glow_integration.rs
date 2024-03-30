@@ -103,6 +103,7 @@ struct Viewport {
     ids: ViewportIdPair,
     class: ViewportClass,
     builder: ViewportBuilder,
+    commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
     screenshot_requested: bool,
 
@@ -999,6 +1000,7 @@ impl GlutinWindowContext {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder: viewport_builder,
+                commands: vec![],
                 info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
@@ -1237,6 +1239,7 @@ impl GlutinWindowContext {
                 parent,
                 class,
                 builder,
+                mut commands,
                 viewport_ui_cb,
                 commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
@@ -1259,14 +1262,17 @@ impl GlutinWindowContext {
                 let old_inner_size = window.inner_size();
 
                 let is_viewport_focused = self.focused_viewport == Some(viewport_id);
+                viewport.commands.append(&mut commands);
+
                 egui_winit::process_viewport_commands(
                     egui_ctx,
                     &mut viewport.info,
-                    commands,
+                    viewport.commands.clone(),
                     window,
                     is_viewport_focused,
                     &mut viewport.screenshot_requested,
                 );
+                viewport.commands.clear();
 
                 // For Wayland : https://github.com/emilk/egui/issues/4196
                 if cfg!(target_os = "linux") {
@@ -1311,6 +1317,7 @@ fn initialize_or_update_viewport<'vp>(
                 ids,
                 class,
                 builder,
+                commands: vec![],
                 info: Default::default(),
                 screenshot_requested: false,
                 viewport_ui_cb,
@@ -1338,17 +1345,9 @@ fn initialize_or_update_viewport<'vp>(
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
-            } else if let Some(window) = &viewport.window {
-                let is_viewport_focused = focused_viewport == Some(ids.this);
-                egui_winit::process_viewport_commands(
-                    egu_ctx,
-                    &mut viewport.info,
-                    delta_commands,
-                    window,
-                    is_viewport_focused,
-                    &mut viewport.screenshot_requested,
-                );
             }
+
+            viewport.commands.append(&mut delta_commands);
 
             entry.into_mut()
         }
