@@ -99,7 +99,7 @@ pub struct State {
     accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
-    ime_rect: Option<egui::Rect>,
+    ime_rect_and_pixels_per_point: Option<(egui::Rect, f32)>,
 }
 
 impl State {
@@ -140,7 +140,7 @@ impl State {
             accesskit: None,
 
             allow_ime: false,
-            ime_rect: None,
+            ime_rect_and_pixels_per_point: None,
         };
 
         slf.egui_input
@@ -819,24 +819,26 @@ impl State {
         }
 
         if let Some(ime) = ime {
+            let rect = ime.rect;
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let rect = ime.rect * pixels_per_point;
-            if self.ime_rect != Some(rect) || self.egui_ctx.input(|i| !i.events.is_empty()) {
-                self.ime_rect = Some(rect);
+            if self.ime_rect_and_pixels_per_point != Some((rect, pixels_per_point))
+                || self.egui_ctx.input(|i| !i.events.is_empty())
+            {
+                self.ime_rect_and_pixels_per_point = Some((rect, pixels_per_point));
                 crate::profile_scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
                     winit::dpi::PhysicalPosition {
-                        x: rect.min.x,
-                        y: rect.min.y,
+                        x: pixels_per_point * rect.min.x,
+                        y: pixels_per_point * rect.min.y,
                     },
                     winit::dpi::PhysicalSize {
-                        width: rect.width(),
-                        height: rect.height(),
+                        width: pixels_per_point * rect.width(),
+                        height: pixels_per_point * rect.height(),
                     },
                 );
             }
         } else {
-            self.ime_rect = None;
+            self.ime_rect_and_pixels_per_point = None;
         }
 
         #[cfg(feature = "accesskit")]
