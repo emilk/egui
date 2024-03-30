@@ -1306,14 +1306,13 @@ fn process_viewport_command(
             if let Some(_inner_size) =
                 window.request_inner_size(PhysicalSize::new(width_px, height_px))
             {
+                // ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]
                 // ex) linux
-                log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
-
                 info.inner_rect = inner_rect_in_points(window, pixels_per_point);
                 info.outer_rect = outer_rect_in_points(window, pixels_per_point);
             } else {
+                // ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]
                 // ex) Windows, MacOS
-                log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
             }
         }
         ViewportCommand::BeginResize(direction) => {
