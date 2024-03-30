@@ -117,9 +117,9 @@ impl super::Demo for CodeExample {
         use super::View;
         egui::Window::new(self.name())
             .open(open)
+            .min_width(375.0)
             .default_size([390.0, 500.0])
-            .vscroll(false)
-            .hscroll(true)
+            .scroll2(false)
             .resizable([true, false])
             .show(ctx, |ui| self.ui(ui));
     }
