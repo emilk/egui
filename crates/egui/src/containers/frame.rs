@@ -196,11 +196,15 @@ impl Frame {
         self
     }
 
+    /// Opacity multiplier in gamma space.
+    ///
+    /// For instance, multiplying with `0.5`
+    /// will make the frame half transparent.
     #[inline]
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
-        self.fill = self.fill.linear_multiply(opacity);
-        self.stroke.color = self.stroke.color.linear_multiply(opacity);
-        self.shadow.color = self.shadow.color.linear_multiply(opacity);
+        self.fill = self.fill.gamma_multiply(opacity);
+        self.stroke.color = self.stroke.color.gamma_multiply(opacity);
+        self.shadow.color = self.shadow.color.gamma_multiply(opacity);
         self
     }
 }
