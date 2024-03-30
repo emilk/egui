@@ -702,6 +702,7 @@ impl ResizeInteraction {
         let top = self.top.any();
         let bottom = self.bottom.any();
 
+        // TODO(emilk): use one-sided cursors for when we reached the min/max size.
         if (left && top) || (right && bottom) {
             ctx.set_cursor_icon(CursorIcon::ResizeNwSe);
         } else if (right && top) || (left && bottom) {
