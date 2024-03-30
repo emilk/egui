@@ -17,8 +17,6 @@ impl CodeExample {
     fn samples_in_grid(&mut self, ui: &mut egui::Ui) {
         // Note: we keep the code narrow so that the example fits on a mobile screen.
 
-        show_code(ui, r#"let Self { name, age } = self;"#);
-        ui.end_row();
         let Self { name, age } = self; // for brevity later on
 
         show_code(ui, r#"ui.heading("Example");"#);
@@ -76,6 +74,38 @@ impl CodeExample {
         ui.label(format!("{name} is {age}"));
         ui.end_row();
     }
+
+    fn code(&mut self, ui: &mut egui::Ui) {
+        show_code(
+            ui,
+            r"
+pub struct CodeExample {
+    name: String,
+    age: u32,
+}
+
+impl CodeExample {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        // Saves us from writing `&mut self.name` etc
+        let Self { name, age } = self;",
+        );
+
+        ui.horizontal(|ui| {
+            let font_id = egui::TextStyle::Monospace.resolve(ui.style());
+            let indentation = 8.0 * ui.fonts(|f| f.glyph_width(&font_id, ' '));
+            let item_spacing = ui.spacing_mut().item_spacing;
+            ui.add_space(indentation - item_spacing.x);
+
+            egui::Grid::new("code_samples")
+                .striped(true)
+                .num_columns(2)
+                .show(ui, |ui| {
+                    self.samples_in_grid(ui);
+                });
+        });
+
+        crate::rust_view_ui(ui, "    }\n}");
+    }
 }
 
 impl super::Demo for CodeExample {
@@ -97,37 +127,10 @@ impl super::Demo for CodeExample {
 
 impl super::View for CodeExample {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        crate::rust_view_ui(
-            ui,
-            r"
-pub struct CodeExample {
-    name: String,
-    age: u32,
-}
-
-impl CodeExample {
-    fn ui(&mut self, ui: &mut egui::Ui) {
-"
-            .trim(),
-        );
-
-        ui.horizontal(|ui| {
-            let font_id = egui::TextStyle::Monospace.resolve(ui.style());
-            let indentation = 8.0 * ui.fonts(|f| f.glyph_width(&font_id, ' '));
-            let item_spacing = ui.spacing_mut().item_spacing;
-            ui.add_space(indentation - item_spacing.x);
-
-            egui::Grid::new("code_samples")
-                .striped(true)
-                .num_columns(2)
-                .min_col_width(16.0)
-                .spacing([16.0, 8.0])
-                .show(ui, |ui| {
-                    self.samples_in_grid(ui);
-                });
+        ui.scope(|ui| {
+            ui.spacing_mut().item_spacing = egui::vec2(8.0, 8.0);
+            self.code(ui);
         });
-
-        crate::rust_view_ui(ui, "    }\n}");
 
         ui.separator();
 
