@@ -1503,9 +1503,10 @@ impl Tessellator {
     pub fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
         let RectShape {
             mut rect,
-            rounding,
+            mut rounding,
             fill,
             stroke,
+            mut blur_width,
             fill_texture_id,
             uv,
         } = *rect;
@@ -1523,6 +1524,29 @@ impl Tessellator {
         // Make sure we can handle that:
         rect.min = rect.min.at_least(pos2(-1e7, -1e7));
         rect.max = rect.max.at_most(pos2(1e7, 1e7));
+
+        let old_feathering = self.feathering;
+
+        if old_feathering < blur_width {
+            // We accomplish the blur by using a larger-than-normal feathering.
+            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
+
+            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
+            // Thats because the tessellator approximate very thin rectangles as line segments,
+            // and these line segments don't have rounded corners.
+            // When the feathering is small (the size of a pixel), this is usually fine,
+            // but here we have a huge feathering to simulate blur,
+            // so we need to avoid this optimization in the tessellator,
+            // which is also why we add this rather big epsilon:
+            let eps = 0.1;
+            blur_width = blur_width
+                .at_most(rect.size().min_elem() - eps)
+                .at_least(0.0);
+
+            rounding += Rounding::same(0.5 * blur_width);
+
+            self.feathering = self.feathering.max(blur_width);
+        }
 
         if rect.width() < self.feathering {
             // Very thin - approximate by a vertical line-segment:
@@ -1566,6 +1590,8 @@ impl Tessellator {
 
             path.stroke_closed(self.feathering, stroke, out);
         }
+
+        self.feathering = old_feathering; // restore
     }
 
     /// Tessellate a single [`TextShape`] into a [`Mesh`].
