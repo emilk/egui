@@ -739,14 +739,8 @@ impl<'a> Slider<'a> {
                     };
                     let v = v + Vec2::splat(visuals.expansion);
                     let rect = Rect::from_center_size(center, 2.0 * v);
-                    ui.painter().add(epaint::RectShape {
-                        fill: visuals.bg_fill,
-                        stroke: visuals.fg_stroke,
-                        rect,
-                        rounding: visuals.rounding,
-                        fill_texture_id: Default::default(),
-                        uv: Rect::ZERO,
-                    });
+                    ui.painter()
+                        .rect(rect, visuals.rounding, visuals.bg_fill, visuals.fg_stroke);
                 }
             }
         }
