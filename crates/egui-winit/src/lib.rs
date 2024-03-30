@@ -866,43 +866,29 @@ impl State {
 }
 
 pub fn inner_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
-    let inner_pos_px = window
-        .inner_position()
-        .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
-        .ok();
+    let pos = window.inner_position().ok()?;
+    let inner_pos_px = egui::emath::Pos2::new(pos.x as f32, pos.y as f32);
 
     let inner_size_px = {
         let size = window.inner_size();
-        Some(egui::Vec2::new(size.width as f32, size.height as f32))
+        egui::Vec2::new(size.width as f32, size.height as f32)
     };
+    let inner_rect_px = egui::Rect::from_min_size(inner_pos_px, inner_size_px);
 
-    let inner_rect_px = if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
-        Some(egui::Rect::from_min_size(pos, size))
-    } else {
-        None
-    };
-
-    inner_rect_px.map(|r| r / pixels_per_point)
+    Some(inner_rect_px / pixels_per_point)
 }
 
 pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
-    let outer_pos_px = window
-        .outer_position()
-        .map(|pos| egui::emath::Pos2::new(pos.x as f32, pos.y as f32))
-        .ok();
+    let pos = window.outer_position().ok()?;
+    let outer_pos_px = egui::emath::Pos2::new(pos.x as f32, pos.y as f32);
 
     let outer_size_px = {
         let size = window.outer_size();
-        Some(egui::Vec2::new(size.width as f32, size.height as f32))
+        egui::Vec2::new(size.width as f32, size.height as f32)
     };
+    let outer_rect_px = egui::Rect::from_min_size(outer_pos_px, outer_size_px);
 
-    let outer_rect_px = if let (Some(pos), Some(size)) = (outer_pos_px, outer_size_px) {
-        Some(egui::Rect::from_min_size(pos, size))
-    } else {
-        None
-    };
-
-    outer_rect_px.map(|r| r / pixels_per_point)
+    Some(outer_rect_px / pixels_per_point)
 }
 
 /// Update the given viewport info with the current state of the window.
@@ -1335,14 +1321,13 @@ fn process_viewport_command(
             if let Some(_inner_size) =
                 window.request_inner_size(PhysicalSize::new(width_px, height_px))
             {
+                // ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]
                 // ex) linux
-                log::info!("ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]");
-
                 info.inner_rect = inner_rect_in_points(window, pixels_per_point);
                 info.outer_rect = outer_rect_in_points(window, pixels_per_point);
             } else {
+                // ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]
                 // ex) Windows, MacOS
-                log::info!("ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]");
             }
         }
         ViewportCommand::BeginResize(direction) => {
