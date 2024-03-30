@@ -6,9 +6,7 @@ use crate::{
     os::OperatingSystem,
     output::OutputEvent,
     text_selection::{
-        text_cursor_state::cursor_rect,
-        visuals::{paint_cursor, paint_text_selection},
-        CCursorRange, CursorRange,
+        text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange, CursorRange,
     },
     *,
 };
@@ -544,14 +542,14 @@ impl<'t> TextEdit<'t> {
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
 
-                if ui.visuals().text_cursor_preview
+                if ui.visuals().text_cursor.preview
                     && response.hovered()
                     && ui.input(|i| i.pointer.is_moving())
                 {
-                    // preview:
+                    // text cursor preview:
                     let cursor_rect =
                         cursor_rect(rect.min, &galley, &cursor_at_pointer, row_height);
-                    paint_cursor(&painter, ui.visuals(), cursor_rect);
+                    text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
                 }
 
                 let is_being_dragged = ui.ctx().is_being_dragged(response.id);
@@ -684,7 +682,17 @@ impl<'t> TextEdit<'t> {
                     }
 
                     if text.is_mutable() {
-                        paint_cursor(&painter, ui.visuals(), primary_cursor_rect);
+                        let now = ui.ctx().input(|i| i.time);
+                        if response.changed || selection_changed {
+                            state.last_edit_time = now;
+                        }
+
+                        text_selection::visuals::paint_text_cursor(
+                            ui,
+                            &painter,
+                            primary_cursor_rect,
+                            now - state.last_edit_time,
+                        );
 
                         if interactive {
                             // For IME, so only set it when text is editable and visible!
