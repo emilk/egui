@@ -681,28 +681,32 @@ impl<'t> TextEdit<'t> {
                         ui.scroll_to_rect(primary_cursor_rect, None);
                     }
 
-                    if text.is_mutable() {
+                    if text.is_mutable() && interactive {
                         let now = ui.ctx().input(|i| i.time);
                         if response.changed || selection_changed {
                             state.last_edit_time = now;
                         }
 
-                        text_selection::visuals::paint_text_cursor(
-                            ui,
-                            &painter,
-                            primary_cursor_rect,
-                            now - state.last_edit_time,
-                        );
-
-                        if interactive {
-                            // For IME, so only set it when text is editable and visible!
-                            ui.ctx().output_mut(|o| {
-                                o.ime = Some(crate::output::IMEOutput {
-                                    rect,
-                                    cursor_rect: primary_cursor_rect,
-                                });
-                            });
+                        // Only show (and blink) cursor if the egui viewport has focus.
+                        // This is for two reasons:
+                        // * Don't give the impression that the user can type into a window without focus
+                        // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
+                        if ui.ctx().input(|i| i.focused) {
+                            text_selection::visuals::paint_text_cursor(
+                                ui,
+                                &painter,
+                                primary_cursor_rect,
+                                now - state.last_edit_time,
+                            );
                         }
+
+                        // For IME, so only set it when text is editable and visible!
+                        ui.ctx().output_mut(|o| {
+                            o.ime = Some(crate::output::IMEOutput {
+                                rect,
+                                cursor_rect: primary_cursor_rect,
+                            });
+                        });
                     }
                 }
             }
