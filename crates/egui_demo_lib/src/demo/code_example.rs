@@ -115,7 +115,7 @@ impl super::Demo for CodeExample {
             .open(open)
             .min_width(375.0)
             .default_size([390.0, 500.0])
-            .scroll2(false)
+            .scroll(false)
             .resizable([true, false])
             .show(ctx, |ui| self.ui(ui));
     }
