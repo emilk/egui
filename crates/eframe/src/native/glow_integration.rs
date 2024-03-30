@@ -1251,13 +1251,11 @@ impl GlutinWindowContext {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
             let viewport = initialize_or_update_viewport(
-                egui_ctx,
                 &mut self.viewports,
                 ids,
                 class,
                 builder,
                 viewport_ui_cb,
-                self.focused_viewport,
             );
 
             if let Some(window) = &viewport.window {
@@ -1292,15 +1290,13 @@ impl GlutinWindowContext {
     }
 }
 
-fn initialize_or_update_viewport<'vp>(
-    _egu_ctx: &egui::Context,
-    viewports: &'vp mut ViewportIdMap<Viewport>,
+fn initialize_or_update_viewport(
+    viewports: &mut ViewportIdMap<Viewport>,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-    _focused_viewport: Option<ViewportId>,
-) -> &'vp mut Viewport {
+) -> &mut Viewport {
     crate::profile_function!();
 
     if builder.icon.is_none() {
@@ -1379,12 +1375,10 @@ fn render_immediate_viewport(
         let mut glutin = glutin.borrow_mut();
 
         initialize_or_update_viewport(
-            egui_ctx,
             &mut glutin.viewports,
             ids,
             ViewportClass::Immediate,
             builder,
-            None,
             None,
         );
 

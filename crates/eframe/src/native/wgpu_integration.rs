@@ -936,15 +936,8 @@ fn render_immediate_viewport(
             ..
         } = &mut *shared.borrow_mut();
 
-        let viewport = initialize_or_update_viewport(
-            egui_ctx,
-            viewports,
-            ids,
-            ViewportClass::Immediate,
-            builder,
-            None,
-            None,
-        );
+        let viewport =
+            initialize_or_update_viewport(viewports, ids, ViewportClass::Immediate, builder, None);
         if viewport.window.is_none() {
             viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
         }
@@ -1067,15 +1060,8 @@ fn handle_viewport_output(
     {
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
-        let viewport = initialize_or_update_viewport(
-            egui_ctx,
-            viewports,
-            ids,
-            class,
-            builder,
-            viewport_ui_cb,
-            focused_viewport,
-        );
+        let viewport =
+            initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb);
 
         if let Some(window) = viewport.window.as_ref() {
             let old_inner_size = window.inner_size();
@@ -1110,15 +1096,13 @@ fn handle_viewport_output(
     remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
 }
 
-fn initialize_or_update_viewport<'vp>(
-    _egui_ctx: &egui::Context,
-    viewports: &'vp mut Viewports,
+fn initialize_or_update_viewport(
+    viewports: &mut Viewports,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-    _focused_viewport: Option<ViewportId>,
-) -> &'vp mut Viewport {
+) -> &mut Viewport {
     crate::profile_function!();
 
     if builder.icon.is_none() {
