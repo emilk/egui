@@ -277,7 +277,7 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
-        let is_close_requested = raw_input.viewport().is_close_requested();
+        let _is_close_requested = raw_input.viewport().is_close_requested();
 
         app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
