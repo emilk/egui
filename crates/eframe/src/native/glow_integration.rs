@@ -23,8 +23,8 @@ use winit::{
 
 use egui::{
     epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
-    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportInfo, ViewportOutput,
+    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportInfo,
+    ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -103,6 +103,7 @@ struct Viewport {
     ids: ViewportIdPair,
     class: ViewportClass,
     builder: ViewportBuilder,
+    commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
     screenshot_requested: bool,
 
@@ -545,7 +546,9 @@ impl GlowWinitRunning {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
                         // This will only happens when the parent is a Deferred Viewport.
-                        viewport_id = parent_viewport.ids.this;
+                        viewport_id = ViewportId::ROOT;
+                        glutin.egui_ctx.request_repaint_of(original_viewport.ids.parent);
+                        // viewport_id = parent_viewport.ids.this;
                     } else if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
                         // This will only happen when the parent is a Immediate Viewport.
                         // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
@@ -556,6 +559,14 @@ impl GlowWinitRunning {
                     }
                 }
             }
+            /*
+            if is_deferred_viewport {
+                if let Some(_parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent) {
+                    // let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
+                    glutin.egui_ctx.request_repaint_of(original_viewport.ids.parent);
+                }
+            }
+            */
 
             let egui_ctx = glutin.egui_ctx.clone();
             let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
@@ -724,7 +735,7 @@ impl GlowWinitRunning {
             }
         }
 
-        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, viewport_output);
+        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
@@ -804,7 +815,7 @@ impl GlowWinitRunning {
                 }
                 */
                 // dbg!(&winit::event::WindowEvent::CloseRequested);
-                glutin_mut.egui_ctx.input_mut(|i| i.viewport_mut().close_requested_on());
+                // glutin_mut.egui_ctx.input_mut(|i| i.viewport_mut().close_requested_on());
                 // dbg!(&viewport_id);
 
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
@@ -1051,6 +1062,7 @@ impl GlutinWindowContext {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder: viewport_builder,
+                commands: vec![],
                 info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
@@ -1283,7 +1295,7 @@ impl GlutinWindowContext {
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
         egui_ctx: &egui::Context,
-        viewport_output: ViewportIdMap<ViewportOutput>,
+        viewport_output: &ViewportIdMap<ViewportOutput>,
     ) {
         crate::profile_function!();
 
@@ -1294,7 +1306,7 @@ impl GlutinWindowContext {
                 class,
                 builder,
                 viewport_ui_cb,
-                commands,
+                mut commands,
                 repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
         ) in viewport_output.clone()
@@ -1315,14 +1327,17 @@ impl GlutinWindowContext {
                 let old_inner_size = window.inner_size();
 
                 let is_viewport_focused = self.focused_viewport == Some(viewport_id);
+                viewport.commands.append(&mut commands);
+
                 egui_winit::process_viewport_commands(
                     egui_ctx,
                     &mut viewport.info,
-                    commands,
+                    viewport.commands.clone(),
                     window,
                     is_viewport_focused,
                     &mut viewport.screenshot_requested,
                 );
+                viewport.commands.clear();
 
                 // For Wayland : https://github.com/emilk/egui/issues/4196
                 if cfg!(target_os = "linux") {
@@ -1337,18 +1352,18 @@ impl GlutinWindowContext {
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        self.remove_viewports_not_in(&viewport_output);
+        self.remove_viewports_not_in(viewport_output);
     }
 }
 
 fn initialize_or_update_viewport<'vp>(
-    egu_ctx: &egui::Context,
+    _egu_ctx: &egui::Context,
     viewports: &'vp mut ViewportIdMap<Viewport>,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-    focused_viewport: Option<ViewportId>,
+    _focused_viewport: Option<ViewportId>,
 ) -> &'vp mut Viewport {
     crate::profile_function!();
 
@@ -1367,6 +1382,7 @@ fn initialize_or_update_viewport<'vp>(
                 ids,
                 class,
                 builder,
+                commands: vec![],
                 info: Default::default(),
                 screenshot_requested: false,
                 viewport_ui_cb,
@@ -1384,7 +1400,7 @@ fn initialize_or_update_viewport<'vp>(
             viewport.class = class;
             viewport.viewport_ui_cb = viewport_ui_cb;
 
-            let (delta_commands, recreate) = viewport.builder.patch(builder);
+            let (mut delta_commands, recreate) = viewport.builder.patch(builder);
 
             if recreate {
                 log::debug!(
@@ -1394,7 +1410,11 @@ fn initialize_or_update_viewport<'vp>(
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
-            } else if let Some(window) = &viewport.window {
+            }
+
+            viewport.commands.append(&mut delta_commands);
+            /*
+            else if let Some(window) = &viewport.window {
                 let is_viewport_focused = focused_viewport == Some(ids.this);
                 egui_winit::process_viewport_commands(
                     egu_ctx,
@@ -1405,6 +1425,7 @@ fn initialize_or_update_viewport<'vp>(
                     &mut viewport.screenshot_requested,
                 );
             }
+            */
 
             entry.into_mut()
         }
@@ -1560,7 +1581,7 @@ fn render_immediate_viewport(
 
     egui_winit.handle_platform_output(window, platform_output);
 
-    glutin.handle_viewport_output(event_loop, egui_ctx, viewport_output);
+    glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
 }
 
 #[cfg(feature = "__screenshot")]
