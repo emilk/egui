@@ -702,7 +702,7 @@ impl WgpuWinitRunning {
 
         handle_viewport_output(
             &integration.egui_ctx,
-            viewport_output,
+            &viewport_output,
             viewports,
             painter,
             viewport_from_window,
@@ -1022,7 +1022,7 @@ fn render_immediate_viewport(
 
     handle_viewport_output(
         &egui_ctx,
-        viewport_output,
+        &viewport_output,
         viewports,
         painter,
         viewport_from_window,
@@ -1047,7 +1047,7 @@ pub(crate) fn remove_viewports_not_in(
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
     egui_ctx: &egui::Context,
-    viewport_output: ViewportIdMap<ViewportOutput>,
+    viewport_output: &ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
