@@ -836,6 +836,13 @@ fn change_gl_context(
 ) {
     crate::profile_function!();
 
+    if let Some(current_gl_context) = current_gl_context {
+        crate::profile_scope!("is_current");
+        if gl_surface.is_current(current_gl_context) {
+            return; // Early-out to save a lot of time.
+        }
+    }
+
     let not_current = {
         crate::profile_scope!("make_not_current");
         current_gl_context
@@ -844,6 +851,7 @@ fn change_gl_context(
             .make_not_current()
             .unwrap()
     };
+
     crate::profile_scope!("make_current");
     *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
 }
