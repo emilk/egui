@@ -1806,6 +1806,9 @@ impl Ui {
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
+    ///
+    /// The name must be unique within the current parent,
+    /// or you need to use [`CollapsingHeader::id_source`].
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<WidgetText>,
