@@ -1121,8 +1121,6 @@ impl Context {
             changed: false,
         };
 
-        let clicked_elsewhere = res.clicked_elsewhere();
-
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
@@ -1165,15 +1163,22 @@ impl Context {
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
+            let mut any_press = false;
 
             for pointer_event in &input.pointer.pointer_events {
-                if let PointerEvent::Released { click, .. } = pointer_event {
-                    if enabled && sense.click && clicked && click.is_some() {
-                        res.clicked = true;
+                match pointer_event {
+                    PointerEvent::Moved(_) => {}
+                    PointerEvent::Pressed { .. } => {
+                        any_press = true;
                     }
+                    PointerEvent::Released { click, .. } => {
+                        if enabled && sense.click && clicked && click.is_some() {
+                            res.clicked = true;
+                        }
 
-                    res.is_pointer_button_down_on = false;
-                    res.dragged = false;
+                        res.is_pointer_button_down_on = false;
+                        res.dragged = false;
+                    }
                 }
             }
 
@@ -1196,13 +1201,9 @@ impl Context {
                 res.hovered = false;
             }
 
-            if clicked_elsewhere && memory.has_focus(id) {
+            let pointer_pressed_elsewhere = any_press && !res.hovered;
+            if pointer_pressed_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
-            }
-
-            if res.dragged() && !memory.has_focus(id) {
-                // e.g.: remove focus from a widget when you drag something else
-                memory.stop_text_input();
             }
         });
 
