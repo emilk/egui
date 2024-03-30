@@ -37,6 +37,7 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             rounding: _,
             fill,
             stroke,
+            blur_width: _,
             fill_texture_id: _,
             uv: _,
         })
