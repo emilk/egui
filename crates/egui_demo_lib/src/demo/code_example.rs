@@ -15,50 +15,65 @@ impl Default for CodeExample {
 
 impl CodeExample {
     fn samples_in_grid(&mut self, ui: &mut egui::Ui) {
-        show_code(ui, r#"ui.heading("Code samples");"#);
-        ui.heading("Code samples");
+        // Note: we keep the code narrow so that the example fits on a mobile screen.
+
+        show_code(ui, r#"let Self { name, age } = self;"#);
+        ui.end_row();
+        let Self { name, age } = self; // for brevity later on
+
+        show_code(ui, r#"ui.heading("Example");"#);
+        ui.heading("Example");
         ui.end_row();
 
         show_code(
             ui,
             r#"
-            // Putting things on the same line using ui.horizontal:
             ui.horizontal(|ui| {
-                ui.label("Your name: ");
-                ui.text_edit_singleline(&mut self.name);
+                ui.label("Name");
+                ui.text_edit_singleline(name);
             });"#,
         );
         // Putting things on the same line using ui.horizontal:
         ui.horizontal(|ui| {
-            ui.label("Your name: ");
-            ui.text_edit_singleline(&mut self.name);
+            ui.label("Name");
+            ui.text_edit_singleline(name);
         });
         ui.end_row();
 
         show_code(
             ui,
-            r#"ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));"#,
+            r#"
+            ui.add(
+                egui::DragValue::new(age)
+                    .clamp_range(0..=120)
+                    .suffix(" years")
+            );"#,
         );
-        ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
+        ui.add(
+            egui::DragValue::new(age)
+                .clamp_range(0..=120)
+                .suffix(" years"),
+        );
         ui.end_row();
 
         show_code(
             ui,
             r#"
             if ui.button("Increment").clicked() {
-                self.age += 1;
+                *age += 1;
             }"#,
         );
         if ui.button("Increment").clicked() {
-            self.age += 1;
+            *age += 1;
         }
         ui.end_row();
 
         show_code(
             ui,
-            r#"ui.label(format!("Hello '{}', age {}", self.name, self.age));"#,
+            r#"
+            ui.label(format!("{name} is {age}"));"#,
         );
-        ui.label(format!("Hello '{}', age {}", self.name, self.age));
+        ui.label(format!("{name} is {age}"));
         ui.end_row();
     }
 }
@@ -72,7 +87,7 @@ impl super::Demo for CodeExample {
         use super::View;
         egui::Window::new(self.name())
             .open(open)
-            .default_size([800.0, 400.0])
+            .default_size([390.0, 500.0])
             .vscroll(false)
             .hscroll(true)
             .resizable([true, false])
@@ -82,10 +97,6 @@ impl super::Demo for CodeExample {
 
 impl super::View for CodeExample {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| {
-            ui.add(crate::egui_github_link_file!());
-        });
-
         crate::rust_view_ui(
             ui,
             r"
@@ -128,6 +139,12 @@ impl CodeExample {
         ui.collapsing("Theme", |ui| {
             theme.ui(ui);
             theme.store_in_memory(ui.ctx());
+        });
+
+        ui.separator();
+
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
         });
     }
 }
