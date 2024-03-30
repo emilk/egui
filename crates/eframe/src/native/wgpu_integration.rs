@@ -740,7 +740,7 @@ impl WgpuWinitRunning {
 
         let should_close = shared_mut.egui_ctx.input(|i| i.viewport().should_close());
         if should_close {
-        // if integration.should_close() {
+            // if integration.should_close() {
             EventResult::Exit(window_id)
         } else {
             EventResult::Wait
@@ -832,7 +832,7 @@ impl WgpuWinitRunning {
 
         let should_close = shared.egui_ctx.input(|i| i.viewport().should_close());
         if should_close {
-        // if integration.should_close() {
+            // if integration.should_close() {
             EventResult::Exit(window_id)
         } else if event_response.repaint {
             EventResult::RepaintNow(window_id)
