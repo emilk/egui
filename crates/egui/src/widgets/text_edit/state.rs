@@ -51,6 +51,11 @@ pub struct TextEditState {
     // Visual offset when editing singleline text bigger than the width.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) singleline_offset: f32,
+
+    /// When did the user last press a key?
+    /// Used to pause the cursor animation when typing.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) last_edit_time: f64,
 }
 
 impl TextEditState {

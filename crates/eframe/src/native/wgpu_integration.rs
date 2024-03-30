@@ -5,7 +5,7 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
+use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -438,13 +438,12 @@ impl WinitApp for WgpuWinitApp {
                     self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
                 };
 
-                EventResult::RepaintNow(
-                    running.shared.borrow().viewports[&ViewportId::ROOT]
-                        .window
-                        .as_ref()
-                        .unwrap()
-                        .id(),
-                )
+                let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
+                if let Some(window) = &viewport.window {
+                    EventResult::RepaintNow(window.id())
+                } else {
+                    EventResult::Wait
+                }
             }
 
             winit::event::Event::Suspended => {
@@ -782,7 +781,6 @@ impl WgpuWinitRunning {
                 // See: https://github.com/rust-windowing/winit/issues/208
                 // This solves an issue where the app would panic when minimizing on Windows.
                 if let Some(viewport_id) = viewport_id {
-                    use std::num::NonZeroU32;
                     if let (Some(width), Some(height)) = (
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
@@ -1098,7 +1096,6 @@ fn handle_viewport_output(
             if cfg!(target_os = "linux") {
                 let new_inner_size = window.inner_size();
                 if new_inner_size != old_inner_size {
-                    use std::num::NonZeroU32;
                     if let (Some(width), Some(height)) = (
                         NonZeroU32::new(new_inner_size.width),
                         NonZeroU32::new(new_inner_size.height),

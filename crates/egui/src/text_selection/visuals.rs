@@ -51,8 +51,10 @@ pub fn paint_text_selection(
 }
 
 /// Paint one end of the selection, e.g. the primary cursor.
-pub fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
-    let stroke = visuals.text_cursor;
+///
+/// This will never blink.
+pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
+    let stroke = visuals.text_cursor.stroke;
 
     let top = cursor_rect.center_top();
     let bottom = cursor_rect.center_bottom();
@@ -71,5 +73,35 @@ pub fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
             [bottom - vec2(extrusion, 0.0), bottom + vec2(extrusion, 0.0)],
             (width, stroke.color),
         );
+    }
+}
+
+/// Paint one end of the selection, e.g. the primary cursor, with blinking (if enabled).
+pub fn paint_text_cursor(
+    ui: &mut Ui,
+    painter: &Painter,
+    primary_cursor_rect: Rect,
+    time_since_last_edit: f64,
+) {
+    if ui.visuals().text_cursor.blink {
+        let on_duration = ui.visuals().text_cursor.on_duration;
+        let off_duration = ui.visuals().text_cursor.off_duration;
+        let total_duration = on_duration + off_duration;
+
+        let time_in_cycle = (time_since_last_edit % (total_duration as f64)) as f32;
+
+        let wake_in = if time_in_cycle < on_duration {
+            // Cursor is visible
+            paint_cursor_end(painter, ui.visuals(), primary_cursor_rect);
+            on_duration - time_in_cycle
+        } else {
+            // Cursor is not visible
+            total_duration - time_in_cycle
+        };
+
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f32(wake_in));
+    } else {
+        paint_cursor_end(painter, ui.visuals(), primary_cursor_rect);
     }
 }

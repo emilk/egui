@@ -93,7 +93,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
 
         show_color_at(ui.painter(), color, rect);
 
-        let rounding = visuals.rounding.at_most(2.0);
+        let rounding = visuals.rounding.at_most(2.0); // Can't do more rounding because the background grid doesn't do any rounding
         ui.painter()
             .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
