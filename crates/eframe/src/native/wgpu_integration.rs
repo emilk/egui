@@ -155,12 +155,10 @@ impl WgpuWinitApp {
         } = &mut *running.shared.borrow_mut();
 
         initialize_or_update_viewport(
-            egui_ctx,
             viewports,
             ViewportIdPair::ROOT,
             ViewportClass::Root,
             self.native_options.viewport.clone(),
-            None,
             None,
         )
         .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
