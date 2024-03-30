@@ -397,7 +397,7 @@ impl<'t> TextEdit<'t> {
         // TODO(emilk): return full outer_rect in `TextEditOutput`.
         // Can't do it now because this fix is ging into a patch release.
         let outer_rect = output.response.rect;
-        let inner_rect = margin.shrink_rect(outer_rect);
+        let inner_rect = outer_rect - margin;
         output.response.rect = inner_rect;
 
         if frame {
@@ -501,7 +501,7 @@ impl<'t> TextEdit<'t> {
         let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
         let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
         let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
-        let rect = margin.shrink_rect(outer_rect); // inner rect (excluding frame/margin).
+        let rect = outer_rect - margin; // inner rect (excluding frame/margin).
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_source) = id_source {
