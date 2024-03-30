@@ -389,29 +389,20 @@ impl<'t> TextEdit<'t> {
     pub fn show(self, ui: &mut Ui) -> TextEditOutput {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
-        let interactive = self.interactive;
         let where_to_put_background = ui.painter().add(Shape::Noop);
 
         let margin = self.margin;
-        let available = ui.available_rect_before_wrap();
-        let max_rect = margin.shrink_rect(available);
-        let mut content_ui = ui.child_ui(max_rect, *ui.layout());
+        let mut output = self.show_content(ui);
 
-        let mut output = self.show_content(&mut content_ui);
-
-        let id = output.response.id;
-        let frame_rect = margin.expand_rect(output.response.rect);
-        ui.allocate_space(frame_rect.size());
-        if interactive {
-            output.response |= ui.interact(frame_rect, id, Sense::click());
-        }
-        if output.response.clicked() && !output.response.lost_focus() {
-            ui.memory_mut(|mem| mem.request_focus(output.response.id));
-        }
+        // TODO(emilk): return full outer_rect in `TextEditOutput`.
+        // Can't do it now because this fix is ging into a patch release.
+        let outer_rect = output.response.rect;
+        let inner_rect = margin.shrink_rect(outer_rect);
+        output.response.rect = inner_rect;
 
         if frame {
             let visuals = ui.style().interact(&output.response);
-            let frame_rect = frame_rect.expand(visuals.expansion);
+            let frame_rect = outer_rect.expand(visuals.expansion);
             let shape = if is_mutable {
                 if output.response.has_focus() {
                     epaint::RectShape::new(
@@ -478,7 +469,7 @@ impl<'t> TextEdit<'t> {
         let font_id = font_selection.resolve(ui.style());
         let row_height = ui.fonts(|f| f.row_height(&font_id));
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
-        let available_width = ui.available_width().at_least(MIN_WIDTH);
+        let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
         let wrap_width = if ui.layout().horizontal_justify() {
             available_width
@@ -507,11 +498,10 @@ impl<'t> TextEdit<'t> {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let at_least = min_size - margin.sum();
-        let desired_size =
-            vec2(desired_width, galley.size().y.max(desired_height)).at_least(at_least);
-
-        let (auto_id, rect) = ui.allocate_space(desired_size);
+        let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
+        let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
+        let rect = margin.shrink_rect(outer_rect); // inner rect (excluding frame/margin).
 
         let id = id.unwrap_or_else(|| {
             if let Some(id_source) = id_source {
@@ -538,7 +528,7 @@ impl<'t> TextEdit<'t> {
         } else {
             Sense::hover()
         };
-        let mut response = ui.interact(rect, id, sense);
+        let mut response = ui.interact(outer_rect, id, sense);
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
@@ -552,7 +542,7 @@ impl<'t> TextEdit<'t> {
 
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
-                    galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
+                    galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
 
                 if ui.visuals().text_cursor_preview
                     && response.hovered()
@@ -560,7 +550,7 @@ impl<'t> TextEdit<'t> {
                 {
                     // preview:
                     let cursor_rect =
-                        cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
+                        cursor_rect(rect.min, &galley, &cursor_at_pointer, row_height);
                     paint_cursor(&painter, ui.visuals(), cursor_rect);
                 }
 
@@ -617,10 +607,10 @@ impl<'t> TextEdit<'t> {
         }
 
         let mut galley_pos = align
-            .align_size_within_rect(galley.size(), response.rect)
-            .intersect(response.rect) // limit pos to the response rect area
+            .align_size_within_rect(galley.size(), rect)
+            .intersect(rect) // limit pos to the response rect area
             .min;
-        let align_offset = response.rect.left() - galley_pos.x;
+        let align_offset = rect.left() - galley_pos.x;
 
         // Visual clipping for singleline text editor with text larger than width
         if clip_text && align_offset == 0.0 {
@@ -630,18 +620,18 @@ impl<'t> TextEdit<'t> {
             };
 
             let mut offset_x = state.singleline_offset;
-            let visible_range = offset_x..=offset_x + desired_size.x;
+            let visible_range = offset_x..=offset_x + desired_inner_size.x;
 
             if !visible_range.contains(&cursor_pos) {
                 if cursor_pos < *visible_range.start() {
                     offset_x = cursor_pos;
                 } else {
-                    offset_x = cursor_pos - desired_size.x;
+                    offset_x = cursor_pos - desired_inner_size.x;
                 }
             }
 
             offset_x = offset_x
-                .at_most(galley.size().x - desired_size.x)
+                .at_most(galley.size().x - desired_inner_size.x)
                 .at_least(0.0);
 
             state.singleline_offset = offset_x;
@@ -664,11 +654,11 @@ impl<'t> TextEdit<'t> {
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let galley = if multiline {
-                    hint_text.into_galley(ui, Some(true), desired_size.x, font_id)
+                    hint_text.into_galley(ui, Some(true), desired_inner_size.x, font_id)
                 } else {
                     hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
                 };
-                painter.galley(response.rect.min, galley, hint_text_color);
+                painter.galley(rect.min, galley, hint_text_color);
             }
 
             if ui.memory(|mem| mem.has_focus(id)) {
