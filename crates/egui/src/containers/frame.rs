@@ -240,7 +240,7 @@ impl Frame {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
 
-        let mut inner_rect = (self.inner_margin + self.outer_margin).shrink_rect(outer_rect_bounds);
+        let mut inner_rect = outer_rect_bounds - self.outer_margin - self.inner_margin;
 
         // Make sure we don't shrink to the negative:
         inner_rect.max.x = inner_rect.max.x.max(inner_rect.min.x);
@@ -299,7 +299,7 @@ impl Frame {
 
 impl Prepared {
     fn content_with_margin(&self) -> Rect {
-        (self.frame.inner_margin + self.frame.outer_margin).expand_rect(self.content_ui.min_rect())
+        self.content_ui.min_rect() + self.frame.inner_margin + self.frame.outer_margin
     }
 
     /// Allocate the the space that was used by [`Self::content_ui`].
@@ -315,10 +315,7 @@ impl Prepared {
     ///
     /// This can be called before or after [`Self::allocate_space`].
     pub fn paint(&self, ui: &Ui) {
-        let paint_rect = self
-            .frame
-            .inner_margin
-            .expand_rect(self.content_ui.min_rect());
+        let paint_rect = self.content_ui.min_rect() + self.frame.inner_margin;
 
         if ui.is_rect_visible(paint_rect) {
             let shape = self.frame.paint(paint_rect);
