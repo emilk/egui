@@ -2,6 +2,8 @@ use emath::{vec2, Rect, Vec2};
 
 /// A value for all four sides of a rectangle,
 /// often used to express padding or spacing.
+///
+/// Can be added and subtracted to/from [`Rect`]s.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Margin {
@@ -19,6 +21,8 @@ impl Margin {
         bottom: 0.0,
     };
 
+    /// The same margin on every side.
+    #[doc(alias = "symmetric")]
     #[inline]
     pub const fn same(margin: f32) -> Self {
         Self {
@@ -56,16 +60,20 @@ impl Margin {
         vec2(self.right, self.bottom)
     }
 
+    /// Are the margin on every side the same?
+    #[doc(alias = "symmetric")]
     #[inline]
     pub fn is_same(&self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
     }
 
+    #[deprecated = "Use `rect + margin` instead"]
     #[inline]
     pub fn expand_rect(&self, rect: Rect) -> Rect {
         Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
     }
 
+    #[deprecated = "Use `rect - margin` instead"]
     #[inline]
     pub fn shrink_rect(&self, rect: Rect) -> Rect {
         Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
@@ -86,6 +94,7 @@ impl From<Vec2> for Margin {
     }
 }
 
+/// `Margin + Margin`
 impl std::ops::Add for Margin {
     type Output = Self;
 
@@ -100,6 +109,7 @@ impl std::ops::Add for Margin {
     }
 }
 
+/// `Margin + f32`
 impl std::ops::Add<f32> for Margin {
     type Output = Self;
 
@@ -114,6 +124,7 @@ impl std::ops::Add<f32> for Margin {
     }
 }
 
+/// `Margind += f32`
 impl std::ops::AddAssign<f32> for Margin {
     #[inline]
     fn add_assign(&mut self, v: f32) {
@@ -124,30 +135,7 @@ impl std::ops::AddAssign<f32> for Margin {
     }
 }
 
-impl std::ops::Div<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn div(self, v: f32) -> Self {
-        Self {
-            left: self.left / v,
-            right: self.right / v,
-            top: self.top / v,
-            bottom: self.bottom / v,
-        }
-    }
-}
-
-impl std::ops::DivAssign<f32> for Margin {
-    #[inline]
-    fn div_assign(&mut self, v: f32) {
-        self.left /= v;
-        self.right /= v;
-        self.top /= v;
-        self.bottom /= v;
-    }
-}
-
+/// `Margin * f32`
 impl std::ops::Mul<f32> for Margin {
     type Output = Self;
 
@@ -162,6 +150,7 @@ impl std::ops::Mul<f32> for Margin {
     }
 }
 
+/// `Margin *= f32`
 impl std::ops::MulAssign<f32> for Margin {
     #[inline]
     fn mul_assign(&mut self, v: f32) {
@@ -172,6 +161,33 @@ impl std::ops::MulAssign<f32> for Margin {
     }
 }
 
+/// `Margin / f32`
+impl std::ops::Div<f32> for Margin {
+    type Output = Self;
+
+    #[inline]
+    fn div(self, v: f32) -> Self {
+        Self {
+            left: self.left / v,
+            right: self.right / v,
+            top: self.top / v,
+            bottom: self.bottom / v,
+        }
+    }
+}
+
+/// `Margin /= f32`
+impl std::ops::DivAssign<f32> for Margin {
+    #[inline]
+    fn div_assign(&mut self, v: f32) {
+        self.left /= v;
+        self.right /= v;
+        self.top /= v;
+        self.bottom /= v;
+    }
+}
+
+/// `Margin - Margin`
 impl std::ops::Sub for Margin {
     type Output = Self;
 
@@ -186,6 +202,7 @@ impl std::ops::Sub for Margin {
     }
 }
 
+/// `Margin - f32`
 impl std::ops::Sub<f32> for Margin {
     type Output = Self;
 
@@ -200,6 +217,7 @@ impl std::ops::Sub<f32> for Margin {
     }
 }
 
+/// `Margin -= f32`
 impl std::ops::SubAssign<f32> for Margin {
     #[inline]
     fn sub_assign(&mut self, v: f32) {
@@ -207,5 +225,47 @@ impl std::ops::SubAssign<f32> for Margin {
         self.right -= v;
         self.top -= v;
         self.bottom -= v;
+    }
+}
+
+/// `Rect + Margin`
+impl std::ops::Add<Margin> for Rect {
+    type Output = Self;
+
+    #[inline]
+    fn add(self, margin: Margin) -> Self {
+        Self::from_min_max(
+            self.min - margin.left_top(),
+            self.max + margin.right_bottom(),
+        )
+    }
+}
+
+/// `Rect += Margin`
+impl std::ops::AddAssign<Margin> for Rect {
+    #[inline]
+    fn add_assign(&mut self, margin: Margin) {
+        *self = *self + margin;
+    }
+}
+
+/// `Rect - Margin`
+impl std::ops::Sub<Margin> for Rect {
+    type Output = Self;
+
+    #[inline]
+    fn sub(self, margin: Margin) -> Self {
+        Self::from_min_max(
+            self.min + margin.left_top(),
+            self.max - margin.right_bottom(),
+        )
+    }
+}
+
+/// `Rect -= Margin`
+impl std::ops::SubAssign<Margin> for Rect {
+    #[inline]
+    fn sub_assign(&mut self, margin: Margin) {
+        *self = *self - margin;
     }
 }
