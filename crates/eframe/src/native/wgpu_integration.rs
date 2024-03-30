@@ -1092,7 +1092,6 @@ fn handle_viewport_output(
                 egui_ctx,
                 &mut viewport.info,
                 viewport.commands.clone(),
-                commands,
                 window,
                 is_viewport_focused,
                 &mut viewport.screenshot_requested,
