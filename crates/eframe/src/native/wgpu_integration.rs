@@ -289,6 +289,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
+                commands: vec![],
                 info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
