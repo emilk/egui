@@ -1286,7 +1286,7 @@ impl GlutinWindowContext {
         // Create windows for any new viewports:
         self.initialize_all_windows(event_loop);
 
-        self.remove_viewports_not_in(&viewport_output);
+        self.remove_viewports_not_in(viewport_output);
     }
 }
 
