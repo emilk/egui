@@ -1334,7 +1334,7 @@ fn initialize_or_update_viewport<'vp>(
             viewport.class = class;
             viewport.viewport_ui_cb = viewport_ui_cb;
 
-            let (delta_commands, recreate) = viewport.builder.patch(builder);
+            let (mut delta_commands, recreate) = viewport.builder.patch(builder);
 
             if recreate {
                 log::debug!(
