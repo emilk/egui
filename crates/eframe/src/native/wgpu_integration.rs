@@ -616,7 +616,9 @@ impl WgpuWinitRunning {
                 }
             }
 
-            let egui_winit = egui_winit.as_mut().unwrap();
+            let Some(egui_winit) = egui_winit.as_mut() else {
+                return EventResult::Wait;
+            };
             let mut raw_input = egui_winit.take_egui_input(window);
 
             integration.pre_update();
