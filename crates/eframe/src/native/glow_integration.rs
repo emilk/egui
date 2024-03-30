@@ -23,8 +23,8 @@ use winit::{
 
 use egui::{
     epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
-    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportInfo, ViewportOutput,
+    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportInfo,
+    ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
