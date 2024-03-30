@@ -209,14 +209,10 @@ impl Response {
             let pointer = &i.pointer;
 
             if pointer.any_click() {
-                // We detect clicks/hover on a "interact_rect" that is slightly larger than
-                // self.rect. See Context::interact.
-                // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
-                // hence the extra complexity here.
-                if self.contains_pointer() {
+                if self.contains_pointer || self.hovered {
                     false
                 } else if let Some(pos) = pointer.interact_pos() {
-                    !self.rect.contains(pos)
+                    !self.interact_rect.contains(pos)
                 } else {
                     false // clicked without a pointer, weird
                 }
