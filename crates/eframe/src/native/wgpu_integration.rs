@@ -76,6 +76,7 @@ pub struct Viewport {
     ids: ViewportIdPair,
     class: ViewportClass,
     builder: ViewportBuilder,
+    commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
     screenshot_requested: bool,
 
@@ -288,6 +289,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
+                commands: vec![],
                 info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
@@ -663,12 +665,7 @@ impl WgpuWinitRunning {
             viewport_output,
         } = full_output;
 
-        remove_viewports_not_in(
-            viewports,
-            painter,
-            viewport_from_window,
-            &viewport_output,
-        );
+        remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
@@ -712,7 +709,7 @@ impl WgpuWinitRunning {
 
         handle_viewport_output(
             &integration.egui_ctx,
-            viewport_output,
+            &viewport_output,
             viewports,
             painter,
             viewport_from_window,
@@ -1022,7 +1019,7 @@ fn render_immediate_viewport(
 
     handle_viewport_output(
         &egui_ctx,
-        viewport_output,
+        &viewport_output,
         viewports,
         painter,
         viewport_from_window,
@@ -1047,7 +1044,7 @@ pub(crate) fn remove_viewports_not_in(
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
     egui_ctx: &egui::Context,
-    viewport_output: ViewportIdMap<ViewportOutput>,
+    viewport_output: &ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
@@ -1060,7 +1057,7 @@ fn handle_viewport_output(
             class,
             builder,
             viewport_ui_cb,
-            commands,
+            mut commands,
             repaint_delay: _, // ignored - we listened to the repaint callback instead
         },
     ) in viewport_output.clone()
@@ -1081,14 +1078,17 @@ fn handle_viewport_output(
             let old_inner_size = window.inner_size();
 
             let is_viewport_focused = focused_viewport == Some(viewport_id);
+            viewport.commands.append(&mut commands);
+
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut viewport.info,
-                commands,
+                viewport.commands.clone(),
                 window,
                 is_viewport_focused,
                 &mut viewport.screenshot_requested,
             );
+            viewport.commands.clear();
 
             // For Wayland : https://github.com/emilk/egui/issues/4196
             if cfg!(target_os = "linux") {
@@ -1106,17 +1106,17 @@ fn handle_viewport_output(
         }
     }
 
-    remove_viewports_not_in(viewports, painter, viewport_from_window, &viewport_output);
+    remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
 }
 
 fn initialize_or_update_viewport<'vp>(
-    egui_ctx: &egui::Context,
+    _egui_ctx: &egui::Context,
     viewports: &'vp mut Viewports,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-    focused_viewport: Option<ViewportId>,
+    _focused_viewport: Option<ViewportId>,
 ) -> &'vp mut Viewport {
     crate::profile_function!();
 
@@ -1135,6 +1135,7 @@ fn initialize_or_update_viewport<'vp>(
                 ids,
                 class,
                 builder,
+                commands: vec![],
                 info: Default::default(),
                 screenshot_requested: false,
                 viewport_ui_cb,
@@ -1151,7 +1152,7 @@ fn initialize_or_update_viewport<'vp>(
             viewport.ids.parent = ids.parent;
             viewport.viewport_ui_cb = viewport_ui_cb;
 
-            let (delta_commands, recreate) = viewport.builder.patch(builder);
+            let (mut delta_commands, recreate) = viewport.builder.patch(builder);
 
             if recreate {
                 log::debug!(
@@ -1161,17 +1162,9 @@ fn initialize_or_update_viewport<'vp>(
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
-            } else if let Some(window) = &viewport.window {
-                let is_viewport_focused = focused_viewport == Some(ids.this);
-                egui_winit::process_viewport_commands(
-                    egui_ctx,
-                    &mut viewport.info,
-                    delta_commands,
-                    window,
-                    is_viewport_focused,
-                    &mut viewport.screenshot_requested,
-                );
             }
+
+            viewport.commands.append(&mut delta_commands);
 
             entry.into_mut()
         }
