@@ -715,7 +715,7 @@ impl GlowWinitRunning {
             }
         }
 
-        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, viewport_output);
+        glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
@@ -1229,7 +1229,7 @@ impl GlutinWindowContext {
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
         egui_ctx: &egui::Context,
-        viewport_output: ViewportIdMap<ViewportOutput>,
+        viewport_output: &ViewportIdMap<ViewportOutput>,
     ) {
         crate::profile_function!();
 
@@ -1502,7 +1502,7 @@ fn render_immediate_viewport(
 
     egui_winit.handle_platform_output(window, platform_output);
 
-    glutin.handle_viewport_output(event_loop, egui_ctx, viewport_output);
+    glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
 }
 
 #[cfg(feature = "__screenshot")]
