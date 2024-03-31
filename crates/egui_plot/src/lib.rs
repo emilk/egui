@@ -1076,8 +1076,13 @@ impl Plot {
             }
         }
 
-        let hover_pos = response.hover_pos();
-        if let Some(hover_pos) = hover_pos {
+        // Note: we catch zoom/pan if the response contains the pointer, even if it isn't hovered.
+        // For instance: The user is painting another interactive widget on top of the plot
+        // but they still want to be able to pan/zoom the plot.
+        if let (true, Some(hover_pos)) = (
+            response.contains_pointer,
+            ui.input(|i| i.pointer.hover_pos()),
+        ) {
             if allow_zoom.any() {
                 let mut zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input(|i| i.zoom_delta()))
