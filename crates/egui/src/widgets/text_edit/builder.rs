@@ -538,7 +538,7 @@ impl<'t> TextEdit<'t> {
 
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
-                let singleline_offset = pos2(state.singleline_offset, 0.0);
+                let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
 
