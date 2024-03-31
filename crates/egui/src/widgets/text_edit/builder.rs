@@ -509,7 +509,6 @@ impl<'t> TextEdit<'t> {
             }
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
-        let save_ccursor_range = state.cursor.char_range();
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
