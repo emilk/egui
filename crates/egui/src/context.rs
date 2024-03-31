@@ -1202,6 +1202,19 @@ impl Context {
         res
     }
 
+    /// This is called by [`Response::widget_info`], but can also be called directly.
+    ///
+    /// With some debug flags it will store the widget info in [`WidgetRects`] for later display.
+    #[inline]
+    pub fn register_widget_info(&self, id: Id, make_info: impl Fn() -> crate::WidgetInfo) {
+        #[cfg(debug_assertions)]
+        self.write(|ctx| {
+            if ctx.memory.options.style.debug.show_interactive_widgets {
+                ctx.viewport().widgets_this_frame.set_info(id, make_info());
+            }
+        });
+    }
+
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
         let screen_rect = self.screen_rect();
@@ -1807,6 +1820,7 @@ impl Context {
         self.write(|ctx| ctx.end_frame())
     }
 
+    /// Called at the end of the frame.
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
@@ -1839,8 +1853,8 @@ impl Context {
                         } else if rect.sense.drag {
                             (Color32::from_rgb(0, 0, 0x88), "drag")
                         } else {
-                            continue;
-                            // (Color32::from_rgb(0, 0, 0x88), "hover")
+                            // unreachable since we only show interactive
+                            (Color32::from_rgb(0, 0, 0x88), "hover")
                         };
                         painter.debug_rect(rect.interact_rect, color, text);
                     }
@@ -1860,10 +1874,32 @@ impl Context {
                     hovered,
                 } = interact_widgets;
 
-                if false {
-                    for widget in contains_pointer {
-                        paint_widget_id(widget, "contains_pointer", Color32::BLUE);
+                if true {
+                    for &id in &contains_pointer {
+                        paint_widget_id(id, "contains_pointer", Color32::BLUE);
                     }
+
+                    let widget_rects = self.write(|w| w.viewport().widgets_this_frame.clone());
+
+                    let mut contains_pointer: Vec<Id> = contains_pointer.iter().copied().collect();
+                    contains_pointer.sort_by_key(|&id| {
+                        widget_rects
+                            .order(id)
+                            .map(|(layer_id, order_in_layer)| (layer_id.order, order_in_layer))
+                    });
+
+                    let mut debug_text = "Widgets in order:\n".to_owned();
+                    for id in contains_pointer {
+                        let mut widget_text = format!("{id:?}");
+                        if let Some(rect) = widget_rects.get(id) {
+                            widget_text += &format!(" {:?} {:?}", rect.rect, rect.sense);
+                        }
+                        if let Some(info) = widget_rects.info(id) {
+                            widget_text += &format!(" {info:?}");
+                        }
+                        debug_text += &format!("{widget_text}\n");
+                    }
+                    self.debug_text(debug_text);
                 }
                 if true {
                     for widget in hovered {
@@ -1887,7 +1923,7 @@ impl Context {
                 drag,
             } = hits;
 
-            if false {
+            if true {
                 for widget in &contains_pointer {
                     paint_widget(widget, "contains_pointer", Color32::BLUE);
                 }
