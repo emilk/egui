@@ -50,24 +50,21 @@ fn paint_if_needed(runner: &mut AppRunner) {
 pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
 
-    {
-        // Avoid sticky modifier keys on alt-tab:
-        for event_name in ["blur", "focus"] {
-            let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
-                let has_focus = event_name == "focus";
+    for event_name in ["blur", "focus"] {
+        let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
+            // log::debug!("{event_name:?}");
+            let has_focus = event_name == "focus";
 
-                if !has_focus {
-                    // We lost focus - good idea to save
-                    runner.save();
-                }
+            if !has_focus {
+                // We lost focus - good idea to save
+                runner.save();
+            }
 
-                runner.input.on_web_page_focus_change(has_focus);
-                runner.egui_ctx().request_repaint();
-                // log::debug!("{event_name:?}");
-            };
+            runner.input.on_web_page_focus_change(has_focus);
+            runner.egui_ctx().request_repaint();
+        };
 
-            runner_ref.add_event_listener(&document, event_name, closure)?;
-        }
+        runner_ref.add_event_listener(&document, event_name, closure)?;
     }
 
     runner_ref.add_event_listener(
@@ -228,13 +225,31 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
 pub(crate) fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
+    for event_name in ["blur", "focus"] {
+        let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
+            // log::debug!("{event_name:?}");
+            let has_focus = event_name == "focus";
+
+            if !has_focus {
+                // We lost focus - good idea to save
+                runner.save();
+            }
+
+            runner.input.on_web_page_focus_change(has_focus);
+            runner.egui_ctx().request_repaint();
+        };
+
+        runner_ref.add_event_listener(&window, event_name, closure)?;
+    }
+
     // Save-on-close
     runner_ref.add_event_listener(&window, "onbeforeunload", |_: web_sys::Event, runner| {
         runner.save();
     })?;
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
-        runner_ref.add_event_listener(&window, event_name, |_: web_sys::Event, runner| {
+        runner_ref.add_event_listener(&window, event_name, move |_: web_sys::Event, runner| {
+            // log::debug!("{event_name:?}");
             runner.needs_repaint.repaint_asap();
         })?;
     }

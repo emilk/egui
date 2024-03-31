@@ -337,6 +337,16 @@ impl ScrollArea {
     }
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
+    ///
+    /// You can pass in `false`, `true`, `[false, true]` etc.
+    #[inline]
+    pub fn scroll(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
+        self.scroll_enabled = scroll_enabled.into();
+        self
+    }
+
+    /// Turn on/off scrolling on the horizontal/vertical axes.
+    #[deprecated = "Renamed to `scroll`"]
     #[inline]
     pub fn scroll2(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
         self.scroll_enabled = scroll_enabled.into();
