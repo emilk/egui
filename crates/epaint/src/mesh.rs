@@ -290,7 +290,7 @@ impl Mesh {
     /// Origin is a position in screen space.
     pub fn rotate(&mut self, rot: Rot2, origin: Pos2) {
         for v in &mut self.vertices {
-            v.pos = origin + rot * (v.pos - origin);
+            v.pos = origin + rot * (v.pos - origin).to_vec2();
         }
     }
 }
