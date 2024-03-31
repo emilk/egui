@@ -1213,6 +1213,11 @@ impl Context {
                 ctx.viewport().widgets_this_frame.set_info(id, make_info());
             }
         });
+
+        #[cfg(not(debug_assertions))]
+        {
+            _ = (self, id, make_info);
+        }
     }
 
     /// Get a full-screen painter for a new or existing layer
