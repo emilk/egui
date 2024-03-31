@@ -233,8 +233,9 @@ impl Resize {
             if let Some(corner_response) = ui.ctx().read_response(corner_id) {
                 if let Some(pointer_pos) = corner_response.interact_pointer_pos() {
                     // Respond to the interaction early to avoid frame delay.
-                    user_requested_size =
-                        Some((pointer_pos - position).to_vec2() + 0.5 * corner_response.rect.size());
+                    user_requested_size = Some(
+                        (pointer_pos - position).to_vec2() + 0.5 * corner_response.rect.size(),
+                    );
                 }
             }
         }
