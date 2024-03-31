@@ -849,12 +849,14 @@ fn change_gl_context(
 ) {
     crate::profile_function!();
 
+    /*
     if let Some(current_gl_context) = current_gl_context {
         crate::profile_scope!("is_current");
         if gl_surface.is_current(current_gl_context) {
             return; // Early-out to save a lot of time.
         }
     }
+    */
 
     let not_current = {
         crate::profile_scope!("make_not_current");
@@ -1199,7 +1201,16 @@ impl GlutinWindowContext {
 
         if let Some(viewport) = self.viewports.get(&viewport_id) {
             if let Some(gl_surface) = &viewport.gl_surface {
-                change_gl_context(&mut self.current_gl_context, gl_surface);
+                self.current_gl_context = Some(
+                    self.current_gl_context
+                        .take()
+                        .unwrap()
+                        .make_not_current()
+                        .unwrap()
+                        .make_current(gl_surface)
+                        .unwrap(),
+                );
+                // change_gl_context(&mut self.current_gl_context, gl_surface);
                 gl_surface.resize(
                     self.current_gl_context
                         .as_ref()
@@ -1453,7 +1464,19 @@ fn render_immediate_viewport(
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-    change_gl_context(current_gl_context, gl_surface);
+    {
+        crate::profile_function!("context-switch");
+        *current_gl_context = Some(
+            current_gl_context
+                .take()
+                .unwrap()
+                .make_not_current()
+                .unwrap()
+                .make_current(gl_surface)
+                .unwrap(),
+        );
+    }
+    // change_gl_context(current_gl_context, gl_surface);
 
     let current_gl_context = current_gl_context.as_ref().unwrap();
 
