@@ -173,7 +173,7 @@ pub enum ViewportEvent {
 ///
 /// All units are in ui "points", which can be calculated from native physical pixels
 /// using `pixels_per_point` = [`crate::Context::zoom_factor`] * `[Self::native_pixels_per_point`];
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
     /// this viewport, if known.
