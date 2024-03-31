@@ -808,7 +808,7 @@ impl PointerState {
         }
 
         self.delta = if let (Some(old_pos), Some(new_pos)) = (old_pos, self.latest_pos) {
-            new_pos - old_pos
+            (new_pos - old_pos).to_vec2()
         } else {
             Vec2::ZERO
         };
@@ -824,7 +824,7 @@ impl PointerState {
         self.pos_history.flush(time);
 
         self.velocity = if self.pos_history.len() >= 3 && self.pos_history.duration() > 0.01 {
-            self.pos_history.velocity().unwrap_or_default()
+            self.pos_history.velocity().unwrap_or_default().to_vec2()
         } else {
             Vec2::default()
         };
