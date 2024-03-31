@@ -2187,7 +2187,7 @@ impl Context {
     ///
     /// You can shrink your egui area to this size and still fit all egui components.
     pub fn used_size(&self) -> Vec2 {
-        self.used_rect().max - Pos2::ZERO
+        (self.used_rect().max - Pos2::ZERO).to_vec2()
     }
 
     // ---------------------------------------------------------------------
