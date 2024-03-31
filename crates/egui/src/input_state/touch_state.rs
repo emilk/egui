@@ -210,7 +210,7 @@ impl TouchState {
                 zoom_delta,
                 zoom_delta_2d: zoom_delta2,
                 rotation_delta: normalized_angle(state.current.heading - state_previous.heading),
-                translation_delta: state.current.avg_pos - state_previous.avg_pos,
+                translation_delta: (state.current.avg_pos - state_previous.avg_pos).to_vec2(),
                 force: state.current.avg_force,
             }
         })
@@ -283,7 +283,7 @@ impl TouchState {
             // direction. But this approach cannot be implemented locally in this method, making
             // everything a bit more complicated.
             let first_touch = self.active_touches.values().next().unwrap();
-            state.heading = (state.avg_pos - first_touch.pos).angle();
+            state.heading = (state.avg_pos - first_touch.pos).to_vec2().angle();
 
             Some(state)
         }
