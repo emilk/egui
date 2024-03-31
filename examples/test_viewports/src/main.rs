@@ -430,7 +430,7 @@ fn drag_source<R>(
         let res = ui.with_layer_id(layer_id, body);
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-            let delta = pointer_pos - res.response.rect.center();
+            let delta = (pointer_pos - res.response.rect.center()).to_vec2();
             ui.ctx().set_transform_layer(
                 layer_id,
                 eframe::emath::TSTransform::from_translation(delta),
