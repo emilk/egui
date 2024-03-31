@@ -732,7 +732,7 @@ impl Galley {
     /// and a cursor below the galley is considered
     /// same as a cursor at the end.
     /// This allows implementing text-selection by dragging above/below the galley.
-    pub fn cursor_from_pos(&self, pos: Vec2) -> Cursor {
+    pub fn cursor_from_pos(&self, pos: Pos2) -> Cursor {
         if let Some(first_row) = self.rows.first() {
             if pos.y < first_row.min_y() {
                 return self.begin();
