@@ -1,5 +1,5 @@
 /// What sort of interaction is a widget sensitive to?
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Sense {
     /// Buttons, sliders, windows, …
@@ -13,6 +13,28 @@ pub struct Sense {
     /// Anything interactive + labels that can be focused
     /// for the benefit of screen readers.
     pub focusable: bool,
+}
+
+impl std::fmt::Debug for Sense {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            click,
+            drag,
+            focusable,
+        } = self;
+
+        write!(f, "Sense {{")?;
+        if *click {
+            write!(f, " click")?;
+        }
+        if *drag {
+            write!(f, " drag")?;
+        }
+        if *focusable {
+            write!(f, " focusable")?;
+        }
+        write!(f, " }}")
+    }
 }
 
 impl Sense {

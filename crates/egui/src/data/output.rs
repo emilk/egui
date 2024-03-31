@@ -504,7 +504,10 @@ impl std::fmt::Debug for WidgetInfo {
         let mut s = f.debug_struct("WidgetInfo");
 
         s.field("typ", typ);
-        s.field("enabled", enabled);
+
+        if !enabled {
+            s.field("enabled", enabled);
+        }
 
         if let Some(label) = label {
             s.field("label", label);
