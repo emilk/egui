@@ -72,6 +72,11 @@ impl WidgetRects {
         self.by_id.get(&id).map(|(_, w)| w)
     }
 
+    /// In which layer, and in which order in that layer?
+    pub fn order(&self, id: Id) -> Option<(LayerId, usize)> {
+        self.by_id.get(&id).map(|(idx, w)| (w.layer_id, *idx))
+    }
+
     #[inline]
     pub fn contains(&self, id: Id) -> bool {
         self.by_id.contains_key(&id)
