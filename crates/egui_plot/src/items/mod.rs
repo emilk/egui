@@ -1280,7 +1280,7 @@ impl PlotItem for Arrows {
                 )
             })
             .for_each(|(origin, tip)| {
-                let vector = tip - origin;
+                let vector = (tip - origin).to_vec2();
                 let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
                 let tip_length = if let Some(tip_length) = tip_length {
                     *tip_length
@@ -1484,7 +1484,7 @@ impl PlotItem for PlotImage {
                 image_screen_rect.left_bottom(),
             ]
             .iter()
-            .map(|point| center + rotation * (*point - center))
+            .map(|point| center + rotation * (*point - center).to_vec2())
             .collect();
             shapes.push(Shape::closed_line(
                 outline,
