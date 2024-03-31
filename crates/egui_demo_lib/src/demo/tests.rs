@@ -372,7 +372,7 @@ impl super::Demo for InputTest {
             .default_width(800.0)
             .open(open)
             .resizable(true)
-            .scroll2(false)
+            .scroll(false)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
