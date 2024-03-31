@@ -370,7 +370,7 @@ impl Path {
 
     pub fn add_line_segment(&mut self, points: [Pos2; 2]) {
         self.reserve(2);
-        let normal = (points[1] - points[0]).normalized().rot90();
+        let normal = (points[1] - points[0]).to_vec2().normalized().rot90();
         self.add_point(points[0], normal);
         self.add_point(points[1], normal);
     }
@@ -384,10 +384,10 @@ impl Path {
             self.add_line_segment([points[0], points[1]]);
         } else {
             self.reserve(n);
-            self.add_point(points[0], (points[1] - points[0]).normalized().rot90());
-            let mut n0 = (points[1] - points[0]).normalized().rot90();
+            self.add_point(points[0], (points[1] - points[0]).to_vec2().normalized().rot90());
+            let mut n0 = (points[1] - points[0]).to_vec2().normalized().rot90();
             for i in 1..n - 1 {
-                let mut n1 = (points[i + 1] - points[i]).normalized().rot90();
+                let mut n1 = (points[i + 1] - points[i]).to_vec2().normalized().rot90();
 
                 // Handle duplicated points (but not triplicated…):
                 if n0 == Vec2::ZERO {
@@ -416,7 +416,7 @@ impl Path {
             }
             self.add_point(
                 points[n - 1],
-                (points[n - 1] - points[n - 2]).normalized().rot90(),
+                (points[n - 1] - points[n - 2]).to_vec2().normalized().rot90(),
             );
         }
     }
@@ -426,11 +426,11 @@ impl Path {
         assert!(n >= 2);
         self.reserve(n);
 
-        let mut n0 = (points[0] - points[n - 1]).normalized().rot90();
+        let mut n0 = (points[0] - points[n - 1]).to_vec2().normalized().rot90();
 
         for i in 0..n {
             let next_i = if i + 1 == n { 0 } else { i + 1 };
-            let mut n1 = (points[next_i] - points[i]).normalized().rot90();
+            let mut n1 = (points[next_i] - points[i]).to_vec2().normalized().rot90();
 
             // Handle duplicated points (but not triplicated…):
             if n0 == Vec2::ZERO {
