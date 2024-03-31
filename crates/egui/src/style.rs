@@ -758,15 +758,6 @@ pub struct Visuals {
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
 
-    /// set the text cursor to blink
-    pub text_cursor_blink: bool,
-
-    /// set the text cursor on duration
-    pub text_cursor_on_duration: f64,
-
-    /// set the text cursor off duration
-    pub text_cursor_off_duration: f64,
-
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
 
@@ -1134,10 +1125,6 @@ impl Visuals {
             resize_corner_size: 12.0,
 
             text_cursor: Default::default(),
-
-            text_cursor_blink: true,
-            text_cursor_on_duration: 1.0,
-            text_cursor_off_duration: 0.3,
 
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
@@ -1626,10 +1613,10 @@ impl Interaction {
 impl Widgets {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            noninteractive,
-            inactive,
-            hovered,
             active,
+            hovered,
+            inactive,
+            noninteractive,
             open,
         } = self;
 
@@ -1784,6 +1771,7 @@ impl Visuals {
             resize_corner_size,
 
             text_cursor,
+
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
@@ -1889,15 +1877,6 @@ impl Visuals {
 
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-            ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
-
-            ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-            ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
-            ui.checkbox(text_cursor_blink, "text cursor to blink");
-            ui.add(Slider::new(text_cursor_on_duration, 0.0..=2.0).text("text cursor on duration"));
-            ui.add(
-                Slider::new(text_cursor_off_duration, 0.0..=2.0).text("text cursor off duration"),
-            );
             ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
             ui.checkbox(button_frame, "Button has a frame");
