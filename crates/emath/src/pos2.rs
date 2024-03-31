@@ -257,11 +257,11 @@ impl Add<Vec2> for Pos2 {
 }
 
 impl Sub for Pos2 {
-    type Output = Pos2;
+    type Output = Self;
 
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Pos2 {
-        Pos2 {
+    fn sub(self, rhs: Self) -> Self {
+        Self {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
