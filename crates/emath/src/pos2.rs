@@ -133,12 +133,12 @@ impl Pos2 {
 
     #[inline]
     pub fn distance(self, other: Self) -> f32 {
-        (self - other).length()
+        (self - other).to_vec2().length()
     }
 
     #[inline]
     pub fn distance_sq(self, other: Self) -> f32 {
-        (self - other).length_sq()
+        (self - other).to_vec2().length_sq()
     }
 
     #[inline(always)]
@@ -257,11 +257,11 @@ impl Add<Vec2> for Pos2 {
 }
 
 impl Sub for Pos2 {
-    type Output = Vec2;
+    type Output = Pos2;
 
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Vec2 {
-        Vec2 {
+    fn sub(self, rhs: Self) -> Pos2 {
+        Pos2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
