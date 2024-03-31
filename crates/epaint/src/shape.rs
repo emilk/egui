@@ -1087,7 +1087,7 @@ fn points_from_line(
     let mut position_on_segment = 0.0;
     path.windows(2).for_each(|window| {
         let (start, end) = (window[0], window[1]);
-        let vector = end - start;
+        let vector = (end - start).to_vec2();
         let segment_length = vector.length();
         while position_on_segment < segment_length {
             let new_point = start + vector * (position_on_segment / segment_length);
@@ -1114,7 +1114,7 @@ fn dashes_from_line(
     let steps = dash_lengths.len();
     path.windows(2).for_each(|window| {
         let (start, end) = (window[0], window[1]);
-        let vector = end - start;
+        let vector = (end - start).to_vec2();
         let segment_length = vector.length();
 
         let mut start_point = start;
