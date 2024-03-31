@@ -336,7 +336,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     use std::f32::consts::TAU;
     let rotation = emath::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
     for p in &mut points {
-        *p = rect.center() + rotation * (*p - rect.center());
+        *p = rect.center() + rotation * (*p - rect.center()).to_vec2();
     }
 
     ui.painter().add(Shape::convex_polygon(
