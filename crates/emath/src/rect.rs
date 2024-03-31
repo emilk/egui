@@ -244,7 +244,7 @@ impl Rect {
 
     /// Keep size
     pub fn set_center(&mut self, center: Pos2) {
-        *self = self.translate(center - self.center());
+        *self = self.translate((center - self.center()).to_vec2());
     }
 
     #[must_use]
@@ -317,7 +317,7 @@ impl Rect {
     /// `rect.size() == Vec2 { x: rect.width(), y: rect.height() }`
     #[inline(always)]
     pub fn size(&self) -> Vec2 {
-        self.max - self.min
+        (self.max - self.min).to_vec2()
     }
 
     #[inline(always)]
@@ -401,7 +401,7 @@ impl Rect {
     /// assert_eq!(rect.signed_distance_to_pos(pos2(1.50, 0.50)), 0.50);
     /// ```
     pub fn signed_distance_to_pos(&self, pos: Pos2) -> f32 {
-        let edge_distances = (pos - self.center()).abs() - self.size() * 0.5;
+        let edge_distances = (pos - self.center()).to_vec2().abs() - self.size() * 0.5;
         let inside_dist = edge_distances.max_elem().min(0.0);
         let outside_dist = edge_distances.max(Vec2::ZERO).length();
         inside_dist + outside_dist
