@@ -647,6 +647,39 @@ pub struct Interaction {
     pub multi_widget_text_select: bool,
 }
 
+/// Look and feel of the text cursor.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct TextCursorStyle {
+    /// The color and width of the text cursor
+    pub stroke: Stroke,
+
+    /// Show where the text cursor would be if you clicked?
+    pub preview: bool,
+
+    /// Should the cursor blink?
+    pub blink: bool,
+
+    /// When blinking, this is how long the cursor is visible.
+    pub on_duration: f32,
+
+    /// When blinking, this is how long the cursor is invisible.
+    pub off_duration: f32,
+}
+
+impl Default for TextCursorStyle {
+    fn default() -> Self {
+        Self {
+            stroke: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)), // Dark mode
+            preview: false,
+            blink: true,
+            on_duration: 0.5,
+            off_duration: 0.5,
+        }
+    }
+}
+
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
@@ -722,11 +755,8 @@ pub struct Visuals {
 
     pub resize_corner_size: f32,
 
-    /// The color and width of the text cursor
-    pub text_cursor: Stroke,
-
-    /// show where the text cursor would be if you clicked
-    pub text_cursor_preview: bool,
+    /// How the text cursor acts.
+    pub text_cursor: TextCursorStyle,
 
     /// set the text cursor to blink
     pub text_cursor_blink: bool,
@@ -1103,8 +1133,7 @@ impl Visuals {
 
             resize_corner_size: 12.0,
 
-            text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
-            text_cursor_preview: false,
+            text_cursor: Default::default(),
 
             text_cursor_blink: true,
             text_cursor_on_duration: 1.0,
@@ -1159,7 +1188,10 @@ impl Visuals {
                 color: Color32::from_black_alpha(25),
             },
 
-            text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+            text_cursor: TextCursorStyle {
+                stroke: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+                ..Default::default()
+            },
 
             ..Self::dark()
         }
@@ -1750,11 +1782,8 @@ impl Visuals {
             popup_shadow,
 
             resize_corner_size,
+
             text_cursor,
-            text_cursor_preview,
-            text_cursor_blink,
-            text_cursor_on_duration,
-            text_cursor_off_duration,
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
@@ -1780,6 +1809,37 @@ impl Visuals {
             );
             ui_color(ui, extreme_bg_color, "Extreme")
                 .on_hover_text("Background of plots and paintings");
+        });
+
+        ui.collapsing("Text color", |ui| {
+            ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
+            ui_text_color(
+                ui,
+                &mut widgets.inactive.fg_stroke.color,
+                "Unhovered button",
+            );
+            ui_text_color(ui, &mut widgets.hovered.fg_stroke.color, "Hovered button");
+            ui_text_color(ui, &mut widgets.active.fg_stroke.color, "Clicked button");
+
+            ui_text_color(ui, warn_fg_color, RichText::new("Warnings"));
+            ui_text_color(ui, error_fg_color, RichText::new("Errors"));
+
+            ui_text_color(ui, hyperlink_color, "hyperlink_color");
+
+            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
+                |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label("For monospaced inlined text ");
+                        ui.code("like this");
+                        ui.label(".");
+                    });
+                },
+            );
+        });
+
+        ui.collapsing("Text cursor", |ui| {
+            text_cursor.ui(ui);
         });
 
         ui.collapsing("Window", |ui| {
@@ -1827,39 +1887,8 @@ impl Visuals {
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
 
-        ui.collapsing("Other colors", |ui| {
-            ui.horizontal(|ui| {
-                ui_color(
-                    ui,
-                    &mut widgets.noninteractive.fg_stroke.color,
-                    "Text color",
-                );
-                ui_color(ui, warn_fg_color, RichText::new("Warnings"));
-                ui_color(ui, error_fg_color, RichText::new("Errors"));
-            });
-
-            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
-                |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 0.0;
-                        ui.label("For monospaced inlined text ");
-                        ui.code("like this");
-                        ui.label(".");
-                    });
-                },
-            );
-
-            ui_color(ui, hyperlink_color, "hyperlink_color");
-
-            ui.horizontal(|ui| {
-                ui.label("Text cursor");
-                ui.add(text_cursor);
-            });
-        });
-
         ui.collapsing("Misc", |ui| {
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-            ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
             ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
             ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
@@ -1909,6 +1938,49 @@ impl Visuals {
         });
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
+    }
+}
+
+impl TextCursorStyle {
+    fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            stroke,
+            preview,
+            blink,
+            on_duration,
+            off_duration,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.label("Stroke");
+            ui.add(stroke);
+        });
+
+        ui.checkbox(preview, "Preview text cursor on hover");
+
+        ui.checkbox(blink, "Blink");
+
+        if *blink {
+            Grid::new("cursor_blink").show(ui, |ui| {
+                ui.label("On time");
+                ui.add(
+                    DragValue::new(on_duration)
+                        .speed(0.1)
+                        .clamp_range(0.0..=2.0)
+                        .suffix(" s"),
+                );
+                ui.end_row();
+
+                ui.label("Off time");
+                ui.add(
+                    DragValue::new(off_duration)
+                        .speed(0.1)
+                        .clamp_range(0.0..=2.0)
+                        .suffix(" s"),
+                );
+                ui.end_row();
+            });
+        }
     }
 }
 
@@ -1976,10 +2048,18 @@ fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> im
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
+fn ui_color(ui: &mut Ui, color: &mut Color32, label: impl Into<WidgetText>) -> Response {
     ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(srgba);
+        ui.color_edit_button_srgba(color);
         ui.label(label);
+    })
+    .response
+}
+
+fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) -> Response {
+    ui.horizontal(|ui| {
+        ui.color_edit_button_srgba(color);
+        ui.label(label.into().color(*color));
     })
     .response
 }

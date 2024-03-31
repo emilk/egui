@@ -67,7 +67,7 @@ impl super::Demo for WindowOptions {
             .constrain(constrain)
             .collapsible(collapsible)
             .title_bar(title_bar)
-            .scroll2(scroll2)
+            .scroll(scroll2)
             .enabled(enabled);
         if closable {
             window = window.open(open);

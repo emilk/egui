@@ -51,8 +51,10 @@ pub fn paint_text_selection(
 }
 
 /// Paint one end of the selection, e.g. the primary cursor.
-pub fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
-    let stroke = visuals.text_cursor;
+///
+/// This will never blink.
+pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
+    let stroke = visuals.text_cursor.stroke;
 
     let top = cursor_rect.center_top();
     let bottom = cursor_rect.center_bottom();
@@ -74,43 +76,32 @@ pub fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
     }
 }
 
-/// Paint text cursor.
+/// Paint one end of the selection, e.g. the primary cursor, with blinking (if enabled).
 pub fn paint_text_cursor(
     ui: &mut Ui,
     painter: &Painter,
     primary_cursor_rect: Rect,
-    is_stay_cursor: bool,
+    time_since_last_edit: f64,
 ) {
-    let i_time = ui.input(|i| i.time);
-    let blink_mode = ui.visuals().text_cursor_blink;
-    let is_blink_mode = blink_mode && is_stay_cursor;
+    if ui.visuals().text_cursor.blink {
+        let on_duration = ui.visuals().text_cursor.on_duration;
+        let off_duration = ui.visuals().text_cursor.off_duration;
+        let total_duration = on_duration + off_duration;
 
-    let on_duration = ui.visuals().text_cursor_on_duration;
-    let off_duration = ui.visuals().text_cursor_off_duration;
-    let total_duration = on_duration + off_duration;
+        let time_in_cycle = (time_since_last_edit % (total_duration as f64)) as f32;
 
-    let mut is_cursor_visible = true;
+        let wake_in = if time_in_cycle < on_duration {
+            // Cursor is visible
+            paint_cursor_end(painter, ui.visuals(), primary_cursor_rect);
+            on_duration - time_in_cycle
+        } else {
+            // Cursor is not visible
+            total_duration - time_in_cycle
+        };
 
-    if is_blink_mode {
-        is_cursor_visible = (i_time % total_duration) < on_duration;
-    }
-
-    if is_cursor_visible {
-        paint_cursor(painter, ui.visuals(), primary_cursor_rect);
-    }
-
-    if is_blink_mode {
-        if is_cursor_visible {
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(
-                    (on_duration * 1000.0) as u64,
-                ));
-        }
-        if !is_cursor_visible {
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(
-                    (off_duration * 1000.0) as u64,
-                ));
-        }
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f32(wake_in));
+    } else {
+        paint_cursor_end(painter, ui.visuals(), primary_cursor_rect);
     }
 }

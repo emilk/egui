@@ -5,7 +5,7 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
+use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -76,7 +76,7 @@ pub struct Viewport {
     ids: ViewportIdPair,
     class: ViewportClass,
     builder: ViewportBuilder,
-    commands: Vec<egui::viewport::ViewportCommand>,
+    deferred_commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
     screenshot_requested: bool,
 
@@ -155,12 +155,10 @@ impl WgpuWinitApp {
         } = &mut *running.shared.borrow_mut();
 
         initialize_or_update_viewport(
-            egui_ctx,
             viewports,
             ViewportIdPair::ROOT,
             ViewportClass::Root,
             self.native_options.viewport.clone(),
-            None,
             None,
         )
         .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
@@ -280,7 +278,7 @@ impl WgpuWinitApp {
         viewport_from_window.insert(window.id(), ViewportId::ROOT);
 
         let mut info = ViewportInfo::default();
-        egui_winit::update_viewport_info(&mut info, &egui_ctx, &window);
+        egui_winit::update_viewport_info(&mut info, &egui_ctx, &window, true);
 
         let mut viewports = Viewports::default();
         viewports.insert(
@@ -289,7 +287,7 @@ impl WgpuWinitApp {
                 ids: ViewportIdPair::ROOT,
                 class: ViewportClass::Root,
                 builder,
-                commands: vec![],
+                deferred_commands: vec![],
                 info,
                 screenshot_requested: false,
                 viewport_ui_cb: None,
@@ -438,13 +436,12 @@ impl WinitApp for WgpuWinitApp {
                     self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
                 };
 
-                EventResult::RepaintNow(
-                    running.shared.borrow().viewports[&ViewportId::ROOT]
-                        .window
-                        .as_ref()
-                        .unwrap()
-                        .id(),
-                )
+                let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
+                if let Some(window) = &viewport.window {
+                    EventResult::RepaintNow(window.id())
+                } else {
+                    EventResult::Wait
+                }
             }
 
             winit::event::Event::Suspended => {
@@ -612,7 +609,7 @@ impl WgpuWinitRunning {
             let Some(window) = window else {
                 return EventResult::Wait;
             };
-            egui_winit::update_viewport_info(info, &integration.egui_ctx, window);
+            egui_winit::update_viewport_info(info, &integration.egui_ctx, window, false);
 
             {
                 crate::profile_scope!("set_window");
@@ -770,7 +767,6 @@ impl WgpuWinitRunning {
 
             winit::event::WindowEvent::Resized(physical_size) => {
                 if let Some(viewport_id) = viewport_id {
-                    use std::num::NonZeroU32;
                     if let (Some(width), Some(height)) = (
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
@@ -883,7 +879,7 @@ impl Viewport {
                 ));
 
                 self.info.transparent = self.builder.transparent;
-                egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window);
+                egui_winit::update_viewport_info(&mut self.info, egui_ctx, &window, true);
                 self.window = Some(window);
             }
             Err(err) => {
@@ -938,15 +934,8 @@ fn render_immediate_viewport(
             ..
         } = &mut *shared.borrow_mut();
 
-        let viewport = initialize_or_update_viewport(
-            egui_ctx,
-            viewports,
-            ids,
-            ViewportClass::Immediate,
-            builder,
-            None,
-            None,
-        );
+        let viewport =
+            initialize_or_update_viewport(viewports, ids, ViewportClass::Immediate, builder, None);
         if viewport.window.is_none() {
             viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
         }
@@ -954,7 +943,7 @@ fn render_immediate_viewport(
         let (Some(window), Some(egui_winit)) = (&viewport.window, &mut viewport.egui_winit) else {
             return;
         };
-        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
+        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window, false);
 
         let mut input = egui_winit.take_egui_input(window);
         input.viewports = viewports
@@ -1069,37 +1058,28 @@ fn handle_viewport_output(
     {
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
-        let viewport = initialize_or_update_viewport(
-            egui_ctx,
-            viewports,
-            ids,
-            class,
-            builder,
-            viewport_ui_cb,
-            focused_viewport,
-        );
+        let viewport =
+            initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb);
 
         if let Some(window) = viewport.window.as_ref() {
             let old_inner_size = window.inner_size();
 
             let is_viewport_focused = focused_viewport == Some(viewport_id);
-            viewport.commands.append(&mut commands);
+            viewport.deferred_commands.append(&mut commands);
 
             egui_winit::process_viewport_commands(
                 egui_ctx,
                 &mut viewport.info,
-                viewport.commands.clone(),
+                std::mem::take(&mut viewport.deferred_commands),
                 window,
                 is_viewport_focused,
                 &mut viewport.screenshot_requested,
             );
-            viewport.commands.clear();
 
             // For Wayland : https://github.com/emilk/egui/issues/4196
             if cfg!(target_os = "linux") {
                 let new_inner_size = window.inner_size();
                 if new_inner_size != old_inner_size {
-                    use std::num::NonZeroU32;
                     if let (Some(width), Some(height)) = (
                         NonZeroU32::new(new_inner_size.width),
                         NonZeroU32::new(new_inner_size.height),
@@ -1114,15 +1094,13 @@ fn handle_viewport_output(
     remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
 }
 
-fn initialize_or_update_viewport<'vp>(
-    _egui_ctx: &egui::Context,
-    viewports: &'vp mut Viewports,
+fn initialize_or_update_viewport(
+    viewports: &mut Viewports,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-    _focused_viewport: Option<ViewportId>,
-) -> &'vp mut Viewport {
+) -> &mut Viewport {
     crate::profile_function!();
 
     if builder.icon.is_none() {
@@ -1140,7 +1118,7 @@ fn initialize_or_update_viewport<'vp>(
                 ids,
                 class,
                 builder,
-                commands: vec![],
+                deferred_commands: vec![],
                 info: Default::default(),
                 screenshot_requested: false,
                 viewport_ui_cb,
@@ -1169,7 +1147,7 @@ fn initialize_or_update_viewport<'vp>(
                 viewport.egui_winit = None;
             }
 
-            viewport.commands.append(&mut delta_commands);
+            viewport.deferred_commands.append(&mut delta_commands);
 
             entry.into_mut()
         }

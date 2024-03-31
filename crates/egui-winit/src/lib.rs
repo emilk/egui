@@ -99,6 +99,7 @@ pub struct State {
     accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
+    ime_rect_px: Option<egui::Rect>,
 }
 
 impl State {
@@ -139,6 +140,7 @@ impl State {
             accesskit: None,
 
             allow_ime: false,
+            ime_rect_px: None,
         };
 
         slf.egui_input
@@ -817,19 +819,26 @@ impl State {
         }
 
         if let Some(ime) = ime {
-            let rect = ime.rect;
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            crate::profile_scope!("set_ime_cursor_area");
-            window.set_ime_cursor_area(
-                winit::dpi::PhysicalPosition {
-                    x: pixels_per_point * rect.min.x,
-                    y: pixels_per_point * rect.min.y,
-                },
-                winit::dpi::PhysicalSize {
-                    width: pixels_per_point * rect.width(),
-                    height: pixels_per_point * rect.height(),
-                },
-            );
+            let ime_rect_px = pixels_per_point * ime.rect;
+            if self.ime_rect_px != Some(ime_rect_px)
+                || self.egui_ctx.input(|i| !i.events.is_empty())
+            {
+                self.ime_rect_px = Some(ime_rect_px);
+                crate::profile_scope!("set_ime_cursor_area");
+                window.set_ime_cursor_area(
+                    winit::dpi::PhysicalPosition {
+                        x: ime_rect_px.min.x,
+                        y: ime_rect_px.min.y,
+                    },
+                    winit::dpi::PhysicalSize {
+                        width: ime_rect_px.width(),
+                        height: ime_rect_px.height(),
+                    },
+                );
+            }
+        } else {
+            self.ime_rect_px = None;
         }
 
         #[cfg(feature = "accesskit")]
@@ -866,26 +875,24 @@ impl State {
 }
 
 pub fn inner_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
-    let pos = window.inner_position().ok()?;
-    let inner_pos_px = egui::emath::Pos2::new(pos.x as f32, pos.y as f32);
+    let inner_pos_px = window.inner_position().ok()?;
+    let inner_pos_px = egui::pos2(inner_pos_px.x as f32, inner_pos_px.y as f32);
 
-    let inner_size_px = {
-        let size = window.inner_size();
-        egui::Vec2::new(size.width as f32, size.height as f32)
-    };
+    let inner_size_px = window.inner_size();
+    let inner_size_px = egui::vec2(inner_size_px.width as f32, inner_size_px.height as f32);
+
     let inner_rect_px = egui::Rect::from_min_size(inner_pos_px, inner_size_px);
 
     Some(inner_rect_px / pixels_per_point)
 }
 
 pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
-    let pos = window.outer_position().ok()?;
-    let outer_pos_px = egui::emath::Pos2::new(pos.x as f32, pos.y as f32);
+    let outer_pos_px = window.outer_position().ok()?;
+    let outer_pos_px = egui::pos2(outer_pos_px.x as f32, outer_pos_px.y as f32);
 
-    let outer_size_px = {
-        let size = window.outer_size();
-        egui::Vec2::new(size.width as f32, size.height as f32)
-    };
+    let outer_size_px = window.outer_size();
+    let outer_size_px = egui::vec2(outer_size_px.width as f32, outer_size_px.height as f32);
+
     let outer_rect_px = egui::Rect::from_min_size(outer_pos_px, outer_size_px);
 
     Some(outer_rect_px / pixels_per_point)
@@ -894,10 +901,13 @@ pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Re
 /// Update the given viewport info with the current state of the window.
 ///
 /// Call before [`State::take_egui_input`].
+///
+/// If this is called right after window creation, `is_init` should be `true`, otherwise `false`.
 pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
     egui_ctx: &egui::Context,
     window: &Window,
+    is_init: bool,
 ) {
     crate::profile_function!();
 
@@ -937,8 +947,8 @@ pub fn update_viewport_info(
     viewport_info.inner_rect = inner_rect;
     viewport_info.outer_rect = outer_rect;
 
-    if !cfg!(target_os = "macos") {
-        // It's tempting to do this, but it leads to a deadlock on Mac when running
+    if is_init || !cfg!(target_os = "macos") {
+        // Asking for minimized/maximized state at runtime leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
         viewport_info.maximized = Some(window.is_maximized());
@@ -1318,16 +1328,27 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            if let Some(_inner_size) =
-                window.request_inner_size(PhysicalSize::new(width_px, height_px))
-            {
-                // ViewportCommand::InnerSize, not will be delivered later with the [WindowEvent::Resized]
-                // ex) linux
+            let requested_size = PhysicalSize::new(width_px, height_px);
+            if let Some(_returned_inner_size) = window.request_inner_size(requested_size) {
+                // On platforms where the size is entirely controlled by the user the
+                // applied size will be returned immediately, resize event in such case
+                // may not be generated.
+                // e.g. Linux
+
+                // On platforms where resizing is disallowed by the windowing system, the current
+                // inner size is returned immediately, and the user one is ignored.
+                // e.g. Android, iOS, …
+
+                // However, comparing the results is prone to numerical errors
+                // because the linux backend converts physical to logical and back again.
+                // So let's just assume it worked:
+
                 info.inner_rect = inner_rect_in_points(window, pixels_per_point);
                 info.outer_rect = outer_rect_in_points(window, pixels_per_point);
             } else {
-                // ViewportCommand::InnerSize, will be delivered later with the [WindowEvent::Resized]
-                // ex) Windows, MacOS
+                // e.g. macOS, Windows
+                // The request went to the display system,
+                // and the actual size will be delivered later with the [`WindowEvent::Resized`].
             }
         }
         ViewportCommand::BeginResize(direction) => {

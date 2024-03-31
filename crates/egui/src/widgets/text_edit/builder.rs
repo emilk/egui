@@ -6,9 +6,7 @@ use crate::{
     os::OperatingSystem,
     output::OutputEvent,
     text_selection::{
-        text_cursor_state::cursor_rect,
-        visuals::{paint_cursor, paint_text_selection},
-        CCursorRange, CursorRange,
+        text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange, CursorRange,
     },
     *,
 };
@@ -545,14 +543,14 @@ impl<'t> TextEdit<'t> {
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
 
-                if ui.visuals().text_cursor_preview
+                if ui.visuals().text_cursor.preview
                     && response.hovered()
                     && ui.input(|i| i.pointer.is_moving())
                 {
                     // text cursor preview:
                     let cursor_rect =
                         cursor_rect(rect.min, &galley, &cursor_at_pointer, row_height);
-                    paint_cursor(&painter, ui.visuals(), cursor_rect);
+                    text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
                 }
 
                 let is_being_dragged = ui.ctx().is_being_dragged(response.id);
@@ -684,24 +682,32 @@ impl<'t> TextEdit<'t> {
                         ui.scroll_to_rect(primary_cursor_rect, None);
                     }
 
-                    if text.is_mutable() {
-                        let is_stay_cursor = save_ccursor_range == state.cursor.char_range();
-                        text_selection::visuals::paint_text_cursor(
-                            ui,
-                            &painter,
-                            primary_cursor_rect,
-                            is_stay_cursor,
-                        );
-
-                        if interactive {
-                            // For IME, so only set it when text is editable and visible!
-                            ui.ctx().output_mut(|o| {
-                                o.ime = Some(crate::output::IMEOutput {
-                                    rect,
-                                    cursor_rect: primary_cursor_rect,
-                                });
-                            });
+                    if text.is_mutable() && interactive {
+                        let now = ui.ctx().input(|i| i.time);
+                        if response.changed || selection_changed {
+                            state.last_edit_time = now;
                         }
+
+                        // Only show (and blink) cursor if the egui viewport has focus.
+                        // This is for two reasons:
+                        // * Don't give the impression that the user can type into a window without focus
+                        // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
+                        if ui.ctx().input(|i| i.focused) {
+                            text_selection::visuals::paint_text_cursor(
+                                ui,
+                                &painter,
+                                primary_cursor_rect,
+                                now - state.last_edit_time,
+                            );
+                        }
+
+                        // For IME, so only set it when text is editable and visible!
+                        ui.ctx().output_mut(|o| {
+                            o.ime = Some(crate::output::IMEOutput {
+                                rect,
+                                cursor_rect: primary_cursor_rect,
+                            });
+                        });
                     }
                 }
             }
