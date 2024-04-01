@@ -150,31 +150,24 @@ fn resize_canvas_to_screen_size(
 
     let canvas_size_pixels = pixels_per_point * canvas_real_size;
     let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
-    let canvas_size_points = canvas_size_pixels / pixels_per_point;
 
-    // Make sure that the height and width are always even numbers.
+    // Make sure that the size is always an even number of pixels,
     // otherwise, the page renders blurry on some platforms.
     // See https://github.com/emilk/egui/issues/103
-    fn round_to_even(v: f32) -> f32 {
-        (v / 2.0).round() * 2.0
-    }
+    let canvas_size_pixels = (canvas_size_pixels / 2.0).round() * 2.0;
+
+    let canvas_size_points = canvas_size_pixels / pixels_per_point;
 
     canvas
         .style()
-        .set_property(
-            "width",
-            &format!("{}px", round_to_even(canvas_size_points.x)),
-        )
+        .set_property("width", &format!("{}px", canvas_size_points.x))
         .ok()?;
     canvas
         .style()
-        .set_property(
-            "height",
-            &format!("{}px", round_to_even(canvas_size_points.y)),
-        )
+        .set_property("height", &format!("{}px", canvas_size_points.y))
         .ok()?;
-    canvas.set_width(round_to_even(canvas_size_pixels.x) as u32);
-    canvas.set_height(round_to_even(canvas_size_pixels.y) as u32);
+    canvas.set_width(canvas_size_pixels.x as u32);
+    canvas.set_height(canvas_size_pixels.y as u32);
 
     Some(())
 }
