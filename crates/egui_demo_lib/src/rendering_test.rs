@@ -31,14 +31,12 @@ impl Default for ColorTest {
 
 impl ColorTest {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.set_max_width(680.0);
-
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
 
         ui.horizontal_wrapped(|ui|{
-            ui.label("This is made to test that the egui painter backend is set up correctly.");
+            ui.label("This is made to test that the egui rendering backend is set up correctly.");
             ui.add(egui::Label::new("❓").sense(egui::Sense::click()))
                 .on_hover_text("The texture sampling should be sRGB-aware, and every other color operation should be done in gamma-space (sRGB). All colors should use pre-multiplied alpha");
         });
@@ -55,7 +53,7 @@ impl ColorTest {
 
         ui.separator();
 
-        ui.label("Text rendering");
+        ui.heading("Text rendering");
 
         text_on_bg(ui, Color32::from_gray(200), Color32::from_gray(230)); // gray on gray
         text_on_bg(ui, Color32::from_gray(140), Color32::from_gray(28)); // dark mode normal text
@@ -399,8 +397,13 @@ impl TextureManager {
 ///
 /// Requires eyes and a magnifying glass to verify.
 pub fn pixel_test(ui: &mut Ui) {
-    ui.label("Each subsequent square should be one physical pixel larger than the previous. They should be exactly one physical pixel apart. They should be perfectly aligned to the pixel grid. The first square should be exactly one pixel big.");
-    ui.label("You might need a magnifying glass to verify this.");
+    ui.heading("Pixel alignment test");
+    ui.label("The first square should be exactly one physical pixel big.");
+    ui.label("They should be exactly one physical pixel apart.");
+    ui.label("Each subsequent square should be one physical pixel larger than the previous.");
+    ui.label("They should be perfectly aligned to the physical pixel grid.");
+    ui.label("If these squares are blurry, everything will be blurry, including text.");
+    ui.label("You might need a magnifying glass to check this test.");
 
     let color = if ui.style().visuals.dark_mode {
         egui::Color32::WHITE
