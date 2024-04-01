@@ -46,13 +46,25 @@ pub struct WidgetRect {
 ///
 /// All [`Ui`]s have a [`WidgetRects`], but whether or not their rects are correct
 /// depends on if [`Ui::interact_bg`] was ever called.
-#[derive(Default, Clone, PartialEq, Eq)]
+#[derive(Default, Clone)]
 pub struct WidgetRects {
     /// All widgets, in painting order.
     by_layer: HashMap<LayerId, Vec<WidgetRect>>,
 
     /// All widgets, by id, and their order in their respective layer
     by_id: IdMap<(usize, WidgetRect)>,
+
+    /// Info about some widgets.
+    ///
+    /// Only filled in if the widget is interacted with,
+    /// or if this is a debug build.
+    infos: IdMap<WidgetInfo>,
+}
+
+impl PartialEq for WidgetRects {
+    fn eq(&self, other: &Self) -> bool {
+        self.by_layer == other.by_layer
+    }
 }
 
 impl WidgetRects {
@@ -72,6 +84,11 @@ impl WidgetRects {
         self.by_id.get(&id).map(|(_, w)| w)
     }
 
+    /// In which layer, and in which order in that layer?
+    pub fn order(&self, id: Id) -> Option<(LayerId, usize)> {
+        self.by_id.get(&id).map(|(idx, w)| (w.layer_id, *idx))
+    }
+
     #[inline]
     pub fn contains(&self, id: Id) -> bool {
         self.by_id.contains_key(&id)
@@ -85,18 +102,28 @@ impl WidgetRects {
 
     /// Clear the contents while retaining allocated memory.
     pub fn clear(&mut self) {
-        let Self { by_layer, by_id } = self;
+        let Self {
+            by_layer,
+            by_id,
+            infos,
+        } = self;
 
         for rects in by_layer.values_mut() {
             rects.clear();
         }
 
         by_id.clear();
+
+        infos.clear();
     }
 
     /// Insert the given widget rect in the given layer.
     pub fn insert(&mut self, layer_id: LayerId, widget_rect: WidgetRect) {
-        let Self { by_layer, by_id } = self;
+        let Self {
+            by_layer,
+            by_id,
+            infos: _,
+        } = self;
 
         let layer_widgets = by_layer.entry(layer_id).or_default();
 
@@ -128,5 +155,13 @@ impl WidgetRects {
                 }
             }
         }
+    }
+
+    pub fn set_info(&mut self, id: Id, info: WidgetInfo) {
+        self.infos.insert(id, info);
+    }
+
+    pub fn info(&self, id: Id) -> Option<&WidgetInfo> {
+        self.infos.get(&id)
     }
 }
