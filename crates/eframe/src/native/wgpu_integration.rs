@@ -576,6 +576,7 @@ impl WgpuWinitRunning {
 
             // This will only happens when a Immediate Viewport.
             if is_immediate && viewport_id != ViewportId::ROOT {
+                // viewport_id = ViewportId::ROOT;
                 if let Some(parent_viewport) = viewports.get(&original_viewport.ids.parent) {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
