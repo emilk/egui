@@ -226,10 +226,13 @@ impl EpiIntegration {
         });
     }
 
+    /*
     /// If `true`, it is time to close the native window.
     pub fn should_close(&self) -> bool {
-        self.close
+        // self.close
+        self.egui_ctx.input(|i| i.viewport().should_close())
     }
+    */
 
     pub fn on_window_event(
         &mut self,
