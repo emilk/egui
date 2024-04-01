@@ -849,11 +849,10 @@ fn change_gl_context(
 ) {
     crate::profile_function!();
 
-    if cfg!(target_os = "macos") {
+    if !cfg!(target_os = "windows") {
         // According to https://github.com/emilk/egui/issues/4289
-        // we cannot do this early-out on Windows,
-        // and we haven't tested Linux, so let's only do it on Mac for now.
-        // TODO(emilk): optimize this for other platforms too.
+        // we cannot do this early-out on Windows.
+        // TODO(emilk): optimize context switching on Windows too.
         // See https://github.com/emilk/egui/issues/4173
 
         if let Some(current_gl_context) = current_gl_context {
