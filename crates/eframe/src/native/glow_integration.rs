@@ -1266,16 +1266,7 @@ impl GlutinWindowContext {
 
         if let Some(viewport) = self.viewports.get(&viewport_id) {
             if let Some(gl_surface) = &viewport.gl_surface {
-                // change_gl_context(&mut self.current_gl_context, gl_surface);
-                self.current_gl_context = Some(
-                    self.current_gl_context
-                        .take()
-                        .unwrap()
-                        .make_not_current()
-                        .unwrap()
-                        .make_current(gl_surface)
-                        .unwrap(),
-                );
+                change_gl_context(&mut self.current_gl_context, gl_surface);
 
                 gl_surface.resize(
                     self.current_gl_context
@@ -1530,19 +1521,7 @@ fn render_immediate_viewport(
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-    // change_gl_context(current_gl_context, gl_surface);
-    {
-        crate::profile_function!("context-switch");
-        *current_gl_context = Some(
-            current_gl_context
-                .take()
-                .unwrap()
-                .make_not_current()
-                .unwrap()
-                .make_current(gl_surface)
-                .unwrap(),
-        );
-    }
+    change_gl_context(current_gl_context, gl_surface);
 
     let current_gl_context = current_gl_context.as_ref().unwrap();
 
