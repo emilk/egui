@@ -528,7 +528,6 @@ impl GlowWinitRunning {
 
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
-        let is_deferred_viewport;
 
         let (raw_input, viewport_ui_cb) = {
             crate::profile_scope!("Prepare");
@@ -537,7 +536,6 @@ impl GlowWinitRunning {
 
             let original_viewport = &glutin.viewports[&viewport_id];
             let is_immediate_viewport = original_viewport.viewport_ui_cb.is_none();
-            is_deferred_viewport = !is_immediate_viewport;
 
             // This will only happens when a Immediate Viewport.
             if is_immediate_viewport && viewport_id != ViewportId::ROOT {
@@ -545,11 +543,11 @@ impl GlowWinitRunning {
                     let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
                     if is_deferred_parent {
                         // This will only happens when the parent is a Deferred Viewport.
-                        viewport_id = ViewportId::ROOT;
-                        glutin
-                            .egui_ctx
-                            .request_repaint_of(original_viewport.ids.parent);
-                        // viewport_id = parent_viewport.ids.this;
+                        // viewport_id = ViewportId::ROOT;
+                        // glutin
+                        //     .egui_ctx
+                        //     .request_repaint_of(original_viewport.ids.parent);
+                        viewport_id = parent_viewport.ids.this;
                     } else if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
                         // This will only happen when the parent is a Immediate Viewport.
                         // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
@@ -558,16 +556,10 @@ impl GlowWinitRunning {
                         // Not actually used. Because there is always a `Some()` value.
                         return EventResult::Wait;
                     }
+                } else {
+                    return EventResult::Wait;
                 }
             }
-            /*
-            if is_deferred_viewport {
-                if let Some(_parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent) {
-                    // let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
-                    glutin.egui_ctx.request_repaint_of(original_viewport.ids.parent);
-                }
-            }
-            */
 
             let egui_ctx = glutin.egui_ctx.clone();
             let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
