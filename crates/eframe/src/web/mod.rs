@@ -141,7 +141,7 @@ fn resize_canvas_to_screen_size(
         y: parent.client_height() as f32,
     };
 
-    if parent_size_points.x <= 0 || parent_size_points.y <= 0 {
+    if parent_size_points.x <= 0.0 || parent_size_points.y <= 0.0 {
         log::error!("The parent element of the egui canvas is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", parent_size_points.x, parent_size_points.y);
     }
 
