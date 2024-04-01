@@ -13,12 +13,12 @@
 #![cfg_attr(feature = "puffin", deny(unsafe_code))]
 #![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
-mod color_test;
 mod demo;
 pub mod easy_mark;
+mod rendering_test;
 
-pub use color_test::ColorTest;
 pub use demo::{DemoWindows, WidgetGallery};
+pub use rendering_test::ColorTest;
 
 /// View some Rust code with syntax highlighting and selection.
 pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {
