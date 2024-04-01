@@ -1122,6 +1122,7 @@ impl TitleBar {
     ///   title if `collapsible` is `true`
     /// - `collapsible`: if `true`, double click on the title bar will be handled for a change
     ///   of `collapsing` state
+    #[allow(clippy::too_many_arguments)]
     fn ui(
         mut self,
         ui: &mut Ui,
