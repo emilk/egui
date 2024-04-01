@@ -745,6 +745,7 @@ impl Response {
     /// Call after interacting and potential calls to [`Self::mark_changed`].
     pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
         use crate::output::OutputEvent;
+
         let event = if self.clicked() {
             Some(OutputEvent::Clicked(make_info()))
         } else if self.double_clicked() {
@@ -758,6 +759,7 @@ impl Response {
         } else {
             None
         };
+
         if let Some(event) = event {
             self.output_event(event);
         } else {
@@ -765,6 +767,8 @@ impl Response {
             self.ctx.accesskit_node_builder(self.id, |builder| {
                 self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
+
+            self.ctx.register_widget_info(self.id, make_info);
         }
     }
 
@@ -773,6 +777,10 @@ impl Response {
         self.ctx.accesskit_node_builder(self.id, |builder| {
             self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
+
+        self.ctx
+            .register_widget_info(self.id, || event.widget_info().clone());
+
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
