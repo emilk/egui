@@ -130,51 +130,46 @@ fn resize_canvas_to_screen_size(
 ) -> Option<()> {
     let parent = canvas.parent_element()?;
 
-    // Prefer the client width and height so that if the parent
-    // element is resized that the egui canvas resizes appropriately.
-    let width = parent.client_width();
-    let height = parent.client_height();
-
-    let canvas_real_size = Vec2 {
-        x: width as f32,
-        y: height as f32,
-    };
-
-    if width <= 0 || height <= 0 {
-        log::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
-    }
-
+    // In this function we use "pixel" to mean physical pixel,
+    // and "point" to mean "logical CSS pixel".
     let pixels_per_point = native_pixels_per_point();
 
-    let max_size_pixels = pixels_per_point * max_size_points;
+    // Prefer the client width and height so that if the parent
+    // element is resized that the egui canvas resizes appropriately.
+    let parent_size_points = Vec2 {
+        x: parent.client_width() as f32,
+        y: parent.client_height() as f32,
+    };
 
-    let canvas_size_pixels = pixels_per_point * canvas_real_size;
-    let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
-    let canvas_size_points = canvas_size_pixels / pixels_per_point;
-
-    // Make sure that the height and width are always even numbers.
-    // otherwise, the page renders blurry on some platforms.
-    // See https://github.com/emilk/egui/issues/103
-    fn round_to_even(v: f32) -> f32 {
-        (v / 2.0).round() * 2.0
+    if parent_size_points.x <= 0.0 || parent_size_points.y <= 0.0 {
+        log::error!("The parent element of the egui canvas is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", parent_size_points.x, parent_size_points.y);
     }
 
+    // We take great care here to ensure the rendered canvas aligns
+    // perfectly to the physical pixel grid, lest we get blurry text.
+    // At the time of writing, we get pixel perfection on Chromium and Firefox on Mac,
+    // but Desktop Safari will be blurry on most zoom levels.
+    // See https://github.com/emilk/egui/issues/4241 for more.
+
+    let canvas_size_pixels = pixels_per_point * parent_size_points.min(max_size_points);
+
+    // Make sure that the size is always an even number of pixels,
+    // otherwise, the page renders blurry on some platforms.
+    // See https://github.com/emilk/egui/issues/103
+    let canvas_size_pixels = (canvas_size_pixels / 2.0).round() * 2.0;
+
+    let canvas_size_points = canvas_size_pixels / pixels_per_point;
+
     canvas
         .style()
-        .set_property(
-            "width",
-            &format!("{}px", round_to_even(canvas_size_points.x)),
-        )
+        .set_property("width", &format!("{}px", canvas_size_points.x))
         .ok()?;
     canvas
         .style()
-        .set_property(
-            "height",
-            &format!("{}px", round_to_even(canvas_size_points.y)),
-        )
+        .set_property("height", &format!("{}px", canvas_size_points.y))
         .ok()?;
-    canvas.set_width(round_to_even(canvas_size_pixels.x) as u32);
-    canvas.set_height(round_to_even(canvas_size_pixels.y) as u32);
+    canvas.set_width(canvas_size_pixels.x as u32);
+    canvas.set_height(canvas_size_pixels.y as u32);
 
     Some(())
 }
