@@ -227,6 +227,7 @@ impl EpiIntegration {
     }
 
     /*
+    
     /// If `true`, it is time to close the native window.
     pub fn should_close(&self) -> bool {
         // self.close
