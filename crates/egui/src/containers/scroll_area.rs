@@ -870,7 +870,8 @@ impl Prepared {
 
         let max_offset = content_size - inner_rect.size();
         let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
-        if scrolling_enabled && is_hovering_outer_rect {
+        let force_current_scroll_area = ui.input(|i| i.force_current_scroll_area);
+        if scrolling_enabled && is_hovering_outer_rect || force_current_scroll_area {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && scroll_enabled[0] != scroll_enabled[1];
             for d in 0..2 {
@@ -898,6 +899,7 @@ impl Prepared {
                             } else {
                                 input.smooth_scroll_delta[d] = 0.0;
                             }
+                            input.force_current_scroll_area = false;
                         });
 
                         state.scroll_stuck_to_end[d] = false;

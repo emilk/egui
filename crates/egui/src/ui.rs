@@ -1091,8 +1091,10 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
-        self.ctx()
-            .input_mut(|input| input.smooth_scroll_delta += delta);
+        self.ctx().input_mut(|input| {
+            input.smooth_scroll_delta += delta;
+            input.force_current_scroll_area = true;
+        });
     }
 }
 

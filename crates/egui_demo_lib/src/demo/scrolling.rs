@@ -258,6 +258,7 @@ impl super::View for ScrollTo {
         let mut go_to_scroll_offset = false;
         let mut scroll_top = false;
         let mut scroll_bottom = false;
+        let mut scroll_delta = None;
 
         ui.horizontal(|ui| {
             ui.label("Scroll to a specific item index:");
@@ -292,6 +293,9 @@ impl super::View for ScrollTo {
         ui.horizontal(|ui| {
             scroll_top |= ui.button("Scroll to top").clicked();
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
+            if ui.button("Scroll down by 64px").clicked() {
+                scroll_delta = Some(Vec2::new(0.0, -64.0));
+            }
         });
 
         let mut scroll_area = ScrollArea::vertical().max_height(200.0).auto_shrink(false);
@@ -305,6 +309,10 @@ impl super::View for ScrollTo {
                 if scroll_top {
                     ui.scroll_to_cursor(Some(Align::TOP));
                 }
+                if let Some(scroll_delta) = scroll_delta {
+                    ui.scroll_with_delta(scroll_delta);
+                }
+
                 ui.vertical(|ui| {
                     for item in 1..=num_items {
                         if track_item && item == self.track_item {
