@@ -926,7 +926,6 @@ fn change_gl_context(
             }
         }
     }
-    */
 
     let not_current = {
         crate::profile_scope!("make_not_current");
