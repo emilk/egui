@@ -79,15 +79,22 @@ impl eframe::App for ColorTestApp {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Anchor {
     Demo,
+
     EasyMarkEditor,
+
     #[cfg(feature = "http")]
     Http,
+
     #[cfg(feature = "image_viewer")]
     ImageViewer,
+
     Clock,
+
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     Custom3d,
-    Colors,
+
+    /// Rendering test
+    Rendering,
 }
 
 impl Anchor {
@@ -101,7 +108,7 @@ impl Anchor {
             Self::Clock,
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             Self::Custom3d,
-            Self::Colors,
+            Self::Rendering,
         ]
     }
 }
@@ -147,7 +154,7 @@ pub struct State {
     #[cfg(feature = "image_viewer")]
     image_viewer: crate::apps::ImageViewer,
     clock: FractalClockApp,
-    color_test: ColorTestApp,
+    rendering_test: ColorTestApp,
 
     selected_anchor: Anchor,
     backend_panel: super::backend_panel::BackendPanel,
@@ -229,9 +236,9 @@ impl WrapApp {
         }
 
         vec.push((
-            "🎨 Color test",
-            Anchor::Colors,
-            &mut self.state.color_test as &mut dyn eframe::App,
+            "🎨 Rendering test",
+            Anchor::Rendering,
+            &mut self.state.rendering_test as &mut dyn eframe::App,
         ));
 
         vec.into_iter()
