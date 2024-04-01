@@ -242,18 +242,39 @@ pub(crate) fn interact(
             .chain(&long_touched)
             .copied()
             .collect()
-    } else if hits.click.is_some() || hits.drag.is_some() {
-        // We are hovering over an interactive widget or two.
-        hits.click.iter().chain(&hits.drag).map(|w| w.id).collect()
     } else {
-        // Whatever is topmost is what we are hovering.
-        // TODO(emilk): consider handle hovering over multiple top-most widgets?
-        // TODO(emilk): allow hovering close widgets?
-        hits.contains_pointer
-            .last()
-            .map(|w| w.id)
-            .into_iter()
-            .collect()
+        // We may be hovering a an interactive widget or two.
+        // We must also consider the case where non-interactive widgets
+        // are _on top_ of an interactive widget.
+        // For instance: a label in a draggable window.
+        // In that case we want to hover _both_ widgets,
+        // otherwise we won't see tooltips for the label.
+        //
+        // Because of how `Ui` work, we will often allocate the `Ui` rect
+        // _after_ adding the children in it (once we know the size it will occopy)
+        // so we will also have a lot of such `Ui` widgets rects covering almost any widget.
+        //
+        // So: we want to hover _all_ widgets above the interactive widget (if any),
+        // but none below it (an interactive widget stops the hover search).
+        //
+        // To know when to stop we need to first know the order of the widgets,
+        // which luckily we have in the `WidgetRects`.
+
+        let order = |id| widgets.order(id).map(|(_layer, order)| order); // we ignore the layer, since all widgets at this point is in the same layer
+
+        let click_order = hits.click.and_then(|w| order(w.id)).unwrap_or(0);
+        let drag_order = hits.drag.and_then(|w| order(w.id)).unwrap_or(0);
+        let top_interactive_order = click_order.max(drag_order);
+
+        let mut hovered: IdSet = hits.click.iter().chain(&hits.drag).map(|w| w.id).collect();
+
+        for w in &hits.contains_pointer {
+            if top_interactive_order <= order(w.id).unwrap_or(0) {
+                hovered.insert(w.id);
+            }
+        }
+
+        hovered
     };
 
     InteractionSnapshot {
