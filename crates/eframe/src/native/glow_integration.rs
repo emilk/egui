@@ -539,25 +539,16 @@ impl GlowWinitRunning {
 
             // This will only happens when a Immediate Viewport.
             if is_immediate_viewport && viewport_id != ViewportId::ROOT {
-                if let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent) {
-                    let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
-                    if is_deferred_parent {
-                        // This will only happens when the parent is a Deferred Viewport.
-                        // viewport_id = ViewportId::ROOT;
-                        // glutin
-                        //     .egui_ctx
-                        //     .request_repaint_of(original_viewport.ids.parent);
-                        viewport_id = parent_viewport.ids.this;
-                    } else if let Some(root_viewport) = glutin.viewports.get(&ViewportId::ROOT) {
-                        // This will only happen when the parent is a Immediate Viewport.
-                        // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                        viewport_id = root_viewport.ids.this;
-                    } else {
-                        // Not actually used. Because there is always a `Some()` value.
-                        return EventResult::Wait;
-                    }
-                } else {
+                let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent)
+                else {
                     return EventResult::Wait;
+                };
+
+                let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
+                if is_deferred_parent {
+                    viewport_id = parent_viewport.ids.this;
+                } else {
+                    viewport_id = ViewportId::ROOT;
                 }
             }
 
