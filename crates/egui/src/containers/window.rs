@@ -104,7 +104,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// `order(Order::Foreground)` for an Area that should always be on top
+    /// `order(Order::Foreground)` for a Window that should always be on top
     #[inline]
     pub fn order(mut self, order: Order) -> Self {
         self.area = self.area.order(order);
