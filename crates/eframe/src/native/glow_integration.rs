@@ -714,7 +714,7 @@ impl GlowWinitRunning {
         #[cfg(feature = "__screenshot")]
         if integration.egui_ctx.frame_nr() == 2 {
             if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
-                save_screeshot_and_exit(&path, &painter, screen_size_in_pixels);
+                save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
         }
 
@@ -1498,7 +1498,7 @@ fn render_immediate_viewport(
 }
 
 #[cfg(feature = "__screenshot")]
-fn save_screeshot_and_exit(
+fn save_screenshot_and_exit(
     path: &str,
     painter: &egui_glow::Painter,
     screen_size_in_pixels: [u32; 2],
