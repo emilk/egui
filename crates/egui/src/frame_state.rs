@@ -79,7 +79,7 @@ pub struct FrameState {
     pub used_by_panels: Rect,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
-    pub scroll_target: [Option<(Rangef, Option<Align>)>; 2],
+    pub scroll_target: [Option<(Rangef, Option<Align>, style::ScrollAnimation)>; 2],
 
     /// The current scroll area should scroll by this much.
     ///
@@ -90,7 +90,7 @@ pub struct FrameState {
     ///
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    pub scroll_delta: Vec2,
+    pub scroll_delta: (Vec2, style::ScrollAnimation),
 
     #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitFrameState>,
@@ -113,7 +113,7 @@ impl Default for FrameState {
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
             scroll_target: [None, None],
-            scroll_delta: Vec2::default(),
+            scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_next_frame: Default::default(),
@@ -153,7 +153,7 @@ impl FrameState {
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
         *scroll_target = [None, None];
-        *scroll_delta = Vec2::default();
+        *scroll_delta = (Vec2::default(), style::ScrollAnimation::none());
 
         #[cfg(debug_assertions)]
         {
