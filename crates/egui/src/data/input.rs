@@ -260,24 +260,24 @@ impl ViewportInfo {
     }
 
     pub fn is_close_requested(&self) -> bool {
-        let Ok(close_requsted) = self.close_requested.read() else {
+        let Ok(close_requested) = self.close_requested.read() else {
             return false;
         };
-        *close_requsted
+        *close_requested
     }
 
     pub fn close_requested_on(&self) {
-        let Ok(mut close_requsted) = self.close_requested.write() else {
+        let Ok(mut close_requested) = self.close_requested.write() else {
             return;
         };
-        *close_requsted = true;
+        *close_requested = true;
     }
 
     pub fn close_requested_off(&self) {
-        let Ok(mut close_requsted) = self.close_requested.write() else {
+        let Ok(mut close_requested) = self.close_requested.write() else {
             return;
         };
-        *close_requsted = false;
+        *close_requested = false;
     }
 
     pub fn is_close_cancelable(&self) -> bool {
