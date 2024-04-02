@@ -703,7 +703,7 @@ impl<'a> Slider<'a> {
 
             // Paint trailing fill.
             if trailing_fill {
-                let mut trailing_rail_rect = rail_rect;
+                let trailing_rail_rect = rail_rect;
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
