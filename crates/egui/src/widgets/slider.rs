@@ -686,12 +686,10 @@ impl<'a> Slider<'a> {
 
             let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
             let rail_rect = self.rail_rect(rect, rail_radius);
+            let rounding = widget_visuals.inactive.rounding;
 
-            ui.painter().rect_filled(
-                rail_rect,
-                widget_visuals.inactive.rounding,
-                widget_visuals.inactive.bg_fill,
-            );
+            ui.painter()
+                .rect_filled(rail_rect, rounding, widget_visuals.inactive.bg_fill);
 
             let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
@@ -703,11 +701,21 @@ impl<'a> Slider<'a> {
 
             // Paint trailing fill.
             if trailing_fill {
-                let trailing_rail_rect = rail_rect;
+                let mut trailing_rail_rect = rail_rect;
+
+                // The trailing rect has to be drawn differently depending on the orientation.
+                match self.orientation {
+                    SliderOrientation::Horizontal => {
+                        trailing_rail_rect.max.x = center.x + rounding.nw
+                    }
+                    SliderOrientation::Vertical => {
+                        trailing_rail_rect.min.y = center.y - rounding.se
+                    }
+                };
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
-                    widget_visuals.inactive.rounding,
+                    rounding,
                     ui.visuals().selection.bg_fill,
                 );
             }
