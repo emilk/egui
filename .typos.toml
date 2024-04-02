@@ -3,7 +3,9 @@
 # run:      typos
 
 [default.extend-words]
+ime = "ime"       # Input Method Editor
 nknown = "nknown" # part of @55nknown username
+ro = "ro"         # read-only, also part of the username @Phen-Ro
 
 [files]
 extend-exclude = ["web_demo/egui_demo_app.js"] # auto-generated
