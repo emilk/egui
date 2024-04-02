@@ -236,9 +236,9 @@ pub struct ViewportInfo {
 
     /// If this is 'true', you can wait for the selection result without Close.
     /// If this is 'false' (default), it closes immediately without waiting.
-    pub close_cancelable: std::sync::Arc<std::sync::Mutex<Option<bool>>>,
+    pub close_cancelable: std::sync::Arc<std::sync::RwLock<Option<bool>>>,
 
-    pub close_requested: std::sync::Arc<std::sync::Mutex<bool>>,
+    pub close_requested: std::sync::Arc<std::sync::RwLock<bool>>,
 }
 
 impl ViewportInfo {
@@ -260,58 +260,39 @@ impl ViewportInfo {
     }
 
     pub fn is_close_requested(&self) -> bool {
-        let Ok(close_requested_lock) = self.close_requested.lock() else {
-            return false;
-        };
-        *close_requested_lock
+        let Ok(close_requsted) = self.close_requested.read() else { return false };
+        close_requsted.clone()
     }
 
     pub fn close_requested_on(&self) {
-        let Ok(mut close_requested_lock) = self.close_requested.lock() else {
-            return;
-        };
-        *close_requested_lock = true;
+        let Ok(mut close_requsted) = self.close_requested.write() else { return };
+        *close_requsted = true;
     }
 
     pub fn close_requested_off(&self) {
-        let Ok(mut close_requested_lock) = self.close_requested.lock() else {
-            return;
-        };
-        *close_requested_lock = false;
-    }
-
-    pub fn close_cancelable_reset(&mut self) {
-        let Ok(mut close_cancelable_lock) = self.close_cancelable.lock() else {
-            return;
-        };
-        *close_cancelable_lock = None;
-    }
-
-    pub fn close_cancelable_on(&mut self) {
-        let Ok(mut close_cancelable_lock) = self.close_cancelable.lock() else {
-            return;
-        };
-
-        // Setting to ON only once. Setting will be ignored if it is already set.
-        if close_cancelable_lock.is_some() {
-            return;
-        }
-
-        *close_cancelable_lock = Some(true);
-    }
-
-    pub fn close_cancelable_off(&mut self) {
-        let Ok(mut close_cancelable_lock) = self.close_cancelable.lock() else {
-            return;
-        };
-        *close_cancelable_lock = Some(false);
+        let Ok(mut close_requsted) = self.close_requested.write() else { return };
+        *close_requsted = false;
     }
 
     pub fn is_close_cancelable(&self) -> bool {
-        let Ok(close_cancelable) = self.close_cancelable.lock() else {
-            return false;
-        };
+        let Ok(close_cancelable) = self.close_cancelable.write() else { return false };
         close_cancelable.unwrap_or(false)
+    }
+
+    pub fn close_cancelable_on(&mut self) {
+        let Ok(mut close_cancelable) = self.close_cancelable.write() else { return };
+
+        // Setting to ON only once. Setting will be ignored if it is already set.
+        if close_cancelable.is_some() {
+            return;
+        }
+
+        *close_cancelable = Some(true);
+    }
+
+    pub fn close_cancelable_off(&mut self) {
+        let Ok(mut close_cancelable) = self.close_cancelable.write() else { return };
+        *close_cancelable = Some(false);
     }
 
     pub fn should_close(&self) -> bool {
