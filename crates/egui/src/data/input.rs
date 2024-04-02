@@ -260,27 +260,37 @@ impl ViewportInfo {
     }
 
     pub fn is_close_requested(&self) -> bool {
-        let Ok(close_requsted) = self.close_requested.read() else { return false };
-        close_requsted.clone()
+        let Ok(close_requsted) = self.close_requested.read() else {
+            return false;
+        };
+        *close_requsted
     }
 
     pub fn close_requested_on(&self) {
-        let Ok(mut close_requsted) = self.close_requested.write() else { return };
+        let Ok(mut close_requsted) = self.close_requested.write() else {
+            return;
+        };
         *close_requsted = true;
     }
 
     pub fn close_requested_off(&self) {
-        let Ok(mut close_requsted) = self.close_requested.write() else { return };
+        let Ok(mut close_requsted) = self.close_requested.write() else {
+            return;
+        };
         *close_requsted = false;
     }
 
     pub fn is_close_cancelable(&self) -> bool {
-        let Ok(close_cancelable) = self.close_cancelable.write() else { return false };
+        let Ok(close_cancelable) = self.close_cancelable.write() else {
+            return false;
+        };
         close_cancelable.unwrap_or(false)
     }
 
     pub fn close_cancelable_on(&mut self) {
-        let Ok(mut close_cancelable) = self.close_cancelable.write() else { return };
+        let Ok(mut close_cancelable) = self.close_cancelable.write() else {
+            return;
+        };
 
         // Setting to ON only once. Setting will be ignored if it is already set.
         if close_cancelable.is_some() {
@@ -291,7 +301,9 @@ impl ViewportInfo {
     }
 
     pub fn close_cancelable_off(&mut self) {
-        let Ok(mut close_cancelable) = self.close_cancelable.write() else { return };
+        let Ok(mut close_cancelable) = self.close_cancelable.write() else {
+            return;
+        };
         *close_cancelable = Some(false);
     }
 
