@@ -1461,6 +1461,41 @@ impl Ui {
         Button::new(text).small().ui(self)
     }
 
+    /// A button as toggle
+    ///
+    /// Usage: `ui.toggle_button(&mut selected);`
+    ///
+    /// See also [`Slider`].
+    pub fn toggle_button(&mut self, selected: &mut bool) -> Response {
+        let mut value: usize = match selected {
+            false => 0,
+            true => 1,
+        };
+
+        let slider_width = self.spacing().slider_width;
+        let slider_rail_height = self.spacing().slider_rail_height;
+        let rounding = self.visuals().widgets.inactive.rounding;
+
+        self.spacing_mut().slider_width = 40.0;
+        self.spacing_mut().slider_rail_height = 20.0;
+        self.visuals_mut().widgets.inactive.rounding = Rounding::same(10.0);
+
+        let response = self.add(
+            Slider::new(&mut value, 0..=1)
+                .step_by(1.0)
+                .trailing_fill(true)
+                .show_value(false),
+        );
+
+        *selected = value > 0;
+
+        self.spacing_mut().slider_width = slider_width;
+        self.spacing_mut().slider_rail_height = slider_rail_height;
+        self.visuals_mut().widgets.inactive.rounding = rounding;
+
+        response
+    }
+
     /// Show a checkbox.
     ///
     /// See also [`Self::toggle_value`].
