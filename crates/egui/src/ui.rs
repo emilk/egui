@@ -1476,9 +1476,9 @@ impl Ui {
         let slider_rail_height = self.spacing().slider_rail_height;
         let rounding = self.visuals().widgets.inactive.rounding;
 
-        self.spacing_mut().slider_width = 40.0;
-        self.spacing_mut().slider_rail_height = 20.0;
-        self.visuals_mut().widgets.inactive.rounding = Rounding::same(10.0);
+        self.spacing_mut().slider_width = 32.0;
+        self.spacing_mut().slider_rail_height = 16.0;
+        self.visuals_mut().widgets.inactive.rounding = Rounding::same(8.0);
 
         let response = self.add(
             Slider::new(&mut value, 0..=1)
