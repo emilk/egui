@@ -1,3 +1,4 @@
+use crate::style::ScrollAnimation;
 use crate::{id::IdSet, *};
 
 #[derive(Clone, Copy, Debug)]
@@ -39,7 +40,7 @@ pub(crate) struct FrameState {
     pub(crate) tooltip_state: Option<TooltipFrameState>,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
-    pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
+    pub(crate) scroll_target: [Option<(Rangef, Option<Align>, ScrollAnimation)>; 2],
 
     /// The current scroll area should scroll by this much.
     ///
@@ -50,7 +51,7 @@ pub(crate) struct FrameState {
     ///
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    pub(crate) scroll_delta: Vec2,
+    pub(crate) scroll_delta: (Vec2, ScrollAnimation),
 
     #[cfg(feature = "accesskit")]
     pub(crate) accesskit_state: Option<AccessKitFrameState>,
@@ -74,7 +75,7 @@ impl Default for FrameState {
             used_by_panels: Rect::NAN,
             tooltip_state: None,
             scroll_target: [None, None],
-            scroll_delta: Vec2::default(),
+            scroll_delta: (Vec2::default(), ScrollAnimation::none()),
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_this_frame: Default::default(),
@@ -112,7 +113,7 @@ impl FrameState {
         *used_by_panels = Rect::NOTHING;
         *tooltip_state = None;
         *scroll_target = [None, None];
-        *scroll_delta = Vec2::default();
+        *scroll_delta = (Vec2::default(), ScrollAnimation::none());
 
         #[cfg(debug_assertions)]
         {
