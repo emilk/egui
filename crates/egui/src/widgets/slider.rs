@@ -713,7 +713,7 @@ impl<'a> Slider<'a> {
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
-                    rounding,
+                    widget_visuals.inactive.rounding,
                     ui.visuals().selection.bg_fill,
                 );
             }
