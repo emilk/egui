@@ -707,7 +707,7 @@ impl<'a> Slider<'a> {
 
                 // The trailing rect has to be drawn differently depending on the orientation.
                 match self.orientation {
-                    SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x + rounding.ne,
+                    SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x + rounding.nw,
                     SliderOrientation::Vertical => trailing_rail_rect.min.y = center.y - rounding.se,
                 };
 
