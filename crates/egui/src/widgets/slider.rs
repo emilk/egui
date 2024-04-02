@@ -703,13 +703,7 @@ impl<'a> Slider<'a> {
 
             // Paint trailing fill.
             if trailing_fill {
-                let mut trailing_rail_rect = rail_rect;
-
-                // The trailing rect has to be drawn differently depending on the orientation.
-                match self.orientation {
-                    SliderOrientation::Vertical => trailing_rail_rect.min.y = center.y,
-                    SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x,
-                };
+                let trailing_rail_rect = rail_rect;
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
