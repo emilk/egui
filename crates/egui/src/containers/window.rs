@@ -104,6 +104,13 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// `order(Order::Foreground)` for a Window that should always be on top
+    #[inline]
+    pub fn order(mut self, order: Order) -> Self {
+        self.area = self.area.order(order);
+        self
+    }
+
     /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     // TODO(emilk): I'm not sure this is a good interface for this.
     #[inline]

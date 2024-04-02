@@ -2818,7 +2818,7 @@ impl Context {
     /// The `Context` lock is held while the given closure is called!
     ///
     /// Returns `None` if acesskit is off.
-    // TODO(emilk): consider making both RO and RW versions
+    // TODO(emilk): consider making both read-only and read-write versions
     #[cfg(feature = "accesskit")]
     pub fn accesskit_node_builder<R>(
         &self,
