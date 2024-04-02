@@ -70,10 +70,6 @@ pub struct InputState {
     /// at the end of the frame this will be zero if a scroll-area consumed the delta.
     pub smooth_scroll_delta: Vec2,
 
-    /// Force the current scroll area to consume the [Self::smooth_scroll_delta], independent of the focus / mouse position.
-    /// This is used when using [crate::Ui::scroll_with_delta] to scroll the current scroll area.
-    pub(crate) force_current_scroll_area: bool,
-
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     ///
     /// * `zoom = 1`: no change.
@@ -158,7 +154,6 @@ impl Default for InputState {
             unprocessed_scroll_delta: Vec2::ZERO,
             raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
-            force_current_scroll_area: false,
             zoom_factor_delta: 1.0,
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
@@ -260,7 +255,6 @@ impl InputState {
             unprocessed_scroll_delta,
             raw_scroll_delta,
             smooth_scroll_delta,
-            force_current_scroll_area: false,
             zoom_factor_delta,
             screen_rect,
             pixels_per_point,
@@ -1119,7 +1113,6 @@ impl InputState {
             unprocessed_scroll_delta,
             raw_scroll_delta,
             smooth_scroll_delta,
-            force_current_scroll_area,
 
             zoom_factor_delta,
             screen_rect,
@@ -1163,9 +1156,6 @@ impl InputState {
         ui.label(format!("raw_scroll_delta: {raw_scroll_delta:?} points"));
         ui.label(format!(
             "smooth_scroll_delta: {smooth_scroll_delta:?} points"
-        ));
-        ui.label(format!(
-            "force_current_scroll_area: {force_current_scroll_area}"
         ));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
         ui.label(format!("screen_rect: {screen_rect:?} points"));

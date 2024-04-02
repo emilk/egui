@@ -785,12 +785,12 @@ impl Prepared {
         for d in 0..2 {
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
-            let scroll_target = content_ui
-                .ctx()
-                .frame_state_mut(|state| state.scroll_target[d].take());
+            let (scroll_target, scroll_delta) = content_ui.ctx().frame_state_mut(|state| {
+                (state.scroll_target[d].take(), state.scroll_delta[d].take())
+            });
 
             if scroll_enabled[d] {
-                if let Some((target_range, align)) = scroll_target {
+                let mut delta = if let Some((target_range, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
@@ -799,7 +799,7 @@ impl Prepared {
                     let clip_end = clip_rect.max[d];
                     let mut spacing = ui.spacing().item_spacing[d];
 
-                    let delta = if let Some(align) = align {
+                    if let Some(align) = align {
                         let center_factor = align.to_factor();
 
                         let offset =
@@ -816,31 +816,36 @@ impl Prepared {
                     } else {
                         // Ui is already in view, no need to adjust scroll.
                         0.0
-                    };
-
-                    if delta != 0.0 {
-                        let target_offset = state.offset[d] + delta;
-
-                        if !animated {
-                            state.offset[d] = target_offset;
-                        } else if let Some(animation) = &mut state.offset_target[d] {
-                            // For instance: the user is continuously calling `ui.scroll_to_cursor`,
-                            // so we don't want to reset the animation, but perhaps update the target:
-                            animation.target_offset = target_offset;
-                        } else {
-                            // The further we scroll, the more time we take.
-                            // TODO(emilk): let users configure this in `Style`.
-                            let now = ui.input(|i| i.time);
-                            let points_per_second = 1000.0;
-                            let animation_duration =
-                                (delta.abs() / points_per_second).clamp(0.1, 0.3);
-                            state.offset_target[d] = Some(ScrollTarget {
-                                animation_time_span: (now, now + animation_duration as f64),
-                                target_offset,
-                            });
-                        }
-                        ui.ctx().request_repaint();
                     }
+                } else {
+                    0.0
+                };
+
+                if let Some(scroll_delta) = scroll_delta {
+                    delta += scroll_delta;
+                }
+
+                if delta != 0.0 {
+                    let target_offset = state.offset[d] + delta;
+
+                    if !animated {
+                        state.offset[d] = target_offset;
+                    } else if let Some(animation) = &mut state.offset_target[d] {
+                        // For instance: the user is continuously calling `ui.scroll_to_cursor`,
+                        // so we don't want to reset the animation, but perhaps update the target:
+                        animation.target_offset = target_offset;
+                    } else {
+                        // The further we scroll, the more time we take.
+                        // TODO(emilk): let users configure this in `Style`.
+                        let now = ui.input(|i| i.time);
+                        let points_per_second = 1000.0;
+                        let animation_duration = (delta.abs() / points_per_second).clamp(0.1, 0.3);
+                        state.offset_target[d] = Some(ScrollTarget {
+                            animation_time_span: (now, now + animation_duration as f64),
+                            target_offset,
+                        });
+                    }
+                    ui.ctx().request_repaint();
                 }
             }
         }
@@ -870,8 +875,7 @@ impl Prepared {
 
         let max_offset = content_size - inner_rect.size();
         let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
-        let force_current_scroll_area = ui.input(|i| i.force_current_scroll_area);
-        if scrolling_enabled && is_hovering_outer_rect || force_current_scroll_area {
+        if scrolling_enabled && is_hovering_outer_rect {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && scroll_enabled[0] != scroll_enabled[1];
             for d in 0..2 {
@@ -899,7 +903,6 @@ impl Prepared {
                             } else {
                                 input.smooth_scroll_delta[d] = 0.0;
                             }
-                            input.force_current_scroll_area = false;
                         });
 
                         state.scroll_stuck_to_end[d] = false;

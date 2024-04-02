@@ -38,8 +38,11 @@ pub(crate) struct FrameState {
     /// Initialized to `None` at the start of each frame.
     pub(crate) tooltip_state: Option<TooltipFrameState>,
 
-    /// horizontal, vertical
+    /// The current scroll area should scroll to this range (horizontal, vertical).
     pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
+
+    /// The current scroll area should scroll by this much (horizontal, vertical).
+    pub(crate) scroll_delta: [Option<f32>; 2],
 
     #[cfg(feature = "accesskit")]
     pub(crate) accesskit_state: Option<AccessKitFrameState>,
@@ -63,6 +66,7 @@ impl Default for FrameState {
             used_by_panels: Rect::NAN,
             tooltip_state: None,
             scroll_target: [None, None],
+            scroll_delta: [None, None],
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_this_frame: Default::default(),
@@ -84,6 +88,7 @@ impl FrameState {
             used_by_panels,
             tooltip_state,
             scroll_target,
+            scroll_delta,
             #[cfg(feature = "accesskit")]
             accesskit_state,
             highlight_this_frame,
@@ -99,6 +104,7 @@ impl FrameState {
         *used_by_panels = Rect::NOTHING;
         *tooltip_state = None;
         *scroll_target = [None, None];
+        *scroll_delta = [None, None];
 
         #[cfg(debug_assertions)]
         {

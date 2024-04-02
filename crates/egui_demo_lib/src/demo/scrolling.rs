@@ -294,7 +294,7 @@ impl super::View for ScrollTo {
             scroll_top |= ui.button("Scroll to top").clicked();
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
             if ui.button("Scroll down by 64px").clicked() {
-                scroll_delta = Some(Vec2::new(0.0, -64.0));
+                scroll_delta = Some(Vec2::new(0.0, 64.0));
             }
         });
 
