@@ -7,6 +7,17 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.27.2 - 2024-04-02
+### 🐛 Fixed
+* Fix tooltips for non-interactive widgets [#4291](https://github.com/emilk/egui/pull/4291)
+* Fix problem clicking the edge of a `TextEdit` [#4272](https://github.com/emilk/egui/pull/4272)
+* Fix: `Response::clicked_elsewhere` takes clip rect into account [#4274](https://github.com/emilk/egui/pull/4274)
+* Fix incorrect `Response::interact_rect` for `Area/Window` [#4273](https://github.com/emilk/egui/pull/4273)
+
+### ⭐ Added
+* Allow disabling animations on a `ScrollArea` [#4309](https://github.com/emilk/egui/pull/4309) (thanks [@lucasmerlin](https://github.com/lucasmerlin)!)
+
+
 ## 0.27.1 - 2024-03-29
 ### 🐛 Fixed
 * Fix visual glitch on the right side of highly rounded rectangles [#4244](https://github.com/emilk/egui/pull/4244)
