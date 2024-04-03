@@ -361,13 +361,13 @@ impl Response {
 
     /// The widget was being dragged, but now it has been released.
     #[inline]
-    #[deprecated = "Renamed 'dragged_stopped'"]
+    #[deprecated = "Renamed 'drag_stopped'"]
     pub fn drag_released(&self) -> bool {
         self.drag_stopped
     }
 
     /// The widget was being dragged by the button, but now it has been released.
-    #[deprecated = "Renamed 'dragged_stopped_by'"]
+    #[deprecated = "Renamed 'drag_stopped_by'"]
     pub fn drag_released_by(&self, button: PointerButton) -> bool {
         self.drag_stopped_by(button)
     }
