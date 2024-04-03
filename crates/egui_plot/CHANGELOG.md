@@ -5,6 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.27.2 - 2024-04-02
+* Allow zoom/pan a plot as long as it contains the mouse cursor [#4292](https://github.com/emilk/egui/pull/4292)
+* Prevent plot from resetting one axis while zooming/dragging the other [#4252](https://github.com/emilk/egui/pull/4252) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* egui_plot: Fix the same plot tick label being painted multiple times [#4307](https://github.com/emilk/egui/pull/4307)
+
+
 ## 0.27.1 - 2024-03-29
 * Nothing new
 
