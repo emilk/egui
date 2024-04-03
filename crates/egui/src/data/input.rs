@@ -236,10 +236,10 @@ pub struct ViewportInfo {
 
     /// If this is 'true', you can wait for the selection result without Close.
     /// If this is 'false' (default), it closes immediately without waiting.
-    #[allow(clippy::disallowed-types)]
+    #[allow(clippy::disallowed_types)]
     pub close_cancelable: std::sync::Arc<std::sync::RwLock<Option<bool>>>,
 
-    #[allow(clippy::disallowed-types)]
+    #[allow(clippy::disallowed_types)]
     pub close_requested: std::sync::Arc<std::sync::RwLock<bool>>,
 }
 
