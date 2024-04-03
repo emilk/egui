@@ -179,6 +179,7 @@ pub enum ViewportEvent {
 ///
 /// All units are in ui "points", which can be calculated from native physical pixels
 /// using `pixels_per_point` = [`crate::Context::zoom_factor`] * `[Self::native_pixels_per_point`];
+#[allow(clippy::disallowed_types)]
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
@@ -236,10 +237,8 @@ pub struct ViewportInfo {
 
     /// If this is 'true', you can wait for the selection result without Close.
     /// If this is 'false' (default), it closes immediately without waiting.
-    #[allow(clippy::disallowed_types)]
     pub close_cancelable: std::sync::Arc<std::sync::RwLock<Option<bool>>>,
 
-    #[allow(clippy::disallowed_types)]
     pub close_requested: std::sync::Arc<std::sync::RwLock<bool>>,
 }
 
