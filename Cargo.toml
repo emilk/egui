@@ -20,7 +20,7 @@ members = [
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.72"
-version = "0.27.1"
+version = "0.27.2"
 
 
 [profile.release]
@@ -48,17 +48,17 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.27.1", path = "crates/emath", default-features = false }
-ecolor = { version = "0.27.1", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.27.1", path = "crates/epaint", default-features = false }
-egui = { version = "0.27.1", path = "crates/egui", default-features = false }
-egui_plot = { version = "0.27.1", path = "crates/egui_plot", default-features = false }
-egui-winit = { version = "0.27.1", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.27.1", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.27.1", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.27.1", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.27.1", path = "crates/egui_glow", default-features = false }
-eframe = { version = "0.27.1", path = "crates/eframe", default-features = false }
+emath = { version = "0.27.2", path = "crates/emath", default-features = false }
+ecolor = { version = "0.27.2", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.27.2", path = "crates/epaint", default-features = false }
+egui = { version = "0.27.2", path = "crates/egui", default-features = false }
+egui_plot = { version = "0.27.2", path = "crates/egui_plot", default-features = false }
+egui-winit = { version = "0.27.2", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.27.2", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.27.2", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.27.2", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.27.2", path = "crates/egui_glow", default-features = false }
+eframe = { version = "0.27.2", path = "crates/eframe", default-features = false }
 
 #TODO(emilk): make more things workspace dependencies
 ahash = { version = "0.8.6", default-features = false, features = [
