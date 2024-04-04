@@ -559,6 +559,10 @@ pub struct Modifiers {
     /// This is so that egui can, for instance, select all text by checking for `command + A`
     /// and it will work on both Mac and Windows.
     pub command: bool,
+
+    /// On Windows, the Windows key. On Linux, the super key (often.. the Windows key)
+    /// On Mac will always be false
+    pub super_: bool,
 }
 
 impl Modifiers {
@@ -568,6 +572,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
+        super_: false,
     };
 
     pub const ALT: Self = Self {
@@ -576,6 +581,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
+        super_: false,
     };
     pub const CTRL: Self = Self {
         alt: false,
@@ -583,6 +589,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
+        super_: false,
     };
     pub const SHIFT: Self = Self {
         alt: false,
@@ -590,6 +597,7 @@ impl Modifiers {
         shift: true,
         mac_cmd: false,
         command: false,
+        super_: false,
     };
 
     /// The Mac ⌘ Command key
@@ -599,6 +607,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: true,
         command: false,
+        super_: false,
     };
 
     /// On Mac: ⌘ Command key, elsewhere: Ctrl key
@@ -608,6 +617,16 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: true,
+        super_: false,
+    };
+
+    pub const SUPER: Self = Self {
+        alt: false,
+        ctrl: false,
+        shift: false,
+        mac_cmd: false,
+        command: false,
+        super_: true,
     };
 
     /// ```
@@ -633,6 +652,7 @@ impl Modifiers {
             shift: self.shift | rhs.shift,
             mac_cmd: self.mac_cmd | rhs.mac_cmd,
             command: self.command | rhs.command,
+            super_: self.super_ | rhs.super_,
         }
     }
 
@@ -817,6 +837,7 @@ impl Modifiers {
             shift,
             mac_cmd,
             command,
+            super_,
         } = *self;
 
         if alt && query.alt {
@@ -843,6 +864,12 @@ impl Modifiers {
             return self.contains(Self {
                 mac_cmd: false,
                 command: false,
+                ..query
+            });
+        }
+        if super_ && query.super_ {
+            return self.contains(Self {
+                super_: false,
                 ..query
             });
         }
