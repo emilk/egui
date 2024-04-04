@@ -562,7 +562,7 @@ pub struct Modifiers {
 
     /// On Windows, the Windows key. On Linux, the super key (often.. the Windows key)
     /// On Mac will always be false
-    pub super_: bool,
+    pub meta: bool,
 }
 
 impl Modifiers {
@@ -572,7 +572,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
-        super_: false,
+        meta: false,
     };
 
     pub const ALT: Self = Self {
@@ -581,7 +581,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
-        super_: false,
+        meta: false,
     };
     pub const CTRL: Self = Self {
         alt: false,
@@ -589,7 +589,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: false,
-        super_: false,
+        meta: false,
     };
     pub const SHIFT: Self = Self {
         alt: false,
@@ -597,7 +597,7 @@ impl Modifiers {
         shift: true,
         mac_cmd: false,
         command: false,
-        super_: false,
+        meta: false,
     };
 
     /// The Mac ⌘ Command key
@@ -607,7 +607,7 @@ impl Modifiers {
         shift: false,
         mac_cmd: true,
         command: false,
-        super_: false,
+        meta: false,
     };
 
     /// On Mac: ⌘ Command key, elsewhere: Ctrl key
@@ -617,16 +617,17 @@ impl Modifiers {
         shift: false,
         mac_cmd: false,
         command: true,
-        super_: false,
+        meta: false,
     };
 
-    pub const SUPER: Self = Self {
+    /// On Windows: the Windows key, On Linux: Super
+    pub const META: Self = Self {
         alt: false,
         ctrl: false,
         shift: false,
         mac_cmd: false,
         command: false,
-        super_: true,
+        meta: true,
     };
 
     /// ```
@@ -652,7 +653,7 @@ impl Modifiers {
             shift: self.shift | rhs.shift,
             mac_cmd: self.mac_cmd | rhs.mac_cmd,
             command: self.command | rhs.command,
-            super_: self.super_ | rhs.super_,
+            meta: self.meta | rhs.meta,
         }
     }
 
@@ -837,7 +838,7 @@ impl Modifiers {
             shift,
             mac_cmd,
             command,
-            super_,
+            meta,
         } = *self;
 
         if alt && query.alt {
@@ -846,6 +847,7 @@ impl Modifiers {
                 ..query
             });
         }
+
         if shift && query.shift {
             return self.contains(Self {
                 shift: false,
@@ -860,6 +862,7 @@ impl Modifiers {
                 ..query
             });
         }
+
         if (mac_cmd || command) && (query.mac_cmd || query.command) {
             return self.contains(Self {
                 mac_cmd: false,
@@ -867,9 +870,10 @@ impl Modifiers {
                 ..query
             });
         }
-        if super_ && query.super_ {
+
+        if meta && query.meta {
             return self.contains(Self {
-                super_: false,
+                meta: false,
                 ..query
             });
         }
@@ -901,13 +905,14 @@ pub struct ModifierNames<'a> {
     pub shift: &'a str,
     pub mac_cmd: &'a str,
     pub mac_alt: &'a str,
+    pub meta: &'a str,
 
     /// What goes between the names
     pub concat: &'a str,
 }
 
 impl ModifierNames<'static> {
-    /// ⌥ ⌃ ⇧ ⌘ - NOTE: not supported by the default egui font.
+    /// ⌥ ⌃ ⇧ ⌘ ⊞ - NOTE: not supported by the default egui font.
     pub const SYMBOLS: Self = Self {
         is_short: true,
         alt: "⌥",
@@ -915,10 +920,11 @@ impl ModifierNames<'static> {
         shift: "⇧",
         mac_cmd: "⌘",
         mac_alt: "⌥",
+        meta: "⊞",
         concat: "",
     };
 
-    /// Alt, Ctrl, Shift, Cmd
+    /// Alt, Ctrl, Shift, Cmd, Win
     pub const NAMES: Self = Self {
         is_short: false,
         alt: "Alt",
@@ -926,6 +932,7 @@ impl ModifierNames<'static> {
         shift: "Shift",
         mac_cmd: "Cmd",
         mac_alt: "Option",
+        meta: "Win",
         concat: "+",
     };
 }
@@ -952,6 +959,7 @@ impl<'a> ModifierNames<'a> {
             append_if(modifiers.ctrl || modifiers.command, self.ctrl);
             append_if(modifiers.alt, self.alt);
             append_if(modifiers.shift, self.shift);
+            append_if(modifiers.meta, self.meta);
         }
 
         s
