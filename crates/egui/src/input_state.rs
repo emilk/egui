@@ -399,6 +399,16 @@ impl InputState {
         self.consume_key(modifiers, logical_key)
     }
 
+    /// Verifies that all modifier keys (e.g. Ctrl, Alt) are not pressed.
+    pub fn modifiers_not_pressed(&self) -> bool {
+        self.modifiers.is_none()
+    }
+
+    /// Was only the given key pressed this frame, with no modifiers?
+    pub fn key_pressed_only(&self, desired_key: Key) -> bool {
+        self.num_presses(desired_key) > 0 && self.modifiers_not_pressed()
+    }
+
     /// Was the given key pressed this frame?
     ///
     /// Includes key-repeat events.
@@ -420,6 +430,18 @@ impl InputState {
                 )
             })
             .count()
+    }
+
+    /// Is the given key currently held down and no other keys are held down, including modifier keys?
+    pub fn key_down_exclusive(&self, desired_key: Key) -> bool {
+        self.keys_down.contains(&desired_key)
+            && self.keys_down.len() == 1
+            && self.modifiers_not_pressed()
+    }
+
+    /// Is the given key currently held down and no other keys are held down?
+    pub fn key_down_only(&self, desired_key: Key) -> bool {
+        self.keys_down.contains(&desired_key) && self.modifiers_not_pressed()
     }
 
     /// Is the given key currently held down?
