@@ -350,7 +350,7 @@ pub fn popup_above_or_below_widget<R>(
             .constrain(true)
             .fixed_pos(pos)
             .pivot(pivot)
-            .show(ui.ctx(), |ui| {
+            .show(parent_ui.ctx(), |ui| {
                 let frame = Frame::popup(parent_ui.style());
                 let frame_margin = frame.total_margin();
                 frame
