@@ -700,11 +700,15 @@ impl<'t> TextEdit<'t> {
                             );
                         }
 
-                        // For IME, so only set it when text is editable and visible!
+                        // Set IME output (in screen coords) when text is editable and visible
+                        let transform = ui
+                            .memory(|m| m.layer_transforms.get(&ui.layer_id()).cloned())
+                            .unwrap_or_default();
+
                         ui.ctx().output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
-                                rect,
-                                cursor_rect: primary_cursor_rect,
+                                rect: transform * rect,
+                                cursor_rect: transform * primary_cursor_rect,
                             });
                         });
                     }
