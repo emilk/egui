@@ -80,7 +80,7 @@ impl<'open> Window<'open> {
     /// Unlike [`Window::open_mut`], calling this function does not display the close button.
     /// It is functionally equivalent to the following code:
     ///
-    /// ``` no_run
+    /// ``` ignore
     /// if open {
     ///     // your window code
     /// }
