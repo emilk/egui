@@ -561,7 +561,7 @@ pub struct Modifiers {
     pub command: bool,
 
     /// On Windows, the Windows key. On Linux, the super key (often.. the Windows key)
-    /// On Mac will always be false
+    /// On Mac, the ⌘ Command key
     pub meta: bool,
 }
 
