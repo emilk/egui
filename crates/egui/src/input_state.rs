@@ -277,12 +277,6 @@ impl InputState {
         self.raw.viewport()
     }
 
-    /// Read-write access to [`ViewportInfo`].
-    #[inline]
-    pub fn viewport_mut(&mut self) -> &mut ViewportInfo {
-        self.raw.viewport_mut()
-    }
-
     #[inline(always)]
     pub fn screen_rect(&self) -> Rect {
         self.screen_rect
