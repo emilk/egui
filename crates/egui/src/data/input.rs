@@ -644,6 +644,10 @@ impl Modifiers {
     ///     Modifiers::CTRL | Modifiers::ALT,
     ///     Modifiers::CTRL.plus(Modifiers::ALT),
     /// );
+    /// assert_eq!(
+    ///     Modifiers::META | Modifiers::ALT,
+    ///     Modifiers::META.plus(Modifiers::ALT),
+    /// );
     /// ```
     #[inline]
     pub const fn plus(self, rhs: Self) -> Self {
@@ -669,19 +673,25 @@ impl Modifiers {
 
     #[inline]
     pub fn all(&self) -> bool {
-        self.alt && self.ctrl && self.shift && self.command
+        self.alt && self.ctrl && self.shift && self.command && self.meta
     }
 
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
-        self.shift && !(self.alt || self.command)
+        self.shift && !(self.alt || self.command || self.meta)
+    }
+
+    /// Is meta the only pressed button?
+    #[inline]
+    pub fn meta_only(&self) -> bool {
+        self.meta && !(self.alt || self.command || self.shift)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
     #[inline]
     pub fn command_only(&self) -> bool {
-        !self.alt && !self.shift && self.command
+        self.command && !(self.alt || self.shift || self.meta)
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
@@ -703,7 +713,7 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// if pressed_modifiers.matches_logically(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -717,6 +727,8 @@ impl Modifiers {
     /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::CTRL));
     /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
+    /// assert!(Modifiers::META.matches_logically(Modifiers::META));
+    /// assert!(!Modifiers::META.matches_logically(Modifiers::CTRL));
     /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_logically(&self, pattern: Self) -> bool {
@@ -724,6 +736,9 @@ impl Modifiers {
             return false;
         }
         if pattern.shift && !self.shift {
+            return false;
+        }
+        if pattern.meta && !self.meta {
             return false;
         }
 
@@ -745,7 +760,7 @@ impl Modifiers {
     /// ```
     /// # use egui::Modifiers;
     /// # let pressed_modifiers = Modifiers::default();
-    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// if pressed_modifiers.matches_exact(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -762,8 +777,8 @@ impl Modifiers {
     /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
     /// ```
     pub fn matches_exact(&self, pattern: Self) -> bool {
-        // alt and shift must always match the pattern:
-        if pattern.alt != self.alt || pattern.shift != self.shift {
+        // alt, shift, meta must always match the pattern:
+        if pattern.alt != self.alt || pattern.shift != self.shift || pattern.meta != self.meta {
             return false;
         }
 
@@ -956,10 +971,10 @@ impl<'a> ModifierNames<'a> {
             append_if(modifiers.alt, self.mac_alt);
             append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
         } else {
+            append_if(modifiers.meta, self.meta);
             append_if(modifiers.ctrl || modifiers.command, self.ctrl);
             append_if(modifiers.alt, self.alt);
             append_if(modifiers.shift, self.shift);
-            append_if(modifiers.meta, self.meta);
         }
 
         s
