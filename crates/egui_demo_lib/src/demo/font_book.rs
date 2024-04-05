@@ -22,10 +22,12 @@ impl super::Demo for FontBook {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View as _;
-            self.ui(ui);
-        });
+        egui::Window::new(self.name())
+            .open_mut(open)
+            .show(ctx, |ui| {
+                use super::View as _;
+                self.ui(ui);
+            });
     }
 }
 

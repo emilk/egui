@@ -394,28 +394,28 @@ impl EguiWindows {
         }
 
         egui::Window::new("🔧 Settings")
-            .open(settings)
+            .open_mut(settings)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         egui::Window::new("🔍 Inspection")
-            .open(inspection)
+            .open_mut(inspection)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
         egui::Window::new("📝 Memory")
-            .open(memory)
+            .open_mut(memory)
             .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
             });
 
         egui::Window::new("📤 Output Events")
-            .open(output_events)
+            .open_mut(output_events)
             .resizable(true)
             .default_width(520.0)
             .show(ctx, |ui| {

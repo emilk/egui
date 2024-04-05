@@ -57,7 +57,7 @@ impl super::Demo for ContextMenus {
         egui::Window::new(self.name())
             .vscroll(false)
             .resizable(false)
-            .open(open)
+            .open_mut(open)
             .show(ctx, |ui| self.ui(ui));
     }
 }

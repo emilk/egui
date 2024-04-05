@@ -70,7 +70,7 @@ impl super::Demo for WindowOptions {
             .scroll(scroll2)
             .enabled(enabled);
         if closable {
-            window = window.open(open);
+            window = window.open_mut(open);
         }
         if anchored {
             window = window.anchor(anchor, anchor_offset);

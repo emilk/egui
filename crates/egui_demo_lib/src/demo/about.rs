@@ -12,7 +12,7 @@ impl super::Demo for About {
         egui::Window::new(self.name())
             .default_width(320.0)
             .default_height(480.0)
-            .open(open)
+            .open_mut(open)
             .resizable([true, false])
             .show(ctx, |ui| {
                 use super::View as _;

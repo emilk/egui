@@ -29,7 +29,7 @@ impl super::Demo for CodeEditor {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use super::View as _;
         egui::Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .default_height(500.0)
             .show(ctx, |ui| self.ui(ui));
     }

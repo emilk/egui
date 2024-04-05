@@ -30,7 +30,7 @@ impl super::Demo for DragAndDropDemo {
     fn show(&mut self, ctx: &Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .default_size(vec2(256.0, 256.0))
             .vscroll(false)
             .resizable(false)

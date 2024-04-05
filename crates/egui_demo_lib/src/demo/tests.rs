@@ -7,10 +7,12 @@ impl super::Demo for CursorTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View as _;
-            self.ui(ui);
-        });
+        egui::Window::new(self.name())
+            .open_mut(open)
+            .show(ctx, |ui| {
+                use super::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -39,10 +41,12 @@ impl super::Demo for IdTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View as _;
-            self.ui(ui);
-        });
+        egui::Window::new(self.name())
+            .open_mut(open)
+            .show(ctx, |ui| {
+                use super::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -121,7 +125,7 @@ impl super::Demo for ManualLayoutTest {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .resizable(false)
-            .open(open)
+            .open_mut(open)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
@@ -206,10 +210,12 @@ impl super::Demo for TableTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View as _;
-            self.ui(ui);
-        });
+        egui::Window::new(self.name())
+            .open_mut(open)
+            .show(ctx, |ui| {
+                use super::View as _;
+                self.ui(ui);
+            });
     }
 }
 
@@ -370,7 +376,7 @@ impl super::Demo for InputTest {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .default_width(800.0)
-            .open(open)
+            .open_mut(open)
             .resizable(true)
             .scroll(false)
             .show(ctx, |ui| {
@@ -516,7 +522,7 @@ impl super::Demo for WindowResizeTest {
         use egui::*;
 
         Window::new("↔ auto-sized")
-            .open(open)
+            .open_mut(open)
             .auto_sized()
             .show(ctx, |ui| {
                 ui.label("This window will auto-size based on its contents.");
@@ -528,7 +534,7 @@ impl super::Demo for WindowResizeTest {
             });
 
         Window::new("↔ resizable + scroll")
-            .open(open)
+            .open_mut(open)
             .vscroll(true)
             .resizable(true)
             .default_height(300.0)
@@ -541,7 +547,7 @@ impl super::Demo for WindowResizeTest {
             });
 
         Window::new("↔ resizable + embedded scroll")
-            .open(open)
+            .open_mut(open)
             .vscroll(false)
             .resizable(true)
             .default_height(300.0)
@@ -558,7 +564,7 @@ impl super::Demo for WindowResizeTest {
             });
 
         Window::new("↔ resizable without scroll")
-            .open(open)
+            .open_mut(open)
             .vscroll(false)
             .resizable(true)
             .show(ctx, |ui| {
@@ -569,7 +575,7 @@ impl super::Demo for WindowResizeTest {
             });
 
         Window::new("↔ resizable with TextEdit")
-            .open(open)
+            .open_mut(open)
             .vscroll(false)
             .resizable(true)
             .default_height(300.0)
@@ -579,7 +585,7 @@ impl super::Demo for WindowResizeTest {
             });
 
         Window::new("↔ freely resized")
-            .open(open)
+            .open_mut(open)
             .vscroll(false)
             .resizable(true)
             .default_size([250.0, 150.0])

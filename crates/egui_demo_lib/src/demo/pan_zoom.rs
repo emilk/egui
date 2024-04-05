@@ -20,7 +20,7 @@ impl super::Demo for PanZoom {
             .default_width(300.0)
             .default_height(300.0)
             .vscroll(false)
-            .open(open);
+            .open_mut(open);
         window.show(ctx, |ui| self.ui(ui));
     }
 }

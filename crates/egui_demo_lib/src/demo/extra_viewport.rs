@@ -27,7 +27,7 @@ impl super::Demo for ExtraViewport {
                     // Not a real viewport
                     egui::Window::new(self.name())
                         .id(id)
-                        .open(open)
+                        .open_mut(open)
                         .show(ctx, |ui| {
                             ui.label("This egui integration does not support multiple viewports");
                         });

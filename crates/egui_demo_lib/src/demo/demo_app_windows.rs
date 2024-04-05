@@ -203,7 +203,7 @@ impl DemoWindows {
                 .default_width(default_width)
                 .default_height(ctx.available_rect().height() - 46.0)
                 .vscroll(true)
-                .open(&mut self.about_is_open)
+                .open_mut(&mut self.about_is_open)
                 .resizable(false)
                 .collapsible(false)
                 .show(ctx, |ui| {

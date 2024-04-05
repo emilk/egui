@@ -43,7 +43,7 @@ impl Demo for MiscDemoWindow {
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
         Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .vscroll(true)
             .hscroll(true)
             .show(ctx, |ui| self.ui(ui));

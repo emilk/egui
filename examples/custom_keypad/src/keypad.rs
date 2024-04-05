@@ -209,7 +209,7 @@ impl Keypad {
         let resp = win
             .movable(true)
             .resizable(false)
-            .open(&mut open)
+            .open_mut(&mut open)
             .show(ctx, |ui| Self::buttons(ui, &mut state));
 
         state.open = open;

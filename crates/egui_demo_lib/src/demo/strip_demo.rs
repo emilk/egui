@@ -13,7 +13,7 @@ impl super::Demo for StripDemo {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .resizable(true)
             .default_width(400.0)
             .show(ctx, |ui| {

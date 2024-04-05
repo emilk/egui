@@ -163,7 +163,7 @@ impl super::Demo for PaintBezier {
     fn show(&mut self, ctx: &Context, open: &mut bool) {
         use super::View as _;
         Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .vscroll(false)
             .resizable(false)
             .default_size([300.0, 350.0])

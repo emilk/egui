@@ -112,7 +112,7 @@ impl super::Demo for CodeExample {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use super::View;
         egui::Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .min_width(375.0)
             .default_size([390.0, 500.0])
             .scroll(false)

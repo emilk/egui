@@ -11,7 +11,7 @@ impl super::Demo for Highlighting {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .default_width(320.0)
-            .open(open)
+            .open_mut(open)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
