@@ -425,12 +425,8 @@ impl State {
                 self.egui_input.modifiers.alt = alt;
                 self.egui_input.modifiers.ctrl = ctrl;
                 self.egui_input.modifiers.shift = shift;
+                self.egui_input.modifiers.meta = super_;
                 self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
-                self.egui_input.modifiers.meta = if cfg!(target_os = "macos") {
-                    false
-                } else {
-                    super_
-                };
                 self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
                     super_
                 } else {
