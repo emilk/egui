@@ -912,15 +912,19 @@ fn change_gl_context(
 
     let not_current = {
         crate::profile_scope!("make_not_current");
-        current_gl_context
-            .take()
-            .unwrap()
-            .make_not_current()
-            .unwrap()
+        let Some(gl_context) = current_gl_context.take() else {
+            return;
+        };
+        let Ok(not_current) = gl_context.make_not_current() else {
+            return;
+        };
+        not_current
     };
 
     crate::profile_scope!("make_current");
-    *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
+    if let Ok(current) = not_current.make_current(gl_surface) {
+        *current_gl_context = Some(current);
+    }
 }
 
 impl GlutinWindowContext {
