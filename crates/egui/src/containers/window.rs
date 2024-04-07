@@ -567,9 +567,14 @@ impl<'open> Window<'open> {
                         round.sw = 0.0;
                     }
 
+                    let outer_stroke = ctx.style().visuals.widgets.noninteractive.fg_stroke;
                     area_content_ui.painter().set(
                         *where_to_put_header_background,
-                        RectShape::filled(title_rect, round, header_color),
+                        RectShape::filled(
+                            title_rect.shrink(outer_stroke.width),
+                            round,
+                            header_color,
+                        ),
                     );
                 };
 
@@ -584,8 +589,6 @@ impl<'open> Window<'open> {
                     &content_response,
                     open,
                     &mut collapsing,
-                    collapsible,
-                    closebutton,
                 );
             }
 
@@ -1014,6 +1017,12 @@ struct TitleBar {
     /// Size of the title bar in an expanded state. This size become known only
     /// after expanding window and painting its content
     rect: Rect,
+
+    /// Can the window be collapsed by clicking on its title?
+    collapsible: bool,
+
+    /// Show close button on title bar?
+    closebutton: bool,
 }
 
 fn show_title_bar(
@@ -1055,6 +1064,8 @@ fn show_title_bar(
             title_galley,
             min_rect,
             rect: Rect::NAN, // Will be filled in later
+            collapsible,
+            closebutton: show_close_button,
         }
     });
 
@@ -1086,15 +1097,13 @@ impl TitleBar {
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
-        collapsible: bool,
-        closebutton: bool,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
-        if closebutton {
+        if self.closebutton {
             if let Some(open) = open {
                 // Add close button now that we know our full width:
                 if self.close_button_ui(ui).clicked() {
@@ -1131,7 +1140,7 @@ impl TitleBar {
         if ui
             .interact(double_click_rect, self.id, Sense::click())
             .double_clicked()
-            && collapsible
+            && self.collapsible
         {
             collapsing.toggle(ui);
         }
