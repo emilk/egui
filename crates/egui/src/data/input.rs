@@ -682,7 +682,7 @@ impl Modifiers {
             return false;
         }
 
-        !self.alt && !self.ctrl && !self.shift && self.mac_cmd
+        self.mac_cmd && !(self.alt || self.ctrl || self.shift)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
