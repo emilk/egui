@@ -241,8 +241,10 @@ impl GlowWinitApp {
                 .egui_ctx
                 .set_request_repaint_callback(move |info| {
                     log::trace!("request_repaint_callback: {info:?}");
-                    let when = Instant::now() + info.delay;
+                    // let when = Instant::now() + info.delay;
+                    let when = Instant::now();
                     let frame_nr = info.current_frame_nr;
+
                     event_loop_proxy
                         .lock()
                         .send_event(UserEvent::RequestRepaint {
@@ -534,6 +536,12 @@ impl GlowWinitRunning {
 
             let mut glutin = self.glutin.borrow_mut();
 
+            if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                if viewport.info.should_close() && viewport_id != ViewportId::ROOT {
+                    return EventResult::ViewportExit(window_id);
+                }
+            }
+
             let original_viewport = &glutin.viewports[&viewport_id];
             let is_immediate_viewport = original_viewport.viewport_ui_cb.is_none();
 
@@ -824,6 +832,11 @@ impl GlowWinitRunning {
                             self.integration
                                 .egui_ctx
                                 .request_repaint_of(viewport.ids.parent);
+                            if viewport.ids.parent != ViewportId::ROOT {
+                                self.integration
+                                    .egui_ctx
+                                    .request_repaint_of(ViewportId::ROOT);
+                            }
                         }
                         /*
                         dbg!(&viewport.info.should_close());
@@ -865,6 +878,7 @@ impl GlowWinitRunning {
             log::trace!("Ignoring event: no viewport_id");
         }
 
+        /*
         let should_close = glutin_mut.egui_ctx.input(|i| i.viewport().should_close());
         // dbg!(&should_close);
         if should_close {
@@ -881,6 +895,7 @@ impl GlowWinitRunning {
                 }
             }
         }
+        */
 
         if event_response.repaint {
             EventResult::RepaintNow(window_id)
