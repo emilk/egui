@@ -224,7 +224,8 @@ impl WgpuWinitApp {
 
             egui_ctx.set_request_repaint_callback(move |info| {
                 log::trace!("request_repaint_callback: {info:?}");
-                let when = Instant::now() + info.delay;
+                // let when = Instant::now() + info.delay;
+                let when = Instant::now();
                 let frame_nr = info.current_frame_nr;
 
                 event_loop_proxy
