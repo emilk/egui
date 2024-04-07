@@ -506,9 +506,9 @@ impl<'open> Window<'open> {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
-                    show_close_button,
                     &mut collapsing,
                     collapsible,
+                    show_close_button,
                 );
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
@@ -567,9 +567,14 @@ impl<'open> Window<'open> {
                         round.sw = 0.0;
                     }
 
+                    let outer_stroke = ctx.style().visuals.widgets.noninteractive.fg_stroke;
                     area_content_ui.painter().set(
                         *where_to_put_header_background,
-                        RectShape::filled(title_rect, round, header_color),
+                        RectShape::filled(
+                            title_rect.shrink(outer_stroke.width),
+                            round,
+                            header_color,
+                        ),
                     );
                 };
 
@@ -1023,9 +1028,9 @@ struct TitleBar {
 fn show_title_bar(
     ui: &mut Ui,
     title: WidgetText,
-    show_close_button: bool,
     collapsing: &mut CollapsingState,
     collapsible: bool,
+    show_close_button: bool,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = ui
