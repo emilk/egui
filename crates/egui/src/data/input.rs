@@ -675,7 +675,7 @@ impl Modifiers {
         self.mac_cmd && !(self.alt || self.ctrl || self.shift)
     }
 
-    /// true if only [`Self::mac_cmd`] is pressed and MacOs.
+    /// true if only [`Self::mac_cmd`] is pressed and `MacOs``.
     #[inline]
     pub fn mac_cmd_only(&self) -> bool {
         if !cfg!(target_os = "macos") {
