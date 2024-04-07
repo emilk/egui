@@ -1,5 +1,7 @@
 //! The input needed by egui.
 
+use std::{sync::Arc, sync::RwLock};
+
 use epaint::ColorImage;
 
 use crate::{emath::*, Key, ViewportId, ViewportIdMap};
@@ -237,9 +239,9 @@ pub struct ViewportInfo {
 
     /// If this is 'true', you can wait for the selection result without Close.
     /// If this is 'false' (default), it closes immediately without waiting.
-    pub close_cancelable: std::sync::Arc<std::sync::RwLock<Option<bool>>>,
+    pub close_cancelable: Arc<RwLock<Option<bool>>>,
 
-    pub close_requested: std::sync::Arc<std::sync::RwLock<bool>>,
+    pub close_requested: Arc<RwLock<bool>>,
 }
 
 impl ViewportInfo {
@@ -653,7 +655,7 @@ pub struct Modifiers {
     /// Either of the shift keys are down.
     pub shift: bool,
 
-    /// The Mac ⌘ Command key. Should always be set to `false` on other platforms.
+    /// The Mac ⌘ Command key. Is the super key on other platforms.
     pub mac_cmd: bool,
 
     /// On Windows and Linux, set this to the same value as `ctrl`.
@@ -753,20 +755,48 @@ impl Modifiers {
         self.alt && self.ctrl && self.shift && self.command
     }
 
+    /// Is alt the only pressed button?
+    #[inline]
+    pub fn alt_only(&self) -> bool {
+        self.alt && !(self.ctrl || self.shift || self.command)
+    }
+
+    /// Is ctrl the only pressed button?
+    #[inline]
+    pub fn ctrl_only(&self) -> bool {
+        self.ctrl && !(self.alt || self.shift || self.command)
+    }
+
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
-        self.shift && !(self.alt || self.command)
+        self.shift && !(self.alt || self.ctrl || self.command)
+    }
+
+    /// Is super the only pressed button?
+    #[inline]
+    pub fn super_only(&self) -> bool {
+        self.mac_cmd && !(self.alt || self.ctrl || self.shift)
+    }
+
+    /// true if only [`Self::mac_cmd`] is pressed and `MacOs``.
+    #[inline]
+    pub fn mac_cmd_only(&self) -> bool {
+        if !cfg!(target_os = "macos") {
+            return false;
+        }
+
+        self.mac_cmd && !(self.alt || self.ctrl || self.shift)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
     #[inline]
     pub fn command_only(&self) -> bool {
-        !self.alt && !self.shift && self.command
+        self.command && !(self.alt || self.shift)
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
-    /// of the pressed ksey (`self`).
+    /// of the pressed key (`self`).
     ///
     /// This means that if the pattern has not set `shift`, then `self` can have `shift` set or not.
     ///
