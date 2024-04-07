@@ -871,7 +871,10 @@ impl Prepared {
         let max_offset = content_size - inner_rect.size();
         let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
 
-        if scrolling_enabled {
+        if scrolling_enabled
+            && (is_hovering_outer_rect
+                || scroll_bar_visibility == ScrollBarVisibility::AlwaysVisible)
+        {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && scroll_enabled[0] != scroll_enabled[1];
             for d in 0..2 {
