@@ -755,9 +755,6 @@ impl ViewportBuilder {
 
         let mut recreate_window = false;
 
-        // TODO(lopo12123): Rebuild the window directly?
-        // Or should we get the size of each monitor somewhere
-        // and then compare and adjust the window size(if need)
         if new_clamp_size_to_monitor_size.is_some()
             && self.clamp_size_to_monitor_size != new_clamp_size_to_monitor_size
         {
