@@ -1563,6 +1563,7 @@ pub fn create_winit_window_builder<T>(
         window_type: _window_type,
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
+        ..
     } = viewport_builder;
 
     let mut window_builder = winit::window::WindowBuilder::new()

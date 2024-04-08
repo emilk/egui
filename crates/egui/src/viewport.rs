@@ -275,6 +275,9 @@ pub struct ViewportBuilder {
     pub min_inner_size: Option<Vec2>,
     pub max_inner_size: Option<Vec2>,
 
+    /// Whether clamp the window's size to monitor's size. Default to `true`
+    pub clamp_size_to_monitor_size: Option<bool>,
+
     pub fullscreen: Option<bool>,
     pub maximized: Option<bool>,
     pub resizable: Option<bool>,
@@ -493,6 +496,17 @@ impl ViewportBuilder {
         self
     }
 
+    /// Sets whether clamp the window's size to monitor's size.
+    ///
+    /// This only works on windows & macos, otherwise will be dismissed.
+    ///
+    /// Default to `true`
+    #[inline]
+    pub fn with_clamp_size_to_monitor_size(mut self, value: bool) -> Self {
+        self.clamp_size_to_monitor_size = Some(value);
+        self
+    }
+
     /// Does not work on X11.
     #[inline]
     pub fn with_close_button(mut self, value: bool) -> Self {
@@ -606,6 +620,7 @@ impl ViewportBuilder {
             inner_size: new_inner_size,
             min_inner_size: new_min_inner_size,
             max_inner_size: new_max_inner_size,
+            clamp_size_to_monitor_size: new_clamp_size_to_monitor_size,
             fullscreen: new_fullscreen,
             maximized: new_maximized,
             resizable: new_resizable,
@@ -739,6 +754,16 @@ impl ViewportBuilder {
         // changing them without recreating the window.
 
         let mut recreate_window = false;
+
+        // TODO(lopo12123): Rebuild the window directly?
+        // Or should we get the size of each monitor somewhere
+        // and then compare and adjust the window size(if need)
+        if new_clamp_size_to_monitor_size.is_some()
+            && self.clamp_size_to_monitor_size != new_clamp_size_to_monitor_size
+        {
+            self.clamp_size_to_monitor_size = new_clamp_size_to_monitor_size;
+            recreate_window = true;
+        }
 
         if new_active.is_some() && self.active != new_active {
             self.active = new_active;
