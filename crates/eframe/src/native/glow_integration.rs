@@ -536,11 +536,21 @@ impl GlowWinitRunning {
 
             let mut glutin = self.glutin.borrow_mut();
 
+            /*
             if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                if viewport.info.should_close() && viewport_id != ViewportId::ROOT {
-                    return EventResult::ViewportExit(window_id);
+                if viewport.info.should_close() {
+                    if viewport_id == ViewportId::ROOT {
+                        dbg!(&viewport_id);
+                        return EventResult::Exit(window_id);
+                    } else {
+                        dbg!(&viewport_id);
+                        let physical_size = PhysicalSize::new(0, 0);
+                        glutin.resize(viewport_id, physical_size);
+                        return EventResult::ViewportExit(window_id);
+                    }
                 }
             }
+            */
 
             let original_viewport = &glutin.viewports[&viewport_id];
             let is_immediate_viewport = original_viewport.viewport_ui_cb.is_none();
@@ -737,34 +747,6 @@ impl GlowWinitRunning {
 
         integration.maybe_autosave(app.as_mut(), Some(&window));
 
-        let should_close = glutin.egui_ctx.input(|i| i.viewport().should_close());
-        // dbg!(&glutin.egui_ctx.input_mut(|i| i.viewport_mut().is_close_cancelable()));
-        // dbg!(&glutin.egui_ctx.input_mut(|i| i.viewport_mut().is_close_requested()));
-        // dbg!(&should_close);
-        if should_close {
-            // let is_deferred_viewport = viewport.viewport_ui_cb.is_some();
-            if viewport_id == ViewportId::ROOT {
-                log::debug!(
-                    "Received WindowEvent::CloseRequested for main viewport - shutting down."
-                );
-            }
-            // if let Some(viewport_id) = viewport_id {
-            if viewport_id == ViewportId::ROOT {
-                // dbg!(&viewport_id);
-                return EventResult::Exit(window_id);
-            } else {
-                // dbg!(&viewport_id);
-                return EventResult::ViewportExit(window_id);
-            }
-            // }
-        }
-
-        /*
-        if integration.should_close() {
-            return EventResult::Exit(window_id);
-        }
-        */
-
         let is_windows = cfg!(target_os = "windows");
         if !is_windows {
             let is_minimized = window.is_minimized().unwrap_or(false);
@@ -774,6 +756,30 @@ impl GlowWinitRunning {
                 crate::profile_scope!("minimized_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
+        }
+
+        // When we press the Close button on the Title Bar, `WindowEvent::CloseRequested` occurs,
+        // Select whether to use `ViewportCommand::CancelClose` or `ViewportCommand::Close`.
+        // If `ViewportCommand::Close` is sent, it is processed in `process_viewport_command()` and then processed here.
+        let should_close = glutin.egui_ctx.input(|i| i.viewport().should_close());
+        if should_close {
+            // let is_deferred_viewport = viewport.viewport_ui_cb.is_some();
+            if viewport_id == ViewportId::ROOT {
+                log::debug!(
+                    "Received WindowEvent::CloseRequested for main viewport - shutting down."
+                );
+            }
+            // if let Some(viewport_id) = viewport_id {
+            if viewport_id == ViewportId::ROOT {
+                dbg!(&viewport_id);
+                return EventResult::Exit(window_id);
+            } else {
+                dbg!(&viewport_id);
+                let physical_size = winit::dpi::PhysicalSize::new(0, 0);
+                glutin.resize(viewport_id, physical_size);
+                return EventResult::ViewportExit(window_id);
+            }
+            // }
         }
 
         EventResult::Wait
@@ -838,7 +844,9 @@ impl GlowWinitRunning {
                                     .request_repaint_of(ViewportId::ROOT);
                             }
                         }
+
                         /*
+                        // If `close_cancelable` is `false`, `ViewportCommand::CancelClose` is not possible, it is processed here.
                         dbg!(&viewport.info.should_close());
                         if viewport.info.should_close() {
                             if viewport_id == ViewportId::ROOT {
@@ -847,6 +855,8 @@ impl GlowWinitRunning {
                                 );
                                 return EventResult::Exit(window_id);
                             } else {
+                                let physical_size = PhysicalSize::new(0, 0);
+                                glutin_mut.resize(viewport_id, physical_size);
                                 return EventResult::ViewportExit(window_id);
                             }
                         } else {
