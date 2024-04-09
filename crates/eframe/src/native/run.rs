@@ -173,7 +173,6 @@ fn run_and_return(
             }
             EventResult::ViewportExit(window_id) => {
                 if let Some(window) = winit_app.window(window_id) {
-                    // windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
                     window.request_redraw();
                 }
@@ -182,7 +181,6 @@ fn run_and_return(
                 event_loop_window_target.exit();
 
                 if let Some(window) = winit_app.window(window_id) {
-                    // windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
                     window.request_redraw();
                 }
@@ -326,7 +324,6 @@ fn run_and_exit(
             }
             EventResult::ViewportExit(window_id) => {
                 if let Some(window) = winit_app.window(window_id) {
-                    // windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
                     window.request_redraw();
                 }
@@ -335,7 +332,6 @@ fn run_and_exit(
                 event_loop_window_target.exit();
 
                 if let Some(window) = winit_app.window(window_id) {
-                    // windows_next_repaint_times.remove(&window_id);
                     window.set_minimized(true);
                     window.request_redraw();
                 }
