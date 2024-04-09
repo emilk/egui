@@ -540,10 +540,8 @@ impl GlowWinitRunning {
             if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                 if viewport.info.should_close() {
                     if viewport_id == ViewportId::ROOT {
-                        dbg!(&viewport_id);
                         return EventResult::Exit(window_id);
                     } else {
-                        dbg!(&viewport_id);
                         let physical_size = PhysicalSize::new(0, 0);
                         glutin.resize(viewport_id, physical_size);
                         return EventResult::ViewportExit(window_id);
@@ -771,10 +769,8 @@ impl GlowWinitRunning {
             }
             // if let Some(viewport_id) = viewport_id {
             if viewport_id == ViewportId::ROOT {
-                dbg!(&viewport_id);
                 return EventResult::Exit(window_id);
             } else {
-                dbg!(&viewport_id);
                 let physical_size = winit::dpi::PhysicalSize::new(0, 0);
                 glutin.resize(viewport_id, physical_size);
                 return EventResult::ViewportExit(window_id);
@@ -808,24 +804,10 @@ impl GlowWinitRunning {
             }
 
             winit::event::WindowEvent::CloseRequested => {
-                /*
-                if viewport_id == Some(ViewportId::ROOT) && self.integration.should_close() {
-                    log::debug!(
-                        "Received WindowEvent::CloseRequested for main viewport - shutting down."
-                    );
-                    return EventResult::Exit(window_id);
-                }
-                */
-                // dbg!(&winit::event::WindowEvent::CloseRequested);
-                // glutin_mut.egui_ctx.input_mut(|i| i.viewport_mut().close_requested_on());
-                // dbg!(&viewport_id);
-
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
 
                 if let Some(viewport_id) = viewport_id {
-                    // dbg!(&winit::event::WindowEvent::CloseRequested);
                     if let Some(viewport) = glutin_mut.viewports.get_mut(&viewport_id) {
-                        // dbg!(&winit::event::WindowEvent::CloseRequested);
                         // Tell viewport it should close:
                         viewport.info.close_requested_on();
                         // viewport.info.events.push(egui::ViewportEvent::Close);
@@ -845,9 +827,7 @@ impl GlowWinitRunning {
                             }
                         }
 
-                        /*
                         // If `close_cancelable` is `false`, `ViewportCommand::CancelClose` is not possible, it is processed here.
-                        dbg!(&viewport.info.should_close());
                         if viewport.info.should_close() {
                             if viewport_id == ViewportId::ROOT {
                                 log::debug!(
@@ -855,14 +835,13 @@ impl GlowWinitRunning {
                                 );
                                 return EventResult::Exit(window_id);
                             } else {
-                                let physical_size = PhysicalSize::new(0, 0);
+                                let physical_size = winit::dpi::PhysicalSize::new(0, 0);
                                 glutin_mut.resize(viewport_id, physical_size);
                                 return EventResult::ViewportExit(window_id);
                             }
                         } else {
                             return EventResult::Wait;
                         }
-                        */
                     }
                 }
             }
@@ -890,17 +869,14 @@ impl GlowWinitRunning {
 
         /*
         let should_close = glutin_mut.egui_ctx.input(|i| i.viewport().should_close());
-        // dbg!(&should_close);
         if should_close {
             if let Some(viewport_id) = viewport_id {
                 if viewport_id == ViewportId::ROOT {
-                    // dbg!(&viewport_id);
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
                     return EventResult::Exit(window_id);
                 } else {
-                    // dbg!(&viewport_id);
                     return EventResult::ViewportExit(window_id);
                 }
             }
