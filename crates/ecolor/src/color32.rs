@@ -235,4 +235,97 @@ impl Color32 {
             a as f32 / 255.0,
         ]
     }
+
+    /// Interpolate two colors linearly, take as alpha the max value from both colors.
+    ///
+    ///```
+    /// use ecolor::Color32;
+    /// // 90% transparent
+    /// assert_eq!(Color32::RED.lerp(Color32::TRANSPARENT, 0.9), Color32::from_rgb(25, 0, 0));
+    /// ```
+    pub fn lerp(self, other: impl Into<Self>, t: f32) -> Self {
+        crate::ecolor_assert!(0.0 <= t && t <= 1.0);
+
+        let [r1, g1, b1, a1] = self.to_normalized_gamma_f32();
+        let [r2, g2, b2, a2] = other.into().to_normalized_gamma_f32();
+
+        // Precise method, which guarantees v = v1 when t = 1.
+        let r = (1. - t) * r1 + t * r2;
+        let g = (1. - t) * g1 + t * g2;
+        let b = (1. - t) * b1 + t * b2;
+
+        Self([
+            (r * 255.) as u8,
+            (g * 255.) as u8,
+            (b * 255.) as u8,
+            (a1.max(a2) * 255.) as u8,
+        ])
+    }
+
+    /// Interpolate two colors linearly at the middle point, take as alpha the max value from both colors.
+    ///
+    ///```
+    /// use ecolor::Color32;
+    /// assert_eq!(Color32::RED.merge(Color32::GREEN), Color32::from_rgb(127, 127, 0));
+    /// // Take max alpha from both colors
+    /// assert_eq!(Color32::RED.merge(Color32::TRANSPARENT), Color32::from_rgb(127, 0, 0));
+    /// ```
+    #[inline]
+    pub fn merge(self, other: impl Into<Self>) -> Self {
+        self.lerp(other, 0.5)
+    }
+}
+
+impl std::ops::Add for Color32 {
+    type Output = Self;
+
+    /// Construct a [`crate::Color32`] from adding [`crate::Color32`] .
+    ///
+    /// Add two colors linearly, take as alpha the max value from both colors.
+    ///
+    /// ```
+    /// use ecolor::Color32;
+    /// assert_eq!(Color32::RED + Color32::GREEN, Color32::from_rgb(255, 255, 0));
+    /// // Take max alpha from both colors
+    /// assert_eq!(Color32::WHITE + Color32::TRANSPARENT, Color32::WHITE);
+    /// ```
+    #[inline]
+    fn add(self, rhs: Self) -> Self::Output {
+        let Self([r1, g1, b1, a1]) = self;
+        let Self([r2, g2, b2, a2]) = rhs;
+
+        Self([
+            r1.saturating_add(r2),
+            g1.saturating_add(g2),
+            b1.saturating_add(b2),
+            a1.max(a2),
+        ])
+    }
+}
+
+impl std::ops::Sub for Color32 {
+    type Output = Self;
+
+    /// Construct a [`crate::Color32`] from subtracting [`crate::Color32`] .
+    ///
+    /// Subtract two colors linearly, take as alpha the max value from both colors.
+    ///
+    /// ```
+    /// use ecolor::Color32;
+    /// assert_eq!(Color32::from_rgb(255, 255, 0) - Color32::GREEN, Color32::RED);
+    /// // Take max alpha from both colors
+    /// assert_eq!(Color32::WHITE - Color32::TRANSPARENT, Color32::WHITE);
+    /// ```
+    #[inline]
+    fn sub(self, rhs: Self) -> Self::Output {
+        let Self([r1, g1, b1, a1]) = self;
+        let Self([r2, g2, b2, a2]) = rhs;
+
+        Self([
+            r1.saturating_sub(r2),
+            g1.saturating_sub(g2),
+            b1.saturating_sub(b2),
+            a1.max(a2),
+        ])
+    }
 }
