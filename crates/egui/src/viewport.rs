@@ -275,7 +275,9 @@ pub struct ViewportBuilder {
     pub min_inner_size: Option<Vec2>,
     pub max_inner_size: Option<Vec2>,
 
-    /// Whether clamp the window's size to monitor's size. Default to `true`
+    /// Whether clamp the window's size to monitor's size. Default to `true`.
+    ///
+    /// Note: On some Linux systems, a window size larger than the monitor causes crashes
     pub clamp_size_to_monitor_size: Option<bool>,
 
     pub fullscreen: Option<bool>,
@@ -496,11 +498,9 @@ impl ViewportBuilder {
         self
     }
 
-    /// Sets whether clamp the window's size to monitor's size.
+    /// Sets whether clamp the window's size to monitor's size. Default to `true`.
     ///
-    /// This only works on windows & macos, otherwise will be dismissed.
-    ///
-    /// Default to `true`
+    /// Note: On some Linux systems, a window size larger than the monitor causes crashes
     #[inline]
     pub fn with_clamp_size_to_monitor_size(mut self, value: bool) -> Self {
         self.clamp_size_to_monitor_size = Some(value);
