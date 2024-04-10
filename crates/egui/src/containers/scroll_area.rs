@@ -890,8 +890,10 @@ impl Prepared {
 
                     let scrolling_up = state.offset[d] > 0.0 && scroll_delta > 0.0;
                     let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta < 0.0;
+                    let pointer_position =
+                        ui.input(|i| i.pointer.interact_pos().unwrap_or_default());
 
-                    if scrolling_up || scrolling_down {
+                    if scrolling_up || scrolling_down && inner_rect.contains(pointer_position) {
                         state.offset[d] -= scroll_delta;
 
                         // Clear scroll delta so no parent scroll will use it:
