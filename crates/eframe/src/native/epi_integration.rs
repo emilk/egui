@@ -5,7 +5,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
-use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
+use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder};
 use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
@@ -297,25 +297,6 @@ impl EpiIntegration {
             }
 
             let viewport_id = egui_ctx.viewport_id();
-            if self.egui_ctx.input(|i| i.viewport().should_close()) {
-                self.egui_ctx
-                    .send_viewport_cmd_to(viewport_id, egui::ViewportCommand::Close);
-                // self.egui_ctx.request_repaint_of(viewport_id);
-                self.egui_ctx.request_repaint_of(viewport_id);
-                if viewport_id != ViewportId::ROOT {
-                    self.egui_ctx
-                        .request_repaint_of(egui_ctx.parent_viewport_id_of(viewport_id));
-                }
-
-                if viewport_id == ViewportId::ROOT {
-                    log::debug!(
-                        "Received WindowEvent::CloseRequested for main viewport - shutting down."
-                    );
-                    // return EventResult::Exit(window_id);
-                } else {
-                    // return EventResult::ViewportExit(window_id);
-                }
-            }
 
             let continuous_mode = egui_ctx.options(|options| options.continuous_mode);
             if continuous_mode {
@@ -326,21 +307,6 @@ impl EpiIntegration {
                     .request_repaint_after_for(std::time::Duration::from_millis(8), viewport_id);
             }
         });
-
-        /*
-        let is_root_viewport = viewport_ui_cb.is_none();
-        if is_root_viewport && is_close_requested {
-            let canceled = full_output.viewport_output[&ViewportId::ROOT]
-                .commands
-                .contains(&egui::ViewportCommand::CancelClose);
-            if canceled {
-                log::debug!("Closing of root viewport canceled with ViewportCommand::CancelClose");
-            } else {
-                log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
-                self.close = true;
-            }
-        }
-        */
 
         self.pending_full_output.append(full_output);
         std::mem::take(&mut self.pending_full_output)
