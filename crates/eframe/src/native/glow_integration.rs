@@ -1398,7 +1398,6 @@ fn render_immediate_viewport(
     } = immediate_viewport;
 
     let viewport_id = ids.this;
-    dbg!(&viewport_id);
 
     {
         let mut glutin = glutin.borrow_mut();
