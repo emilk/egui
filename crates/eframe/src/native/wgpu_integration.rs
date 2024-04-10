@@ -731,13 +731,10 @@ impl WgpuWinitRunning {
             }
         }
 
-        let should_close = shared_mut.egui_ctx.input(|i| i.viewport().should_close());
-        if should_close {
-            // if integration.should_close() {
-            EventResult::Exit(window_id)
-        } else {
-            EventResult::Wait
-        }
+        // When we press the Close button on the Title Bar, `WindowEvent::CloseRequested` occurs,
+        // Select whether to use `ViewportCommand::CancelClose` or `ViewportCommand::Close`.
+        // If `ViewportCommand::Close` is sent, it is processed here after being handled in `process_viewport_command()`.
+        handle_viewport_close(&viewports, painter, window_id, viewport_id)
     }
 
     fn on_window_event(
@@ -752,13 +749,19 @@ impl WgpuWinitRunning {
             shared,
             ..
         } = self;
-        let mut shared = shared.borrow_mut();
+        let mut shared_mut = shared.borrow_mut();
+        let SharedState {
+            viewports,
+            painter,
+            viewport_from_window,
+            ..
+        } = &mut *shared_mut;
 
-        let viewport_id = shared.viewport_from_window.get(&window_id).copied();
+        let viewport_id = viewport_from_window.get(&window_id).copied();
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
-                shared.focused_viewport = new_focused.then(|| viewport_id).flatten();
+                shared_mut.focused_viewport = new_focused.then(|| viewport_id).flatten();
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
@@ -767,27 +770,19 @@ impl WgpuWinitRunning {
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
                     ) {
-                        shared.painter.on_window_resized(viewport_id, width, height);
+                        shared_mut.painter.on_window_resized(viewport_id, width, height);
                         return EventResult::RepaintNext(window_id);
                     }
                 }
             }
 
             winit::event::WindowEvent::CloseRequested => {
-                let should_close = shared.egui_ctx.input(|i| i.viewport().should_close());
-                if viewport_id == Some(ViewportId::ROOT) && should_close {
-                    log::debug!(
-                        "Received WindowEvent::CloseRequested for main viewport - shutting down."
-                    );
-                    return EventResult::Exit(window_id);
-                }
-
                 log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
 
                 if let Some(viewport_id) = viewport_id {
-                    if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
-                        viewport.info.close_requested_on();
+                    if let Some(viewport) = viewports.get_mut(&viewport_id) {
                         // Tell viewport it should close:
+                        viewport.info.close_requested_on();
                         viewport.info.events.push(egui::ViewportEvent::Close);
 
                         // We may need to repaint both us and our parent to close the window,
@@ -795,14 +790,18 @@ impl WgpuWinitRunning {
                         // `request_repaint_of` does a double-repaint though:
                         integration.egui_ctx.request_repaint_of(viewport_id);
                         if viewport_id != ViewportId::ROOT {
-                            integration.egui_ctx.request_repaint_of(viewport.ids.parent);
+                            self.integration
+                                .egui_ctx
+                                .request_repaint_of(viewport.ids.parent);
+                            if viewport.ids.parent != ViewportId::ROOT {
+                                self.integration
+                                    .egui_ctx
+                                    .request_repaint_of(ViewportId::ROOT);
+                            }
                         }
 
-                        if viewport_id == ViewportId::ROOT {
-                            return EventResult::Wait;
-                        } else {
-                            return EventResult::ViewportExit(window_id);
-                        }
+                        // If `close_cancelable` is `false`, `ViewportCommand::CancelClose` is not possible, it is processed here.
+                        return handle_viewport_close(&viewports, painter, window_id, viewport_id);
                     }
                 }
             }
@@ -812,7 +811,7 @@ impl WgpuWinitRunning {
 
         let event_response = viewport_id
             .and_then(|viewport_id| {
-                shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
+                shared_mut.viewports.get_mut(&viewport_id).and_then(|viewport| {
                     Some(integration.on_window_event(
                         viewport.window.as_deref()?,
                         viewport.egui_winit.as_mut()?,
@@ -822,11 +821,7 @@ impl WgpuWinitRunning {
             })
             .unwrap_or_default();
 
-        let should_close = shared.egui_ctx.input(|i| i.viewport().should_close());
-        if should_close {
-            // if integration.should_close() {
-            EventResult::Exit(window_id)
-        } else if event_response.repaint {
+        if event_response.repaint {
             EventResult::RepaintNow(window_id)
         } else {
             EventResult::Wait
@@ -1088,6 +1083,38 @@ fn handle_viewport_output(
     }
 
     remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
+}
+
+fn handle_viewport_close(
+    viewports: &ViewportIdMap<Viewport>,
+    painter: &mut egui_wgpu::winit::Painter,
+    window_id: WindowId,
+    viewport_id: ViewportId,
+) -> EventResult {
+    if let Some(viewport) = viewports.get(&viewport_id) {
+        if viewport.info.should_close() {
+            if viewport_id == ViewportId::ROOT {
+                log::debug!(
+                    "Received WindowEvent::CloseRequested for main viewport - shutting down."
+                );
+            }
+
+            if viewport_id == ViewportId::ROOT {
+                return EventResult::Exit(window_id);
+            } else {
+                if let (Some(width), Some(height)) = (
+                    NonZeroU32::new(0),
+                    NonZeroU32::new(0),
+                ) {
+                    painter.on_window_resized(viewport_id, width, height);
+                }
+                // self.resize(viewport_id, physical_size);
+                return EventResult::ViewportExit(window_id);
+            }
+        }
+    }
+
+    EventResult::Wait
 }
 
 fn initialize_or_update_viewport(
