@@ -770,7 +770,9 @@ impl WgpuWinitRunning {
                         NonZeroU32::new(physical_size.width),
                         NonZeroU32::new(physical_size.height),
                     ) {
-                        shared_mut.painter.on_window_resized(viewport_id, width, height);
+                        shared_mut
+                            .painter
+                            .on_window_resized(viewport_id, width, height);
                         return EventResult::RepaintNext(window_id);
                     }
                 }
@@ -811,13 +813,16 @@ impl WgpuWinitRunning {
 
         let event_response = viewport_id
             .and_then(|viewport_id| {
-                shared_mut.viewports.get_mut(&viewport_id).and_then(|viewport| {
-                    Some(integration.on_window_event(
-                        viewport.window.as_deref()?,
-                        viewport.egui_winit.as_mut()?,
-                        event,
-                    ))
-                })
+                shared_mut
+                    .viewports
+                    .get_mut(&viewport_id)
+                    .and_then(|viewport| {
+                        Some(integration.on_window_event(
+                            viewport.window.as_deref()?,
+                            viewport.egui_winit.as_mut()?,
+                            event,
+                        ))
+                    })
             })
             .unwrap_or_default();
 
@@ -1102,10 +1107,7 @@ fn handle_viewport_close(
             if viewport_id == ViewportId::ROOT {
                 return EventResult::Exit(window_id);
             } else {
-                if let (Some(width), Some(height)) = (
-                    NonZeroU32::new(0),
-                    NonZeroU32::new(0),
-                ) {
+                if let (Some(width), Some(height)) = (NonZeroU32::new(0), NonZeroU32::new(0)) {
                     painter.on_window_resized(viewport_id, width, height);
                 }
                 // self.resize(viewport_id, physical_size);
