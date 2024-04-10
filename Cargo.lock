@@ -4617,6 +4617,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wrapping_layout"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+]
+
+[[package]]
 name = "x11-dl"
 version = "2.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

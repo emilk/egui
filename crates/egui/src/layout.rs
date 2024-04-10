@@ -704,35 +704,37 @@ impl Layout {
         item_spacing: Vec2,
     ) {
         egui_assert!(!cursor.any_nan());
+        let mut newline = false;
         if self.main_wrap {
             if cursor.intersects(frame_rect.shrink(1.0)) {
                 // make row/column larger if necessary
                 *cursor = cursor.union(frame_rect);
             } else {
-                // this is a new row or column. We temporarily use NAN for what will be filled in later.
+                // this is a new row or column. the cursor moves to the edge of the frame
+                newline = true;
                 match self.main_dir {
                     Direction::LeftToRight => {
                         *cursor = Rect::from_min_max(
-                            pos2(f32::NAN, frame_rect.min.y),
+                            pos2(widget_rect.max.x, frame_rect.min.y),
                             pos2(INFINITY, frame_rect.max.y),
                         );
                     }
                     Direction::RightToLeft => {
                         *cursor = Rect::from_min_max(
                             pos2(-INFINITY, frame_rect.min.y),
-                            pos2(f32::NAN, frame_rect.max.y),
+                            pos2(widget_rect.min.x, frame_rect.max.y),
                         );
                     }
                     Direction::TopDown => {
                         *cursor = Rect::from_min_max(
-                            pos2(frame_rect.min.x, f32::NAN),
+                            pos2(frame_rect.min.x, widget_rect.max.y),
                             pos2(frame_rect.max.x, INFINITY),
                         );
                     }
                     Direction::BottomUp => {
                         *cursor = Rect::from_min_max(
                             pos2(frame_rect.min.x, -INFINITY),
-                            pos2(frame_rect.max.x, f32::NAN),
+                            pos2(frame_rect.max.x, widget_rect.min.y),
                         );
                     }
                 };
@@ -748,20 +750,23 @@ impl Layout {
             }
         }
 
-        match self.main_dir {
-            Direction::LeftToRight => {
-                cursor.min.x = widget_rect.max.x + item_spacing.x;
-            }
-            Direction::RightToLeft => {
-                cursor.max.x = widget_rect.min.x - item_spacing.x;
-            }
-            Direction::TopDown => {
-                cursor.min.y = widget_rect.max.y + item_spacing.y;
-            }
-            Direction::BottomUp => {
-                cursor.max.y = widget_rect.min.y - item_spacing.y;
-            }
-        };
+        // apply item_spacing unless this is a newline
+        if !newline {
+            match self.main_dir {
+                Direction::LeftToRight => {
+                    cursor.min.x = widget_rect.max.x + item_spacing.x;
+                }
+                Direction::RightToLeft => {
+                    cursor.max.x = widget_rect.min.x - item_spacing.x;
+                }
+                Direction::TopDown => {
+                    cursor.min.y = widget_rect.max.y + item_spacing.y;
+                }
+                Direction::BottomUp => {
+                    cursor.max.y = widget_rect.min.y - item_spacing.y;
+                }
+            };
+        }
     }
 
     /// Move to the next row in a wrapping layout.
