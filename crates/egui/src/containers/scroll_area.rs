@@ -875,6 +875,16 @@ impl Prepared {
             && (is_hovering_outer_rect
                 || scroll_bar_visibility == ScrollBarVisibility::AlwaysVisible)
         {
+            let pointer_position = ui.input(|i| i.pointer.interact_pos().unwrap_or_default());
+            if inner_rect.contains(pointer_position) {
+                ui.ctx().input_mut(|input| {
+                    input.smooth_scroll_delta[0] += input.raw_scroll_delta[0];
+                    input.smooth_scroll_delta[1] += input.raw_scroll_delta[1];
+                    input.raw_scroll_delta[0] = 0.0;
+                    input.raw_scroll_delta[1] = 0.0;
+                });
+            }
+
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && scroll_enabled[0] != scroll_enabled[1];
             for d in 0..2 {
