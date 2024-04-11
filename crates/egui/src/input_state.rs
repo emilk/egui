@@ -234,7 +234,9 @@ impl InputState {
             // Mouse wheels often go very large steps.
             // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
             // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
-            unprocessed_scroll_delta += raw_scroll_delta;
+
+            // unprocessed_scroll_delta += raw_scroll_delta;
+
             let dt = stable_dt.at_most(0.1);
             let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
