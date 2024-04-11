@@ -880,6 +880,8 @@ impl Prepared {
                 ui.ctx().input_mut(|input| {
                     input.smooth_scroll_delta[0] += input.raw_scroll_delta[0];
                     input.smooth_scroll_delta[1] += input.raw_scroll_delta[1];
+                    input.raw_scroll_delta[0] = 0.0;
+                    input.raw_scroll_delta[1] = 0.0;
                 });
             }
 
