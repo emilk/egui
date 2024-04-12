@@ -67,11 +67,11 @@ pub enum Shape {
     Callback(PaintCallback),
 }
 
-// #[test]
-// fn shape_impl_send_sync() {
-//     fn assert_send_sync<T: Send + Sync>() {}
-//     assert_send_sync::<Shape>();
-// }
+#[test]
+fn shape_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Shape>();
+}
 
 impl From<Vec<Self>> for Shape {
     #[inline(always)]
