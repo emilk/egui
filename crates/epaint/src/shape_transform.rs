@@ -10,8 +10,34 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
                 adjust_colors(shape, adjust_color);
             }
         }
-        Shape::LineSegment { stroke, points: _ } => {
-            adjust_color(&mut stroke.color);
+        Shape::LineSegment { stroke, points: _ } => match stroke.color {
+            stroke::ColorMode::Solid(mut col) => adjust_color(&mut col),
+            stroke::ColorMode::UV(_) => {}
+        },
+
+        Shape::Path(PathShape {
+            points: _,
+            closed: _,
+            fill,
+            stroke,
+        })
+        | Shape::QuadraticBezier(QuadraticBezierShape {
+            points: _,
+            closed: _,
+            fill,
+            stroke,
+        })
+        | Shape::CubicBezier(CubicBezierShape {
+            points: _,
+            closed: _,
+            fill,
+            stroke,
+        }) => {
+            adjust_color(fill);
+            match stroke.color {
+                stroke::ColorMode::Solid(mut col) => adjust_color(&mut col),
+                stroke::ColorMode::UV(_) => {}
+            }
         }
 
         Shape::Circle(CircleShape {
@@ -26,12 +52,6 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             fill,
             stroke,
         })
-        | Shape::Path(PathShape {
-            points: _,
-            closed: _,
-            fill,
-            stroke,
-        })
         | Shape::Rect(RectShape {
             rect: _,
             rounding: _,
@@ -40,18 +60,6 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             blur_width: _,
             fill_texture_id: _,
             uv: _,
-        })
-        | Shape::QuadraticBezier(QuadraticBezierShape {
-            points: _,
-            closed: _,
-            fill,
-            stroke,
-        })
-        | Shape::CubicBezier(CubicBezierShape {
-            points: _,
-            closed: _,
-            fill,
-            stroke,
         }) => {
             adjust_color(fill);
             adjust_color(&mut stroke.color);

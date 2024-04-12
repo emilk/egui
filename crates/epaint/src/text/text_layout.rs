@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use emath::*;
 
-use crate::{text::font::Font, Color32, Mesh, Stroke, Vertex};
+use crate::{stroke::PathStroke, text::font::Font, Color32, Mesh, Stroke, Vertex};
 
 use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 
@@ -853,7 +853,7 @@ fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, 
         let mut path = crate::tessellator::Path::default(); // TODO(emilk): reuse this to avoid re-allocations.
         path.add_line_segment([start, stop]);
         let feathering = 1.0 / point_scale.pixels_per_point();
-        path.stroke_open(feathering, stroke, mesh);
+        path.stroke_open(feathering, &PathStroke::from(stroke), mesh);
     } else {
         // Thin lines often lost, so this is a bad idea
 

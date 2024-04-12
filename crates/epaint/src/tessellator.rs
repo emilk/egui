@@ -9,6 +9,11 @@ use crate::texture_atlas::PreparedDisc;
 use crate::*;
 use emath::*;
 
+use self::{
+    stroke::{ColorMode, PathStroke},
+    util::OrderedFloat,
+};
+
 // ----------------------------------------------------------------------------
 
 #[allow(clippy::approx_constant)]
@@ -471,16 +476,22 @@ impl Path {
     }
 
     /// Open-ended.
-    pub fn stroke_open(&self, feathering: f32, stroke: Stroke, out: &mut Mesh) {
+    pub fn stroke_open(&self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
         stroke_path(feathering, &self.0, PathType::Open, stroke, out);
     }
 
     /// A closed path (returning to the first point).
-    pub fn stroke_closed(&self, feathering: f32, stroke: Stroke, out: &mut Mesh) {
+    pub fn stroke_closed(&self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
         stroke_path(feathering, &self.0, PathType::Closed, stroke, out);
     }
 
-    pub fn stroke(&self, feathering: f32, path_type: PathType, stroke: Stroke, out: &mut Mesh) {
+    pub fn stroke(
+        &self,
+        feathering: f32,
+        path_type: PathType,
+        stroke: &PathStroke,
+        out: &mut Mesh,
+    ) {
         stroke_path(feathering, &self.0, path_type, stroke, out);
     }
 
@@ -864,19 +875,53 @@ fn stroke_path(
     feathering: f32,
     path: &[PathPoint],
     path_type: PathType,
-    stroke: Stroke,
+    stroke: &PathStroke,
     out: &mut Mesh,
 ) {
     let n = path.len() as u32;
 
-    if stroke.width <= 0.0 || stroke.color == Color32::TRANSPARENT || n < 2 {
+    if stroke.width <= 0.0 || stroke.color == ColorMode::Solid(Color32::TRANSPARENT) || n < 2 {
         return;
     }
 
     let idx = out.vertices.len() as u32;
 
+    let min_x = path
+        .iter()
+        .map(|point| OrderedFloat::from(point.pos.x))
+        .min()
+        .map(OrderedFloat::into_inner)
+        .unwrap();
+    let max_x = path
+        .iter()
+        .map(|point| OrderedFloat::from(point.pos.x))
+        .max()
+        .map(OrderedFloat::into_inner)
+        .unwrap();
+    let min_y = path
+        .iter()
+        .map(|point| OrderedFloat::from(point.pos.y))
+        .min()
+        .map(OrderedFloat::into_inner)
+        .unwrap();
+    let max_y = path
+        .iter()
+        .map(|point| OrderedFloat::from(point.pos.y))
+        .max()
+        .map(OrderedFloat::into_inner)
+        .unwrap();
+
+    let get_color = |col: &ColorMode, pos: Pos2| match col {
+        ColorMode::Solid(col) => *col,
+        ColorMode::UV(fun) => {
+            let x = remap_clamp(pos.x, min_x..=max_x, 0.0..=1.0);
+            let y = remap_clamp(pos.y, min_y..=max_y, 0.0..=1.0);
+            fun(pos2(x, y))
+        }
+    };
+
     if feathering > 0.0 {
-        let color_inner = stroke.color;
+        let color_inner = &stroke.color;
         let color_outer = Color32::TRANSPARENT;
 
         let thin_line = stroke.width <= feathering;
@@ -889,9 +934,11 @@ fn stroke_path(
             */
 
             // Fade out as it gets thinner:
-            let color_inner = mul_color(color_inner, stroke.width / feathering);
-            if color_inner == Color32::TRANSPARENT {
-                return;
+            if let ColorMode::Solid(col) = color_inner {
+                let color_inner = mul_color(*col, stroke.width / feathering);
+                if color_inner == Color32::TRANSPARENT {
+                    return;
+                }
             }
 
             out.reserve_triangles(4 * n as usize);
@@ -904,7 +951,7 @@ fn stroke_path(
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
-                out.colored_vertex(p, color_inner);
+                out.colored_vertex(p, get_color(color_inner, p));
                 out.colored_vertex(p - n * feathering, color_outer);
 
                 if connect_with_previous {
@@ -942,9 +989,10 @@ fn stroke_path(
                         let p1 = &path[i1 as usize];
                         let p = p1.pos;
                         let n = p1.normal;
+                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color_inner);
-                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p + n * inner_rad, color);
+                        out.colored_vertex(p - n * inner_rad, color);
                         out.colored_vertex(p - n * outer_rad, color_outer);
 
                         out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -982,9 +1030,10 @@ fn stroke_path(
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = n.rot90() * feathering;
+                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color_inner);
-                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p + n * inner_rad, color);
+                        out.colored_vertex(p - n * inner_rad, color);
                         out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
 
                         out.add_triangle(idx + 0, idx + 1, idx + 2);
@@ -996,9 +1045,10 @@ fn stroke_path(
                         let point = &path[i1 as usize];
                         let p = point.pos;
                         let n = point.normal;
+                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color_inner);
-                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p + n * inner_rad, color);
+                        out.colored_vertex(p - n * inner_rad, color);
                         out.colored_vertex(p - n * outer_rad, color_outer);
 
                         out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -1019,9 +1069,10 @@ fn stroke_path(
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = -n.rot90() * feathering;
+                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color_inner);
-                        out.colored_vertex(p - n * inner_rad, color_inner);
+                        out.colored_vertex(p + n * inner_rad, color);
+                        out.colored_vertex(p - n * inner_rad, color);
                         out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
 
                         out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -1067,19 +1118,22 @@ fn stroke_path(
         if thin_line {
             // Fade out thin lines rather than making them thinner
             let radius = feathering / 2.0;
-            let color = mul_color(stroke.color, stroke.width / feathering);
-            if color == Color32::TRANSPARENT {
-                return;
+            if let ColorMode::Solid(color) = stroke.color {
+                let color = mul_color(color, stroke.width / feathering);
+                if color == Color32::TRANSPARENT {
+                    return;
+                }
             }
             for p in path {
+                let color = mul_color(get_color(&stroke.color, p.pos), stroke.width / feathering);
                 out.colored_vertex(p.pos + radius * p.normal, color);
                 out.colored_vertex(p.pos - radius * p.normal, color);
             }
         } else {
             let radius = stroke.width / 2.0;
             for p in path {
-                out.colored_vertex(p.pos + radius * p.normal, stroke.color);
-                out.colored_vertex(p.pos - radius * p.normal, stroke.color);
+                out.colored_vertex(p.pos + radius * p.normal, get_color(&stroke.color, p.pos));
+                out.colored_vertex(p.pos - radius * p.normal, get_color(&stroke.color, p.pos));
             }
         }
     }
@@ -1275,9 +1329,9 @@ impl Tessellator {
                 self.tessellate_text(&text_shape, out);
             }
             Shape::QuadraticBezier(quadratic_shape) => {
-                self.tessellate_quadratic_bezier(quadratic_shape, out);
+                self.tessellate_quadratic_bezier(&quadratic_shape, out);
             }
-            Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(cubic_shape, out),
+            Shape::CubicBezier(cubic_shape) => self.tessellate_cubic_bezier(&cubic_shape, out),
             Shape::Callback(_) => {
                 panic!("Shape::Callback passed to Tessellator");
             }
@@ -1337,7 +1391,7 @@ impl Tessellator {
         self.scratchpad_path.add_circle(center, radius);
         self.scratchpad_path.fill(self.feathering, fill, out);
         self.scratchpad_path
-            .stroke_closed(self.feathering, stroke, out);
+            .stroke_closed(self.feathering, &stroke.into(), out);
     }
 
     /// Tessellate a single [`EllipseShape`] into a [`Mesh`].
@@ -1404,7 +1458,7 @@ impl Tessellator {
         self.scratchpad_path.add_line_loop(&points);
         self.scratchpad_path.fill(self.feathering, fill, out);
         self.scratchpad_path
-            .stroke_closed(self.feathering, stroke, out);
+            .stroke_closed(self.feathering, &stroke.into(), out);
     }
 
     /// Tessellate a single [`Mesh`] into a [`Mesh`].
@@ -1430,7 +1484,13 @@ impl Tessellator {
     ///
     /// * `shape`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_line(&mut self, points: [Pos2; 2], stroke: Stroke, out: &mut Mesh) {
+    pub fn tessellate_line(
+        &mut self,
+        points: [Pos2; 2],
+        stroke: impl Into<PathStroke>,
+        out: &mut Mesh,
+    ) {
+        let stroke = stroke.into();
         if stroke.is_empty() {
             return;
         }
@@ -1446,7 +1506,7 @@ impl Tessellator {
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_segment(points);
         self.scratchpad_path
-            .stroke_open(self.feathering, stroke, out);
+            .stroke_open(self.feathering, &stroke, out);
     }
 
     /// Tessellate a single [`PathShape`] into a [`Mesh`].
@@ -1493,7 +1553,7 @@ impl Tessellator {
             PathType::Open
         };
         self.scratchpad_path
-            .stroke(self.feathering, typ, *stroke, out);
+            .stroke(self.feathering, typ, stroke, out);
     }
 
     /// Tessellate a single [`Rect`] into a [`Mesh`].
@@ -1588,7 +1648,7 @@ impl Tessellator {
                 path.fill(self.feathering, fill, out);
             }
 
-            path.stroke_closed(self.feathering, stroke, out);
+            path.stroke_closed(self.feathering, &stroke.into(), out);
         }
 
         self.feathering = old_feathering; // restore
@@ -1707,8 +1767,11 @@ impl Tessellator {
                 self.scratchpad_path.clear();
                 self.scratchpad_path
                     .add_line_segment([row_rect.left_bottom(), row_rect.right_bottom()]);
-                self.scratchpad_path
-                    .stroke_open(self.feathering, *underline, out);
+                self.scratchpad_path.stroke_open(
+                    self.feathering,
+                    &PathStroke::from(*underline),
+                    out,
+                );
             }
         }
     }
@@ -1719,7 +1782,7 @@ impl Tessellator {
     /// * `out`: triangles are appended to this.
     pub fn tessellate_quadratic_bezier(
         &mut self,
-        quadratic_shape: QuadraticBezierShape,
+        quadratic_shape: &QuadraticBezierShape,
         out: &mut Mesh,
     ) {
         let options = &self.options;
@@ -1737,7 +1800,7 @@ impl Tessellator {
             &points,
             quadratic_shape.fill,
             quadratic_shape.closed,
-            quadratic_shape.stroke,
+            &quadratic_shape.stroke,
             out,
         );
     }
@@ -1746,7 +1809,7 @@ impl Tessellator {
     ///
     /// * `cubic_shape`: the shape to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_cubic_bezier(&mut self, cubic_shape: CubicBezierShape, out: &mut Mesh) {
+    pub fn tessellate_cubic_bezier(&mut self, cubic_shape: &CubicBezierShape, out: &mut Mesh) {
         let options = &self.options;
         let clip_rect = self.clip_rect;
         if options.coarse_tessellation_culling
@@ -1763,7 +1826,7 @@ impl Tessellator {
                 &points,
                 cubic_shape.fill,
                 cubic_shape.closed,
-                cubic_shape.stroke,
+                &cubic_shape.stroke,
                 out,
             );
         }
@@ -1774,7 +1837,7 @@ impl Tessellator {
         points: &[Pos2],
         fill: Color32,
         closed: bool,
-        stroke: Stroke,
+        stroke: &PathStroke,
         out: &mut Mesh,
     ) {
         if points.len() < 2 {
