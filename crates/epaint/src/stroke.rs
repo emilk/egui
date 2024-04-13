@@ -62,7 +62,7 @@ pub enum ColorMode {
     /// The entire path is one solid color, this is the default.
     Solid(Color32),
 
-    /// Provide a callback which takes in a UV coordinate and converts it to a color. The values passed to this will always be one.
+    /// Provide a callback which takes in a UV coordinate and converts it to a color. The values passed to this will always be between zero and one.
     ///
     /// **This cannot be serialized**
     #[cfg_attr(feature = "serde", serde(skip))]
