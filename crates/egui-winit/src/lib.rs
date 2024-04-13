@@ -340,7 +340,12 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
+                    winit::event::Ime::Enabled => {
+                        self.egui_input.events.push(egui::Event::ImeEnable);
+                    }
+                    winit::event::Ime::Disabled => {
+                        self.egui_input.events.push(egui::Event::ImeDisable);
+                    }
                     winit::event::Ime::Commit(text) => {
                         self.input_method_editor_started = false;
                         self.egui_input
@@ -425,7 +430,7 @@ impl State {
                 self.egui_input.modifiers.alt = alt;
                 self.egui_input.modifiers.ctrl = ctrl;
                 self.egui_input.modifiers.shift = shift;
-                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
+                self.egui_input.modifiers.mac_cmd = super_;
                 self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
                     super_
                 } else {
@@ -956,6 +961,7 @@ pub fn update_viewport_info(
     }
 
     viewport_info.fullscreen = Some(window.fullscreen().is_some());
+    viewport_info.decorations = Some(window.is_decorated());
     viewport_info.focused = Some(window.has_focus());
 }
 
@@ -1293,10 +1299,24 @@ fn process_viewport_command(
 
     match command {
         ViewportCommand::Close => {
+            info.close_requested_on();
+            info.close_cancelable_off();
+            // info.close_cancelable = false;
             info.events.push(egui::ViewportEvent::Close);
         }
         ViewportCommand::CancelClose => {
             // Need to be handled elsewhere
+            info.close_requested_off();
+            // info.close_cancelable_on();
+            // dbg!(&info.events);
+            // info.events.clear();
+            if let Some(position) = info
+                .events
+                .iter()
+                .position(|x| *x == egui::ViewportEvent::Close)
+            {
+                info.events.remove(position);
+            }
         }
         ViewportCommand::StartDrag => {
             // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
@@ -1353,7 +1373,10 @@ fn process_viewport_command(
         ViewportCommand::Title(title) => {
             window.set_title(&title);
         }
-        ViewportCommand::Transparent(v) => window.set_transparent(v),
+        ViewportCommand::Transparent(v) => {
+            window.set_transparent(v);
+            info.transparent = Some(v);
+        }
         ViewportCommand::Visible(v) => window.set_visible(v),
         ViewportCommand::OuterPosition(pos) => {
             window.set_outer_position(PhysicalPosition::new(
@@ -1407,7 +1430,10 @@ fn process_viewport_command(
         ViewportCommand::Fullscreen(v) => {
             window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
         }
-        ViewportCommand::Decorations(v) => window.set_decorations(v),
+        ViewportCommand::Decorations(v) => {
+            window.set_decorations(v);
+            info.decorations = Some(v);
+        }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
