@@ -950,6 +950,16 @@ fn events(
                 ..
             } => check_for_mutating_key_press(os, &mut cursor_range, text, galley, modifiers, *key),
 
+            Event::ImeEnable => {
+                state.has_ime = true;
+                None
+            }
+
+            Event::ImeDisable => {
+                state.has_ime = false;
+                None
+            }
+
             Event::CompositionStart => {
                 state.has_ime = true;
                 None
