@@ -61,19 +61,32 @@ impl eframe::App for MyApp {
             let (rect, _) =
                 ui.allocate_exact_size(vec2(100.0, 50.0), Sense::focusable_noninteractive());
 
-            ui.painter_at(rect).add(Shape::line_segment(
-                [rect.left_center(), rect.right_center()],
-                PathStroke {
-                    width: 1.5,
-                    color: egui::epaint::ColorMode::UV(Arc::new(Box::new(|p: Pos2| {
+            let stroke = PathStroke {
+                width: 1.5,
+                color: egui::epaint::ColorMode::UVBounds(
+                    rect,
+                    Arc::new(Box::new(|p: Pos2| {
                         if p.x < 0.5 {
                             Color32::RED
                         } else {
                             Color32::GREEN
                         }
-                    }))),
-                },
-            ))
+                    })),
+                ),
+            };
+
+            ui.painter_at(rect).add(Shape::line_segment(
+                [rect.left_center(), rect.right_center()],
+                stroke.clone(),
+            ));
+
+            ui.painter_at(rect).add(Shape::line_segment(
+                [
+                    rect.left_center() + vec2(25.0, 15.0),
+                    rect.right_center() + vec2(0.0, 15.0),
+                ],
+                stroke.clone(),
+            ));
         });
     }
 }

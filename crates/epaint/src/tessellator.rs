@@ -918,6 +918,11 @@ fn stroke_path(
             let y = remap_clamp(pos.y, min_y..=max_y, 0.0..=1.0);
             fun(pos2(x, y))
         }
+        ColorMode::UVBounds(rect, fun) => {
+            let x = remap_clamp(pos.x, rect.min.x..=rect.max.x, 0.0..=1.0);
+            let y = remap_clamp(pos.y, rect.min.y..=rect.max.y, 0.0..=1.0);
+            fun(pos2(x, y))
+        }
     };
 
     if feathering > 0.0 {
