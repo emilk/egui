@@ -445,6 +445,12 @@ pub enum Event {
     /// * `zoom > 1`: pinch spread
     Zoom(f32),
 
+    /// IME Enable
+    ImeEnable,
+
+    /// IME Disable
+    ImeDisable,
+
     /// IME composition start.
     CompositionStart,
 
