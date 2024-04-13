@@ -61,9 +61,10 @@ impl std::hash::Hash for Stroke {
 pub enum ColorMode {
     /// The entire path is one solid color, this is the default.
     Solid(Color32),
+
     /// Provide a callback which takes in a UV coordinate and converts it to a color. The values passed to this will always be one.
     ///
-    /// # This cannot be serialized
+    /// **This cannot be serialized**
     #[cfg_attr(feature = "serde", serde(skip))]
     UV(Arc<Box<dyn Fn(Pos2) -> Color32 + Send + Sync>>),
 }
@@ -93,6 +94,9 @@ impl PartialEq for ColorMode {
     }
 }
 
+/// Describes the width and color of paths. The color can either be solid or provided by a callback. For more information, see [`ColorMode`]
+///
+/// The default stroke is the same as [`Stroke::NONE`].
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PathStroke {
@@ -126,7 +130,7 @@ impl PathStroke {
         }
     }
 
-    /// True if width is zero or color is transparent
+    /// True if width is zero or color is solid and transparent
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.width <= 0.0 || self.color == ColorMode::Solid(Color32::TRANSPARENT)
