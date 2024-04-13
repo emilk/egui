@@ -89,6 +89,23 @@ impl<State> Undoer<State>
 where
     State: Clone + PartialEq,
 {
+    pub fn new() -> Self {
+        Self {
+            settings: Settings::default(),
+            undos: VecDeque::new(),
+            redos: Vec::new(),
+            flux: None,
+        }
+    }
+
+    /// Create a new [`Undoer`] with the given [`Settings`].
+    pub fn with_settings(settings: Settings) -> Self {
+        Self {
+            settings,
+            ..Self::new()
+        }
+    }
+
     /// Do we have an undo point different from the given state?
     pub fn has_undo(&self, current_state: &State) -> bool {
         match self.undos.len() {
