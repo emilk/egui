@@ -825,13 +825,8 @@ impl State {
 
             // On Wayland of Linux, repaints every frame : See https://github.com/emilk/egui/pull/4254
             if self.egui_ctx.os() == egui::os::OperatingSystem::Nix {
-                if self.ime_rect_px != Some(ime_rect_px)
-                    && self.egui_ctx.input(|i| !i.events.is_empty())
-                {
-                    need_set_ime_cursor_area = true;
-                } else {
-                    need_set_ime_cursor_area = false;
-                }
+                need_set_ime_cursor_area = self.ime_rect_px != Some(ime_rect_px)
+                    && self.egui_ctx.input(|i| !i.events.is_empty());
             }
 
             if need_set_ime_cursor_area {
