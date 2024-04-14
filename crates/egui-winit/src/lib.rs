@@ -340,7 +340,12 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
+                    winit::event::Ime::Enabled => {
+                        self.egui_input.events.push(egui::Event::ImeEnable);
+                    }
+                    winit::event::Ime::Disabled => {
+                        self.egui_input.events.push(egui::Event::ImeDisable);
+                    }
                     winit::event::Ime::Commit(text) => {
                         self.input_method_editor_started = false;
                         self.egui_input
@@ -425,7 +430,7 @@ impl State {
                 self.egui_input.modifiers.alt = alt;
                 self.egui_input.modifiers.ctrl = ctrl;
                 self.egui_input.modifiers.shift = shift;
-                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
+                self.egui_input.modifiers.mac_cmd = super_;
                 self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
                     super_
                 } else {
@@ -1296,15 +1301,11 @@ fn process_viewport_command(
         ViewportCommand::Close => {
             info.close_requested_on();
             info.close_cancelable_off();
-            // info.close_cancelable = false;
             info.events.push(egui::ViewportEvent::Close);
         }
         ViewportCommand::CancelClose => {
             // Need to be handled elsewhere
             info.close_requested_off();
-            // info.close_cancelable_on();
-            // dbg!(&info.events);
-            // info.events.clear();
             if let Some(position) = info
                 .events
                 .iter()
