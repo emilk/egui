@@ -950,13 +950,13 @@ fn events(
                 ..
             } => check_for_mutating_key_press(os, &mut cursor_range, text, galley, modifiers, *key),
 
-            Event::ImeEnable => {
-                state.has_ime = true;
+            Event::ImeDisable => {
+                state.has_ime = false;
                 None
             }
 
-            Event::ImeDisable => {
-                state.has_ime = false;
+            Event::ImeEnable | Event::CompositionStart => {
+                state.has_ime = true;
                 None
             }
 
@@ -968,7 +968,7 @@ fn events(
             Event::CompositionUpdate(text_mark) => {
                 // empty prediction can be produced when user press backspace
                 // or escape during ime. We should clear current text.
-                if text_mark != "\n" && text_mark != "\r" && state.has_ime {
+                if text_mark != "\n" && text_mark != "\r" {
                     let mut ccursor = text.delete_selected(&cursor_range);
                     let start_cursor = ccursor;
                     if !text_mark.is_empty() {
