@@ -957,6 +957,7 @@ fn events(
 
             Event::ImeEnable | Event::CompositionStart => {
                 state.has_ime = true;
+                state.ime_cursor_range = cursor_range;
                 None
             }
 
