@@ -960,11 +960,6 @@ fn events(
                 None
             }
 
-            Event::CompositionStart => {
-                state.has_ime = true;
-                None
-            }
-
             Event::CompositionUpdate(text_mark) => {
                 // empty prediction can be produced when user press backspace
                 // or escape during ime. We should clear current text.
