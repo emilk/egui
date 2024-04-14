@@ -604,7 +604,8 @@ impl State {
         });
         // If we're not yet translating a touch or we're translating this very
         // touch …
-        if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap() == touch.id {
+        if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap_or_default() == touch.id
+        {
             // … emit PointerButton resp. PointerMoved events to emulate mouse
             match touch.phase {
                 winit::event::TouchPhase::Started => {
