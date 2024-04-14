@@ -549,6 +549,12 @@ pub enum Event {
     /// * `zoom > 1`: pinch spread
     Zoom(f32),
 
+    /// IME Enable
+    ImeEnable,
+
+    /// IME Disable
+    ImeDisable,
+
     /// IME composition start.
     CompositionStart,
 
@@ -779,7 +785,7 @@ impl Modifiers {
         self.mac_cmd && !(self.alt || self.ctrl || self.shift)
     }
 
-    /// true if only [`Self::mac_cmd`] is pressed and `MacOs`.
+    /// true if only [`Self::mac_cmd`] is pressed on `MacOs`.
     #[inline]
     pub fn mac_cmd_only(&self) -> bool {
         if !cfg!(target_os = "macos") {
