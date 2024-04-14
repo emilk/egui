@@ -825,11 +825,16 @@ impl State {
 
         if let Some(ime) = ime {
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = pixels_per_point * ime.rect;
-            if self.ime_rect_px != Some(ime_rect_px)
-                || self.egui_ctx.input(|i| !i.events.is_empty())
-            {
-                self.ime_rect_px = Some(ime_rect_px);
+            let ime_rect_px = ime.rect * pixels_per_point;
+            let mut need_set_ime_cursor_area = true;
+
+            // On Wayland of Linux, repaints every frame : See https://github.com/emilk/egui/pull/4254
+            if self.egui_ctx.os() == egui::os::OperatingSystem::Nix {
+                need_set_ime_cursor_area = self.ime_rect_px != Some(ime_rect_px)
+                    && self.egui_ctx.input(|i| !i.events.is_empty());
+            }
+
+            if need_set_ime_cursor_area {
                 crate::profile_scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
                     winit::dpi::PhysicalPosition {
@@ -841,6 +846,10 @@ impl State {
                         height: ime_rect_px.height(),
                     },
                 );
+
+                self.ime_rect_px = Some(ime_rect_px);
+            } else {
+                self.ime_rect_px = None;
             }
         } else {
             self.ime_rect_px = None;
@@ -1439,13 +1448,11 @@ fn process_viewport_command(
             let winit_icon = icon.and_then(|icon| to_winit_icon(&icon));
             window.set_window_icon(winit_icon);
         }
-        ViewportCommand::IMERect(rect) => {
+        ViewportCommand::IMERect(ime_rect) => {
+            let ime_rect_px = ime_rect * pixels_per_point;
             window.set_ime_cursor_area(
-                PhysicalPosition::new(pixels_per_point * rect.min.x, pixels_per_point * rect.min.y),
-                PhysicalSize::new(
-                    pixels_per_point * rect.size().x,
-                    pixels_per_point * rect.size().y,
-                ),
+                PhysicalPosition::new(ime_rect_px.min.x, ime_rect_px.min.y),
+                PhysicalSize::new(ime_rect_px.width(), ime_rect_px.height()),
             );
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
