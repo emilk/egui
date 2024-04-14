@@ -834,8 +834,6 @@ impl State {
                 }
             }
 
-            self.ime_rect_px = Some(ime_rect_px);
-
             if need_set_ime_cursor_area {
                 crate::profile_scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
@@ -848,6 +846,10 @@ impl State {
                         height: ime_rect_px.height(),
                     },
                 );
+
+                self.ime_rect_px = Some(ime_rect_px);
+            } else {
+                self.ime_rect_px = None;
             }
         } else {
             self.ime_rect_px = None;
