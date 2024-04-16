@@ -41,3 +41,7 @@ impl PartialEq for ColorMode {
         }
     }
 }
+
+impl ColorMode {
+    pub const TRANSPARENT: Self = Self::Solid(Color32::TRANSPARENT);
+}

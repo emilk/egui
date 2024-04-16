@@ -878,7 +878,7 @@ fn stroke_path(
 ) {
     let n = path.len() as u32;
 
-    if stroke.width <= 0.0 || stroke.color == ColorMode::Solid(Color32::TRANSPARENT) || n < 2 {
+    if stroke.width <= 0.0 || stroke.color == ColorMode::TRANSPARENT || n < 2 {
         return;
     }
 
