@@ -69,7 +69,7 @@ impl PathStroke {
     /// Same as [`PathStroke::default`].
     pub const NONE: Self = Self {
         width: 0.0,
-        color: ColorMode::Solid(Color32::TRANSPARENT),
+        color: ColorMode::TRANSPARENT,
     };
 
     #[inline]
@@ -94,7 +94,7 @@ impl PathStroke {
     /// True if width is zero or color is solid and transparent
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.width <= 0.0 || self.color == ColorMode::Solid(Color32::TRANSPARENT)
+        self.width <= 0.0 || self.color == ColorMode::TRANSPARENT
     }
 }
 
