@@ -62,18 +62,11 @@ pub enum ColorMode {
     /// The entire path is one solid color, this is the default.
     Solid(Color32),
 
-    /// Provide a callback which takes in a UV coordinate and converts it to a color. The UVs are relative to the bounding box of the path.
-    /// If you need something more custom, consider [`ColorMode::UVBounds`]
+    /// Provide a callback which takes in the path's bounding box and a position and converts it to a color.
     ///
     /// **This cannot be serialized**
     #[cfg_attr(feature = "serde", serde(skip))]
-    UV(Arc<Box<dyn Fn(Pos2) -> Color32 + Send + Sync>>),
-
-    /// Provide a callback which takes in a UV coordinate and converts it to a color. The UVs are relative to the Rect provided.
-    ///
-    /// **This cannot be serialized**
-    #[cfg_attr(feature = "serde", serde(skip))]
-    UVBounds(Rect, Arc<Box<dyn Fn(Pos2) -> Color32 + Send + Sync>>),
+    UV(Arc<Box<dyn Fn(Rect, Pos2) -> Color32 + Send + Sync>>),
 }
 
 impl Default for ColorMode {
@@ -87,11 +80,6 @@ impl Debug for ColorMode {
         match self {
             Self::Solid(arg0) => f.debug_tuple("Solid").field(arg0).finish(),
             Self::UV(_arg0) => f.debug_tuple("UV").field(&"<closure>").finish(),
-            Self::UVBounds(rect, _) => f
-                .debug_tuple("UV (custom rect)")
-                .field(rect)
-                .field(&"<closure>")
-                .finish(),
         }
     }
 }
@@ -134,7 +122,7 @@ impl PathStroke {
     #[inline]
     pub fn new_uv(
         width: impl Into<f32>,
-        callback: impl Fn(Pos2) -> Color32 + Send + Sync + 'static,
+        callback: impl Fn(Rect, Pos2) -> Color32 + Send + Sync + 'static,
     ) -> Self {
         Self {
             width: width.into(),

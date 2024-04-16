@@ -9,10 +9,7 @@ use crate::texture_atlas::PreparedDisc;
 use crate::*;
 use emath::*;
 
-use self::{
-    stroke::{ColorMode, PathStroke},
-    util::OrderedFloat,
-};
+use self::stroke::{ColorMode, PathStroke};
 
 // ----------------------------------------------------------------------------
 
@@ -886,43 +883,11 @@ fn stroke_path(
 
     let idx = out.vertices.len() as u32;
 
-    let min_x = path
-        .iter()
-        .map(|point| OrderedFloat::from(point.pos.x))
-        .min()
-        .map(OrderedFloat::into_inner)
-        .unwrap();
-    let max_x = path
-        .iter()
-        .map(|point| OrderedFloat::from(point.pos.x))
-        .max()
-        .map(OrderedFloat::into_inner)
-        .unwrap();
-    let min_y = path
-        .iter()
-        .map(|point| OrderedFloat::from(point.pos.y))
-        .min()
-        .map(OrderedFloat::into_inner)
-        .unwrap();
-    let max_y = path
-        .iter()
-        .map(|point| OrderedFloat::from(point.pos.y))
-        .max()
-        .map(OrderedFloat::into_inner)
-        .unwrap();
+    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>());
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
-        ColorMode::UV(fun) => {
-            let x = remap_clamp(pos.x, min_x..=max_x, 0.0..=1.0);
-            let y = remap_clamp(pos.y, min_y..=max_y, 0.0..=1.0);
-            fun(pos2(x, y))
-        }
-        ColorMode::UVBounds(rect, fun) => {
-            let x = remap_clamp(pos.x, rect.min.x..=rect.max.x, 0.0..=1.0);
-            let y = remap_clamp(pos.y, rect.min.y..=rect.max.y, 0.0..=1.0);
-            fun(pos2(x, y))
-        }
+        ColorMode::UV(fun) => fun(bbox, pos),
     };
 
     if feathering > 0.0 {

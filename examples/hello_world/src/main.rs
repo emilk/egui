@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use eframe::{
-    egui::{self, vec2, Color32, Pos2, Sense, Shape},
+    egui::{self, remap_clamp, vec2, Color32, Sense, Shape},
     epaint::PathStroke,
 };
 
@@ -63,16 +63,14 @@ impl eframe::App for MyApp {
 
             let stroke = PathStroke {
                 width: 1.5,
-                color: egui::epaint::ColorMode::UVBounds(
-                    rect,
-                    Arc::new(Box::new(|p: Pos2| {
-                        if p.x < 0.5 {
-                            Color32::RED
-                        } else {
-                            Color32::GREEN
-                        }
-                    })),
-                ),
+                color: egui::epaint::ColorMode::UV(Arc::new(Box::new(|r, p| {
+                    let t = remap_clamp(p.x, r.x_range(), 0.0..=1.0);
+                    if t < 0.5 {
+                        Color32::RED
+                    } else {
+                        Color32::GREEN
+                    }
+                }))),
             };
 
             ui.painter_at(rect).add(Shape::line_segment(
