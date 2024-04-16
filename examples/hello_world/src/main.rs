@@ -1,11 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::sync::Arc;
-
-use eframe::{
-    egui::{self, remap_clamp, vec2, Color32, Sense, Shape},
-    epaint::PathStroke,
-};
+use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -56,34 +51,6 @@ impl eframe::App for MyApp {
 
             ui.image(egui::include_image!(
                 "../../../crates/egui/assets/ferris.png"
-            ));
-
-            let (rect, _) =
-                ui.allocate_exact_size(vec2(100.0, 50.0), Sense::focusable_noninteractive());
-
-            let stroke = PathStroke {
-                width: 1.5,
-                color: egui::epaint::ColorMode::UV(Arc::new(Box::new(|r, p| {
-                    let t = remap_clamp(p.x, r.x_range(), 0.0..=1.0);
-                    if t < 0.5 {
-                        Color32::RED
-                    } else {
-                        Color32::GREEN
-                    }
-                }))),
-            };
-
-            ui.painter_at(rect).add(Shape::line_segment(
-                [rect.left_center(), rect.right_center()],
-                stroke.clone(),
-            ));
-
-            ui.painter_at(rect).add(Shape::line_segment(
-                [
-                    rect.left_center() + vec2(25.0, 15.0),
-                    rect.right_center() + vec2(0.0, 15.0),
-                ],
-                stroke.clone(),
             ));
         });
     }
