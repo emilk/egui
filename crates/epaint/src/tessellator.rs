@@ -884,7 +884,9 @@ fn stroke_path(
 
     let idx = out.vertices.len() as u32;
 
-    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>());
+    // expand the bounding box to include the thickness of the path
+    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
+        .expand(stroke.width / 2.0);
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
