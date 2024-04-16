@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use epaint::*;
+use epaint::{tessellator::Path, *};
 
 fn single_dashed_lines(c: &mut Criterion) {
     c.bench_function("single_dashed_lines", move |b| {
@@ -72,10 +72,42 @@ fn tessellate_circles(c: &mut Criterion) {
     });
 }
 
+fn thick_line_solid(c: &mut Criterion) {
+    c.bench_function("thick_solid_line", move |b| {
+        let line = [pos2(0.0, 0.0), pos2(50.0, 0.0), pos2(100.0, 1.0)];
+        let mut path = Path::default();
+        path.add_open_points(&line);
+
+        b.iter(|| {
+            let mut mesh = Mesh::default();
+            path.stroke_closed(1.5, &Stroke::new(2.0, Color32::RED).into(), &mut mesh);
+
+            black_box(mesh);
+        });
+    });
+}
+
+fn thin_line_solid(c: &mut Criterion) {
+    c.bench_function("thin_solid_line", move |b| {
+        let line = [pos2(0.0, 0.0), pos2(50.0, 0.0), pos2(100.0, 1.0)];
+        let mut path = Path::default();
+        path.add_open_points(&line);
+
+        b.iter(|| {
+            let mut mesh = Mesh::default();
+            path.stroke_closed(1.5, &Stroke::new(2.0, Color32::RED).into(), &mut mesh);
+
+            black_box(mesh);
+        });
+    });
+}
+
 criterion_group!(
     benches,
     single_dashed_lines,
     many_dashed_lines,
-    tessellate_circles
+    tessellate_circles,
+    thick_line_solid,
+    thin_line_solid
 );
 criterion_main!(benches);
