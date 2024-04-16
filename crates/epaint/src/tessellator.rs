@@ -921,7 +921,10 @@ fn stroke_path(
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
-                out.colored_vertex(p, get_color(color_inner, p));
+                out.colored_vertex(
+                    p,
+                    mul_color(get_color(color_inner, p), stroke.width / feathering),
+                );
                 out.colored_vertex(p - n * feathering, color_outer);
 
                 if connect_with_previous {
