@@ -9,7 +9,8 @@ use crate::texture_atlas::PreparedDisc;
 use crate::*;
 use emath::*;
 
-use self::stroke::{ColorMode, PathStroke};
+use self::color::ColorMode;
+use self::stroke::PathStroke;
 
 // ----------------------------------------------------------------------------
 

@@ -11,8 +11,8 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             }
         }
         Shape::LineSegment { stroke, points: _ } => match stroke.color {
-            stroke::ColorMode::Solid(mut col) => adjust_color(&mut col),
-            stroke::ColorMode::UV(_) => {}
+            color::ColorMode::Solid(mut col) => adjust_color(&mut col),
+            color::ColorMode::UV(_) => {}
         },
 
         Shape::Path(PathShape {
@@ -35,8 +35,8 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
         }) => {
             adjust_color(fill);
             match stroke.color {
-                stroke::ColorMode::Solid(mut col) => adjust_color(&mut col),
-                stroke::ColorMode::UV(_) => {}
+                color::ColorMode::Solid(mut col) => adjust_color(&mut col),
+                color::ColorMode::UV(_) => {}
             }
         }
 
