@@ -87,9 +87,9 @@ fn thick_line_solid(c: &mut Criterion) {
     });
 }
 
-fn thin_line_solid(c: &mut Criterion) {
-    c.bench_function("thin_solid_line", move |b| {
-        let line = [pos2(0.0, 0.0), pos2(50.0, 0.0), pos2(100.0, 1.0)];
+fn thick_large_line_solid(c: &mut Criterion) {
+    c.bench_function("thick_large_solid_line", move |b| {
+        let line = (0..1000).map(|i| pos2(i as f32, 10.0)).collect::<Vec<_>>();
         let mut path = Path::default();
         path.add_open_points(&line);
 
@@ -102,12 +102,44 @@ fn thin_line_solid(c: &mut Criterion) {
     });
 }
 
+fn thin_line_solid(c: &mut Criterion) {
+    c.bench_function("thin_solid_line", move |b| {
+        let line = [pos2(0.0, 0.0), pos2(50.0, 0.0), pos2(100.0, 1.0)];
+        let mut path = Path::default();
+        path.add_open_points(&line);
+
+        b.iter(|| {
+            let mut mesh = Mesh::default();
+            path.stroke_closed(1.5, &Stroke::new(0.5, Color32::RED).into(), &mut mesh);
+
+            black_box(mesh);
+        });
+    });
+}
+
+fn thin_large_line_solid(c: &mut Criterion) {
+    c.bench_function("thin_large_solid_line", move |b| {
+        let line = (0..1000).map(|i| pos2(i as f32, 10.0)).collect::<Vec<_>>();
+        let mut path = Path::default();
+        path.add_open_points(&line);
+
+        b.iter(|| {
+            let mut mesh = Mesh::default();
+            path.stroke_closed(1.5, &Stroke::new(0.5, Color32::RED).into(), &mut mesh);
+
+            black_box(mesh);
+        });
+    });
+}
+
 criterion_group!(
     benches,
     single_dashed_lines,
     many_dashed_lines,
     tessellate_circles,
     thick_line_solid,
-    thin_line_solid
+    thick_large_line_solid,
+    thin_line_solid,
+    thin_large_line_solid
 );
 criterion_main!(benches);
