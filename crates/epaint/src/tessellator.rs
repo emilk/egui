@@ -885,8 +885,9 @@ fn stroke_path(
     let idx = out.vertices.len() as u32;
 
     // expand the bounding box to include the thickness of the path
+    // this tiny bit of margin is here because a rect doesn't think it contains a point if a pos' component is on a boundary. why? i have no idea.
     let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-        .expand(stroke.width / 2.0);
+        .expand((stroke.width / 2.0) + feathering + 1.0);
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
@@ -965,10 +966,15 @@ fn stroke_path(
                         let p1 = &path[i1 as usize];
                         let p = p1.pos;
                         let n = p1.normal;
-                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color);
-                        out.colored_vertex(p - n * inner_rad, color);
+                        out.colored_vertex(
+                            p + n * inner_rad,
+                            get_color(color_inner, p + n * inner_rad),
+                        );
+                        out.colored_vertex(
+                            p - n * inner_rad,
+                            get_color(color_inner, p - n * inner_rad),
+                        );
                         out.colored_vertex(p - n * outer_rad, color_outer);
 
                         out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -1006,10 +1012,15 @@ fn stroke_path(
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = n.rot90() * feathering;
-                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color);
-                        out.colored_vertex(p - n * inner_rad, color);
+                        out.colored_vertex(
+                            p + n * inner_rad,
+                            get_color(color_inner, p + n * inner_rad),
+                        );
+                        out.colored_vertex(
+                            p - n * inner_rad,
+                            get_color(color_inner, p - n * inner_rad),
+                        );
                         out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
 
                         out.add_triangle(idx + 0, idx + 1, idx + 2);
@@ -1021,10 +1032,15 @@ fn stroke_path(
                         let point = &path[i1 as usize];
                         let p = point.pos;
                         let n = point.normal;
-                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color);
-                        out.colored_vertex(p - n * inner_rad, color);
+                        out.colored_vertex(
+                            p + n * inner_rad,
+                            get_color(color_inner, p + n * inner_rad),
+                        );
+                        out.colored_vertex(
+                            p - n * inner_rad,
+                            get_color(color_inner, p - n * inner_rad),
+                        );
                         out.colored_vertex(p - n * outer_rad, color_outer);
 
                         out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -1045,10 +1061,15 @@ fn stroke_path(
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = -n.rot90() * feathering;
-                        let color = get_color(color_inner, p);
                         out.colored_vertex(p + n * outer_rad + back_extrude, color_outer);
-                        out.colored_vertex(p + n * inner_rad, color);
-                        out.colored_vertex(p - n * inner_rad, color);
+                        out.colored_vertex(
+                            p + n * inner_rad,
+                            get_color(color_inner, p + n * inner_rad),
+                        );
+                        out.colored_vertex(
+                            p - n * inner_rad,
+                            get_color(color_inner, p - n * inner_rad),
+                        );
                         out.colored_vertex(p - n * outer_rad + back_extrude, color_outer);
 
                         out.add_triangle(idx + 4 * i0 + 0, idx + 4 * i0 + 1, idx + 4 * i1 + 0);
@@ -1101,15 +1122,38 @@ fn stroke_path(
                 }
             }
             for p in path {
-                let color = mul_color(get_color(&stroke.color, p.pos), stroke.width / feathering);
-                out.colored_vertex(p.pos + radius * p.normal, color);
-                out.colored_vertex(p.pos - radius * p.normal, color);
+                out.colored_vertex(
+                    p.pos + radius * p.normal,
+                    mul_color(
+                        get_color(&stroke.color, p.pos + radius * p.normal),
+                        stroke.width / feathering,
+                    ),
+                );
+                out.colored_vertex(
+                    p.pos - radius * p.normal,
+                    mul_color(
+                        get_color(&stroke.color, p.pos - radius * p.normal),
+                        stroke.width / feathering,
+                    ),
+                );
             }
         } else {
             let radius = stroke.width / 2.0;
             for p in path {
-                out.colored_vertex(p.pos + radius * p.normal, get_color(&stroke.color, p.pos));
-                out.colored_vertex(p.pos - radius * p.normal, get_color(&stroke.color, p.pos));
+                out.colored_vertex(
+                    p.pos + radius * p.normal,
+                    mul_color(
+                        get_color(&stroke.color, p.pos + radius * p.normal),
+                        stroke.width / feathering,
+                    ),
+                );
+                out.colored_vertex(
+                    p.pos - radius * p.normal,
+                    mul_color(
+                        get_color(&stroke.color, p.pos - radius * p.normal),
+                        stroke.width / feathering,
+                    ),
+                );
             }
         }
     }
@@ -2023,4 +2067,46 @@ fn test_tessellator() {
         .tessellate_shapes(clipped_shapes);
 
     assert_eq!(primitives.len(), 2);
+}
+
+#[test]
+fn path_bounding_box() {
+    use crate::*;
+
+    for i in 1..=100 {
+        let width = i as f32;
+
+        let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
+        let expected_rect = rect.expand((width / 2.0) + 2.5);
+
+        let mut mesh = Mesh::default();
+
+        let mut path = Path::default();
+        path.add_open_points(&[
+            pos2(0.0, 0.0),
+            pos2(2.0, 0.0),
+            pos2(5.0, 5.0),
+            pos2(0.0, 5.0),
+            pos2(0.0, 7.0),
+            pos2(10.0, 10.0),
+        ]);
+
+        path.stroke(
+            1.5,
+            PathType::Closed,
+            &PathStroke::new_uv(width, move |r, p| {
+                assert_eq!(r, expected_rect);
+                assert!(
+                    r.contains(p),
+                    "passed rect {r:?} didn't contain point {p:?}"
+                );
+                assert!(
+                    expected_rect.contains(p),
+                    "expected rect {expected_rect:?} didn't contain point {p:?}"
+                );
+                Color32::WHITE
+            }),
+            &mut mesh,
+        );
+    }
 }
