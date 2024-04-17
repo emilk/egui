@@ -957,6 +957,7 @@ fn events(
 
             Event::ImeEnable | Event::CompositionStart => {
                 state.has_ime = true;
+                state.ime_target_id = id;
                 state.ime_cursor_range = cursor_range;
                 None
             }
@@ -984,6 +985,7 @@ fn events(
                     state.has_ime = false;
                     let mut ccursor;
                     if !prediction.is_empty()
+                        && state.ime_target_id == id
                         && cursor_range.secondary.ccursor.index
                             == state.ime_cursor_range.secondary.ccursor.index
                     {
