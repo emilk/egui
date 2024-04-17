@@ -1,194 +1,107 @@
-// TODO(emilk): have separate types `PositionId` and `UniqueId`. ?
+use std::sync::Arc;
 
-use std::num::NonZeroU64;
+use crate::mutex::Mutex;
 
-/// egui tracks widgets frame-to-frame using [`Id`]s.
+use crate::*;
+
+use self::text_selection::{CCursorRange, CursorRange, TextCursorState};
+
+pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
+
+/// The text edit state stored between frames.
 ///
-/// For instance, if you start dragging a slider one frame, egui stores
-/// the sliders [`Id`] as the current active id so that next frame when
-/// you move the mouse the same slider changes, even if the mouse has
-/// moved outside the slider.
+/// Attention: You also need to `store` the updated state.
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// # let mut text = String::new();
+/// use egui::text::{CCursor, CCursorRange};
 ///
-/// For some widgets [`Id`]s are also used to persist some state about the
-/// widgets, such as Window position or whether not a collapsing header region is open.
+/// let mut output = egui::TextEdit::singleline(&mut text).show(ui);
 ///
-/// This implies that the [`Id`]s must be unique.
+/// // Create a new selection range
+/// let min = CCursor::new(0);
+/// let max = CCursor::new(0);
+/// let new_range = CCursorRange::two(min, max);
 ///
-/// For simple things like sliders and buttons that don't have any memory and
-/// doesn't move we can use the location of the widget as a source of identity.
-/// For instance, a slider only needs a unique and persistent ID while you are
-/// dragging the slider. As long as it is still while moving, that is fine.
-///
-/// For things that need to persist state even after moving (windows, collapsing headers)
-/// the location of the widgets is obviously not good enough. For instance,
-/// a collapsing region needs to remember whether or not it is open even
-/// if the layout next frame is different and the collapsing is not lower down
-/// on the screen.
-///
-/// Then there are widgets that need no identifiers at all, like labels,
-/// because they have no state nor are interacted with.
-///
-/// This is niche-optimized to that `Option<Id>` is the same size as `Id`.
-#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+/// // Update the state
+/// output.state.cursor.set_char_range(Some(new_range));
+/// // Store the updated state
+/// output.state.store(ui.ctx(), output.response.id);
+/// # });
+/// ```
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Id(NonZeroU64);
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct TextEditState {
+    /// Controls the text selection.
+    pub cursor: TextCursorState,
 
-impl Default for Id {
-    fn default() -> Self {
-        Self::NULL
-    }
+    /// Wrapped in Arc for cheaper clones.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
+
+    // If IME candidate window is shown on this text edit.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) has_ime: bool,
+
+    // target ID for IME candidate.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) ime_target_id: Id,
+
+    // cursor range for IME candidate.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) ime_cursor_range: CursorRange,
+
+    // Visual offset when editing singleline text bigger than the width.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) singleline_offset: f32,
+
+    /// When did the user last press a key?
+    /// Used to pause the cursor animation when typing.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) last_edit_time: f64,
 }
 
-impl Id {
-    /// A special [`Id`], in particular as a key to [`crate::Memory::data`]
-    /// for when there is no particular widget to attach the data.
-    ///
-    /// The null [`Id`] is still a valid id to use in all circumstances,
-    /// though obviously it will lead to a lot of collisions if you do use it!
-    pub const NULL: Self = Self(NonZeroU64::MAX);
-
-    #[inline]
-    const fn from_hash(hash: u64) -> Self {
-        if let Some(nonzero) = NonZeroU64::new(hash) {
-            Self(nonzero)
-        } else {
-            Self(NonZeroU64::MIN) // The hash was exactly zero (very bad luck)
-        }
+impl TextEditState {
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
-    /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
-    pub fn new(source: impl std::hash::Hash) -> Self {
-        Self::from_hash(epaint::ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(source))
+    pub fn store(self, ctx: &Context, id: Id) {
+        ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
-    /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.
-    pub fn with(self, child: impl std::hash::Hash) -> Self {
-        use std::hash::{BuildHasher, Hasher};
-        let mut hasher = epaint::ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
-        hasher.write_u64(self.0.get());
-        child.hash(&mut hasher);
-        Self::from_hash(hasher.finish())
+    /// The the currently selected range of characters.
+    #[deprecated = "Use `self.cursor.char_range` instead"]
+    pub fn ccursor_range(&self) -> Option<CCursorRange> {
+        self.cursor.char_range()
     }
 
-    /// Short and readable summary
-    pub fn short_debug_format(&self) -> String {
-        format!("{:04X}", self.value() as u16)
+    /// Sets the currently selected range of characters.
+    #[deprecated = "Use `self.cursor.set_char_range` instead"]
+    pub fn set_ccursor_range(&mut self, ccursor_range: Option<CCursorRange>) {
+        self.cursor.set_char_range(ccursor_range);
     }
 
-    /// The inner value of the [`Id`].
-    ///
-    /// This is a high-entropy hash, or [`Self::NULL`].
-    #[inline(always)]
-    pub fn value(&self) -> u64 {
-        self.0.get()
+    #[deprecated = "Use `self.cursor.set_range` instead"]
+    pub fn set_cursor_range(&mut self, cursor_range: Option<CursorRange>) {
+        self.cursor.set_range(cursor_range);
     }
 
-    #[cfg(feature = "accesskit")]
-    pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
-        self.value().into()
+    pub fn undoer(&self) -> TextEditUndoer {
+        self.undoer.lock().clone()
+    }
+
+    pub fn set_undoer(&mut self, undoer: TextEditUndoer) {
+        *self.undoer.lock() = undoer;
+    }
+
+    pub fn clear_undoer(&mut self) {
+        self.set_undoer(TextEditUndoer::default());
+    }
+
+    #[deprecated = "Use `self.cursor.range` instead"]
+    pub fn cursor_range(&mut self, galley: &Galley) -> Option<CursorRange> {
+        self.cursor.range(galley)
     }
 }
-
-impl std::fmt::Debug for Id {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:04X}", self.value() as u16)
-    }
-}
-
-/// Convenience
-impl From<&'static str> for Id {
-    #[inline]
-    fn from(string: &'static str) -> Self {
-        Self::new(string)
-    }
-}
-
-impl From<String> for Id {
-    #[inline]
-    fn from(string: String) -> Self {
-        Self::new(string)
-    }
-}
-
-#[test]
-fn id_size() {
-    assert_eq!(std::mem::size_of::<Id>(), 8);
-    assert_eq!(std::mem::size_of::<Option<Id>>(), 8);
-}
-
-// ----------------------------------------------------------------------------
-
-// Idea taken from the `nohash_hasher` crate.
-#[derive(Default)]
-pub struct IdHasher(u64);
-
-impl std::hash::Hasher for IdHasher {
-    fn write(&mut self, _: &[u8]) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_u8(&mut self, _n: u8) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_u16(&mut self, _n: u16) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_u32(&mut self, _n: u32) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    #[inline(always)]
-    fn write_u64(&mut self, n: u64) {
-        self.0 = n;
-    }
-
-    fn write_usize(&mut self, _n: usize) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i8(&mut self, _n: i8) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i16(&mut self, _n: i16) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i32(&mut self, _n: i32) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_i64(&mut self, _n: i64) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    fn write_isize(&mut self, _n: isize) {
-        unreachable!("Invalid use of IdHasher");
-    }
-
-    #[inline(always)]
-    fn finish(&self) -> u64 {
-        self.0
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct BuildIdHasher {}
-
-impl std::hash::BuildHasher for BuildIdHasher {
-    type Hasher = IdHasher;
-
-    #[inline(always)]
-    fn build_hasher(&self) -> IdHasher {
-        IdHasher::default()
-    }
-}
-
-/// `IdSet` is a `HashSet<Id>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
-pub type IdSet = std::collections::HashSet<Id, BuildIdHasher>;
-
-/// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
-pub type IdMap<V> = std::collections::HashMap<Id, V, BuildIdHasher>;
