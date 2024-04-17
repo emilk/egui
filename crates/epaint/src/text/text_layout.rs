@@ -296,7 +296,7 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
                 // Start a new row:
                 row_start_idx = last_kept_index + 1;
                 row_start_x = paragraph.glyphs[row_start_idx].pos.x;
-                row_break_candidates.forget_candiates_before_idx(row_start_idx);
+                row_break_candidates.forget_before_idx(row_start_idx);
             } else {
                 // Found no place to break, so we have to overrun wrap_width.
             }
@@ -944,7 +944,7 @@ impl RowBreakCandidates {
         }
     }
 
-    fn forget_candiates_before_idx(&mut self, index: usize) {
+    fn forget_before_idx(&mut self, index: usize) {
         if self.space.map(|s| s < index).unwrap_or_default() {
             self.space = None;
         }
