@@ -3,6 +3,7 @@
 #![allow(clippy::exit)]
 
 mod deny;
+pub(crate) mod utils;
 
 type DynError = Box<dyn std::error::Error>;
 

@@ -45,11 +45,15 @@ pub fn deny(args: &[&str]) -> Result<(), DynError> {
 }
 
 fn install_cargo_deny() -> Result<(), DynError> {
-    let status = Command::new("cargo")
-        .args(["+stable", "install", "--quiet", "--locked", "cargo-deny"])
-        .status()?;
-    if !status.success() {
-        return Err(status.to_string().into());
+    let already_installed = Command::new("cargo")
+        .args(["deny", "--version"])
+        .output()
+        .is_ok_and(|out| out.status.success());
+    if already_installed {
+        return Ok(());
     }
-    Ok(())
+    let mut cmd = Command::new("cargo");
+    cmd.args(["+stable", "install", "--quiet", "--locked", "cargo-deny"]);
+    let reason = "install cargo-deny";
+    super::utils::ask_to_run(cmd, true, reason)
 }
