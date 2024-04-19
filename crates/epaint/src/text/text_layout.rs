@@ -945,23 +945,31 @@ impl RowBreakCandidates {
     }
 
     fn forget_before_idx(&mut self, index: usize) {
-        if self.space.map(|s| s < index).unwrap_or_default() {
-            self.space = None;
+        let Self {
+            space,
+            cjk,
+            pre_cjk,
+            dash,
+            punctuation,
+            any,
+        } = self;
+        if space.map_or(false, |s| s < index) {
+            *space = None;
         }
-        if self.cjk.map(|s| s < index).unwrap_or_default() {
-            self.cjk = None;
+        if cjk.map_or(false, |s| s < index) {
+            *cjk = None;
         }
-        if self.pre_cjk.map(|s| s < index).unwrap_or_default() {
-            self.pre_cjk = None;
+        if pre_cjk.map_or(false, |s| s < index) {
+            *pre_cjk = None;
         }
-        if self.dash.map(|s| s < index).unwrap_or_default() {
-            self.dash = None;
+        if dash.map_or(false, |s| s < index) {
+            *dash = None;
         }
-        if self.punctuation.map(|s| s < index).unwrap_or_default() {
-            self.punctuation = None;
+        if punctuation.map_or(false, |s| s < index) {
+            *punctuation = None;
         }
-        if self.any.map(|s| s < index).unwrap_or_default() {
-            self.any = None;
+        if any.map_or(false, |s| s < index) {
+            *any = None;
         }
     }
 }
