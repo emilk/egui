@@ -829,7 +829,7 @@ impl State {
             let ime_rect_px = ime.rect * pixels_per_point;
             let mut need_set_ime_cursor_area = true;
 
-            // On Wayland of Linux, repaints every frame : See https://github.com/emilk/egui/pull/4254
+            // On Wayland of Linux, repaints every frame Issue : See https://github.com/emilk/egui/pull/4254
             if self.egui_ctx.os() == egui::os::OperatingSystem::Nix {
                 need_set_ime_cursor_area = self.ime_rect_px != Some(ime_rect_px)
                     && self.egui_ctx.input(|i| !i.events.is_empty());
