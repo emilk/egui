@@ -255,6 +255,8 @@ You can also call the layout code twice (once to get the size, once to do the in
 
 For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so centering buttons, labels etc is possible in `egui` without any special workarounds.
 
+See [this issue](https://github.com/emilk/egui/issues/4378) for more.
+
 #### CPU usage
 Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be laid out each frame.
 
