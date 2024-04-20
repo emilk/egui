@@ -38,6 +38,7 @@ pub struct Window<'open> {
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
+    closebutton: bool,
     default_open: bool,
     with_title_bar: bool,
 }
@@ -60,6 +61,7 @@ impl<'open> Window<'open> {
                 .default_size([340.0, 420.0]), // Default inner size of a window
             scroll: ScrollArea::neither(),
             collapsible: true,
+            closebutton: true,
             default_open: true,
             with_title_bar: true,
         }
@@ -316,6 +318,13 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Show close button on title bar?
+    #[inline]
+    pub fn closebutton(mut self, closebutton: bool) -> Self {
+        self.closebutton = closebutton;
+        self
+    }
+
     /// Show title bar on top of the window?
     /// If `false`, the window will not be collapsible nor have a close-button.
     #[inline]
@@ -400,6 +409,7 @@ impl<'open> Window<'open> {
             resize,
             scroll,
             collapsible,
+            closebutton,
             default_open,
             with_title_bar,
         } = self;
@@ -430,12 +440,6 @@ impl<'open> Window<'open> {
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
-        let resize = resize.resizable(false); // We resize it manually
-        let mut resize = resize.id(resize_id);
-
-        let on_top = Some(area_layer_id) == ctx.top_layer_id();
-        let mut area = area.begin(ctx);
-
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
@@ -448,42 +452,49 @@ impl<'open> Window<'open> {
             (0.0, 0.0)
         };
 
-        {
-            // Prevent window from becoming larger than the constraint rect and/or screen rect.
-            let screen_rect = ctx.screen_rect();
-            let max_rect = area.constrain_rect().unwrap_or(screen_rect);
-            let max_width = max_rect.width();
-            let max_height = max_rect.height() - title_bar_height;
-            resize.max_size.x = resize.max_size.x.min(max_width);
-            resize.max_size.y = resize.max_size.y.min(max_height);
-        }
-
-        // First check for resize to avoid frame delay:
-        let last_frame_outer_rect = area.state().rect();
-        let resize_interaction =
-            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
-
         let margins = window_frame.outer_margin.sum()
             + window_frame.inner_margin.sum()
             + vec2(0.0, title_bar_height);
+
+        let resize = resize.resizable(false); // We resize it manually
+        let mut resize = resize.id(resize_id);
+
+        // Prevent window from becoming larger than the screen rect.
+        {
+            let max_size = ctx.screen_rect().size() - margins;
+            resize.max_size.x = resize.max_size.x.min(max_size.x);
+            resize.max_size.y = resize.max_size.y.min(max_size.y);
+        }
+
+        let mut prepared_area = area.begin(ctx);
+        let last_frame_outer_rect = prepared_area.state().rect();
+
+        // First check for resize to avoid frame delay:
+        let resize_interaction =
+            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
+
+        if let Some(mut state) = resize::State::load(ctx, resize_id) {
+            state.desired_size = resize_interaction.start_rect.size() - margins;
+            state.store(ctx, resize_id);
+        }
 
         resize_response(
             resize_interaction,
             ctx,
             margins,
             area_layer_id,
-            &mut area,
+            &mut prepared_area,
             resize_id,
         );
 
-        let mut area_content_ui = area.content_ui(ctx);
+        let mut area_content_ui = prepared_area.content_ui(ctx);
 
         let content_inner = {
             // BEGIN FRAME --------------------------------
             let frame_stroke = window_frame.stroke;
             let mut frame = window_frame.begin(&mut area_content_ui);
 
-            let show_close_button = open.is_some();
+            let show_close_button = open.is_some() && closebutton;
 
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
@@ -496,9 +507,9 @@ impl<'open> Window<'open> {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
-                    show_close_button,
                     &mut collapsing,
                     collapsible,
+                    show_close_button,
                 );
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
@@ -544,6 +555,7 @@ impl<'open> Window<'open> {
                     },
                 );
 
+                let on_top = Some(area_layer_id) == ctx.top_layer_id();
                 title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
 
                 if on_top && area_content_ui.visuals().window_highlight_topmost {
@@ -579,7 +591,6 @@ impl<'open> Window<'open> {
                     &content_response,
                     open,
                     &mut collapsing,
-                    collapsible,
                 );
             }
 
@@ -590,7 +601,7 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        let full_response = area.end(ctx, area_content_ui);
+        let full_response = prepared_area.end(ctx, area_content_ui);
 
         let inner_response = InnerResponse {
             inner: content_inner,
@@ -1008,14 +1019,20 @@ struct TitleBar {
     /// Size of the title bar in an expanded state. This size become known only
     /// after expanding window and painting its content
     rect: Rect,
+
+    /// Can the window be collapsed by clicking on its title?
+    collapsible: bool,
+
+    /// Show close button on title bar?
+    closebutton: bool,
 }
 
 fn show_title_bar(
     ui: &mut Ui,
     title: WidgetText,
-    show_close_button: bool,
     collapsing: &mut CollapsingState,
     collapsible: bool,
+    show_close_button: bool,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = ui
@@ -1049,6 +1066,8 @@ fn show_title_bar(
             title_galley,
             min_rect,
             rect: Rect::NAN, // Will be filled in later
+            collapsible,
+            closebutton: show_close_button,
         }
     });
 
@@ -1080,17 +1099,18 @@ impl TitleBar {
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
-        collapsible: bool,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
-        if let Some(open) = open {
-            // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked() {
-                *open = false;
+        if self.closebutton {
+            if let Some(open) = open {
+                // Add close button now that we know our full width:
+                if self.close_button_ui(ui).clicked() {
+                    *open = false;
+                }
             }
         }
 
@@ -1122,7 +1142,7 @@ impl TitleBar {
         if ui
             .interact(double_click_rect, self.id, Sense::click())
             .double_clicked()
-            && collapsible
+            && self.collapsible
         {
             collapsing.toggle(ui);
         }
