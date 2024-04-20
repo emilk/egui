@@ -1,7 +1,12 @@
+use std::sync::Arc;
+
 use crate::*;
 
 /// Remember to handle [`Color32::PLACEHOLDER`] specially!
-pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
+pub fn adjust_colors(
+    shape: &mut Shape,
+    adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
+) {
     #![allow(clippy::match_same_arms)]
     match shape {
         Shape::Noop => {}
@@ -10,9 +15,16 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
                 adjust_colors(shape, adjust_color);
             }
         }
-        Shape::LineSegment { stroke, points: _ } => match stroke.color {
+        Shape::LineSegment { stroke, points: _ } => match &stroke.color {
             color::ColorMode::Solid(mut col) => adjust_color(&mut col),
-            color::ColorMode::UV(_) => {}
+            color::ColorMode::UV(callback) => {
+                let callback = callback.clone();
+                stroke.color = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
+                    let mut col = callback(rect, pos);
+                    adjust_color(&mut col);
+                    col
+                })));
+            }
         },
 
         Shape::Path(PathShape {
@@ -34,9 +46,16 @@ pub fn adjust_colors(shape: &mut Shape, adjust_color: &impl Fn(&mut Color32)) {
             stroke,
         }) => {
             adjust_color(fill);
-            match stroke.color {
+            match &stroke.color {
                 color::ColorMode::Solid(mut col) => adjust_color(&mut col),
-                color::ColorMode::UV(_) => {}
+                color::ColorMode::UV(callback) => {
+                    let callback = callback.clone();
+                    stroke.color = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
+                        let mut col = callback(rect, pos);
+                        adjust_color(&mut col);
+                        col
+                    })));
+                }
             }
         }
 

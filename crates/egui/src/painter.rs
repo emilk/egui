@@ -513,7 +513,7 @@ impl Painter {
 }
 
 fn tint_shape_towards(shape: &mut Shape, target: Color32) {
-    epaint::shape_transform::adjust_colors(shape, &|color| {
+    epaint::shape_transform::adjust_colors(shape, move |color| {
         if *color != Color32::PLACEHOLDER {
             *color = crate::ecolor::tint_color_towards(*color, target);
         }
@@ -521,7 +521,7 @@ fn tint_shape_towards(shape: &mut Shape, target: Color32) {
 }
 
 fn multiply_opacity(shape: &mut Shape, opacity: f32) {
-    epaint::shape_transform::adjust_colors(shape, &|color| {
+    epaint::shape_transform::adjust_colors(shape, move |color| {
         if *color != Color32::PLACEHOLDER {
             *color = color.gamma_multiply(opacity);
         }
