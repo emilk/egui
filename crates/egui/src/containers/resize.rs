@@ -205,16 +205,8 @@ impl Resize {
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
 
-            let default_size = self
-                .default_size
-                .at_least(self.min_size)
-                .at_most(self.max_size)
-                .at_most(
-                    ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
-                );
-
             State {
-                desired_size: default_size,
+                desired_size: self.default_size,
                 last_content_size: vec2(0.0, 0.0),
                 requested_size: None,
             }
@@ -223,7 +215,10 @@ impl Resize {
         state.desired_size = state
             .desired_size
             .at_least(self.min_size)
-            .at_most(self.max_size);
+            .at_most(self.max_size)
+            .at_most(
+                ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
+            );
 
         let mut user_requested_size = state.requested_size.take();
 
