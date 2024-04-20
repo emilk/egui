@@ -203,7 +203,7 @@ impl Resize {
         });
 
         let margins = ui.spacing().window_margin.sum();
-    
+
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
 
@@ -218,9 +218,7 @@ impl Resize {
             .desired_size
             .at_least(self.min_size)
             .at_most(self.max_size)
-            .at_most(
-                ui.ctx().screen_rect().size() - margins, // hack for windows
-            );
+            .at_most(ui.ctx().screen_rect().size() - margins);
 
         let mut user_requested_size = state.requested_size.take();
 
