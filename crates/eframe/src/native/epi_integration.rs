@@ -30,7 +30,7 @@ pub fn viewport_builder<E>(
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
 
-        if with_constraint {
+        if clamp_size_to_monitor_size {
             window_settings.clamp_size_to_sane_values(largest_monitor_point_size(
                 egui_zoom_factor,
                 event_loop,
