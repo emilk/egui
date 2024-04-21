@@ -47,7 +47,7 @@ impl Default for Settings {
 ///
 /// Rule 1) will make sure an undo point is not created until you _stop_ dragging that slider.
 /// Rule 2) will make sure that you will get some undo points even if you are constantly changing the state.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Undoer<State> {
     settings: Settings,
@@ -77,6 +77,21 @@ impl<State> std::fmt::Debug for Undoer<State> {
     }
 }
 
+impl<State> Default for Undoer<State>
+where
+    State: Clone + PartialEq,
+{
+    #[inline]
+    fn default() -> Self {
+        Self {
+            settings: Settings::default(),
+            undos: VecDeque::new(),
+            redos: Vec::new(),
+            flux: None,
+        }
+    }
+}
+
 /// Represents how the current state is changing
 #[derive(Clone)]
 struct Flux<State> {
@@ -89,6 +104,14 @@ impl<State> Undoer<State>
 where
     State: Clone + PartialEq,
 {
+    /// Create a new [`Undoer`] with the given [`Settings`].
+    pub fn with_settings(settings: Settings) -> Self {
+        Self {
+            settings,
+            ..Default::default()
+        }
+    }
+
     /// Do we have an undo point different from the given state?
     pub fn has_undo(&self, current_state: &State) -> bool {
         match self.undos.len() {
