@@ -15,7 +15,7 @@ pub enum ColorMode {
     ///
     /// **This cannot be serialized**
     #[cfg_attr(feature = "serde", serde(skip))]
-    UV(Arc<Box<dyn Fn(Rect, Pos2) -> Color32 + Send + Sync>>),
+    UV(Arc<dyn Fn(Rect, Pos2) -> Color32 + Send + Sync>),
 }
 
 impl Default for ColorMode {
