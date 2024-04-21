@@ -10,7 +10,7 @@ use std::hash::{Hash, Hasher};
 /// All NaNs are considered equal to each other.
 /// The size of zero is ignored.
 ///
-/// See also [`FloatOrd`].
+/// See also [`Float`].
 #[derive(Clone, Copy)]
 pub struct OrderedFloat<T>(pub T);
 
