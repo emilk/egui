@@ -1,21 +1,12 @@
-use colorgrad::{Color, CustomGradient, Gradient};
-use egui::{containers::*, epaint::PathStroke, *};
-use noise::{NoiseFn, OpenSimplex};
-use once_cell::sync::Lazy;
+use egui::{containers::*, ecolor::*, epaint::PathStroke, *};
 
-static GRADIENT: Lazy<Gradient> = Lazy::new(|| {
-    CustomGradient::new()
-        .colors(&[
-            Color::from_html("#5BCEFA").unwrap(),
-            Color::from_html("#F5A9B8").unwrap(),
-            Color::from_html("#FFFFFF").unwrap(),
-            Color::from_html("#F5A9B8").unwrap(),
-            Color::from_html("#5BCEFA").unwrap(),
-        ])
-        .build()
-        .unwrap_or(colorgrad::rainbow())
-});
-static NOISE: Lazy<OpenSimplex> = Lazy::new(|| OpenSimplex::new(6940));
+static GRADIENT: [Color32; 5] = [
+    hex_color!("#5BCEFA"),
+    hex_color!("#F5A9B8"),
+    Color32::WHITE,
+    hex_color!("#F5A9B8"),
+    hex_color!("#5BCEFA"),
+];
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -73,8 +64,22 @@ impl super::View for DancingStrings {
                         let x = remap(p.x, rect.x_range(), 0.0..=1.0) as f64;
                         let y = remap(p.y, rect.y_range(), 0.0..=1.0) as f64;
 
-                        let noise = NOISE.get([x * 1.25 + time, y * 1.25 + time]);
-                        let color = GRADIENT.at(noise).to_rgba8();
+                        let amp = (time * speed * mode).sin() / mode;
+                        let sin = amp * (time * std::f64::consts::TAU / 2.0 * mode).sin();
+
+                        let value = x * sin + y * sin;
+
+                        let color = if value < 0.2 {
+                            GRADIENT[0]
+                        } else if value < 0.4 {
+                            GRADIENT[1]
+                        } else if value < 0.6 {
+                            GRADIENT[2]
+                        } else if value < 0.8 {
+                            GRADIENT[3]
+                        } else {
+                            GRADIENT[4]
+                        };
 
                         Color32::from_rgba_premultiplied(color[0], color[1], color[2], color[3])
                     }),
