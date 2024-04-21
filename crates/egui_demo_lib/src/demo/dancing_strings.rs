@@ -1,12 +1,15 @@
 use egui::{containers::*, epaint::PathStroke, *};
+use once_cell::sync::Lazy;
 
-static GRADIENT: [Color32; 5] = [
-    hex_color!("#5BCEFA"),
-    hex_color!("#F5A9B8"),
-    Color32::WHITE,
-    hex_color!("#F5A9B8"),
-    hex_color!("#5BCEFA"),
-];
+static GRADIENT: Lazy<[Color32; 5]> = Lazy::new(|| {
+    [
+        hex_color!("#5BCEFA"),
+        hex_color!("#F5A9B8"),
+        Color32::WHITE,
+        hex_color!("#F5A9B8"),
+        hex_color!("#5BCEFA"),
+    ]
+});
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
