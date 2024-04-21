@@ -1001,7 +1001,7 @@ impl Ui {
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
-        let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
+        let painter = self.painter().with_clip_rect(clip_rect);
         (response, painter)
     }
 
