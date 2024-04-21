@@ -587,7 +587,7 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        let full_response = area.end(ctx, area_content_ui);
+        let full_response = prepared_area.end(ctx, area_content_ui);
 
         let inner_response = InnerResponse {
             inner: content_inner,
