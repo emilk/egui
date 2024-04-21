@@ -296,8 +296,7 @@ pub fn is_word_char(c: char) -> bool {
 ///
 /// Punctuation marks that are commonly used with strings are considered string components.
 pub fn is_string_component(c: char) -> bool {
-    if c == '_' || c == '-' || c == ':' || c == '/' || c == '.' || c == '\\' || c == '@' || c == '#'
-    {
+    if matches!(c, '_' | '-' | ':' | '/' | '.' | '\\' | '@' | '#') {
         return true;
     }
 
