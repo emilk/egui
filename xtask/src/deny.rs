@@ -8,7 +8,7 @@ use super::DynError;
 
 pub fn deny(args: &[&str]) -> Result<(), DynError> {
     if !args.is_empty() {
-        eprintln!("Warning: arguments ignored: {args:?}");
+        return Err(format!("Invalid arguments: {args:?}").into());
     }
     install_cargo_deny()?;
     let targets = [
