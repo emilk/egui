@@ -287,7 +287,7 @@ impl WgpuWinitApp {
                     maximized: Some(window.is_maximized()),
                     ..Default::default()
                 },
-                actions_requested: HashSetExt::new(),
+                actions_requested: Default::default(),
                 viewport_ui_cb: None,
                 window: Some(window),
                 egui_winit: Some(egui_winit),

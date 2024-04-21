@@ -82,7 +82,7 @@ impl EguiGlow {
             log::warn!("Multiple viewports not yet supported by EguiGlow");
         }
         for (_, ViewportOutput { commands, .. }) in viewport_output {
-            let mut actions_requested: HashSet<egui_winit::ActionRequested> = HashSetExt::new();
+            let mut actions_requested: HashSet<egui_winit::ActionRequested> = Default::default();
             egui_winit::process_viewport_commands(
                 &self.egui_ctx,
                 &mut self.viewport_info,
