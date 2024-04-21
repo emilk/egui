@@ -967,15 +967,18 @@ pub enum ViewportCommand {
     Screenshot,
 
     /// Request cut of the current selection
-    /// this is equivalent to the system keyboard shortcut for cut (e.g. CTRL + X)
+    ///
+    /// This is equivalent to the system keyboard shortcut for cut (e.g. CTRL + X).
     RequestCut,
 
-    /// Request a copy of the current selection
-    /// this is equivalent to the system keyboard shortcut for copy (e.g. CTRL + C)
+    /// Request a copy of the current selection.
+    ///
+    /// This is equivalent to the system keyboard shortcut for copy (e.g. CTRL + C).
     RequestCopy,
 
-    /// Request a paste from the clipboard to the current focused TextEdit if any
-    /// this is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V)
+    /// Request a paste from the clipboard to the current focused TextEdit if any.
+    ///
+    /// This is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V).
     RequestPaste,
 }
 
