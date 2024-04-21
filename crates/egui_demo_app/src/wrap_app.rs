@@ -79,15 +79,22 @@ impl eframe::App for ColorTestApp {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Anchor {
     Demo,
+
     EasyMarkEditor,
+
     #[cfg(feature = "http")]
     Http,
+
     #[cfg(feature = "image_viewer")]
     ImageViewer,
+
     Clock,
+
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     Custom3d,
-    Colors,
+
+    /// Rendering test
+    Rendering,
 }
 
 impl Anchor {
@@ -101,7 +108,7 @@ impl Anchor {
             Self::Clock,
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             Self::Custom3d,
-            Self::Colors,
+            Self::Rendering,
         ]
     }
 }
@@ -147,7 +154,7 @@ pub struct State {
     #[cfg(feature = "image_viewer")]
     image_viewer: crate::apps::ImageViewer,
     clock: FractalClockApp,
-    color_test: ColorTestApp,
+    rendering_test: ColorTestApp,
 
     selected_anchor: Anchor,
     backend_panel: super::backend_panel::BackendPanel,
@@ -229,9 +236,9 @@ impl WrapApp {
         }
 
         vec.push((
-            "🎨 Color test",
-            Anchor::Colors,
-            &mut self.state.color_test as &mut dyn eframe::App,
+            "🎨 Rendering test",
+            Anchor::Rendering,
+            &mut self.state.rendering_test as &mut dyn eframe::App,
         ));
 
         vec.into_iter()
@@ -245,7 +252,13 @@ impl eframe::App for WrapApp {
     }
 
     fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
-        visuals.panel_fill.to_normalized_gamma_f32()
+        // Give the area behind the floating windows a different color, because it looks better:
+        let color = egui::lerp(
+            egui::Rgba::from(visuals.panel_fill)..=egui::Rgba::from(visuals.extreme_bg_color),
+            0.5,
+        );
+        let color = egui::Color32::from(color);
+        color.to_normalized_gamma_f32()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

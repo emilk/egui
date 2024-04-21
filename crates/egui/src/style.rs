@@ -7,7 +7,8 @@ use std::collections::BTreeMap;
 use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Response, RichText, WidgetText,
+    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
+    RichText, WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -213,6 +214,9 @@ pub struct Style {
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
 
+    /// Show the URL of hyperlinks in a tooltip when hovered.
+    pub url_in_tooltip: bool,
+
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
 }
@@ -281,6 +285,9 @@ pub struct Spacing {
     /// Default width of a [`Slider`].
     pub slider_width: f32,
 
+    /// Default rail height of a [`Slider`].
+    pub slider_rail_height: f32,
+
     /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
     pub combo_width: f32,
 
@@ -304,6 +311,9 @@ pub struct Spacing {
 
     /// The default width of a menu.
     pub menu_width: f32,
+
+    /// Horizontal distance between a menu and a submenu.
+    pub menu_spacing: f32,
 
     /// End indented regions with a horizontal line
     pub indent_ends_with_horizontal_line: bool,
@@ -604,216 +614,6 @@ impl ScrollStyle {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Margin {
-    pub left: f32,
-    pub right: f32,
-    pub top: f32,
-    pub bottom: f32,
-}
-
-impl Margin {
-    pub const ZERO: Self = Self {
-        left: 0.0,
-        right: 0.0,
-        top: 0.0,
-        bottom: 0.0,
-    };
-
-    #[inline]
-    pub const fn same(margin: f32) -> Self {
-        Self {
-            left: margin,
-            right: margin,
-            top: margin,
-            bottom: margin,
-        }
-    }
-
-    /// Margins with the same size on opposing sides
-    #[inline]
-    pub const fn symmetric(x: f32, y: f32) -> Self {
-        Self {
-            left: x,
-            right: x,
-            top: y,
-            bottom: y,
-        }
-    }
-
-    /// Total margins on both sides
-    #[inline]
-    pub fn sum(&self) -> Vec2 {
-        vec2(self.left + self.right, self.top + self.bottom)
-    }
-
-    #[inline]
-    pub const fn left_top(&self) -> Vec2 {
-        vec2(self.left, self.top)
-    }
-
-    #[inline]
-    pub const fn right_bottom(&self) -> Vec2 {
-        vec2(self.right, self.bottom)
-    }
-
-    #[inline]
-    pub fn is_same(&self) -> bool {
-        self.left == self.right && self.left == self.top && self.left == self.bottom
-    }
-
-    #[inline]
-    pub fn expand_rect(&self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
-    }
-
-    #[inline]
-    pub fn shrink_rect(&self, rect: Rect) -> Rect {
-        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
-    }
-}
-
-impl From<f32> for Margin {
-    #[inline]
-    fn from(v: f32) -> Self {
-        Self::same(v)
-    }
-}
-
-impl From<Vec2> for Margin {
-    #[inline]
-    fn from(v: Vec2) -> Self {
-        Self::symmetric(v.x, v.y)
-    }
-}
-
-impl std::ops::Add for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        Self {
-            left: self.left + other.left,
-            right: self.right + other.right,
-            top: self.top + other.top,
-            bottom: self.bottom + other.bottom,
-        }
-    }
-}
-
-impl std::ops::Add<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn add(self, v: f32) -> Self {
-        Self {
-            left: self.left + v,
-            right: self.right + v,
-            top: self.top + v,
-            bottom: self.bottom + v,
-        }
-    }
-}
-
-impl std::ops::AddAssign<f32> for Margin {
-    #[inline]
-    fn add_assign(&mut self, v: f32) {
-        self.left += v;
-        self.right += v;
-        self.top += v;
-        self.bottom += v;
-    }
-}
-
-impl std::ops::Div<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn div(self, v: f32) -> Self {
-        Self {
-            left: self.left / v,
-            right: self.right / v,
-            top: self.top / v,
-            bottom: self.bottom / v,
-        }
-    }
-}
-
-impl std::ops::DivAssign<f32> for Margin {
-    #[inline]
-    fn div_assign(&mut self, v: f32) {
-        self.left /= v;
-        self.right /= v;
-        self.top /= v;
-        self.bottom /= v;
-    }
-}
-
-impl std::ops::Mul<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, v: f32) -> Self {
-        Self {
-            left: self.left * v,
-            right: self.right * v,
-            top: self.top * v,
-            bottom: self.bottom * v,
-        }
-    }
-}
-
-impl std::ops::MulAssign<f32> for Margin {
-    #[inline]
-    fn mul_assign(&mut self, v: f32) {
-        self.left *= v;
-        self.right *= v;
-        self.top *= v;
-        self.bottom *= v;
-    }
-}
-
-impl std::ops::Sub for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn sub(self, other: Self) -> Self {
-        Self {
-            left: self.left - other.left,
-            right: self.right - other.right,
-            top: self.top - other.top,
-            bottom: self.bottom - other.bottom,
-        }
-    }
-}
-
-impl std::ops::Sub<f32> for Margin {
-    type Output = Self;
-
-    #[inline]
-    fn sub(self, v: f32) -> Self {
-        Self {
-            left: self.left - v,
-            right: self.right - v,
-            top: self.top - v,
-            bottom: self.bottom - v,
-        }
-    }
-}
-
-impl std::ops::SubAssign<f32> for Margin {
-    #[inline]
-    fn sub_assign(&mut self, v: f32) {
-        self.left -= v;
-        self.right -= v;
-        self.top -= v;
-        self.bottom -= v;
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -845,6 +645,39 @@ pub struct Interaction {
     /// The default is `true`, but text seelction can be slightly glitchy,
     /// so you may want to disable it.
     pub multi_widget_text_select: bool,
+}
+
+/// Look and feel of the text cursor.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct TextCursorStyle {
+    /// The color and width of the text cursor
+    pub stroke: Stroke,
+
+    /// Show where the text cursor would be if you clicked?
+    pub preview: bool,
+
+    /// Should the cursor blink?
+    pub blink: bool,
+
+    /// When blinking, this is how long the cursor is visible.
+    pub on_duration: f32,
+
+    /// When blinking, this is how long the cursor is invisible.
+    pub off_duration: f32,
+}
+
+impl Default for TextCursorStyle {
+    fn default() -> Self {
+        Self {
+            stroke: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)), // Dark mode
+            preview: false,
+            blink: true,
+            on_duration: 0.5,
+            off_duration: 0.5,
+        }
+    }
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -922,11 +755,8 @@ pub struct Visuals {
 
     pub resize_corner_size: f32,
 
-    /// The color and width of the text cursor
-    pub text_cursor: Stroke,
-
-    /// show where the text cursor would be if you clicked
-    pub text_cursor_preview: bool,
+    /// How the text cursor acts.
+    pub text_cursor: TextCursorStyle,
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
@@ -1209,6 +1039,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
+            url_in_tooltip: false,
             always_scroll_the_only_direction: false,
         }
     }
@@ -1224,6 +1055,7 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
+            slider_rail_height: 8.0,
             combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
@@ -1231,6 +1063,7 @@ impl Default for Spacing {
             icon_spacing: 4.0,
             tooltip_width: 600.0,
             menu_width: 150.0,
+            menu_spacing: 2.0,
             combo_height: 200.0,
             scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
@@ -1268,7 +1101,12 @@ impl Visuals {
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
             window_rounding: Rounding::same(6.0),
-            window_shadow: Shadow::big_dark(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
             window_highlight_topmost: true,
@@ -1277,10 +1115,17 @@ impl Visuals {
 
             panel_fill: Color32::from_gray(27),
 
-            popup_shadow: Shadow::small_dark(),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(96),
+            },
+
             resize_corner_size: 12.0,
-            text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
-            text_cursor_preview: false,
+
+            text_cursor: Default::default(),
+
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
@@ -1312,14 +1157,29 @@ impl Visuals {
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
-            window_shadow: Shadow::big_light(),
+            window_shadow: Shadow {
+                offset: vec2(10.0, 20.0),
+                blur: 15.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
             window_fill: Color32::from_gray(248),
             window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
 
             panel_fill: Color32::from_gray(248),
 
-            popup_shadow: Shadow::small_light(),
-            text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+            popup_shadow: Shadow {
+                offset: vec2(6.0, 10.0),
+                blur: 8.0,
+                spread: 0.0,
+                color: Color32::from_black_alpha(25),
+            },
+
+            text_cursor: TextCursorStyle {
+                stroke: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
+                ..Default::default()
+            },
+
             ..Self::dark()
         }
     }
@@ -1470,25 +1330,28 @@ impl Style {
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
+            url_in_tooltip,
             always_scroll_the_only_direction,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
 
         crate::Grid::new("_options").show(ui, |ui| {
-            ui.label("Override font id:");
-            ui.horizontal(|ui| {
-                ui.radio_value(override_font_id, None, "None");
-                if ui.radio(override_font_id.is_some(), "override").clicked() {
-                    *override_font_id = Some(FontId::default());
-                }
+            ui.label("Override font id");
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.radio_value(override_font_id, None, "None");
+                    if ui.radio(override_font_id.is_some(), "override").clicked() {
+                        *override_font_id = Some(FontId::default());
+                    }
+                });
                 if let Some(override_font_id) = override_font_id {
                     crate::introspection::font_id_ui(ui, override_font_id);
                 }
             });
             ui.end_row();
 
-            ui.label("Override text style:");
+            ui.label("Override text style");
             crate::ComboBox::from_id_source("Override text style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
@@ -1505,7 +1368,7 @@ impl Style {
                 });
             ui.end_row();
 
-            ui.label("Text style of DragValue:");
+            ui.label("Text style of DragValue");
             crate::ComboBox::from_id_source("drag_value_text_style")
                 .selected_text(drag_value_text_style.to_string())
                 .show_ui(ui, |ui| {
@@ -1518,10 +1381,11 @@ impl Style {
                 });
             ui.end_row();
 
-            ui.label("Animation duration:");
+            ui.label("Animation duration");
             ui.add(
-                Slider::new(animation_time, 0.0..=1.0)
-                    .clamp_to_range(true)
+                DragValue::new(animation_time)
+                    .clamp_range(0.0..=1.0)
+                    .speed(0.02)
                     .suffix(" s"),
             );
             ui.end_row();
@@ -1540,12 +1404,14 @@ impl Style {
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
 
+        ui.checkbox(url_in_tooltip, "Show url when hovering links");
+
         ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
             .on_hover_text(
                 "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset style"));
     }
 }
 
@@ -1558,7 +1424,7 @@ fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) ->
                 ui.end_row();
             }
         });
-        crate::reset_button_with(ui, text_styles, default_text_styles());
+        crate::reset_button_with(ui, text_styles, "Reset text styles", default_text_styles());
     })
     .response
 }
@@ -1573,6 +1439,7 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            slider_rail_height,
             combo_width,
             text_edit_width,
             icon_width,
@@ -1580,68 +1447,91 @@ impl Spacing {
             icon_spacing,
             tooltip_width,
             menu_width,
+            menu_spacing,
             indent_ends_with_horizontal_line,
             combo_height,
             scroll,
         } = self;
 
-        ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
+        Grid::new("spacing")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Item spacing");
+                ui.add(two_drag_values(item_spacing, 0.0..=20.0));
+                ui.end_row();
 
-        margin_ui(ui, "Window margin:", window_margin);
-        margin_ui(ui, "Menu margin:", menu_margin);
+                ui.label("Window margin");
+                ui.add(window_margin);
+                ui.end_row();
 
-        ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
-        ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
-            .on_hover_text("Minimum size of an interactive widget");
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
-            ui.label("Indent");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
-            ui.label("Slider width");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
-            ui.label("ComboBox width");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
-            ui.label("TextEdit width");
-        });
+                ui.label("Menu margin");
+                ui.add(menu_margin);
+                ui.end_row();
 
-        ui.collapsing("Scroll Area", |ui| {
-            scroll.ui(ui);
-        });
+                ui.label("Button padding");
+                ui.add(two_drag_values(button_padding, 0.0..=20.0));
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.label("Checkboxes etc:");
-            ui.add(
-                DragValue::new(icon_width)
-                    .prefix("outer icon width:")
-                    .clamp_range(0.0..=60.0),
-            );
-            ui.add(
-                DragValue::new(icon_width_inner)
-                    .prefix("inner icon width:")
-                    .clamp_range(0.0..=60.0),
-            );
-            ui.add(
-                DragValue::new(icon_spacing)
-                    .prefix("spacing:")
-                    .clamp_range(0.0..=10.0),
-            );
-        });
+                ui.label("Interact size")
+                    .on_hover_text("Minimum size of an interactive widget");
+                ui.add(two_drag_values(interact_size, 4.0..=60.0));
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
-            ui.label("Tooltip wrap width");
-        });
+                ui.label("Indent");
+                ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
-            ui.label("Default width of a menu");
-        });
+                ui.label("Slider width");
+                ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Slider rail height");
+                ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
+                ui.end_row();
+
+                ui.label("ComboBox width");
+                ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("TextEdit width");
+                ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Tooltip wrap width");
+                ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Default menu width");
+                ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
+                ui.end_row();
+
+                ui.label("Menu spacing")
+                    .on_hover_text("Horizontal spacing between menus");
+                ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
+                ui.end_row();
+
+                ui.label("Checkboxes etc");
+                ui.vertical(|ui| {
+                    ui.add(
+                        DragValue::new(icon_width)
+                            .prefix("outer icon width:")
+                            .clamp_range(0.0..=60.0),
+                    );
+                    ui.add(
+                        DragValue::new(icon_width_inner)
+                            .prefix("inner icon width:")
+                            .clamp_range(0.0..=60.0),
+                    );
+                    ui.add(
+                        DragValue::new(icon_spacing)
+                            .prefix("spacing:")
+                            .clamp_range(0.0..=10.0),
+                    );
+                });
+                ui.end_row();
+            });
 
         ui.checkbox(
             indent_ends_with_horizontal_line,
@@ -1653,57 +1543,12 @@ impl Spacing {
             ui.add(DragValue::new(combo_height).clamp_range(0.0..=1000.0));
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.collapsing("Scroll Area", |ui| {
+            scroll.ui(ui);
+        });
+
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset spacing"));
     }
-}
-
-fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
-    let margin_range = 0.0..=20.0;
-
-    ui.horizontal(|ui| {
-        ui.label(text);
-
-        let mut same = margin.is_same();
-        ui.checkbox(&mut same, "Same");
-
-        if same {
-            let mut value = margin.left;
-            ui.add(DragValue::new(&mut value).clamp_range(margin_range.clone()));
-            *margin = Margin::same(value);
-        } else {
-            if margin.is_same() {
-                // HACK: prevent collapse:
-                margin.right = margin.left + 1.0;
-                margin.bottom = margin.left + 2.0;
-                margin.top = margin.left + 3.0;
-            }
-
-            ui.add(
-                DragValue::new(&mut margin.left)
-                    .clamp_range(margin_range.clone())
-                    .prefix("L: "),
-            )
-            .on_hover_text("Left margin");
-            ui.add(
-                DragValue::new(&mut margin.right)
-                    .clamp_range(margin_range.clone())
-                    .prefix("R: "),
-            )
-            .on_hover_text("Right margin");
-            ui.add(
-                DragValue::new(&mut margin.top)
-                    .clamp_range(margin_range.clone())
-                    .prefix("T: "),
-            )
-            .on_hover_text("Top margin");
-            ui.add(
-                DragValue::new(&mut margin.bottom)
-                    .clamp_range(margin_range)
-                    .prefix("B: "),
-            )
-            .on_hover_text("Bottom margin");
-        }
-    });
 }
 
 impl Interaction {
@@ -1717,20 +1562,41 @@ impl Interaction {
             selectable_labels,
             multi_widget_text_select,
         } = self;
-        ui.add(Slider::new(interact_radius, 0.0..=20.0).text("interact_radius"))
-            .on_hover_text("Interact with the closest widget within this radius.");
-        ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
-        ui.add(
-            Slider::new(resize_grab_radius_corner, 0.0..=20.0).text("resize_grab_radius_corner"),
-        );
+
+        ui.spacing_mut().item_spacing = vec2(12.0, 8.0);
+
+        Grid::new("interaction")
+            .num_columns(2)
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("interact_radius")
+                    .on_hover_text("Interact with the closest widget within this radius.");
+                ui.add(DragValue::new(interact_radius).clamp_range(0.0..=20.0));
+                ui.end_row();
+
+                ui.label("resize_grab_radius_side").on_hover_text("Radius of the interactive area of the side of a window during drag-to-resize");
+                ui.add(DragValue::new(resize_grab_radius_side).clamp_range(0.0..=20.0));
+                ui.end_row();
+
+                ui.label("resize_grab_radius_corner").on_hover_text("Radius of the interactive area of the corner of a window during drag-to-resize.");
+                ui.add(DragValue::new(resize_grab_radius_corner).clamp_range(0.0..=20.0));
+                ui.end_row();
+
+                ui.label("Tooltip delay").on_hover_text(
+                    "Delay in seconds before showing tooltips after the mouse stops moving",
+                );
+                ui.add(
+                    DragValue::new(tooltip_delay)
+                        .clamp_range(0.0..=1.0)
+                        .speed(0.05)
+                        .suffix(" s"),
+                );
+                ui.end_row();
+            });
+
         ui.checkbox(
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
-        );
-        ui.add(
-            Slider::new(tooltip_delay, 0.0..=1.0)
-                .suffix(" s")
-                .text("tooltip_delay"),
         );
 
         ui.horizontal(|ui| {
@@ -1740,7 +1606,7 @@ impl Interaction {
             }
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset interaction settings"));
     }
 }
 
@@ -1785,8 +1651,16 @@ impl Selection {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self { bg_fill, stroke } = self;
         ui.label("Selectable labels");
-        ui_color(ui, bg_fill, "background fill");
-        stroke_ui(ui, stroke, "stroke");
+
+        Grid::new("selectiom").num_columns(2).show(ui, |ui| {
+            ui.label("Background fill");
+            ui.color_edit_button_srgba(bg_fill);
+            ui.end_row();
+
+            ui.label("Stroke");
+            ui.add(stroke);
+            ui.end_row();
+        });
     }
 }
 
@@ -1800,17 +1674,39 @@ impl WidgetVisuals {
             fg_stroke,
             expansion,
         } = self;
-        ui_color(ui, weak_bg_fill, "optional background fill")
-            .on_hover_text("For buttons, combo-boxes, etc");
-        ui_color(ui, mandatory_bg_fill, "mandatory background fill")
-            .on_hover_text("For checkboxes, sliders, etc");
-        stroke_ui(ui, bg_stroke, "background stroke");
 
-        rounding_ui(ui, rounding);
+        Grid::new("widget")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Optional background fill")
+                    .on_hover_text("For buttons, combo-boxes, etc");
+                ui.color_edit_button_srgba(weak_bg_fill);
+                ui.end_row();
 
-        stroke_ui(ui, fg_stroke, "foreground stroke (text)");
-        ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
-            .on_hover_text("make shapes this much larger");
+                ui.label("Mandatory background fill")
+                    .on_hover_text("For checkboxes, sliders, etc");
+                ui.color_edit_button_srgba(mandatory_bg_fill);
+                ui.end_row();
+
+                ui.label("Background stroke");
+                ui.add(bg_stroke);
+                ui.end_row();
+
+                ui.label("Rounding");
+                ui.add(rounding);
+                ui.end_row();
+
+                ui.label("Foreground stroke (text)");
+                ui.add(fg_stroke);
+                ui.end_row();
+
+                ui.label("Expansion")
+                    .on_hover_text("make shapes this much larger");
+                ui.add(DragValue::new(expansion).speed(0.1));
+                ui.end_row();
+            });
     }
 }
 
@@ -1873,8 +1769,9 @@ impl Visuals {
             popup_shadow,
 
             resize_corner_size,
+
             text_cursor,
-            text_cursor_preview,
+
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
@@ -1902,80 +1799,167 @@ impl Visuals {
                 .on_hover_text("Background of plots and paintings");
         });
 
+        ui.collapsing("Text color", |ui| {
+            ui_text_color(ui, &mut widgets.noninteractive.fg_stroke.color, "Label");
+            ui_text_color(
+                ui,
+                &mut widgets.inactive.fg_stroke.color,
+                "Unhovered button",
+            );
+            ui_text_color(ui, &mut widgets.hovered.fg_stroke.color, "Hovered button");
+            ui_text_color(ui, &mut widgets.active.fg_stroke.color, "Clicked button");
+
+            ui_text_color(ui, warn_fg_color, RichText::new("Warnings"));
+            ui_text_color(ui, error_fg_color, RichText::new("Errors"));
+
+            ui_text_color(ui, hyperlink_color, "hyperlink_color");
+
+            ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(
+                |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label("For monospaced inlined text ");
+                        ui.code("like this");
+                        ui.label(".");
+                    });
+                },
+            );
+        });
+
+        ui.collapsing("Text cursor", |ui| {
+            text_cursor.ui(ui);
+        });
+
         ui.collapsing("Window", |ui| {
-            ui_color(ui, window_fill, "Fill");
-            stroke_ui(ui, window_stroke, "Outline");
-            rounding_ui(ui, window_rounding);
-            shadow_ui(ui, window_shadow, "Shadow");
+            Grid::new("window")
+                .num_columns(2)
+                .spacing([12.0, 8.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Fill");
+                    ui.color_edit_button_srgba(window_fill);
+                    ui.end_row();
+
+                    ui.label("Stroke");
+                    ui.add(window_stroke);
+                    ui.end_row();
+
+                    ui.label("Rounding");
+                    ui.add(window_rounding);
+                    ui.end_row();
+
+                    ui.label("Shadow");
+                    ui.add(window_shadow);
+                    ui.end_row();
+                });
+
             ui.checkbox(window_highlight_topmost, "Highlight topmost Window");
         });
 
         ui.collapsing("Menus and popups", |ui| {
-            rounding_ui(ui, menu_rounding);
-            shadow_ui(ui, popup_shadow, "Shadow");
+            Grid::new("menus_and_popups")
+                .num_columns(2)
+                .spacing([12.0, 8.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Rounding");
+                    ui.add(menu_rounding);
+                    ui.end_row();
+
+                    ui.label("Shadow");
+                    ui.add(popup_shadow);
+                    ui.end_row();
+                });
         });
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
         ui.collapsing("Selection", |ui| selection.ui(ui));
 
-        ui.horizontal(|ui| {
-            ui_color(
-                ui,
-                &mut widgets.noninteractive.fg_stroke.color,
-                "Text color",
+        ui.collapsing("Misc", |ui| {
+            ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
+            ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
+
+            ui.checkbox(button_frame, "Button has a frame");
+            ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
+            ui.checkbox(
+                indent_has_left_vline,
+                "Paint a vertical line to the left of indented regions",
             );
-            ui_color(ui, warn_fg_color, RichText::new("Warnings"));
-            ui_color(ui, error_fg_color, RichText::new("Errors"));
-        });
 
-        ui_color(ui, code_bg_color, RichText::new("Code background").code()).on_hover_ui(|ui| {
+            ui.checkbox(striped, "Default stripes on grids and tables");
+
+            ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
+
+            handle_shape.ui(ui);
+
+            ComboBox::from_label("Interact cursor")
+                .selected_text(
+                    interact_cursor.map_or_else(|| "-".to_owned(), |cursor| format!("{cursor:?}")),
+                )
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(interact_cursor, None, "-");
+
+                    for cursor in CursorIcon::ALL {
+                        ui.selectable_value(interact_cursor, Some(cursor), format!("{cursor:?}"))
+                            .on_hover_cursor(cursor);
+                    }
+                })
+                .response
+                .on_hover_text("Use this cursor when hovering buttons etc");
+
+            ui.checkbox(image_loading_spinners, "Image loading spinners")
+                .on_hover_text("Show a spinner when an Image is loading");
+
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("For monospaced inlined text ");
-                ui.code("like this");
-                ui.label(".");
+                ui.label("Color picker type");
+                numeric_color_space.toggle_button_ui(ui);
             });
         });
 
-        ui_color(ui, hyperlink_color, "hyperlink_color");
-        stroke_ui(ui, text_cursor, "Text Cursor");
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset visuals"));
+    }
+}
 
-        ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
-        ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
-
-        ui.checkbox(button_frame, "Button has a frame");
-        ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
-        ui.checkbox(
-            indent_has_left_vline,
-            "Paint a vertical line to the left of indented regions",
-        );
-
-        ui.checkbox(striped, "By default, add stripes to grids and tables?");
-
-        ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
-
-        handle_shape.ui(ui);
-
-        ComboBox::from_label("Interact Cursor")
-            .selected_text(format!("{interact_cursor:?}"))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(interact_cursor, None, "None");
-
-                for icon in CursorIcon::ALL {
-                    ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
-                }
-            });
-
-        ui.checkbox(image_loading_spinners, "Image loading spinners")
-            .on_hover_text("Show a spinner when an Image is loading");
+impl TextCursorStyle {
+    fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            stroke,
+            preview,
+            blink,
+            on_duration,
+            off_duration,
+        } = self;
 
         ui.horizontal(|ui| {
-            ui.label("Color picker type:");
-            numeric_color_space.toggle_button_ui(ui);
+            ui.label("Stroke");
+            ui.add(stroke);
         });
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.checkbox(preview, "Preview text cursor on hover");
+
+        ui.checkbox(blink, "Blink");
+
+        if *blink {
+            Grid::new("cursor_blink").show(ui, |ui| {
+                ui.label("On time");
+                ui.add(
+                    DragValue::new(on_duration)
+                        .speed(0.1)
+                        .clamp_range(0.0..=2.0)
+                        .suffix(" s"),
+                );
+                ui.end_row();
+
+                ui.label("Off time");
+                ui.add(
+                    DragValue::new(off_duration)
+                        .speed(0.1)
+                        .clamp_range(0.0..=2.0)
+                        .suffix(" s"),
+                );
+                ui.end_row();
+            });
+        }
     }
 }
 
@@ -2020,16 +2004,12 @@ impl DebugOptions {
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
 
-        ui.vertical_centered(|ui| reset_button(ui, self));
+        ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
     }
 }
 
-// TODO(emilk): improve and standardize `slider_vec2`
-fn slider_vec2<'a>(
-    value: &'a mut Vec2,
-    range: std::ops::RangeInclusive<f32>,
-    text: &'a str,
-) -> impl Widget + 'a {
+// TODO(emilk): improve and standardize
+fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> impl Widget + '_ {
     move |ui: &mut crate::Ui| {
         ui.horizontal(|ui| {
             ui.add(
@@ -2042,50 +2022,31 @@ fn slider_vec2<'a>(
                     .clamp_range(range.clone())
                     .prefix("y: "),
             );
-            ui.label(text);
         })
         .response
     }
 }
 
-fn ui_color(ui: &mut Ui, srgba: &mut Color32, label: impl Into<WidgetText>) -> Response {
+fn ui_color(ui: &mut Ui, color: &mut Color32, label: impl Into<WidgetText>) -> Response {
     ui.horizontal(|ui| {
-        ui.color_edit_button_srgba(srgba);
+        ui.color_edit_button_srgba(color);
         ui.label(label);
     })
     .response
 }
 
-fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
-    const MAX: f32 = 20.0;
-    let mut same = rounding.is_same();
-    ui.group(|ui| {
-        ui.horizontal(|ui| {
-            ui.label("Rounding: ");
-            ui.radio_value(&mut same, true, "Same");
-            ui.radio_value(&mut same, false, "Separate");
-        });
-
-        if same {
-            let mut cr = rounding.nw;
-            ui.add(Slider::new(&mut cr, 0.0..=MAX));
-            *rounding = Rounding::same(cr);
-        } else {
-            ui.add(Slider::new(&mut rounding.nw, 0.0..=MAX).text("North-West"));
-            ui.add(Slider::new(&mut rounding.ne, 0.0..=MAX).text("North-East"));
-            ui.add(Slider::new(&mut rounding.sw, 0.0..=MAX).text("South-West"));
-            ui.add(Slider::new(&mut rounding.se, 0.0..=MAX).text("South-East"));
-            if rounding.is_same() {
-                rounding.se *= 1.00001;
-            }
-        }
-    });
+fn ui_text_color(ui: &mut Ui, color: &mut Color32, label: impl Into<RichText>) -> Response {
+    ui.horizontal(|ui| {
+        ui.color_edit_button_srgba(color);
+        ui.label(label.into().color(*color));
+    })
+    .response
 }
 
 impl HandleShape {
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.label("Widget handle shape");
         ui.horizontal(|ui| {
+            ui.label("Slider handle");
             ui.radio_value(self, Self::Circle, "Circle");
             if ui
                 .radio(matches!(self, Self::Rect { .. }), "Rectangle")
@@ -2139,5 +2100,215 @@ impl std::fmt::Display for NumericColorSpace {
             Self::GammaByte => write!(f, "U8"),
             Self::Linear => write!(f, "F"),
         }
+    }
+}
+
+impl Widget for &mut Margin {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let mut same = self.is_same();
+
+        let response = if same {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                let mut value = self.left;
+                ui.add(DragValue::new(&mut value));
+                *self = Margin::same(value);
+            })
+            .response
+        } else {
+            ui.vertical(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                crate::Grid::new("margin").num_columns(2).show(ui, |ui| {
+                    ui.label("Left");
+                    ui.add(DragValue::new(&mut self.left));
+                    ui.end_row();
+
+                    ui.label("Right");
+                    ui.add(DragValue::new(&mut self.right));
+                    ui.end_row();
+
+                    ui.label("Top");
+                    ui.add(DragValue::new(&mut self.top));
+                    ui.end_row();
+
+                    ui.label("Bottom");
+                    ui.add(DragValue::new(&mut self.bottom));
+                    ui.end_row();
+                });
+            })
+            .response
+        };
+
+        // Apply the checkbox:
+        if same {
+            *self = Margin::same((self.left + self.right + self.top + self.bottom) / 4.0);
+        } else if self.is_same() {
+            self.right *= 1.00001; // prevent collapsing into sameness
+        }
+
+        response
+    }
+}
+
+impl Widget for &mut Rounding {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let mut same = self.is_same();
+
+        let response = if same {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                let mut cr = self.nw;
+                ui.add(DragValue::new(&mut cr).clamp_range(0.0..=f32::INFINITY));
+                *self = Rounding::same(cr);
+            })
+            .response
+        } else {
+            ui.vertical(|ui| {
+                ui.checkbox(&mut same, "same");
+
+                crate::Grid::new("rounding").num_columns(2).show(ui, |ui| {
+                    ui.label("NW");
+                    ui.add(DragValue::new(&mut self.nw).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+
+                    ui.label("NE");
+                    ui.add(DragValue::new(&mut self.ne).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+
+                    ui.label("SW");
+                    ui.add(DragValue::new(&mut self.sw).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+
+                    ui.label("SE");
+                    ui.add(DragValue::new(&mut self.se).clamp_range(0.0..=f32::INFINITY));
+                    ui.end_row();
+                });
+            })
+            .response
+        };
+
+        // Apply the checkbox:
+        if same {
+            *self = Rounding::same((self.nw + self.ne + self.sw + self.se) / 4.0);
+        } else if self.is_same() {
+            self.se *= 1.00001; // prevent collapsing into sameness
+        }
+
+        response
+    }
+}
+
+impl Widget for &mut Shadow {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let epaint::Shadow {
+            offset,
+            blur,
+            spread,
+            color,
+        } = self;
+
+        ui.vertical(|ui| {
+            crate::Grid::new("shadow_ui").show(ui, |ui| {
+                ui.add(
+                    DragValue::new(&mut offset.x)
+                        .speed(1.0)
+                        .clamp_range(-100.0..=100.0)
+                        .prefix("x: "),
+                );
+                ui.add(
+                    DragValue::new(&mut offset.y)
+                        .speed(1.0)
+                        .clamp_range(-100.0..=100.0)
+                        .prefix("y: "),
+                );
+                ui.end_row();
+
+                ui.add(
+                    DragValue::new(blur)
+                        .speed(1.0)
+                        .clamp_range(0.0..=100.0)
+                        .prefix("blur: "),
+                );
+
+                ui.add(
+                    DragValue::new(spread)
+                        .speed(1.0)
+                        .clamp_range(0.0..=100.0)
+                        .prefix("spread: "),
+                );
+            });
+            ui.color_edit_button_srgba(color);
+        })
+        .response
+    }
+}
+
+impl Widget for &mut Stroke {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let Stroke { width, color } = self;
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(width)
+                    .speed(0.1)
+                    .clamp_range(0.0..=f32::INFINITY),
+            )
+            .on_hover_text("Width");
+            ui.color_edit_button_srgba(color);
+
+            // stroke preview:
+            let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
+            let left = stroke_rect.left_center();
+            let right = stroke_rect.right_center();
+            ui.painter().line_segment([left, right], (*width, *color));
+        })
+        .response
+    }
+}
+
+impl Widget for &mut crate::Frame {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let crate::Frame {
+            inner_margin,
+            outer_margin,
+            rounding,
+            shadow,
+            fill,
+            stroke,
+        } = self;
+
+        crate::Grid::new("frame")
+            .num_columns(2)
+            .spacing([12.0, 8.0])
+            .striped(true)
+            .show(ui, |ui| {
+                ui.label("Inner margin");
+                ui.add(inner_margin);
+                ui.end_row();
+
+                ui.label("Outer margin");
+                ui.add(outer_margin);
+                ui.end_row();
+
+                ui.label("Rounding");
+                ui.add(rounding);
+                ui.end_row();
+
+                ui.label("Shadow");
+                ui.add(shadow);
+                ui.end_row();
+
+                ui.label("Fill");
+                ui.color_edit_button_srgba(fill);
+                ui.end_row();
+
+                ui.label("Stroke");
+                ui.add(stroke);
+                ui.end_row();
+            })
+            .response
     }
 }

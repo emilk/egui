@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
+use crate::Vec2b;
+
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
 ///
@@ -83,6 +85,16 @@ impl From<&Vec2> for (f32, f32) {
     #[inline(always)]
     fn from(v: &Vec2) -> Self {
         (v.x, v.y)
+    }
+}
+
+impl From<Vec2b> for Vec2 {
+    #[inline(always)]
+    fn from(v: Vec2b) -> Self {
+        Self {
+            x: v.x as i32 as f32,
+            y: v.y as i32 as f32,
+        }
     }
 }
 

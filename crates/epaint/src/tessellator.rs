@@ -520,7 +520,7 @@ pub mod path {
         let min = rect.min;
         let max = rect.max;
 
-        let r = clamp_radius(rounding, rect);
+        let r = clamp_rounding(rounding, rect);
 
         if r == Rounding::ZERO {
             let min = rect.min;
@@ -531,11 +531,33 @@ pub mod path {
             path.push(pos2(max.x, max.y)); // right bottom
             path.push(pos2(min.x, max.y)); // left bottom
         } else {
-            add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0);
-            add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
-            add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
-            add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
-            path.dedup(); // We get duplicates for thin rectangles, producing visual artifats
+            // We need to avoid duplicated vertices, because that leads to visual artifacts later.
+            // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
+            let eps = f32::EPSILON * rect.size().max_elem();
+
+            add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0); // south east
+
+            if rect.width() <= r.se + r.sw + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0); // south west
+
+            if rect.height() <= r.sw + r.nw + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0); // north west
+
+            if rect.width() <= r.nw + r.ne + eps {
+                path.pop(); // avoid duplicated vertex
+            }
+
+            add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0); // north east
+
+            if rect.height() <= r.ne + r.se + eps {
+                path.pop(); // avoid duplicated vertex
+            }
         }
     }
 
@@ -589,7 +611,7 @@ pub mod path {
     }
 
     // Ensures the radius of each corner is within a valid range
-    fn clamp_radius(rounding: Rounding, rect: Rect) -> Rounding {
+    fn clamp_rounding(rounding: Rounding, rect: Rect) -> Rounding {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
@@ -1215,6 +1237,9 @@ impl Tessellator {
             Shape::Circle(circle) => {
                 self.tessellate_circle(circle, out);
             }
+            Shape::Ellipse(ellipse) => {
+                self.tessellate_ellipse(ellipse, out);
+            }
             Shape::Mesh(mesh) => {
                 crate::profile_scope!("mesh");
 
@@ -1310,6 +1335,73 @@ impl Tessellator {
 
         self.scratchpad_path.clear();
         self.scratchpad_path.add_circle(center, radius);
+        self.scratchpad_path.fill(self.feathering, fill, out);
+        self.scratchpad_path
+            .stroke_closed(self.feathering, stroke, out);
+    }
+
+    /// Tessellate a single [`EllipseShape`] into a [`Mesh`].
+    ///
+    /// * `shape`: the ellipse to tessellate.
+    /// * `out`: triangles are appended to this.
+    pub fn tessellate_ellipse(&mut self, shape: EllipseShape, out: &mut Mesh) {
+        let EllipseShape {
+            center,
+            radius,
+            fill,
+            stroke,
+        } = shape;
+
+        if radius.x <= 0.0 || radius.y <= 0.0 {
+            return;
+        }
+
+        if self.options.coarse_tessellation_culling
+            && !self
+                .clip_rect
+                .expand2(radius + Vec2::splat(stroke.width))
+                .contains(center)
+        {
+            return;
+        }
+
+        // Get the max pixel radius
+        let max_radius = (radius.max_elem() * self.pixels_per_point) as u32;
+
+        // Ensure there is at least 8 points in each quarter of the ellipse
+        let num_points = u32::max(8, max_radius / 16);
+
+        // Create an ease ratio based the ellipses a and b
+        let ratio = ((radius.y / radius.x) / 2.0).clamp(0.0, 1.0);
+
+        // Generate points between the 0 to pi/2
+        let quarter: Vec<Vec2> = (1..num_points)
+            .map(|i| {
+                let percent = i as f32 / num_points as f32;
+
+                // Ease the percent value, concentrating points around tight bends
+                let eased = 2.0 * (percent - percent.powf(2.0)) * ratio + percent.powf(2.0);
+
+                // Scale the ease to the quarter
+                let t = eased * std::f32::consts::FRAC_PI_2;
+                Vec2::new(radius.x * f32::cos(t), radius.y * f32::sin(t))
+            })
+            .collect();
+
+        // Build the ellipse from the 4 known vertices filling arcs between
+        // them by mirroring the points between 0 and pi/2
+        let mut points = Vec::new();
+        points.push(center + Vec2::new(radius.x, 0.0));
+        points.extend(quarter.iter().map(|p| center + *p));
+        points.push(center + Vec2::new(0.0, radius.y));
+        points.extend(quarter.iter().rev().map(|p| center + Vec2::new(-p.x, p.y)));
+        points.push(center + Vec2::new(-radius.x, 0.0));
+        points.extend(quarter.iter().map(|p| center - *p));
+        points.push(center + Vec2::new(0.0, -radius.y));
+        points.extend(quarter.iter().rev().map(|p| center + Vec2::new(p.x, -p.y)));
+
+        self.scratchpad_path.clear();
+        self.scratchpad_path.add_line_loop(&points);
         self.scratchpad_path.fill(self.feathering, fill, out);
         self.scratchpad_path
             .stroke_closed(self.feathering, stroke, out);
@@ -1411,9 +1503,10 @@ impl Tessellator {
     pub fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
         let RectShape {
             mut rect,
-            rounding,
+            mut rounding,
             fill,
             stroke,
+            mut blur_width,
             fill_texture_id,
             uv,
         } = *rect;
@@ -1431,6 +1524,29 @@ impl Tessellator {
         // Make sure we can handle that:
         rect.min = rect.min.at_least(pos2(-1e7, -1e7));
         rect.max = rect.max.at_most(pos2(1e7, 1e7));
+
+        let old_feathering = self.feathering;
+
+        if old_feathering < blur_width {
+            // We accomplish the blur by using a larger-than-normal feathering.
+            // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
+
+            // The tessellator can't handle blurring/feathering larger than the smallest side of the rect.
+            // Thats because the tessellator approximate very thin rectangles as line segments,
+            // and these line segments don't have rounded corners.
+            // When the feathering is small (the size of a pixel), this is usually fine,
+            // but here we have a huge feathering to simulate blur,
+            // so we need to avoid this optimization in the tessellator,
+            // which is also why we add this rather big epsilon:
+            let eps = 0.1;
+            blur_width = blur_width
+                .at_most(rect.size().min_elem() - eps)
+                .at_least(0.0);
+
+            rounding += Rounding::same(0.5 * blur_width);
+
+            self.feathering = self.feathering.max(blur_width);
+        }
 
         if rect.width() < self.feathering {
             // Very thin - approximate by a vertical line-segment:
@@ -1474,6 +1590,8 @@ impl Tessellator {
 
             path.stroke_closed(self.feathering, stroke, out);
         }
+
+        self.feathering = old_feathering; // restore
     }
 
     /// Tessellate a single [`TextShape`] into a [`Mesh`].
@@ -1776,7 +1894,7 @@ impl Tessellator {
 
                 Shape::Path(path_shape) => 32 < path_shape.points.len(),
 
-                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) => true,
+                Shape::QuadraticBezier(_) | Shape::CubicBezier(_) | Shape::Ellipse(_) => true,
 
                 Shape::Noop
                 | Shape::Text(_)
@@ -1794,7 +1912,7 @@ impl Tessellator {
             .filter(|(_, clipped_shape)| should_parallelize(&clipped_shape.shape))
             .map(|(index, clipped_shape)| {
                 crate::profile_scope!("tessellate_big_shape");
-                // TODO: reuse tessellator in a thread local
+                // TODO(emilk): reuse tessellator in a thread local
                 let mut tessellator = (*self).clone();
                 let mut mesh = Mesh::default();
                 tessellator.tessellate_shape(clipped_shape.shape.clone(), &mut mesh);

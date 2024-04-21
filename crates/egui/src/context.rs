@@ -2,7 +2,6 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
-use ahash::HashMap;
 use epaint::{
     emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
 };
@@ -253,13 +252,19 @@ struct ViewportState {
 }
 
 /// What called [`Context::request_repaint`]?
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RepaintCause {
     /// What file had the call that requested the repaint?
-    pub file: String,
+    pub file: &'static str,
 
     /// What line number of the the call that requested the repaint?
     pub line: u32,
+}
+
+impl std::fmt::Debug for RepaintCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.file, self.line)
+    }
 }
 
 impl RepaintCause {
@@ -269,7 +274,7 @@ impl RepaintCause {
     pub fn new() -> Self {
         let caller = Location::caller();
         Self {
-            file: caller.file().to_owned(),
+            file: caller.file(),
             line: caller.line(),
         }
     }
@@ -421,18 +426,17 @@ impl ContextImpl {
                 // but the `screen_rect` is the most important part.
             }
         }
-        let pixels_per_point = self.memory.options.zoom_factor
-            * new_raw_input
-                .viewport()
-                .native_pixels_per_point
-                .unwrap_or(1.0);
+        let native_pixels_per_point = new_raw_input
+            .viewport()
+            .native_pixels_per_point
+            .unwrap_or(1.0);
+        let pixels_per_point = self.memory.options.zoom_factor * native_pixels_per_point;
 
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
-        self.memory
-            .begin_frame(&viewport.input, &new_raw_input, &all_viewport_ids);
+        self.memory.begin_frame(&new_raw_input, &all_viewport_ids);
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
@@ -440,17 +444,12 @@ impl ContextImpl {
             pixels_per_point,
         );
 
-        viewport.frame_state.begin_frame(&viewport.input);
+        let screen_rect = viewport.input.screen_rect;
+
+        viewport.frame_state.begin_frame(screen_rect);
 
         {
-            let area_order: HashMap<LayerId, usize> = self
-                .memory
-                .areas()
-                .order()
-                .iter()
-                .enumerate()
-                .map(|(i, id)| (*id, i))
-                .collect();
+            let area_order = self.memory.areas().order_map();
 
             let mut layers: Vec<LayerId> = viewport.widgets_prev_frame.layer_ids().collect();
 
@@ -488,7 +487,6 @@ impl ContextImpl {
         }
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = viewport.input.screen_rect();
         self.memory.areas_mut().set_state(
             LayerId::background(),
             containers::area::State {
@@ -496,7 +494,6 @@ impl ContextImpl {
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
                 interactable: true,
-                edges_padded_for_resize: false,
             },
         );
 
@@ -601,11 +598,11 @@ impl ContextImpl {
     ///
     /// For the root viewport this will return [`ViewportId::ROOT`].
     pub(crate) fn parent_viewport_id(&self) -> ViewportId {
-        self.viewport_stack
-            .last()
-            .copied()
-            .unwrap_or_default()
-            .parent
+        let viewport_id = self.viewport_id();
+        *self
+            .viewport_parents
+            .get(&viewport_id)
+            .unwrap_or(&ViewportId::ROOT)
     }
 
     fn all_viewport_ids(&self) -> ViewportIdSet {
@@ -1019,12 +1016,7 @@ impl Context {
     ///
     /// If the widget already exists, its state (sense, Rect, etc) will be updated.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn create_widget(&self, mut w: WidgetRect) -> Response {
-        if !w.enabled {
-            w.sense.click = false;
-            w.sense.drag = false;
-        }
-
+    pub(crate) fn create_widget(&self, w: WidgetRect) -> Response {
         // Remember this widget
         self.write(|ctx| {
             let viewport = ctx.viewport();
@@ -1110,9 +1102,9 @@ impl Context {
             contains_pointer: false,
             hovered: false,
             highlighted,
-            clicked: Default::default(),
-            double_clicked: Default::default(),
-            triple_clicked: Default::default(),
+            clicked: false,
+            fake_primary_click: false,
+            long_touched: false,
             drag_started: false,
             dragged: false,
             drag_stopped: false,
@@ -1120,8 +1112,6 @@ impl Context {
             interact_pointer_pos: None,
             changed: false,
         };
-
-        let clicked_elsewhere = res.clicked_elsewhere();
 
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
@@ -1131,17 +1121,25 @@ impl Context {
             let input = &viewport.input;
             let memory = &mut ctx.memory;
 
-            if sense.click
+            if enabled
+                && sense.click
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                res.clicked[PointerButton::Primary as usize] = true;
+                res.fake_primary_click = true;
             }
 
             #[cfg(feature = "accesskit")]
-            if sense.click && input.has_accesskit_action_request(id, accesskit::Action::Default) {
-                res.clicked[PointerButton::Primary as usize] = true;
+            if enabled
+                && sense.click
+                && input.has_accesskit_action_request(id, accesskit::Action::Default)
+            {
+                res.fake_primary_click = true;
+            }
+
+            if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
+                res.long_touched = true;
             }
 
             let interaction = memory.interaction();
@@ -1157,25 +1155,29 @@ impl Context {
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
+            let mut any_press = false;
 
             for pointer_event in &input.pointer.pointer_events {
-                if let PointerEvent::Released { click, button } = pointer_event {
-                    if sense.click && clicked {
-                        if let Some(click) = click {
-                            res.clicked[*button as usize] = true;
-                            res.double_clicked[*button as usize] = click.is_double();
-                            res.triple_clicked[*button as usize] = click.is_triple();
-                        }
+                match pointer_event {
+                    PointerEvent::Moved(_) => {}
+                    PointerEvent::Pressed { .. } => {
+                        any_press = true;
                     }
+                    PointerEvent::Released { click, .. } => {
+                        if enabled && sense.click && clicked && click.is_some() {
+                            res.clicked = true;
+                        }
 
-                    res.is_pointer_button_down_on = false;
-                    res.dragged = false;
+                        res.is_pointer_button_down_on = false;
+                        res.dragged = false;
+                    }
                 }
             }
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let is_interacted_with = res.is_pointer_button_down_on || clicked || res.drag_stopped;
+            let is_interacted_with =
+                res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
                 if let (Some(transform), Some(pos)) = (
@@ -1186,22 +1188,36 @@ impl Context {
                 }
             }
 
-            if input.pointer.any_down() && !res.is_pointer_button_down_on {
+            if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
                 res.hovered = false;
             }
 
-            if clicked_elsewhere && memory.has_focus(id) {
+            let pointer_pressed_elsewhere = any_press && !res.hovered;
+            if pointer_pressed_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
-            }
-
-            if res.dragged() && !memory.has_focus(id) {
-                // e.g.: remove focus from a widget when you drag something else
-                memory.stop_text_input();
             }
         });
 
         res
+    }
+
+    /// This is called by [`Response::widget_info`], but can also be called directly.
+    ///
+    /// With some debug flags it will store the widget info in [`WidgetRects`] for later display.
+    #[inline]
+    pub fn register_widget_info(&self, id: Id, make_info: impl Fn() -> crate::WidgetInfo) {
+        #[cfg(debug_assertions)]
+        self.write(|ctx| {
+            if ctx.memory.options.style.debug.show_interactive_widgets {
+                ctx.viewport().widgets_this_frame.set_info(id, make_info());
+            }
+        });
+
+        #[cfg(not(debug_assertions))]
+        {
+            _ = (self, id, make_info);
+        }
     }
 
     /// Get a full-screen painter for a new or existing layer
@@ -1474,7 +1490,7 @@ impl Context {
         self.read(|ctx| {
             ctx.viewports
                 .get(&ctx.viewport_id())
-                .map(|v| v.repaint.causes.clone())
+                .map(|v| v.repaint.prev_causes.clone())
         })
         .unwrap_or_default()
     }
@@ -1570,7 +1586,7 @@ impl Context {
 
     /// The [`Style`] used by all new windows, panels etc.
     ///
-    /// You can also change this using [`Self::style_mut]`
+    /// You can also change this using [`Self::style_mut`]
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
@@ -1809,6 +1825,7 @@ impl Context {
         self.write(|ctx| ctx.end_frame())
     }
 
+    /// Called at the end of the frame.
     #[cfg(debug_assertions)]
     fn debug_painting(&self) {
         let paint_widget = |widget: &WidgetRect, text: &str, color: Color32| {
@@ -1841,8 +1858,8 @@ impl Context {
                         } else if rect.sense.drag {
                             (Color32::from_rgb(0, 0, 0x88), "drag")
                         } else {
-                            continue;
-                            // (Color32::from_rgb(0, 0, 0x88), "hover")
+                            // unreachable since we only show interactive
+                            (Color32::from_rgb(0, 0, 0x88), "hover")
                         };
                         painter.debug_rect(rect.interact_rect, color, text);
                     }
@@ -1854,6 +1871,7 @@ impl Context {
                 let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
                 let InteractionSnapshot {
                     clicked,
+                    long_touched: _,
                     drag_started: _,
                     dragged,
                     drag_stopped: _,
@@ -1861,10 +1879,32 @@ impl Context {
                     hovered,
                 } = interact_widgets;
 
-                if false {
-                    for widget in contains_pointer {
-                        paint_widget_id(widget, "contains_pointer", Color32::BLUE);
+                if true {
+                    for &id in &contains_pointer {
+                        paint_widget_id(id, "contains_pointer", Color32::BLUE);
                     }
+
+                    let widget_rects = self.write(|w| w.viewport().widgets_this_frame.clone());
+
+                    let mut contains_pointer: Vec<Id> = contains_pointer.iter().copied().collect();
+                    contains_pointer.sort_by_key(|&id| {
+                        widget_rects
+                            .order(id)
+                            .map(|(layer_id, order_in_layer)| (layer_id.order, order_in_layer))
+                    });
+
+                    let mut debug_text = "Widgets in order:\n".to_owned();
+                    for id in contains_pointer {
+                        let mut widget_text = format!("{id:?}");
+                        if let Some(rect) = widget_rects.get(id) {
+                            widget_text += &format!(" {:?} {:?}", rect.rect, rect.sense);
+                        }
+                        if let Some(info) = widget_rects.info(id) {
+                            widget_text += &format!(" {info:?}");
+                        }
+                        debug_text += &format!("{widget_text}\n");
+                    }
+                    self.debug_text(debug_text);
                 }
                 if true {
                     for widget in hovered {
@@ -1888,7 +1928,7 @@ impl Context {
                 drag,
             } = hits;
 
-            if false {
+            if true {
                 for widget in &contains_pointer {
                     paint_widget(widget, "contains_pointer", Color32::BLUE);
                 }
@@ -1963,7 +2003,10 @@ impl ContextImpl {
                         })
                         .collect()
                 };
-                let focus_id = self.memory.focus().map_or(root_id, |id| id.accesskit_id());
+                let focus_id = self
+                    .memory
+                    .focused()
+                    .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
@@ -2228,7 +2271,7 @@ impl Context {
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory(|m| m.interaction().focus.focused().is_some())
+        self.memory(|m| m.focused().is_some())
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -2331,9 +2374,7 @@ impl Context {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.memory(|mem| {
-            mem.layer_id_at(pos, mem.options.style.interaction.resize_grab_radius_side)
-        })
+        self.memory(|mem| mem.layer_id_at(pos))
     }
 
     /// Moves the given area to the top in its [`Order`].
@@ -2490,7 +2531,7 @@ impl Context {
         .on_hover_text("Is egui currently listening for text input?");
         ui.label(format!(
             "Keyboard focus widget: {}",
-            self.memory(|m| m.interaction().focus.focused())
+            self.memory(|m| m.focused())
                 .as_ref()
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
@@ -2777,7 +2818,7 @@ impl Context {
     /// The `Context` lock is held while the given closure is called!
     ///
     /// Returns `None` if acesskit is off.
-    // TODO: consider making both RO and RW versions
+    // TODO(emilk): consider making both read-only and read-write versions
     #[cfg(feature = "accesskit")]
     pub fn accesskit_node_builder<R>(
         &self,

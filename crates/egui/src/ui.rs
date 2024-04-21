@@ -714,8 +714,13 @@ impl Ui {
             .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
     }
 
-    /// Is the pointer (mouse/touch) above this [`Ui`]?
+    /// Is the pointer (mouse/touch) above the current [`Ui`]?
+    ///
     /// Equivalent to `ui.rect_contains_pointer(ui.min_rect())`
+    ///
+    /// Note that this tests against the _current_ [`Ui::min_rect`].
+    /// If you want to test against the final `min_rect`,
+    /// use [`Self::interact_bg`] instead.
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
     }
@@ -996,7 +1001,7 @@ impl Ui {
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
-        let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
+        let painter = self.painter().with_clip_rect(clip_rect);
         (response, painter)
     }
 
@@ -1801,6 +1806,9 @@ impl Ui {
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
+    ///
+    /// The name must be unique within the current parent,
+    /// or you need to use [`CollapsingHeader::id_source`].
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<WidgetText>,

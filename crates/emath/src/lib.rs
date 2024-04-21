@@ -30,6 +30,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 pub mod align;
 mod history;
 mod numeric;
+mod ordered_float;
 mod pos2;
 mod range;
 mod rect;
@@ -40,10 +41,11 @@ mod ts_transform;
 mod vec2;
 mod vec2b;
 
-pub use {
+pub use self::{
     align::{Align, Align2},
     history::History,
     numeric::*,
+    ordered_float::*,
     pos2::*,
     range::Rangef,
     rect::*,

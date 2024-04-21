@@ -1,10 +1,7 @@
 pub use egui_winit;
 pub use egui_winit::EventResponse;
 
-use egui::{
-    ahash::{HashSet, HashSetExt},
-    ViewportId, ViewportOutput,
-};
+use egui::{ahash::HashSet, ViewportId, ViewportOutput};
 use egui_winit::winit;
 
 use crate::shader_version::ShaderVersion;

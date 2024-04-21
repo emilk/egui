@@ -176,6 +176,9 @@ pub struct ScrollArea {
     /// end position until user manually changes position. It will become true
     /// again once scroll handle makes contact with end.
     stick_to_end: Vec2b,
+
+    /// If false, `scroll_to_*` functions will not be animated
+    animated: bool,
 }
 
 impl ScrollArea {
@@ -219,6 +222,7 @@ impl ScrollArea {
             scrolling_enabled: true,
             drag_to_scroll: true,
             stick_to_end: Vec2b::FALSE,
+            animated: true,
         }
     }
 
@@ -337,6 +341,16 @@ impl ScrollArea {
     }
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
+    ///
+    /// You can pass in `false`, `true`, `[false, true]` etc.
+    #[inline]
+    pub fn scroll(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
+        self.scroll_enabled = scroll_enabled.into();
+        self
+    }
+
+    /// Turn on/off scrolling on the horizontal/vertical axes.
+    #[deprecated = "Renamed to `scroll`"]
     #[inline]
     pub fn scroll2(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
         self.scroll_enabled = scroll_enabled.into();
@@ -380,6 +394,15 @@ impl ScrollArea {
     #[inline]
     pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
         self.auto_shrink = auto_shrink.into();
+        self
+    }
+
+    /// Should the scroll area animate `scroll_to_*` functions?
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn animated(mut self, animated: bool) -> Self {
+        self.animated = animated;
         self
     }
 
@@ -449,6 +472,7 @@ struct Prepared {
 
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
+    animated: bool,
 }
 
 impl ScrollArea {
@@ -465,6 +489,7 @@ impl ScrollArea {
             scrolling_enabled,
             drag_to_scroll,
             stick_to_end,
+            animated,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -553,6 +578,7 @@ impl ScrollArea {
         }
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
+        let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
         if (scrolling_enabled && drag_to_scroll)
             && (state.content_is_too_large[0] || state.content_is_too_large[1])
@@ -577,48 +603,50 @@ impl ScrollArea {
                 }
             } else {
                 for d in 0..2 {
-                    let dt = ui.input(|i| i.stable_dt).at_most(0.1);
+                    // Kinetic scrolling
+                    let stop_speed = 20.0; // Pixels per second.
+                    let friction_coeff = 1000.0; // Pixels per second squared.
 
-                    if let Some(scroll_target) = state.offset_target[d] {
+                    let friction = friction_coeff * dt;
+                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
                         state.vel[d] = 0.0;
-
-                        if (state.offset[d] - scroll_target.target_offset).abs() < 1.0 {
-                            // Arrived
-                            state.offset[d] = scroll_target.target_offset;
-                            state.offset_target[d] = None;
-                        } else {
-                            // Move towards target
-                            let t = emath::interpolation_factor(
-                                scroll_target.animation_time_span,
-                                ui.input(|i| i.time),
-                                dt,
-                                emath::ease_in_ease_out,
-                            );
-                            if t < 1.0 {
-                                state.offset[d] =
-                                    emath::lerp(state.offset[d]..=scroll_target.target_offset, t);
-                                ctx.request_repaint();
-                            } else {
-                                // Arrived
-                                state.offset[d] = scroll_target.target_offset;
-                                state.offset_target[d] = None;
-                            }
-                        }
                     } else {
-                        // Kinetic scrolling
-                        let stop_speed = 20.0; // Pixels per second.
-                        let friction_coeff = 1000.0; // Pixels per second squared.
+                        state.vel[d] -= friction * state.vel[d].signum();
+                        // Offset has an inverted coordinate system compared to
+                        // the velocity, so we subtract it instead of adding it
+                        state.offset[d] -= state.vel[d] * dt;
+                        ctx.request_repaint();
+                    }
+                }
+            }
+        }
 
-                        let friction = friction_coeff * dt;
-                        if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
-                            state.vel[d] = 0.0;
-                        } else {
-                            state.vel[d] -= friction * state.vel[d].signum();
-                            // Offset has an inverted coordinate system compared to
-                            // the velocity, so we subtract it instead of adding it
-                            state.offset[d] -= state.vel[d] * dt;
-                            ctx.request_repaint();
-                        }
+        // Scroll with an animation if we have a target offset (that hasn't been cleared by the code
+        // above).
+        for d in 0..2 {
+            if let Some(scroll_target) = state.offset_target[d] {
+                state.vel[d] = 0.0;
+
+                if (state.offset[d] - scroll_target.target_offset).abs() < 1.0 {
+                    // Arrived
+                    state.offset[d] = scroll_target.target_offset;
+                    state.offset_target[d] = None;
+                } else {
+                    // Move towards target
+                    let t = emath::interpolation_factor(
+                        scroll_target.animation_time_span,
+                        ui.input(|i| i.time),
+                        dt,
+                        emath::ease_in_ease_out,
+                    );
+                    if t < 1.0 {
+                        state.offset[d] =
+                            emath::lerp(state.offset[d]..=scroll_target.target_offset, t);
+                        ctx.request_repaint();
+                    } else {
+                        // Arrived
+                        state.offset[d] = scroll_target.target_offset;
+                        state.offset_target[d] = None;
                     }
                 }
             }
@@ -637,6 +665,7 @@ impl ScrollArea {
             viewport,
             scrolling_enabled,
             stick_to_end,
+            animated,
         }
     }
 
@@ -748,16 +777,19 @@ impl Prepared {
             viewport: _,
             scrolling_enabled,
             stick_to_end,
+            animated,
         } = self;
 
         let content_size = content_ui.min_size();
 
         for d in 0..2 {
+            // We always take both scroll targets regardless of which scroll axes are enabled. This
+            // is to avoid them leaking to other scroll areas.
+            let scroll_target = content_ui
+                .ctx()
+                .frame_state_mut(|state| state.scroll_target[d].take());
+
             if scroll_enabled[d] {
-                // We take the scroll target so only this ScrollArea will use it:
-                let scroll_target = content_ui
-                    .ctx()
-                    .frame_state_mut(|state| state.scroll_target[d].take());
                 if let Some((target_range, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
@@ -789,7 +821,9 @@ impl Prepared {
                     if delta != 0.0 {
                         let target_offset = state.offset[d] + delta;
 
-                        if let Some(animation) = &mut state.offset_target[d] {
+                        if !animated {
+                            state.offset[d] = target_offset;
+                        } else if let Some(animation) = &mut state.offset_target[d] {
                             // For instance: the user is continuously calling `ui.scroll_to_cursor`,
                             // so we don't want to reset the animation, but perhaps update the target:
                             animation.target_offset = target_offset;

@@ -101,6 +101,7 @@ pub struct State {
     accesskit: Option<accesskit_winit::Adapter>,
 
     allow_ime: bool,
+    ime_rect_px: Option<egui::Rect>,
 }
 
 impl State {
@@ -141,6 +142,7 @@ impl State {
             accesskit: None,
 
             allow_ime: false,
+            ime_rect_px: None,
         };
 
         slf.egui_input
@@ -310,7 +312,7 @@ impl State {
                     consumed: false,
                 }
             }
-            // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO
+            // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO(emilk)
             WindowEvent::Touch(touch) => {
                 self.on_touch(window, touch);
                 let consumed = match touch.phase {
@@ -378,9 +380,6 @@ impl State {
             }
             WindowEvent::Focused(focused) => {
                 self.egui_input.focused = *focused;
-                // We will not be given a KeyboardInput event when the modifiers are released while
-                // the window does not have focus. Unset all modifier state to be safe.
-                self.egui_input.modifiers = egui::Modifiers::default();
                 self.egui_input
                     .events
                     .push(egui::Event::WindowFocused(*focused));
@@ -822,19 +821,26 @@ impl State {
         }
 
         if let Some(ime) = ime {
-            let rect = ime.rect;
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            crate::profile_scope!("set_ime_cursor_area");
-            window.set_ime_cursor_area(
-                winit::dpi::PhysicalPosition {
-                    x: pixels_per_point * rect.min.x,
-                    y: pixels_per_point * rect.min.y,
-                },
-                winit::dpi::PhysicalSize {
-                    width: pixels_per_point * rect.width(),
-                    height: pixels_per_point * rect.height(),
-                },
-            );
+            let ime_rect_px = pixels_per_point * ime.rect;
+            if self.ime_rect_px != Some(ime_rect_px)
+                || self.egui_ctx.input(|i| !i.events.is_empty())
+            {
+                self.ime_rect_px = Some(ime_rect_px);
+                crate::profile_scope!("set_ime_cursor_area");
+                window.set_ime_cursor_area(
+                    winit::dpi::PhysicalPosition {
+                        x: ime_rect_px.min.x,
+                        y: ime_rect_px.min.y,
+                    },
+                    winit::dpi::PhysicalSize {
+                        width: ime_rect_px.width(),
+                        height: ime_rect_px.height(),
+                    },
+                );
+            }
+        } else {
+            self.ime_rect_px = None;
         }
 
         #[cfg(feature = "accesskit")]
@@ -870,69 +876,61 @@ impl State {
     }
 }
 
+pub fn inner_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
+    let inner_pos_px = window.inner_position().ok()?;
+    let inner_pos_px = egui::pos2(inner_pos_px.x as f32, inner_pos_px.y as f32);
+
+    let inner_size_px = window.inner_size();
+    let inner_size_px = egui::vec2(inner_size_px.width as f32, inner_size_px.height as f32);
+
+    let inner_rect_px = egui::Rect::from_min_size(inner_pos_px, inner_size_px);
+
+    Some(inner_rect_px / pixels_per_point)
+}
+
+pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Rect> {
+    let outer_pos_px = window.outer_position().ok()?;
+    let outer_pos_px = egui::pos2(outer_pos_px.x as f32, outer_pos_px.y as f32);
+
+    let outer_size_px = window.outer_size();
+    let outer_size_px = egui::vec2(outer_size_px.width as f32, outer_size_px.height as f32);
+
+    let outer_rect_px = egui::Rect::from_min_size(outer_pos_px, outer_size_px);
+
+    Some(outer_rect_px / pixels_per_point)
+}
+
 /// Update the given viewport info with the current state of the window.
 ///
 /// Call before [`State::take_egui_input`].
+///
+/// If this is called right after window creation, `is_init` should be `true`, otherwise `false`.
 pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
     egui_ctx: &egui::Context,
     window: &Window,
+    is_init: bool,
 ) {
     crate::profile_function!();
 
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
-        None | Some(true) => false,
-        Some(false) => true,
+        Some(true) => false,
+        Some(false) | None => true,
     };
 
-    let inner_pos_px = if has_a_position {
-        window
-            .inner_position()
-            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-            .ok()
+    let inner_rect = if has_a_position {
+        inner_rect_in_points(window, pixels_per_point)
     } else {
         None
     };
 
-    let outer_pos_px = if has_a_position {
-        window
-            .outer_position()
-            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-            .ok()
+    let outer_rect = if has_a_position {
+        outer_rect_in_points(window, pixels_per_point)
     } else {
         None
     };
-
-    let inner_size_px = if has_a_position {
-        let size = window.inner_size();
-        Some(Vec2::new(size.width as f32, size.height as f32))
-    } else {
-        None
-    };
-
-    let outer_size_px = if has_a_position {
-        let size = window.outer_size();
-        Some(Vec2::new(size.width as f32, size.height as f32))
-    } else {
-        None
-    };
-
-    let inner_rect_px = if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
-        Some(Rect::from_min_size(pos, size))
-    } else {
-        None
-    };
-
-    let outer_rect_px = if let (Some(pos), Some(size)) = (outer_pos_px, outer_size_px) {
-        Some(Rect::from_min_size(pos, size))
-    } else {
-        None
-    };
-
-    let inner_rect = inner_rect_px.map(|r| r / pixels_per_point);
-    let outer_rect = outer_rect_px.map(|r| r / pixels_per_point);
 
     let monitor_size = {
         crate::profile_scope!("monitor_size");
@@ -944,21 +942,23 @@ pub fn update_viewport_info(
         }
     };
 
-    viewport_info.focused = Some(window.has_focus());
-    viewport_info.fullscreen = Some(window.fullscreen().is_some());
-    viewport_info.inner_rect = inner_rect;
-    viewport_info.monitor_size = monitor_size;
-    viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
-    viewport_info.outer_rect = outer_rect;
     viewport_info.title = Some(window.title());
+    viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
 
-    if cfg!(target_os = "windows") {
-        // It's tempting to do this, but it leads to a deadlock on Mac when running
+    viewport_info.monitor_size = monitor_size;
+    viewport_info.inner_rect = inner_rect;
+    viewport_info.outer_rect = outer_rect;
+
+    if is_init || !cfg!(target_os = "macos") {
+        // Asking for minimized/maximized state at runtime leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
         viewport_info.maximized = Some(window.is_maximized());
         viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
+
+    viewport_info.fullscreen = Some(window.fullscreen().is_some());
+    viewport_info.focused = Some(window.has_focus());
 }
 
 fn open_url_in_browser(_url: &str) {
@@ -1296,7 +1296,7 @@ fn process_viewport_command(
 
     use winit::window::ResizeDirection;
 
-    log::debug!("Processing ViewportCommand::{command:?}");
+    log::trace!("Processing ViewportCommand::{command:?}");
 
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
@@ -1310,7 +1310,7 @@ fn process_viewport_command(
         ViewportCommand::StartDrag => {
             // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
 
-            // TODO: check that the left mouse-button was pressed down recently,
+            // TODO(emilk): check that the left mouse-button was pressed down recently,
             // or we will have bugs on Windows.
             // See https://github.com/emilk/egui/pull/1108
             if is_viewport_focused {
@@ -1322,11 +1322,27 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            if window
-                .request_inner_size(PhysicalSize::new(width_px, height_px))
-                .is_some()
-            {
-                log::debug!("ViewportCommand::InnerSize ignored by winit");
+            let requested_size = PhysicalSize::new(width_px, height_px);
+            if let Some(_returned_inner_size) = window.request_inner_size(requested_size) {
+                // On platforms where the size is entirely controlled by the user the
+                // applied size will be returned immediately, resize event in such case
+                // may not be generated.
+                // e.g. Linux
+
+                // On platforms where resizing is disallowed by the windowing system, the current
+                // inner size is returned immediately, and the user one is ignored.
+                // e.g. Android, iOS, …
+
+                // However, comparing the results is prone to numerical errors
+                // because the linux backend converts physical to logical and back again.
+                // So let's just assume it worked:
+
+                info.inner_rect = inner_rect_in_points(window, pixels_per_point);
+                info.outer_rect = outer_rect_in_points(window, pixels_per_point);
+            } else {
+                // e.g. macOS, Windows
+                // The request went to the display system,
+                // and the actual size will be delivered later with the [`WindowEvent::Resized`].
             }
         }
         ViewportCommand::BeginResize(direction) => {
@@ -1561,6 +1577,9 @@ pub fn create_winit_window_builder<T>(
         // wayland:
         app_id: _app_id,
 
+        // x11
+        window_type: _window_type,
+
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
     } = viewport_builder;
 
@@ -1631,6 +1650,30 @@ pub fn create_winit_window_builder<T>(
     if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
         window_builder = window_builder.with_name(app_id, "");
+    }
+
+    #[cfg(all(feature = "x11", target_os = "linux"))]
+    {
+        if let Some(window_type) = _window_type {
+            use winit::platform::x11::WindowBuilderExtX11 as _;
+            use winit::platform::x11::XWindowType;
+            window_builder = window_builder.with_x11_window_type(vec![match window_type {
+                egui::X11WindowType::Normal => XWindowType::Normal,
+                egui::X11WindowType::Utility => XWindowType::Utility,
+                egui::X11WindowType::Dock => XWindowType::Dock,
+                egui::X11WindowType::Desktop => XWindowType::Desktop,
+                egui::X11WindowType::Toolbar => XWindowType::Toolbar,
+                egui::X11WindowType::Menu => XWindowType::Menu,
+                egui::X11WindowType::Splash => XWindowType::Splash,
+                egui::X11WindowType::Dialog => XWindowType::Dialog,
+                egui::X11WindowType::DropdownMenu => XWindowType::DropdownMenu,
+                egui::X11WindowType::PopupMenu => XWindowType::PopupMenu,
+                egui::X11WindowType::Tooltip => XWindowType::Tooltip,
+                egui::X11WindowType::Notification => XWindowType::Notification,
+                egui::X11WindowType::Combo => XWindowType::Combo,
+                egui::X11WindowType::Dnd => XWindowType::Dnd,
+            }]);
+        }
     }
 
     #[cfg(target_os = "windows")]

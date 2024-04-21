@@ -20,10 +20,6 @@ pub(crate) struct State {
     /// If false, clicks goes straight through to what is behind us.
     /// Good for tooltips etc.
     pub interactable: bool,
-
-    /// When `true`, this `Area` belongs to a resizable window, so it needs to
-    /// receive mouse input which occurs a short distance beyond its bounding rect.
-    pub edges_padded_for_resize: bool,
 }
 
 impl State {
@@ -65,6 +61,7 @@ impl State {
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
     pub(crate) id: Id,
+    sense: Option<Sense>,
     movable: bool,
     interactable: bool,
     enabled: bool,
@@ -75,7 +72,6 @@ pub struct Area {
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
-    edges_padded_for_resize: bool,
 }
 
 impl Area {
@@ -83,6 +79,7 @@ impl Area {
     pub fn new(id: Id) -> Self {
         Self {
             id,
+            sense: None,
             movable: true,
             interactable: true,
             constrain: false,
@@ -93,7 +90,6 @@ impl Area {
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
-            edges_padded_for_resize: false,
         }
     }
 
@@ -120,7 +116,7 @@ impl Area {
         self
     }
 
-    /// moveable by dragging the area?
+    /// Moveable by dragging the area?
     #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
         self.movable = movable;
@@ -142,6 +138,15 @@ impl Area {
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.interactable = interactable;
         self.movable &= interactable;
+        self
+    }
+
+    /// Explicitly set a sense.
+    ///
+    /// If not set, this will default to `Sense::drag()` if movable, `Sense::click()` if interactable, and `Sense::hover()` otherwise.
+    #[inline]
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = Some(sense);
         self
     }
 
@@ -227,14 +232,6 @@ impl Area {
             Align2::LEFT_TOP
         }
     }
-
-    /// When `true`, this `Area` belongs to a resizable window, so it needs to
-    /// receive mouse input which occurs a short distance beyond its bounding rect.
-    #[inline]
-    pub(crate) fn edges_padded_for_resize(mut self, edges_padded_for_resize: bool) -> Self {
-        self.edges_padded_for_resize = edges_padded_for_resize;
-        self
-    }
 }
 
 pub(crate) struct Prepared {
@@ -269,6 +266,7 @@ impl Area {
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
         let Self {
             id,
+            sense,
             movable,
             order,
             interactable,
@@ -279,7 +277,6 @@ impl Area {
             anchor,
             constrain,
             constrain_rect,
-            edges_padded_for_resize,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -300,11 +297,9 @@ impl Area {
             pivot,
             size: Vec2::ZERO,
             interactable,
-            edges_padded_for_resize,
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
-        state.edges_padded_for_resize = edges_padded_for_resize;
 
         if let Some((anchor, offset)) = anchor {
             let screen = ctx.available_rect();
@@ -316,13 +311,15 @@ impl Area {
         // interact right away to prevent frame-delay
         let mut move_response = {
             let interact_id = layer_id.id.with("move");
-            let sense = if movable {
-                Sense::drag()
-            } else if interactable {
-                Sense::click() // allow clicks to bring to front
-            } else {
-                Sense::hover()
-            };
+            let sense = sense.unwrap_or_else(|| {
+                if movable {
+                    Sense::drag()
+                } else if interactable {
+                    Sense::click() // allow clicks to bring to front
+                } else {
+                    Sense::hover()
+                }
+            });
 
             let move_response = ctx.create_widget(WidgetRect {
                 id: interact_id,
@@ -358,7 +355,8 @@ impl Area {
         state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
 
         // Update responsbe with posisbly moved/constrained rect:
-        move_response = move_response.with_new_rect(state.rect());
+        move_response.rect = state.rect();
+        move_response.interact_rect = state.rect();
 
         Prepared {
             layer_id,
@@ -387,7 +385,7 @@ impl Area {
         let layer_id = LayerId::new(self.order, self.id);
         let area_rect = ctx.memory(|mem| mem.areas().get(self.id).map(|area| area.rect()));
         if let Some(area_rect) = area_rect {
-            let clip_rect = ctx.available_rect();
+            let clip_rect = Rect::EVERYTHING;
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
 
             // shrinkage: looks kinda a bad on its own
@@ -440,12 +438,7 @@ impl Prepared {
                 .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
         );
 
-        let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
-        let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
-
-        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), constrain_rect.max)
-            .expand(clip_rect_margin)
-            .intersect(constrain_rect);
+        let clip_rect = constrain_rect; // Don't paint outside our bounds
 
         let mut ui = Ui::new(
             ctx.clone(),

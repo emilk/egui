@@ -212,7 +212,7 @@ impl Color32 {
     /// Multiply with 0.5 to make color half as opaque in linear space.
     ///
     /// This is using linear space, which is not perceptually even.
-    /// You may want to use [`Self::gamma_multiply`] instead.
+    /// You likely want to use [`Self::gamma_multiply`] instead.
     #[inline]
     pub fn linear_multiply(self, factor: f32) -> Self {
         crate::ecolor_assert!(0.0 <= factor && factor <= 1.0);

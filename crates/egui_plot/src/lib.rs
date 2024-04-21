@@ -13,17 +13,19 @@ mod memory;
 mod plot_ui;
 mod transform;
 
-use std::{ops::RangeInclusive, sync::Arc};
+use std::{cmp::Ordering, ops::RangeInclusive, sync::Arc};
 
 use egui::ahash::HashMap;
 use egui::*;
-use epaint::{util::FloatOrd, Hsva};
+use emath::Float as _;
+use epaint::Hsva;
 
 pub use crate::{
     axis::{Axis, AxisHints, HPlacement, Placement, VPlacement},
     items::{
-        Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
-        Orientation, PlotImage, PlotItem, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
+        Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, ClosestElem, HLine, Line, LineStyle,
+        MarkerShape, Orientation, PlotConfig, PlotGeometry, PlotImage, PlotItem, PlotPoint,
+        PlotPoints, Points, Polygon, Text, VLine,
     },
     legend::{Corner, Legend},
     memory::PlotMemory,
@@ -799,7 +801,7 @@ impl Plot {
         let plot_id = id.unwrap_or_else(|| ui.make_persistent_id(id_source));
 
         let ([x_axis_widgets, y_axis_widgets], plot_rect) = axis_widgets(
-            PlotMemory::load(ui.ctx(), plot_id).as_ref(), // TODO: avoid loading plot memory twice
+            PlotMemory::load(ui.ctx(), plot_id).as_ref(), // TODO(emilk): avoid loading plot memory twice
             show_axes,
             complete_rect,
             [&x_axes, &y_axes],
@@ -1020,7 +1022,7 @@ impl Plot {
                 delta.y = 0.0;
             }
             mem.transform.translate_bounds(delta);
-            mem.auto_bounds = !allow_drag;
+            mem.auto_bounds = mem.auto_bounds.and(!allow_drag);
         }
 
         // Zooming
@@ -1075,8 +1077,13 @@ impl Plot {
             }
         }
 
-        let hover_pos = response.hover_pos();
-        if let Some(hover_pos) = hover_pos {
+        // Note: we catch zoom/pan if the response contains the pointer, even if it isn't hovered.
+        // For instance: The user is painting another interactive widget on top of the plot
+        // but they still want to be able to pan/zoom the plot.
+        if let (true, Some(hover_pos)) = (
+            response.contains_pointer,
+            ui.input(|i| i.pointer.hover_pos()),
+        ) {
             if allow_zoom.any() {
                 let mut zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input(|i| i.zoom_delta()))
@@ -1091,7 +1098,7 @@ impl Plot {
                 }
                 if zoom_factor != Vec2::splat(1.0) {
                     mem.transform.zoom(zoom_factor, hover_pos);
-                    mem.auto_bounds = !allow_zoom;
+                    mem.auto_bounds = mem.auto_bounds.and(!allow_zoom);
                 }
             }
             if allow_scroll.any() {
@@ -1648,12 +1655,15 @@ impl PreparedPlot {
 
         let interact_radius_sq = (16.0_f32).powi(2);
 
-        let candidates = items.iter().filter_map(|item| {
-            let item = &**item;
-            let closest = item.find_closest(pointer, transform);
+        let candidates = items
+            .iter()
+            .filter(|entry| entry.allow_hover())
+            .filter_map(|item| {
+                let item = &**item;
+                let closest = item.find_closest(pointer, transform);
 
-            Some(item).zip(closest)
-        });
+                Some(item).zip(closest)
+            });
 
         let closest = candidates
             .min_by_key(|(_, elem)| elem.dist_sq.ord())
@@ -1708,7 +1718,29 @@ fn generate_marks(step_sizes: [f64; 3], bounds: (f64, f64)) -> Vec<GridMark> {
     fill_marks_between(&mut steps, step_sizes[0], bounds);
     fill_marks_between(&mut steps, step_sizes[1], bounds);
     fill_marks_between(&mut steps, step_sizes[2], bounds);
+
+    // Remove duplicates:
+    // This can happen because we have overlapping steps, e.g.:
+    // step_size[0] =   10  =>  [-10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
+    // step_size[1] =  100  =>  [     0,                                     100          ]
+    // step_size[2] = 1000  =>  [     0                                                   ]
+
+    steps.sort_by(|a, b| match cmp_f64(a.value, b.value) {
+        // Keep the largest step size when we dedup later
+        Ordering::Equal => cmp_f64(b.step_size, a.step_size),
+
+        ord => ord,
+    });
+    steps.dedup_by(|a, b| a.value == b.value);
+
     steps
+}
+
+fn cmp_f64(a: f64, b: f64) -> Ordering {
+    match a.partial_cmp(&b) {
+        Some(ord) => ord,
+        None => a.is_nan().cmp(&b.is_nan()),
+    }
 }
 
 /// Fill in all values between [min, max] which are a multiple of `step_size`

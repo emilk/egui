@@ -430,8 +430,8 @@ pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
-    Rounding, Shape, Stroke, TextureHandle, TextureId,
+    ClippedPrimitive, ColorImage, FontImage, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Rounding, Shadow, Shape, Stroke, TextureHandle, TextureId,
 };
 
 pub mod text {
@@ -463,7 +463,7 @@ pub use {
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Margin, Style, TextStyle, Visuals},
+    style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     viewport::*,

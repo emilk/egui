@@ -13,6 +13,7 @@ impl super::Demo for About {
             .default_width(320.0)
             .default_height(480.0)
             .open(open)
+            .resizable([true, false])
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);

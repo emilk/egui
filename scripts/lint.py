@@ -36,7 +36,7 @@ def lint_lines(filepath, lines_in):
     for line_nr, line in enumerate(lines_in):
         line_nr = line_nr + 1
 
-        # TODO: only # and /// on lines before a keyword
+        # TODO(emilk): only # and /// on lines before a keyword
 
         pattern = (
             r"^\s*((///)|((pub(\(\w*\))? )?((impl|fn|struct|enum|union|trait)\b))).*$"
@@ -65,6 +65,12 @@ def lint_lines(filepath, lines_in):
                     f"{filepath}:{line_nr}: builder methods should be marked #[inline]"
                 )
                 lines_out.append("#[inline]")
+
+
+        if re.search(r"TODO[^(]", line):
+            errors.append(
+                f"{filepath}:{line_nr}: write 'TODO(username):' instead"
+            )
 
         if (
             "(target_os" in line

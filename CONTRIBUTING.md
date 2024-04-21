@@ -44,7 +44,7 @@ Please keep pull requests small and focused. The smaller it is, the more likely 
 
 Most PR reviews are done by me, Emil, but I very much appreciate any help I can get reviewing PRs!
 
-It is very easy to add complexity to a project, but remember that each line of code added is code that needs to be maintained in perpituity, so we have a high bar on what get merged!
+It is very easy to add complexity to a project, but remember that each line of code added is code that needs to be maintained in perpetuity, so we have a high bar on what get merged!
 
 When reviewing, we look for:
 * The PR title and description should be helpful
@@ -123,7 +123,7 @@ with `Vec2::X` increasing to the right and `Vec2::Y` increasing downwards.
 
 `egui` uses logical _points_ as its coordinate system.
 Those related to physical _pixels_ by the `pixels_per_point` scale factor.
-For example, a high-dpi screeen can have `pixels_per_point = 2.0`,
+For example, a high-dpi screen can have `pixels_per_point = 2.0`,
 meaning there are two physical screen pixels for each logical point.
 
 Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.

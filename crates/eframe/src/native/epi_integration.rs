@@ -152,6 +152,9 @@ impl EpiIntegration {
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
+        #[cfg(feature = "glow")] glow_register_native_texture: Option<
+            Box<dyn FnMut(glow::Texture) -> egui::TextureId>,
+        >,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
         let frame = epi::Frame {
@@ -162,6 +165,8 @@ impl EpiIntegration {
             storage,
             #[cfg(feature = "glow")]
             gl,
+            #[cfg(feature = "glow")]
+            glow_register_native_texture,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
             raw_display_handle: window.display_handle().map(|h| h.as_raw()),
@@ -273,6 +278,8 @@ impl EpiIntegration {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
         let close_requested = raw_input.viewport().close_requested();
+
+        app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {

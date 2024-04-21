@@ -131,7 +131,7 @@ impl super::Demo for ManualLayoutTest {
 
 impl super::View for ManualLayoutTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::reset_button(ui, self);
+        egui::reset_button(ui, self, "Reset");
 
         let Self {
             widget_offset,
@@ -298,7 +298,7 @@ impl super::View for TableTest {
         });
 
         ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.add(crate::egui_github_link_file!());
         });
     }
@@ -372,7 +372,7 @@ impl super::Demo for InputTest {
             .default_width(800.0)
             .open(open)
             .resizable(true)
-            .scroll2(false)
+            .scroll(false)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
@@ -484,6 +484,10 @@ fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
         if response.drag_started_by(button) {
             writeln!(new_info, "Drag started{button_suffix}").ok();
         }
+    }
+
+    if response.long_touched() {
+        writeln!(new_info, "Clicked with long-press").ok();
     }
 
     new_info

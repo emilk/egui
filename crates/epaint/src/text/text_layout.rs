@@ -296,7 +296,7 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
                 // Start a new row:
                 row_start_idx = last_kept_index + 1;
                 row_start_x = paragraph.glyphs[row_start_idx].pos.x;
-                row_break_candidates = Default::default();
+                row_break_candidates.forget_before_idx(row_start_idx);
             } else {
                 // Found no place to break, so we have to overrun wrap_width.
             }
@@ -943,6 +943,35 @@ impl RowBreakCandidates {
                 .or(self.any)
         }
     }
+
+    fn forget_before_idx(&mut self, index: usize) {
+        let Self {
+            space,
+            cjk,
+            pre_cjk,
+            dash,
+            punctuation,
+            any,
+        } = self;
+        if space.map_or(false, |s| s < index) {
+            *space = None;
+        }
+        if cjk.map_or(false, |s| s < index) {
+            *cjk = None;
+        }
+        if pre_cjk.map_or(false, |s| s < index) {
+            *pre_cjk = None;
+        }
+        if dash.map_or(false, |s| s < index) {
+            *dash = None;
+        }
+        if punctuation.map_or(false, |s| s < index) {
+            *punctuation = None;
+        }
+        if any.map_or(false, |s| s < index) {
+            *any = None;
+        }
+    }
 }
 
 #[inline]
@@ -960,7 +989,7 @@ fn is_kana(c: char) -> bool {
 
 #[inline]
 fn is_cjk(c: char) -> bool {
-    // TODO: Add support for Korean Hangul.
+    // TODO(bigfarts): Add support for Korean Hangul.
     is_cjk_ideograph(c) || is_kana(c)
 }
 

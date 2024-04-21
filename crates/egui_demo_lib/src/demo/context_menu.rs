@@ -80,6 +80,8 @@ impl super::View for ContextMenus {
         ui.label("Right-click plot to edit it!");
         ui.horizontal(|ui| {
             self.example_plot(ui).context_menu(|ui| {
+                ui.set_min_width(220.0);
+
                 ui.menu_button("Plot", |ui| {
                     if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
                         || ui
@@ -96,12 +98,12 @@ impl super::View for ContextMenus {
                     ui.add(
                         egui::DragValue::new(&mut self.width)
                             .speed(1.0)
-                            .prefix("Width:"),
+                            .prefix("Width: "),
                     );
                     ui.add(
                         egui::DragValue::new(&mut self.height)
                             .speed(1.0)
-                            .prefix("Height:"),
+                            .prefix("Height: "),
                     );
                     ui.end_row();
                     ui.checkbox(&mut self.show_axes[0], "x-Axis");

@@ -128,7 +128,7 @@ impl Label {
             // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
             // Since currently copying selected text in not supported on `eframe` web,
             // we prioritize touch-scrolling:
-            let allow_drag_to_select = ui.input(|i| !i.any_touches());
+            let allow_drag_to_select = ui.input(|i| !i.has_touch_screen());
 
             let mut select_sense = if allow_drag_to_select {
                 Sense::click_and_drag()

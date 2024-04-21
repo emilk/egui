@@ -163,6 +163,7 @@ impl TouchState {
                 _ => (),
             }
         }
+
         // This needs to be called each frame, even if there are no new touch events.
         // Otherwise, we would send the same old delta information multiple times:
         self.update_gesture(time, pointer_pos);
@@ -176,8 +177,9 @@ impl TouchState {
         }
     }
 
-    pub fn is_active(&self) -> bool {
-        self.gesture_state.is_some()
+    /// Are there currently any fingers touching the surface?
+    pub fn any_touches(&self) -> bool {
+        !self.active_touches.is_empty()
     }
 
     pub fn info(&self) -> Option<MultiTouchInfo> {
