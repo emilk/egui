@@ -6,6 +6,15 @@ use std::{
 
 use super::DynError;
 
+/// Print the command and its arguments as if the user had typed them
+pub fn print_cmd(cmd: &Command) {
+    print!("{} ", cmd.get_program().to_string_lossy());
+    for arg in cmd.get_args() {
+        print!("{} ", arg.to_string_lossy());
+    }
+    println!();
+}
+
 /// Prompt user before running a command
 ///
 /// Adapted from [miri](https://github.com/rust-lang/miri/blob/dba35d2be72f4b78343d1a0f0b4737306f310672/cargo-miri/src/util.rs#L181-L204)

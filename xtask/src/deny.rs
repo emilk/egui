@@ -26,17 +26,18 @@ pub fn deny(args: &[&str]) -> Result<(), DynError> {
         "x86_64-unknown-redox",
     ];
     for target in targets {
-        let status = Command::new("cargo")
-            .args([
-                "deny",
-                "--all-features",
-                "--log-level",
-                "error",
-                "--target",
-                target,
-                "check",
-            ])
-            .status()?;
+        let mut cmd = Command::new("cargo");
+        cmd.args([
+            "deny",
+            "--all-features",
+            "--log-level",
+            "error",
+            "--target",
+            target,
+            "check",
+        ]);
+        super::utils::print_cmd(&cmd);
+        let status = cmd.status()?;
         if !status.success() {
             return Err(status.to_string().into());
         }
