@@ -469,14 +469,14 @@ impl<'open> Window<'open> {
         let mut prepared_area = area.begin(ctx);
         let last_frame_outer_rect = prepared_area.state().rect();
 
+        if let Some(mut state) = resize::State::load(ctx, resize_id) {
+            state.desired_size = last_frame_outer_rect.size() - margins;
+            state.store(ctx, resize_id);
+        }
+
         // First check for resize to avoid frame delay:
         let resize_interaction =
             resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
-
-        if let Some(mut state) = resize::State::load(ctx, resize_id) {
-            state.desired_size = resize_interaction.start_rect.size() - margins;
-            state.store(ctx, resize_id);
-        }
 
         resize_response(
             resize_interaction,
