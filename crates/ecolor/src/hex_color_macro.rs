@@ -13,7 +13,7 @@
 #[macro_export]
 macro_rules! hex_color {
     ($s:literal) => {{
-        let array = color_hex::color_from_hex!($s);
+        let array = $crate::color_hex::color_from_hex!($s);
         if array.len() == 3 {
             $crate::Color32::from_rgb(array[0], array[1], array[2])
         } else {
