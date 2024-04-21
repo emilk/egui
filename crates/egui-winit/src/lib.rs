@@ -93,7 +93,7 @@ pub struct State {
     pointer_touch_id: Option<u64>,
 
     /// track ime state
-    input_method_editor_started: bool,
+    has_sent_ime_enable: bool,
 
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
@@ -134,7 +134,7 @@ impl State {
             simulate_touch_screen: false,
             pointer_touch_id: None,
 
-            input_method_editor_started: false,
+            has_sent_ime_enable: false,
 
             #[cfg(feature = "accesskit")]
             accesskit: None,
@@ -341,27 +341,38 @@ impl State {
                 // between Commits.
                 match ime {
                     winit::event::Ime::Enabled => {
-                        self.egui_input.events.push(egui::Event::ImeEnable);
-                    }
-                    winit::event::Ime::Disabled => {
-                        self.egui_input.events.push(egui::Event::ImeDisable);
-                    }
-                    winit::event::Ime::Commit(text) => {
-                        self.input_method_editor_started = false;
                         self.egui_input
                             .events
-                            .push(egui::Event::CompositionEnd(text.clone()));
+                            .push(egui::Event::Ime(egui::IMEEvent::Enabled));
+                        self.has_sent_ime_enable = true;
                     }
-                    winit::event::Ime::Preedit(text, Some(_)) => {
-                        if !self.input_method_editor_started {
-                            self.input_method_editor_started = true;
-                            self.egui_input.events.push(egui::Event::CompositionStart);
+                    winit::event::Ime::Preedit(_, None) => {}
+                    winit::event::Ime::Preedit(text, Some(_cursor)) => {
+                        if !self.has_sent_ime_enable {
+                            self.egui_input
+                                .events
+                                .push(egui::Event::Ime(egui::IMEEvent::Enabled));
+                            self.has_sent_ime_enable = true;
                         }
                         self.egui_input
                             .events
-                            .push(egui::Event::CompositionUpdate(text.clone()));
+                            .push(egui::Event::Ime(egui::IMEEvent::Preedit(text.clone())));
                     }
-                    winit::event::Ime::Preedit(_, None) => {}
+                    winit::event::Ime::Commit(text) => {
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::IMEEvent::Commit(text.clone())));
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::IMEEvent::Disabled));
+                        self.has_sent_ime_enable = false;
+                    }
+                    winit::event::Ime::Disabled => {
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::IMEEvent::Disabled));
+                        self.has_sent_ime_enable = false;
+                    }
                 };
 
                 EventResponse {
