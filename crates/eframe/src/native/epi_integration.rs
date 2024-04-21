@@ -45,7 +45,7 @@ pub fn viewport_builder<E>(
             viewport_builder = viewport_builder.with_position(pos);
         }
 
-        if with_constraint {
+        if clamp_size_to_monitor_size {
             if let Some(initial_window_size) = viewport_builder.inner_size {
                 let initial_window_size = initial_window_size
                     .at_most(largest_monitor_point_size(egui_zoom_factor, event_loop));
