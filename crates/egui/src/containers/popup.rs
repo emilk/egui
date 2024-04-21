@@ -333,13 +333,13 @@ pub fn popup_below_widget<R>(
 /// # });
 /// ```
 pub fn popup_above_or_below_widget<R>(
-    ui: &Ui,
+    parent_ui: &Ui,
     popup_id: Id,
     widget_response: &Response,
     above_or_below: AboveOrBelow,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    if ui.memory(|mem| mem.is_popup_open(popup_id)) {
+    if parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
         let (pos, pivot) = match above_or_below {
             AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
             AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
@@ -350,8 +350,8 @@ pub fn popup_above_or_below_widget<R>(
             .constrain(true)
             .fixed_pos(pos)
             .pivot(pivot)
-            .show(ui.ctx(), |ui| {
-                let frame = Frame::popup(ui.style());
+            .show(parent_ui.ctx(), |ui| {
+                let frame = Frame::popup(parent_ui.style());
                 let frame_margin = frame.total_margin();
                 frame
                     .show(ui, |ui| {
@@ -365,8 +365,8 @@ pub fn popup_above_or_below_widget<R>(
             })
             .inner;
 
-        if ui.input(|i| i.key_pressed(Key::Escape)) || widget_response.clicked_elsewhere() {
-            ui.memory_mut(|mem| mem.close_popup());
+        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || widget_response.clicked_elsewhere() {
+            parent_ui.memory_mut(|mem| mem.close_popup());
         }
         Some(inner)
     } else {
