@@ -26,6 +26,7 @@ impl std::ops::IndexMut<usize> for Rgba {
     }
 }
 
+/// Deterministically hash an `f32`, treating all NANs as equal, and ignoring the sign of zero.
 #[inline]
 pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     if f == 0.0 {
