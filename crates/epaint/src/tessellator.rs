@@ -885,9 +885,8 @@ fn stroke_path(
     let idx = out.vertices.len() as u32;
 
     // expand the bounding box to include the thickness of the path
-    // this tiny bit of margin is here because a rect doesn't think it contains a point if a pos' component is on a boundary. why? i have no idea.
     let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-        .expand((stroke.width / 2.0) + feathering + 1.0);
+        .expand((stroke.width / 2.0) + feathering);
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
@@ -2077,7 +2076,7 @@ fn path_bounding_box() {
         let width = i as f32;
 
         let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(10.0, 10.0));
-        let expected_rect = rect.expand((width / 2.0) + 2.5);
+        let expected_rect = rect.expand((width / 2.0) + 1.5);
 
         let mut mesh = Mesh::default();
 
@@ -2096,12 +2095,15 @@ fn path_bounding_box() {
             PathType::Closed,
             &PathStroke::new_uv(width, move |r, p| {
                 assert_eq!(r, expected_rect);
+                // see https://github.com/emilk/egui/pull/4353#discussion_r1573879940 for why .contains() isn't used here.
+                // TL;DR rounding errors.
                 assert!(
-                    r.contains(p),
-                    "passed rect {r:?} didn't contain point {p:?}"
+                    r.distance_to_pos(p) <= 0.55,
+                    "passed rect {r:?} didn't contain point {p:?} (distance: {})",
+                    r.distance_to_pos(p)
                 );
                 assert!(
-                    expected_rect.contains(p),
+                    expected_rect.distance_to_pos(p) <= 0.55,
                     "expected rect {expected_rect:?} didn't contain point {p:?}"
                 );
                 Color32::WHITE
