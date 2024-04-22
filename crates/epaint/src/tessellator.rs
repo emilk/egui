@@ -1141,17 +1141,11 @@ fn stroke_path(
             for p in path {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
-                    mul_color(
-                        get_color(&stroke.color, p.pos + radius * p.normal),
-                        stroke.width / feathering,
-                    ),
+                    get_color(&stroke.color, p.pos + radius * p.normal),
                 );
                 out.colored_vertex(
                     p.pos - radius * p.normal,
-                    mul_color(
-                        get_color(&stroke.color, p.pos - radius * p.normal),
-                        stroke.width / feathering,
-                    ),
+                    get_color(&stroke.color, p.pos - radius * p.normal),
                 );
             }
         }
