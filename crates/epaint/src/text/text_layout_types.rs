@@ -185,7 +185,7 @@ impl std::hash::Hash for LayoutJob {
         text.hash(state);
         sections.hash(state);
         wrap.hash(state);
-        crate::f32_hash(state, *first_row_min_height);
+        emath::OrderedFloat(*first_row_min_height).hash(state);
         break_on_newline.hash(state);
         halign.hash(state);
         justify.hash(state);
@@ -214,7 +214,7 @@ impl std::hash::Hash for LayoutSection {
             byte_range,
             format,
         } = self;
-        crate::f32_hash(state, *leading_space);
+        OrderedFloat(*leading_space).hash(state);
         byte_range.hash(state);
         format.hash(state);
     }
@@ -293,9 +293,9 @@ impl std::hash::Hash for TextFormat {
             valign,
         } = self;
         font_id.hash(state);
-        crate::f32_hash(state, *extra_letter_spacing);
+        emath::OrderedFloat(*extra_letter_spacing).hash(state);
         if let Some(line_height) = *line_height {
-            crate::f32_hash(state, line_height);
+            emath::OrderedFloat(line_height).hash(state);
         }
         color.hash(state);
         background.hash(state);
@@ -375,7 +375,7 @@ impl std::hash::Hash for TextWrapping {
             break_anywhere,
             overflow_character,
         } = self;
-        crate::f32_hash(state, *max_width);
+        emath::OrderedFloat(*max_width).hash(state);
         max_rows.hash(state);
         break_anywhere.hash(state);
         overflow_character.hash(state);

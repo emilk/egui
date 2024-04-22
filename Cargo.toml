@@ -14,6 +14,8 @@ members = [
     "crates/epaint",
 
     "examples/*",
+
+    "xtask",
 ]
 
 [workspace.package]
