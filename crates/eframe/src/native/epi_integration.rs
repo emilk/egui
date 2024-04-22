@@ -22,7 +22,8 @@ pub fn viewport_builder<E>(
 
     let clamp_size_to_monitor_size = viewport_builder.clamp_size_to_monitor_size.unwrap_or(
         // On some Linux systems, a window size larger than the monitor causes crashes
-        cfg!(target_os = "linux"));
+        cfg!(target_os = "linux"),
+    );
 
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
