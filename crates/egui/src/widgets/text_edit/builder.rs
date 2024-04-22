@@ -950,47 +950,51 @@ fn events(
                 ..
             } => check_for_mutating_key_press(os, &mut cursor_range, text, galley, modifiers, *key),
 
-            Event::CompositionStart => {
-                state.has_ime = true;
-                None
-            }
-
-            Event::CompositionUpdate(text_mark) => {
-                // empty prediction can be produced when user press backspace
-                // or escape during ime. We should clear current text.
-                if text_mark != "\n" && text_mark != "\r" && state.has_ime {
-                    let mut ccursor = text.delete_selected(&cursor_range);
-                    let start_cursor = ccursor;
-                    if !text_mark.is_empty() {
-                        text.insert_text_at(&mut ccursor, text_mark, char_limit);
-                    }
+            Event::Ime(ime_event) => match ime_event {
+                ImeEvent::Enabled => {
+                    state.ime_enabled = true;
                     state.ime_cursor_range = cursor_range;
-                    Some(CCursorRange::two(start_cursor, ccursor))
-                } else {
                     None
                 }
-            }
-
-            Event::CompositionEnd(prediction) => {
-                // CompositionEnd only characters may be typed into TextEdit without trigger CompositionStart first,
-                // so do not check `state.has_ime = true` in the following statement.
-                if prediction != "\n" && prediction != "\r" {
-                    state.has_ime = false;
-                    let mut ccursor;
-                    if !prediction.is_empty()
-                        && cursor_range.secondary.ccursor.index
-                            == state.ime_cursor_range.secondary.ccursor.index
-                    {
-                        ccursor = text.delete_selected(&cursor_range);
-                        text.insert_text_at(&mut ccursor, prediction, char_limit);
+                ImeEvent::Preedit(text_mark) => {
+                    if text_mark == "\n" || text_mark == "\r" {
+                        None
                     } else {
-                        ccursor = cursor_range.primary.ccursor;
+                        // Empty prediction can be produced when user press backspace
+                        // or escape during IME, so we clear current text.
+                        let mut ccursor = text.delete_selected(&cursor_range);
+                        let start_cursor = ccursor;
+                        if !text_mark.is_empty() {
+                            text.insert_text_at(&mut ccursor, text_mark, char_limit);
+                        }
+                        state.ime_cursor_range = cursor_range;
+                        Some(CCursorRange::two(start_cursor, ccursor))
                     }
-                    Some(CCursorRange::one(ccursor))
-                } else {
+                }
+                ImeEvent::Commit(prediction) => {
+                    if prediction == "\n" || prediction == "\r" {
+                        None
+                    } else {
+                        state.ime_enabled = false;
+
+                        if !prediction.is_empty()
+                            && cursor_range.secondary.ccursor.index
+                                == state.ime_cursor_range.secondary.ccursor.index
+                        {
+                            let mut ccursor = text.delete_selected(&cursor_range);
+                            text.insert_text_at(&mut ccursor, prediction, char_limit);
+                            Some(CCursorRange::one(ccursor))
+                        } else {
+                            let ccursor = cursor_range.primary.ccursor;
+                            Some(CCursorRange::one(ccursor))
+                        }
+                    }
+                }
+                ImeEvent::Disabled => {
+                    state.ime_enabled = false;
                     None
                 }
-            }
+            },
 
             _ => None,
         };
