@@ -157,16 +157,15 @@ fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
         let mut it = it.skip(ccursor.index - 1);
         if let Some(char_before_cursor) = it.next() {
             if let Some(char_after_cursor) = it.next() {
-                if is_string_component(char_before_cursor) && is_string_component(char_after_cursor)
-                {
+                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
                     let min = ccursor_previous_word(text, ccursor + 1);
                     let max = ccursor_next_word(text, min);
                     CCursorRange::two(min, max)
-                } else if is_string_component(char_before_cursor) {
+                } else if is_word_char(char_before_cursor) {
                     let min = ccursor_previous_word(text, ccursor);
                     let max = ccursor_next_word(text, min);
                     CCursorRange::two(min, max)
-                } else if is_string_component(char_after_cursor) {
+                } else if is_word_char(char_after_cursor) {
                     let max = ccursor_next_word(text, ccursor);
                     CCursorRange::two(ccursor, max)
                 } else {
@@ -260,7 +259,7 @@ fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
         if let Some(second) = it.next() {
             index += 1;
             for next in it {
-                if is_string_component(next) != is_string_component(second) {
+                if is_word_char(next) != is_word_char(second) {
                     break;
                 }
                 index += 1;
@@ -288,14 +287,10 @@ fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
     index
 }
 
-pub fn is_word_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_'
-}
-
-/// Determines whether a character is a component of a string.
+/// Determines whether a character is a component of a word.
 ///
-/// Punctuation marks that are commonly used with strings are considered string components.
-pub fn is_string_component(c: char) -> bool {
+/// Punctuation marks that are commonly used with words are considered word components.
+pub fn is_word_char(c: char) -> bool {
     if matches!(
         c,
         '_' | '-' | ':' | '/' | '.' | '\\' | '@' | '#' | '?' | '='
