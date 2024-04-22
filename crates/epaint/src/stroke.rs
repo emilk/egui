@@ -89,7 +89,7 @@ impl PathStroke {
     ) -> Self {
         Self {
             width: width.into(),
-            color: ColorMode::UV(Arc::new(Box::new(callback))),
+            color: ColorMode::UV(Arc::new(callback)),
         }
     }
 
