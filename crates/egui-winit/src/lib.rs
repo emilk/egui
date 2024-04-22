@@ -1598,6 +1598,7 @@ pub fn create_winit_window_builder<T>(
         window_type: _window_type,
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
+        clamp_size_to_monitor_size: _, // Handled in `viewport_builder` in `epi_integration.rs`
     } = viewport_builder;
 
     let mut window_builder = winit::window::WindowBuilder::new()
