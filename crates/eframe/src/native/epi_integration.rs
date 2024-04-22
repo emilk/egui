@@ -20,14 +20,23 @@ pub fn viewport_builder<E>(
 
     let mut viewport_builder = native_options.viewport.clone();
 
+    let clamp_size_to_monitor_size = viewport_builder.clamp_size_to_monitor_size.unwrap_or(
+        // On some Linux systems, a window size larger than the monitor causes crashes
+        cfg!(target_os = "linux"),
+    );
+
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
     #[cfg(not(target_os = "ios"))]
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
 
-        window_settings
-            .clamp_size_to_sane_values(largest_monitor_point_size(egui_zoom_factor, event_loop));
+        if clamp_size_to_monitor_size {
+            window_settings.clamp_size_to_sane_values(largest_monitor_point_size(
+                egui_zoom_factor,
+                event_loop,
+            ));
+        }
         window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
         viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
@@ -37,10 +46,12 @@ pub fn viewport_builder<E>(
             viewport_builder = viewport_builder.with_position(pos);
         }
 
-        if let Some(initial_window_size) = viewport_builder.inner_size {
-            let initial_window_size = initial_window_size
-                .at_most(largest_monitor_point_size(egui_zoom_factor, event_loop));
-            viewport_builder = viewport_builder.with_inner_size(initial_window_size);
+        if clamp_size_to_monitor_size {
+            if let Some(initial_window_size) = viewport_builder.inner_size {
+                let initial_window_size = initial_window_size
+                    .at_most(largest_monitor_point_size(egui_zoom_factor, event_loop));
+                viewport_builder = viewport_builder.with_inner_size(initial_window_size);
+            }
         }
 
         viewport_builder.inner_size

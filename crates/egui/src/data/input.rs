@@ -445,14 +445,8 @@ pub enum Event {
     /// * `zoom > 1`: pinch spread
     Zoom(f32),
 
-    /// IME composition start.
-    CompositionStart,
-
-    /// A new IME candidate is being suggested.
-    CompositionUpdate(String),
-
-    /// IME composition ended with this final result.
-    CompositionEnd(String),
+    /// IME Event
+    Ime(ImeEvent),
 
     /// On touch screens, report this *in addition to*
     /// [`Self::PointerMoved`], [`Self::PointerButton`], [`Self::PointerGone`]
@@ -505,6 +499,25 @@ pub enum Event {
         viewport_id: crate::ViewportId,
         image: std::sync::Arc<ColorImage>,
     },
+}
+
+/// IME event.
+///
+/// See <https://docs.rs/winit/latest/winit/event/enum.Ime.html>
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ImeEvent {
+    /// Notifies when the IME was enabled.
+    Enabled,
+
+    /// A new IME candidate is being suggested.
+    Preedit(String),
+
+    /// IME composition ended with this final result.
+    Commit(String),
+
+    /// Notifies when the IME was disabled.
+    Disabled,
 }
 
 /// Mouse button (or similar for touch input)
