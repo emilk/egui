@@ -150,7 +150,7 @@ impl SidePanel {
         self
     }
 
-    /// The initial wrapping width of the [`SidePanel`].
+    /// The initial wrapping width of the [`SidePanel`], including margins.
     #[inline]
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
@@ -161,21 +161,21 @@ impl SidePanel {
         self
     }
 
-    /// Minimum width of the panel.
+    /// Minimum width of the panel, including margins.
     #[inline]
     pub fn min_width(mut self, min_width: f32) -> Self {
         self.width_range = Rangef::new(min_width, self.width_range.max.at_least(min_width));
         self
     }
 
-    /// Maximum width of the panel.
+    /// Maximum width of the panel, including margins.
     #[inline]
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.width_range = Rangef::new(self.width_range.min.at_most(max_width), max_width);
         self
     }
 
-    /// The allowable width range for the panel.
+    /// The allowable width range for the panel, including margins.
     #[inline]
     pub fn width_range(mut self, width_range: impl Into<Rangef>) -> Self {
         let width_range = width_range.into();
@@ -184,7 +184,7 @@ impl SidePanel {
         self
     }
 
-    /// Enforce this exact width.
+    /// Enforce this exact width, including margins.
     #[inline]
     pub fn exact_width(mut self, width: f32) -> Self {
         self.default_width = width;
@@ -262,7 +262,9 @@ impl SidePanel {
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
-            ui.set_min_width(width_range.min);
+            ui.set_min_width(
+                width_range.min - (frame.inner_margin.left + frame.inner_margin.right),
+            );
             add_contents(ui)
         });
 
@@ -609,7 +611,7 @@ impl TopBottomPanel {
         self
     }
 
-    /// The initial height of the [`TopBottomPanel`].
+    /// The initial height of the [`TopBottomPanel`], including margins.
     /// Defaults to [`style::Spacing::interact_size`].y.
     #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
@@ -621,21 +623,21 @@ impl TopBottomPanel {
         self
     }
 
-    /// Minimum height of the panel.
+    /// Minimum height of the panel, including margins.
     #[inline]
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.height_range = Rangef::new(min_height, self.height_range.max.at_least(min_height));
         self
     }
 
-    /// Maximum height of the panel.
+    /// Maximum height of the panel, including margins.
     #[inline]
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.height_range = Rangef::new(self.height_range.min.at_most(max_height), max_height);
         self
     }
 
-    /// The allowable height range for the panel.
+    /// The allowable height range for the panel, including margins.
     #[inline]
     pub fn height_range(mut self, height_range: impl Into<Rangef>) -> Self {
         let height_range = height_range.into();
@@ -646,7 +648,7 @@ impl TopBottomPanel {
         self
     }
 
-    /// Enforce this exact height.
+    /// Enforce this exact height, including margins.
     #[inline]
     pub fn exact_height(mut self, height: f32) -> Self {
         self.default_height = Some(height);
@@ -728,7 +730,9 @@ impl TopBottomPanel {
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
-            ui.set_min_height(height_range.min);
+            ui.set_min_height(
+                height_range.min - (frame.inner_margin.top + frame.inner_margin.bottom),
+            );
             add_contents(ui)
         });
 

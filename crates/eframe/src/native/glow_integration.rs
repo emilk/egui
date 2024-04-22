@@ -9,6 +9,7 @@
 
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
 
+use egui_winit::ActionRequested;
 use glutin::{
     config::GlConfig,
     context::NotCurrentGlContext,
@@ -22,8 +23,9 @@ use winit::{
 };
 
 use egui::{
-    epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, ViewportBuilder,
-    ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportInfo, ViewportOutput,
+    ahash::HashSet, epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport,
+    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportInfo,
+    ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -104,7 +106,7 @@ struct Viewport {
     builder: ViewportBuilder,
     deferred_commands: Vec<egui::viewport::ViewportCommand>,
     info: ViewportInfo,
-    screenshot_requested: bool,
+    actions_requested: HashSet<egui_winit::ActionRequested>,
 
     /// The user-callback that shows the ui.
     /// None for immediate viewports.
@@ -682,17 +684,38 @@ impl GlowWinitRunning {
         );
 
         {
-            let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
-            if screenshot_requested {
-                let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                egui_winit
-                    .egui_input_mut()
-                    .events
-                    .push(egui::Event::Screenshot {
-                        viewport_id,
-                        image: screenshot.into(),
-                    });
+            for action in viewport.actions_requested.drain() {
+                match action {
+                    ActionRequested::Screenshot => {
+                        let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                        egui_winit
+                            .egui_input_mut()
+                            .events
+                            .push(egui::Event::Screenshot {
+                                viewport_id,
+                                image: screenshot.into(),
+                            });
+                    }
+                    ActionRequested::Cut => {
+                        egui_winit.egui_input_mut().events.push(egui::Event::Cut);
+                    }
+                    ActionRequested::Copy => {
+                        egui_winit.egui_input_mut().events.push(egui::Event::Copy);
+                    }
+                    ActionRequested::Paste => {
+                        if let Some(contents) = egui_winit.clipboard_text() {
+                            let contents = contents.replace("\r\n", "\n");
+                            if !contents.is_empty() {
+                                egui_winit
+                                    .egui_input_mut()
+                                    .events
+                                    .push(egui::Event::Paste(contents));
+                            }
+                        }
+                    }
+                }
             }
+
             integration.post_rendering(&window);
         }
 
@@ -1020,7 +1043,7 @@ impl GlutinWindowContext {
                 builder: viewport_builder,
                 deferred_commands: vec![],
                 info,
-                screenshot_requested: false,
+                actions_requested: Default::default(),
                 viewport_ui_cb: None,
                 gl_surface: None,
                 window: window.map(Arc::new),
@@ -1277,7 +1300,7 @@ impl GlutinWindowContext {
                     std::mem::take(&mut viewport.deferred_commands),
                     window,
                     is_viewport_focused,
-                    &mut viewport.screenshot_requested,
+                    &mut viewport.actions_requested,
                 );
 
                 // For Wayland : https://github.com/emilk/egui/issues/4196
@@ -1323,7 +1346,7 @@ fn initialize_or_update_viewport(
                 builder,
                 deferred_commands: vec![],
                 info: Default::default(),
-                screenshot_requested: false,
+                actions_requested: Default::default(),
                 viewport_ui_cb,
                 window: None,
                 egui_winit: None,
