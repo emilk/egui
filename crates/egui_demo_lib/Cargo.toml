@@ -42,8 +42,6 @@ egui = { workspace = true, default-features = false, features = ["color-hex"] }
 egui_extras = { workspace = true, features = ["default"] }
 egui_plot = { workspace = true, features = ["default"] }
 
-once_cell = "1.19"
-
 log.workspace = true
 unicode_names2 = { version = "0.6.0", default-features = false } # this old version has fewer dependencies
 

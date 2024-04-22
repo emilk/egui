@@ -1321,7 +1321,6 @@ dependencies = [
  "egui_extras",
  "egui_plot",
  "log",
- "once_cell",
  "serde",
  "unicode_names2",
 ]
