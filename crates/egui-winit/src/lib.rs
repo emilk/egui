@@ -95,7 +95,7 @@ pub struct State {
     pointer_touch_id: Option<u64>,
 
     /// track ime state
-    has_sent_ime_enable: bool,
+    has_sent_ime_enabled: bool,
 
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
@@ -136,7 +136,7 @@ impl State {
             simulate_touch_screen: false,
             pointer_touch_id: None,
 
-            has_sent_ime_enable: false,
+            has_sent_ime_enabled: false,
 
             #[cfg(feature = "accesskit")]
             accesskit: None,
@@ -346,15 +346,15 @@ impl State {
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                        self.has_sent_ime_enable = true;
+                        self.has_sent_ime_enabled = true;
                     }
                     winit::event::Ime::Preedit(_, None) => {}
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                        if !self.has_sent_ime_enable {
+                        if !self.has_sent_ime_enabled {
                             self.egui_input
                                 .events
                                 .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                            self.has_sent_ime_enable = true;
+                            self.has_sent_ime_enabled = true;
                         }
                         self.egui_input
                             .events
@@ -367,13 +367,13 @@ impl State {
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enable = false;
+                        self.has_sent_ime_enabled = false;
                     }
                     winit::event::Ime::Disabled => {
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enable = false;
+                        self.has_sent_ime_enabled = false;
                     }
                 };
 
