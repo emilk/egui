@@ -41,8 +41,8 @@ pub(crate) struct FrameState {
     /// The current scroll area should scroll to this range (horizontal, vertical).
     pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
 
-    /// The current scroll area should scroll by this much (horizontal, vertical).
-    pub(crate) scroll_delta: [Option<f32>; 2],
+    /// The current scroll area should scroll by this much.
+    pub(crate) scroll_delta: Vec2,
 
     #[cfg(feature = "accesskit")]
     pub(crate) accesskit_state: Option<AccessKitFrameState>,
@@ -66,7 +66,7 @@ impl Default for FrameState {
             used_by_panels: Rect::NAN,
             tooltip_state: None,
             scroll_target: [None, None],
-            scroll_delta: [None, None],
+            scroll_delta: Vec2::default(),
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_this_frame: Default::default(),
@@ -104,7 +104,7 @@ impl FrameState {
         *used_by_panels = Rect::NOTHING;
         *tooltip_state = None;
         *scroll_target = [None, None];
-        *scroll_delta = [None, None];
+        *scroll_delta = Vec2::default();
 
         #[cfg(debug_assertions)]
         {

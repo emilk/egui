@@ -1092,7 +1092,7 @@ impl Ui {
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
         self.ctx().frame_state_mut(|state| {
-            state.scroll_delta = [Some(delta.x), Some(delta.y)];
+            state.scroll_delta = delta;
         });
     }
 }
