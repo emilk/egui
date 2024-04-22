@@ -3,17 +3,18 @@
 
 use std::ops::RangeInclusive;
 
-use epaint::{emath::Rot2, util::FloatOrd, Mesh};
+use epaint::{emath::Rot2, Mesh};
 
 use crate::*;
 
 use super::{Cursor, LabelFormatter, PlotBounds, PlotTransform};
 use rect_elem::*;
-use values::ClosestElem;
 
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
-pub use values::{LineStyle, MarkerShape, Orientation, PlotGeometry, PlotPoint, PlotPoints};
+pub use values::{
+    ClosestElem, LineStyle, MarkerShape, Orientation, PlotGeometry, PlotPoint, PlotPoints,
+};
 
 mod bar;
 mod box_elem;
@@ -45,7 +46,7 @@ pub trait PlotItem {
 
     fn highlighted(&self) -> bool;
 
-    /// Can the user hover this is item?
+    /// Can the user hover this item?
     fn allow_hover(&self) -> bool;
 
     fn geometry(&self) -> PlotGeometry<'_>;
