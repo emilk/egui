@@ -68,7 +68,7 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
                 is_composing.set(true);
                 input_clone.set_value("");
 
-                runner.input.raw.events.push(egui::Event::CompositionStart);
+                runner.input.raw.events.push(egui::Event::IMEEvent::Enable);
                 runner.needs_repaint.repaint_asap();
             }
         })?;
@@ -77,7 +77,7 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
             &input,
             "compositionupdate",
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                if let Some(event) = event.data().map(egui::Event::CompositionUpdate) {
+                if let Some(event) = event.data().map(egui::Event::IMEEvent::Preedit) {
                     runner.input.raw.events.push(event);
                     runner.needs_repaint.repaint_asap();
                 }
@@ -91,7 +91,7 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
                 is_composing.set(false);
                 input_clone.set_value("");
 
-                if let Some(event) = event.data().map(egui::Event::CompositionEnd) {
+                if let Some(event) = event.data().map(egui::Event::IMEEvent::Commit) {
                     runner.input.raw.events.push(event);
                     runner.needs_repaint.repaint_asap();
                 }
