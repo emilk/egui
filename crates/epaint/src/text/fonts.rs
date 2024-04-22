@@ -8,7 +8,7 @@ use crate::{
     },
     TextureAtlas,
 };
-use emath::NumExt as _;
+use emath::{NumExt as _, OrderedFloat};
 
 // ----------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self { size, family } = self;
-        crate::f32_hash(state, *size);
+        emath::OrderedFloat(*size).hash(state);
         family.hash(state);
     }
 }
@@ -567,21 +567,6 @@ impl FontsAndCache {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct HashableF32(f32);
-
-#[allow(clippy::derived_hash_with_manual_eq)]
-impl std::hash::Hash for HashableF32 {
-    #[inline(always)]
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        crate::f32_hash(state, self.0);
-    }
-}
-
-impl Eq for HashableF32 {}
-
-// ----------------------------------------------------------------------------
-
 /// The collection of fonts used by `epaint`.
 ///
 /// Required in order to paint text.
@@ -591,7 +576,7 @@ pub struct FontsImpl {
     definitions: FontDefinitions,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
-    sized_family: ahash::HashMap<(HashableF32, FontFamily), Font>,
+    sized_family: ahash::HashMap<(OrderedFloat<f32>, FontFamily), Font>,
 }
 
 impl FontsImpl {
@@ -641,7 +626,7 @@ impl FontsImpl {
         let FontId { size, family } = font_id;
 
         self.sized_family
-            .entry((HashableF32(*size), family.clone()))
+            .entry((OrderedFloat(*size), family.clone()))
             .or_insert_with(|| {
                 let fonts = &self.definitions.families.get(family);
                 let fonts = fonts
