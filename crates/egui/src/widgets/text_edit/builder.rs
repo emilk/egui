@@ -976,17 +976,18 @@ fn events(
                         None
                     } else {
                         state.ime_enabled = false;
-                        let mut ccursor;
+
                         if !prediction.is_empty()
                             && cursor_range.secondary.ccursor.index
                                 == state.ime_cursor_range.secondary.ccursor.index
                         {
-                            ccursor = text.delete_selected(&cursor_range);
+                            let mut ccursor = text.delete_selected(&cursor_range);
                             text.insert_text_at(&mut ccursor, prediction, char_limit);
+                            Some(CCursorRange::one(ccursor))
                         } else {
-                            ccursor = cursor_range.primary.ccursor;
+                            let ccursor = cursor_range.primary.ccursor;
+                            Some(CCursorRange::one(ccursor))
                         }
-                        Some(CCursorRange::one(ccursor))
                     }
                 }
                 ImeEvent::Disabled => {
