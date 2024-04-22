@@ -17,7 +17,8 @@ use std::{cmp::Ordering, ops::RangeInclusive, sync::Arc};
 
 use egui::ahash::HashMap;
 use egui::*;
-use epaint::{util::FloatOrd, Hsva};
+use emath::Float as _;
+use epaint::Hsva;
 
 pub use crate::{
     axis::{Axis, AxisHints, HPlacement, Placement, VPlacement},
