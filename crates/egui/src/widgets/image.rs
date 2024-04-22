@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 
-use crate::load::TextureLoadResult;
+use emath::{Float as _, Rot2};
+use epaint::RectShape;
+
 use crate::{
-    load::{Bytes, SizeHint, SizedTexture, TexturePoll},
+    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
     *,
 };
-use emath::Rot2;
-use epaint::{util::FloatOrd, RectShape};
 
 /// A widget which displays an image.
 ///
