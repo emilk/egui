@@ -345,7 +345,7 @@ impl State {
                     winit::event::Ime::Enabled => {
                         self.egui_input
                             .events
-                            .push(egui::Event::Ime(egui::IMEEvent::Enabled));
+                            .push(egui::Event::Ime(egui::ImeEvent::Enabled));
                         self.has_sent_ime_enable = true;
                     }
                     winit::event::Ime::Preedit(_, None) => {}
@@ -353,26 +353,26 @@ impl State {
                         if !self.has_sent_ime_enable {
                             self.egui_input
                                 .events
-                                .push(egui::Event::Ime(egui::IMEEvent::Enabled));
+                                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
                             self.has_sent_ime_enable = true;
                         }
                         self.egui_input
                             .events
-                            .push(egui::Event::Ime(egui::IMEEvent::Preedit(text.clone())));
+                            .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
                     }
                     winit::event::Ime::Commit(text) => {
                         self.egui_input
                             .events
-                            .push(egui::Event::Ime(egui::IMEEvent::Commit(text.clone())));
+                            .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
                         self.egui_input
                             .events
-                            .push(egui::Event::Ime(egui::IMEEvent::Disabled));
+                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
                         self.has_sent_ime_enable = false;
                     }
                     winit::event::Ime::Disabled => {
                         self.egui_input
                             .events
-                            .push(egui::Event::Ime(egui::IMEEvent::Disabled));
+                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
                         self.has_sent_ime_enable = false;
                     }
                 };

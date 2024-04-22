@@ -951,12 +951,12 @@ fn events(
             } => check_for_mutating_key_press(os, &mut cursor_range, text, galley, modifiers, *key),
 
             Event::Ime(ime_event) => match ime_event {
-                IMEEvent::Enabled => {
+                ImeEvent::Enabled => {
                     state.ime_enabled = true;
                     state.ime_cursor_range = cursor_range;
                     None
                 }
-                IMEEvent::Preedit(text_mark) => {
+                ImeEvent::Preedit(text_mark) => {
                     if text_mark == "\n" || text_mark == "\r" {
                         None
                     } else {
@@ -971,7 +971,7 @@ fn events(
                         Some(CCursorRange::two(start_cursor, ccursor))
                     }
                 }
-                IMEEvent::Commit(prediction) => {
+                ImeEvent::Commit(prediction) => {
                     if prediction == "\n" || prediction == "\r" {
                         None
                     } else {
@@ -989,7 +989,7 @@ fn events(
                         Some(CCursorRange::one(ccursor))
                     }
                 }
-                IMEEvent::Disabled => {
+                ImeEvent::Disabled => {
                     state.ime_enabled = false;
                     None
                 }

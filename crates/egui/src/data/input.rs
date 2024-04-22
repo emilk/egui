@@ -446,7 +446,7 @@ pub enum Event {
     Zoom(f32),
 
     /// IME Event
-    Ime(IMEEvent),
+    Ime(ImeEvent),
 
     /// On touch screens, report this *in addition to*
     /// [`Self::PointerMoved`], [`Self::PointerButton`], [`Self::PointerGone`]
@@ -506,7 +506,7 @@ pub enum Event {
 /// See <https://docs.rs/winit/latest/winit/event/enum.Ime.html>
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum IMEEvent {
+pub enum ImeEvent {
     /// Notifies when the IME was enabled.
     Enabled,
 
