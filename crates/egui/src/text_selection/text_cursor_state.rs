@@ -157,8 +157,7 @@ fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
         let mut it = it.skip(ccursor.index - 1);
         if let Some(char_before_cursor) = it.next() {
             if let Some(char_after_cursor) = it.next() {
-                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor)
-                {
+                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
                     let min = ccursor_previous_word(text, ccursor + 1);
                     let max = ccursor_next_word(text, min);
                     CCursorRange::two(min, max)
@@ -288,9 +287,9 @@ fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
     index
 }
 
-/// Determines whether a character is a component of a string.
+/// Determines whether a character is a component of a word.
 ///
-/// Punctuation marks that are commonly used with strings are considered string components.
+/// Punctuation marks that are commonly used with words are considered word components.
 pub fn is_word_char(c: char) -> bool {
     if matches!(
         c,
