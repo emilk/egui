@@ -11,7 +11,7 @@ pub enum ColorMode {
     Solid(Color32),
 
     /// Provide a callback which takes in the path's bounding box and a position and converts it to a color.
-    /// When used with a path, the bounding box will have a margin of ``feathering + 1.0``
+    /// When used with a path, the bounding box will have a margin of [`TessellationOptions::feathering_size_in_pixels`](`crate::tessellator::TessellationOptions::feathering_size_in_pixels`)
     ///
     /// **This cannot be serialized**
     #[cfg_attr(feature = "serde", serde(skip))]

@@ -81,7 +81,8 @@ impl PathStroke {
     }
 
     /// Create a new `PathStroke` with a UV function
-    /// The bounding box passed to the callback will have a margin of ``feathering + 1.0``
+    ///
+    /// The bounding box passed to the callback will have a margin of [`TessellationOptions::feathering_size_in_pixels`](`crate::tessellator::TessellationOptions::feathering_size_in_pixels`)
     #[inline]
     pub fn new_uv(
         width: impl Into<f32>,
