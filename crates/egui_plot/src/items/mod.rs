@@ -3,7 +3,7 @@
 
 use std::ops::RangeInclusive;
 
-use epaint::{emath::Rot2, util::FloatOrd, Mesh};
+use epaint::{emath::Rot2, Mesh};
 
 use crate::*;
 
