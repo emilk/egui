@@ -95,7 +95,7 @@ pub struct State {
     pointer_touch_id: Option<u64>,
 
     /// track ime state
-    input_method_editor_started: bool,
+    has_sent_ime_enabled: bool,
 
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
@@ -136,7 +136,7 @@ impl State {
             simulate_touch_screen: false,
             pointer_touch_id: None,
 
-            input_method_editor_started: false,
+            has_sent_ime_enabled: false,
 
             #[cfg(feature = "accesskit")]
             accesskit: None,
@@ -342,23 +342,39 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
-                    winit::event::Ime::Commit(text) => {
-                        self.input_method_editor_started = false;
+                    winit::event::Ime::Enabled => {
                         self.egui_input
                             .events
-                            .push(egui::Event::CompositionEnd(text.clone()));
+                            .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+                        self.has_sent_ime_enabled = true;
                     }
-                    winit::event::Ime::Preedit(text, Some(_)) => {
-                        if !self.input_method_editor_started {
-                            self.input_method_editor_started = true;
-                            self.egui_input.events.push(egui::Event::CompositionStart);
+                    winit::event::Ime::Preedit(_, None) => {}
+                    winit::event::Ime::Preedit(text, Some(_cursor)) => {
+                        if !self.has_sent_ime_enabled {
+                            self.egui_input
+                                .events
+                                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+                            self.has_sent_ime_enabled = true;
                         }
                         self.egui_input
                             .events
-                            .push(egui::Event::CompositionUpdate(text.clone()));
+                            .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
                     }
-                    winit::event::Ime::Preedit(_, None) => {}
+                    winit::event::Ime::Commit(text) => {
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
+                        self.has_sent_ime_enabled = false;
+                    }
+                    winit::event::Ime::Disabled => {
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
+                        self.has_sent_ime_enabled = false;
+                    }
                 };
 
                 EventResponse {
@@ -601,7 +617,8 @@ impl State {
         });
         // If we're not yet translating a touch or we're translating this very
         // touch …
-        if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap() == touch.id {
+        if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap_or_default() == touch.id
+        {
             // … emit PointerButton resp. PointerMoved events to emulate mouse
             match touch.phase {
                 winit::event::TouchPhase::Started => {
@@ -1531,7 +1548,7 @@ pub fn create_winit_window_builder<T>(
     // We set sizes and positions in egui:s own ui points, which depends on the egui
     // zoom_factor and the native pixels per point, so we need to know that here.
     // We don't know what monitor the window will appear on though, but
-    // we'll try to fix that after the window is created in the vall to `apply_viewport_builder_to_window`.
+    // we'll try to fix that after the window is created in the call to `apply_viewport_builder_to_window`.
     let native_pixels_per_point = event_loop
         .primary_monitor()
         .or_else(|| event_loop.available_monitors().next())
