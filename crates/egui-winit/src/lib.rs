@@ -14,7 +14,9 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
+use egui::{
+    ahash::HashSet, Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo,
+};
 pub use winit;
 
 pub mod clipboard;
@@ -1270,6 +1272,13 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 
 // Helpers for egui Viewports
 // ---------------------------------------------------------------------------
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum ActionRequested {
+    Screenshot,
+    Cut,
+    Copy,
+    Paste,
+}
 
 pub fn process_viewport_commands(
     egui_ctx: &egui::Context,
@@ -1277,7 +1286,7 @@ pub fn process_viewport_commands(
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &Window,
     is_viewport_focused: bool,
-    screenshot_requested: &mut bool,
+    actions_requested: &mut HashSet<ActionRequested>,
 ) {
     for command in commands {
         process_viewport_command(
@@ -1286,7 +1295,7 @@ pub fn process_viewport_commands(
             command,
             info,
             is_viewport_focused,
-            screenshot_requested,
+            actions_requested,
         );
     }
 }
@@ -1297,7 +1306,7 @@ fn process_viewport_command(
     command: ViewportCommand,
     info: &mut ViewportInfo,
     is_viewport_focused: bool,
-    screenshot_requested: &mut bool,
+    actions_requested: &mut HashSet<ActionRequested>,
 ) {
     crate::profile_function!();
 
@@ -1508,7 +1517,16 @@ fn process_viewport_command(
             }
         }
         ViewportCommand::Screenshot => {
-            *screenshot_requested = true;
+            actions_requested.insert(ActionRequested::Screenshot);
+        }
+        ViewportCommand::RequestCut => {
+            actions_requested.insert(ActionRequested::Cut);
+        }
+        ViewportCommand::RequestCopy => {
+            actions_requested.insert(ActionRequested::Copy);
+        }
+        ViewportCommand::RequestPaste => {
+            actions_requested.insert(ActionRequested::Paste);
         }
     }
 }

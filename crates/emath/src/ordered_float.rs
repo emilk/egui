@@ -7,9 +7,12 @@ use std::hash::{Hash, Hasher};
 /// Wraps a floating-point value to add total order and hash.
 /// Possible types for `T` are `f32` and `f64`.
 ///
-/// See also [`FloatOrd`].
+/// All NaNs are considered equal to each other.
+/// The size of zero is ignored.
+///
+/// See also [`Float`].
 #[derive(Clone, Copy)]
-pub struct OrderedFloat<T>(T);
+pub struct OrderedFloat<T>(pub T);
 
 impl<T: Float + Copy> OrderedFloat<T> {
     #[inline]
@@ -68,43 +71,33 @@ impl<T> From<T> for OrderedFloat<T> {
 ///
 /// Example with `f64`:
 /// ```
-/// use epaint::util::FloatOrd;
+/// use emath::Float as _;
 ///
 /// let array = [1.0, 2.5, 2.0];
 /// let max = array.iter().max_by_key(|val| val.ord());
 ///
 /// assert_eq!(max, Some(&2.5));
 /// ```
-pub trait FloatOrd {
+pub trait Float: PartialOrd + PartialEq + private::FloatImpl {
     /// Type to provide total order, useful as key in sorted contexts.
     fn ord(self) -> OrderedFloat<Self>
     where
         Self: Sized;
 }
 
-impl FloatOrd for f32 {
+impl Float for f32 {
     #[inline]
     fn ord(self) -> OrderedFloat<Self> {
         OrderedFloat(self)
     }
 }
 
-impl FloatOrd for f64 {
+impl Float for f64 {
     #[inline]
     fn ord(self) -> OrderedFloat<Self> {
         OrderedFloat(self)
     }
 }
-
-// ----------------------------------------------------------------------------
-
-/// Internal abstraction over floating point types
-#[doc(hidden)]
-pub trait Float: PartialOrd + PartialEq + private::FloatImpl {}
-
-impl Float for f32 {}
-
-impl Float for f64 {}
 
 // Keep this trait in private module, to avoid exposing its methods as extensions in user code
 mod private {
@@ -124,7 +117,13 @@ mod private {
 
         #[inline]
         fn hash<H: Hasher>(&self, state: &mut H) {
-            crate::f32_hash(state, *self);
+            if *self == 0.0 {
+                state.write_u8(0);
+            } else if self.is_nan() {
+                state.write_u8(1);
+            } else {
+                self.to_bits().hash(state);
+            }
         }
     }
 
@@ -136,7 +135,13 @@ mod private {
 
         #[inline]
         fn hash<H: Hasher>(&self, state: &mut H) {
-            crate::f64_hash(state, *self);
+            if *self == 0.0 {
+                state.write_u8(0);
+            } else if self.is_nan() {
+                state.write_u8(1);
+            } else {
+                self.to_bits().hash(state);
+            }
         }
     }
 }

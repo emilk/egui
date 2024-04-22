@@ -81,6 +81,7 @@ unity = ["epaint/unity"]
 
 
 [dependencies]
+emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
