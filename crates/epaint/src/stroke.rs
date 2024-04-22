@@ -48,7 +48,7 @@ impl std::hash::Hash for Stroke {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self { width, color } = *self;
-        crate::f32_hash(state, width);
+        emath::OrderedFloat(width).hash(state);
         color.hash(state);
     }
 }
