@@ -953,6 +953,7 @@ fn events(
             Event::Ime(ime_event) => match ime_event {
                 ImeEvent::Enabled => {
                     state.ime_enabled = true;
+                    state.ime_target_id = id;
                     state.ime_cursor_range = cursor_range;
                     None
                 }
@@ -978,6 +979,7 @@ fn events(
                         state.ime_enabled = false;
 
                         if !prediction.is_empty()
+                            && state.ime_target_id == id
                             && cursor_range.secondary.ccursor.index
                                 == state.ime_cursor_range.secondary.ccursor.index
                         {
