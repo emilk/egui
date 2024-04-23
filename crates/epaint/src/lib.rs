@@ -26,6 +26,7 @@
 #![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 mod bezier;
+pub mod color;
 pub mod image;
 mod margin;
 mod mesh;
@@ -44,6 +45,7 @@ pub mod util;
 
 pub use self::{
     bezier::{CubicBezierShape, QuadraticBezierShape},
+    color::ColorMode,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
     mesh::{Mesh, Mesh16, Vertex},
@@ -53,7 +55,7 @@ pub use self::{
         Rounding, Shape, TextShape,
     },
     stats::PaintStats,
-    stroke::Stroke,
+    stroke::{PathStroke, Stroke},
     tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,
