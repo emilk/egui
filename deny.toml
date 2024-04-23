@@ -47,6 +47,7 @@ deny = [
 
 skip = [
   { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
+  { name = "block2" },         # old version via glutin->icrate
   { name = "event-listener" }, # TODO(emilk): rustls pulls in two versions of this 😭
   { name = "libloading" },     # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
   { name = "memoffset" },      # tiny dependency
