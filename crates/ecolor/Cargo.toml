@@ -30,7 +30,6 @@ extra_debug_asserts = []
 ## Always enable additional checks.
 extra_asserts = []
 
-
 [dependencies]
 #! ### Optional dependencies
 
