@@ -44,7 +44,7 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) ime_enabled: bool,
 
-    // target ID for IME candidate.
+    // target TextEdit ID for IME candidate.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) ime_target_id: Id,
 
