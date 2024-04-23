@@ -178,8 +178,19 @@ wgpu = { workspace = true, optional = true, features = [
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
-cocoa = "0.25.0"
-objc = "0.2.7"
+objc2 = "0.5.1"
+objc2-foundation = { version = "0.2.0", features = [
+  "block2",
+  "NSData",
+  "NSString",
+] }
+objc2-app-kit = { version = "0.2.0", features = [
+  "NSApplication",
+  "NSImage",
+  "NSMenu",
+  "NSMenuItem",
+  "NSResponder",
+] }
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
