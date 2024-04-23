@@ -219,7 +219,7 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
         None
     };
 
-    // TODO: Move this into `objc2-app-kit`
+    // TODO(madsmtm): Move this into `objc2-app-kit`
     extern "C" {
         static NSApp: Option<&'static NSApplication>;
     }
