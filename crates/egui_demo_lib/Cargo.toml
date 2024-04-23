@@ -38,7 +38,7 @@ syntect = ["egui_extras/syntect"]
 
 
 [dependencies]
-egui = { workspace = true, default-features = false }
+egui = { workspace = true, default-features = false, features = ["color-hex"] }
 egui_extras = { workspace = true, features = ["default"] }
 egui_plot = { workspace = true, features = ["default"] }
 
