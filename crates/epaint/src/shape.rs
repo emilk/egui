@@ -3,6 +3,7 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
+    stroke::PathStroke,
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke, TextureId,
 };
@@ -34,7 +35,10 @@ pub enum Shape {
     Ellipse(EllipseShape),
 
     /// A line between two points.
-    LineSegment { points: [Pos2; 2], stroke: Stroke },
+    LineSegment {
+        points: [Pos2; 2],
+        stroke: PathStroke,
+    },
 
     /// A series of lines between points.
     /// The path can have a stroke and/or fill (if closed).
@@ -88,7 +92,7 @@ impl Shape {
     /// A line between two points.
     /// More efficient than calling [`Self::line`].
     #[inline]
-    pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
+    pub fn line_segment(points: [Pos2; 2], stroke: impl Into<PathStroke>) -> Self {
         Self::LineSegment {
             points,
             stroke: stroke.into(),
@@ -96,7 +100,7 @@ impl Shape {
     }
 
     /// A horizontal line.
-    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> Self {
+    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> Self {
         let x = x.into();
         Self::LineSegment {
             points: [pos2(x.min, y), pos2(x.max, y)],
@@ -105,7 +109,7 @@ impl Shape {
     }
 
     /// A vertical line.
-    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> Self {
+    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<PathStroke>) -> Self {
         let y = y.into();
         Self::LineSegment {
             points: [pos2(x, y.min), pos2(x, y.max)],
@@ -117,13 +121,13 @@ impl Shape {
     ///
     /// Use [`Self::line_segment`] instead if your line only connects two points.
     #[inline]
-    pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+    pub fn line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
         Self::Path(PathShape::line(points, stroke))
     }
 
     /// A line that closes back to the start point again.
     #[inline]
-    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
         Self::Path(PathShape::closed_line(points, stroke))
     }
 
@@ -224,7 +228,7 @@ impl Shape {
     pub fn convex_polygon(
         points: Vec<Pos2>,
         fill: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::Path(PathShape::convex_polygon(points, fill, stroke))
     }
@@ -586,7 +590,7 @@ pub struct PathShape {
     pub fill: Color32,
 
     /// Color and thickness of the line.
-    pub stroke: Stroke,
+    pub stroke: PathStroke,
     // TODO(emilk): Add texture support either by supplying uv for each point,
     // or by some transform from points to uv (e.g. a callback or a linear transform matrix).
 }
@@ -596,7 +600,7 @@ impl PathShape {
     ///
     /// Use [`Shape::line_segment`] instead if your line only connects two points.
     #[inline]
-    pub fn line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+    pub fn line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
         Self {
             points,
             closed: false,
@@ -607,7 +611,7 @@ impl PathShape {
 
     /// A line that closes back to the start point again.
     #[inline]
-    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<Stroke>) -> Self {
+    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
         Self {
             points,
             closed: true,
@@ -623,7 +627,7 @@ impl PathShape {
     pub fn convex_polygon(
         points: Vec<Pos2>,
         fill: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self {
             points,
