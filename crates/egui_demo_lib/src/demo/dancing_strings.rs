@@ -1,9 +1,11 @@
-use egui::{containers::*, *};
+use egui::{containers::*, epaint::PathStroke, *};
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct DancingStrings {}
+pub struct DancingStrings {
+    colors: bool,
+}
 
 impl super::Demo for DancingStrings {
     fn name(&self) -> &'static str {
@@ -27,6 +29,9 @@ impl super::View for DancingStrings {
         } else {
             Color32::from_black_alpha(240)
         };
+
+        ui.checkbox(&mut self.colors, "Colored")
+            .on_hover_text("Demonstrates how a path can have varying color across its length.");
 
         Frame::canvas(ui.style()).show(ui, |ui| {
             ui.ctx().request_repaint();
@@ -55,7 +60,24 @@ impl super::View for DancingStrings {
                     .collect();
 
                 let thickness = 10.0 / mode as f32;
-                shapes.push(epaint::Shape::line(points, Stroke::new(thickness, color)));
+                shapes.push(epaint::Shape::line(
+                    points,
+                    if self.colors {
+                        PathStroke::new_uv(thickness, move |rect, p| {
+                            let t = remap(p.x, rect.x_range(), -1.0..=1.0).abs();
+                            let center_color = hex_color!("#5BCEFA");
+                            let outer_color = hex_color!("#F5A9B8");
+
+                            Color32::from_rgb(
+                                lerp(center_color.r() as f32..=outer_color.r() as f32, t) as u8,
+                                lerp(center_color.g() as f32..=outer_color.g() as f32, t) as u8,
+                                lerp(center_color.b() as f32..=outer_color.b() as f32, t) as u8,
+                            )
+                        })
+                    } else {
+                        PathStroke::new(thickness, color)
+                    },
+                ));
             }
 
             ui.painter().extend(shapes);
