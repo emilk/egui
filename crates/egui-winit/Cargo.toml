@@ -71,7 +71,7 @@ document-features = { workspace = true, optional = true }
 
 puffin = { workspace = true, optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
-webbrowser = { version = "0.8.3", optional = true }
+webbrowser = { version = "1.0.0", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.7.0", optional = true }
