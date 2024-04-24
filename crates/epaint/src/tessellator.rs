@@ -653,7 +653,7 @@ pub struct TessellationOptions {
     /// Default: `true`.
     pub feathering: bool,
 
-    /// The size of the the feathering, in physical pixels.
+    /// The size of the feathering, in physical pixels.
     ///
     /// The default, and suggested, value for this is `1.0`.
     /// If you use a larger value, edges will appear blurry.
