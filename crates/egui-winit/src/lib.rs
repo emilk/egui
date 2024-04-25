@@ -1521,6 +1521,9 @@ fn process_viewport_command(
 /// Build and intitlaize a window.
 ///
 /// Wrapper around `create_winit_window_builder` and `apply_viewport_builder_to_window`.
+///
+/// # Errors
+/// Possible causes of error include denied permission, incompatible system, and lack of memory.
 pub fn create_window<T>(
     egui_ctx: &egui::Context,
     event_loop: &EventLoopWindowTarget<T>,

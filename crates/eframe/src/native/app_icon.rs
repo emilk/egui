@@ -224,6 +224,7 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
         static NSApp: Option<&'static NSApplication>;
     }
 
+    // SAFETY: we don't do anything dangerous here
     unsafe {
         let Some(app) = NSApp else {
             log::debug!("NSApp is null");

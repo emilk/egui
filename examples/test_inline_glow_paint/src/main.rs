@@ -1,3 +1,5 @@
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 // Test that we can paint to the screen using glow directly.
 
 use eframe::egui;
