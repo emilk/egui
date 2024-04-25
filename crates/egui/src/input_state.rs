@@ -265,15 +265,19 @@ impl InputState {
         }
 
         let dt = self.stable_dt.at_most(0.1);
-        let _t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
+        let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
         for d in 0..2 {
             if self.unprocessed_scroll_delta[d].abs() < 1.0 {
                 self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
                 self.unprocessed_scroll_delta[d] = 0.0;
             } else {
-                // let delta = t * self.unprocessed_scroll_delta[d];    // For Smooth
-                let delta = self.unprocessed_scroll_delta[d];
+                let smooth_delta = t * self.unprocessed_scroll_delta[d];    // For Smooth
+                let direct_delta = self.unprocessed_scroll_delta[d];        // For Direct
+                let delta = match smooth_delta > 0.0 {
+                    true => smooth_delta.min(direct_delta),     // min : Smooth, max : Direct
+                    false => smooth_delta.max(direct_delta),    // max : Smooth, min : Direct
+                };
                 self.smooth_scroll_delta[d] += delta;
                 self.unprocessed_scroll_delta[d] -= delta;
             }
