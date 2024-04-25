@@ -876,13 +876,6 @@ impl Prepared {
                 || scroll_bar_visibility == ScrollBarVisibility::AlwaysVisible)
         {
             ui.ctx().create_scroll_delta(inner_rect);
-            /*
-            ui.ctx().input_mut(|input| {
-                let pointer_position = input.pointer.interact_pos().unwrap_or_default();
-                let is_contain = inner_rect.contains(pointer_position);
-                input.make_scroll_delta(false, is_contain);
-            });
-            */
 
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && scroll_enabled[0] != scroll_enabled[1];
