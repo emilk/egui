@@ -23,6 +23,9 @@ include = [
   "Cargo.toml",
 ]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
 
