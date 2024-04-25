@@ -1,5 +1,6 @@
 //! This example shows how to implement custom gestures to pan and zoom in the plot
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+#![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui::{self, DragValue, Event, Vec2};
 use egui_plot::{Legend, Line, PlotPoints};
