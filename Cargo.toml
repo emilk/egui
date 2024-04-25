@@ -145,6 +145,7 @@ from_iter_instead_of_collect = "warn"
 get_unwrap = "warn"
 if_let_mutex = "warn"
 implicit_clone = "warn"
+implied_bounds_in_impls = "warn"
 imprecise_flops = "warn"
 index_refutable_slice = "warn"
 inefficient_to_string = "warn"
@@ -237,9 +238,9 @@ wildcard_dependencies = "warn"
 zero_sized_map_values = "warn"
 
 # TODO(emilk): enable more of these linits:
-iter_over_hash_type = "allow"
 let_underscore_untyped = "allow"
 missing_assert_message = "allow"
+print_stderr = "allow"                # TODO(emilk): use `log` crate insteaditer_over_hash_type = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one

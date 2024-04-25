@@ -40,11 +40,6 @@ jobs:
       - name: Lint vertical spacing
         run: ./scripts/lint.py
 
-      - name: Install cargo-cranky
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-cranky
-
       - name: check --all-features
         run: cargo check --locked --all-features --all-targets
 
@@ -78,11 +73,11 @@ jobs:
       - name: Test
         run: cargo test --all-features
 
-      - name: Cranky
-        run: cargo cranky --all-targets --all-features -- -D warnings
+      - name: clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Cranky release
-        run: cargo cranky --all-targets --all-features --release -- -D warnings
+      - name: clippy release
+        run: cargo clippy --all-targets --all-features --release -- -D warnings
 
   # ---------------------------------------------------------------------------
 
@@ -101,11 +96,6 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-cranky
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-cranky
-
       - name: Check wasm32 egui_demo_app
         run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
 
@@ -122,7 +112,7 @@ jobs:
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
-      - name: Cranky wasm32
+      - name: clippy wasm32
         run: ./scripts/clippy_wasm.sh
 
   # ---------------------------------------------------------------------------
