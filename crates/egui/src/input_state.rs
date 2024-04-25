@@ -196,9 +196,9 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_frame(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.begin_frame(time, &new);
+        let pointer = self.pointer.clone().begin_frame(time, &new);
 
-        let mut keys_down = self.keys_down;
+        let mut keys_down = self.keys_down.clone();
         let mut raw_scroll_delta = Vec2::ZERO;
         let mut zoom_factor_delta = 1.0;
         for event in &mut new.events {
@@ -226,37 +226,15 @@ impl InputState {
             }
         }
 
-        let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
-
-        let mut smooth_scroll_delta = Vec2::ZERO;
-
-        {
-            // Mouse wheels often go very large steps.
-            // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
-            // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
-
-            // unprocessed_scroll_delta += raw_scroll_delta;
-
-            let dt = stable_dt.at_most(0.1);
-            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
-
-            for d in 0..2 {
-                if unprocessed_scroll_delta[d].abs() < 1.0 {
-                    smooth_scroll_delta[d] = unprocessed_scroll_delta[d];
-                    unprocessed_scroll_delta[d] = 0.0;
-                } else {
-                    smooth_scroll_delta[d] = t * unprocessed_scroll_delta[d];
-                    unprocessed_scroll_delta[d] -= smooth_scroll_delta[d];
-                }
-            }
-        }
+        self.smooth_scroll_delta = Vec2::ZERO;
+        self.create_scroll_delta(true, false);
 
         Self {
             pointer,
             touch_states: self.touch_states,
-            unprocessed_scroll_delta,
+            unprocessed_scroll_delta: self.unprocessed_scroll_delta,
             raw_scroll_delta,
-            smooth_scroll_delta,
+            smooth_scroll_delta: self.smooth_scroll_delta,
             zoom_factor_delta,
             screen_rect,
             pixels_per_point,
@@ -270,6 +248,35 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
+        }
+    }
+
+    pub fn create_scroll_delta(&mut self, is_begin_frame: bool, is_pointer_contain: bool) {
+        if !is_begin_frame && !is_pointer_contain {
+            return;
+        }
+
+        // Mouse wheels often go very large steps.
+        // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
+        // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
+        if !is_begin_frame && is_pointer_contain {
+            self.unprocessed_scroll_delta += self.raw_scroll_delta;
+            self.raw_scroll_delta = Vec2::ZERO;
+        }
+
+        let dt = self.stable_dt.at_most(0.1);
+        let _t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
+
+        for d in 0..2 {
+            if self.unprocessed_scroll_delta[d].abs() < 1.0 {
+                self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
+                self.unprocessed_scroll_delta[d] = 0.0;
+            } else {
+                // let delta = t * self.unprocessed_scroll_delta[d];    // For Smooth
+                let delta = self.unprocessed_scroll_delta[d];
+                self.smooth_scroll_delta[d] += delta;
+                self.unprocessed_scroll_delta[d] -= delta;
+            }
         }
     }
 
