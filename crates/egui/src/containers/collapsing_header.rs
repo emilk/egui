@@ -230,7 +230,7 @@ impl CollapsingState {
         }
     }
 
-    /// Paint this [CollapsingState]'s toggle button. Takes an [IconPainter] as the icon.
+    /// Paint this [`CollapsingState`]'s toggle button. Takes an [`IconPainter`] as the icon.
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
