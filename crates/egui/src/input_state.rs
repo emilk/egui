@@ -272,11 +272,11 @@ impl InputState {
                 self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
                 self.unprocessed_scroll_delta[d] = 0.0;
             } else {
-                let smooth_delta = t * self.unprocessed_scroll_delta[d];    // For Smooth
-                let direct_delta = self.unprocessed_scroll_delta[d];        // For Direct
+                let smooth_delta = t * self.unprocessed_scroll_delta[d]; // For Smooth
+                let direct_delta = self.unprocessed_scroll_delta[d]; // For Direct
                 let delta = match smooth_delta > 0.0 {
-                    true => smooth_delta.min(direct_delta),     // min : Smooth, max : Direct
-                    false => smooth_delta.max(direct_delta),    // max : Smooth, min : Direct
+                    true => smooth_delta.min(direct_delta), // min : Smooth, max : Direct
+                    false => smooth_delta.max(direct_delta), // max : Smooth, min : Direct
                 };
                 self.smooth_scroll_delta[d] += delta;
                 self.unprocessed_scroll_delta[d] -= delta;
