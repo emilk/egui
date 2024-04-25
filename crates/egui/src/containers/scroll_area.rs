@@ -875,15 +875,14 @@ impl Prepared {
             && (is_hovering_outer_rect
                 || scroll_bar_visibility == ScrollBarVisibility::AlwaysVisible)
         {
-            let pointer_position = ui.input(|i| i.pointer.interact_pos().unwrap_or_default());
-            if inner_rect.contains(pointer_position) {
-                ui.ctx().input_mut(|input| {
-                    input.smooth_scroll_delta[0] += input.raw_scroll_delta[0];
-                    input.smooth_scroll_delta[1] += input.raw_scroll_delta[1];
-                    input.raw_scroll_delta[0] = 0.0;
-                    input.raw_scroll_delta[1] = 0.0;
-                });
-            }
+            ui.ctx().create_scroll_delta(inner_rect);
+            /*
+            ui.ctx().input_mut(|input| {
+                let pointer_position = input.pointer.interact_pos().unwrap_or_default();
+                let is_contain = inner_rect.contains(pointer_position);
+                input.make_scroll_delta(false, is_contain);
+            });
+            */
 
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && scroll_enabled[0] != scroll_enabled[1];
@@ -903,20 +902,19 @@ impl Prepared {
 
                     if scrolling_up || scrolling_down {
                         state.offset[d] -= scroll_delta;
-
-                        // Clear scroll delta so no parent scroll will use it:
-                        ui.ctx().input_mut(|input| {
-                            if always_scroll_enabled_direction {
-                                input.smooth_scroll_delta[0] = 0.0;
-                                input.smooth_scroll_delta[1] = 0.0;
-                            } else {
-                                input.smooth_scroll_delta[d] = 0.0;
-                            }
-                        });
-
                         state.scroll_stuck_to_end[d] = false;
                         state.offset_target[d] = None;
                     }
+
+                    // Clear scroll delta so no parent scroll will use it:
+                    ui.ctx().input_mut(|input| {
+                        if always_scroll_enabled_direction {
+                            input.smooth_scroll_delta[0] = 0.0;
+                            input.smooth_scroll_delta[1] = 0.0;
+                        } else {
+                            input.smooth_scroll_delta[d] = 0.0;
+                        }
+                    });
                 }
             }
         }
