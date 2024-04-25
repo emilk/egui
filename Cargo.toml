@@ -238,6 +238,7 @@ wildcard_dependencies = "warn"
 zero_sized_map_values = "warn"
 
 # TODO(emilk): enable more of these linits:
+iter_over_hash_type = "allow"
 let_underscore_untyped = "allow"
 missing_assert_message = "allow"
 print_stderr = "allow"                # TODO(emilk): use `log` crate insteaditer_over_hash_type = "allow"
