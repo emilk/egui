@@ -288,7 +288,7 @@ pub struct Spacing {
     /// Default rail height of a [`Slider`].
     pub slider_rail_height: f32,
 
-    /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
+    /// Default (minimum) width of a [`ComboBox`].
     pub combo_width: f32,
 
     /// Default width of a [`TextEdit`].
