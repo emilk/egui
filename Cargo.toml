@@ -237,11 +237,11 @@ verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
 zero_sized_map_values = "warn"
 
-# TODO(emilk): enable more of these linits:
+# TODO(emilk): enable more of these lints:
 iter_over_hash_type = "allow"
 let_underscore_untyped = "allow"
 missing_assert_message = "allow"
-print_stderr = "allow"                # TODO(emilk): use `log` crate insteaditer_over_hash_type = "allow"
+print_stderr = "allow"                # TODO(emilk): use `log` crate instead
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one
