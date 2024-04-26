@@ -1,3 +1,5 @@
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use std::sync::Arc;
 
 use eframe::egui_glow;
