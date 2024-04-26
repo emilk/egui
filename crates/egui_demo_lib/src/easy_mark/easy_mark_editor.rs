@@ -45,7 +45,7 @@ impl EasyMarkEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
-            let _ = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
+            let _response = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
             ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
             egui::reset_button(ui, self, "Reset");

@@ -119,7 +119,7 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
-pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
+pub fn update_text_agent(runner: &AppRunner) -> Option<()> {
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
     let document = window.document()?;

@@ -56,7 +56,7 @@ pub struct EventResponse {
     /// (e.g. a mouse click on an egui window, or entering text into a text field).
     ///
     /// For instance, if you use egui for a game, you should only
-    /// pass on the events to your game when [`Self::consumed`] is `false.
+    /// pass on the events to your game when [`Self::consumed`] is `false`.
     ///
     /// Note that egui uses `tab` to move focus between elements, so this will always be `true` for tabs.
     pub consumed: bool,
@@ -1521,6 +1521,9 @@ fn process_viewport_command(
 /// Build and intitlaize a window.
 ///
 /// Wrapper around `create_winit_window_builder` and `apply_viewport_builder_to_window`.
+///
+/// # Errors
+/// Possible causes of error include denied permission, incompatible system, and lack of memory.
 pub fn create_window<T>(
     egui_ctx: &egui::Context,
     event_loop: &EventLoopWindowTarget<T>,
