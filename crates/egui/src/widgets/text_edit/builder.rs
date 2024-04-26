@@ -702,7 +702,7 @@ impl<'t> TextEdit<'t> {
 
                         // Set IME output (in screen coords) when text is editable and visible
                         let transform = ui
-                            .memory(|m| m.layer_transforms.get(&ui.layer_id()).cloned())
+                            .memory(|m| m.layer_transforms.get(&ui.layer_id()).copied())
                             .unwrap_or_default();
 
                         ui.ctx().output_mut(|o| {
@@ -948,7 +948,7 @@ fn events(
                 key,
                 pressed: true,
                 ..
-            } => check_for_mutating_key_press(os, &mut cursor_range, text, galley, modifiers, *key),
+            } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
 
             Event::Ime(ime_event) => match ime_event {
                 ImeEvent::Enabled => {
@@ -1030,7 +1030,7 @@ fn events(
 /// Returns `Some(new_cursor)` if we did mutate `text`.
 fn check_for_mutating_key_press(
     os: OperatingSystem,
-    cursor_range: &mut CursorRange,
+    cursor_range: &CursorRange,
     text: &mut dyn TextBuffer,
     galley: &Galley,
     modifiers: &Modifiers,

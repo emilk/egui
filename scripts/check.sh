@@ -9,7 +9,6 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-cargo install --quiet cargo-cranky # Uses lints defined in Cranky.toml. See https://github.com/ericseppanen/cargo-cranky
 cargo +1.75.0 install --quiet typos-cli
 
 # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
@@ -24,7 +23,7 @@ cargo fmt --all -- --check
 cargo doc --quiet --lib --no-deps --all-features
 cargo doc --quiet --document-private-items --no-deps --all-features
 
-cargo cranky --quiet --all-targets --all-features -- -D warnings
+cargo clippy --quiet --all-targets --all-features -- -D warnings
 ./scripts/clippy_wasm.sh
 
 cargo check --quiet  --all-targets
