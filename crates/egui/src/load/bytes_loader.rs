@@ -53,7 +53,7 @@ impl BytesLoader for DefaultBytesLoader {
         #[cfg(feature = "log")]
         log::trace!("forget {uri:?}");
 
-        let _ = self.cache.lock().remove(uri);
+        self.cache.lock().remove(uri);
     }
 
     fn forget_all(&self) {

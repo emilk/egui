@@ -1,9 +1,9 @@
-# There is also a scripts/clippy_wasm/clippy.toml which forbids some mthods that are not available in wasm.
+# There is also a scripts/clippy_wasm/clippy.toml which forbids some methods that are not available in wasm.
 
 # -----------------------------------------------------------------------------
 # Section identical to scripts/clippy_wasm/clippy.toml:
 
-msrv = "1.72"
+msrv = "1.76"
 
 allow-unwrap-in-tests = true
 
@@ -67,7 +67,7 @@ disallowed-types = [
 
 # -----------------------------------------------------------------------------
 
-# Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
+# Allow-list of words for markdown in docstrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
 doc-valid-idents = [
     # You must also update the same list in the root `clippy.toml`!
     "AccessKit",

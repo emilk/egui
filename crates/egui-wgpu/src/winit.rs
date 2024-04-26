@@ -1,3 +1,6 @@
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use std::{num::NonZeroU32, sync::Arc};
 
 use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
