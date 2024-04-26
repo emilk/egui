@@ -465,7 +465,7 @@ impl Response {
             let mut pos = self.ctx.input(|i| i.pointer.hover_pos())?;
             if let Some(transform) = self
                 .ctx
-                .memory(|m| m.layer_transforms.get(&self.layer_id).cloned())
+                .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
             {
                 pos = transform * pos;
             }

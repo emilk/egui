@@ -868,7 +868,7 @@ impl Memory {
 // ----------------------------------------------------------------------------
 
 /// Keeps track of [`Area`](crate::containers::area::Area)s, which are free-floating [`Ui`](crate::Ui)s.
-/// These [`Area`](crate::containers::area::Area)s can be in any [`Order`](crate::Order).
+/// These [`Area`](crate::containers::area::Area)s can be in any [`Order`].
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
