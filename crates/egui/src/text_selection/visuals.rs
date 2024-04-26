@@ -78,7 +78,7 @@ pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect)
 
 /// Paint one end of the selection, e.g. the primary cursor, with blinking (if enabled).
 pub fn paint_text_cursor(
-    ui: &mut Ui,
+    ui: &Ui,
     painter: &Painter,
     primary_cursor_rect: Rect,
     time_since_last_edit: f64,
