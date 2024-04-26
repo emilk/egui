@@ -131,7 +131,7 @@ impl Column {
         self
     }
 
-    /// Allowed range of movement (in points), if in a resizable [`Table`](crate::table::Table).
+    /// Allowed range of movement (in points), if in a resizable [`Table`].
     #[inline]
     pub fn range(mut self, range: impl Into<Rangef>) -> Self {
         self.width_range = range.into();
