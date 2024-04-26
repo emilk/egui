@@ -517,7 +517,7 @@ macro_rules! include_image {
     };
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
+/// Create a [`Hyperlink`] to the current [`file!()`] (and line) on Github
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -532,7 +532,7 @@ macro_rules! github_link_file_line {
     }};
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] on github.
+/// Create a [`Hyperlink`] to the current [`file!()`] on github.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
