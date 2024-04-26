@@ -356,7 +356,7 @@ impl Response {
 
     /// The widget was being dragged by the button, but now it has been released.
     pub fn drag_stopped_by(&self, button: PointerButton) -> bool {
-        self.drag_stopped() && self.ctx.input(|i| i.pointer.button_released(button))
+        self.dragged_by(button) && !self.is_pointer_button_down_on()
     }
 
     /// The widget was being dragged, but now it has been released.
