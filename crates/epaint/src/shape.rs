@@ -1293,12 +1293,7 @@ impl std::fmt::Debug for PaintCallback {
 
 impl std::cmp::PartialEq for PaintCallback {
     fn eq(&self, other: &Self) -> bool {
-        // As I understand it, the problem this clippy is trying to protect against
-        // can only happen if we do dynamic casts back and forth on the pointers, and we don't do that.
-        #[allow(clippy::vtable_address_comparisons)]
-        {
-            self.rect.eq(&other.rect) && Arc::ptr_eq(&self.callback, &other.callback)
-        }
+        self.rect.eq(&other.rect) && Arc::ptr_eq(&self.callback, &other.callback)
     }
 }
 

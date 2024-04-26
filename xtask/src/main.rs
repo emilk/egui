@@ -1,3 +1,5 @@
+//! Helper crate for running scripts within the `egui` repo
+
 #![allow(clippy::print_stdout)]
 #![allow(clippy::print_stderr)]
 #![allow(clippy::exit)]

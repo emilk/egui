@@ -137,6 +137,8 @@ fn init_arboard() -> Option<arboard::Clipboard> {
 fn init_smithay_clipboard(
     raw_display_handle: Option<RawDisplayHandle>,
 ) -> Option<smithay_clipboard::Clipboard> {
+    #![allow(clippy::undocumented_unsafe_blocks)]
+
     crate::profile_function!();
 
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
