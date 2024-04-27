@@ -4,9 +4,9 @@ use std::ops::RangeInclusive;
 use egui::*;
 
 use egui_plot::{
-    Arrows, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner,
-    GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, PlotPoint,
-    PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
+    ArcLine, Arrows, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter,
+    Corner, GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Pie, PieChart, Plot,
+    PlotImage, PlotPoint, PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
 };
 
 // ----------------------------------------------------------------------------
@@ -741,6 +741,20 @@ impl ItemsDemo {
             5.0 * vec2(texture.aspect_ratio(), 1.0),
         );
 
+        let arc_line = ArcLine::new(
+            PlotPoint::new(0.0, -10.0),
+            3.0,
+            225.0f32.to_radians(),
+            135.0f32.to_radians(),
+        );
+
+        let pie = Pie::new(
+            PlotPoint::new(0.0, -10.0),
+            3.0,
+            -45.0f32.to_radians(),
+            45.0f32.to_radians(),
+        );
+
         let plot = Plot::new("items_demo")
             .legend(Legend::default().position(Corner::RightBottom))
             .show_x(false)
@@ -760,6 +774,8 @@ impl ItemsDemo {
             plot_ui.text(Text::new(PlotPoint::new(2.5, -2.0), "such plot").name("Text"));
             plot_ui.image(image.name("Image"));
             plot_ui.arrows(arrows.name("Arrows"));
+            plot_ui.arc_line(arc_line.name("Arc line"));
+            plot_ui.pie(pie.name("Pie"));
         })
         .response
     }
@@ -864,6 +880,7 @@ enum Chart {
     GaussBars,
     StackedBars,
     BoxPlot,
+    Pies,
 }
 
 impl Default for Chart {
@@ -902,6 +919,7 @@ impl ChartsDemo {
                     ui.selectable_value(&mut self.chart, Chart::GaussBars, "Histogram");
                     ui.selectable_value(&mut self.chart, Chart::StackedBars, "Stacked Bar Chart");
                     ui.selectable_value(&mut self.chart, Chart::BoxPlot, "Box Plot");
+                    ui.selectable_value(&mut self.chart, Chart::Pies, "Pie Chart");
                 });
                 ui.label("Orientation:");
                 ui.horizontal(|ui| {
@@ -935,6 +953,7 @@ impl ChartsDemo {
             Chart::GaussBars => self.bar_gauss(ui),
             Chart::StackedBars => self.bar_stacked(ui),
             Chart::BoxPlot => self.box_plot(ui),
+            Chart::Pies => self.pies(ui),
         }
     }
 
@@ -1074,6 +1093,43 @@ impl ChartsDemo {
                 plot_ui.box_plot(box1);
                 plot_ui.box_plot(box2);
                 plot_ui.box_plot(box3);
+            })
+            .response
+    }
+
+    fn pies(&self, ui: &mut Ui) -> Response {
+        let data: Vec<f64> = vec![
+            16.41, 10.21, 9.76, 8.94, 6.77, 2.89, 1.85, 1.70, 1.61, 1.47, 38.39,
+        ];
+        let labels = vec![
+            "Python".to_owned(),
+            "C".to_owned(),
+            "C++".to_owned(),
+            "Java".to_owned(),
+            "C#".to_owned(),
+            "JavaScript".to_owned(),
+            "Go".to_owned(),
+            "Visual Basic".to_owned(),
+            "Fortran".to_owned(),
+            "SQL".to_owned(),
+            "Others".to_owned(),
+        ];
+        let pie_chart1 = PieChart::new([-6.0, 0.0], 5.0, data.clone())
+            .name("TIOBE - April 2024")
+            .labels(labels.clone());
+        let pie_chart2 = PieChart::new([6.0, 0.0], 5.0, data).labels(labels);
+
+        Plot::new("Pie Chart Demo")
+            .legend(Legend::default())
+            .auto_bounds(Vec2b::TRUE)
+            .allow_zoom(self.allow_zoom)
+            .allow_drag(self.allow_drag)
+            .data_aspect(1.0)
+            .show(ui, |plot_ui| {
+                plot_ui.pie_chart(pie_chart1);
+                for pie in pie_chart2.to_pies() {
+                    plot_ui.pie(pie);
+                }
             })
             .response
     }
