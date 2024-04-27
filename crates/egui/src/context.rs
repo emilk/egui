@@ -1078,6 +1078,9 @@ impl Context {
             .map_or(false, |response| response.contains_pointer)
     }
 
+    /// Create scroll delta
+    ///
+    /// See [`InputState`], [`ScrollArea`]
     pub(crate) fn create_scroll_delta(&self, inner_rect: Rect) {
         self.input_mut(|input| {
             let pointer_position = input.pointer.interact_pos().unwrap_or_default();
