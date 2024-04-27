@@ -232,4 +232,28 @@ impl PlotUi {
         }
         self.items.push(Box::new(chart));
     }
+
+    /// Add an arc line.
+    pub fn arc_line(&mut self, mut arc_line: ArcLine) {
+        if arc_line.stroke.color == Color32::TRANSPARENT {
+            arc_line.stroke.color = self.auto_color();
+        }
+        self.items.push(Box::new(arc_line));
+    }
+
+    /// Add a pie.
+    pub fn pie(&mut self, mut pie: Pie) {
+        if pie.fill == Color32::TRANSPARENT {
+            pie.fill = self.auto_color();
+        }
+        self.items.push(Box::new(pie));
+    }
+
+    /// Add a pie chart.
+    pub fn pie_chart(&mut self, pie_chart: PieChart) {
+        if pie_chart.data.is_empty() {
+            return;
+        }
+        self.items.push(Box::new(pie_chart));
+    }
 }

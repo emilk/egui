@@ -23,9 +23,9 @@ use epaint::Hsva;
 pub use crate::{
     axis::{Axis, AxisHints, HPlacement, Placement, VPlacement},
     items::{
-        Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, ClosestElem, HLine, Line, LineStyle,
-        MarkerShape, Orientation, PlotConfig, PlotGeometry, PlotImage, PlotItem, PlotPoint,
-        PlotPoints, Points, Polygon, Text, VLine,
+        ArcLine, Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, ClosestElem, HLine, Line,
+        LineStyle, MarkerShape, Orientation, Pie, PieChart, PlotConfig, PlotGeometry, PlotImage,
+        PlotItem, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
     },
     legend::{Corner, Legend},
     memory::PlotMemory,

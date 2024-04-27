@@ -10,12 +10,14 @@ use crate::*;
 use super::{Cursor, LabelFormatter, PlotBounds, PlotTransform};
 use rect_elem::*;
 
+pub use arc_pie::{ArcLine, Pie, PieChart};
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
 pub use values::{
     ClosestElem, LineStyle, MarkerShape, Orientation, PlotGeometry, PlotPoint, PlotPoints,
 };
 
+mod arc_pie;
 mod bar;
 mod box_elem;
 mod rect_elem;
