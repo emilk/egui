@@ -291,6 +291,17 @@ impl EpiIntegration {
                 crate::profile_scope!("App::update");
                 app.update(egui_ctx, &mut self.frame);
             }
+
+            let viewport_id = egui_ctx.viewport_id();
+
+            let continuous_mode = egui_ctx.options(|options| options.continuous_mode);
+            if continuous_mode {
+                // let viewport_id = egui_ctx.viewport_id();
+                // TODO(rustbasic) : Do not recall until the next repaint.
+                // 1000 millis / 60 fps = 16.67 millis
+                self.egui_ctx
+                    .request_repaint_after_for(std::time::Duration::from_millis(8), viewport_id);
+            }
         });
 
         let is_root_viewport = viewport_ui_cb.is_none();
