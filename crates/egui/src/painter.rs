@@ -3,11 +3,12 @@ use std::sync::Arc;
 use crate::{
     emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
+    util::angle_iter::AngleIter,
     Color32, Context, FontId,
 };
 use epaint::{
     text::{Fonts, Galley, LayoutJob},
-    CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke,
+    CircleShape, ClippedShape, CubicBezierShape, PathStroke, RectShape, Rounding, Shape, Stroke,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -333,6 +334,49 @@ impl Painter {
             fill: Default::default(),
             stroke: stroke.into(),
         })
+    }
+
+    /// Draws an arc on a circle. `start_angle` and `end_angle` are in degrees. 0 degrees is the right-hand side of a circle.
+    pub fn circle_arc(
+        &self,
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        stroke: impl Into<PathStroke>,
+    ) {
+        let start_angle = start_angle.to_radians();
+        let end_angle = end_angle.to_radians();
+        let stroke = stroke.into();
+        self.extend(
+            AngleIter::new(start_angle, end_angle).map(|(start_angle, end_angle)| {
+                // Center of the circle
+                let xc = center.x;
+                let yc = center.y;
+
+                // First control point
+                let p1 = center + radius * Vec2::new(start_angle.cos(), -start_angle.sin());
+
+                // Last control point
+                let p4 = center + radius * Vec2::new(end_angle.cos(), -end_angle.sin());
+
+                let a = p1 - center;
+                let b = p4 - center;
+                let q1 = a.length_sq();
+                let q2 = q1 + a.dot(b);
+                let k2 = (4.0 / 3.0) * ((2.0 * q1 * q2).sqrt() - q2) / (a.x * b.y - a.y * b.x);
+
+                let p2 = Pos2::new(xc + a.x - k2 * a.y, yc + a.y + k2 * a.x);
+                let p3 = Pos2::new(xc + b.x + k2 * b.y, yc + b.y - k2 * b.x);
+
+                Shape::CubicBezier(CubicBezierShape::from_points_stroke(
+                    [p1, p2, p3, p4],
+                    false,
+                    Color32::TRANSPARENT,
+                    stroke.clone(),
+                ))
+            }),
+        );
     }
 
     pub fn rect(

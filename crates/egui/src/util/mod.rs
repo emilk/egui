@@ -1,5 +1,6 @@
 //! Miscellaneous tools used by the rest of egui.
 
+pub(crate) mod angle_iter;
 pub mod cache;
 pub(crate) mod fixed_cache;
 pub mod id_type_map;
