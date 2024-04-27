@@ -251,15 +251,15 @@ impl InputState {
         }
     }
 
-    pub fn create_scroll_delta(&mut self, is_begin_frame: bool, is_contain_pointer: bool) {
-        if !is_begin_frame && !is_contain_pointer {
+    pub fn create_scroll_delta(&mut self, is_begin_frame: bool, is_contains_pointer: bool) {
+        if !is_begin_frame && !is_contains_pointer {
             return;
         }
 
         // Mouse wheels often go very large steps.
         // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
         // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
-        if !is_begin_frame && is_contain_pointer {
+        if !is_begin_frame && is_contains_pointer {
             self.unprocessed_scroll_delta += self.raw_scroll_delta;
             self.raw_scroll_delta = Vec2::ZERO;
         }
@@ -275,7 +275,7 @@ impl InputState {
                 let smooth_delta = t * self.unprocessed_scroll_delta[d];
                 let direct_delta = self.unprocessed_scroll_delta[d];
                 // Smooth: smooth_delta > 0.0, Direct: smooth_delta < 0.0
-                let delta = match smooth_delta > 0.0 {
+                let delta = match smooth_delta < 0.0 {
                     true => smooth_delta.min(direct_delta),
                     false => smooth_delta.max(direct_delta),
                 };
