@@ -266,6 +266,7 @@ impl Pie {
     }
 
     /// Set the highlight state of the pie.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
@@ -721,7 +722,6 @@ impl PlotItem for PieChart {
 }
 
 /// Calculate the fill color of the pie chart.
-#[inline]
 fn auto_color(start_angle: f64, end_angle: f64) -> Color32 {
     let mid_angle = (start_angle + end_angle) / 2.0;
     let h = mid_angle.abs() / std::f64::consts::TAU;
@@ -729,12 +729,12 @@ fn auto_color(start_angle: f64, end_angle: f64) -> Color32 {
 }
 
 /// Calculate the inverted fill color of the pie chart.
-#[inline]
 fn auto_color_inverted(start_angle: f64, end_angle: f64) -> Color32 {
     let mid_angle = (start_angle + end_angle) / 2.0;
     let h = (mid_angle.abs() / std::f64::consts::TAU + 0.5) % 1.0;
     Hsva::new(h as f32, 0.95, 0.85, 0.95).into()
 }
+
 /// Calculate the bounds of a arc.
 fn calculate_arc_bounds(
     center: PlotPoint,
