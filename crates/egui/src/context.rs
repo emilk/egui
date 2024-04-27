@@ -1854,7 +1854,7 @@ impl Context {
 
         let paint_widget_id = |id: Id, text: &str, color: Color32| {
             if let Some(widget) =
-                self.write(|ctx| ctx.viewport().widgets_this_frame.get(id).copied())
+                self.write(|ctx| ctx.viewport().widgets_this_frame.get(id).cloned())
             {
                 paint_widget(&widget, text, color);
             }
@@ -2417,7 +2417,7 @@ impl Context {
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
         let rect =
-            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).copied()) {
+            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).cloned()) {
                 transform * rect
             } else {
                 rect
@@ -3228,8 +3228,10 @@ impl Context {
             viewport_ui_cb(self, ViewportClass::Embedded);
         } else {
             self.write(|ctx| {
+                // Current `ctx.viewport_id()` is `parent_viewport_id`
+                let parent_viewport_id = ctx.viewport_id();
                 ctx.viewport_parents
-                    .insert(new_viewport_id, ctx.viewport_id());
+                    .insert(new_viewport_id, parent_viewport_id);
 
                 let viewport = ctx.viewports.entry(new_viewport_id).or_default();
                 viewport.class = ViewportClass::Deferred;
@@ -3288,8 +3290,8 @@ impl Context {
             };
 
             let ids = self.write(|ctx| {
+                // Current `ctx.viewport_id()` is `parent_viewport_id`
                 let parent_viewport_id = ctx.viewport_id();
-
                 ctx.viewport_parents
                     .insert(new_viewport_id, parent_viewport_id);
 
