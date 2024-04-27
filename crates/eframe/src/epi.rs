@@ -362,6 +362,10 @@ pub struct NativeOptions {
     /// Controls whether or not the native window position and size will be
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
+
+    /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
+    /// from [directories_next].
+    pub persistence_path: Option<std::path::PathBuf>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -378,6 +382,8 @@ impl Clone for NativeOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
+
+            persistence_path: self.persistence_path.clone(),
 
             ..*self
         }
@@ -418,6 +424,8 @@ impl Default for NativeOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             persist_window: true,
+
+            persistence_path: None,
         }
     }
 }
