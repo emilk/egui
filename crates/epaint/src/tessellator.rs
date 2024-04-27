@@ -2088,6 +2088,7 @@ impl Tessellator {
 
                 Shape::Noop
                 | Shape::Text(_)
+                | Shape::ArcPie(_)
                 | Shape::Circle(_)
                 | Shape::Mesh(_)
                 | Shape::LineSegment { .. }
