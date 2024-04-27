@@ -59,6 +59,22 @@ pub fn adjust_colors(
             }
         }
 
+        Shape::ArcPie(ArcPieShape {
+            center: _,
+            radius: _,
+            start_angle: _,
+            end_angle: _,
+            closed,
+            fill,
+            stroke,
+        }) => {
+            if *closed {
+                adjust_color(fill);
+            } else {
+                adjust_color(&mut stroke.color);
+            }
+        }
+
         Shape::Circle(CircleShape {
             center: _,
             radius: _,
