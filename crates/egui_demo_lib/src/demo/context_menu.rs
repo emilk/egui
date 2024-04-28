@@ -1,4 +1,4 @@
-use egui::Vec2b;
+use egui::{NumExt, Vec2b};
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -105,7 +105,10 @@ impl super::View for ContextMenus {
                             .speed(1.0)
                             .prefix("Height: "),
                     );
+                    self.width = self.width.at_least(1.0);
+                    self.height = self.height.at_least(1.0);
                     ui.end_row();
+
                     ui.checkbox(&mut self.show_axes[0], "x-Axis");
                     ui.checkbox(&mut self.show_axes[1], "y-Axis");
                     ui.end_row();
