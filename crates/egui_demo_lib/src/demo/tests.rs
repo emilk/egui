@@ -456,33 +456,28 @@ fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
         egui::PointerButton::Extra1,
         egui::PointerButton::Extra2,
     ] {
-        let button_suffix = if button == egui::PointerButton::Primary {
-            // Reduce visual clutter in common case:
-            String::default()
-        } else {
-            format!(" by {button:?} button")
-        };
+        let button_suffix = format!(" : {button:?} button");
 
         // These are in inverse logical/chonological order, because we show them in the ui that way:
 
         if response.triple_clicked_by(button) {
-            writeln!(new_info, "Triple-clicked{button_suffix}").ok();
+            writeln!(new_info, "Triple_clicked_by{button_suffix}").ok();
         }
         if response.double_clicked_by(button) {
-            writeln!(new_info, "Double-clicked{button_suffix}").ok();
+            writeln!(new_info, "Double_clicked_by{button_suffix}").ok();
         }
         if response.clicked_by(button) {
-            writeln!(new_info, "Clicked{button_suffix}").ok();
+            writeln!(new_info, "Clicked_by{button_suffix}").ok();
         }
 
         if response.drag_stopped_by(button) {
-            writeln!(new_info, "Drag stopped{button_suffix}").ok();
+            writeln!(new_info, "Drag_stopped_by{button_suffix}").ok();
         }
         if response.dragged_by(button) {
-            writeln!(new_info, "Dragged{button_suffix}").ok();
+            writeln!(new_info, "Dragged_by{button_suffix}").ok();
         }
         if response.drag_started_by(button) {
-            writeln!(new_info, "Drag started{button_suffix}").ok();
+            writeln!(new_info, "Drag_started_by{button_suffix}").ok();
         }
     }
 
