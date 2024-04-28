@@ -768,7 +768,7 @@ impl Plot {
 
         // Determine position of widget.
         let pos = ui.available_rect_before_wrap().min;
-        min_size.x = min_size.x.at_least(10.0);
+        min_size.x = min_size.x.at_least(64.0);
         min_size.y = min_size.y.at_least(10.0);
 
         // Determine size of widget.
