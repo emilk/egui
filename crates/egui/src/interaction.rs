@@ -54,6 +54,10 @@ pub struct InteractionSnapshot {
     /// This is usually a larger set than [`Self::hovered`],
     /// and can be used for e.g. drag-and-drop zones.
     pub contains_pointer: IdSet,
+
+    /// State of pointer button
+    /// Be careful when using it because the state is not perfect.
+    pub pointer_button: [bool; NUM_POINTER_BUTTONS],
 }
 
 impl InteractionSnapshot {
@@ -66,6 +70,7 @@ impl InteractionSnapshot {
             drag_stopped,
             hovered,
             contains_pointer,
+            pointer_button,
         } = self;
 
         fn id_ui<'a>(ui: &mut crate::Ui, widgets: impl IntoIterator<Item = &'a Id>) {
@@ -102,6 +107,11 @@ impl InteractionSnapshot {
             ui.label("contains_pointer");
             id_ui(ui, contains_pointer);
             ui.end_row();
+
+            ui.label("pointer_button");
+            let text = format!("{:?}", pointer_button);
+            ui.label(text);
+            ui.end_row();
         });
     }
 }
@@ -133,6 +143,7 @@ pub(crate) fn interact(
     let mut clicked = None;
     let mut dragged = prev_snapshot.dragged;
     let mut long_touched = None;
+    let mut pointer_button = prev_snapshot.pointer_button;
 
     if input.is_long_touch() {
         // We implement "press-and-hold for context menu" on touch screens here
@@ -153,7 +164,11 @@ pub(crate) fn interact(
         match pointer_event {
             PointerEvent::Moved(_) => {}
 
-            PointerEvent::Pressed { .. } => {
+            PointerEvent::Pressed {
+                position: _,
+                button,
+            } => {
+                pointer_button[*button as usize] = true;
                 // Maybe new click?
                 if interaction.potential_click_id.is_none() {
                     interaction.potential_click_id = hits.click.map(|w| w.id);
@@ -165,7 +180,8 @@ pub(crate) fn interact(
                 }
             }
 
-            PointerEvent::Released { click, button: _ } => {
+            PointerEvent::Released { click, button } => {
+                pointer_button[*button as usize] = false;
                 if click.is_some() && !input.pointer.is_decidedly_dragging() {
                     if let Some(widget) = interaction
                         .potential_click_id
@@ -285,5 +301,6 @@ pub(crate) fn interact(
         drag_stopped,
         contains_pointer,
         hovered,
+        pointer_button,
     }
 }
