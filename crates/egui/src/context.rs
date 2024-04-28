@@ -1870,14 +1870,14 @@ impl Context {
             {
                 let interact_widgets = self.write(|ctx| ctx.viewport().interact_widgets.clone());
                 let InteractionSnapshot {
+                    pointer_button: _,
                     clicked,
                     long_touched: _,
                     drag_started: _,
                     dragged,
                     drag_stopped: _,
-                    contains_pointer,
                     hovered,
-                    pointer_button: _,
+                    contains_pointer,
                 } = interact_widgets;
 
                 if true {
