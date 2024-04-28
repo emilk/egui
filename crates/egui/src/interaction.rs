@@ -81,7 +81,7 @@ impl InteractionSnapshot {
 
         crate::Grid::new("interaction").show(ui, |ui| {
             ui.label("pointer_button");
-            let text = format!("{:?}", pointer_buttons);
+            let text = format!("{pointer_buttons:?}");
             ui.label(text);
             ui.end_row();
 
