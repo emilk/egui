@@ -1355,7 +1355,7 @@ impl Tessellator {
                 }
             }
             Shape::ArcPie(arc_pie_shape) => {
-                self.tessellate_arc_pie(&arc_pie_shape, out);
+                self.tessellate_arc_pie(arc_pie_shape, out);
             }
             Shape::Circle(circle) => {
                 self.tessellate_circle(circle, out);
@@ -1411,7 +1411,7 @@ impl Tessellator {
     ///
     /// * `arc_pie_shape`: the arc or pie to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_arc_pie(&mut self, arc_pie_shape: &ArcPieShape, out: &mut Mesh) {
+    pub fn tessellate_arc_pie(&mut self, arc_pie_shape: ArcPieShape, out: &mut Mesh) {
         let ArcPieShape {
             center,
             radius,
@@ -1420,7 +1420,7 @@ impl Tessellator {
             closed,
             fill,
             stroke,
-        } = *arc_pie_shape;
+        } = arc_pie_shape;
 
         if radius <= 0.0
             || start_angle == end_angle
@@ -1440,6 +1440,14 @@ impl Tessellator {
 
         // If the arc is a full circle, we can just use the circle function.
         if (end_angle - start_angle).abs() >= std::f32::consts::TAU {
+            let stroke_color = match stroke.color {
+                ColorMode::Solid(color) => color,
+                ColorMode::UV(callback) => {
+                    // We can't use the callback here, so we just use the center of the circle.
+                    callback(Rect::from_center_size(center, Vec2::splat(radius)), center)
+                }
+            };
+            let stroke = Stroke::new(stroke.width, stroke_color);
             let circle = CircleShape {
                 center,
                 radius,
@@ -1456,12 +1464,12 @@ impl Tessellator {
                 .add_pie(center, radius, start_angle, end_angle);
             self.scratchpad_path.fill(self.feathering, fill, out);
             self.scratchpad_path
-                .stroke_closed(self.feathering, &PathStroke::from(stroke), out);
+                .stroke_closed(self.feathering, &stroke, out);
         } else {
             self.scratchpad_path
                 .add_arc(center, radius, start_angle, end_angle);
             self.scratchpad_path
-                .stroke_open(self.feathering, &PathStroke::from(stroke), out);
+                .stroke_open(self.feathering, &stroke, out);
         }
     }
 

@@ -261,7 +261,7 @@ impl Shape {
         radius: f32,
         start_angle: f32,
         end_angle: f32,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::ArcPie(ArcPieShape::arc(
             center,
@@ -298,7 +298,7 @@ impl Shape {
         start_angle: f32,
         end_angle: f32,
         fill: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::ArcPie(ArcPieShape::pie(
             center,
@@ -559,7 +559,7 @@ pub struct ArcPieShape {
     pub end_angle: f32,
     pub closed: bool,
     pub fill: Color32,
-    pub stroke: Stroke,
+    pub stroke: PathStroke,
 }
 
 impl ArcPieShape {
@@ -581,7 +581,7 @@ impl ArcPieShape {
         end_angle: f32,
         closed: bool,
         fill: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self {
             center,
@@ -608,7 +608,7 @@ impl ArcPieShape {
         radius: f32,
         start_angle: f32,
         end_angle: f32,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::new(
             center,
@@ -637,7 +637,7 @@ impl ArcPieShape {
         start_angle: f32,
         end_angle: f32,
         fill: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::new(center, radius, start_angle, end_angle, true, fill, stroke)
     }

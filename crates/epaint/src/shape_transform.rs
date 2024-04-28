@@ -70,8 +70,17 @@ pub fn adjust_colors(
         }) => {
             if *closed {
                 adjust_color(fill);
-            } else {
-                adjust_color(&mut stroke.color);
+            }
+            match &stroke.color {
+                color::ColorMode::Solid(mut col) => adjust_color(&mut col),
+                color::ColorMode::UV(callback) => {
+                    let callback = callback.clone();
+                    stroke.color = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
+                        let mut col = callback(rect, pos);
+                        adjust_color(&mut col);
+                        col
+                    })));
+                }
             }
         }
 
