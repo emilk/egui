@@ -1,4 +1,5 @@
 use std::f32::INFINITY;
+use std::fmt;
 
 use crate::*;
 
@@ -631,9 +632,20 @@ impl Rect {
     }
 }
 
-impl std::fmt::Debug for Rect {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Rect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[{:?} - {:?}]", self.min, self.max)
+    }
+}
+
+impl fmt::Display for Rect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("[")?;
+        self.min.fmt(f)?;
+        f.write_str(" - ")?;
+        self.max.fmt(f)?;
+        f.write_str("]")?;
+        Ok(())
     }
 }
 
