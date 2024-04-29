@@ -306,7 +306,7 @@ impl Prepared {
         self.content_ui.min_rect() + self.frame.inner_margin + self.frame.outer_margin
     }
 
-    /// Allocate the the space that was used by [`Self::content_ui`].
+    /// Allocate the space that was used by [`Self::content_ui`].
     ///
     /// This MUST be called, or the parent ui will not know how much space this widget used.
     ///

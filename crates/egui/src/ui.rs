@@ -1886,7 +1886,7 @@ impl Ui {
     /// adjusted up and down to lie in the center of the horizontal layout.
     /// The initial height is `style.spacing.interact_size.y`.
     /// Centering is almost always what you want if you are
-    /// planning to to mix widgets or use different types of text.
+    /// planning to mix widgets or use different types of text.
     ///
     /// If you don't want the contents to be centered, use [`Self::horizontal_top`] instead.
     ///
@@ -1947,7 +1947,7 @@ impl Ui {
     /// adjusted up and down to lie in the center of the horizontal layout.
     /// The initial height is `style.spacing.interact_size.y`.
     /// Centering is almost always what you want if you are
-    /// planning to to mix widgets or use different types of text.
+    /// planning to mix widgets or use different types of text.
     ///
     /// The returned [`Response`] will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).

@@ -77,7 +77,7 @@ pub fn capture() -> String {
 
         // Remove stuff that isn't user calls:
         let skip_prefixes = [
-            // "backtrace::", // not needed, since we cut at at egui::callstack::capture
+            // "backtrace::", // not needed, since we cut at egui::callstack::capture
             "egui::",
             "<egui::",
             "<F as egui::widgets::Widget>",
