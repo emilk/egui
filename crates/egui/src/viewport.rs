@@ -889,7 +889,7 @@ pub enum X11WindowType {
     /// This property is typically used on override-redirect windows.
     Combo,
 
-    /// This indicates the the window is being dragged.
+    /// This indicates the window is being dragged.
     /// This property is typically used on override-redirect windows.
     Dnd,
 }
@@ -1015,7 +1015,7 @@ pub enum ViewportCommand {
     /// Set window to be always-on-top, always-on-bottom, or neither.
     WindowLevel(WindowLevel),
 
-    /// The the window icon.
+    /// The window icon.
     Icon(Option<Arc<IconData>>),
 
     /// Set the IME cursor editing area.
