@@ -742,7 +742,7 @@ impl Plot {
             margin_fraction,
             width,
             height,
-            min_size,
+            mut min_size,
             data_aspect,
             view_aspect,
             mut show_x,
@@ -768,6 +768,10 @@ impl Plot {
 
         // Determine position of widget.
         let pos = ui.available_rect_before_wrap().min;
+        // Minimum values for screen protection
+        min_size.x = min_size.x.at_least(64.0);
+        min_size.y = min_size.y.at_least(15.0);
+
         // Determine size of widget.
         let size = {
             let width = width
