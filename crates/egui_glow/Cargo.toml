@@ -54,6 +54,7 @@ x11 = ["winit?/x11"]
 
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
+egui-winit = { workspace = true, optional = true, default-features = false }
 
 bytemuck = "1.7"
 glow.workspace = true
@@ -66,7 +67,6 @@ document-features = { workspace = true, optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { workspace = true, optional = true, default-features = false }
 puffin = { workspace = true, optional = true }
 winit = { workspace = true, optional = true, default-features = false, features = [
   "rwh_06", # for compatibility with egui-winit

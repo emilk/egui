@@ -257,7 +257,7 @@ pub struct RepaintCause {
     /// What file had the call that requested the repaint?
     pub file: &'static str,
 
-    /// What line number of the the call that requested the repaint?
+    /// What line number of the call that requested the repaint?
     pub line: u32,
 }
 
@@ -932,7 +932,7 @@ impl Context {
         self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
     }
 
-    /// If the given [`Id`] has been used previously the same frame at at different position,
+    /// If the given [`Id`] has been used previously the same frame at different position,
     /// then an error will be printed on screen.
     ///
     /// This function is already called for all widgets that do any interaction,

@@ -132,7 +132,7 @@ enum FocusDirection {
     /// Select the widget below the current focused widget.
     Down,
 
-    /// Select the widget to the left of the the current focused widget.
+    /// Select the widget to the left of the current focused widget.
     Left,
 
     /// Select the previous widget that had focus.
@@ -820,7 +820,7 @@ impl Memory {
 
 /// ## Popups
 /// Popups are things like combo-boxes, color pickers, menus etc.
-/// Only one can be be open at a time.
+/// Only one can be open at a time.
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
