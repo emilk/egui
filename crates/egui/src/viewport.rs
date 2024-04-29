@@ -389,7 +389,7 @@ impl ViewportBuilder {
     /// The application icon, e.g. in the Windows task bar or the alt-tab menu.
     ///
     /// The default icon is a white `e` on a black background (for "egui" or "eframe").
-    /// If you prefer the OS default, set this to `None`.
+    /// If you prefer the OS default, set this to `IconData::default()`.
     #[inline]
     pub fn with_icon(mut self, icon: impl Into<Arc<IconData>>) -> Self {
         self.icon = Some(icon.into());
@@ -889,7 +889,7 @@ pub enum X11WindowType {
     /// This property is typically used on override-redirect windows.
     Combo,
 
-    /// This indicates the the window is being dragged.
+    /// This indicates the window is being dragged.
     /// This property is typically used on override-redirect windows.
     Dnd,
 }
@@ -1015,7 +1015,7 @@ pub enum ViewportCommand {
     /// Set window to be always-on-top, always-on-bottom, or neither.
     WindowLevel(WindowLevel),
 
-    /// The the window icon.
+    /// The window icon.
     Icon(Option<Arc<IconData>>),
 
     /// Set the IME cursor editing area.
