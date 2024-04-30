@@ -478,7 +478,7 @@ impl State {
         }
     }
 
-    fn send_ime_enable(&mut self) {
+    pub fn send_ime_enable(&mut self) {
         if !self.has_sent_ime_enabled {
             self.egui_input
                 .events
@@ -487,7 +487,7 @@ impl State {
         }
     }
 
-    fn send_ime_disable(&mut self) {
+    pub fn send_ime_disable(&mut self) {
         self.egui_input
             .events
             .push(egui::Event::Ime(egui::ImeEvent::Disabled));
