@@ -348,7 +348,14 @@ impl State {
                             .push(egui::Event::Ime(egui::ImeEvent::Enabled));
                         self.has_sent_ime_enabled = true;
                     }
-                    winit::event::Ime::Preedit(_, None) => {}
+                    winit::event::Ime::Preedit(_, None) => {
+                        if !self.has_sent_ime_enabled {
+                            self.egui_input
+                                .events
+                                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+                            self.has_sent_ime_enabled = true;
+                        }
+                    }
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
                         if !self.has_sent_ime_enabled {
                             self.egui_input
