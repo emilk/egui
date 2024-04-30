@@ -343,42 +343,26 @@ impl State {
                 // between Commits.
                 match ime {
                     winit::event::Ime::Enabled => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                        self.has_sent_ime_enabled = true;
+                        self.send_ime_enable();
                     }
                     winit::event::Ime::Preedit(_, None) => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                        self.has_sent_ime_enabled = true;
+                        self.send_ime_enable();
                     }
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                        if !self.has_sent_ime_enabled {
-                            self.egui_input
-                                .events
-                                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                            self.has_sent_ime_enabled = true;
-                        }
+                        self.send_ime_enable();
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
                     }
                     winit::event::Ime::Commit(text) => {
+                        self.send_ime_enable();
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enabled = false;
+                        self.send_ime_disable();
                     }
                     winit::event::Ime::Disabled => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enabled = false;
+                        self.send_ime_disable();
                     }
                 };
 
@@ -448,7 +432,7 @@ impl State {
                 self.egui_input.modifiers.alt = alt;
                 self.egui_input.modifiers.ctrl = ctrl;
                 self.egui_input.modifiers.shift = shift;
-                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
+                self.egui_input.modifiers.mac_cmd = super_;
                 self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
                     super_
                 } else {
@@ -495,6 +479,22 @@ impl State {
                 }
             }
         }
+    }
+
+    fn send_ime_enable(&mut self) {
+        if !self.has_sent_ime_enabled {
+            self.egui_input
+                .events
+                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+            self.has_sent_ime_enabled = true;
+        }
+    }
+
+    fn send_ime_disable(&mut self) {
+        self.egui_input
+            .events
+            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
+        self.has_sent_ime_enabled = false;
     }
 
     pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
@@ -844,11 +844,16 @@ impl State {
 
         if let Some(ime) = ime {
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = pixels_per_point * ime.rect;
-            if self.ime_rect_px != Some(ime_rect_px)
-                || self.egui_ctx.input(|i| !i.events.is_empty())
-            {
-                self.ime_rect_px = Some(ime_rect_px);
+            let ime_rect_px = ime.rect * pixels_per_point;
+            let mut need_set_ime_cursor_area = true;
+
+            // On Wayland of Linux, repaints every frame Issue : See https://github.com/emilk/egui/pull/4254
+            if self.egui_ctx.os() == egui::os::OperatingSystem::Nix {
+                need_set_ime_cursor_area = self.ime_rect_px != Some(ime_rect_px)
+                    && self.egui_ctx.input(|i| !i.events.is_empty());
+            }
+
+            if need_set_ime_cursor_area {
                 crate::profile_scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
                     winit::dpi::PhysicalPosition {
@@ -860,6 +865,10 @@ impl State {
                         height: ime_rect_px.height(),
                     },
                 );
+
+                self.ime_rect_px = Some(ime_rect_px);
+            } else {
+                self.ime_rect_px = None;
             }
         } else {
             self.ime_rect_px = None;
@@ -980,6 +989,7 @@ pub fn update_viewport_info(
     }
 
     viewport_info.fullscreen = Some(window.fullscreen().is_some());
+    viewport_info.decorations = Some(window.is_decorated());
     viewport_info.focused = Some(window.has_focus());
 }
 
@@ -1324,10 +1334,20 @@ fn process_viewport_command(
 
     match command {
         ViewportCommand::Close => {
+            info.close_requested_on();
+            info.close_cancelable_off();
             info.events.push(egui::ViewportEvent::Close);
         }
         ViewportCommand::CancelClose => {
             // Need to be handled elsewhere
+            info.close_requested_off();
+            if let Some(position) = info
+                .events
+                .iter()
+                .position(|x| *x == egui::ViewportEvent::Close)
+            {
+                info.events.remove(position);
+            }
         }
         ViewportCommand::StartDrag => {
             // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
@@ -1384,7 +1404,10 @@ fn process_viewport_command(
         ViewportCommand::Title(title) => {
             window.set_title(&title);
         }
-        ViewportCommand::Transparent(v) => window.set_transparent(v),
+        ViewportCommand::Transparent(v) => {
+            window.set_transparent(v);
+            info.transparent = Some(v);
+        }
         ViewportCommand::Visible(v) => window.set_visible(v),
         ViewportCommand::OuterPosition(pos) => {
             window.set_outer_position(PhysicalPosition::new(
@@ -1438,7 +1461,10 @@ fn process_viewport_command(
         ViewportCommand::Fullscreen(v) => {
             window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
         }
-        ViewportCommand::Decorations(v) => window.set_decorations(v),
+        ViewportCommand::Decorations(v) => {
+            window.set_decorations(v);
+            info.decorations = Some(v);
+        }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
@@ -1448,13 +1474,11 @@ fn process_viewport_command(
             let winit_icon = icon.and_then(|icon| to_winit_icon(&icon));
             window.set_window_icon(winit_icon);
         }
-        ViewportCommand::IMERect(rect) => {
+        ViewportCommand::IMERect(ime_rect) => {
+            let ime_rect_px = ime_rect * pixels_per_point;
             window.set_ime_cursor_area(
-                PhysicalPosition::new(pixels_per_point * rect.min.x, pixels_per_point * rect.min.y),
-                PhysicalSize::new(
-                    pixels_per_point * rect.size().x,
-                    pixels_per_point * rect.size().y,
-                ),
+                PhysicalPosition::new(ime_rect_px.min.x, ime_rect_px.min.y),
+                PhysicalSize::new(ime_rect_px.width(), ime_rect_px.height()),
             );
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
