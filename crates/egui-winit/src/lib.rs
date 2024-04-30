@@ -342,10 +342,7 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled => {
-                        self.send_ime_enable();
-                    }
-                    winit::event::Ime::Preedit(_, None) => {
+                    winit::event::Ime::Enabled | winit::event::Ime::Preedit(_, None) => {
                         self.send_ime_enable();
                     }
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
