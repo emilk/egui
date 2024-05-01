@@ -352,7 +352,6 @@ impl State {
                             .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
                     }
                     winit::event::Ime::Commit(text) => {
-                        self.send_ime_enable();
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
@@ -479,12 +478,10 @@ impl State {
     }
 
     pub fn send_ime_enable(&mut self) {
-        if !self.has_sent_ime_enabled {
-            self.egui_input
-                .events
-                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-            self.has_sent_ime_enabled = true;
-        }
+        self.egui_input
+            .events
+            .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+        self.has_sent_ime_enabled = true;
     }
 
     pub fn send_ime_disable(&mut self) {
