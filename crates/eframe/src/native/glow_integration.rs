@@ -142,7 +142,6 @@ impl GlowWinitApp {
         }
     }
 
-    #[allow(unsafe_code)]
     fn create_glutin_windowed_context(
         egui_ctx: &egui::Context,
         event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -161,9 +160,8 @@ impl GlowWinitApp {
         )
         .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
-        let mut glutin_window_context = unsafe {
-            GlutinWindowContext::new(egui_ctx, winit_window_builder, native_options, event_loop)?
-        };
+        let mut glutin_window_context =
+            GlutinWindowContext::new(egui_ctx, winit_window_builder, native_options, event_loop)?;
 
         // Creates the window - must come before we create our glow context
         glutin_window_context.initialize_window(ViewportId::ROOT, event_loop)?;
@@ -174,8 +172,9 @@ impl GlowWinitApp {
             epi_integration::apply_window_settings(window, window_settings);
         }
 
+        crate::profile_scope!("glow::Context::from_loader_function");
+        #[allow(unsafe_code)]
         let gl = unsafe {
-            crate::profile_scope!("glow::Context::from_loader_function");
             Arc::new(glow::Context::from_loader_function(|s| {
                 let s = std::ffi::CString::new(s)
                     .expect("failed to construct C string from string for gl proc address");
@@ -894,8 +893,7 @@ fn change_gl_context(
 }
 
 impl GlutinWindowContext {
-    #[allow(unsafe_code)]
-    unsafe fn new(
+    fn new(
         egui_ctx: &egui::Context,
         viewport_builder: ViewportBuilder,
         native_options: &NativeOptions,
@@ -992,24 +990,28 @@ impl GlutinWindowContext {
         // create gl context. if core context cannot be created, try gl es context as fallback.
         let context_attributes =
             glutin::context::ContextAttributesBuilder::new().build(glutin_raw_window_handle);
-        let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
-            .with_context_api(glutin::context::ContextApi::Gles(None))
-            .build(glutin_raw_window_handle);
 
+        crate::profile_scope!("create_context");
+        #[allow(unsafe_code)]
         let gl_context_result = unsafe {
-            crate::profile_scope!("create_context");
             gl_config
                 .display()
                 .create_context(&gl_config, &context_attributes)
         };
 
         let gl_context = match gl_context_result {
-            Ok(it) => it,
+            Ok(not_current_context) => not_current_context,
             Err(err) => {
                 log::warn!("Failed to create context using default context attributes {context_attributes:?} due to error: {err}");
+
+                let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
+                    .with_context_api(glutin::context::ContextApi::Gles(None))
+                    .build(glutin_raw_window_handle);
                 log::debug!(
                     "Retrying with fallback context attributes: {fallback_context_attributes:?}"
                 );
+
+                #[allow(unsafe_code)]
                 unsafe {
                     gl_config
                         .display()
@@ -1084,7 +1086,6 @@ impl GlutinWindowContext {
     }
 
     /// Create a surface, window, and winit integration for the viewport, if missing.
-    #[allow(unsafe_code)]
     pub(crate) fn initialize_window(
         &mut self,
         viewport_id: ViewportId,
@@ -1151,6 +1152,7 @@ impl GlutinWindowContext {
             };
 
             log::trace!("creating surface with attributes: {surface_attributes:?}");
+            #[allow(unsafe_code)]
             let gl_surface = unsafe {
                 self.gl_config
                     .display()
