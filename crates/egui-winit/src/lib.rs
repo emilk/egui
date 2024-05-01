@@ -343,10 +343,10 @@ impl State {
                 // between Commits.
                 match ime {
                     winit::event::Ime::Enabled | winit::event::Ime::Preedit(_, None) => {
-                        self.send_ime_enable();
+                        self.ime_event_enable();
                     }
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                        self.send_ime_enable();
+                        self.ime_event_enable();
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
@@ -355,10 +355,10 @@ impl State {
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                        self.send_ime_disable();
+                        self.ime_event_disable();
                     }
                     winit::event::Ime::Disabled => {
-                        self.send_ime_disable();
+                        self.ime_event_disable();
                     }
                 };
 
@@ -477,7 +477,7 @@ impl State {
         }
     }
 
-    pub fn send_ime_enable(&mut self) {
+    pub fn ime_event_enable(&mut self) {
         if !self.has_sent_ime_enabled {
             self.egui_input
                 .events
@@ -486,7 +486,7 @@ impl State {
         }
     }
 
-    pub fn send_ime_disable(&mut self) {
+    pub fn ime_event_disable(&mut self) {
         self.egui_input
             .events
             .push(egui::Event::Ime(egui::ImeEvent::Disabled));
