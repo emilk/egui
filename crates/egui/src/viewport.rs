@@ -889,7 +889,7 @@ pub enum X11WindowType {
     /// This property is typically used on override-redirect windows.
     Combo,
 
-    /// This indicates the window is being dragged.
+    /// This indicates the the window is being dragged.
     /// This property is typically used on override-redirect windows.
     Dnd,
 }
@@ -1015,7 +1015,7 @@ pub enum ViewportCommand {
     /// Set window to be always-on-top, always-on-bottom, or neither.
     WindowLevel(WindowLevel),
 
-    /// The window icon.
+    /// The the window icon.
     Icon(Option<Arc<IconData>>),
 
     /// Set the IME cursor editing area.
@@ -1145,7 +1145,7 @@ impl ViewportOutput {
         let Self {
             parent,
             class,
-            builder,
+            builder: _,
             viewport_ui_cb,
             mut commands,
             repaint_delay,
@@ -1153,7 +1153,8 @@ impl ViewportOutput {
 
         self.parent = parent;
         self.class = class;
-        let _ = self.builder.patch(builder); // we ignore the returned command, because `self.builder` will be the basis of a new patch
+        // we ignore the returned command, because `self.builder` will be the basis of a new patch
+        // let _ = self.builder.patch(builder);
         self.viewport_ui_cb = viewport_ui_cb;
         self.commands.append(&mut commands);
         self.repaint_delay = self.repaint_delay.min(repaint_delay);
