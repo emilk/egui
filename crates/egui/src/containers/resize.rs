@@ -209,7 +209,7 @@ impl Resize {
 
             State {
                 desired_size: self.default_size,
-                last_content_size: self.default_size - margins,
+                last_content_size: vec2(0.0, 0.0),
                 requested_size: None,
             }
         });
