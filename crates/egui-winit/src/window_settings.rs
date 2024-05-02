@@ -127,12 +127,12 @@ impl WindowSettings {
     }
 }
 
-fn clamp_pos_to_monitors<E>(
+fn find_active_monitor<E>(
     egui_zoom_factor: f32,
     event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
     window_size_pts: egui::Vec2,
-    position_px: &mut egui::Pos2,
-) {
+    position_px: &egui::Pos2,
+) -> Option<winit::monitor::MonitorHandle> {
     crate::profile_function!();
 
     let monitors = event_loop.available_monitors();
@@ -142,7 +142,7 @@ fn clamp_pos_to_monitors<E>(
         .primary_monitor()
         .or_else(|| event_loop.available_monitors().next())
     else {
-        return; // no monitors 🤷
+        return None; // no monitors 🤷
     };
 
     for monitor in monitors {
@@ -158,6 +158,23 @@ fn clamp_pos_to_monitors<E>(
             active_monitor = monitor;
         }
     }
+
+    Some(active_monitor)
+}
+
+fn clamp_pos_to_monitors<E>(
+    egui_zoom_factor: f32,
+    event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    window_size_pts: egui::Vec2,
+    position_px: &mut egui::Pos2,
+) {
+    crate::profile_function!();
+
+    let Some(active_monitor) =
+        find_active_monitor(egui_zoom_factor, event_loop, window_size_pts, position_px)
+    else {
+        return; // no monitors 🤷
+    };
 
     let mut window_size_px =
         window_size_pts * (egui_zoom_factor * active_monitor.scale_factor() as f32);
