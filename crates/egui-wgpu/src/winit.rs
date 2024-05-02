@@ -209,7 +209,7 @@ impl Painter {
 
         if let Some(window) = window {
             let size = window.inner_size();
-            if self.surfaces.get(&viewport_id).is_none() {
+            if !self.surfaces.contains_key(&viewport_id) {
                 let surface = self.instance.create_surface(window)?;
                 self.add_surface(surface, viewport_id, size).await?;
             }
@@ -235,7 +235,7 @@ impl Painter {
 
         if let Some(window) = window {
             let size = window.inner_size();
-            if self.surfaces.get(&viewport_id).is_none() {
+            if !self.surfaces.contains_key(&viewport_id) {
                 let surface = unsafe {
                     self.instance
                         .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(&window)?)?

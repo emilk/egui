@@ -1071,7 +1071,7 @@ pub enum ViewportCommand {
     /// This is equivalent to the system keyboard shortcut for copy (e.g. CTRL + C).
     RequestCopy,
 
-    /// Request a paste from the clipboard to the current focused TextEdit if any.
+    /// Request a paste from the clipboard to the current focused `TextEdit` if any.
     ///
     /// This is equivalent to the system keyboard shortcut for paste (e.g. CTRL + V).
     RequestPaste,

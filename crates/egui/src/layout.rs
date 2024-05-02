@@ -13,7 +13,7 @@ pub(crate) struct Region {
     /// Always finite.
     ///
     /// The bounding box of all child widgets, but not necessarily a tight bounding box
-    /// since [`Ui`](crate::Ui) can start with a non-zero min_rect size.
+    /// since [`Ui`](crate::Ui) can start with a non-zero `min_rect` size.
     pub min_rect: Rect,
 
     /// The maximum size of this [`Ui`](crate::Ui). This is a *soft max*
@@ -38,7 +38,7 @@ pub(crate) struct Region {
     /// So one can think of `cursor` as a constraint on the available region.
     ///
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
-    /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the min_rect.
+    /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
     pub(crate) cursor: Rect,
 }
 

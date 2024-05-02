@@ -162,7 +162,7 @@ pub struct Renderer {
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
-    /// sampler). The texture may be None if the TextureId is just a handle to a user-provided
+    /// sampler). The texture may be None if the `TextureId` is just a handle to a user-provided
     /// sampler.
     textures: HashMap<epaint::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
     next_user_texture_id: u64,

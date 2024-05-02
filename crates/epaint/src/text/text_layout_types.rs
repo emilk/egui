@@ -453,9 +453,9 @@ pub struct Galley {
     /// `rect.top()` is always 0.0.
     ///
     /// With [`LayoutJob::halign`]:
-    /// * [`Align::LEFT`]: rect.left() == 0.0
-    /// * [`Align::Center`]: rect.center() == 0.0
-    /// * [`Align::RIGHT`]: rect.right() == 0.0
+    /// * [`Align::LEFT`]: `rect.left() == 0.0`
+    /// * [`Align::Center`]: `rect.center() == 0.0`
+    /// * [`Align::RIGHT`]: `rect.right() == 0.0`
     pub rect: Rect,
 
     /// Tight bounding box around all the meshes in all the rows.

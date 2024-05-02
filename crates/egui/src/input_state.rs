@@ -35,7 +35,7 @@ pub struct InputState {
     /// State of the mouse or simple touch gestures which can be mapped to mouse operations.
     pub pointer: PointerState,
 
-    /// State of touches, except those covered by PointerState (like clicks and drags).
+    /// State of touches, except those covered by `PointerState` (like clicks and drags).
     /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
