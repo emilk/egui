@@ -50,8 +50,10 @@ impl WindowSettings {
         self.inner_size_points
     }
 
-    pub fn initialize_viewport_builder(
+    pub fn initialize_viewport_builder<E>(
         &self,
+        egui_zoom_factor: f32,
+        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
         crate::profile_function!();
@@ -64,7 +66,15 @@ impl WindowSettings {
             self.outer_position_pixels
         };
         if let Some(pos) = pos_px {
-            viewport_builder = viewport_builder.with_position(pos);
+            let monitor_scale_factor = if let Some(inner_size_points) = self.inner_size_points {
+                find_active_monitor(egui_zoom_factor, event_loop, inner_size_points, &pos)
+                    .map_or(1.0, |monitor| monitor.scale_factor() as f32)
+            } else {
+                1.0
+            };
+
+            let scaled_pos = pos / (egui_zoom_factor * monitor_scale_factor);
+            viewport_builder = viewport_builder.with_position(scaled_pos);
         }
 
         if let Some(inner_size_points) = self.inner_size_points {

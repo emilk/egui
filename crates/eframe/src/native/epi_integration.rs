@@ -39,7 +39,11 @@ pub fn viewport_builder<E>(
         }
         window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
-        viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
+        viewport_builder = window_settings.initialize_viewport_builder(
+            egui_zoom_factor,
+            event_loop,
+            viewport_builder,
+        );
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = viewport_builder.position {
