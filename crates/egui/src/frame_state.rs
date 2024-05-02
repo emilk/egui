@@ -21,12 +21,12 @@ pub(crate) struct FrameState {
     /// All [`Id`]s that were used this frame.
     pub(crate) used_ids: IdMap<Rect>,
 
-    /// Starts off as the screen_rect, shrinks as panels are added.
+    /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
     pub(crate) available_rect: Rect,
 
-    /// Starts off as the screen_rect, shrinks as panels are added.
+    /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] retracts from this.
     pub(crate) unused_rect: Rect,
 

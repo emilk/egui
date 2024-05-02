@@ -152,7 +152,7 @@ pub struct Style {
     ///
     /// The most convenient way to look something up in this is to use [`TextStyle::resolve`].
     ///
-    /// If you would like to overwrite app text_styles
+    /// If you would like to overwrite app `text_styles`
     ///
     /// ```
     /// # let mut ctx = egui::Context::default();
