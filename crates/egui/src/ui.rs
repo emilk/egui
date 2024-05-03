@@ -530,13 +530,13 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
-        self.placer.set_min_width(width);
+        self.placer.set_min_width((width).max(0.0));
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
-        self.placer.set_min_height(height);
+        self.placer.set_min_height((height).max(0.0));
     }
 
     // ------------------------------------------------------------------------
@@ -607,7 +607,7 @@ impl Ui {
     /// A small size should be interpreted as "as little as possible".
     /// An infinite size should be interpreted as "as much as you want".
     pub fn available_size(&self) -> Vec2 {
-        self.placer.available_size()
+        self.placer.available_size().max(vec2(0.0, 0.0))
     }
 
     /// The available width at the moment, given the current cursor.
