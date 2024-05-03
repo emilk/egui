@@ -1678,7 +1678,7 @@ impl BarChart {
                     })
                     .min_by_key(|value| value.ord())
             };
-            
+
             if let Some(value) = new_base_offset {
                 bar.base_offset = Some(value);
             }
