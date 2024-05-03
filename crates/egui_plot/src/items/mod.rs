@@ -1654,19 +1654,31 @@ impl BarChart {
     /// Negative values are stacked below other negative values.
     #[inline]
     pub fn stack_on(mut self, others: &[&Self]) -> Self {
-        for (index, bar) in self.bars.iter_mut().enumerate() {
+        for bar in self.bars.iter_mut() {
             let new_base_offset = if bar.value.is_sign_positive() {
                 others
                     .iter()
-                    .filter_map(|other_chart| other_chart.bars.get(index).map(|bar| bar.upper()))
+                    .filter_map(|other_chart| {
+                        other_chart
+                            .bars
+                            .iter()
+                            .find(|other_bar| other_bar.argument == bar.argument)
+                            .map(|other_bar| other_bar.upper())
+                    })
                     .max_by_key(|value| value.ord())
             } else {
                 others
                     .iter()
-                    .filter_map(|other_chart| other_chart.bars.get(index).map(|bar| bar.lower()))
+                    .filter_map(|other_chart| {
+                        other_chart
+                            .bars
+                            .iter()
+                            .find(|other_bar| other_bar.argument == bar.argument)
+                            .map(|other_bar| other_bar.lower())
+                    })
                     .min_by_key(|value| value.ord())
             };
-
+            
             if let Some(value) = new_base_offset {
                 bar.base_offset = Some(value);
             }
