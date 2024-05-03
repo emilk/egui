@@ -361,21 +361,6 @@ impl WinitApp for GlowWinitApp {
             .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
     }
 
-    fn is_focused(&self, window_id: WindowId) -> bool {
-        if let Some(running) = &self.running {
-            let glutin = running.glutin.borrow();
-            if let Some(viewport_id) = glutin.viewport_from_window.get(&window_id) {
-                return glutin.focused_viewport == Some(*viewport_id);
-            }
-        }
-
-        false
-    }
-
-    fn integration(&self) -> Option<&EpiIntegration> {
-        self.running.as_ref().map(|r| &r.integration)
-    }
-
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
         let running = self.running.as_ref()?;
         let glutin = running.glutin.borrow();

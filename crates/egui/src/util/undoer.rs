@@ -59,8 +59,8 @@ pub struct Undoer<State> {
 
     /// Stores redos immediately after a sequence of undos.
     /// Gets cleared every time the state changes.
-    /// Does not need to be a deque, because there can only be up to undos.len() redos,
-    /// which is already limited to settings.max_undos.
+    /// Does not need to be a deque, because there can only be up to `undos.len()` redos,
+    /// which is already limited to `settings.max_undos`.
     redos: Vec<State>,
 
     #[cfg_attr(feature = "serde", serde(skip))]

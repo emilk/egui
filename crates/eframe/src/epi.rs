@@ -234,7 +234,7 @@ pub enum HardwareAcceleration {
 
     /// Do NOT use graphics acceleration.
     ///
-    /// On some platforms (MacOS) this is ignored and treated the same as [`Self::Preferred`].
+    /// On some platforms (macOS) this is ignored and treated the same as [`Self::Preferred`].
     Off,
 }
 
@@ -520,10 +520,10 @@ pub enum WebGlContextOption {
     /// Force use WebGL2.
     WebGl2,
 
-    /// Use WebGl2 first.
+    /// Use WebGL2 first.
     BestFirst,
 
-    /// Use WebGl1 first
+    /// Use WebGL1 first
     CompatibilityFirst,
 }
 

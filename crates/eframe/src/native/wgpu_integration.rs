@@ -342,20 +342,6 @@ impl WinitApp for WgpuWinitApp {
             .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
     }
 
-    fn is_focused(&self, window_id: WindowId) -> bool {
-        if let Some(running) = &self.running {
-            let shared = running.shared.borrow();
-            let viewport_id = shared.viewport_from_window.get(&window_id).copied();
-            shared.focused_viewport.is_some() && shared.focused_viewport == viewport_id
-        } else {
-            false
-        }
-    }
-
-    fn integration(&self) -> Option<&EpiIntegration> {
-        self.running.as_ref().map(|r| &r.integration)
-    }
-
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
         self.running
             .as_ref()
