@@ -28,6 +28,12 @@ all-features = true
 [features]
 default = []
 
+## Enable [`serde`](https://docs.rs/serde) serialization and deserialization to hex codes for `HexColor`.
+serde-hexcolor = ["serde"]
+
+## Allow serialization using [`serde`](https://docs.rs/serde).
+serde = ["dep:serde"]
+
 ## Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = []
 ## Always enable additional checks.
