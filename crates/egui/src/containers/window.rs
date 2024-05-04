@@ -449,15 +449,14 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
 
-        // Prevent window from becoming larger than the screen rect.
-        {
-            let max_size = ctx.screen_rect().size() - margins;
-            resize.max_size.x = resize.max_size.x.min(max_size.x);
-            resize.max_size.y = resize.max_size.y.min(max_size.y);
-        }
-
         let mut prepared_area = area.begin(ctx);
         let last_frame_outer_rect = prepared_area.state().rect();
+
+        // Prevent window from becoming larger than the screen rect.
+        {
+            let screen_rect_size = ctx.screen_rect().size() - margins;
+            resize.max_size = resize.max_size.at_most(screen_rect_size);
+        }
 
         if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
             resize_state.desired_size = last_frame_outer_rect.size() - margins;
