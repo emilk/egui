@@ -493,6 +493,7 @@ impl ScrollArea {
         } = self;
 
         let ctx = ui.ctx().clone();
+        let scrolling_enabled = scrolling_enabled && ui.is_enabled();
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
