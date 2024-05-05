@@ -746,15 +746,19 @@ impl State {
             physical_key
         );
 
-        if let Some(logical_key) = logical_key {
+        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
+        // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
+        // are mapped to the physical keys that normally contain C, X, V, etc.
+        // See also: https://github.com/emilk/egui/issues/3653
+        if let Some(active_key) = logical_key.or(physical_key) {
             if pressed {
-                if is_cut_command(self.egui_input.modifiers, logical_key) {
+                if is_cut_command(self.egui_input.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
-                } else if is_copy_command(self.egui_input.modifiers, logical_key) {
+                } else if is_copy_command(self.egui_input.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Copy);
                     return;
-                } else if is_paste_command(self.egui_input.modifiers, logical_key) {
+                } else if is_paste_command(self.egui_input.modifiers, active_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
                         if !contents.is_empty() {
@@ -766,7 +770,7 @@ impl State {
             }
 
             self.egui_input.events.push(egui::Event::Key {
-                key: logical_key,
+                key: active_key,
                 physical_key,
                 pressed,
                 repeat: false, // egui will fill this in for us!
