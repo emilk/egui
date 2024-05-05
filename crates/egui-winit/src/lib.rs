@@ -342,7 +342,11 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled | winit::event::Ime::Preedit(_, None) => {
+                    winit::event::Ime::Enabled => {
+                        // `ime_event_enable()` is not called here.
+                        // Because the IME used in China generates `Preedit(_, None)` and `Commit(text)`.
+                    }
+                    winit::event::Ime::Preedit(_, None) => {
                         self.ime_event_enable();
                     }
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
@@ -1399,6 +1403,7 @@ fn process_viewport_command(
         }
         ViewportCommand::Title(title) => {
             window.set_title(&title);
+            info.title = Some(title);
         }
         ViewportCommand::Transparent(v) => {
             window.set_transparent(v);
