@@ -1578,7 +1578,7 @@ pub fn create_winit_window_builder<T>(
         decorations,
         icon,
         active,
-        visible,
+        visible: _,
         close_button,
         minimize_button,
         maximize_button,
@@ -1609,7 +1609,6 @@ pub fn create_winit_window_builder<T>(
         .with_transparent(transparent.unwrap_or(false))
         .with_decorations(decorations.unwrap_or(true))
         .with_resizable(resizable.unwrap_or(true))
-        .with_visible(visible.unwrap_or(true))
         .with_maximized(maximized.unwrap_or(false))
         .with_window_level(match window_level.unwrap_or_default() {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
