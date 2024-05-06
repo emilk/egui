@@ -1403,10 +1403,10 @@ fn process_viewport_command(
         }
         ViewportCommand::Title(title) => {
             window.set_title(&title);
-            info.title = Some(title);
         }
         ViewportCommand::Transparent(v) => {
             window.set_transparent(v);
+            // remember it here. because it is difficult to check in `update_viewport_info()`.
             info.transparent = Some(v);
         }
         ViewportCommand::Visible(v) => window.set_visible(v),
@@ -1453,10 +1453,12 @@ fn process_viewport_command(
         ),
         ViewportCommand::Minimized(v) => {
             window.set_minimized(v);
+            // remember it here. because it is difficult to check in `update_viewport_info()`.
             info.minimized = Some(v);
         }
         ViewportCommand::Maximized(v) => {
             window.set_maximized(v);
+            // remember it here. because it is difficult to check in `update_viewport_info()`.
             info.maximized = Some(v);
         }
         ViewportCommand::Fullscreen(v) => {
@@ -1464,7 +1466,6 @@ fn process_viewport_command(
         }
         ViewportCommand::Decorations(v) => {
             window.set_decorations(v);
-            info.decorations = Some(v);
         }
         ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
