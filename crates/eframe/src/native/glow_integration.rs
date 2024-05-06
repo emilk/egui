@@ -22,7 +22,7 @@ use glutin::{
     surface::GlSurface,
 };
 use winit::{
-    event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
 };
 
@@ -31,8 +31,6 @@ use egui::{
     ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportInfo,
     ViewportOutput,
 };
-#[cfg(feature = "accesskit")]
-use egui_winit::accesskit_winit;
 
 use crate::{
     native::{epi_integration::EpiIntegration, winit_integration::create_egui_context},
@@ -145,7 +143,7 @@ impl GlowWinitApp {
     #[allow(unsafe_code)]
     fn create_glutin_windowed_context(
         egui_ctx: &egui::Context,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         storage: Option<&dyn Storage>,
         native_options: &mut NativeOptions,
     ) -> Result<(GlutinWindowContext, egui_glow::Painter)> {
@@ -189,10 +187,7 @@ impl GlowWinitApp {
         Ok((glutin_window_context, painter))
     }
 
-    fn init_run_state(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-    ) -> Result<&mut GlowWinitRunning> {
+    fn init_run_state(&mut self, event_loop: &ActiveEventLoop) -> Result<&mut GlowWinitRunning> {
         crate::profile_function!();
 
         let storage = epi_integration::create_storage(
@@ -321,7 +316,7 @@ impl GlowWinitApp {
             let painter = Rc::downgrade(&painter);
             let beginning = integration.beginning;
 
-            let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
+            let event_loop: *const ActiveEventLoop = event_loop;
 
             egui::Context::set_immediate_viewport_renderer(move |egui_ctx, immediate_viewport| {
                 if let (Some(glutin), Some(painter)) = (glutin.upgrade(), painter.upgrade()) {
@@ -392,7 +387,7 @@ impl WinitApp for GlowWinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
     ) -> EventResult {
         if let Some(running) = &mut self.running {
@@ -404,7 +399,7 @@ impl WinitApp for GlowWinitApp {
 
     fn on_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         event: &winit::event::Event<UserEvent>,
     ) -> Result<EventResult> {
         crate::profile_function!(winit_integration::short_event_description(event));
@@ -471,9 +466,10 @@ impl WinitApp for GlowWinitApp {
             }
 
             #[cfg(feature = "accesskit")]
-            winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
-                accesskit_winit::ActionRequestEvent { request, window_id },
-            )) => {
+            winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest {
+                request,
+                window_id,
+            }) => {
                 if let Some(running) = &self.running {
                     let mut glutin = running.glutin.borrow_mut();
                     if let Some(viewport_id) = glutin.viewport_from_window.get(window_id).copied() {
@@ -499,7 +495,7 @@ impl WinitApp for GlowWinitApp {
 impl GlowWinitRunning {
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
     ) -> EventResult {
         crate::profile_function!();
@@ -894,7 +890,7 @@ impl GlutinWindowContext {
         egui_ctx: &egui::Context,
         viewport_builder: ViewportBuilder,
         native_options: &NativeOptions,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
     ) -> Result<Self> {
         crate::profile_function!();
 
@@ -943,7 +939,7 @@ impl GlutinWindowContext {
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-            .with_window_builder(Some(egui_winit::create_winit_window_builder(
+            .with_window_builder(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,
                 viewport_builder.clone(),
@@ -1066,7 +1062,7 @@ impl GlutinWindowContext {
     /// Create a surface, window, and winit integration for all viewports lacking any of that.
     ///
     /// Errors will be logged.
-    fn initialize_all_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
+    fn initialize_all_windows(&mut self, event_loop: &ActiveEventLoop) {
         crate::profile_function!();
 
         let viewports: Vec<ViewportId> = self.viewports.keys().copied().collect();
@@ -1083,7 +1079,7 @@ impl GlutinWindowContext {
     pub(crate) fn initialize_window(
         &mut self,
         viewport_id: ViewportId,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
     ) -> Result<()> {
         crate::profile_function!();
 
@@ -1249,7 +1245,7 @@ impl GlutinWindowContext {
 
     fn handle_viewport_output(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         egui_ctx: &egui::Context,
         viewport_output: &ViewportIdMap<ViewportOutput>,
     ) {
@@ -1373,7 +1369,7 @@ fn initialize_or_update_viewport(
 /// This is called (via a callback) by user code to render immediate viewports,
 /// i.e. viewport that are directly nested inside a parent viewport.
 fn render_immediate_viewport(
-    event_loop: &EventLoopWindowTarget<UserEvent>,
+    event_loop: &ActiveEventLoop,
     egui_ctx: &egui::Context,
     glutin: &RefCell<GlutinWindowContext>,
     painter: &RefCell<egui_glow::Painter>,

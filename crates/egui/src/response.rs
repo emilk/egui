@@ -807,7 +807,7 @@ impl Response {
         info: crate::WidgetInfo,
     ) {
         use crate::WidgetType;
-        use accesskit::{Checked, Role};
+        use accesskit::{Role, Toggled};
 
         self.fill_accesskit_node_common(builder);
         builder.set_role(match info.typ {
@@ -819,7 +819,7 @@ impl Response {
             }
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
-            WidgetType::SelectableLabel => Role::ToggleButton,
+            WidgetType::SelectableLabel => Role::Button,
             WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
@@ -837,14 +837,14 @@ impl Response {
             builder.set_numeric_value(value);
         }
         if let Some(selected) = info.selected {
-            builder.set_checked(if selected {
-                Checked::True
+            builder.set_toggled(if selected {
+                Toggled::True
             } else {
-                Checked::False
+                Toggled::False
             });
         } else if matches!(info.typ, WidgetType::Checkbox) {
             // Indeterminate state
-            builder.set_checked(Checked::Mixed);
+            builder.set_toggled(Toggled::Mixed);
         }
     }
 

@@ -100,10 +100,10 @@ impl WindowSettings {
         }
     }
 
-    pub fn clamp_position_to_monitors<E>(
+    pub fn clamp_position_to_monitors(
         &mut self,
         egui_zoom_factor: f32,
-        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+        event_loop: &winit::event_loop::ActiveEventLoop,
     ) {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
@@ -127,9 +127,9 @@ impl WindowSettings {
     }
 }
 
-fn clamp_pos_to_monitors<E>(
+fn clamp_pos_to_monitors(
     egui_zoom_factor: f32,
-    event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    event_loop: &winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
     position_px: &mut egui::Pos2,
 ) {

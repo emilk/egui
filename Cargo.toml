@@ -83,7 +83,7 @@ wgpu = { version = "0.20.0", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
 ] }
-winit = { version = "0.29.4", default-features = false }
+winit = { version = "0.30.0", default-features = false }
 
 
 [workspace.lints.rust]

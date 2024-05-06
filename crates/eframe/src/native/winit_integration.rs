@@ -1,10 +1,12 @@
 use std::{sync::Arc, time::Instant};
 
 use winit::{
-    event_loop::EventLoopWindowTarget,
+    event_loop::ActiveEventLoop,
     window::{Window, WindowId},
 };
 
+#[cfg(feature = "accesskit")]
+use egui::accesskit;
 use egui::ViewportId;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -48,13 +50,25 @@ pub enum UserEvent {
 
     /// A request related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
-    AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
+    AccessKitActionRequest {
+        request: accesskit::ActionRequest,
+        window_id: WindowId,
+    },
 }
 
 #[cfg(feature = "accesskit")]
-impl From<accesskit_winit::ActionRequestEvent> for UserEvent {
-    fn from(inner: accesskit_winit::ActionRequestEvent) -> Self {
-        Self::AccessKitActionRequest(inner)
+impl From<accesskit_winit::Event> for UserEvent {
+    fn from(event: accesskit_winit::Event) -> Self {
+        match event.window_event {
+            accesskit_winit::WindowEvent::InitialTreeRequested => todo!(),
+            accesskit_winit::WindowEvent::AccessibilityDeactivated => todo!(),
+            accesskit_winit::WindowEvent::ActionRequested(request) => {
+                Self::AccessKitActionRequest {
+                    request,
+                    window_id: event.window_id,
+                }
+            }
+        }
     }
 }
 
@@ -70,13 +84,13 @@ pub trait WinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
     ) -> EventResult;
 
     fn on_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         event: &winit::event::Event<UserEvent>,
     ) -> crate::Result<EventResult>;
 }
@@ -120,7 +134,7 @@ pub fn short_event_description(event: &winit::event::Event<UserEvent>) -> &'stat
         winit::event::Event::UserEvent(user_event) => match user_event {
             UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
             #[cfg(feature = "accesskit")]
-            UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
+            UserEvent::AccessKitActionRequest { .. } => "UserEvent::AccessKitActionRequest",
         },
         _ => egui_winit::short_generic_event_description(event),
     }
