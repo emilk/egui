@@ -342,20 +342,12 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                        self.has_sent_ime_enabled = true;
+                    winit::event::Ime::Enabled => {}
+                    winit::event::Ime::Preedit(_, None) => {
+                        self.ime_event_enable();
                     }
-                    winit::event::Ime::Preedit(_, None) => {}
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                        if !self.has_sent_ime_enabled {
-                            self.egui_input
-                                .events
-                                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                            self.has_sent_ime_enabled = true;
-                        }
+                        self.ime_event_enable();
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
@@ -364,16 +356,10 @@ impl State {
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enabled = false;
+                        self.ime_event_disable();
                     }
                     winit::event::Ime::Disabled => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enabled = false;
+                        self.ime_event_disable();
                     }
                 };
 
@@ -490,6 +476,22 @@ impl State {
                 }
             }
         }
+    }
+
+    pub fn ime_event_enable(&mut self) {
+        if !self.has_sent_ime_enabled {
+            self.egui_input
+                .events
+                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+            self.has_sent_ime_enabled = true;
+        }
+    }
+
+    pub fn ime_event_disable(&mut self) {
+        self.egui_input
+            .events
+            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
+        self.has_sent_ime_enabled = false;
     }
 
     pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
