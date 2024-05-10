@@ -138,22 +138,6 @@ pub enum Primitive {
     Callback(PaintCallback),
 }
 
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `epaint` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! epaint_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 
 /// Was epaint compiled with the `rayon` feature?

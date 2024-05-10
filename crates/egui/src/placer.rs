@@ -106,7 +106,7 @@ impl Placer {
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
-        egui_assert!(child_size.is_finite() && child_size.x >= 0.0 && child_size.y >= 0.0);
+        debug_assert!(child_size.is_finite() && child_size.x >= 0.0 && child_size.y >= 0.0);
         self.region.sanity_check();
         if let Some(grid) = &self.grid {
             grid.next_cell(self.region.cursor, child_size)
@@ -127,8 +127,8 @@ impl Placer {
 
     /// Apply justify or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, rect: Rect, child_size: Vec2) -> Rect {
-        crate::egui_assert!(!rect.any_nan());
-        crate::egui_assert!(!child_size.any_nan());
+        debug_assert!(!rect.any_nan());
+        debug_assert!(!child_size.any_nan());
 
         if let Some(grid) = &self.grid {
             grid.justify_and_align(rect, child_size)
@@ -140,7 +140,7 @@ impl Placer {
     /// Advance the cursor by this many points.
     /// [`Self::min_rect`] will expand to contain the cursor.
     pub(crate) fn advance_cursor(&mut self, amount: f32) {
-        crate::egui_assert!(
+        debug_assert!(
             self.grid.is_none(),
             "You cannot advance the cursor when in a grid layout"
         );
@@ -158,8 +158,8 @@ impl Placer {
         widget_rect: Rect,
         item_spacing: Vec2,
     ) {
-        egui_assert!(!frame_rect.any_nan());
-        egui_assert!(!widget_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan());
+        debug_assert!(!widget_rect.any_nan());
         self.region.sanity_check();
 
         if let Some(grid) = &mut self.grid {

@@ -28,10 +28,6 @@ all-features = true
 [features]
 default = []
 
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = []
-## Always enable additional checks.
-extra_asserts = []
 
 [dependencies]
 #! ### Optional dependencies

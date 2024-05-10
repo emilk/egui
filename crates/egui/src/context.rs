@@ -1748,7 +1748,7 @@ impl Context {
         let name = name.into();
         let image = image.into();
         let max_texture_side = self.input(|i| i.max_texture_side);
-        crate::egui_assert!(
+        debug_assert!(
             image.width() <= max_texture_side && image.height() <= max_texture_side,
             "Texture {:?} has size {}x{}, but the maximum texture side is {}",
             name,

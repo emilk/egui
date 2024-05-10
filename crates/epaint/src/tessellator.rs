@@ -1311,7 +1311,7 @@ impl Tessellator {
                 crate::profile_scope!("mesh");
 
                 if self.options.validate_meshes && !mesh.is_valid() {
-                    crate::epaint_assert!(false, "Invalid Mesh in Shape::Mesh");
+                    debug_assert!(false, "Invalid Mesh in Shape::Mesh");
                     return;
                 }
                 // note: `append` still checks if the mesh is valid if extra asserts are enabled.
@@ -1480,7 +1480,7 @@ impl Tessellator {
     /// * `out`: triangles are appended to this.
     pub fn tessellate_mesh(&mut self, mesh: &Mesh, out: &mut Mesh) {
         if !mesh.is_valid() {
-            crate::epaint_assert!(false, "Invalid Mesh in Shape::Mesh");
+            debug_assert!(false, "Invalid Mesh in Shape::Mesh");
             return;
         }
 
@@ -1554,7 +1554,7 @@ impl Tessellator {
         }
 
         if *fill != Color32::TRANSPARENT {
-            crate::epaint_assert!(
+            debug_assert!(
                 closed,
                 "You asked to fill a path that is not closed. That makes no sense."
             );
@@ -1760,7 +1760,7 @@ impl Tessellator {
                             color = color.gamma_multiply(*opacity_factor);
                         }
 
-                        crate::epaint_assert!(color != Color32::PLACEHOLDER, "A placeholder color made it to the tessellator. You forgot to set a fallback color.");
+                        debug_assert!(color != Color32::PLACEHOLDER, "A placeholder color made it to the tessellator. You forgot to set a fallback color.");
 
                         let offset = if *angle == 0.0 {
                             pos.to_vec2()
@@ -1864,7 +1864,7 @@ impl Tessellator {
             self.scratchpad_path.add_open_points(points);
         }
         if fill != Color32::TRANSPARENT {
-            crate::epaint_assert!(
+            debug_assert!(
                 closed,
                 "You asked to fill a path that is not closed. That makes no sense."
             );
@@ -1946,7 +1946,7 @@ impl Tessellator {
 
         for clipped_primitive in &clipped_primitives {
             if let Primitive::Mesh(mesh) = &clipped_primitive.primitive {
-                crate::epaint_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
+                debug_assert!(mesh.is_valid(), "Tessellator generated invalid Mesh");
             }
         }
 
