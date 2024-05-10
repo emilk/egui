@@ -890,7 +890,7 @@ impl Galley {
                 pcursor_it.offset += row.char_count_including_newline();
             }
         }
-        crate::epaint_assert!(ccursor_it == self.end().ccursor);
+        debug_assert!(ccursor_it == self.end().ccursor);
         Cursor {
             ccursor: ccursor_it, // clamp
             rcursor: self.end_rcursor(),

@@ -52,11 +52,6 @@ deadlock_detection = ["epaint/deadlock_detection"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint/default_fonts"]
 
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = ["epaint/extra_debug_asserts"]
-## Always enable additional checks.
-extra_asserts = ["epaint/extra_asserts"]
-
 ## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
 log = ["dep:log", "epaint/log"]
 
