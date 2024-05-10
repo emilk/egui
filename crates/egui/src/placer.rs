@@ -248,6 +248,9 @@ impl Placer {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_width(&mut self, width: f32) {
+        if width <= 0.0 {
+            return;
+        }
         let rect = self.next_widget_space_ignore_wrap_justify(vec2(width, 0.0));
         self.region.expand_to_include_x(rect.min.x);
         self.region.expand_to_include_x(rect.max.x);
@@ -256,6 +259,9 @@ impl Placer {
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub(crate) fn set_min_height(&mut self, height: f32) {
+        if height <= 0.0 {
+            return;
+        }
         let rect = self.next_widget_space_ignore_wrap_justify(vec2(0.0, height));
         self.region.expand_to_include_y(rect.min.y);
         self.region.expand_to_include_y(rect.max.y);

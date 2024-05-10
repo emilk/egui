@@ -530,12 +530,14 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
+        egui_assert!(0.0 <= width);
         self.placer.set_min_width(width);
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
+        egui_assert!(0.0 <= height);
         self.placer.set_min_height(height);
     }
 
