@@ -1245,7 +1245,7 @@ fn axis_widgets<'a>(
     mem: Option<&PlotMemory>,
     show_axes: Vec2b,
     complete_rect: Rect,
-    [x_axes, y_axes]: [&'a [AxisHints]; 2],
+    [x_axes, y_axes]: [&'a [AxisHints<'a>]; 2],
 ) -> ([Vec<AxisWidget<'a>>; 2], Rect) {
     // Next we want to create this layout.
     // Indices are only examples.
@@ -1270,8 +1270,8 @@ fn axis_widgets<'a>(
     //  +   +--------------------+---+
     //
 
-    let mut x_axis_widgets = Vec::<AxisWidget>::new();
-    let mut y_axis_widgets = Vec::<AxisWidget>::new();
+    let mut x_axis_widgets = Vec::<AxisWidget<'_>>::new();
+    let mut y_axis_widgets = Vec::<AxisWidget<'_>>::new();
 
     // Will shrink as we add more axes.
     let mut rect_left = complete_rect;
