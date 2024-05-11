@@ -525,19 +525,16 @@ impl GlowWinitRunning {
             crate::profile_scope!("Prepare");
 
             let mut glutin = self.glutin.borrow_mut();
-
             let original_viewport = &glutin.viewports[&viewport_id];
-            let is_immediate_viewport = original_viewport.viewport_ui_cb.is_none();
 
             // This will only happens when a Immediate Viewport.
-            if is_immediate_viewport && viewport_id != ViewportId::ROOT {
+            if original_viewport.class == ViewportClass::Immediate {
                 let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent)
                 else {
                     return EventResult::Wait;
                 };
 
-                let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
-                if is_deferred_parent {
+                if parent_viewport.class == ViewportClass::Deferred {
                     viewport_id = parent_viewport.ids.this;
                 } else {
                     viewport_id = ViewportId::ROOT;
@@ -846,29 +843,25 @@ fn change_gl_context(
 ) {
     crate::profile_function!();
 
+    let Some(p_current_gl_context) = current_gl_context.take() else {
+        return;
+    };
+
     if !cfg!(target_os = "windows") {
         // According to https://github.com/emilk/egui/issues/4289
         // we cannot do this early-out on Windows.
         // TODO(emilk): optimize context switching on Windows too.
         // See https://github.com/emilk/egui/issues/4173
 
-        if let Some(current_gl_context) = current_gl_context {
-            crate::profile_scope!("is_current");
-            if gl_surface.is_current(current_gl_context) {
-                return; // Early-out to save a lot of time.
-            }
+        crate::profile_scope!("is_current");
+        if gl_surface.is_current(&p_current_gl_context) {
+            return; // Early-out to save a lot of time.
         }
     }
 
-    let not_current = {
-        crate::profile_scope!("make_not_current");
-        let Some(gl_context) = current_gl_context.take() else {
-            return;
-        };
-        let Ok(not_current) = gl_context.make_not_current() else {
-            return;
-        };
-        not_current
+    crate::profile_scope!("make_not_current");
+    let Ok(not_current) = p_current_gl_context.make_not_current() else {
+        return;
     };
 
     crate::profile_scope!("make_current");
@@ -1078,11 +1071,10 @@ impl GlutinWindowContext {
     ) -> Result<()> {
         crate::profile_function!();
 
-        let viewport = self
-            .viewports
-            .get_mut(&viewport_id)
-            .expect("viewport doesn't exist");
-
+        let Some(viewport) = self.viewports.get_mut(&viewport_id) else {
+            log::debug!("viewport {viewport_id:?} doesn't exist");
+            return Ok(());
+        };
         viewport.info.this = viewport_id;
         viewport.info.parent = Some(self.egui_ctx.parent_viewport_id_of(viewport_id));
 
@@ -1366,7 +1358,8 @@ fn initialize_or_update_viewport(
             })
         }
 
-        std::collections::hash_map::Entry::Occupied(mut entry) => {
+        std::collections::hash_map::Entry::Occupied(entry) => {
+            /*
             // Patch an existing viewport:
             let viewport = entry.get_mut();
 
@@ -1387,7 +1380,7 @@ fn initialize_or_update_viewport(
             }
 
             viewport.deferred_commands.append(&mut delta_commands);
-
+            */
             entry.into_mut()
         }
     }
