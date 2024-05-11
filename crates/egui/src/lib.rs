@@ -549,22 +549,6 @@ macro_rules! github_link_file {
 
 // ----------------------------------------------------------------------------
 
-/// An assert that is only active when `egui` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! egui_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 /// The minus character: <https://www.compart.com/en/unicode/U+2212>
 pub(crate) const MINUS_CHAR_STR: &str = "−";
 

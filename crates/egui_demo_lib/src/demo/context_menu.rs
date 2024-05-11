@@ -97,11 +97,13 @@ impl super::View for ContextMenus {
                 egui::Grid::new("button_grid").show(ui, |ui| {
                     ui.add(
                         egui::DragValue::new(&mut self.width)
+                            .clamp_range(0.0..=f32::INFINITY)
                             .speed(1.0)
                             .prefix("Width: "),
                     );
                     ui.add(
                         egui::DragValue::new(&mut self.height)
+                            .clamp_range(0.0..=f32::INFINITY)
                             .speed(1.0)
                             .prefix("Height: "),
                     );

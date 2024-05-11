@@ -52,14 +52,6 @@ deadlock_detection = ["dep:backtrace"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = []
 
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = [
-  "emath/extra_debug_asserts",
-  "ecolor/extra_debug_asserts",
-]
-## Always enable additional checks.
-extra_asserts = ["emath/extra_asserts", "ecolor/extra_asserts"]
-
 ## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
 log = ["dep:log"]
 

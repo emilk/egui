@@ -746,7 +746,7 @@ pub fn paint_texture_at(
         Some((rot, origin)) => {
             // TODO(emilk): implement this using `PathShape` (add texture support to it).
             // This will also give us anti-aliasing of rotated images.
-            egui_assert!(
+            debug_assert!(
                 options.rounding == Rounding::ZERO,
                 "Image had both rounding and rotation. Please pick only one"
             );

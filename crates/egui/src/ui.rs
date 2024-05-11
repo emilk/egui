@@ -111,7 +111,7 @@ impl Ui {
         layout: Layout,
         id_source: impl Hash,
     ) -> Self {
-        crate::egui_assert!(!max_rect.any_nan());
+        debug_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
         let child_ui = Ui {
@@ -530,12 +530,14 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
+        debug_assert!(0.0 <= width);
         self.placer.set_min_width(width);
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
+        debug_assert!(0.0 <= height);
         self.placer.set_min_height(height);
     }
 
@@ -845,7 +847,7 @@ impl Ui {
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
-        egui_assert!(!frame_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan());
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
@@ -868,7 +870,7 @@ impl Ui {
 
     /// Allocate a rect without interacting with it.
     pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
-        egui_assert!(!rect.any_nan());
+        debug_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
@@ -937,7 +939,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        crate::egui_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
+        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
@@ -962,7 +964,7 @@ impl Ui {
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        egui_assert!(max_rect.is_finite());
+        debug_assert!(max_rect.is_finite());
         let mut child_ui = self.child_ui(max_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();

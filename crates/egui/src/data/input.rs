@@ -465,10 +465,12 @@ pub enum Event {
 
     /// A key was pressed or released.
     Key {
-        /// The logical key, heeding the users keymap.
+        /// Most of the time, it's the logical key, heeding the active keymap -- for instance, if the user has Dvorak
+        /// keyboard layout, it will be taken into account.
         ///
-        /// For instance, if the user is using Dvorak keyboard layout,
-        /// this will take that into account.
+        /// If it's impossible to determine the logical key on desktop platforms (say, in case of non-Latin letters),
+        /// `key` falls back to the value of the corresponding physical key. This is necessary for proper work of
+        /// standard shortcuts that only respond to Latin-based bindings (such as `Ctrl` + `V`).
         key: Key,
 
         /// The physical key, corresponding to the actual position on the keyboard.
