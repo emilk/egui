@@ -456,7 +456,12 @@ fn response_summary(response: &egui::Response, show_hovers: bool) -> String {
         egui::PointerButton::Extra1,
         egui::PointerButton::Extra2,
     ] {
-        let button_suffix = format!(" : {button:?} button");
+        let button_suffix = if button == egui::PointerButton::Primary {
+            // Reduce visual clutter in common case:
+            String::default()
+        } else {
+            format!(" by {button:?} button")
+        };
 
         // These are in inverse logical/chonological order, because we show them in the ui that way:
 
