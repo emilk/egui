@@ -1,4 +1,4 @@
-use egui::{NumExt, Vec2b};
+use egui::Vec2b;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -97,18 +97,17 @@ impl super::View for ContextMenus {
                 egui::Grid::new("button_grid").show(ui, |ui| {
                     ui.add(
                         egui::DragValue::new(&mut self.width)
+                            .clamp_range(0.0..=f32::INFINITY)
                             .speed(1.0)
                             .prefix("Width: "),
                     );
                     ui.add(
                         egui::DragValue::new(&mut self.height)
+                            .clamp_range(0.0..=f32::INFINITY)
                             .speed(1.0)
                             .prefix("Height: "),
                     );
-                    self.width = self.width.at_least(1.0);
-                    self.height = self.height.at_least(1.0);
                     ui.end_row();
-
                     ui.checkbox(&mut self.show_axes[0], "x-Axis");
                     ui.checkbox(&mut self.show_axes[1], "y-Axis");
                     ui.end_row();
