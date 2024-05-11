@@ -559,16 +559,14 @@ impl WgpuWinitRunning {
             let Some(original_viewport) = viewports.get(&viewport_id) else {
                 return EventResult::Wait;
             };
-            let is_immediate = original_viewport.viewport_ui_cb.is_none();
 
             // This will only happens when a Immediate Viewport.
-            if is_immediate && viewport_id != ViewportId::ROOT {
+            if original_viewport.class == ViewportClass::Immediate {
                 let Some(parent_viewport) = viewports.get(&original_viewport.ids.parent) else {
                     return EventResult::Wait;
                 };
 
-                let is_deferred_parent = parent_viewport.viewport_ui_cb.is_some();
-                if is_deferred_parent {
+                if parent_viewport.class == ViewportClass::Deferred {
                     viewport_id = parent_viewport.ids.this;
                 } else {
                     viewport_id = ViewportId::ROOT;
@@ -1167,7 +1165,8 @@ fn initialize_or_update_viewport(
             })
         }
 
-        std::collections::hash_map::Entry::Occupied(mut entry) => {
+        std::collections::hash_map::Entry::Occupied(entry) => {
+            /*
             // Patch an existing viewport:
             let viewport = entry.get_mut();
 
@@ -1188,7 +1187,7 @@ fn initialize_or_update_viewport(
             }
 
             viewport.deferred_commands.append(&mut delta_commands);
-
+            */
             entry.into_mut()
         }
     }
