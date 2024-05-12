@@ -898,7 +898,7 @@ pub struct ViewportOutput {
     /// The window attrbiutes such as title, position, size, etc.
     ///
     /// Use this when first constructing the native window.
-.    pub builder: ViewportBuilder,
+    pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.
     ///
