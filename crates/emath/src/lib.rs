@@ -20,8 +20,6 @@
 //!
 
 #![allow(clippy::float_cmp)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
