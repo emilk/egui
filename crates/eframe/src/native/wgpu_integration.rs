@@ -525,7 +525,7 @@ impl WgpuWinitRunning {
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
         crate::profile_function!();
 
-        let Some(viewport_id) = self
+        let Some(mut viewport_id) = self
             .shared
             .borrow()
             .viewport_from_window
@@ -555,20 +555,20 @@ impl WgpuWinitRunning {
                 viewports, painter, ..
             } = &mut *shared_lock;
 
-            if viewport_id != ViewportId::ROOT {
-                let Some(viewport) = viewports.get(&viewport_id) else {
+            let Some(original_viewport) = viewports.get(&viewport_id) else {
+                return EventResult::Wait;
+            };
+
+            // This will only happens when a Immediate Viewport.
+            if original_viewport.class == ViewportClass::Immediate {
+                let Some(parent_viewport) = viewports.get(&original_viewport.ids.parent) else {
                     return EventResult::Wait;
                 };
 
-                if viewport.viewport_ui_cb.is_none() {
-                    // This will only happen if this is an immediate viewport.
-                    // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                    if let Some(viewport) = viewports.get(&viewport.ids.parent) {
-                        if let Some(window) = viewport.window.as_ref() {
-                            return EventResult::RepaintNext(window.id());
-                        }
-                    }
-                    return EventResult::Wait;
+                if parent_viewport.class == ViewportClass::Deferred {
+                    viewport_id = parent_viewport.ids.this;
+                } else {
+                    viewport_id = ViewportId::ROOT;
                 }
             }
 
