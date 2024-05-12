@@ -863,31 +863,31 @@ fn change_gl_context(
 ) {
     crate::profile_function!();
 
+    let Some(p_current_gl_context) = current_gl_context.take() else {
+        return;
+    };
+
     if !cfg!(target_os = "windows") {
         // According to https://github.com/emilk/egui/issues/4289
         // we cannot do this early-out on Windows.
         // TODO(emilk): optimize context switching on Windows too.
         // See https://github.com/emilk/egui/issues/4173
 
-        if let Some(current_gl_context) = current_gl_context {
-            crate::profile_scope!("is_current");
-            if gl_surface.is_current(current_gl_context) {
-                return; // Early-out to save a lot of time.
-            }
+        crate::profile_scope!("is_current");
+        if gl_surface.is_current(&p_current_gl_context) {
+            return; // Early-out to save a lot of time.
         }
     }
 
-    let not_current = {
-        crate::profile_scope!("make_not_current");
-        current_gl_context
-            .take()
-            .unwrap()
-            .make_not_current()
-            .unwrap()
+    crate::profile_scope!("make_not_current");
+    let Ok(not_current) = p_current_gl_context.make_not_current() else {
+        return;
     };
 
     crate::profile_scope!("make_current");
-    *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
+    if let Ok(current) = not_current.make_current(gl_surface) {
+        *current_gl_context = Some(current);
+    }
 }
 
 impl GlutinWindowContext {
