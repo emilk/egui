@@ -144,12 +144,10 @@ pub struct EpiIntegration {
     is_first_frame: bool,
     pub frame_start: Instant,
     pub egui_ctx: egui::Context,
-    // pending_full_output: egui::FullOutput,
 
     /// When set, it is time to close the native window.
     close: bool,
 
-    can_drag_window: bool,
     follow_system_theme: bool,
     #[cfg(feature = "persistence")]
     persist_window: bool,
@@ -206,9 +204,7 @@ impl EpiIntegration {
             frame,
             last_auto_save: Instant::now(),
             egui_ctx,
-            // pending_full_output: Default::default(),
             close: false,
-            can_drag_window: false,
             follow_system_theme: native_options.follow_system_theme,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
@@ -257,18 +253,13 @@ impl EpiIntegration {
     ) -> EventResponse {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
-        use winit::event::{ElementState, MouseButton, WindowEvent};
+        use winit::event::WindowEvent;
 
         match event {
             WindowEvent::Destroyed => {
                 log::debug!("Received WindowEvent::Destroyed");
                 self.close = true;
             }
-            WindowEvent::MouseInput {
-                button: MouseButton::Left,
-                state: ElementState::Pressed,
-                ..
-            } => self.can_drag_window = true,
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);
