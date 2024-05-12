@@ -504,7 +504,7 @@ impl GlowWinitRunning {
     ) -> EventResult {
         crate::profile_function!();
 
-        let Some(viewport_id) = self
+        let Some(mut viewport_id) = self
             .glutin
             .borrow()
             .viewport_from_window
@@ -520,24 +520,26 @@ impl GlowWinitRunning {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        {
-            let glutin = self.glutin.borrow();
-            let viewport = &glutin.viewports[&viewport_id];
-            let is_immediate = viewport.viewport_ui_cb.is_none();
-            if is_immediate && viewport_id != ViewportId::ROOT {
-                // This will only happen if this is an immediate viewport.
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
-                    if let Some(window) = parent_viewport.window.as_ref() {
-                        return EventResult::RepaintNext(window.id());
-                    }
-                }
-                return EventResult::Wait;
-            }
-        }
-
         let (raw_input, viewport_ui_cb) = {
+            crate::profile_scope!("Prepare");
+
             let mut glutin = self.glutin.borrow_mut();
+            let original_viewport = &glutin.viewports[&viewport_id];
+
+            // This will only happens when a Immediate Viewport.
+            if original_viewport.class == ViewportClass::Immediate {
+                let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent)
+                else {
+                    return EventResult::Wait;
+                };
+
+                if parent_viewport.class == ViewportClass::Deferred {
+                    viewport_id = parent_viewport.ids.this;
+                } else {
+                    viewport_id = ViewportId::ROOT;
+                }
+            }
+
             let egui_ctx = glutin.egui_ctx.clone();
             let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
                 return EventResult::Wait;
