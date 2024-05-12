@@ -1344,6 +1344,7 @@ fn initialize_or_update_viewport(
         }
 
         std::collections::hash_map::Entry::Occupied(entry) => {
+            // return Viewport entry
             entry.into_mut()
         }
     }
