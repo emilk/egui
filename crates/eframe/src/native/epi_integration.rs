@@ -249,18 +249,13 @@ impl EpiIntegration {
     ) -> EventResponse {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
-        use winit::event::{ElementState, MouseButton, WindowEvent};
+        use winit::event::WindowEvent;
 
         match event {
             WindowEvent::Destroyed => {
                 log::debug!("Received WindowEvent::Destroyed");
                 self.close = true;
             }
-            WindowEvent::MouseInput {
-                button: MouseButton::Left,
-                state: ElementState::Pressed,
-                ..
-            } => {}
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);
