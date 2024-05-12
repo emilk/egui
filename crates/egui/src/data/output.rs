@@ -35,35 +35,6 @@ pub struct FullOutput {
     pub viewport_output: ViewportIdMap<ViewportOutput>,
 }
 
-impl FullOutput {
-    /// Add on new output.
-    pub fn append(&mut self, newer: Self) {
-        let Self {
-            platform_output,
-            textures_delta,
-            shapes,
-            pixels_per_point,
-            viewport_output: viewports,
-        } = newer;
-
-        self.platform_output.append(platform_output);
-        self.textures_delta.append(textures_delta);
-        self.shapes = shapes; // Only paint the latest
-        self.pixels_per_point = pixels_per_point; // Use latest
-
-        for (id, new_viewport) in viewports {
-            match self.viewport_output.entry(id) {
-                std::collections::hash_map::Entry::Vacant(entry) => {
-                    entry.insert(new_viewport);
-                }
-                std::collections::hash_map::Entry::Occupied(mut entry) => {
-                    entry.get_mut().append(new_viewport);
-                }
-            }
-        }
-    }
-}
-
 /// Information about text being edited.
 ///
 /// Useful for IME.
