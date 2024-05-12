@@ -149,7 +149,6 @@ pub struct EpiIntegration {
     /// When set, it is time to close the native window.
     close: bool,
 
-    can_drag_window: bool,
     follow_system_theme: bool,
     #[cfg(feature = "persistence")]
     persist_window: bool,
@@ -208,7 +207,6 @@ impl EpiIntegration {
             egui_ctx,
             pending_full_output: Default::default(),
             close: false,
-            can_drag_window: false,
             follow_system_theme: native_options.follow_system_theme,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
@@ -264,7 +262,7 @@ impl EpiIntegration {
                 button: MouseButton::Left,
                 state: ElementState::Pressed,
                 ..
-            } => self.can_drag_window = true,
+            } => {}
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);
