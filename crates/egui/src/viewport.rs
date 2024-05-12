@@ -608,6 +608,7 @@ impl ViewportBuilder {
         self.window_type = Some(value);
         self
     }
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
