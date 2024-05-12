@@ -144,7 +144,6 @@ pub struct EpiIntegration {
     is_first_frame: bool,
     pub frame_start: Instant,
     pub egui_ctx: egui::Context,
-    pending_full_output: egui::FullOutput,
 
     /// When set, it is time to close the native window.
     close: bool,
@@ -205,7 +204,6 @@ impl EpiIntegration {
             frame,
             last_auto_save: Instant::now(),
             egui_ctx,
-            pending_full_output: Default::default(),
             close: false,
             follow_system_theme: native_options.follow_system_theme,
             #[cfg(feature = "persistence")]
@@ -317,8 +315,7 @@ impl EpiIntegration {
             }
         }
 
-        self.pending_full_output.append(full_output);
-        std::mem::take(&mut self.pending_full_output)
+        full_output
     }
 
     pub fn report_frame_time(&mut self, seconds: f32) {
