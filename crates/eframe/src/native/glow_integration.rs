@@ -1344,27 +1344,6 @@ fn initialize_or_update_viewport(
         }
 
         std::collections::hash_map::Entry::Occupied(mut entry) => {
-            // Patch an existing viewport:
-            let viewport = entry.get_mut();
-
-            viewport.ids.parent = ids.parent;
-            viewport.class = class;
-            viewport.viewport_ui_cb = viewport_ui_cb;
-
-            let (mut delta_commands, recreate) = viewport.builder.patch(builder);
-
-            if recreate {
-                log::debug!(
-                    "Recreating window for viewport {:?} ({:?})",
-                    ids.this,
-                    viewport.builder.title
-                );
-                viewport.window = None;
-                viewport.egui_winit = None;
-            }
-
-            viewport.deferred_commands.append(&mut delta_commands);
-
             entry.into_mut()
         }
     }
