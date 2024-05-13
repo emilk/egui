@@ -21,7 +21,4 @@ env_logger = { version = "0.10", default-features = false, features = [
   "auto-color",
   "humantime",
 ] }
-image = { version = "0.24", default-features = false, features = [
-  "jpeg",
-  "png",
-] }
+image = { workspace = true, features = ["jpeg", "png"] }

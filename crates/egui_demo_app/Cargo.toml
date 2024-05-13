@@ -60,10 +60,7 @@ wgpu = { workspace = true, features = ["webgpu", "webgl"], optional = true }
 
 # feature "http":
 ehttp = { version = "0.5", optional = true }
-image = { version = "0.24", optional = true, default-features = false, features = [
-  "jpeg",
-  "png",
-] }
+image = { workspace = true, optional = true, features = ["jpeg", "png"] }
 poll-promise = { version = "0.3", optional = true, default-features = false }
 
 # feature "persistence":

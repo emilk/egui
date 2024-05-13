@@ -71,6 +71,7 @@ backtrace = "0.3"
 criterion = { version = "0.5.1", default-features = false }
 document-features = " 0.2.8"
 glow = "0.13"
+image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
 parking_lot = "0.12"
