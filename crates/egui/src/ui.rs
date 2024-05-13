@@ -111,7 +111,7 @@ impl Ui {
         layout: Layout,
         id_source: impl Hash,
     ) -> Self {
-        crate::egui_assert!(!max_rect.any_nan());
+        debug_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
         let child_ui = Ui {
@@ -530,12 +530,14 @@ impl Ui {
     /// Set the minimum width of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_width(&mut self, width: f32) {
+        debug_assert!(0.0 <= width);
         self.placer.set_min_width(width);
     }
 
     /// Set the minimum height of the ui.
     /// This can't shrink the ui, only make it larger.
     pub fn set_min_height(&mut self, height: f32) {
+        debug_assert!(0.0 <= height);
         self.placer.set_min_height(height);
     }
 
@@ -714,8 +716,13 @@ impl Ui {
             .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
     }
 
-    /// Is the pointer (mouse/touch) above this [`Ui`]?
+    /// Is the pointer (mouse/touch) above the current [`Ui`]?
+    ///
     /// Equivalent to `ui.rect_contains_pointer(ui.min_rect())`
+    ///
+    /// Note that this tests against the _current_ [`Ui::min_rect`].
+    /// If you want to test against the final `min_rect`,
+    /// use [`Self::interact_bg`] instead.
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
     }
@@ -840,7 +847,7 @@ impl Ui {
     fn allocate_space_impl(&mut self, desired_size: Vec2) -> Rect {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
-        egui_assert!(!frame_rect.any_nan());
+        debug_assert!(!frame_rect.any_nan());
         let widget_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
         self.placer
@@ -863,7 +870,7 @@ impl Ui {
 
     /// Allocate a rect without interacting with it.
     pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
-        egui_assert!(!rect.any_nan());
+        debug_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
@@ -932,7 +939,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        crate::egui_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
+        debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
@@ -957,7 +964,7 @@ impl Ui {
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        egui_assert!(max_rect.is_finite());
+        debug_assert!(max_rect.is_finite());
         let mut child_ui = self.child_ui(max_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
@@ -996,7 +1003,7 @@ impl Ui {
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
-        let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
+        let painter = self.painter().with_clip_rect(clip_rect);
         (response, painter)
     }
 
@@ -1801,6 +1808,9 @@ impl Ui {
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
+    ///
+    /// The name must be unique within the current parent,
+    /// or you need to use [`CollapsingHeader::id_source`].
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<WidgetText>,
@@ -1878,7 +1888,7 @@ impl Ui {
     /// adjusted up and down to lie in the center of the horizontal layout.
     /// The initial height is `style.spacing.interact_size.y`.
     /// Centering is almost always what you want if you are
-    /// planning to to mix widgets or use different types of text.
+    /// planning to mix widgets or use different types of text.
     ///
     /// If you don't want the contents to be centered, use [`Self::horizontal_top`] instead.
     ///
@@ -1939,7 +1949,7 @@ impl Ui {
     /// adjusted up and down to lie in the center of the horizontal layout.
     /// The initial height is `style.spacing.interact_size.y`.
     /// Centering is almost always what you want if you are
-    /// planning to to mix widgets or use different types of text.
+    /// planning to mix widgets or use different types of text.
     ///
     /// The returned [`Response`] will only have checked for mouse hover
     /// but can be used for tooltips (`on_hover_text`).

@@ -8,7 +8,7 @@ use super::{
 };
 
 /// Turn on to help debug this
-const DEBUG: bool = false; // TODO: don't merge this while `true`
+const DEBUG: bool = false; // Don't merge `true`!
 
 fn paint_selection(
     ui: &Ui,
@@ -169,7 +169,7 @@ impl LabelSelectionState {
 
         if ctx.input(|i| i.pointer.any_pressed() && !i.modifiers.shift) {
             // Maybe a new selection is about to begin, but the old one is over:
-            // state.selection = None; // TODO: this makes sense, but doesn't work as expected.
+            // state.selection = None; // TODO(emilk): this makes sense, but doesn't work as expected.
         }
 
         state.selection_bbox_last_frame = state.selection_bbox_this_frame;
@@ -562,7 +562,7 @@ impl LabelSelectionState {
                     old.widget_id != new_primary.widget_id || old.ccursor != new_primary.ccursor
                 });
                 if primary_changed && new_primary.widget_id == widget_id {
-                    let is_fully_visible = ui.clip_rect().contains_rect(response.rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+                    let is_fully_visible = ui.clip_rect().contains_rect(response.rect); // TODO(emilk): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
                     if selection_changed && !is_fully_visible {
                         // Scroll to keep primary cursor in view:
                         let row_height = estimate_row_height(galley);

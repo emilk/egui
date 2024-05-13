@@ -42,7 +42,7 @@ pub struct TextEditState {
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) has_ime: bool,
+    pub(crate) ime_enabled: bool,
 
     // cursor range for IME candidate.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -51,6 +51,11 @@ pub struct TextEditState {
     // Visual offset when editing singleline text bigger than the width.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) singleline_offset: f32,
+
+    /// When did the user last press a key?
+    /// Used to pause the cursor animation when typing.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) last_edit_time: f64,
 }
 
 impl TextEditState {
@@ -62,7 +67,7 @@ impl TextEditState {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
-    /// The the currently selected range of characters.
+    /// The currently selected range of characters.
     #[deprecated = "Use `self.cursor.char_range` instead"]
     pub fn ccursor_range(&self) -> Option<CCursorRange> {
         self.cursor.char_range()

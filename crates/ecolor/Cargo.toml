@@ -16,6 +16,9 @@ categories = ["mathematics", "encoding"]
 keywords = ["gui", "color", "conversion", "gamedev", "images"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
 
@@ -24,11 +27,6 @@ all-features = true
 
 [features]
 default = []
-
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = []
-## Always enable additional checks.
-extra_asserts = []
 
 
 [dependencies]

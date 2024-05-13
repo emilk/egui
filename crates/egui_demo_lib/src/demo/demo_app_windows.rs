@@ -29,6 +29,7 @@ impl Default for Demos {
             Box::<super::drag_and_drop::DragAndDropDemo>::default(),
             Box::<super::extra_viewport::ExtraViewport>::default(),
             Box::<super::font_book::FontBook>::default(),
+            Box::<super::frame_demo::FrameDemo>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
@@ -51,6 +52,15 @@ impl Default for Demos {
 impl Demos {
     pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
         let mut open = BTreeSet::new();
+
+        // Explains egui very well
+        open.insert(
+            super::code_example::CodeExample::default()
+                .name()
+                .to_owned(),
+        );
+
+        // Shows off the features
         open.insert(
             super::widget_gallery::WidgetGallery::default()
                 .name()

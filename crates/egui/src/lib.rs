@@ -371,8 +371,6 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 mod animation_manager;
 pub mod containers;
@@ -430,8 +428,8 @@ pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
-    ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
-    Rounding, Shape, Stroke, TextureHandle, TextureId,
+    ClippedPrimitive, ColorImage, FontImage, ImageData, Margin, Mesh, PaintCallback,
+    PaintCallbackInfo, Rounding, Shadow, Shape, Stroke, TextureHandle, TextureId,
 };
 
 pub mod text {
@@ -463,7 +461,7 @@ pub use {
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Margin, Style, TextStyle, Visuals},
+    style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     viewport::*,
@@ -517,7 +515,7 @@ macro_rules! include_image {
     };
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
+/// Create a [`Hyperlink`] to the current [`file!()`] (and line) on Github
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -532,7 +530,7 @@ macro_rules! github_link_file_line {
     }};
 }
 
-/// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] on github.
+/// Create a [`Hyperlink`] to the current [`file!()`] on github.
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -545,22 +543,6 @@ macro_rules! github_link_file {
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::from_label_and_url($label, url)
     }};
-}
-
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `egui` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! egui_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
 }
 
 // ----------------------------------------------------------------------------

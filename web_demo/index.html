@@ -37,7 +37,12 @@
             width: 100%;
         }
 
-        /* Position canvas in center-top: */
+        /* Position canvas in center-top.
+        This is rather arbitrarily chosen.
+        In particular, it seems like both Chromium and Firefox will still align
+        the canvas on the physical pixel grid, which is required to get
+        pixel-perfect (non-blurry) rendering in egui.
+        See https://github.com/emilk/egui/issues/4241 for more */
         canvas {
             margin-right: auto;
             margin-left: auto;

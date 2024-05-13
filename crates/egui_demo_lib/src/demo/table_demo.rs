@@ -40,7 +40,7 @@ impl Default for TableDemo {
 
 impl super::Demo for TableDemo {
     fn name(&self) -> &'static str {
-        "☰ Table Demo"
+        "☰ Table"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
@@ -136,6 +136,7 @@ impl TableDemo {
             .size
             .max(ui.spacing().interact_size.y);
 
+        let available_height = ui.available_height();
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .resizable(self.resizable)
@@ -145,7 +146,8 @@ impl TableDemo {
             .column(Column::initial(100.0).range(40.0..=300.0))
             .column(Column::initial(100.0).at_least(40.0).clip(true))
             .column(Column::remainder())
-            .min_scrolled_height(0.0);
+            .min_scrolled_height(0.0)
+            .max_scroll_height(available_height);
 
         if self.clickable {
             table = table.sense(egui::Sense::click());

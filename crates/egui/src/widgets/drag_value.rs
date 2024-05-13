@@ -525,8 +525,16 @@ impl<'a> Widget for DragValue<'a> {
             .sense(Sense::click_and_drag())
             .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
+            let cursor_icon = if value <= *clamp_range.start() {
+                CursorIcon::ResizeEast
+            } else if value < *clamp_range.end() {
+                CursorIcon::ResizeHorizontal
+            } else {
+                CursorIcon::ResizeWest
+            };
+
             let response = ui.add(button);
-            let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
+            let mut response = response.on_hover_cursor(cursor_icon);
 
             if ui.style().explanation_tooltips {
                 response = response.on_hover_text(format!(
@@ -552,7 +560,7 @@ impl<'a> Widget for DragValue<'a> {
                 )));
                 state.store(ui.ctx(), response.id);
             } else if response.dragged() {
-                ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
+                ui.ctx().set_cursor_icon(cursor_icon);
 
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up

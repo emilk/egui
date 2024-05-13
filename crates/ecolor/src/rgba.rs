@@ -26,6 +26,7 @@ impl std::ops::IndexMut<usize> for Rgba {
     }
 }
 
+/// Deterministically hash an `f32`, treating all NANs as equal, and ignoring the sign of zero.
 #[inline]
 pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     if f == 0.0 {
@@ -97,22 +98,22 @@ impl Rgba {
 
     #[inline]
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= l && l <= 1.0);
-        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(0.0 <= l && l <= 1.0);
+        debug_assert!(0.0 <= a && a <= 1.0);
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline]
     pub fn from_black_alpha(a: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
+        debug_assert!(0.0 <= a && a <= 1.0);
         Self([0.0, 0.0, 0.0, a])
     }
 
     /// Transparent white
     #[inline]
     pub fn from_white_alpha(a: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
+        debug_assert!(0.0 <= a && a <= 1.0, "a: {a}");
         Self([a, a, a, a])
     }
 

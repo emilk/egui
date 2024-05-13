@@ -1,4 +1,4 @@
-// TODO: automatic cache eviction
+// TODO(jprochazk): automatic cache eviction
 
 /// Installs a set of image loaders.
 ///

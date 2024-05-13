@@ -104,6 +104,13 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// `order(Order::Foreground)` for a Window that should always be on top
+    #[inline]
+    pub fn order(mut self, order: Order) -> Self {
+        self.area = self.area.order(order);
+        self
+    }
+
     /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     // TODO(emilk): I'm not sure this is a good interface for this.
     #[inline]
@@ -328,9 +335,19 @@ impl<'open> Window<'open> {
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
+    ///
+    /// You can pass in `false`, `true`, `[false, true]` etc.
+    #[inline]
+    pub fn scroll(mut self, scroll: impl Into<Vec2b>) -> Self {
+        self.scroll = self.scroll.scroll(scroll);
+        self
+    }
+
+    /// Enable/disable horizontal/vertical scrolling. `false` by default.
+    #[deprecated = "Renamed to `scroll`"]
     #[inline]
     pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
-        self.scroll = self.scroll.scroll2(scroll);
+        self.scroll = self.scroll.scroll(scroll);
         self
     }
 
@@ -430,6 +447,16 @@ impl<'open> Window<'open> {
         } else {
             (0.0, 0.0)
         };
+
+        {
+            // Prevent window from becoming larger than the constraint rect and/or screen rect.
+            let screen_rect = ctx.screen_rect();
+            let max_rect = area.constrain_rect().unwrap_or(screen_rect);
+            let max_width = max_rect.width();
+            let max_height = max_rect.height() - title_bar_height;
+            resize.max_size.x = resize.max_size.x.min(max_width);
+            resize.max_size.y = resize.max_size.y.min(max_height);
+        }
 
         // First check for resize to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
@@ -687,6 +714,7 @@ impl ResizeInteraction {
         let top = self.top.any();
         let bottom = self.bottom.any();
 
+        // TODO(emilk): use one-sided cursors for when we reached the min/max size.
         if (left && top) || (right && bottom) {
             ctx.set_cursor_icon(CursorIcon::ResizeNwSe);
         } else if (right && top) || (left && bottom) {

@@ -150,23 +150,33 @@ impl Widget for &mut epaint::TessellationOptions {
                 validate_meshes,
             } = self;
 
-            ui.checkbox(feathering, "Feathering (antialias)")
-                .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
-            let feathering_slider = crate::Slider::new(feathering_size_in_pixels, 0.0..=10.0)
-                .smallest_positive(0.1)
-                .logarithmic(true)
-                .text("Feathering size in pixels");
-            ui.add_enabled(*feathering, feathering_slider);
+            ui.horizontal(|ui| {
+                ui.checkbox(feathering, "Feathering (antialias)")
+                    .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
+
+                if *feathering {
+                    ui.add(crate::DragValue::new(feathering_size_in_pixels).clamp_range(0.0..=10.0).speed(0.1).suffix(" px"));
+                }
+            });
 
             ui.checkbox(prerasterized_discs, "Speed up filled circles with pre-rasterization");
 
-            ui.add(
-                crate::widgets::Slider::new(bezier_tolerance, 0.0001..=10.0)
-                    .logarithmic(true)
-                    .show_value(true)
-                    .text("Spline Tolerance"),
-            );
-            ui.collapsing("debug", |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Spline tolerance");
+                let speed = 0.01 * *bezier_tolerance;
+                ui.add(
+                    crate::DragValue::new(bezier_tolerance).clamp_range(0.0001..=10.0)
+                        .speed(speed)
+                );
+            });
+
+            ui.add_enabled(epaint::HAS_RAYON, crate::Checkbox::new(parallel_tessellation, "Parallelize tessellation")
+                ).on_hover_text("Only available if epaint was compiled with the rayon feature")
+                .on_disabled_hover_text("epaint was not compiled with the rayon feature");
+
+            ui.checkbox(validate_meshes, "Validate meshes").on_hover_text("Check that incoming meshes are valid, i.e. that all indices are in range, etc.");
+
+            ui.collapsing("Debug", |ui| {
                 ui.checkbox(
                     coarse_tessellation_culling,
                     "Do coarse culling in the tessellator",
@@ -178,12 +188,6 @@ impl Widget for &mut epaint::TessellationOptions {
                 ui.checkbox(debug_paint_clip_rects, "Paint clip rectangles");
                 ui.checkbox(debug_paint_text_rects, "Paint text bounds");
             });
-
-            ui.add_enabled(epaint::HAS_RAYON, crate::Checkbox::new(parallel_tessellation, "Parallelize tessellation")
-                ).on_hover_text("Only available if epaint was compiled with the rayon feature")
-                .on_disabled_hover_text("epaint was not compiled with the rayon feature");
-
-            ui.checkbox(validate_meshes, "Validate meshes").on_hover_text("Check that incoming meshes are valid, i.e. that all indices are in range, etc.");
         })
         .response
     }
@@ -194,7 +198,6 @@ impl Widget for &memory::InteractionState {
         let memory::InteractionState {
             potential_click_id,
             potential_drag_id,
-            focus: _,
         } = self;
 
         ui.vertical(|ui| {

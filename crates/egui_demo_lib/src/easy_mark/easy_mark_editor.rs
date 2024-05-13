@@ -45,10 +45,10 @@ impl EasyMarkEditor {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("controls").show(ui, |ui| {
-            let _ = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
+            let _response = ui.button("Hotkeys").on_hover_ui(nested_hotkeys_ui);
             ui.checkbox(&mut self.show_rendered, "Show rendered");
             ui.checkbox(&mut self.highlight_editor, "Highlight editor");
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.end_row();
         });
         ui.separator();
@@ -261,7 +261,7 @@ The style characters are chosen to be similar to what they are representing:
   `$` = $small$
   `^` = ^raised^
 
-# TODO
+# To do
 - Sub-headers (`## h2`, `### h3` etc)
 - Hotkey Editor
 - International keyboard algorithm for non-letter keys

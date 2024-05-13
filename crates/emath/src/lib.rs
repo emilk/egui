@@ -20,8 +20,6 @@
 //!
 
 #![allow(clippy::float_cmp)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
@@ -30,6 +28,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 pub mod align;
 mod history;
 mod numeric;
+mod ordered_float;
 mod pos2;
 mod range;
 mod rect;
@@ -40,10 +39,11 @@ mod ts_transform;
 mod vec2;
 mod vec2b;
 
-pub use {
+pub use self::{
     align::{Align, Align2},
     history::History,
     numeric::*,
+    ordered_float::*,
     pos2::*,
     range::Rangef,
     rect::*,
@@ -144,7 +144,7 @@ where
 {
     let from = from.into();
     let to = to.into();
-    crate::emath_assert!(from.start() != from.end());
+    debug_assert!(from.start() != from.end());
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
@@ -168,7 +168,7 @@ where
     } else if *from.end() <= x {
         *to.end()
     } else {
-        crate::emath_assert!(from.start() != from.end());
+        debug_assert!(from.start() != from.end());
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
         if T::ONE <= t {
@@ -192,8 +192,8 @@ pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
 pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
-    crate::emath_assert!(min_decimals <= max_decimals);
-    crate::emath_assert!(max_decimals < 100);
+    debug_assert!(min_decimals <= max_decimals);
+    debug_assert!(max_decimals < 100);
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 
@@ -427,20 +427,4 @@ pub fn interpolation_factor(
 pub fn ease_in_ease_out(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
     (3.0 * t * t - 2.0 * t * t * t).clamp(0.0, 1.0)
-}
-
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `emath` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! emath_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
 }
