@@ -883,7 +883,7 @@ fn events(
                     // TODO(emilk): support removing indentation over a selection?
                     text.decrease_indentation(&mut ccursor);
                 } else {
-                    text.insert_text_at(&mut ccursor, "\t", char_limit);
+                    text.insert_tab_to_space(&mut ccursor, "\t", char_limit);
                 }
                 Some(CCursorRange::one(ccursor))
             }

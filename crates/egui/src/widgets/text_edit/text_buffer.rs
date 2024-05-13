@@ -86,6 +86,31 @@ pub trait TextBuffer {
         }
     }
 
+    fn insert_tab_to_space(
+        &mut self,
+        ccursor: &mut CCursor,
+        text_to_insert: &str,
+        char_limit: usize,
+    ) {
+        let tab_size: usize = TAB_SIZE;
+        let mut text_to_insert: String = text_to_insert.to_owned();
+        if text_to_insert == "\t" {
+            let mut line_indexes: Vec<usize> =
+                crate::text_selection::text_cursor_state::create_char_line_indexes(self.as_str());
+            let current_column = crate::text_selection::text_cursor_state::get_current_column(
+                self.as_str(),
+                &mut line_indexes,
+                ccursor.index,
+            );
+            let tab_size_gap = (current_column - 1) % tab_size;
+            let add_space_size = tab_size - tab_size_gap;
+
+            text_to_insert = " ".repeat(add_space_size);
+        }
+
+        self.insert_text_at(ccursor, &text_to_insert, char_limit);
+    }
+
     fn decrease_indentation(&mut self, ccursor: &mut CCursor) {
         let line_start = find_line_start(self.as_str(), *ccursor);
 
