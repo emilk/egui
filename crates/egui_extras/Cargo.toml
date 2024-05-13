@@ -42,7 +42,7 @@ http = ["dep:ehttp"]
 ##
 ## You also need to ALSO opt-in to the image formats you want to support, like so:
 ## ```toml
-## image = { version = "*", features = ["jpeg", "png"] } # Add the types you want support for
+## image = { version = "0.25", features = ["jpeg", "png"] } # Add the types you want support for
 ## ```
 image = ["dep:image"]
 
