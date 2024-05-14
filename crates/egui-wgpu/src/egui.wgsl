@@ -7,12 +7,35 @@ struct VertexOutput {
 };
 
 struct Locals {
-    screen_size: vec2<f32>,
+    screen_size: vec2<f32>, // in points
+    pixels_per_point: f32,
     // Uniform buffers need to be at least 16 bytes in WebGL.
     // See https://github.com/gfx-rs/wgpu/issues/2072
-    _padding: vec2<u32>,
+    _padding: u32,
 };
 @group(0) @binding(0) var<uniform> r_locals: Locals;
+
+
+// -----------------------------------------------
+// Adapted from
+// https://www.shadertoy.com/view/llVGzG
+// Originally presented in:
+// Jimenez 2014, "Next Generation Post-Processing in Call of Duty"
+//
+// A good overview can be found in
+// https://blog.demofox.org/2022/01/01/interleaved-gradient-noise-a-different-kind-of-low-discrepancy-sequence/
+// via https://github.com/rerun-io/rerun/
+fn interleaved_gradient_noise(n: vec2<f32>) -> f32 {
+    let f = 0.06711056 * n.x + 0.00583715 * n.y;
+    return fract(52.9829189 * fract(f));
+}
+
+fn dither_interleaved(rgb: vec3<f32>, levels: f32, frag_coord: vec4<f32>) -> vec3<f32> {
+    var noise = interleaved_gradient_noise(frag_coord.xy);
+    // scale down the noise slightly to ensure flat colors aren't getting dithered
+    noise = (noise - 0.5) * 0.95;
+    return rgb + noise / (levels - 1.0);
+}
 
 // 0-1 linear  from  0-1 sRGB gamma
 fn linear_from_gamma_rgb(srgb: vec3<f32>) -> vec3<f32> {
@@ -78,7 +101,11 @@ fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     let tex_gamma = gamma_from_linear_rgba(tex_linear);
     let out_color_gamma = in.color * tex_gamma;
-    return vec4<f32>(linear_from_gamma_rgb(out_color_gamma.rgb), out_color_gamma.a);
+    let out_color_linear = linear_from_gamma_rgb(out_color_gamma.rgb);
+    // Dither the float color down to eight bits to reduce banding.
+    // This step is optional for egui backends.
+    let out_color_dithered = dither_interleaved(out_color_linear, 256.0, in.position);
+    return vec4<f32>(out_color_dithered, out_color_gamma.a);
 }
 
 @fragment
@@ -87,5 +114,6 @@ fn fs_main_gamma_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     let tex_gamma = gamma_from_linear_rgba(tex_linear);
     let out_color_gamma = in.color * tex_gamma;
-    return out_color_gamma;
+    let out_color_dithered = vec4<f32>(dither_interleaved(out_color_gamma.rgb, 256.0, in.position * r_locals.pixels_per_point), out_color_gamma.a);
+    return out_color_dithered;
 }
