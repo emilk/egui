@@ -51,7 +51,7 @@ log.workspace = true
 
 # Optional dependencies:
 
-bytemuck = { version = "1.7.1", optional = true }
+bytemuck = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 puffin_http = { workspace = true, optional = true }
 # Enable both WebGL & WebGPU when targeting the web (these features have no effect when not targeting wasm32)
@@ -64,7 +64,7 @@ image = { workspace = true, optional = true, features = ["jpeg", "png"] }
 poll-promise = { version = "0.3", optional = true, default-features = false }
 
 # feature "persistence":
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { workspace = true, optional = true }
 
 
 # native:
@@ -78,5 +78,5 @@ rfd = { version = "0.13", optional = true }
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "=0.2.92"
-wasm-bindgen-futures = "0.4"
-web-sys = "0.3"
+wasm-bindgen-futures.workspace = true
+web-sys.workspace = true

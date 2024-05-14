@@ -66,7 +66,7 @@ egui = { workspace = true, default-features = false, features = ["serde"] }
 
 enum-map = { version = "2", features = ["serde"] }
 log.workspace = true
-serde = { version = "1", features = ["derive"] }
+serde.workspace = true
 
 #! ### Optional dependencies
 
