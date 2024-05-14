@@ -71,7 +71,7 @@ impl TextEditState {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
-    /// The the currently selected range of characters.
+    /// The currently selected range of characters.
     #[deprecated = "Use `self.cursor.char_range` instead"]
     pub fn ccursor_range(&self) -> Option<CCursorRange> {
         self.cursor.char_range()

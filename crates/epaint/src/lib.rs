@@ -22,8 +22,6 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 mod bezier;
 pub mod color;
@@ -136,22 +134,6 @@ pub struct ClippedPrimitive {
 pub enum Primitive {
     Mesh(Mesh),
     Callback(PaintCallback),
-}
-
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `epaint` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! epaint_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------

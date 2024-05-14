@@ -9,8 +9,6 @@ use egui::ViewportId;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 
-use super::epi_integration::EpiIntegration;
-
 /// Create an egui context, restoring it from storage if possible.
 pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {
     crate::profile_function!();
@@ -63,10 +61,6 @@ impl From<accesskit_winit::ActionRequestEvent> for UserEvent {
 pub trait WinitApp {
     /// The current frame number, as reported by egui.
     fn frame_nr(&self, viewport_id: ViewportId) -> u64;
-
-    fn is_focused(&self, window_id: WindowId) -> bool;
-
-    fn integration(&self) -> Option<&EpiIntegration>;
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
 

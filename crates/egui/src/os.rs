@@ -5,19 +5,19 @@ pub enum OperatingSystem {
     /// Unknown OS - could be wasm
     Unknown,
 
-    /// Android OS.
+    /// Android OS
     Android,
 
-    /// Apple iPhone OS.
+    /// Apple iPhone OS
     IOS,
 
-    /// Linux or Unix other than Android.
+    /// Linux or Unix other than Android
     Nix,
 
-    /// MacOS.
+    /// macOS
     Mac,
 
-    /// Windows.
+    /// Windows
     Windows,
 }
 

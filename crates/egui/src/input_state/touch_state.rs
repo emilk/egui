@@ -72,7 +72,7 @@ pub(crate) struct TouchState {
 
     /// Active touches, if any.
     ///
-    /// TouchId is the unique identifier of the touch. It is valid as long as the finger/pen touches the surface. The
+    /// `TouchId` is the unique identifier of the touch. It is valid as long as the finger/pen touches the surface. The
     /// next touch will receive a new unique ID.
     ///
     /// Refer to [`ActiveTouch`].

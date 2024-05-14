@@ -331,37 +331,112 @@ pub fn run_simple_native(
 // ----------------------------------------------------------------------------
 
 /// The different problems that can occur when trying to run `eframe`.
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /// An error from [`winit`].
     #[cfg(not(target_arch = "wasm32"))]
-    #[error("winit error: {0}")]
-    Winit(#[from] winit::error::OsError),
+    Winit(winit::error::OsError),
 
     /// An error from [`winit::event_loop::EventLoop`].
     #[cfg(not(target_arch = "wasm32"))]
-    #[error("winit EventLoopError: {0}")]
-    WinitEventLoop(#[from] winit::error::EventLoopError),
+    WinitEventLoop(winit::error::EventLoopError),
 
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
-    #[error("glutin error: {0}")]
-    Glutin(#[from] glutin::error::Error),
+    Glutin(glutin::error::Error),
 
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
-    #[error("Found no glutin configs matching the template: {0:?}. Error: {1:?}")]
     NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
 
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(feature = "glow")]
-    #[error("egui_glow: {0}")]
-    OpenGL(#[from] egui_glow::PainterError),
+    OpenGL(egui_glow::PainterError),
 
     /// An error from [`wgpu`].
     #[cfg(feature = "wgpu")]
-    #[error("WGPU error: {0}")]
-    Wgpu(#[from] egui_wgpu::WgpuError),
+    Wgpu(egui_wgpu::WgpuError),
+}
+
+impl std::error::Error for Error {}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<winit::error::OsError> for Error {
+    #[inline]
+    fn from(err: winit::error::OsError) -> Self {
+        Self::Winit(err)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<winit::error::EventLoopError> for Error {
+    #[inline]
+    fn from(err: winit::error::EventLoopError) -> Self {
+        Self::WinitEventLoop(err)
+    }
+}
+
+#[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+impl From<glutin::error::Error> for Error {
+    #[inline]
+    fn from(err: glutin::error::Error) -> Self {
+        Self::Glutin(err)
+    }
+}
+
+#[cfg(feature = "glow")]
+impl From<egui_glow::PainterError> for Error {
+    #[inline]
+    fn from(err: egui_glow::PainterError) -> Self {
+        Self::OpenGL(err)
+    }
+}
+
+#[cfg(feature = "wgpu")]
+impl From<egui_wgpu::WgpuError> for Error {
+    #[inline]
+    fn from(err: egui_wgpu::WgpuError) -> Self {
+        Self::Wgpu(err)
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Winit(err) => {
+                write!(f, "winit error: {err}")
+            }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::WinitEventLoop(err) => {
+                write!(f, "winit EventLoopError: {err}")
+            }
+
+            #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+            Self::Glutin(err) => {
+                write!(f, "glutin error: {err}")
+            }
+
+            #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+            Self::NoGlutinConfigs(template, err) => {
+                write!(
+                    f,
+                    "Found no glutin configs matching the template: {template:?}. Error: {err}"
+                )
+            }
+
+            #[cfg(feature = "glow")]
+            Self::OpenGL(err) => {
+                write!(f, "egui_glow: {err}")
+            }
+
+            #[cfg(feature = "wgpu")]
+            Self::Wgpu(err) => {
+                write!(f, "WGPU error: {err}")
+            }
+        }
+    }
 }
 
 /// Short for `Result<T, eframe::Error>`.

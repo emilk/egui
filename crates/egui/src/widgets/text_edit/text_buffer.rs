@@ -220,7 +220,7 @@ impl TextBuffer for String {
     }
 
     fn replace_with(&mut self, text: &str) {
-        *self = text.to_owned();
+        text.clone_into(self);
     }
 
     fn take(&mut self) -> String {

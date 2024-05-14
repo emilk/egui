@@ -21,12 +21,12 @@ pub(crate) struct FrameState {
     /// All [`Id`]s that were used this frame.
     pub(crate) used_ids: IdMap<Rect>,
 
-    /// Starts off as the screen_rect, shrinks as panels are added.
+    /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
     pub(crate) available_rect: Rect,
 
-    /// Starts off as the screen_rect, shrinks as panels are added.
+    /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] retracts from this.
     pub(crate) unused_rect: Rect,
 
@@ -117,7 +117,7 @@ impl FrameState {
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub(crate) fn available_rect(&self) -> Rect {
-        crate::egui_assert!(
+        debug_assert!(
             self.available_rect.is_finite(),
             "Called `available_rect()` before `Context::run()`"
         );
@@ -126,7 +126,7 @@ impl FrameState {
 
     /// Shrink `available_rect`.
     pub(crate) fn allocate_left_panel(&mut self, panel_rect: Rect) {
-        crate::egui_assert!(
+        debug_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
             "Mismatching left panel. You must not create a panel from within another panel."
         );
@@ -137,7 +137,7 @@ impl FrameState {
 
     /// Shrink `available_rect`.
     pub(crate) fn allocate_right_panel(&mut self, panel_rect: Rect) {
-        crate::egui_assert!(
+        debug_assert!(
             panel_rect.max.distance(self.available_rect.max) < 0.1,
             "Mismatching right panel. You must not create a panel from within another panel."
         );
@@ -148,7 +148,7 @@ impl FrameState {
 
     /// Shrink `available_rect`.
     pub(crate) fn allocate_top_panel(&mut self, panel_rect: Rect) {
-        crate::egui_assert!(
+        debug_assert!(
             panel_rect.min.distance(self.available_rect.min) < 0.1,
             "Mismatching top panel. You must not create a panel from within another panel."
         );
@@ -159,7 +159,7 @@ impl FrameState {
 
     /// Shrink `available_rect`.
     pub(crate) fn allocate_bottom_panel(&mut self, panel_rect: Rect) {
-        crate::egui_assert!(
+        debug_assert!(
             panel_rect.max.distance(self.available_rect.max) < 0.1,
             "Mismatching bottom panel. You must not create a panel from within another panel."
         );

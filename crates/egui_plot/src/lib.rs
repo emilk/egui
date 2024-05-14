@@ -742,7 +742,7 @@ impl Plot {
             margin_fraction,
             width,
             height,
-            min_size,
+            mut min_size,
             data_aspect,
             view_aspect,
             mut show_x,
@@ -766,8 +766,17 @@ impl Plot {
             sense,
         } = self;
 
+        // Disable interaction if ui is disabled.
+        let allow_zoom = allow_zoom.and(ui.is_enabled());
+        let allow_drag = allow_drag.and(ui.is_enabled());
+        let allow_scroll = allow_scroll.and(ui.is_enabled());
+
         // Determine position of widget.
         let pos = ui.available_rect_before_wrap().min;
+        // Minimum values for screen protection
+        min_size.x = min_size.x.at_least(1.0);
+        min_size.y = min_size.y.at_least(1.0);
+
         // Determine size of widget.
         let size = {
             let width = width

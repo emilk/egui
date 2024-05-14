@@ -20,10 +20,9 @@ pub fn viewport_builder<E>(
 
     let mut viewport_builder = native_options.viewport.clone();
 
-    let clamp_size_to_monitor_size = viewport_builder.clamp_size_to_monitor_size.unwrap_or(
-        // On some Linux systems, a window size larger than the monitor causes crashes
-        cfg!(target_os = "linux"),
-    );
+    // On some Linux systems, a window size larger than the monitor causes crashes,
+    // and on Windows the window does not appear at all.
+    let clamp_size_to_monitor_size = viewport_builder.clamp_size_to_monitor_size.unwrap_or(true);
 
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
@@ -39,7 +38,11 @@ pub fn viewport_builder<E>(
         }
         window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
-        viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
+        viewport_builder = window_settings.initialize_viewport_builder(
+            egui_zoom_factor,
+            event_loop,
+            viewport_builder,
+        );
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = viewport_builder.position {
