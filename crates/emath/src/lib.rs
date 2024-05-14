@@ -20,8 +20,6 @@
 //!
 
 #![allow(clippy::float_cmp)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
@@ -30,6 +28,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 pub mod align;
 mod history;
 mod numeric;
+mod ordered_float;
 mod pos2;
 mod range;
 mod rect;
@@ -40,10 +39,11 @@ mod ts_transform;
 mod vec2;
 mod vec2b;
 
-pub use {
+pub use self::{
     align::{Align, Align2},
     history::History,
     numeric::*,
+    ordered_float::*,
     pos2::*,
     range::Rangef,
     rect::*,
@@ -144,7 +144,7 @@ where
 {
     let from = from.into();
     let to = to.into();
-    crate::emath_assert!(from.start() != from.end());
+    debug_assert!(from.start() != from.end());
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
@@ -168,7 +168,7 @@ where
     } else if *from.end() <= x {
         *to.end()
     } else {
-        crate::emath_assert!(from.start() != from.end());
+        debug_assert!(from.start() != from.end());
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
         if T::ONE <= t {
@@ -192,8 +192,8 @@ pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
 pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
-    crate::emath_assert!(min_decimals <= max_decimals);
-    crate::emath_assert!(max_decimals < 100);
+    debug_assert!(min_decimals <= max_decimals);
+    debug_assert!(max_decimals < 100);
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 
@@ -383,18 +383,48 @@ pub fn exponential_smooth_factor(
     1.0 - (1.0 - reach_this_fraction).powf(dt / in_this_many_seconds)
 }
 
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `emath` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! emath_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
+/// If you have a value animating over time,
+/// how much towards its target do you need to move it this frame?
+///
+/// You only need to store the start time and target value in order to animate using this function.
+///
+/// ``` rs
+/// struct Animation {
+///     current_value: f32,
+///
+///     animation_time_span: (f64, f64),
+///     target_value: f32,
+/// }
+///
+/// impl Animation {
+///     fn update(&mut self, now: f64, dt: f32) {
+///         let t = interpolation_factor(self.animation_time_span, now, dt, ease_in_ease_out);
+///         self.current_value = emath::lerp(self.current_value..=self.target_value, t);
+///     }
+/// }
+/// ```
+pub fn interpolation_factor(
+    (start_time, end_time): (f64, f64),
+    current_time: f64,
+    dt: f32,
+    easing: impl Fn(f32) -> f32,
+) -> f32 {
+    let animation_duration = (end_time - start_time) as f32;
+    let prev_time = current_time - dt as f64;
+    let prev_t = easing((prev_time - start_time) as f32 / animation_duration);
+    let end_t = easing((current_time - start_time) as f32 / animation_duration);
+    if end_t < 1.0 {
+        (end_t - prev_t) / (1.0 - prev_t)
+    } else {
+        1.0
     }
+}
+
+/// Ease in, ease out.
+///
+/// `f(0) = 0, f'(0) = 0, f(1) = 1, f'(1) = 0`.
+#[inline]
+pub fn ease_in_ease_out(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    (3.0 * t * t - 2.0 * t * t * t).clamp(0.0, 1.0)
 }

@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 
-use crate::load::TextureLoadResult;
+use emath::{Float as _, Rot2};
+use epaint::RectShape;
+
 use crate::{
-    load::{Bytes, SizeHint, SizedTexture, TexturePoll},
+    load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
     *,
 };
-use emath::Rot2;
-use epaint::{util::FloatOrd, RectShape};
 
 /// A widget which displays an image.
 ///
@@ -452,7 +452,7 @@ impl ImageSize {
     }
 }
 
-// TODO: unit-tests
+// TODO(jprochazk): unit-tests
 fn scale_to_fit(image_size: Vec2, available_size: Vec2, maintain_aspect_ratio: bool) -> Vec2 {
     if maintain_aspect_ratio {
         let ratio_x = available_size.x / image_size.x;
@@ -746,7 +746,7 @@ pub fn paint_texture_at(
         Some((rot, origin)) => {
             // TODO(emilk): implement this using `PathShape` (add texture support to it).
             // This will also give us anti-aliasing of rotated images.
-            egui_assert!(
+            debug_assert!(
                 options.rounding == Rounding::ZERO,
                 "Image had both rounding and rotation. Please pick only one"
             );
@@ -762,6 +762,7 @@ pub fn paint_texture_at(
                 rounding: options.rounding,
                 fill: options.tint,
                 stroke: Stroke::NONE,
+                blur_width: 0.0,
                 fill_texture_id: texture.id,
                 uv: options.uv,
             });

@@ -49,11 +49,13 @@ impl Custom3d {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu_render_state.target_format.into())],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
@@ -173,7 +175,7 @@ impl Custom3d {
         let (rect, response) =
             ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
-        self.angle += response.drag_delta().x * 0.01;
+        self.angle += response.drag_motion().x * 0.01;
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             CustomTriangleCallback { angle: self.angle },

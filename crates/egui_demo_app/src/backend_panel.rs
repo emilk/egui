@@ -296,14 +296,29 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 }
             }
 
-            if ui
-                .button("📱 Phone Size")
-                .on_hover_text("Resize the window to be small like a phone.")
-                .clicked()
-            {
-                // let size = egui::vec2(375.0, 812.0); // iPhone 12 mini
-                let size = egui::vec2(375.0, 667.0); //  iPhone SE 2nd gen
+            let mut size = None;
+            egui::ComboBox::from_id_source("viewport-size-combo")
+                .selected_text("Resize to...")
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(375.0, 667.0)),
+                        "📱 iPhone SE 2nd Gen",
+                    );
+                    ui.selectable_value(&mut size, Some(egui::vec2(393.0, 852.0)), "📱 iPhone 15");
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(1280.0, 720.0)),
+                        "🖥 Desktop 720p",
+                    );
+                    ui.selectable_value(
+                        &mut size,
+                        Some(egui::vec2(1920.0, 1080.0)),
+                        "🖥 Desktop 1080p",
+                    );
+                });
 
+            if let Some(size) = size {
                 ui.ctx()
                     .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
                 ui.ctx()

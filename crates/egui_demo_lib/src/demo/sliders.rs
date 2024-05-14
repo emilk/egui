@@ -198,7 +198,7 @@ impl super::View for Sliders {
         ui.add_space(8.0);
 
         ui.vertical_centered(|ui| {
-            egui::reset_button(ui, self);
+            egui::reset_button(ui, self, "Reset");
             ui.add(crate::egui_github_link_file!());
         });
     }

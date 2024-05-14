@@ -7,7 +7,7 @@ use crate::{
 };
 use epaint::{
     text::{Fonts, Galley, LayoutJob},
-    CircleShape, ClippedShape, RectShape, Rounding, Shape, Stroke,
+    CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke,
 };
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
@@ -152,6 +152,12 @@ impl Painter {
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         self.ctx().round_pos_to_pixels(pos)
     }
+
+    /// Useful for pixel-perfect rendering.
+    #[inline]
+    pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
+        self.ctx().round_rect_to_pixels(rect)
+    }
 }
 
 /// ## Low level
@@ -274,7 +280,7 @@ impl Painter {
 /// # Paint different primitives
 impl Painter {
     /// Paints a line from the first point to the second.
-    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) -> ShapeIdx {
+    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<PathStroke>) -> ShapeIdx {
         self.add(Shape::LineSegment {
             points,
             stroke: stroke.into(),
@@ -282,13 +288,13 @@ impl Painter {
     }
 
     /// Paints a horizontal line.
-    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> ShapeIdx {
-        self.add(Shape::hline(x, y, stroke))
+    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> ShapeIdx {
+        self.add(Shape::hline(x, y, stroke.into()))
     }
 
     /// Paints a vertical line.
-    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> ShapeIdx {
-        self.add(Shape::vline(x, y, stroke))
+    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<PathStroke>) -> ShapeIdx {
+        self.add(Shape::vline(x, y, stroke.into()))
     }
 
     pub fn circle(
@@ -507,7 +513,7 @@ impl Painter {
 }
 
 fn tint_shape_towards(shape: &mut Shape, target: Color32) {
-    epaint::shape_transform::adjust_colors(shape, &|color| {
+    epaint::shape_transform::adjust_colors(shape, move |color| {
         if *color != Color32::PLACEHOLDER {
             *color = crate::ecolor::tint_color_towards(*color, target);
         }
@@ -515,7 +521,7 @@ fn tint_shape_towards(shape: &mut Shape, target: Color32) {
 }
 
 fn multiply_opacity(shape: &mut Shape, opacity: f32) {
-    epaint::shape_transform::adjust_colors(shape, &|color| {
+    epaint::shape_transform::adjust_colors(shape, move |color| {
         if *color != Color32::PLACEHOLDER {
             *color = color.gamma_multiply(opacity);
         }

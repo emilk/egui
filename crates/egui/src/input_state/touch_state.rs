@@ -64,6 +64,7 @@ pub struct MultiTouchInfo {
 
 /// The current state (for a specific touch device) of touch events and gestures.
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct TouchState {
     /// Technical identifier of the touch device. This is used to identify relevant touch events
     /// for this [`TouchState`] instance.
@@ -71,7 +72,7 @@ pub(crate) struct TouchState {
 
     /// Active touches, if any.
     ///
-    /// TouchId is the unique identifier of the touch. It is valid as long as the finger/pen touches the surface. The
+    /// `TouchId` is the unique identifier of the touch. It is valid as long as the finger/pen touches the surface. The
     /// next touch will receive a new unique ID.
     ///
     /// Refer to [`ActiveTouch`].
@@ -83,6 +84,7 @@ pub(crate) struct TouchState {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct GestureState {
     start_time: f64,
     start_pointer_pos: Pos2,
@@ -93,6 +95,7 @@ struct GestureState {
 
 /// Gesture data that can change over time
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct DynGestureState {
     /// used for proportional zooming
     avg_distance: f32,
@@ -110,6 +113,7 @@ struct DynGestureState {
 /// Describes an individual touch (finger or digitizer) on the touch surface. Instances exist as
 /// long as the finger/pen touches the surface.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct ActiveTouch {
     /// Current position of this touch, in device coordinates (not necessarily screen position)
     pos: Pos2,
@@ -159,6 +163,7 @@ impl TouchState {
                 _ => (),
             }
         }
+
         // This needs to be called each frame, even if there are no new touch events.
         // Otherwise, we would send the same old delta information multiple times:
         self.update_gesture(time, pointer_pos);
@@ -172,8 +177,9 @@ impl TouchState {
         }
     }
 
-    pub fn is_active(&self) -> bool {
-        self.gesture_state.is_some()
+    /// Are there currently any fingers touching the surface?
+    pub fn any_touches(&self) -> bool {
+        !self.active_touches.is_empty()
     }
 
     pub fn info(&self) -> Option<MultiTouchInfo> {
@@ -302,6 +308,7 @@ impl Debug for TouchState {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum PinchType {
     Horizontal,
     Vertical,

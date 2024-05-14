@@ -1,4 +1,4 @@
-// TODO: automatic cache eviction
+// TODO(jprochazk): automatic cache eviction
 
 /// Installs a set of image loaders.
 ///
@@ -20,7 +20,7 @@
 ///
 /// ```toml,ignore
 /// egui_extras = { version = "*", features = ["all_loaders"] }
-/// image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
+/// image = { version = "0.25", features = ["jpeg", "png"] } # Add the types you want support for
 /// ```
 ///
 /// ⚠ You have to configure both the supported loaders in `egui_extras` _and_ the supported image formats

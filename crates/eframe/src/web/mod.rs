@@ -100,82 +100,76 @@ fn theme_from_dark_mode(dark_mode: bool) -> Theme {
     }
 }
 
-fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
+fn get_canvas_element_by_id(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
     let document = web_sys::window()?.document()?;
     let canvas = document.get_element_by_id(canvas_id)?;
     canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
 }
 
-fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    canvas_element(canvas_id)
+fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
+    get_canvas_element_by_id(canvas_id)
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
-fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
-    let rect = canvas_element(canvas_id)
-        .unwrap()
-        .get_bounding_client_rect();
+fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
+    let rect = canvas.get_bounding_client_rect();
     egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
-fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
-    let canvas = canvas_element(canvas_id).unwrap();
-    let pixels_per_point = native_pixels_per_point();
+fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
+    let pixels_per_point = ctx.pixels_per_point();
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
     )
 }
 
-fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
-    let canvas = canvas_element(canvas_id)?;
+fn resize_canvas_to_screen_size(
+    canvas: &web_sys::HtmlCanvasElement,
+    max_size_points: egui::Vec2,
+) -> Option<()> {
     let parent = canvas.parent_element()?;
+
+    // In this function we use "pixel" to mean physical pixel,
+    // and "point" to mean "logical CSS pixel".
+    let pixels_per_point = native_pixels_per_point();
 
     // Prefer the client width and height so that if the parent
     // element is resized that the egui canvas resizes appropriately.
-    let width = parent.client_width();
-    let height = parent.client_height();
-
-    let canvas_real_size = Vec2 {
-        x: width as f32,
-        y: height as f32,
+    let parent_size_points = Vec2 {
+        x: parent.client_width() as f32,
+        y: parent.client_height() as f32,
     };
 
-    if width <= 0 || height <= 0 {
-        log::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
+    if parent_size_points.x <= 0.0 || parent_size_points.y <= 0.0 {
+        log::error!("The parent element of the egui canvas is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", parent_size_points.x, parent_size_points.y);
     }
 
-    let pixels_per_point = native_pixels_per_point();
+    // We take great care here to ensure the rendered canvas aligns
+    // perfectly to the physical pixel grid, lest we get blurry text.
+    // At the time of writing, we get pixel perfection on Chromium and Firefox on Mac,
+    // but Desktop Safari will be blurry on most zoom levels.
+    // See https://github.com/emilk/egui/issues/4241 for more.
 
-    let max_size_pixels = pixels_per_point * max_size_points;
+    let canvas_size_pixels = pixels_per_point * parent_size_points.min(max_size_points);
 
-    let canvas_size_pixels = pixels_per_point * canvas_real_size;
-    let canvas_size_pixels = canvas_size_pixels.min(max_size_pixels);
-    let canvas_size_points = canvas_size_pixels / pixels_per_point;
-
-    // Make sure that the height and width are always even numbers.
+    // Make sure that the size is always an even number of pixels,
     // otherwise, the page renders blurry on some platforms.
     // See https://github.com/emilk/egui/issues/103
-    fn round_to_even(v: f32) -> f32 {
-        (v / 2.0).round() * 2.0
-    }
+    let canvas_size_pixels = (canvas_size_pixels / 2.0).round() * 2.0;
+
+    let canvas_size_points = canvas_size_pixels / pixels_per_point;
 
     canvas
         .style()
-        .set_property(
-            "width",
-            &format!("{}px", round_to_even(canvas_size_points.x)),
-        )
+        .set_property("width", &format!("{}px", canvas_size_points.x))
         .ok()?;
     canvas
         .style()
-        .set_property(
-            "height",
-            &format!("{}px", round_to_even(canvas_size_points.y)),
-        )
+        .set_property("height", &format!("{}px", canvas_size_points.y))
         .ok()?;
-    canvas.set_width(round_to_even(canvas_size_pixels.x) as u32);
-    canvas.set_height(round_to_even(canvas_size_pixels.y) as u32);
+    canvas.set_width(canvas_size_pixels.x as u32);
+    canvas.set_height(canvas_size_pixels.y as u32);
 
     Some(())
 }

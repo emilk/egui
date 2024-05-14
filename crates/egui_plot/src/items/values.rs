@@ -123,12 +123,12 @@ impl LineStyle {
     }
 }
 
-impl ToString for LineStyle {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for LineStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Solid => "Solid".into(),
-            Self::Dotted { spacing } => format!("Dotted{spacing}Px"),
-            Self::Dashed { length } => format!("Dashed{length}Px"),
+            Self::Solid => write!(f, "Solid"),
+            Self::Dotted { spacing } => write!(f, "Dotted({spacing} px)"),
+            Self::Dashed { length } => write!(f, "Dashed({length} px)"),
         }
     }
 }
@@ -156,7 +156,7 @@ impl Default for Orientation {
 pub enum PlotPoints {
     Owned(Vec<PlotPoint>),
     Generator(ExplicitGenerator),
-    // Borrowed(&[PlotPoint]), // TODO: Lifetimes are tricky in this case.
+    // Borrowed(&[PlotPoint]), // TODO(EmbersArc): Lifetimes are tricky in this case.
 }
 
 impl Default for PlotPoints {
@@ -426,9 +426,9 @@ impl ExplicitGenerator {
 
 /// Result of [`super::PlotItem::find_closest()`] search, identifies an element inside the item for immediate use
 pub struct ClosestElem {
-    /// Position of hovered-over value (or bar/box-plot/...) in PlotItem
+    /// Position of hovered-over value (or bar/box-plot/...) in `PlotItem`
     pub index: usize,
 
-    /// Squared distance from the mouse cursor (needed to compare against other PlotItems, which might be nearer)
+    /// Squared distance from the mouse cursor (needed to compare against other `PlotItems`, which might be nearer)
     pub dist_sq: f32,
 }

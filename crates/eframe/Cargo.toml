@@ -24,6 +24,9 @@ all-features = true
 rustc-args = ["--cfg=web_sys_unstable_apis"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
+[lints]
+workspace = true
+
 [lib]
 
 
@@ -131,7 +134,6 @@ log.workspace = true
 parking_lot.workspace = true
 raw-window-handle.workspace = true
 static_assertions = "1.1.0"
-thiserror.workspace = true
 web-time.workspace = true
 
 # Optional dependencies
@@ -142,8 +144,8 @@ glow = { workspace = true, optional = true }
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", optional = true, features = [
   "std",
 ] }
-ron = { version = "0.8", optional = true, features = ["integer128"] }
-serde = { version = "1", optional = true, features = ["derive"] }
+ron = { workspace = true, optional = true, features = ["integer128"] }
+serde = { workspace = true, optional = true }
 
 # -------------------------------------------
 # native:
@@ -152,9 +154,7 @@ egui-winit = { workspace = true, default-features = false, features = [
   "clipboard",
   "links",
 ] }
-image = { version = "0.24", default-features = false, features = [
-  "png",
-] } # Needed for app icon
+image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
@@ -166,8 +166,8 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 
 # we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
 # this can be done at the same time we expose x11/wayland features of winit crate.
-glutin = { version = "0.31", optional = true }
-glutin-winit = { version = "0.4", optional = true }
+glutin = { workspace = true, optional = true }
+glutin-winit = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = [
   # Let's enable some backends so that users can use `eframe` out-of-the-box
@@ -178,8 +178,19 @@ wgpu = { workspace = true, optional = true, features = [
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
-cocoa = "0.25.0"
-objc = "0.2.7"
+objc2 = "0.5.1"
+objc2-foundation = { version = "0.2.0", features = [
+  "block2",
+  "NSData",
+  "NSString",
+] }
+objc2-app-kit = { version = "0.2.0", features = [
+  "NSApplication",
+  "NSImage",
+  "NSMenu",
+  "NSMenuItem",
+  "NSResponder",
+] }
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
@@ -188,12 +199,12 @@ winapi = { version = "0.3.9", features = ["winuser"] }
 # -------------------------------------------
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-bytemuck = "1.7"
+bytemuck.workspace = true
 js-sys = "0.3"
 percent-encoding = "2.1"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3.58", features = [
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+web-sys = { workspace = true, features = [
   "BinaryType",
   "Blob",
   "Clipboard",
@@ -239,4 +250,8 @@ web-sys = { version = "0.3.58", features = [
 
 # optional web:
 egui-wgpu = { workspace = true, optional = true } # if wgpu is used, use it without (!) winit
-wgpu = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true, features = [
+  # Let's enable some backends so that users can use `eframe` out-of-the-box
+  # without having to explicitly opt-in to backends
+  "webgpu",
+] }

@@ -118,7 +118,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
         if image_scaled
             .write_to(
                 &mut std::io::Cursor::new(&mut image_scaled_bytes),
-                image::ImageOutputFormat::Png,
+                image::ImageFormat::Png,
             )
             .is_err()
         {
@@ -203,12 +203,9 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
     use crate::icon_data::IconDataExt as _;
     crate::profile_function!();
 
-    use cocoa::{
-        appkit::{NSApp, NSApplication, NSImage, NSMenu, NSWindow},
-        base::{id, nil},
-        foundation::{NSData, NSString},
-    };
-    use objc::{msg_send, sel, sel_impl};
+    use objc2::ClassType;
+    use objc2_app_kit::{NSApplication, NSImage};
+    use objc2_foundation::{NSData, NSString};
 
     let png_bytes = if let Some(icon_data) = icon_data {
         match icon_data.to_png_bytes() {
@@ -222,38 +219,35 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
         None
     };
 
-    // SAFETY: Accessing raw data from icon in a read-only manner. Icon data is static!
+    // TODO(madsmtm): Move this into `objc2-app-kit`
+    extern "C" {
+        static NSApp: Option<&'static NSApplication>;
+    }
+
+    // SAFETY: we don't do anything dangerous here
     unsafe {
-        let app = NSApp();
-        if app.is_null() {
+        let Some(app) = NSApp else {
             log::debug!("NSApp is null");
             return AppIconStatus::NotSetIgnored;
-        }
+        };
 
         if let Some(png_bytes) = png_bytes {
-            let data = NSData::dataWithBytes_length_(
-                nil,
-                png_bytes.as_ptr().cast::<std::ffi::c_void>(),
-                png_bytes.len() as u64,
-            );
+            let data = NSData::from_vec(png_bytes);
 
             log::trace!("NSImage::initWithData…");
-            let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
+            let app_icon = NSImage::initWithData(NSImage::alloc(), &data);
 
             crate::profile_scope!("setApplicationIconImage_");
             log::trace!("setApplicationIconImage…");
-            app.setApplicationIconImage_(app_icon);
+            app.setApplicationIconImage(app_icon.as_deref());
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.
-        let main_menu = app.mainMenu();
-        if !main_menu.is_null() {
-            let item = main_menu.itemAtIndex_(0);
-            if !item.is_null() {
-                let app_menu: id = msg_send![item, submenu];
-                if !app_menu.is_null() {
+        if let Some(main_menu) = app.mainMenu() {
+            if let Some(item) = main_menu.itemAtIndex(0) {
+                if let Some(app_menu) = item.submenu() {
                     crate::profile_scope!("setTitle_");
-                    app_menu.setTitle_(NSString::alloc(nil).init_str(title));
+                    app_menu.setTitle(&NSString::from_str(title));
                 }
             }
         }

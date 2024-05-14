@@ -1,4 +1,7 @@
+use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+
+use crate::Vec2b;
 
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
@@ -83,6 +86,16 @@ impl From<&Vec2> for (f32, f32) {
     #[inline(always)]
     fn from(v: &Vec2) -> Self {
         (v.x, v.y)
+    }
+}
+
+impl From<Vec2b> for Vec2 {
+    #[inline(always)]
+    fn from(v: Vec2b) -> Self {
+        Self {
+            x: v.x as i32 as f32,
+            y: v.y as i32 as f32,
+        }
     }
 }
 
@@ -452,9 +465,20 @@ impl Div<f32> for Vec2 {
     }
 }
 
-impl std::fmt::Debug for Vec2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Vec2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[{:.1} {:.1}]", self.x, self.y)
+    }
+}
+
+impl fmt::Display for Vec2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("[")?;
+        self.x.fmt(f)?;
+        f.write_str(" ")?;
+        self.y.fmt(f)?;
+        f.write_str("]")?;
+        Ok(())
     }
 }
 

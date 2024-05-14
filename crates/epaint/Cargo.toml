@@ -22,6 +22,9 @@ include = [
   "fonts/UFL.txt",
 ]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
 
@@ -48,14 +51,6 @@ deadlock_detection = ["dep:backtrace"]
 ## If set, epaint will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = []
-
-## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = [
-  "emath/extra_debug_asserts",
-  "ecolor/extra_debug_asserts",
-]
-## Always enable additional checks.
-extra_asserts = ["emath/extra_asserts", "ecolor/extra_asserts"]
 
 ## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
 log = ["dep:log"]
@@ -89,7 +84,7 @@ nohash-hasher.workspace = true
 parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 
 #! ### Optional dependencies
-bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+bytemuck = { workspace = true, optional = true, features = ["derive"] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
@@ -99,7 +94,7 @@ puffin = { workspace = true, optional = true }
 rayon = { version = "1.7", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
-serde = { version = "1", optional = true, features = ["derive", "rc"] }
+serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

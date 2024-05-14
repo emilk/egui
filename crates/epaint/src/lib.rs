@@ -22,11 +22,11 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![cfg_attr(feature = "puffin", deny(unsafe_code))]
-#![cfg_attr(not(feature = "puffin"), forbid(unsafe_code))]
 
 mod bezier;
+pub mod color;
 pub mod image;
+mod margin;
 mod mesh;
 pub mod mutex;
 mod shadow;
@@ -41,17 +41,19 @@ mod texture_handle;
 pub mod textures;
 pub mod util;
 
-pub use {
+pub use self::{
     bezier::{CubicBezierShape, QuadraticBezierShape},
+    color::ColorMode,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
+    margin::Margin,
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shape::{
-        CircleShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Rounding, Shape,
-        TextShape,
+        CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape,
+        Rounding, Shape, TextShape,
     },
     stats::PaintStats,
-    stroke::Stroke,
+    stroke::{PathStroke, Stroke},
     tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,
@@ -132,48 +134,6 @@ pub struct ClippedPrimitive {
 pub enum Primitive {
     Mesh(Mesh),
     Callback(PaintCallback),
-}
-
-// ----------------------------------------------------------------------------
-
-/// An assert that is only active when `epaint` is compiled with the `extra_asserts` feature
-/// or with the `extra_debug_asserts` feature in debug builds.
-#[macro_export]
-macro_rules! epaint_assert {
-    ($($arg: tt)*) => {
-        if cfg!(any(
-            feature = "extra_asserts",
-            all(feature = "extra_debug_asserts", debug_assertions),
-        )) {
-            assert!($($arg)*);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[inline(always)]
-pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
-    if f == 0.0 {
-        state.write_u8(0);
-    } else if f.is_nan() {
-        state.write_u8(1);
-    } else {
-        use std::hash::Hash;
-        f.to_bits().hash(state);
-    }
-}
-
-#[inline(always)]
-pub(crate) fn f64_hash<H: std::hash::Hasher>(state: &mut H, f: f64) {
-    if f == 0.0 {
-        state.write_u8(0);
-    } else if f.is_nan() {
-        state.write_u8(1);
-    } else {
-        use std::hash::Hash;
-        f.to_bits().hash(state);
-    }
 }
 
 // ---------------------------------------------------------------------------

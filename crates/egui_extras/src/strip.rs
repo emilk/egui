@@ -194,7 +194,13 @@ impl<'a, 'b> Strip<'a, 'b> {
             clip: self.clip,
             ..Default::default()
         };
-        self.layout.add(flags, width, height, add_contents);
+        self.layout.add(
+            flags,
+            width,
+            height,
+            egui::Id::new(self.size_index),
+            add_contents,
+        );
     }
 
     /// Add an empty cell.

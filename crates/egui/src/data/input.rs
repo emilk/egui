@@ -361,10 +361,12 @@ pub enum Event {
 
     /// A key was pressed or released.
     Key {
-        /// The logical key, heeding the users keymap.
+        /// Most of the time, it's the logical key, heeding the active keymap -- for instance, if the user has Dvorak
+        /// keyboard layout, it will be taken into account.
         ///
-        /// For instance, if the user is using Dvorak keyboard layout,
-        /// this will take that into account.
+        /// If it's impossible to determine the logical key on desktop platforms (say, in case of non-Latin letters),
+        /// `key` falls back to the value of the corresponding physical key. This is necessary for proper work of
+        /// standard shortcuts that only respond to Latin-based bindings (such as `Ctrl` + `V`).
         key: Key,
 
         /// The physical key, corresponding to the actual position on the keyboard.
@@ -395,6 +397,12 @@ pub enum Event {
 
     /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),
+
+    /// The mouse moved, the units are unspecified.
+    /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
+    /// `PointerMoved` and `MouseMoved` can be sent at the same time.
+    /// This event is optional. If the integration can not determine unfiltered motion it should not send this event.
+    MouseMoved(Vec2),
 
     /// A mouse button was pressed or released (or a touch started or stopped).
     PointerButton {
@@ -439,14 +447,8 @@ pub enum Event {
     /// * `zoom > 1`: pinch spread
     Zoom(f32),
 
-    /// IME composition start.
-    CompositionStart,
-
-    /// A new IME candidate is being suggested.
-    CompositionUpdate(String),
-
-    /// IME composition ended with this final result.
-    CompositionEnd(String),
+    /// IME Event
+    Ime(ImeEvent),
 
     /// On touch screens, report this *in addition to*
     /// [`Self::PointerMoved`], [`Self::PointerButton`], [`Self::PointerGone`]
@@ -499,6 +501,25 @@ pub enum Event {
         viewport_id: crate::ViewportId,
         image: std::sync::Arc<ColorImage>,
     },
+}
+
+/// IME event.
+///
+/// See <https://docs.rs/winit/latest/winit/event/enum.Ime.html>
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ImeEvent {
+    /// Notifies when the IME was enabled.
+    Enabled,
+
+    /// A new IME candidate is being suggested.
+    Preedit(String),
+
+    /// IME composition ended with this final result.
+    Commit(String),
+
+    /// Notifies when the IME was disabled.
+    Disabled,
 }
 
 /// Mouse button (or similar for touch input)

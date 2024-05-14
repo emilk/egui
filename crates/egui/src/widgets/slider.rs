@@ -680,17 +680,16 @@ impl<'a> Slider<'a> {
         if ui.is_rect_visible(response.rect) {
             let value = self.get_value();
 
-            let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
-            let rail_rect = self.rail_rect(rect, rail_radius);
-
             let visuals = ui.style().interact(response);
             let widget_visuals = &ui.visuals().widgets;
+            let spacing = &ui.style().spacing;
 
-            ui.painter().rect_filled(
-                rail_rect,
-                widget_visuals.inactive.rounding,
-                widget_visuals.inactive.bg_fill,
-            );
+            let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
+            let rail_rect = self.rail_rect(rect, rail_radius);
+            let rounding = widget_visuals.inactive.rounding;
+
+            ui.painter()
+                .rect_filled(rail_rect, rounding, widget_visuals.inactive.bg_fill);
 
             let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
@@ -706,13 +705,17 @@ impl<'a> Slider<'a> {
 
                 // The trailing rect has to be drawn differently depending on the orientation.
                 match self.orientation {
-                    SliderOrientation::Vertical => trailing_rail_rect.min.y = center.y,
-                    SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x,
+                    SliderOrientation::Horizontal => {
+                        trailing_rail_rect.max.x = center.x + rounding.nw;
+                    }
+                    SliderOrientation::Vertical => {
+                        trailing_rail_rect.min.y = center.y - rounding.se;
+                    }
                 };
 
                 ui.painter().rect_filled(
                     trailing_rail_rect,
-                    widget_visuals.inactive.rounding,
+                    rounding,
                     ui.visuals().selection.bg_fill,
                 );
             }
@@ -738,14 +741,8 @@ impl<'a> Slider<'a> {
                     };
                     let v = v + Vec2::splat(visuals.expansion);
                     let rect = Rect::from_center_size(center, 2.0 * v);
-                    ui.painter().add(epaint::RectShape {
-                        fill: visuals.bg_fill,
-                        stroke: visuals.fg_stroke,
-                        rect,
-                        rounding: visuals.rounding,
-                        fill_texture_id: Default::default(),
-                        uv: Rect::ZERO,
-                    });
+                    ui.painter()
+                        .rect(rect, visuals.rounding, visuals.bg_fill, visuals.fg_stroke);
                 }
             }
         }
@@ -798,13 +795,6 @@ impl<'a> Slider<'a> {
             SliderOrientation::Vertical => rect.width(),
         };
         limit / 2.5
-    }
-
-    fn rail_radius_limit(&self, rect: &Rect) -> f32 {
-        match self.orientation {
-            SliderOrientation::Horizontal => (rect.height() / 4.0).at_least(2.0),
-            SliderOrientation::Vertical => (rect.width() / 4.0).at_least(2.0),
-        }
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
@@ -993,7 +983,7 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             }
         }
     } else {
-        crate::egui_assert!(
+        debug_assert!(
             min.is_finite() && max.is_finite(),
             "You should use a logarithmic range"
         );
@@ -1042,7 +1032,7 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             }
         }
     } else {
-        crate::egui_assert!(
+        debug_assert!(
             min.is_finite() && max.is_finite(),
             "You should use a logarithmic range"
         );
@@ -1090,6 +1080,6 @@ fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
     };
 
     let cutoff = min_magnitude / (min_magnitude + max_magnitude);
-    crate::egui_assert!(0.0 <= cutoff && cutoff <= 1.0);
+    debug_assert!(0.0 <= cutoff && cutoff <= 1.0);
     cutoff
 }

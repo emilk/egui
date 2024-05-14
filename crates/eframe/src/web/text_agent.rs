@@ -5,7 +5,7 @@ use std::{cell::Cell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use super::{canvas_element, AppRunner, WebRunner};
+use super::{AppRunner, WebRunner};
 
 static AGENT_ID: &str = "egui_text_agent";
 
@@ -68,7 +68,8 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
                 is_composing.set(true);
                 input_clone.set_value("");
 
-                runner.input.raw.events.push(egui::Event::CompositionStart);
+                let egui_event = egui::Event::Ime(egui::ImeEvent::Enabled);
+                runner.input.raw.events.push(egui_event);
                 runner.needs_repaint.repaint_asap();
             }
         })?;
@@ -77,8 +78,9 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
             &input,
             "compositionupdate",
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
-                if let Some(event) = event.data().map(egui::Event::CompositionUpdate) {
-                    runner.input.raw.events.push(event);
+                if let Some(text) = event.data() {
+                    let egui_event = egui::Event::Ime(egui::ImeEvent::Preedit(text));
+                    runner.input.raw.events.push(egui_event);
                     runner.needs_repaint.repaint_asap();
                 }
             },
@@ -91,8 +93,9 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
                 is_composing.set(false);
                 input_clone.set_value("");
 
-                if let Some(event) = event.data().map(egui::Event::CompositionEnd) {
-                    runner.input.raw.events.push(event);
+                if let Some(text) = event.data() {
+                    let egui_event = egui::Event::Ime(egui::ImeEvent::Commit(text));
+                    runner.input.raw.events.push(egui_event);
                     runner.needs_repaint.repaint_asap();
                 }
             }
@@ -116,12 +119,12 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
-pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
+pub fn update_text_agent(runner: &AppRunner) -> Option<()> {
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
     let document = window.document()?;
     let input: HtmlInputElement = document.get_element_by_id(AGENT_ID)?.dyn_into().unwrap();
-    let canvas_style = canvas_element(runner.canvas_id())?.style();
+    let canvas_style = runner.canvas().style();
 
     if runner.mutable_text_under_cursor {
         let is_already_editing = input.hidden();
@@ -205,14 +208,16 @@ fn is_mobile() -> Option<bool> {
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-pub fn move_text_cursor(ime: Option<egui::output::IMEOutput>, canvas_id: &str) -> Option<()> {
+pub fn move_text_cursor(
+    ime: Option<egui::output::IMEOutput>,
+    canvas: &web_sys::HtmlCanvasElement,
+) -> Option<()> {
     let style = text_agent().style();
     // Note: moving agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
         ime.as_ref().and_then(|ime| {
             let egui::Pos2 { x, y } = ime.cursor_rect.left_top();
 
-            let canvas = canvas_element(canvas_id)?;
             let bounding_rect = text_agent().get_bounding_client_rect();
             let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
                 .min(canvas.client_height() as f32 - bounding_rect.height() as f32);

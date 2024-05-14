@@ -192,7 +192,7 @@ impl PaintStats {
     fn add(&mut self, shape: &Shape) {
         match shape {
             Shape::Vec(shapes) => {
-                // self += PaintStats::from_shapes(&shapes); // TODO
+                // self += PaintStats::from_shapes(&shapes); // TODO(emilk)
                 self.shapes += AllocInfo::from_slice(shapes);
                 self.shape_vec += AllocInfo::from_slice(shapes);
                 for shape in shapes {
@@ -201,6 +201,7 @@ impl PaintStats {
             }
             Shape::Noop
             | Shape::Circle { .. }
+            | Shape::Ellipse { .. }
             | Shape::LineSegment { .. }
             | Shape::Rect { .. }
             | Shape::CubicBezier(_)

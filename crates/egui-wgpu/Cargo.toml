@@ -23,6 +23,9 @@ include = [
   "Cargo.toml",
 ]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
 
@@ -47,7 +50,7 @@ x11 = ["winit?/x11"]
 egui = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
-bytemuck = "1.7"
+bytemuck.workspace = true
 document-features.workspace = true
 log.workspace = true
 thiserror.workspace = true

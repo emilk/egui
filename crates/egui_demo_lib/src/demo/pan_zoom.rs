@@ -11,7 +11,7 @@ impl Eq for PanZoom {}
 
 impl super::Demo for PanZoom {
     fn name(&self) -> &'static str {
-        "🗖 Pan Zoom"
+        "🔍 Pan Zoom"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
@@ -69,30 +69,25 @@ impl super::View for PanZoom {
             }
         }
 
-        for (id, pos, callback) in [
+        for (i, (pos, callback)) in [
             (
-                "a",
                 egui::Pos2::new(0.0, 0.0),
                 Box::new(|ui: &mut egui::Ui, _: &mut Self| ui.button("top left!"))
                     as Box<dyn Fn(&mut egui::Ui, &mut Self) -> egui::Response>,
             ),
             (
-                "b",
                 egui::Pos2::new(0.0, 120.0),
                 Box::new(|ui: &mut egui::Ui, _| ui.button("bottom left?")),
             ),
             (
-                "c",
                 egui::Pos2::new(120.0, 120.0),
                 Box::new(|ui: &mut egui::Ui, _| ui.button("right bottom :D")),
             ),
             (
-                "d",
                 egui::Pos2::new(120.0, 0.0),
                 Box::new(|ui: &mut egui::Ui, _| ui.button("right top ):")),
             ),
             (
-                "e",
                 egui::Pos2::new(60.0, 60.0),
                 Box::new(|ui, state| {
                     use egui::epaint::*;
@@ -110,8 +105,11 @@ impl super::View for PanZoom {
                     ui.add(egui::Slider::new(&mut state.drag_value, 0.0..=100.0).text("My value"))
                 }),
             ),
-        ] {
-            let id = egui::Area::new(id)
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let id = egui::Area::new(id.with(("subarea", i)))
                 .default_pos(pos)
                 // Need to cover up the pan_zoom demo window,
                 // but may also cover over other windows.

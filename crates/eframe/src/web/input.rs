@@ -1,11 +1,15 @@
-use super::{canvas_element, canvas_origin, AppRunner};
+use super::{canvas_origin, AppRunner};
 
-pub fn pos_from_mouse_event(canvas_id: &str, event: &web_sys::MouseEvent) -> egui::Pos2 {
-    let canvas = canvas_element(canvas_id).unwrap();
+pub fn pos_from_mouse_event(
+    canvas: &web_sys::HtmlCanvasElement,
+    event: &web_sys::MouseEvent,
+    ctx: &egui::Context,
+) -> egui::Pos2 {
     let rect = canvas.get_bounding_client_rect();
+    let zoom_factor = ctx.zoom_factor();
     egui::Pos2 {
-        x: event.client_x() as f32 - rect.left() as f32,
-        y: event.client_y() as f32 - rect.top() as f32,
+        x: (event.client_x() as f32 - rect.left() as f32) / zoom_factor,
+        y: (event.client_y() as f32 - rect.top() as f32) / zoom_factor,
     }
 }
 
@@ -27,9 +31,10 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
 /// `touch_id_for_pos` is the [`TouchId`](egui::TouchId) of the [`Touch`](web_sys::Touch) we previously used to determine the
 /// pointer position.
 pub fn pos_from_touch_event(
-    canvas_id: &str,
+    canvas: &web_sys::HtmlCanvasElement,
     event: &web_sys::TouchEvent,
     touch_id_for_pos: &mut Option<egui::TouchId>,
+    egui_ctx: &egui::Context,
 ) -> egui::Pos2 {
     let touch_for_pos = if let Some(touch_id_for_pos) = touch_id_for_pos {
         // search for the touch we previously used for the position
@@ -47,26 +52,31 @@ pub fn pos_from_touch_event(
         .or_else(|| event.touches().get(0))
         .map_or(Default::default(), |touch| {
             *touch_id_for_pos = Some(egui::TouchId::from(touch.identifier()));
-            pos_from_touch(canvas_origin(canvas_id), &touch)
+            pos_from_touch(canvas_origin(canvas), &touch, egui_ctx)
         })
 }
 
-fn pos_from_touch(canvas_origin: egui::Pos2, touch: &web_sys::Touch) -> egui::Pos2 {
+fn pos_from_touch(
+    canvas_origin: egui::Pos2,
+    touch: &web_sys::Touch,
+    egui_ctx: &egui::Context,
+) -> egui::Pos2 {
+    let zoom_factor = egui_ctx.zoom_factor();
     egui::Pos2 {
-        x: touch.page_x() as f32 - canvas_origin.x,
-        y: touch.page_y() as f32 - canvas_origin.y,
+        x: (touch.page_x() as f32 - canvas_origin.x) / zoom_factor,
+        y: (touch.page_y() as f32 - canvas_origin.y) / zoom_factor,
     }
 }
 
 pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web_sys::TouchEvent) {
-    let canvas_origin = canvas_origin(runner.canvas_id());
+    let canvas_origin = canvas_origin(runner.canvas());
     for touch_idx in 0..event.changed_touches().length() {
         if let Some(touch) = event.changed_touches().item(touch_idx) {
             runner.input.raw.events.push(egui::Event::Touch {
                 device_id: egui::TouchDeviceId(0),
                 id: egui::TouchId::from(touch.identifier()),
                 phase,
-                pos: pos_from_touch(canvas_origin, &touch),
+                pos: pos_from_touch(canvas_origin, &touch, runner.egui_ctx()),
                 force: Some(touch.force()),
             });
         }
@@ -115,7 +125,23 @@ pub fn translate_key(key: &str) -> Option<egui::Key> {
     egui::Key::from_name(key)
 }
 
-pub fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
+pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {
+    egui::Modifiers {
+        alt: event.alt_key(),
+        ctrl: event.ctrl_key(),
+        shift: event.shift_key(),
+
+        // Ideally we should know if we are running or mac or not,
+        // but this works good enough for now.
+        mac_cmd: event.meta_key(),
+
+        // Ideally we should know if we are running or mac or not,
+        // but this works good enough for now.
+        command: event.ctrl_key() || event.meta_key(),
+    }
+}
+
+pub fn modifiers_from_mouse_event(event: &web_sys::MouseEvent) -> egui::Modifiers {
     egui::Modifiers {
         alt: event.alt_key(),
         ctrl: event.ctrl_key(),

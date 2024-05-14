@@ -19,6 +19,9 @@ include = [
     "data/icon.png",
 ]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
 
@@ -38,7 +41,7 @@ syntect = ["egui_extras/syntect"]
 
 
 [dependencies]
-egui = { workspace = true, default-features = false }
+egui = { workspace = true, default-features = false, features = ["color-hex"] }
 egui_extras = { workspace = true, features = ["default"] }
 egui_plot = { workspace = true, features = ["default"] }
 
@@ -49,7 +52,7 @@ unicode_names2 = { version = "0.6.0", default-features = false } # this old vers
 chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { workspace = true, optional = true }
 
 
 [dev-dependencies]

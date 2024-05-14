@@ -99,11 +99,12 @@ impl crate::Storage for FileStorage {
                 join_handle.join().ok();
             }
 
-            match std::thread::Builder::new()
+            let result = std::thread::Builder::new()
                 .name("eframe_persist".to_owned())
                 .spawn(move || {
                     save_to_disk(&file_path, &kv);
-                }) {
+                });
+            match result {
                 Ok(join_handle) => {
                     self.last_save_join_handle = Some(join_handle);
                 }

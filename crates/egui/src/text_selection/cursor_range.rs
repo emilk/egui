@@ -63,7 +63,7 @@ impl CursorRange {
         self.primary.ccursor == self.secondary.ccursor
     }
 
-    /// Is `self` a super-set of the the other range?
+    /// Is `self` a super-set of the other range?
     pub fn contains(&self, other: &Self) -> bool {
         let [self_min, self_max] = self.sorted_cursors();
         let [other_min, other_max] = other.sorted_cursors();

@@ -35,25 +35,25 @@ pub enum Key {
     /// `,`
     Comma,
 
-    /// '\\'
+    /// `\`
     Backslash,
 
-    /// '/'
+    /// `/`
     Slash,
 
-    /// '|', a vertical bar
+    /// `|`, a vertical bar
     Pipe,
 
     /// `?`
     Questionmark,
 
-    // '['
+    // `[`
     OpenBracket,
 
-    // ']'
+    // `]`
     CloseBracket,
 
-    /// '`', also known as "backquote" or "grave"
+    /// \`, also known as "backquote" or "grave"
     Backtick,
 
     /// `-`

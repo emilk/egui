@@ -16,6 +16,7 @@ use std::collections::VecDeque;
 /// or for smoothed velocity (e.g. mouse pointer speed).
 /// All times are in seconds.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct History<T> {
     /// In elements, i.e. of `values.len()`.
     /// The length is initially zero, but once past `min_len` will not shrink below it.
@@ -125,7 +126,7 @@ where
     /// Values must be added with a monotonically increasing time, or at least not decreasing.
     pub fn add(&mut self, now: f64, value: T) {
         if let Some((last_time, _)) = self.values.back() {
-            crate::emath_assert!(now >= *last_time, "Time shouldn't move backwards");
+            debug_assert!(*last_time <= now, "Time shouldn't move backwards");
         }
         self.total_count += 1;
         self.values.push_back((now, value));

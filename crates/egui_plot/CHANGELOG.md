@@ -5,6 +5,23 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.27.2 - 2024-04-02
+* Allow zoom/pan a plot as long as it contains the mouse cursor [#4292](https://github.com/emilk/egui/pull/4292)
+* Prevent plot from resetting one axis while zooming/dragging the other [#4252](https://github.com/emilk/egui/pull/4252) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* egui_plot: Fix the same plot tick label being painted multiple times [#4307](https://github.com/emilk/egui/pull/4307)
+
+
+## 0.27.1 - 2024-03-29
+* Nothing new
+
+
+## 0.27.0 - 2024-03-26
+* Add `sense` option to `Plot` [#4052](https://github.com/emilk/egui/pull/4052) (thanks [@AmesingFlank](https://github.com/AmesingFlank)!)
+* Plot widget - allow disabling scroll for x and y separately [#4051](https://github.com/emilk/egui/pull/4051) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Fix panic when the base step size is set to 0 [#4078](https://github.com/emilk/egui/pull/4078) (thanks [@abey79](https://github.com/abey79)!)
+* Expose `PlotGeometry` in public API [#4193](https://github.com/emilk/egui/pull/4193) (thanks [@dwuertz](https://github.com/dwuertz)!)
+
+
 ## 0.26.2 - 2024-02-14
 * Nothing new
 
