@@ -42,4 +42,4 @@ egui = { workspace = true, default-features = false }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { workspace = true, optional = true }

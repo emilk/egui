@@ -84,7 +84,7 @@ nohash-hasher.workspace = true
 parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 
 #! ### Optional dependencies
-bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+bytemuck = { workspace = true, optional = true, features = ["derive"] }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
@@ -94,7 +94,7 @@ puffin = { workspace = true, optional = true }
 rayon = { version = "1.7", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
-serde = { version = "1", optional = true, features = ["derive", "rc"] }
+serde = { workspace = true, optional = true, features = ["derive", "rc"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

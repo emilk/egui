@@ -56,7 +56,7 @@ x11 = ["winit?/x11"]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 egui-winit = { workspace = true, optional = true, default-features = false }
 
-bytemuck = "1.7"
+bytemuck.workspace = true
 glow.workspace = true
 log.workspace = true
 memoffset = "0.9"
@@ -74,13 +74,13 @@ winit = { workspace = true, optional = true, default-features = false, features 
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { version = "0.3", features = ["console"] }
-wasm-bindgen = "0.2"
+web-sys = { workspace = true, features = ["console"] }
+wasm-bindgen.workspace = true
 
 
 [dev-dependencies]
-glutin = "0.31"        # examples/pure_glow
-glutin-winit = "0.4.0"
+glutin.workspace = true       # examples/pure_glow
+glutin-winit.workspace = true
 # glutin stuck on old version of raw-window-handle:
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
   "std",
