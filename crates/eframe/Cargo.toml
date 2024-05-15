@@ -154,7 +154,7 @@ egui-winit = { workspace = true, default-features = false, features = [
   "clipboard",
   "links",
 ] }
-image = { workspace = true, default-features = true } # Needed for app icon
+image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
