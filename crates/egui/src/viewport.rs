@@ -1145,7 +1145,7 @@ impl ViewportOutput {
         let Self {
             parent,
             class,
-            builder,
+            builder: _,
             viewport_ui_cb,
             mut commands,
             repaint_delay,
