@@ -43,7 +43,7 @@ impl RetainedImage {
     /// `image_bytes` should be the raw contents of an image file (`.png`, `.jpg`, …).
     ///
     /// Requires the "image" feature. You must also opt-in to the image formats you need
-    /// with e.g. `image = { version = "0.24", features = ["jpeg", "png"] }`.
+    /// with e.g. `image = { version = "0.25", features = ["jpeg", "png"] }`.
     ///
     /// # Errors
     /// On invalid image or unsupported image format.
@@ -195,7 +195,7 @@ use egui::ColorImage;
 /// Load a (non-svg) image.
 ///
 /// Requires the "image" feature. You must also opt-in to the image formats you need
-/// with e.g. `image = { version = "0.24", features = ["jpeg", "png"] }`.
+/// with e.g. `image = { version = "0.25", features = ["jpeg", "png"] }`.
 ///
 /// # Errors
 /// On invalid image or unsupported image format.
