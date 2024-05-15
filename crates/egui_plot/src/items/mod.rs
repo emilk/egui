@@ -81,7 +81,7 @@ pub trait PlotItem {
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
-        label_formatter: &LabelFormatter,
+        label_formatter: &LabelFormatter<'_>,
     ) {
         let points = match self.geometry() {
             PlotGeometry::Points(points) => points,
@@ -1735,7 +1735,7 @@ impl PlotItem for BarChart {
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
-        _: &LabelFormatter,
+        _: &LabelFormatter<'_>,
     ) {
         let bar = &self.bars[elem.index];
 
@@ -1909,7 +1909,7 @@ impl PlotItem for BoxPlot {
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
-        _: &LabelFormatter,
+        _: &LabelFormatter<'_>,
     ) {
         let box_plot = &self.boxes[elem.index];
 
@@ -2033,7 +2033,7 @@ pub(super) fn rulers_at_value(
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
     cursors: &mut Vec<Cursor>,
-    label_formatter: &LabelFormatter,
+    label_formatter: &LabelFormatter<'_>,
 ) {
     if plot.show_x {
         cursors.push(Cursor::Vertical { x: value.x });
