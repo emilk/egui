@@ -1,5 +1,5 @@
+use ahash::HashMap;
 use egui::{
-    ahash::HashMap,
     load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };

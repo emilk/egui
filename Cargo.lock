@@ -1172,6 +1172,7 @@ dependencies = [
 name = "eframe"
 version = "0.27.2"
 dependencies = [
+ "ahash",
  "bytemuck",
  "directories-next",
  "document-features",
@@ -1227,6 +1228,7 @@ dependencies = [
 name = "egui-wgpu"
 version = "0.27.2"
 dependencies = [
+ "ahash",
  "bytemuck",
  "document-features",
  "egui",
@@ -1245,6 +1247,7 @@ name = "egui-winit"
 version = "0.27.2"
 dependencies = [
  "accesskit_winit",
+ "ahash",
  "arboard",
  "document-features",
  "egui",
@@ -1302,6 +1305,7 @@ dependencies = [
 name = "egui_extras"
 version = "0.27.2"
 dependencies = [
+ "ahash",
  "chrono",
  "document-features",
  "egui",
@@ -1320,6 +1324,7 @@ dependencies = [
 name = "egui_glow"
 version = "0.27.2"
 dependencies = [
+ "ahash",
  "bytemuck",
  "document-features",
  "egui",
@@ -1340,6 +1345,7 @@ dependencies = [
 name = "egui_plot"
 version = "0.27.2"
 dependencies = [
+ "ahash",
  "document-features",
  "egui",
  "serde",
