@@ -386,6 +386,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-winit"
+version = "0.2.1"
+source = "git+https://github.com/uglyoldbob/async-winit.git#2a1c55e967f27d4ac70996db2bac3237f2e476be"
+dependencies = [
+ "cfg-if",
+ "cfg_aliases",
+ "futures-lite",
+ "once_cell",
+ "parking",
+ "pin-project-lite",
+ "raw-window-handle 0.5.2",
+ "slab",
+ "unsend",
+ "winit",
+]
+
+[[package]]
 name = "atk-sys"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1139,7 +1156,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading 0.7.4",
+ "libloading 0.8.0",
 ]
 
 [[package]]
@@ -1221,6 +1238,24 @@ dependencies = [
  "puffin",
  "ron",
  "serde",
+]
+
+[[package]]
+name = "egui-async-winit"
+version = "0.27.2"
+dependencies = [
+ "accesskit_winit",
+ "arboard",
+ "async-winit",
+ "document-features",
+ "egui",
+ "log",
+ "puffin",
+ "raw-window-handle 0.6.0",
+ "serde",
+ "smithay-clipboard",
+ "web-time",
+ "webbrowser",
 ]
 
 [[package]]
@@ -1334,6 +1369,26 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "winit",
+]
+
+[[package]]
+name = "egui_glow_async"
+version = "0.27.2"
+dependencies = [
+ "async-winit",
+ "bytemuck",
+ "document-features",
+ "egui",
+ "egui-async-winit",
+ "glow",
+ "glutin",
+ "glutin-winit",
+ "log",
+ "memoffset 0.9.0",
+ "puffin",
+ "raw-window-handle 0.5.2",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -1950,7 +2005,7 @@ dependencies = [
  "bitflags 2.5.0",
  "com",
  "libc",
- "libloading 0.7.4",
+ "libloading 0.8.0",
  "thiserror",
  "widestring",
  "winapi",
@@ -3873,6 +3928,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "446c96c6dd42604779487f0a981060717156648c1706aa1f464677f03c6cc059"
 
 [[package]]
+name = "unsend"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a53ed0f41cab22aa8d4aee9d2357a1b21cb365537d7349066c76fcd67bc3121d"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4285,7 +4349,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading 0.7.4",
+ "libloading 0.8.0",
  "log",
  "metal",
  "naga",
@@ -4612,9 +4676,9 @@ checksum = "bec47e5bfd1bff0eeaf6d8b485cc1074891a197ab4225d504cb7a1ab88b02bf0"
 
 [[package]]
 name = "winit"
-version = "0.29.10"
+version = "0.29.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c824f11941eeae66ec71111cc2674373c772f482b58939bb4066b642aa2ffcf"
+checksum = "0d59ad965a635657faf09c8f062badd885748428933dad8e8bdd64064d92e5ca"
 dependencies = [
  "ahash",
  "android-activity",
@@ -4721,9 +4785,9 @@ dependencies = [
 
 [[package]]
 name = "xkbcommon-dl"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6924668544c48c0133152e7eec86d644a056ca3d09275eb8d5cdb9855f9d8699"
+checksum = "d039de8032a9a8856a6be89cea3e5d12fdd82306ab7c94d74e6deab2460651c5"
 dependencies = [
  "bitflags 2.5.0",
  "dlib",
