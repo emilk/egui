@@ -1,6 +1,7 @@
 use std::ops::{Bound, RangeBounds, RangeInclusive};
 
-use egui::{Pos2, Shape, Stroke, Vec2};
+use emath::{Pos2, Vec2};
+use epaint::{Shape, Stroke};
 
 use crate::transform::PlotBounds;
 

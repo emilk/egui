@@ -1,6 +1,11 @@
 use std::{collections::BTreeMap, string::String};
 
-use crate::*;
+use ecolor::Color32;
+use egui::{
+    Direction, Frame, Layout, PointerButton, Response, Sense, TextStyle, Ui, Widget, WidgetInfo,
+    WidgetType,
+};
+use emath::{pos2, vec2, Align, Rect};
 
 use super::items::PlotItem;
 

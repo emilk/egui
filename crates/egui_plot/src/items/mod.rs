@@ -3,12 +3,13 @@
 
 use std::ops::RangeInclusive;
 
-use epaint::{emath::Rot2, Mesh};
-
-use crate::*;
+use ecolor::{Color32, Rgba};
+use egui::{Id, ImageOptions, NumExt as _, TextStyle, Ui, WidgetText};
+use emath::{pos2, vec2, Align2, Float as _, Pos2, Rect, Rot2, Vec2};
+use epaint::{Mesh, Rounding, Shape, Stroke, TextureId};
 
 use super::{Cursor, LabelFormatter, PlotBounds, PlotTransform};
-use rect_elem::*;
+use rect_elem::{highlighted_color, RectElement};
 
 pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};

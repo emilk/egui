@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use egui::{ahash, Context, Id, Pos2, Vec2b};
+use egui::{Context, Id, Pos2, Vec2b};
 
 use crate::{PlotBounds, PlotTransform};
 

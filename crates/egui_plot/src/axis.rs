@@ -1,10 +1,8 @@
 use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 
-use egui::{
-    emath::{remap_clamp, round_to_decimals, Rot2},
-    epaint::TextShape,
-    Pos2, Rangef, Rect, Response, Sense, TextStyle, Ui, Vec2, WidgetText,
-};
+use egui::{Rangef, Response, Sense, TextStyle, Ui, WidgetText};
+use emath::{remap_clamp, round_to_decimals, Pos2, Rect, Rot2, Vec2};
+use epaint::TextShape;
 
 use super::{transform::PlotTransform, GridMark};
 

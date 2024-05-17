@@ -1,4 +1,10 @@
-use crate::*;
+use crate::{
+    Arrows, BarChart, BoundsModification, BoxPlot, HLine, Line, PlotBounds, PlotImage, PlotItem,
+    PlotPoint, PlotTransform, Points, Polygon, Text, VLine,
+};
+use ecolor::{Color32, Hsva};
+use egui::{Context, Response};
+use emath::{Pos2, Vec2, Vec2b};
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.

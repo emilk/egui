@@ -35,7 +35,11 @@ serde = ["dep:serde", "egui/serde"]
 
 
 [dependencies]
+ahash.workspace = true
+ecolor.workspace = true
 egui = { workspace = true, default-features = false }
+emath.workspace = true
+epaint.workspace = true
 
 
 #! ### Optional dependencies

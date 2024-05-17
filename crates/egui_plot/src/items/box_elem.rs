@@ -1,5 +1,5 @@
-use egui::emath::NumExt as _;
-use egui::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
+use emath::NumExt as _;
+use epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use crate::{BoxPlot, Cursor, PlotPoint, PlotTransform};
 

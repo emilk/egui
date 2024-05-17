@@ -1,5 +1,6 @@
-use egui::emath::NumExt as _;
-use egui::epaint::{Color32, Rgba, Stroke};
+use ecolor::{Color32, Rgba};
+use emath::NumExt as _;
+use epaint::Stroke;
 
 use crate::transform::{PlotBounds, PlotTransform};
 

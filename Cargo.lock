@@ -1340,8 +1340,12 @@ dependencies = [
 name = "egui_plot"
 version = "0.27.2"
 dependencies = [
+ "ahash",
  "document-features",
+ "ecolor",
  "egui",
+ "emath",
+ "epaint",
  "serde",
 ]
 
