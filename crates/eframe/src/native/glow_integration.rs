@@ -584,20 +584,20 @@ impl GlowWinitRunning {
                 ..
             } = &mut *glutin;
             let viewport = &viewports[&viewport_id];
-            let Some(window) = viewport.window.as_ref() else {
-                return EventResult::Wait;
-            };
             let Some(gl_surface) = viewport.gl_surface.as_ref() else {
                 return EventResult::Wait;
             };
-
-            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             {
                 frame_timer.pause();
                 change_gl_context(current_gl_context, gl_surface);
                 frame_timer.resume();
             }
+
+            let Some(window) = viewport.window.as_ref() else {
+                return EventResult::Wait;
+            };
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             self.painter
                 .borrow()
