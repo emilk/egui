@@ -644,11 +644,15 @@ impl GlowWinitRunning {
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
         };
-
         viewport.info.events.clear(); // they should have been processed
-        let window = viewport.window.clone().unwrap();
-        let gl_surface = viewport.gl_surface.as_ref().unwrap();
-        let egui_winit = viewport.egui_winit.as_mut().unwrap();
+
+        let (Some(egui_winit), Some(window), Some(gl_surface)) = (
+            &mut viewport.egui_winit,
+            &viewport.window.clone(),
+            &viewport.gl_surface,
+        ) else {
+            return EventResult::Wait;
+        };
 
         egui_winit.handle_platform_output(&window, platform_output);
 
