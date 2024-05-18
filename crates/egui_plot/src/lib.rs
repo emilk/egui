@@ -37,22 +37,22 @@ use axis::AxisWidget;
 use items::{horizontal_line, rulers_color, vertical_line};
 use legend::LegendWidget;
 
-type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
-pub type LabelFormatter = Option<Box<LabelFormatterFn>>;
+type LabelFormatterFn<'a> = dyn Fn(&str, &PlotPoint) -> String + 'a;
+pub type LabelFormatter<'a> = Option<Box<LabelFormatterFn<'a>>>;
 
-type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
-type GridSpacer = Box<GridSpacerFn>;
+type GridSpacerFn<'a> = dyn Fn(GridInput) -> Vec<GridMark> + 'a;
+type GridSpacer<'a> = Box<GridSpacerFn<'a>>;
 
-type CoordinatesFormatterFn = dyn Fn(&PlotPoint, &PlotBounds) -> String;
+type CoordinatesFormatterFn<'a> = dyn Fn(&PlotPoint, &PlotBounds) -> String + 'a;
 
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
-pub struct CoordinatesFormatter {
-    function: Box<CoordinatesFormatterFn>,
+pub struct CoordinatesFormatter<'a> {
+    function: Box<CoordinatesFormatterFn<'a>>,
 }
 
-impl CoordinatesFormatter {
+impl<'a> CoordinatesFormatter<'a> {
     /// Create a new formatter based on the pointer coordinate and the plot bounds.
-    pub fn new(function: impl Fn(&PlotPoint, &PlotBounds) -> String + 'static) -> Self {
+    pub fn new(function: impl Fn(&PlotPoint, &PlotBounds) -> String + 'a) -> Self {
         Self {
             function: Box::new(function),
         }
@@ -72,7 +72,7 @@ impl CoordinatesFormatter {
     }
 }
 
-impl Default for CoordinatesFormatter {
+impl Default for CoordinatesFormatter<'_> {
     fn default() -> Self {
         Self::with_decimals(3)
     }
@@ -143,7 +143,7 @@ pub struct PlotResponse<R> {
 /// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
 /// # });
 /// ```
-pub struct Plot {
+pub struct Plot<'a> {
     id_source: Id,
     id: Option<Id>,
 
@@ -170,24 +170,24 @@ pub struct Plot {
 
     show_x: bool,
     show_y: bool,
-    label_formatter: LabelFormatter,
-    coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
-    x_axes: Vec<AxisHints>, // default x axes
-    y_axes: Vec<AxisHints>, // default y axes
+    label_formatter: LabelFormatter<'a>,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a>)>,
+    x_axes: Vec<AxisHints<'a>>, // default x axes
+    y_axes: Vec<AxisHints<'a>>, // default y axes
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: Vec2b,
 
     show_grid: Vec2b,
     grid_spacing: Rangef,
-    grid_spacers: [GridSpacer; 2],
+    grid_spacers: [GridSpacer<'a>; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
 
     sense: Sense,
 }
 
-impl Plot {
+impl<'a> Plot<'a> {
     /// Give a unique id for each plot within the same [`Ui`].
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
@@ -405,7 +405,7 @@ impl Plot {
     /// ```
     pub fn label_formatter(
         mut self,
-        label_formatter: impl Fn(&str, &PlotPoint) -> String + 'static,
+        label_formatter: impl Fn(&str, &PlotPoint) -> String + 'a,
     ) -> Self {
         self.label_formatter = Some(Box::new(label_formatter));
         self
@@ -415,7 +415,7 @@ impl Plot {
     pub fn coordinates_formatter(
         mut self,
         position: Corner,
-        formatter: CoordinatesFormatter,
+        formatter: CoordinatesFormatter<'a>,
     ) -> Self {
         self.coordinates_formatter = Some((position, formatter));
         self
@@ -452,7 +452,7 @@ impl Plot {
     ///
     /// There are helpers for common cases, see [`log_grid_spacer`] and [`uniform_grid_spacer`].
     #[inline]
-    pub fn x_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
+    pub fn x_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'a) -> Self {
         self.grid_spacers[0] = Box::new(spacer);
         self
     }
@@ -461,7 +461,7 @@ impl Plot {
     ///
     /// See [`Self::x_grid_spacer`] for explanation.
     #[inline]
-    pub fn y_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
+    pub fn y_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'a) -> Self {
         self.grid_spacers[1] = Box::new(spacer);
         self
     }
@@ -662,7 +662,7 @@ impl Plot {
     /// * currently shown range on this axis.
     pub fn x_axis_formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -678,7 +678,7 @@ impl Plot {
     /// * currently shown range on this axis.
     pub fn y_axis_formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -703,7 +703,7 @@ impl Plot {
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
     #[inline]
-    pub fn custom_x_axes(mut self, hints: Vec<AxisHints>) -> Self {
+    pub fn custom_x_axes(mut self, hints: Vec<AxisHints<'a>>) -> Self {
         self.x_axes = hints;
         self
     }
@@ -712,17 +712,21 @@ impl Plot {
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
     #[inline]
-    pub fn custom_y_axes(mut self, hints: Vec<AxisHints>) -> Self {
+    pub fn custom_y_axes(mut self, hints: Vec<AxisHints<'a>>) -> Self {
         self.y_axes = hints;
         self
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
+    pub fn show<R>(
+        self,
+        ui: &mut Ui,
+        build_fn: impl FnOnce(&mut PlotUi) -> R + 'a,
+    ) -> PlotResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
     }
 
-    fn show_dyn<'a, R>(
+    fn show_dyn<R>(
         self,
         ui: &mut Ui,
         build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
@@ -1246,12 +1250,12 @@ impl Plot {
 }
 
 /// Returns the rect left after adding axes.
-fn axis_widgets(
+fn axis_widgets<'a>(
     mem: Option<&PlotMemory>,
     show_axes: Vec2b,
     complete_rect: Rect,
-    [x_axes, y_axes]: [&[AxisHints]; 2],
-) -> ([Vec<AxisWidget>; 2], Rect) {
+    [x_axes, y_axes]: [&'a [AxisHints<'a>]; 2],
+) -> ([Vec<AxisWidget<'a>>; 2], Rect) {
     // Next we want to create this layout.
     // Indices are only examples.
     //
@@ -1275,8 +1279,8 @@ fn axis_widgets(
     //  +   +--------------------+---+
     //
 
-    let mut x_axis_widgets = Vec::<AxisWidget>::new();
-    let mut y_axis_widgets = Vec::<AxisWidget>::new();
+    let mut x_axis_widgets = Vec::<AxisWidget<'_>>::new();
+    let mut y_axis_widgets = Vec::<AxisWidget<'_>>::new();
 
     // Will shrink as we add more axes.
     let mut rect_left = complete_rect;
@@ -1404,7 +1408,7 @@ pub struct GridMark {
 ///
 /// The logarithmic base, expressing how many times each grid unit is subdivided.
 /// 10 is a typical value, others are possible though.
-pub fn log_grid_spacer(log_base: i64) -> GridSpacer {
+pub fn log_grid_spacer(log_base: i64) -> GridSpacer<'static> {
     let log_base = log_base as f64;
     let step_sizes = move |input: GridInput| -> Vec<GridMark> {
         // handle degenerate cases
@@ -1435,7 +1439,7 @@ pub fn log_grid_spacer(log_base: i64) -> GridSpacer {
 ///
 /// Why only 3 step sizes? Three is the number of different line thicknesses that egui typically uses in the grid.
 /// Ideally, those 3 are not hardcoded values, but depend on the visible range (accessible through `GridInput`).
-pub fn uniform_grid_spacer(spacer: impl Fn(GridInput) -> [f64; 3] + 'static) -> GridSpacer {
+pub fn uniform_grid_spacer<'a>(spacer: impl Fn(GridInput) -> [f64; 3] + 'a) -> GridSpacer<'a> {
     let get_marks = move |input: GridInput| -> Vec<GridMark> {
         let bounds = input.bounds;
         let step_sizes = spacer(input);
@@ -1447,17 +1451,17 @@ pub fn uniform_grid_spacer(spacer: impl Fn(GridInput) -> [f64; 3] + 'static) -> 
 
 // ----------------------------------------------------------------------------
 
-struct PreparedPlot {
+struct PreparedPlot<'a> {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
-    label_formatter: LabelFormatter,
-    coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
+    label_formatter: LabelFormatter<'a>,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a>)>,
     // axis_formatters: [AxisFormatter; 2],
     transform: PlotTransform,
     show_grid: Vec2b,
     grid_spacing: Rangef,
-    grid_spacers: [GridSpacer; 2],
+    grid_spacers: [GridSpacer<'a>; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
     draw_cursors: Vec<Cursor>,
@@ -1466,7 +1470,7 @@ struct PreparedPlot {
     clamp_grid: bool,
 }
 
-impl PreparedPlot {
+impl<'a> PreparedPlot<'a> {
     fn ui(self, ui: &mut Ui, response: &Response) -> (Vec<Cursor>, Option<Id>) {
         let mut axes_shapes = Vec::new();
 
