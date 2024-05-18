@@ -654,7 +654,7 @@ impl GlowWinitRunning {
             return EventResult::Wait;
         };
 
-        egui_winit.handle_platform_output(&window, platform_output);
+        egui_winit.handle_platform_output(window, platform_output);
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -711,7 +711,7 @@ impl GlowWinitRunning {
                 }
             }
 
-            integration.post_rendering(&window);
+            integration.post_rendering(window);
         }
 
         {
@@ -740,7 +740,7 @@ impl GlowWinitRunning {
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), Some(&window));
+        integration.maybe_autosave(app.as_mut(), Some(window));
 
         if window.is_minimized() == Some(true) {
             // On Mac, a minimized Window uses up all CPU:
