@@ -565,43 +565,6 @@ impl GlowWinitRunning {
             (raw_input, viewport_ui_cb)
         };
 
-        let clear_color = self
-            .app
-            .clear_color(&self.integration.egui_ctx.style().visuals);
-
-        let has_many_viewports = self.glutin.borrow().viewports.len() > 1;
-        let clear_before_update = !has_many_viewports; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.
-
-        if clear_before_update {
-            // clear before we call update, so users can paint between clear-color and egui windows:
-
-            let mut glutin = self.glutin.borrow_mut();
-            let GlutinWindowContext {
-                viewports,
-                current_gl_context,
-                ..
-            } = &mut *glutin;
-            let viewport = &viewports[&viewport_id];
-            let Some(window) = viewport.window.as_ref() else {
-                return EventResult::Wait;
-            };
-            let Some(gl_surface) = viewport.gl_surface.as_ref() else {
-                return EventResult::Wait;
-            };
-
-            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
-
-            {
-                frame_timer.pause();
-                change_gl_context(current_gl_context, gl_surface);
-                frame_timer.resume();
-            }
-
-            self.painter
-                .borrow()
-                .clear(screen_size_in_pixels, clear_color);
-        }
-
         // ------------------------------------------------------------
         // The update function, which could call immediate viewports,
         // so make sure we don't hold any locks here required by the immediate viewports rendeer.
@@ -642,13 +605,17 @@ impl GlowWinitRunning {
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
         };
-
         viewport.info.events.clear(); // they should have been processed
-        let window = viewport.window.clone().unwrap();
-        let gl_surface = viewport.gl_surface.as_ref().unwrap();
-        let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-        egui_winit.handle_platform_output(&window, platform_output);
+        let (Some(egui_winit), Some(window), Some(gl_surface)) = (
+            &mut viewport.egui_winit,
+            &viewport.window.clone(),
+            &viewport.gl_surface,
+        ) else {
+            return EventResult::Wait;
+        };
+
+        egui_winit.handle_platform_output(window, platform_output);
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -660,10 +627,9 @@ impl GlowWinitRunning {
         }
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+        let clear_color = app.clear_color(&integration.egui_ctx.style().visuals);
 
-        if !clear_before_update {
-            painter.clear(screen_size_in_pixels, clear_color);
-        }
+        painter.clear(screen_size_in_pixels, clear_color);
 
         painter.paint_and_update_textures(
             screen_size_in_pixels,
