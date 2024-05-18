@@ -568,6 +568,7 @@ impl GlowWinitRunning {
             (raw_input, viewport_ui_cb)
         };
 
+        /*
         let clear_color = self
             .app
             .clear_color(&self.integration.egui_ctx.style().visuals);
@@ -585,14 +586,9 @@ impl GlowWinitRunning {
                 ..
             } = &mut *glutin;
             let viewport = &viewports[&viewport_id];
-            let Some(window) = viewport.window.as_ref() else {
-                return EventResult::Wait;
-            };
             let Some(gl_surface) = viewport.gl_surface.as_ref() else {
                 return EventResult::Wait;
             };
-
-            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             {
                 frame_timer.pause();
@@ -600,10 +596,16 @@ impl GlowWinitRunning {
                 frame_timer.resume();
             }
 
+            let Some(window) = viewport.window.as_ref() else {
+                return EventResult::Wait;
+            };
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+
             self.painter
                 .borrow()
                 .clear(screen_size_in_pixels, clear_color);
         }
+        */
 
         // ------------------------------------------------------------
         // The update function, which could call immediate viewports,
@@ -645,11 +647,15 @@ impl GlowWinitRunning {
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
         };
-
         viewport.info.events.clear(); // they should have been processed
-        let window = viewport.window.clone().unwrap();
-        let gl_surface = viewport.gl_surface.as_ref().unwrap();
-        let egui_winit = viewport.egui_winit.as_mut().unwrap();
+
+        let (Some(egui_winit), Some(window), Some(gl_surface)) = (
+            &mut viewport.egui_winit,
+            &viewport.window.clone(),
+            &viewport.gl_surface,
+        ) else {
+            return EventResult::Wait;
+        };
 
         egui_winit.handle_platform_output(&window, platform_output);
 
@@ -663,10 +669,14 @@ impl GlowWinitRunning {
         }
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+        let clear_color = app.clear_color(&integration.egui_ctx.style().visuals);
 
+        /*
         if !clear_before_update {
             painter.clear(screen_size_in_pixels, clear_color);
         }
+        */
+        painter.clear(screen_size_in_pixels, clear_color);
 
         painter.paint_and_update_textures(
             screen_size_in_pixels,
@@ -867,6 +877,8 @@ fn change_gl_context(
     crate::profile_scope!("make_current");
     if let Ok(current) = not_current.make_current(gl_surface) {
         *current_gl_context = Some(current);
+    } else {
+        dbg!(&current_gl_context);
     }
 }
 
@@ -1486,8 +1498,6 @@ fn render_immediate_viewport(
         return;
     };
 
-    let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
-
     change_gl_context(current_gl_context, gl_surface);
 
     let current_gl_context = current_gl_context.as_ref().unwrap();
@@ -1499,6 +1509,8 @@ fn render_immediate_viewport(
             viewport.builder.title
         );
     }
+
+    let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
     egui_glow::painter::clear(
         painter.borrow().gl(),
