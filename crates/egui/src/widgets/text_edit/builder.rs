@@ -726,7 +726,7 @@ impl<'t> TextEdit<'t> {
                 )
             });
         } else if selection_changed {
-            let cursor_range = cursor_range.unwrap();
+            let cursor_range = cursor_range.unwrap_or_default();
             let char_range =
                 cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
             let info = WidgetInfo::text_selection_changed(
