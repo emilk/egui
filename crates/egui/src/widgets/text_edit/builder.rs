@@ -1037,12 +1037,11 @@ fn ime_enabled_filter_events(events: Vec<Event>) -> Vec<Event> {
 
     for event in events {
         match event {
-            Event::Key {
+            Event::Key { repeat: true, .. }
+            | Event::Key {
                 key: Key::Backspace,
                 ..
             } => {}
-            Event::Key { repeat: true, .. } => {}
-            Event::Ime(_) => filter_events.push(event),
             _ => filter_events.push(event),
         }
     }
