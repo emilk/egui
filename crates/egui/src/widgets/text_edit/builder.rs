@@ -826,7 +826,32 @@ fn events(
 
     let mut any_change = false;
 
-    let events = ui.input(|i| i.filtered_events(&event_filter));
+    let input_events = ui.input(|i| i.filtered_events(&event_filter));
+
+    let filter_events = match state.ime_enabled {
+        true => ime_enabled_filter_events(input_events),
+        false => input_events,
+    };
+    let events = ime_front_events(filter_events);
+
+    /*
+    if state.ime_enabled {
+        dbg!(&events);
+    }
+    if state.ime_enabled {
+        events = ime_only_events(events);
+    }
+    */
+    /*
+    if state.ime_enabled {
+        events = ime_enabled_filter_events(events);
+    }
+    if state.ime_enabled && !is_contain_ime_events(&events) {
+        dbg!(&events);
+        // return (any_change, cursor_range);
+    }
+    */
+
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
@@ -1023,6 +1048,40 @@ fn events(
     );
 
     (any_change, cursor_range)
+}
+
+// ----------------------------------------------------------------------------
+
+fn ime_enabled_filter_events(events: Vec<Event>) -> Vec<Event> {
+    let mut filter_events: Vec<Event> = Vec::new();
+
+    for event in events {
+        match event {
+            Event::Key { repeat: true, .. }
+            | Event::Key {
+                key: Key::Backspace,
+                ..
+            } => {}
+            _ => filter_events.push(event),
+        }
+    }
+
+    filter_events
+}
+
+fn ime_front_events(events: Vec<Event>) -> Vec<Event> {
+    let mut ime_front_events: Vec<Event> = Vec::new();
+    let mut other_events: Vec<Event> = Vec::new();
+
+    for event in events {
+        match event {
+            Event::Ime(_) => ime_front_events.push(event),
+            _ => other_events.push(event),
+        }
+    }
+
+    ime_front_events.extend(other_events);
+    ime_front_events
 }
 
 // ----------------------------------------------------------------------------
