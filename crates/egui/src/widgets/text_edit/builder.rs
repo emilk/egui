@@ -826,7 +826,9 @@ fn events(
 
     let mut any_change = false;
 
-    let events = ui.input(|i| i.filtered_events(&event_filter));
+    let input_events = ui.input(|i| i.filtered_events(&event_filter));
+    let events = ime_first_events(input_events);
+
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
@@ -1021,6 +1023,23 @@ fn events(
     );
 
     (any_change, cursor_range)
+}
+
+// ----------------------------------------------------------------------------
+
+fn ime_first_events(events: Vec<Event>) -> Vec<Event> {
+    let mut ime_first_events: Vec<Event> = Vec::new();
+    let mut other_events: Vec<Event> = Vec::new();
+
+    for event in events {
+        match event {
+            Event::Ime(_) => ime_first_events.push(event),
+            _ => other_events.push(event),
+        }
+    }
+
+    ime_first_events.extend(other_events);
+    ime_first_events
 }
 
 // ----------------------------------------------------------------------------
