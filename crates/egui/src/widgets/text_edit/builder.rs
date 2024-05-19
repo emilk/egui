@@ -1050,18 +1050,18 @@ fn ime_enabled_filter_events(events: Vec<Event>) -> Vec<Event> {
 }
 
 fn ime_front_events(events: Vec<Event>) -> Vec<Event> {
-    let mut ime_first_events: Vec<Event> = Vec::new();
+    let mut ime_front_events: Vec<Event> = Vec::new();
     let mut other_events: Vec<Event> = Vec::new();
 
     for event in events {
         match event {
-            Event::Ime(_) => ime_first_events.push(event),
+            Event::Ime(_) => ime_front_events.push(event),
             _ => other_events.push(event),
         }
     }
 
-    ime_first_events.extend(other_events);
-    ime_first_events
+    ime_front_events.extend(other_events);
+    ime_front_events
 }
 
 // ----------------------------------------------------------------------------
