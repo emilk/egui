@@ -832,7 +832,7 @@ fn events(
         true => ime_enabled_filter_events(input_events),
         false => input_events,
     };
-    let events = ime_first_events(filter_events);
+    let events = ime_front_events(filter_events);
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1049,7 +1049,7 @@ fn ime_enabled_filter_events(events: Vec<Event>) -> Vec<Event> {
     filter_events
 }
 
-fn ime_first_events(events: Vec<Event>) -> Vec<Event> {
+fn ime_front_events(events: Vec<Event>) -> Vec<Event> {
     let mut ime_first_events: Vec<Event> = Vec::new();
     let mut other_events: Vec<Event> = Vec::new();
 
