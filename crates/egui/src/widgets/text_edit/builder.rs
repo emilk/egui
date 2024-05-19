@@ -827,7 +827,12 @@ fn events(
     let mut any_change = false;
 
     let input_events = ui.input(|i| i.filtered_events(&event_filter));
-    let events = ime_first_events(input_events);
+
+    let filter_events = match state.ime_enabled {
+        true => ime_enabled_filter_events(input_events),
+        false => input_events,
+    };
+    let events = ime_first_events(filter_events);
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1026,6 +1031,24 @@ fn events(
 }
 
 // ----------------------------------------------------------------------------
+
+fn ime_enabled_filter_events(events: Vec<Event>) -> Vec<Event> {
+    let mut filter_events: Vec<Event> = Vec::new();
+
+    for event in events {
+        match event {
+            Event::Key {
+                key: Key::Backspace,
+                ..
+            } => {}
+            Event::Key { repeat: true, .. } => {}
+            Event::Ime(_) => filter_events.push(event),
+            _ => filter_events.push(event),
+        }
+    }
+
+    filter_events
+}
 
 fn ime_first_events(events: Vec<Event>) -> Vec<Event> {
     let mut ime_first_events: Vec<Event> = Vec::new();
