@@ -834,24 +834,6 @@ fn events(
     };
     let events = ime_front_events(filter_events);
 
-    /*
-    if state.ime_enabled {
-        dbg!(&events);
-    }
-    if state.ime_enabled {
-        events = ime_only_events(events);
-    }
-    */
-    /*
-    if state.ime_enabled {
-        events = ime_enabled_filter_events(events);
-    }
-    if state.ime_enabled && !is_contain_ime_events(&events) {
-        dbg!(&events);
-        // return (any_change, cursor_range);
-    }
-    */
-
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
@@ -1061,7 +1043,7 @@ fn ime_enabled_filter_events(events: Vec<Event>) -> Vec<Event> {
             | Event::Key {
                 key: Key::Backspace,
                 ..
-            } => {}
+            } => { dbg!(&event); }
             _ => filter_events.push(event),
         }
     }
