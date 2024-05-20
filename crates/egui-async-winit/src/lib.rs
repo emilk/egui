@@ -825,7 +825,8 @@ impl State {
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
-            accesskit_update: _,
+            #[cfg(feature = "accesskit")]
+            accesskit_update,
         } = platform_output;
 
         self.set_cursor_icon(window, cursor_icon).await;
