@@ -56,7 +56,7 @@ impl WindowSettings {
         self.inner_size_points
     }
 
-    pub fn initialize_viewport_builder<TS: async_winit::ThreadSafety>(
+    pub async fn initialize_viewport_builder<TS: async_winit::ThreadSafety>(
         &self,
         egui_zoom_factor: f32,
         event_loop: &async_winit::event_loop::EventLoopWindowTarget<TS>,
@@ -74,6 +74,7 @@ impl WindowSettings {
         if let Some(pos) = pos_px {
             let monitor_scale_factor = if let Some(inner_size_points) = self.inner_size_points {
                 find_active_monitor(egui_zoom_factor, event_loop, inner_size_points, &pos)
+                    .await
                     .map_or(1.0, |monitor| monitor.scale_factor() as f32)
             } else {
                 1.0
@@ -92,7 +93,7 @@ impl WindowSettings {
         viewport_builder
     }
 
-    pub fn initialize_window<TS: async_winit::ThreadSafety>(
+    pub async fn initialize_window<TS: async_winit::ThreadSafety>(
         &self,
         window: &async_winit::window::Window<TS>,
     ) {
@@ -101,7 +102,8 @@ impl WindowSettings {
             // using only `WindowBuilder::with_position`, so we need this extra step:
             if let Some(pos) = self.outer_position_pixels {
                 window
-                    .set_outer_position(async_winit::dpi::PhysicalPosition { x: pos.x, y: pos.y });
+                    .set_outer_position(async_winit::dpi::PhysicalPosition { x: pos.x, y: pos.y })
+                    .await;
             }
         }
     }
@@ -120,7 +122,7 @@ impl WindowSettings {
         }
     }
 
-    pub fn clamp_position_to_monitors<TS: async_winit::ThreadSafety>(
+    pub async fn clamp_position_to_monitors<TS: async_winit::ThreadSafety>(
         &mut self,
         egui_zoom_factor: f32,
         event_loop: &async_winit::event_loop::EventLoopWindowTarget<TS>,
@@ -139,10 +141,10 @@ impl WindowSettings {
         };
 
         if let Some(pos_px) = &mut self.inner_position_pixels {
-            clamp_pos_to_monitors(egui_zoom_factor, event_loop, inner_size_points, pos_px);
+            clamp_pos_to_monitors(egui_zoom_factor, event_loop, inner_size_points, pos_px).await;
         }
         if let Some(pos_px) = &mut self.outer_position_pixels {
-            clamp_pos_to_monitors(egui_zoom_factor, event_loop, inner_size_points, pos_px);
+            clamp_pos_to_monitors(egui_zoom_factor, event_loop, inner_size_points, pos_px).await;
         }
     }
 }
@@ -157,12 +159,15 @@ async fn find_active_monitor<TS: async_winit::ThreadSafety>(
 
     let monitors = event_loop.available_monitors().await;
 
+    let pm = event_loop.primary_monitor().await;
+    let monitor = if pm.is_some() {
+        pm
+    } else {
+        event_loop.available_monitors().await.next()
+    };
+
     // default to primary monitor, in case the correct monitor was disconnected.
-    let Some(mut active_monitor) = event_loop
-        .primary_monitor()
-        .await
-        .or_else(|| event_loop.available_monitors().next())
-    else {
+    let Some(mut active_monitor) = monitor else {
         return None; // no monitors 🤷
     };
 
@@ -183,7 +188,7 @@ async fn find_active_monitor<TS: async_winit::ThreadSafety>(
     Some(active_monitor)
 }
 
-fn clamp_pos_to_monitors<TS: async_winit::ThreadSafety>(
+async fn clamp_pos_to_monitors<TS: async_winit::ThreadSafety>(
     egui_zoom_factor: f32,
     event_loop: &async_winit::event_loop::EventLoopWindowTarget<TS>,
     window_size_pts: egui::Vec2,

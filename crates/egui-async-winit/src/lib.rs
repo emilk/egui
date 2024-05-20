@@ -214,7 +214,7 @@ impl State {
     /// You need to set [`egui::RawInput::viewports`] yourself though.
     /// Use [`update_viewport_info`] to update the info for each
     /// viewport.
-    pub fn take_egui_input<TS: async_winit::ThreadSafety>(
+    pub async fn take_egui_input<TS: async_winit::ThreadSafety>(
         &mut self,
         window: &Window<TS>,
     ) -> egui::RawInput {
@@ -225,7 +225,7 @@ impl State {
         // On Windows, a minimized window will have 0 width and height.
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
-        let screen_size_in_pixels = screen_size_in_pixels(window);
+        let screen_size_in_pixels = screen_size_in_pixels(window).await;
         let screen_size_in_points =
             screen_size_in_pixels / pixels_per_point(&self.egui_ctx, window);
 
@@ -811,7 +811,7 @@ impl State {
     /// * open any clicked urls
     /// * update the IME
     /// *
-    pub fn handle_platform_output<TS: async_winit::ThreadSafety>(
+    pub async fn handle_platform_output<TS: async_winit::ThreadSafety>(
         &mut self,
         window: &Window<TS>,
         platform_output: egui::PlatformOutput,
@@ -825,10 +825,10 @@ impl State {
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
-            accesskit_update,
+            accesskit_update: _,
         } = platform_output;
 
-        self.set_cursor_icon(window, cursor_icon);
+        self.set_cursor_icon(window, cursor_icon).await;
 
         if let Some(open_url) = open_url {
             open_url_in_browser(&open_url.url);
@@ -842,7 +842,7 @@ impl State {
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
             crate::profile_scope!("set_ime_allowed");
-            window.set_ime_allowed(allow_ime);
+            window.set_ime_allowed(allow_ime).await;
         }
 
         if let Some(ime) = ime {
@@ -877,7 +877,7 @@ impl State {
         }
     }
 
-    fn set_cursor_icon<TS: async_winit::ThreadSafety>(
+    async fn set_cursor_icon<TS: async_winit::ThreadSafety>(
         &mut self,
         window: &Window<TS>,
         cursor_icon: egui::CursorIcon,
@@ -893,10 +893,10 @@ impl State {
             self.current_cursor_icon = Some(cursor_icon);
 
             if let Some(winit_cursor_icon) = translate_cursor(cursor_icon) {
-                window.set_cursor_visible(true);
-                window.set_cursor_icon(winit_cursor_icon);
+                window.set_cursor_visible(true).await;
+                window.set_cursor_icon(winit_cursor_icon).await;
             } else {
-                window.set_cursor_visible(false);
+                window.set_cursor_visible(false).await;
             }
         } else {
             // Remember to set the cursor again once the cursor returns to the screen:
@@ -993,7 +993,7 @@ pub async fn update_viewport_info<TS: async_winit::ThreadSafety>(
     }
 
     viewport_info.fullscreen = Some(window.fullscreen().await.is_some());
-    viewport_info.focused = Some(todo!("window.has_focus()"));
+    viewport_info.focused = Some(window.has_focus());
 }
 
 fn open_url_in_browser(_url: &str) {
@@ -1299,7 +1299,7 @@ pub enum ActionRequested {
     Paste,
 }
 
-pub fn process_viewport_commands<TS: async_winit::ThreadSafety>(
+pub async fn process_viewport_commands<TS: async_winit::ThreadSafety>(
     egui_ctx: &egui::Context,
     info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
@@ -1315,7 +1315,8 @@ pub fn process_viewport_commands<TS: async_winit::ThreadSafety>(
             info,
             is_viewport_focused,
             actions_requested,
-        );
+        )
+        .await;
     }
 }
 
@@ -1358,7 +1359,7 @@ async fn process_viewport_command<TS: async_winit::ThreadSafety>(
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
             let requested_size = PhysicalSize::new(width_px, height_px);
-            if let Some(_returned_inner_size) = window.request_inner_size(requested_size).await {
+            if let Some(_returned_inner_size) = window.request_inner_size(requested_size) {
                 // On platforms where the size is entirely controlled by the user the
                 // applied size will be returned immediately, resize event in such case
                 // may not be generated.
@@ -1398,65 +1399,71 @@ async fn process_viewport_command<TS: async_winit::ThreadSafety>(
             }
         }
         ViewportCommand::Title(title) => {
-            window.set_title(&title);
+            window.set_title(&title).await;
         }
         ViewportCommand::Transparent(v) => window.set_transparent(v).await,
         ViewportCommand::Visible(v) => window.set_visible(v).await,
         ViewportCommand::OuterPosition(pos) => {
-            window.set_outer_position(PhysicalPosition::new(
-                pixels_per_point * pos.x,
-                pixels_per_point * pos.y,
-            ));
+            window
+                .set_outer_position(PhysicalPosition::new(
+                    pixels_per_point * pos.x,
+                    pixels_per_point * pos.y,
+                ))
+                .await;
         }
         ViewportCommand::MinInnerSize(s) => {
-            window.set_min_inner_size((s.is_finite() && s != Vec2::ZERO).then_some(
-                PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y),
-            ));
+            window
+                .set_min_inner_size((s.is_finite() && s != Vec2::ZERO).then_some(
+                    PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y).into(),
+                ))
+                .await;
         }
         ViewportCommand::MaxInnerSize(s) => {
-            window.set_max_inner_size((s.is_finite() && s != Vec2::INFINITY).then_some(
-                PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y),
-            ));
+            window
+                .set_max_inner_size((s.is_finite() && s != Vec2::INFINITY).then_some(
+                    PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y).into(),
+                ))
+                .await;
         }
         ViewportCommand::ResizeIncrements(s) => {
-            window.set_resize_increments(
-                s.map(|s| PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y)),
-            );
+            window
+                .set_resize_increments(s.map(|s| {
+                    PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y).into()
+                }))
+                .await;
         }
         ViewportCommand::Resizable(v) => window.set_resizable(v).await,
         ViewportCommand::EnableButtons {
             close,
             minimized,
             maximize,
-        } => {
-            window
-                .set_enabled_buttons(
-                    if close {
-                        WindowButtons::CLOSE
-                    } else {
-                        WindowButtons::empty()
-                    } | if minimized {
-                        WindowButtons::MINIMIZE
-                    } else {
-                        WindowButtons::empty()
-                    } | if maximize {
-                        WindowButtons::MAXIMIZE
-                    } else {
-                        WindowButtons::empty()
-                    },
-                )
-                .await
-        }
+        } => window.set_enabled_buttons(
+            if close {
+                WindowButtons::CLOSE
+            } else {
+                WindowButtons::empty()
+            } | if minimized {
+                WindowButtons::MINIMIZE
+            } else {
+                WindowButtons::empty()
+            } | if maximize {
+                WindowButtons::MAXIMIZE
+            } else {
+                WindowButtons::empty()
+            },
+        ),
         ViewportCommand::Minimized(v) => {
-            window.set_minimized(v);
+            window.set_minimized(v).await;
             info.minimized = Some(v);
         }
         ViewportCommand::Maximized(v) => {
-            window.set_maximized(v);
+            window.set_maximized(v).await;
             info.maximized = Some(v);
         }
         ViewportCommand::Fullscreen(v) => {
-            window.set_fullscreen(v.then_some(async_winit::window::Fullscreen::Borderless(None)));
+            window
+                .set_fullscreen(v.then_some(async_winit::window::Fullscreen::Borderless(None)))
+                .await;
         }
         ViewportCommand::Decorations(v) => window.set_decorations(v).await,
         ViewportCommand::WindowLevel(l) => {
@@ -1470,7 +1477,7 @@ async fn process_viewport_command<TS: async_winit::ThreadSafety>(
         }
         ViewportCommand::Icon(icon) => {
             let winit_icon = icon.and_then(|icon| to_winit_icon(&icon));
-            window.set_window_icon(winit_icon);
+            window.set_window_icon(winit_icon).await;
         }
         ViewportCommand::IMERect(rect) => {
             window.set_ime_cursor_area(
@@ -1497,26 +1504,32 @@ async fn process_viewport_command<TS: async_winit::ThreadSafety>(
         }
         ViewportCommand::Focus => {
             if !window.has_focus() {
-                window.focus_window();
+                window.focus_window().await;
             }
         }
         ViewportCommand::RequestUserAttention(a) => {
-            window.request_user_attention(match a {
-                egui::UserAttentionType::Reset => None,
-                egui::UserAttentionType::Critical => {
-                    Some(async_winit::window::UserAttentionType::Critical)
-                }
-                egui::UserAttentionType::Informational => {
-                    Some(async_winit::window::UserAttentionType::Informational)
-                }
-            });
+            window
+                .request_user_attention(match a {
+                    egui::UserAttentionType::Reset => None,
+                    egui::UserAttentionType::Critical => {
+                        Some(async_winit::window::UserAttentionType::Critical)
+                    }
+                    egui::UserAttentionType::Informational => {
+                        Some(async_winit::window::UserAttentionType::Informational)
+                    }
+                })
+                .await;
         }
-        ViewportCommand::SetTheme(t) => window.set_theme(match t {
-            egui::SystemTheme::Light => Some(async_winit::window::Theme::Light),
-            egui::SystemTheme::Dark => Some(async_winit::window::Theme::Dark),
-            egui::SystemTheme::SystemDefault => None,
-        }),
-        ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
+        ViewportCommand::SetTheme(t) => {
+            window
+                .set_theme(match t {
+                    egui::SystemTheme::Light => Some(async_winit::window::Theme::Light),
+                    egui::SystemTheme::Dark => Some(async_winit::window::Theme::Dark),
+                    egui::SystemTheme::SystemDefault => None,
+                })
+                .await
+        }
+        ViewportCommand::ContentProtected(v) => window.set_content_protected(v).await,
         ViewportCommand::CursorPosition(pos) => {
             if let Err(err) = window
                 .set_cursor_position(PhysicalPosition::new(
@@ -1540,7 +1553,7 @@ async fn process_viewport_command<TS: async_winit::ThreadSafety>(
                 log::warn!("{command:?}: {err}");
             }
         }
-        ViewportCommand::CursorVisible(v) => window.set_cursor_visible(v),
+        ViewportCommand::CursorVisible(v) => window.set_cursor_visible(v).await,
         ViewportCommand::MousePassthrough(passthrough) => {
             if let Err(err) = window.set_cursor_hittest(!passthrough).await {
                 log::warn!("{command:?}: {err}");
@@ -1575,12 +1588,12 @@ pub async fn create_window<TS: async_winit::ThreadSafety>(
     crate::profile_function!();
 
     let window_builder =
-        create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone());
+        create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone()).await;
     let window = {
         crate::profile_scope!("WindowBuilder::build");
         window_builder.build().await?
     };
-    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
+    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder).await;
     Ok(window)
 }
 
@@ -1595,17 +1608,21 @@ pub async fn create_winit_window_builder<TS: async_winit::ThreadSafety>(
     // zoom_factor and the native pixels per point, so we need to know that here.
     // We don't know what monitor the window will appear on though, but
     // we'll try to fix that after the window is created in the call to `apply_viewport_builder_to_window`.
-    let native_pixels_per_point = event_loop
-        .primary_monitor()
-        .await
-        .or_else(|| event_loop.available_monitors().await.next())
-        .map_or_else(
-            || {
-                log::debug!("Failed to find a monitor - assuming native_pixels_per_point of 1.0");
-                1.0
-            },
-            |m| m.scale_factor() as f32,
-        );
+
+    let pm = event_loop.primary_monitor().await;
+    let monitor = if pm.is_some() {
+        pm
+    } else {
+        event_loop.available_monitors().await.next()
+    };
+
+    let native_pixels_per_point = monitor.map_or_else(
+        || {
+            log::debug!("Failed to find a monitor - assuming native_pixels_per_point of 1.0");
+            1.0
+        },
+        |m| m.scale_factor() as f32,
+    );
     let zoom_factor = egui_ctx.zoom_factor();
     let pixels_per_point = zoom_factor * native_pixels_per_point;
 
@@ -1806,7 +1823,6 @@ pub async fn apply_viewport_builder_to_window<TS: async_winit::ThreadSafety>(
                     pixels_per_point * size.x,
                     pixels_per_point * size.y,
                 ))
-                .await
                 .is_some()
             {
                 log::debug!("Failed to set window size");
@@ -1814,23 +1830,21 @@ pub async fn apply_viewport_builder_to_window<TS: async_winit::ThreadSafety>(
         }
         if let Some(size) = builder.min_inner_size {
             window
-                .set_min_inner_size(Some(PhysicalSize::new(
-                    pixels_per_point * size.x,
-                    pixels_per_point * size.y,
-                )))
+                .set_min_inner_size(Some(
+                    PhysicalSize::new(pixels_per_point * size.x, pixels_per_point * size.y).into(),
+                ))
                 .await;
         }
         if let Some(size) = builder.max_inner_size {
             window
-                .set_max_inner_size(Some(PhysicalSize::new(
-                    pixels_per_point * size.x,
-                    pixels_per_point * size.y,
-                )))
+                .set_max_inner_size(Some(
+                    PhysicalSize::new(pixels_per_point * size.x, pixels_per_point * size.y).into(),
+                ))
                 .await;
         }
         if let Some(pos) = builder.position {
             let pos = PhysicalPosition::new(pixels_per_point * pos.x, pixels_per_point * pos.y);
-            window.set_outer_position(pos);
+            window.set_outer_position(pos).await;
         }
     }
 }
