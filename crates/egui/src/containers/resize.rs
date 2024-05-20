@@ -10,7 +10,7 @@ pub(crate) struct State {
     pub(crate) desired_size: Vec2,
 
     /// Actual size of content last frame
-    last_content_size: Vec2,
+    pub(crate) last_content_size: Vec2,
 
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
@@ -209,7 +209,7 @@ impl Resize {
 
             State {
                 desired_size: self.default_size,
-                last_content_size: vec2(0.0, 0.0),
+                last_content_size: Vec2::ZERO,
                 requested_size: None,
             }
         });
@@ -291,7 +291,7 @@ impl Resize {
             content_ui,
         } = prepared;
 
-        state.last_content_size = content_ui.min_size();
+        state.last_content_size = content_ui.min_size().at_least(state.last_content_size);
 
         // ------------------------------
 
