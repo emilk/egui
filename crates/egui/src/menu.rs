@@ -25,16 +25,16 @@ use std::sync::Arc;
 
 /// What is saved between frames.
 #[derive(Clone, Default)]
-pub(crate) struct BarState {
+pub struct BarState {
     open_menu: MenuRootManager,
 }
 
 impl BarState {
-    fn load(ctx: &Context, bar_id: Id) -> Self {
+    pub fn load(ctx: &Context, bar_id: Id) -> Self {
         ctx.data_mut(|d| d.get_temp::<Self>(bar_id).unwrap_or_default())
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
+    pub fn store(self, ctx: &Context, bar_id: Id) {
         ctx.data_mut(|d| d.insert_temp(bar_id, self));
     }
 
@@ -242,7 +242,7 @@ pub(crate) fn context_menu_opened(response: &Response) -> bool {
 
 /// Stores the state for the context menu.
 #[derive(Clone, Default)]
-pub(crate) struct MenuRootManager {
+pub struct MenuRootManager {
     inner: Option<MenuRoot>,
 }
 
@@ -287,7 +287,7 @@ impl std::ops::DerefMut for MenuRootManager {
 
 /// Menu root associated with an Id from a Response
 #[derive(Clone)]
-pub(crate) struct MenuRoot {
+pub struct MenuRoot {
     pub menu_state: Arc<RwLock<MenuState>>,
     pub id: Id,
 }
@@ -373,7 +373,7 @@ impl MenuRoot {
     }
 
     /// Interaction with a context menu (secondary click).
-    fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
+    pub fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
         let response = response.interact(Sense::click());
         let hovered = response.hovered();
         let secondary_clicked = response.secondary_clicked();
@@ -399,7 +399,7 @@ impl MenuRoot {
         })
     }
 
-    fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
+    pub fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
         match menu_response {
             MenuResponse::Create(pos, id) => {
                 root.inner = Some(Self::new(pos, id));
@@ -423,7 +423,7 @@ impl MenuRoot {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub(crate) enum MenuResponse {
+pub enum MenuResponse {
     Close,
     Stay,
     Create(Pos2, Id),
