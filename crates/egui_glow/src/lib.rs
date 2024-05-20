@@ -21,9 +21,9 @@ mod vao;
 
 pub use shader_version::ShaderVersion;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
+#[cfg(feature = "winit")]
 pub mod winit;
-#[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
+#[cfg(feature = "winit")]
 pub use winit::*;
 
 /// Check for OpenGL error and report it using `log::error`.

@@ -35,7 +35,7 @@ pub struct InputState {
     /// State of the mouse or simple touch gestures which can be mapped to mouse operations.
     pub pointer: PointerState,
 
-    /// State of touches, except those covered by PointerState (like clicks and drags).
+    /// State of touches, except those covered by `PointerState` (like clicks and drags).
     /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
@@ -800,6 +800,10 @@ impl PointerState {
                 }
                 Event::PointerGone => {
                     self.latest_pos = None;
+                    self.pointer_events.push(PointerEvent::Released {
+                        click: None,
+                        button: PointerButton::Primary,
+                    });
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
                 }
                 Event::MouseMoved(delta) => *self.motion.get_or_insert(Vec2::ZERO) += *delta,

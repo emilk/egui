@@ -936,7 +936,7 @@ impl Response {
     /// You may not call [`Self::interact`] on the resulting `Response`.
     pub fn union(&self, other: Self) -> Self {
         assert!(self.ctx == other.ctx);
-        crate::egui_assert!(
+        debug_assert!(
             self.layer_id == other.layer_id,
             "It makes no sense to combine Responses from two different layers"
         );

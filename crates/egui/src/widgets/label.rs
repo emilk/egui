@@ -170,7 +170,7 @@ impl Label {
 
             let cursor = ui.cursor();
             let first_row_indentation = available_width - ui.available_size_before_wrap().x;
-            egui_assert!(first_row_indentation.is_finite());
+            debug_assert!(first_row_indentation.is_finite());
 
             layout_job.wrap.max_width = available_width;
             layout_job.first_row_min_height = cursor.height();

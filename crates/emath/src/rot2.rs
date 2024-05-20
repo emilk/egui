@@ -18,10 +18,10 @@ use super::Vec2;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rot2 {
-    /// angle.sin()
+    /// `angle.sin()`
     s: f32,
 
-    /// angle.cos()
+    /// `angle.cos()`
     c: f32,
 }
 
@@ -84,7 +84,7 @@ impl Rot2 {
             c: self.c / l,
             s: self.s / l,
         };
-        crate::emath_assert!(ret.is_finite());
+        debug_assert!(ret.is_finite());
         ret
     }
 }

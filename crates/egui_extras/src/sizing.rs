@@ -32,7 +32,7 @@ impl Size {
 
     /// Relative size relative to all available space. Values must be in range `0.0..=1.0`.
     pub fn relative(fraction: f32) -> Self {
-        egui::egui_assert!(0.0 <= fraction && fraction <= 1.0);
+        debug_assert!(0.0 <= fraction && fraction <= 1.0);
         Self::Relative {
             fraction,
             range: Rangef::new(0.0, f32::INFINITY),
