@@ -352,7 +352,8 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
-    // Same with mouseup: we want to notice if a drag stops outside the canvas
+    // Use `document` here to notice if the user releases a drag outside of the canvas.
+    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(
         &document,
         "mouseup",
@@ -422,8 +423,10 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
+    // Use `document` here to notice if the user drag outside of the canvas.
+    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(
-        &canvas,
+        &document,
         "touchmove",
         |event: web_sys::TouchEvent, runner| {
             let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
@@ -444,28 +447,34 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
-    runner_ref.add_event_listener(&canvas, "touchend", |event: web_sys::TouchEvent, runner| {
-        if let Some(pos) = runner.input.latest_touch_pos {
-            let modifiers = runner.input.raw.modifiers;
-            // First release mouse to click:
-            runner.input.raw.events.push(egui::Event::PointerButton {
-                pos,
-                button: egui::PointerButton::Primary,
-                pressed: false,
-                modifiers,
-            });
-            // Then remove hover effect:
-            runner.input.raw.events.push(egui::Event::PointerGone);
+    // Use `document` here to notice if the user releases a drag outside of the canvas.
+    // See https://github.com/emilk/egui/issues/3157
+    runner_ref.add_event_listener(
+        &document,
+        "touchend",
+        |event: web_sys::TouchEvent, runner| {
+            if let Some(pos) = runner.input.latest_touch_pos {
+                let modifiers = runner.input.raw.modifiers;
+                // First release mouse to click:
+                runner.input.raw.events.push(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers,
+                });
+                // Then remove hover effect:
+                runner.input.raw.events.push(egui::Event::PointerGone);
 
-            push_touches(runner, egui::TouchPhase::End, &event);
-            runner.needs_repaint.repaint_asap();
-            event.stop_propagation();
-            event.prevent_default();
-        }
+                push_touches(runner, egui::TouchPhase::End, &event);
+                runner.needs_repaint.repaint_asap();
+                event.stop_propagation();
+                event.prevent_default();
+            }
 
-        // Finally, focus or blur text agent to toggle mobile keyboard:
-        text_agent::update_text_agent(runner);
-    })?;
+            // Finally, focus or blur text agent to toggle mobile keyboard:
+            text_agent::update_text_agent(runner);
+        },
+    )?;
 
     runner_ref.add_event_listener(
         &canvas,
