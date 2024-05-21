@@ -527,7 +527,6 @@ impl GlowWinitRunning {
             let mut glutin = self.glutin.borrow_mut();
             let original_viewport = &glutin.viewports[&viewport_id];
 
-            // This will only happens when a Immediate Viewport.
             if original_viewport.class == ViewportClass::Immediate {
                 let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent)
                 else {
