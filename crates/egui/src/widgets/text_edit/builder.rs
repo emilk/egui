@@ -1032,13 +1032,15 @@ fn events(
 // ----------------------------------------------------------------------------
 
 fn ime_enabled_filter_events(events: &mut Vec<Event>) {
-    events.retain(|event| match event {
-        Event::Key { repeat: true, .. }
-        | Event::Key {
-            key: Key::Backspace,
-            ..
-        } => false,
-        _ => true,
+    events.retain(|event| {
+        !matches!(
+            event,
+            Event::Key { repeat: true, .. }
+                | Event::Key {
+                    key: Key::Backspace,
+                    ..
+                }
+        )
     })
 }
 
