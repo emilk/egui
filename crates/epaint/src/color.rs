@@ -18,6 +18,15 @@ pub enum ColorMode {
     UV(Arc<dyn Fn(Rect, Pos2) -> Color32 + Send + Sync>),
 }
 
+impl<Color> From<Color> for ColorMode
+where
+    Color: Into<Color32>,
+{
+    fn from(value: Color) -> Self {
+        Self::Solid(value.into())
+    }
+}
+
 impl Default for ColorMode {
     fn default() -> Self {
         Self::Solid(Color32::TRANSPARENT)
