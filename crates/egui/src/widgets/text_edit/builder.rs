@@ -1045,19 +1045,12 @@ fn ime_enabled_filter_events(events: &mut Vec<Event>) {
 }
 
 fn ime_front_events(events: &mut Vec<Event>) {
-    let mut ime_front_events: Vec<Event> = Vec::new();
-    let mut other_events: Vec<Event> = Vec::new();
-
-    for event in events.clone() {
-        match event {
-            Event::Ime(_) => ime_front_events.push(event),
-            _ => other_events.push(event),
-        }
-    }
-
-    events.clear();
-    events.extend(ime_front_events);
-    events.extend(other_events);
+    events.sort_by(|a, b| match (a, b) {
+        (Event::Ime(_), Event::Ime(_)) => std::cmp::Ordering::Equal,
+        (Event::Ime(_), _) => std::cmp::Ordering::Less,
+        (_, Event::Ime(_)) => std::cmp::Ordering::Greater,
+        _ => std::cmp::Ordering::Equal,
+    });
 }
 
 // ----------------------------------------------------------------------------
