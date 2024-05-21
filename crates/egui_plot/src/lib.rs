@@ -170,6 +170,7 @@ pub struct Plot<'a> {
 
     show_x: bool,
     show_y: bool,
+    interact_distance: f32,
     label_formatter: LabelFormatter<'a>,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a>)>,
     x_axes: Vec<AxisHints<'a>>, // default x axes
@@ -217,6 +218,7 @@ impl<'a> Plot<'a> {
 
             show_x: true,
             show_y: true,
+            interact_distance: 16.0,
             label_formatter: None,
             coordinates_formatter: None,
             x_axes: vec![AxisHints::new(Axis::X)],
@@ -379,6 +381,17 @@ impl<'a> Plot<'a> {
         T: Into<Vec2b>,
     {
         self.allow_drag = on.into();
+        self
+    }
+
+    /// The snapping distance for hovering an item or plot point
+    ///
+    /// The cursor will snap to the closest item to the pointer if it is closer than this value.
+    ///
+    /// Default: `16.0`
+    #[inline]
+    pub fn interact_distance(mut self, distance: f32) -> Self {
+        self.interact_distance = distance;
         self
     }
 
@@ -751,6 +764,7 @@ impl<'a> Plot<'a> {
             view_aspect,
             mut show_x,
             mut show_y,
+            interact_distance,
             label_formatter,
             coordinates_formatter,
             x_axes,
@@ -1173,6 +1187,7 @@ impl<'a> Plot<'a> {
             items,
             show_x,
             show_y,
+            interact_distance,
             label_formatter,
             coordinates_formatter,
             show_grid,
@@ -1455,6 +1470,7 @@ struct PreparedPlot<'a> {
     items: Vec<Box<dyn PlotItem>>,
     show_x: bool,
     show_y: bool,
+    interact_distance: f32,
     label_formatter: LabelFormatter<'a>,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a>)>,
     // axis_formatters: [AxisFormatter; 2],
@@ -1666,7 +1682,7 @@ impl<'a> PreparedPlot<'a> {
             return (Vec::new(), None);
         }
 
-        let interact_radius_sq = (16.0_f32).powi(2);
+        let interact_radius_sq = self.interact_distance.powi(2);
 
         let candidates = items
             .iter()
