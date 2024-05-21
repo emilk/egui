@@ -369,7 +369,11 @@ impl State {
                     consumed: self.egui_ctx.wants_keyboard_input(),
                 }
             }
-            WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+            WindowEvent::KeyboardInput {
+                event,
+                is_synthetic,
+                ..
+            } => {
                 // Winit generates fake "synthetic" KeyboardInput events when the focus
                 // is changed to the window, or away from it. Synthetic key presses
                 // represent no real key presses and should be ignored.
