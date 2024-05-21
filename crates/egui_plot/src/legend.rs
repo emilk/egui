@@ -261,7 +261,7 @@ impl Widget for &mut LegendWidget {
                     rounding: ui.style().visuals.window_rounding,
                     shadow: epaint::Shadow::NONE,
                     fill: ui.style().visuals.extreme_bg_color,
-                    stroke: ui.style().visuals.window_stroke(),
+                    stroke: ui.style().visuals.window_stroke().into(),
                     ..Default::default()
                 }
                 .multiply_with_opacity(config.background_alpha);

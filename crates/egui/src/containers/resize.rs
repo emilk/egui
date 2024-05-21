@@ -369,7 +369,7 @@ impl Resize {
     }
 }
 
-use epaint::Stroke;
+use epaint::{ColorMode, PathStroke};
 
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
@@ -379,13 +379,13 @@ pub fn paint_resize_corner(ui: &Ui, response: &Response) {
 pub fn paint_resize_corner_with_style(
     ui: &Ui,
     rect: &Rect,
-    color: impl Into<Color32>,
+    color: impl Into<ColorMode>,
     corner: Align2,
 ) {
     let painter = ui.painter();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;
-    let stroke = Stroke {
+    let stroke = PathStroke {
         width: 1.0, // Set width to 1.0 to prevent overlapping
         color: color.into(),
     };
@@ -396,7 +396,7 @@ pub fn paint_resize_corner_with_style(
                 pos2(cp.x - w * corner.x().to_sign(), cp.y),
                 pos2(cp.x, cp.y - w * corner.y().to_sign()),
             ],
-            stroke,
+            stroke.clone(),
         );
         w += 4.0;
     }

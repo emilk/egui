@@ -2272,7 +2272,7 @@ impl Ui {
         }
 
         frame.frame.fill = fill;
-        frame.frame.stroke = stroke;
+        frame.frame.stroke = stroke.into();
 
         frame.paint(self);
 
