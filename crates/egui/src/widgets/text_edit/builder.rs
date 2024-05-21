@@ -1041,7 +1041,7 @@ fn ime_enabled_filter_events(events: &mut Vec<Event>) {
                     ..
                 }
         )
-    })
+    });
 }
 
 fn ime_front_events(events: &mut Vec<Event>) {
