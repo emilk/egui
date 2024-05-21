@@ -662,9 +662,19 @@ impl<'t> TextEdit<'t> {
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let galley = if multiline {
-                    hint_text.into_galley(ui, Some(true), desired_inner_size.x, hint_text_font.unwrap_or(font_id.into()))
+                    hint_text.into_galley(
+                        ui,
+                        Some(true),
+                        desired_inner_size.x,
+                        hint_text_font.unwrap_or(font_id.into()),
+                    )
                 } else {
-                    hint_text.into_galley(ui, Some(false), f32::INFINITY, hint_text_font.unwrap_or(font_id.into()))
+                    hint_text.into_galley(
+                        ui,
+                        Some(false),
+                        f32::INFINITY,
+                        hint_text_font.unwrap_or(font_id.into()),
+                    )
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }
