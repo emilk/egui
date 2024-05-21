@@ -560,7 +560,6 @@ impl WgpuWinitRunning {
                 return EventResult::Wait;
             };
 
-            // This will only happens when a Immediate Viewport.
             if original_viewport.class == ViewportClass::Immediate {
                 let Some(parent_viewport) = viewports.get(&original_viewport.ids.parent) else {
                     return EventResult::Wait;
