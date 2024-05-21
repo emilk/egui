@@ -44,6 +44,15 @@ pub fn adjust_colors(
             closed: _,
             fill,
             stroke,
+        })
+        | Shape::Rect(RectShape {
+            rect: _,
+            rounding: _,
+            fill,
+            stroke,
+            blur_width: _,
+            fill_texture_id: _,
+            uv: _,
         }) => {
             adjust_color(fill);
             match &stroke.color {
@@ -70,15 +79,6 @@ pub fn adjust_colors(
             radius: _,
             fill,
             stroke,
-        })
-        | Shape::Rect(RectShape {
-            rect: _,
-            rounding: _,
-            fill,
-            stroke,
-            blur_width: _,
-            fill_texture_id: _,
-            uv: _,
         }) => {
             adjust_color(fill);
             adjust_color(&mut stroke.color);

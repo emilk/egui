@@ -1582,7 +1582,7 @@ impl Tessellator {
             mut blur_width,
             fill_texture_id,
             uv,
-        } = *rect;
+        } = rect;
 
         if self.options.coarse_tessellation_culling
             && !rect.expand(stroke.width).intersects(self.clip_rect)
@@ -1624,22 +1624,22 @@ impl Tessellator {
         if rect.width() < self.feathering {
             // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
-            if fill != Color32::TRANSPARENT {
-                self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
+            if *fill != Color32::TRANSPARENT {
+                self.tessellate_line(line, Stroke::new(rect.width(), *fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out); // back…
-                self.tessellate_line(line, stroke, out); // …and forth
+                self.tessellate_line(line, stroke.to_owned(), out); // back…
+                self.tessellate_line(line, stroke.to_owned(), out); // …and forth
             }
         } else if rect.height() < self.feathering {
             // Very thin - approximate by a horizontal line-segment:
             let line = [rect.left_center(), rect.right_center()];
-            if fill != Color32::TRANSPARENT {
-                self.tessellate_line(line, Stroke::new(rect.height(), fill), out);
+            if *fill != Color32::TRANSPARENT {
+                self.tessellate_line(line, Stroke::new(rect.height(), *fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out); // back…
-                self.tessellate_line(line, stroke, out); // …and forth
+                self.tessellate_line(line, stroke.to_owned(), out); // back…
+                self.tessellate_line(line, stroke.to_owned(), out); // …and forth
             }
         } else {
             let path = &mut self.scratchpad_path;
@@ -1655,13 +1655,13 @@ impl Tessellator {
                         remap(p.y, rect.y_range(), uv.y_range()),
                     )
                 };
-                path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
+                path.fill_with_uv(self.feathering, *fill, *fill_texture_id, uv_from_pos, out);
             } else {
                 // Untextured
-                path.fill(self.feathering, fill, out);
+                path.fill(self.feathering, *fill, out);
             }
 
-            path.stroke_closed(self.feathering, &stroke.into(), out);
+            path.stroke_closed(self.feathering, stroke, out);
         }
 
         self.feathering = old_feathering; // restore
