@@ -826,13 +826,12 @@ fn events(
 
     let mut any_change = false;
 
-    let input_events = ui.input(|i| i.filtered_events(&event_filter));
+    let mut events = ui.input(|i| i.filtered_events(&event_filter));
 
-    let filter_events = match state.ime_enabled {
-        true => ime_enabled_filter_events(input_events),
-        false => input_events,
-    };
-    let events = ime_front_events(filter_events);
+    if state.ime_enabled {
+        ime_enabled_filter_events(&mut events);
+        ime_front_events(&mut events);
+    }
 
     for event in &events {
         let did_mutate_text = match event {
@@ -1034,36 +1033,33 @@ fn events(
 
 // ----------------------------------------------------------------------------
 
-fn ime_enabled_filter_events(events: Vec<Event>) -> Vec<Event> {
-    let mut filter_events: Vec<Event> = Vec::new();
-
-    for event in events {
-        match event {
+fn ime_enabled_filter_events(events: &mut Vec<Event>) {
+    events.retain(|event| {
+        !matches!(
+            event,
             Event::Key { repeat: true, .. }
-            | Event::Key {
-                key: Key::Backspace,
-                ..
-            } => { dbg!(&event); }
-            _ => filter_events.push(event),
-        }
-    }
-
-    filter_events
+                | Event::Key {
+                    key: Key::Backspace,
+                    ..
+                }
+        )
+    });
 }
 
-fn ime_front_events(events: Vec<Event>) -> Vec<Event> {
+fn ime_front_events(events: &mut Vec<Event>) {
     let mut ime_front_events: Vec<Event> = Vec::new();
     let mut other_events: Vec<Event> = Vec::new();
 
-    for event in events {
+    for event in events.clone() {
         match event {
             Event::Ime(_) => ime_front_events.push(event),
             _ => other_events.push(event),
         }
     }
 
-    ime_front_events.extend(other_events);
-    ime_front_events
+    events.clear();
+    events.extend(ime_front_events);
+    events.extend(other_events);
 }
 
 // ----------------------------------------------------------------------------
