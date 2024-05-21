@@ -284,6 +284,8 @@ pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Resul
 
 pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let canvas = runner_ref.try_lock().unwrap().canvas().clone();
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
 
     {
         let prevent_default_events = [
@@ -333,8 +335,11 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
+    // NOTE: we register "mousemove" on `document` instead of just the canvas
+    // in order to track a dragged mouse outside the canvas.
+    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(
-        &canvas,
+        &document,
         "mousemove",
         |event: web_sys::MouseEvent, runner| {
             let modifiers = modifiers_from_mouse_event(&event);
