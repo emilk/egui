@@ -397,9 +397,10 @@ impl<'open> Window<'open> {
             open,
             area,
             frame,
-            resize,
+            mut resize,
             scroll,
             collapsible,
+            closebutton,
             default_open,
             with_title_bar,
         } = self;
@@ -445,6 +446,7 @@ impl<'open> Window<'open> {
         let margins = window_frame.outer_margin.sum()
             + window_frame.inner_margin.sum()
             + vec2(0.0, title_bar_height);
+        resize.margins = margins;
 
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
@@ -470,7 +472,7 @@ impl<'open> Window<'open> {
         resize_response(
             resize_interaction,
             ctx,
-            margins,
+            resize,
             area_layer_id,
             &mut prepared_area,
             resize_id,
@@ -483,7 +485,7 @@ impl<'open> Window<'open> {
             let frame_stroke = window_frame.stroke;
             let mut frame = window_frame.begin(&mut area_content_ui);
 
-            let show_close_button = open.is_some();
+            let show_close_button = open.is_some() && closebutton;
 
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
@@ -496,9 +498,9 @@ impl<'open> Window<'open> {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
-                    show_close_button,
                     &mut collapsing,
                     collapsible,
+                    show_close_button,
                 );
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
@@ -558,9 +560,14 @@ impl<'open> Window<'open> {
                         round.sw = 0.0;
                     }
 
+                    let outer_stroke = ctx.style().visuals.widgets.noninteractive.fg_stroke;
                     area_content_ui.painter().set(
                         *where_to_put_header_background,
-                        RectShape::filled(title_rect, round, header_color),
+                        RectShape::filled(
+                            title_rect.shrink(outer_stroke.width),
+                            round,
+                            header_color,
+                        ),
                     );
                 };
 
@@ -575,7 +582,6 @@ impl<'open> Window<'open> {
                     &content_response,
                     open,
                     &mut collapsing,
-                    collapsible,
                 );
             }
 
@@ -739,7 +745,7 @@ impl ResizeInteraction {
 fn resize_response(
     resize_interaction: ResizeInteraction,
     ctx: &Context,
-    margins: Vec2,
+    resize: Resize,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
     resize_id: Id,
@@ -758,9 +764,10 @@ fn resize_response(
 
     if resize_interaction.any_dragged() {
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
-            state.requested_size = Some(new_rect.size() - margins);
+            state.requested_size = Some(new_rect.size() - resize.margins);
             state.last_content_size = Vec2::ZERO;
-            state.largest_content_size = new_rect.size() - margins;
+            state.largest_content_size =
+                (new_rect.size()).at_most(resize.max_size) - resize.margins;
             state.store(ctx, resize_id);
         }
     }
