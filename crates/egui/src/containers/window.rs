@@ -484,8 +484,6 @@ impl<'open> Window<'open> {
             let frame_stroke = window_frame.stroke;
             let mut frame = window_frame.begin(&mut area_content_ui);
 
-            let show_close_button = open.is_some();
-
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
             // Backup item spacing before the title bar
@@ -499,7 +497,6 @@ impl<'open> Window<'open> {
                     title,
                     &mut collapsing,
                     collapsible,
-                    show_close_button,
                 );
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
