@@ -41,6 +41,7 @@ pub struct Resize {
 
     pub(crate) min_size: Vec2,
     pub(crate) max_size: Vec2,
+    pub(crate) margins: Vec2,
 
     default_size: Vec2,
 
@@ -55,6 +56,7 @@ impl Default for Resize {
             resizable: Vec2b::TRUE,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
+            margins: Vec2::ZERO,
             default_size: vec2(320.0, 128.0), // TODO(emilk): preferred size of [`Resize`] area.
             with_stroke: true,
         }
@@ -205,8 +207,6 @@ impl Resize {
             ui.make_persistent_id(id_source)
         });
 
-        let margins = ui.spacing().window_margin.sum();
-
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
 
@@ -222,7 +222,7 @@ impl Resize {
             .desired_size
             .at_least(self.min_size)
             .at_most(self.max_size)
-            .at_most(ui.ctx().screen_rect().size() - margins);
+            .at_most(ui.ctx().screen_rect().size() - self.margins);
 
         let mut user_requested_size = state.requested_size.take();
 
