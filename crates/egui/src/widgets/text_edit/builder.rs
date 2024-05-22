@@ -830,7 +830,8 @@ fn events(
 
     if state.ime_enabled {
         ime_enabled_filter_events(&mut events);
-        ime_front_events(&mut events);
+        // Process IME events first:
+        events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
     }
 
     for event in &events {
@@ -1043,15 +1044,6 @@ fn ime_enabled_filter_events(events: &mut Vec<Event>) {
                     ..
                 }
         )
-    });
-}
-
-fn ime_front_events(events: &mut [Event]) {
-    events.sort_by(|a, b| match (a, b) {
-        (Event::Ime(_), Event::Ime(_)) => std::cmp::Ordering::Equal,
-        (Event::Ime(_), _) => std::cmp::Ordering::Less,
-        (_, Event::Ime(_)) => std::cmp::Ordering::Greater,
-        _ => std::cmp::Ordering::Equal,
     });
 }
 
