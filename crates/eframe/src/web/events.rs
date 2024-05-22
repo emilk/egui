@@ -503,36 +503,6 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
             modifiers,
         });
 
-        let scroll_multiplier = match unit {
-            egui::MouseWheelUnit::Page => {
-                canvas_size_in_points(runner.canvas(), runner.egui_ctx()).y
-            }
-            egui::MouseWheelUnit::Line => {
-                #[allow(clippy::let_and_return)]
-                let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.
-                points_per_scroll_line
-            }
-            egui::MouseWheelUnit::Point => 1.0,
-        };
-
-        let mut delta = scroll_multiplier * delta;
-
-        // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
-        // This if-statement is equivalent to how `Modifiers.command` is determined in
-        // `modifiers_from_kb_event()`, but we cannot directly use that fn for a [`WheelEvent`].
-        if event.ctrl_key() || event.meta_key() {
-            let factor = (delta.y / 200.0).exp();
-            runner.input.raw.events.push(egui::Event::Zoom(factor));
-        } else {
-            if event.shift_key() {
-                // Treat as horizontal scrolling.
-                // Note: one Mac we already get horizontal scroll events when shift is down.
-                delta = egui::vec2(delta.x + delta.y, 0.0);
-            }
-
-            runner.input.raw.events.push(egui::Event::Scroll(delta));
-        }
-
         runner.needs_repaint.repaint_asap();
         event.stop_propagation();
         event.prevent_default();

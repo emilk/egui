@@ -216,8 +216,37 @@ impl InputState {
                         keys_down.remove(key);
                     }
                 }
-                Event::Scroll(delta) => {
-                    raw_scroll_delta += *delta;
+                Event::MouseWheel {
+                    unit,
+                    delta,
+                    modifiers,
+                } => {
+                    let delta = match unit {
+                        MouseWheelUnit::Point => *delta,
+                        MouseWheelUnit::Line => {
+                            // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
+                            let is_web = cfg!(target_arch = "wasm32");
+                            let points_per_scroll_line = if is_web {
+                                8.0
+                            } else {
+                                50.0 // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+                            };
+
+                            points_per_scroll_line * *delta
+                        }
+                        MouseWheelUnit::Page => screen_rect.height() * *delta,
+                    };
+                    if modifiers.ctrl || modifiers.command {
+                        // Treat as zoom instead:
+                        let factor = (delta.y / 200.0).exp();
+                        zoom_factor_delta *= factor;
+                    } else if modifiers.shift {
+                        // Treat as horizontal scrolling.
+                        // Note: one Mac we already get horizontal scroll events when shift is down.
+                        raw_scroll_delta.x += delta.x + delta.y;
+                    } else {
+                        raw_scroll_delta += delta;
+                    }
                 }
                 Event::Zoom(factor) => {
                     zoom_factor_delta *= *factor;
