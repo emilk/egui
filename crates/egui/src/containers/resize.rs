@@ -369,8 +369,6 @@ impl Resize {
     }
 }
 
-use epaint::Stroke;
-
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
     paint_resize_corner_with_style(ui, &response.rect, stroke.color, Align2::RIGHT_BOTTOM);
