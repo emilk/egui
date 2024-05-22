@@ -562,11 +562,7 @@ impl<'open> Window<'open> {
                     let outer_stroke = ctx.style().visuals.widgets.noninteractive.fg_stroke;
                     area_content_ui.painter().set(
                         *where_to_put_header_background,
-                        RectShape::filled(
-                            title_rect.shrink(outer_stroke.width),
-                            round,
-                            header_color,
-                        ),
+                        RectShape::filled(title_rect, round, header_color),
                     );
                 };
 
