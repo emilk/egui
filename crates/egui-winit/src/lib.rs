@@ -694,29 +694,6 @@ impl State {
                 modifiers,
             });
         }
-        let delta = match delta {
-            winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
-                egui::vec2(x, y) * points_per_scroll_line
-            }
-            winit::event::MouseScrollDelta::PixelDelta(delta) => {
-                egui::vec2(delta.x as f32, delta.y as f32) / pixels_per_point
-            }
-        };
-
-        if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
-            // Treat as zoom instead:
-            let factor = (delta.y / 200.0).exp();
-            self.egui_input.events.push(egui::Event::Zoom(factor));
-        } else if self.egui_input.modifiers.shift {
-            // Treat as horizontal scrolling.
-            // Note: one Mac we already get horizontal scroll events when shift is down.
-            self.egui_input
-                .events
-                .push(egui::Event::Scroll(egui::vec2(delta.x + delta.y, 0.0)));
-        } else {
-            self.egui_input.events.push(egui::Event::Scroll(delta));
-        }
     }
 
     fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) {
