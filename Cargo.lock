@@ -417,7 +417,7 @@ dependencies = [
 [[package]]
 name = "async-winit"
 version = "0.2.1"
-source = "git+https://github.com/uglyoldbob/async-winit.git#13f2e18b1e738f4a9eb265a59bd41c7f6b19a47d"
+source = "git+https://github.com/uglyoldbob/async-winit.git#a2958a8bd0ef5c1c1092ca56442f1704ae8a49d1"
 dependencies = [
  "cfg-if",
  "cfg_aliases",
@@ -426,6 +426,7 @@ dependencies = [
  "parking",
  "pin-project-lite",
  "raw-window-handle 0.5.2",
+ "raw-window-handle 0.6.2",
  "slab",
  "unsend",
  "winit",
@@ -979,9 +980,9 @@ dependencies = [
 
 [[package]]
 name = "crc32fast"
-version = "1.4.1"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58ebf8d6963185c7625d2c3c3962d99eb8936637b1427536d21dc36ae402ebad"
+checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
 ]
@@ -1290,6 +1291,7 @@ dependencies = [
  "egui",
  "log",
  "puffin",
+ "raw-window-handle 0.5.2",
  "raw-window-handle 0.6.2",
  "serde",
  "smithay-clipboard",

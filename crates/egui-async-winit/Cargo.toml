@@ -63,6 +63,10 @@ log.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
 async-winit = { workspace = true, default-features = false }
+# glutin stuck on old version of raw-window-handle:
+rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
+  "std",
+] }
 
 #! ### Optional dependencies
 
@@ -81,3 +85,4 @@ smithay-clipboard = { version = "0.7.0", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3.3", optional = true, default-features = false }
+

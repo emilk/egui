@@ -42,6 +42,8 @@ links = ["egui-async-winit?/links"]
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-async-winit?/puffin", "egui/puffin"]
 
+rwh_05 = [ "async-winit/rwh_05" ]
+
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["egui-async-winit", "dep:async-winit"]
 
@@ -90,5 +92,5 @@ name = "pure_glow"
 required-features = [
   "winit",
   "egui/default_fonts",
-  "winit/rwh_05",       # glutin stuck on old version of raw-window-handle
+  "async-winit/rwh_05",       # glutin stuck on old version of raw-window-handle
 ]
