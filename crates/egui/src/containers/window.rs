@@ -406,7 +406,7 @@ impl<'open> Window<'open> {
             open,
             area,
             frame,
-            resize,
+            mut resize,
             scroll,
             collapsible,
             closebutton,
@@ -455,6 +455,7 @@ impl<'open> Window<'open> {
         let margins = window_frame.outer_margin.sum()
             + window_frame.inner_margin.sum()
             + vec2(0.0, title_bar_height);
+        resize.margins = margins;
 
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
@@ -480,7 +481,7 @@ impl<'open> Window<'open> {
         resize_response(
             resize_interaction,
             ctx,
-            margins,
+            resize,
             area_layer_id,
             &mut prepared_area,
             resize_id,
@@ -753,7 +754,7 @@ impl ResizeInteraction {
 fn resize_response(
     resize_interaction: ResizeInteraction,
     ctx: &Context,
-    margins: Vec2,
+    resize: Resize,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
     resize_id: Id,
@@ -772,9 +773,10 @@ fn resize_response(
 
     if resize_interaction.any_dragged() {
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
-            state.requested_size = Some(new_rect.size() - margins);
+            state.requested_size = Some(new_rect.size() - resize.margins);
             state.last_content_size = Vec2::ZERO;
-            state.largest_content_size = new_rect.size() - margins;
+            state.largest_content_size =
+                (new_rect.size()).at_most(resize.max_size) - resize.margins;
             state.store(ctx, resize_id);
         }
     }
