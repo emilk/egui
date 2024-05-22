@@ -31,6 +31,7 @@ pub(crate) use profiling_scopes::*;
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
+    event::ElementState,
     event_loop::EventLoopWindowTarget,
     window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
 };
@@ -368,16 +369,31 @@ impl State {
                     consumed: self.egui_ctx.wants_keyboard_input(),
                 }
             }
-            WindowEvent::KeyboardInput { event, .. } => {
-                self.on_keyboard_input(event);
+            WindowEvent::KeyboardInput {
+                event,
+                is_synthetic,
+                ..
+            } => {
+                // Winit generates fake "synthetic" KeyboardInput events when the focus
+                // is changed to the window, or away from it. Synthetic key presses
+                // represent no real key presses and should be ignored.
+                // See https://github.com/rust-windowing/winit/issues/3543
+                if *is_synthetic && event.state == ElementState::Pressed {
+                    EventResponse {
+                        repaint: true,
+                        consumed: false,
+                    }
+                } else {
+                    self.on_keyboard_input(event);
 
-                // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                let consumed = self.egui_ctx.wants_keyboard_input()
-                    || event.logical_key
-                        == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
-                EventResponse {
-                    repaint: true,
-                    consumed,
+                    // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
+                    let consumed = self.egui_ctx.wants_keyboard_input()
+                        || event.logical_key
+                            == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
+                    EventResponse {
+                        repaint: true,
+                        consumed,
+                    }
                 }
             }
             WindowEvent::Focused(focused) => {

@@ -842,10 +842,8 @@ impl PointerState {
                 }
                 Event::PointerGone => {
                     self.latest_pos = None;
-                    self.pointer_events.push(PointerEvent::Released {
-                        click: None,
-                        button: PointerButton::Primary,
-                    });
+                    // When dragging a slider and the mouse leaves the viewport, we still want the drag to work,
+                    // so we don't treat this as a `PointerEvent::Released`.
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
                 }
                 Event::MouseMoved(delta) => *self.motion.get_or_insert(Vec2::ZERO) += *delta,
