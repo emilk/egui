@@ -574,6 +574,7 @@ impl<'open> Window<'open> {
                     &content_response,
                     open,
                     &mut collapsing,
+                    collapsible,
                 );
             }
 
