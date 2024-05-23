@@ -203,7 +203,7 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_frame(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.clone().begin_frame(time, &new);
+        let pointer = self.pointer.begin_frame(time, &new);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
@@ -299,7 +299,7 @@ impl InputState {
                 }
             }
 
-            {
+            if unprocessed_scroll_delta_for_zoom != 0.0 {
                 // Smooth scroll-to-zoom:
                 if unprocessed_scroll_delta_for_zoom.abs() < 1.0 {
                     smooth_scroll_delta_for_zoom += unprocessed_scroll_delta_for_zoom;
@@ -343,31 +343,30 @@ impl InputState {
             return;
         }
 
-        // Mouse wheels often go very large steps.
-        // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
-        // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
         if !is_begin_frame && is_contains_pointer {
             self.unprocessed_scroll_delta += self.raw_scroll_delta;
             self.raw_scroll_delta = Vec2::ZERO;
         }
 
-        let dt = self.stable_dt.at_most(0.1);
-        let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
+        if self.unprocessed_scroll_delta != Vec2::ZERO {
+            let dt = self.stable_dt.at_most(0.1);
+            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt);
 
-        for d in 0..2 {
-            if self.unprocessed_scroll_delta[d].abs() < 1.0 {
-                self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
-                self.unprocessed_scroll_delta[d] = 0.0;
-            } else {
-                let smooth_delta = t * self.unprocessed_scroll_delta[d];
-                let direct_delta = self.unprocessed_scroll_delta[d];
-                // Smooth: smooth_delta > 0.0, Direct: smooth_delta < 0.0
-                let delta = match smooth_delta < 0.0 {
-                    true => smooth_delta.min(direct_delta),
-                    false => smooth_delta.max(direct_delta),
-                };
-                self.smooth_scroll_delta[d] += delta;
-                self.unprocessed_scroll_delta[d] -= delta;
+            for d in 0..2 {
+                if self.unprocessed_scroll_delta[d].abs() < 1.0 {
+                    self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
+                    self.unprocessed_scroll_delta[d] = 0.0;
+                } else {
+                    let smooth_delta = t * self.unprocessed_scroll_delta[d];
+                    let direct_delta = self.unprocessed_scroll_delta[d];
+                    // Smooth: smooth_delta > 0.0, Direct: smooth_delta < 0.0
+                    let applied = match smooth_delta < 0.0 {
+                        true => smooth_delta.min(direct_delta),
+                        false => smooth_delta.max(direct_delta),
+                    };
+                    self.smooth_scroll_delta[d] += applied;
+                    self.unprocessed_scroll_delta[d] -= applied;
+                }
             }
         }
     }
