@@ -351,20 +351,22 @@ impl InputState {
         let dt = self.stable_dt.at_most(0.1);
         let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt);
 
-        for d in 0..2 {
-            if self.unprocessed_scroll_delta[d].abs() < 1.0 {
-                self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
-                self.unprocessed_scroll_delta[d] = 0.0;
-            } else {
-                let smooth_delta = t * self.unprocessed_scroll_delta[d];
-                let direct_delta = self.unprocessed_scroll_delta[d];
-                // Smooth: smooth_delta > 0.0, Direct: smooth_delta < 0.0
-                let delta = match smooth_delta > 0.0 {
-                    true => smooth_delta.min(direct_delta),
-                    false => smooth_delta.max(direct_delta),
-                };
-                self.smooth_scroll_delta[d] += delta;
-                self.unprocessed_scroll_delta[d] -= delta;
+        if self.unprocessed_scroll_delta != Vec2::ZERO {
+            for d in 0..2 {
+                if self.unprocessed_scroll_delta[d].abs() < 1.0 {
+                    self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
+                    self.unprocessed_scroll_delta[d] = 0.0;
+                } else {
+                    let smooth_delta = t * self.unprocessed_scroll_delta[d];
+                    let direct_delta = self.unprocessed_scroll_delta[d];
+                    // Smooth: smooth_delta > 0.0, Direct: smooth_delta < 0.0
+                    let applied = match smooth_delta < 0.0 {
+                        true => smooth_delta.min(direct_delta),
+                        false => smooth_delta.max(direct_delta),
+                    };
+                    self.smooth_scroll_delta[d] += applied;
+                    self.unprocessed_scroll_delta[d] -= applied;
+                }
             }
         }
     }
