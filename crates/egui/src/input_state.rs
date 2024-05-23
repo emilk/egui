@@ -351,7 +351,7 @@ impl InputState {
         if self.unprocessed_scroll_delta != Vec2::ZERO {
             let dt = self.stable_dt.at_most(0.1);
             let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt);
-    
+
             for d in 0..2 {
                 if self.unprocessed_scroll_delta[d].abs() < 1.0 {
                     self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
