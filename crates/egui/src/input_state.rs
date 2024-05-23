@@ -199,8 +199,11 @@ impl InputState {
         let pointer = self.pointer.begin_frame(time, &new);
 
         let mut keys_down = self.keys_down;
+        let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut raw_scroll_delta = Vec2::ZERO;
-        let mut zoom_factor_delta = 1.0;
+        let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
+        let mut smooth_scroll_delta = Vec2::ZERO;
+
         for event in &mut new.events {
             match event {
                 Event::Key {
@@ -221,7 +224,7 @@ impl InputState {
                     delta,
                     modifiers,
                 } => {
-                    let delta = match unit {
+                    let mut delta = match unit {
                         MouseWheelUnit::Point => *delta,
                         MouseWheelUnit::Line => {
                             // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
@@ -236,16 +239,35 @@ impl InputState {
                         }
                         MouseWheelUnit::Page => screen_rect.height() * *delta,
                     };
+
                     if modifiers.ctrl || modifiers.command {
                         // Treat as zoom instead:
                         let factor = (delta.y / 200.0).exp();
                         zoom_factor_delta *= factor;
-                    } else if modifiers.shift {
-                        // Treat as horizontal scrolling.
-                        // Note: one Mac we already get horizontal scroll events when shift is down.
-                        raw_scroll_delta.x += delta.x + delta.y;
                     } else {
+                        if modifiers.shift {
+                            // Treat as horizontal scrolling.
+                            // Note: one Mac we already get horizontal scroll events when shift is down.
+                            delta = vec2(delta.x + delta.y, 0.0);
+                        }
+
                         raw_scroll_delta += delta;
+
+                        // Mouse wheels often go very large steps.
+                        // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
+                        // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
+                        // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
+                        // because it adds latency.
+                        let is_smooth = match unit {
+                            MouseWheelUnit::Point => delta.length() < 5.0, // a bit arbitrary here
+                            MouseWheelUnit::Line | MouseWheelUnit::Page => false,
+                        };
+
+                        if is_smooth {
+                            smooth_scroll_delta += delta;
+                        } else {
+                            unprocessed_scroll_delta += delta;
+                        }
                     }
                 }
                 Event::Zoom(factor) => {
@@ -255,25 +277,18 @@ impl InputState {
             }
         }
 
-        let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
-
-        let mut smooth_scroll_delta = Vec2::ZERO;
-
         {
-            // Mouse wheels often go very large steps.
-            // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
-            // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
-            unprocessed_scroll_delta += raw_scroll_delta;
             let dt = stable_dt.at_most(0.1);
             let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
             for d in 0..2 {
                 if unprocessed_scroll_delta[d].abs() < 1.0 {
-                    smooth_scroll_delta[d] = unprocessed_scroll_delta[d];
+                    smooth_scroll_delta[d] += unprocessed_scroll_delta[d];
                     unprocessed_scroll_delta[d] = 0.0;
                 } else {
-                    smooth_scroll_delta[d] = t * unprocessed_scroll_delta[d];
-                    unprocessed_scroll_delta[d] -= smooth_scroll_delta[d];
+                    let applied = t * unprocessed_scroll_delta[d];
+                    smooth_scroll_delta[d] += applied;
+                    unprocessed_scroll_delta[d] -= applied;
                 }
             }
         }
