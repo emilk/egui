@@ -203,7 +203,7 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_frame(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.clone().begin_frame(time, &new);
+        let pointer = self.pointer.begin_frame(time, &new);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
