@@ -183,6 +183,7 @@ impl InputState {
         mut new: RawInput,
         requested_immediate_repaint_prev_frame: bool,
         pixels_per_point: f32,
+        options: &crate::Options,
     ) -> Self {
         crate::profile_function!();
 
@@ -235,17 +236,7 @@ impl InputState {
                 } => {
                     let mut delta = match unit {
                         MouseWheelUnit::Point => *delta,
-                        MouseWheelUnit::Line => {
-                            // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
-                            let is_web = cfg!(target_arch = "wasm32");
-                            let points_per_scroll_line = if is_web {
-                                8.0
-                            } else {
-                                50.0 // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
-                            };
-
-                            points_per_scroll_line * *delta
-                        }
+                        MouseWheelUnit::Line => options.line_scroll_speed * *delta,
                         MouseWheelUnit::Page => screen_rect.height() * *delta,
                     };
 
@@ -319,7 +310,8 @@ impl InputState {
                     unprocessed_scroll_delta_for_zoom -= applied;
                 }
 
-                zoom_factor_delta *= (smooth_scroll_delta_for_zoom / 200.0).exp();
+                zoom_factor_delta *=
+                    (options.scroll_zoom_speed * smooth_scroll_delta_for_zoom).exp();
             }
         }
 

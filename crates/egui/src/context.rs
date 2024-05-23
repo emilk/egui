@@ -442,6 +442,7 @@ impl ContextImpl {
             new_raw_input,
             viewport.repaint.requested_immediate_repaint_prev_frame(),
             pixels_per_point,
+            &self.memory.options,
         );
 
         let screen_rect = viewport.input.screen_rect;
