@@ -284,6 +284,8 @@ pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Resul
 
 pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let canvas = runner_ref.try_lock().unwrap().canvas().clone();
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
 
     {
         let prevent_default_events = [
@@ -333,8 +335,11 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
+    // NOTE: we register "mousemove" on `document` instead of just the canvas
+    // in order to track a dragged mouse outside the canvas.
+    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(
-        &canvas,
+        &document,
         "mousemove",
         |event: web_sys::MouseEvent, runner| {
             let modifiers = modifiers_from_mouse_event(&event);
@@ -347,31 +352,37 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
-    runner_ref.add_event_listener(&canvas, "mouseup", |event: web_sys::MouseEvent, runner| {
-        let modifiers = modifiers_from_mouse_event(&event);
-        runner.input.raw.modifiers = modifiers;
-        if let Some(button) = button_from_mouse_event(&event) {
-            let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
-            let modifiers = runner.input.raw.modifiers;
-            runner.input.raw.events.push(egui::Event::PointerButton {
-                pos,
-                button,
-                pressed: false,
-                modifiers,
-            });
+    // Use `document` here to notice if the user releases a drag outside of the canvas.
+    // See https://github.com/emilk/egui/issues/3157
+    runner_ref.add_event_listener(
+        &document,
+        "mouseup",
+        |event: web_sys::MouseEvent, runner| {
+            let modifiers = modifiers_from_mouse_event(&event);
+            runner.input.raw.modifiers = modifiers;
+            if let Some(button) = button_from_mouse_event(&event) {
+                let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
+                let modifiers = runner.input.raw.modifiers;
+                runner.input.raw.events.push(egui::Event::PointerButton {
+                    pos,
+                    button,
+                    pressed: false,
+                    modifiers,
+                });
 
-            // In Safari we are only allowed to write to the clipboard during the
-            // event callback, which is why we run the app logic here and now:
-            runner.logic();
+                // In Safari we are only allowed to write to the clipboard during the
+                // event callback, which is why we run the app logic here and now:
+                runner.logic();
 
-            // Make sure we paint the output of the above logic call asap:
-            runner.needs_repaint.repaint_asap();
+                // Make sure we paint the output of the above logic call asap:
+                runner.needs_repaint.repaint_asap();
 
-            text_agent::update_text_agent(runner);
-        }
-        event.stop_propagation();
-        event.prevent_default();
-    })?;
+                text_agent::update_text_agent(runner);
+            }
+            event.stop_propagation();
+            event.prevent_default();
+        },
+    )?;
 
     runner_ref.add_event_listener(
         &canvas,
@@ -412,8 +423,10 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
+    // Use `document` here to notice if the user drag outside of the canvas.
+    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(
-        &canvas,
+        &document,
         "touchmove",
         |event: web_sys::TouchEvent, runner| {
             let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
@@ -434,28 +447,34 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         },
     )?;
 
-    runner_ref.add_event_listener(&canvas, "touchend", |event: web_sys::TouchEvent, runner| {
-        if let Some(pos) = runner.input.latest_touch_pos {
-            let modifiers = runner.input.raw.modifiers;
-            // First release mouse to click:
-            runner.input.raw.events.push(egui::Event::PointerButton {
-                pos,
-                button: egui::PointerButton::Primary,
-                pressed: false,
-                modifiers,
-            });
-            // Then remove hover effect:
-            runner.input.raw.events.push(egui::Event::PointerGone);
+    // Use `document` here to notice if the user releases a drag outside of the canvas.
+    // See https://github.com/emilk/egui/issues/3157
+    runner_ref.add_event_listener(
+        &document,
+        "touchend",
+        |event: web_sys::TouchEvent, runner| {
+            if let Some(pos) = runner.input.latest_touch_pos {
+                let modifiers = runner.input.raw.modifiers;
+                // First release mouse to click:
+                runner.input.raw.events.push(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers,
+                });
+                // Then remove hover effect:
+                runner.input.raw.events.push(egui::Event::PointerGone);
 
-            push_touches(runner, egui::TouchPhase::End, &event);
-            runner.needs_repaint.repaint_asap();
-            event.stop_propagation();
-            event.prevent_default();
-        }
+                push_touches(runner, egui::TouchPhase::End, &event);
+                runner.needs_repaint.repaint_asap();
+                event.stop_propagation();
+                event.prevent_default();
+            }
 
-        // Finally, focus or blur text agent to toggle mobile keyboard:
-        text_agent::update_text_agent(runner);
-    })?;
+            // Finally, focus or blur text agent to toggle mobile keyboard:
+            text_agent::update_text_agent(runner);
+        },
+    )?;
 
     runner_ref.add_event_listener(
         &canvas,
@@ -483,36 +502,6 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
             delta,
             modifiers,
         });
-
-        let scroll_multiplier = match unit {
-            egui::MouseWheelUnit::Page => {
-                canvas_size_in_points(runner.canvas(), runner.egui_ctx()).y
-            }
-            egui::MouseWheelUnit::Line => {
-                #[allow(clippy::let_and_return)]
-                let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.
-                points_per_scroll_line
-            }
-            egui::MouseWheelUnit::Point => 1.0,
-        };
-
-        let mut delta = scroll_multiplier * delta;
-
-        // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
-        // This if-statement is equivalent to how `Modifiers.command` is determined in
-        // `modifiers_from_kb_event()`, but we cannot directly use that fn for a [`WheelEvent`].
-        if event.ctrl_key() || event.meta_key() {
-            let factor = (delta.y / 200.0).exp();
-            runner.input.raw.events.push(egui::Event::Zoom(factor));
-        } else {
-            if event.shift_key() {
-                // Treat as horizontal scrolling.
-                // Note: one Mac we already get horizontal scroll events when shift is down.
-                delta = egui::vec2(delta.x + delta.y, 0.0);
-            }
-
-            runner.input.raw.events.push(egui::Event::Scroll(delta));
-        }
 
         runner.needs_repaint.repaint_asap();
         event.stop_propagation();

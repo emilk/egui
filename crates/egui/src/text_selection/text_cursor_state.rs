@@ -46,7 +46,7 @@ impl TextCursorState {
         self.cursor_range.is_none() && self.ccursor_range.is_none()
     }
 
-    /// The the currently selected range of characters.
+    /// The currently selected range of characters.
     pub fn char_range(&self) -> Option<CCursorRange> {
         self.ccursor_range.or_else(|| {
             self.cursor_range

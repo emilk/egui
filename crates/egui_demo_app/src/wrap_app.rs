@@ -464,7 +464,7 @@ impl WrapApp {
         // Collect dropped files:
         ctx.input(|i| {
             if !i.raw.dropped_files.is_empty() {
-                self.dropped_files = i.raw.dropped_files.clone();
+                self.dropped_files.clone_from(&i.raw.dropped_files);
             }
         });
 

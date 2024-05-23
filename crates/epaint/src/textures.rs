@@ -49,7 +49,7 @@ impl TextureManager {
     pub fn set(&mut self, id: TextureId, delta: ImageDelta) {
         if let Some(meta) = self.metas.get_mut(&id) {
             if let Some(pos) = delta.pos {
-                crate::epaint_assert!(
+                debug_assert!(
                     pos[0] + delta.image.width() <= meta.size[0]
                         && pos[1] + delta.image.height() <= meta.size[1],
                     "Partial texture update is outside the bounds of texture {id:?}",
@@ -63,7 +63,7 @@ impl TextureManager {
             }
             self.delta.set.push((id, delta));
         } else {
-            crate::epaint_assert!(false, "Tried setting texture {id:?} which is not allocated");
+            debug_assert!(false, "Tried setting texture {id:?} which is not allocated");
         }
     }
 
@@ -77,7 +77,7 @@ impl TextureManager {
                 self.delta.free.push(id);
             }
         } else {
-            crate::epaint_assert!(false, "Tried freeing texture {id:?} which is not allocated");
+            debug_assert!(false, "Tried freeing texture {id:?} which is not allocated");
         }
     }
 
@@ -88,7 +88,7 @@ impl TextureManager {
         if let Some(meta) = self.metas.get_mut(&id) {
             meta.retain_count += 1;
         } else {
-            crate::epaint_assert!(
+            debug_assert!(
                 false,
                 "Tried retaining texture {id:?} which is not allocated",
             );

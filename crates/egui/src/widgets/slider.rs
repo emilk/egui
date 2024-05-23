@@ -983,7 +983,7 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             }
         }
     } else {
-        crate::egui_assert!(
+        debug_assert!(
             min.is_finite() && max.is_finite(),
             "You should use a logarithmic range"
         );
@@ -1032,7 +1032,7 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             }
         }
     } else {
-        crate::egui_assert!(
+        debug_assert!(
             min.is_finite() && max.is_finite(),
             "You should use a logarithmic range"
         );
@@ -1080,6 +1080,6 @@ fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
     };
 
     let cutoff = min_magnitude / (min_magnitude + max_magnitude);
-    crate::egui_assert!(0.0 <= cutoff && cutoff <= 1.0);
+    debug_assert!(0.0 <= cutoff && cutoff <= 1.0);
     cutoff
 }

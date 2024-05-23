@@ -141,8 +141,8 @@ impl CubicBezierShape {
 
     /// split the original cubic curve into a new one within a range.
     pub fn split_range(&self, t_range: Range<f32>) -> Self {
-        crate::epaint_assert!(
-            t_range.start >= 0.0 && t_range.end <= 1.0 && t_range.start <= t_range.end,
+        debug_assert!(
+            0.0 <= t_range.start && t_range.end <= 1.0 && t_range.start <= t_range.end,
             "range should be in [0.0,1.0]"
         );
 
@@ -178,7 +178,7 @@ impl CubicBezierShape {
     // https://scholarsarchive.byu.edu/cgi/viewcontent.cgi?article=1000&context=facpub#section.10.6
     // and the error metric from the caffein owl blog post http://caffeineowl.com/graphics/2d/vectorial/cubic2quad01.html
     pub fn num_quadratics(&self, tolerance: f32) -> u32 {
-        crate::epaint_assert!(tolerance > 0.0, "the tolerance should be positive");
+        debug_assert!(tolerance > 0.0, "the tolerance should be positive");
 
         let x =
             self.points[0].x - 3.0 * self.points[1].x + 3.0 * self.points[2].x - self.points[3].x;
@@ -273,7 +273,7 @@ impl CubicBezierShape {
     /// [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves)
     ///
     pub fn sample(&self, t: f32) -> Pos2 {
-        crate::epaint_assert!(
+        debug_assert!(
             t >= 0.0 && t <= 1.0,
             "the sample value should be in [0.0,1.0]"
         );
@@ -496,7 +496,7 @@ impl QuadraticBezierShape {
     /// [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B.C3.A9zier_curves)
     ///
     pub fn sample(&self, t: f32) -> Pos2 {
-        crate::epaint_assert!(
+        debug_assert!(
             t >= 0.0 && t <= 1.0,
             "the sample value should be in [0.0,1.0]"
         );

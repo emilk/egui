@@ -133,14 +133,16 @@ mod rw_lock_impl {
     /// the feature `deadlock_detection` is turned enabled, in which case
     /// extra checks are added to detect deadlocks.
     #[derive(Default)]
-    pub struct RwLock<T>(parking_lot::RwLock<T>);
+    pub struct RwLock<T: ?Sized>(parking_lot::RwLock<T>);
 
     impl<T> RwLock<T> {
         #[inline(always)]
         pub fn new(val: T) -> Self {
             Self(parking_lot::RwLock::new(val))
         }
+    }
 
+    impl<T: ?Sized> RwLock<T> {
         #[inline(always)]
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
             parking_lot::RwLockReadGuard::map(self.0.read(), |v| v)

@@ -54,7 +54,7 @@ impl IconDataExt for IconData {
         image
             .write_to(
                 &mut std::io::Cursor::new(&mut png_bytes),
-                image::ImageOutputFormat::Png,
+                image::ImageFormat::Png,
             )
             .map_err(|err| err.to_string())?;
         Ok(png_bytes)
