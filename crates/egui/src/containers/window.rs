@@ -761,8 +761,6 @@ fn resize_response(
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
             state.requested_size = Some(new_rect.size() - resize.margins);
             state.last_content_size = Vec2::ZERO;
-            state.largest_content_size =
-                (new_rect.size()).at_most(resize.max_size) - resize.margins;
             state.store(ctx, resize_id);
         }
     }
