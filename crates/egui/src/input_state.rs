@@ -42,6 +42,11 @@ pub struct InputState {
     /// Used for smoothing the scroll delta.
     unprocessed_scroll_delta: Vec2,
 
+    /// Used for smoothing the scroll delta when zooming.
+    unprocessed_scroll_delta_for_zoom: f32,
+
+    /// You probably want to use [`Self::smooth_scroll_delta`] instead.
+    ///
     /// The raw input of how many points the user scrolled.
     ///
     /// The delta dictates how the _content_ should move.
@@ -152,6 +157,7 @@ impl Default for InputState {
             pointer: Default::default(),
             touch_states: Default::default(),
             unprocessed_scroll_delta: Vec2::ZERO,
+            unprocessed_scroll_delta_for_zoom: 0.0,
             raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
             zoom_factor_delta: 1.0,
@@ -201,8 +207,11 @@ impl InputState {
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
         let mut raw_scroll_delta = Vec2::ZERO;
+
         let mut unprocessed_scroll_delta = self.unprocessed_scroll_delta;
+        let mut unprocessed_scroll_delta_for_zoom = self.unprocessed_scroll_delta_for_zoom;
         let mut smooth_scroll_delta = Vec2::ZERO;
+        let mut smooth_scroll_delta_for_zoom = 0.0;
 
         for event in &mut new.events {
             match event {
@@ -240,29 +249,34 @@ impl InputState {
                         MouseWheelUnit::Page => screen_rect.height() * *delta,
                     };
 
-                    if modifiers.ctrl || modifiers.command {
-                        // Treat as zoom instead:
-                        let factor = (delta.y / 200.0).exp();
-                        zoom_factor_delta *= factor;
-                    } else {
-                        if modifiers.shift {
-                            // Treat as horizontal scrolling.
-                            // Note: one Mac we already get horizontal scroll events when shift is down.
-                            delta = vec2(delta.x + delta.y, 0.0);
+                    if modifiers.shift {
+                        // Treat as horizontal scrolling.
+                        // Note: one Mac we already get horizontal scroll events when shift is down.
+                        delta = vec2(delta.x + delta.y, 0.0);
+                    }
+
+                    raw_scroll_delta += delta;
+
+                    // Mouse wheels often go very large steps.
+                    // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
+                    // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
+                    // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
+                    // because it adds latency.
+                    let is_smooth = match unit {
+                        MouseWheelUnit::Point => delta.length() < 8.0, // a bit arbitrary here
+                        MouseWheelUnit::Line | MouseWheelUnit::Page => false,
+                    };
+
+                    let is_zoom = modifiers.ctrl || modifiers.mac_cmd || modifiers.command;
+
+                    #[allow(clippy::collapsible_else_if)]
+                    if is_zoom {
+                        if is_smooth {
+                            smooth_scroll_delta_for_zoom += delta.y;
+                        } else {
+                            unprocessed_scroll_delta_for_zoom += delta.y;
                         }
-
-                        raw_scroll_delta += delta;
-
-                        // Mouse wheels often go very large steps.
-                        // A single notch on a logitech mouse wheel connected to a Macbook returns 14.0 raw_scroll_delta.
-                        // So we smooth it out over several frames for a nicer user experience when scrolling in egui.
-                        // BUT: if the user is using a nice smooth mac trackpad, we don't add smoothing,
-                        // because it adds latency.
-                        let is_smooth = match unit {
-                            MouseWheelUnit::Point => delta.length() < 5.0, // a bit arbitrary here
-                            MouseWheelUnit::Line | MouseWheelUnit::Page => false,
-                        };
-
+                    } else {
                         if is_smooth {
                             smooth_scroll_delta += delta;
                         } else {
@@ -281,15 +295,31 @@ impl InputState {
             let dt = stable_dt.at_most(0.1);
             let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
-            for d in 0..2 {
-                if unprocessed_scroll_delta[d].abs() < 1.0 {
-                    smooth_scroll_delta[d] += unprocessed_scroll_delta[d];
-                    unprocessed_scroll_delta[d] = 0.0;
-                } else {
-                    let applied = t * unprocessed_scroll_delta[d];
-                    smooth_scroll_delta[d] += applied;
-                    unprocessed_scroll_delta[d] -= applied;
+            if unprocessed_scroll_delta != Vec2::ZERO {
+                for d in 0..2 {
+                    if unprocessed_scroll_delta[d].abs() < 1.0 {
+                        smooth_scroll_delta[d] += unprocessed_scroll_delta[d];
+                        unprocessed_scroll_delta[d] = 0.0;
+                    } else {
+                        let applied = t * unprocessed_scroll_delta[d];
+                        smooth_scroll_delta[d] += applied;
+                        unprocessed_scroll_delta[d] -= applied;
+                    }
                 }
+            }
+
+            {
+                // Smooth scroll-to-zoom:
+                if unprocessed_scroll_delta_for_zoom.abs() < 1.0 {
+                    smooth_scroll_delta_for_zoom += unprocessed_scroll_delta_for_zoom;
+                    unprocessed_scroll_delta_for_zoom = 0.0;
+                } else {
+                    let applied = t * unprocessed_scroll_delta_for_zoom;
+                    smooth_scroll_delta_for_zoom += applied;
+                    unprocessed_scroll_delta_for_zoom -= applied;
+                }
+
+                zoom_factor_delta *= (smooth_scroll_delta_for_zoom / 200.0).exp();
             }
         }
 
@@ -297,6 +327,7 @@ impl InputState {
             pointer,
             touch_states: self.touch_states,
             unprocessed_scroll_delta,
+            unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
             smooth_scroll_delta,
             zoom_factor_delta,
@@ -369,6 +400,7 @@ impl InputState {
     pub fn wants_repaint(&self) -> bool {
         self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
+            || self.unprocessed_scroll_delta_for_zoom.abs() > 0.2
             || !self.events.is_empty()
 
         // We need to wake up and check for press-and-hold for the context menu.
@@ -1157,6 +1189,7 @@ impl InputState {
             touch_states,
 
             unprocessed_scroll_delta,
+            unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
             smooth_scroll_delta,
 
@@ -1197,6 +1230,9 @@ impl InputState {
         if cfg!(debug_assertions) {
             ui.label(format!(
                 "unprocessed_scroll_delta: {unprocessed_scroll_delta:?} points"
+            ));
+            ui.label(format!(
+                "unprocessed_scroll_delta_for_zoom: {unprocessed_scroll_delta_for_zoom:?} points"
             ));
         }
         ui.label(format!("raw_scroll_delta: {raw_scroll_delta:?} points"));
