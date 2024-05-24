@@ -595,13 +595,13 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
 pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new({
         let runner_ref = runner_ref.clone();
-        move |_: js_sys::JsValue| {
+        move |_: js_sys::Array| {
             // Only call the wrapped closure if the egui code has not panicked
             if let Some(mut runner_lock) = runner_ref.try_lock() {
                 runner_lock.needs_repaint.repaint_asap();
             }
         }
-    }) as Box<dyn FnMut(js_sys::JsValue)>);
+    }) as Box<dyn FnMut(js_sys::Array)>);
 
     let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
     let mut options = web_sys::ResizeObserverOptions::new();
