@@ -184,7 +184,7 @@ impl AppRunner {
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
-        super::resize_canvas_to_screen_size(self.canvas(), self.web_options.max_size_points);
+        // super::resize_canvas_to_screen_size(self.canvas(), self.web_options.max_size_points);
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let raw_input = self.input.new_frame(canvas_size);
 

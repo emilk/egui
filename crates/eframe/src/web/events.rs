@@ -2,20 +2,7 @@ use super::*;
 
 // ------------------------------------------------------------------------
 
-/// Calls `request_animation_frame` to schedule repaint.
-///
-/// It will only paint if needed, but will always call `request_animation_frame` immediately.
-pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    // Only paint and schedule if there has been no panic
-    if let Some(mut runner_lock) = runner_ref.try_lock() {
-        paint_if_needed(&mut runner_lock);
-        drop(runner_lock);
-        runner_ref.request_animation_frame()?;
-    }
-    Ok(())
-}
-
-fn paint_if_needed(runner: &mut AppRunner) {
+pub(crate) fn paint_if_needed(runner: &mut AppRunner) {
     if runner.needs_repaint.needs_repaint() {
         if runner.has_outstanding_paint_data() {
             // We have already run the logic, e.g. in an on-click event,
@@ -595,10 +582,18 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
 pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new({
         let runner_ref = runner_ref.clone();
-        move |_: js_sys::Array| {
+        move |entries: js_sys::Array| {
             // Only call the wrapped closure if the egui code has not panicked
             if let Some(mut runner_lock) = runner_ref.try_lock() {
                 runner_lock.needs_repaint.repaint_asap();
+                let canvas = runner_lock.canvas();
+                let (width, height) = get_display_size(entries).unwrap();
+                canvas.set_width(width);
+                canvas.set_height(height);
+
+                // force an immediate repaint
+                runner_lock.needs_repaint.repaint_asap();
+                paint_if_needed(&mut runner_lock);
             }
         }
     }) as Box<dyn FnMut(js_sys::Array)>);
@@ -606,14 +601,46 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
     let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
     let mut options = web_sys::ResizeObserverOptions::new();
     options.box_(web_sys::ResizeObserverBoxOptions::ContentBox);
-    let parent_element = runner_ref
-        .try_lock()
-        .unwrap()
-        .canvas()
-        .parent_element()
-        .unwrap();
-    observer.observe_with_options(&parent_element, &options);
+    observer.observe_with_options(runner_ref.try_lock().unwrap().canvas(), &options);
     runner_ref.set_resize_observer(observer, closure);
 
     Ok(())
+}
+
+fn get_display_size(resize_observer_entries: js_sys::Array) -> Result<(u32, u32), JsValue> {
+    let width;
+    let height;
+    let mut dpr = web_sys::window().unwrap().device_pixel_ratio();
+
+    let entry: web_sys::ResizeObserverEntry = resize_observer_entries.at(0).dyn_into()?;
+    if JsValue::from_str("devicePixelContentBoxSize").js_in(entry.as_ref()) {
+        // NOTE: Only this path gives the correct answer for most browsers.
+        // Unfortunately this doesn't work perfectly everywhere.
+        let size: web_sys::ResizeObserverSize =
+            entry.device_pixel_content_box_size().at(0).dyn_into()?;
+        width = size.inline_size();
+        height = size.block_size();
+        dpr = 1.0; // no need to apply
+    } else if JsValue::from_str("contentBoxSize").js_in(entry.as_ref()) {
+        let content_box_size = entry.content_box_size();
+        let idx0 = content_box_size.at(0);
+        if !idx0.is_undefined() {
+            let size: web_sys::ResizeObserverSize = idx0.dyn_into()?;
+            width = size.inline_size();
+            height = size.block_size();
+        } else {
+            // legacy
+            let size = JsValue::clone(content_box_size.as_ref());
+            let size: web_sys::ResizeObserverSize = size.dyn_into()?;
+            width = size.inline_size();
+            height = size.block_size();
+        }
+    } else {
+        // legacy
+        let content_rect = entry.content_rect();
+        width = content_rect.width();
+        height = content_rect.height();
+    }
+
+    Ok(((width.round() * dpr) as u32, (height.round() * dpr) as u32))
 }

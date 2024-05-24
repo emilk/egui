@@ -28,8 +28,8 @@ pub struct WebRunner {
     /// the panic handler, since they aren't `Send`.
     events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
 
-    /// Used in `destroy` to cancel a pending frame.
-    request_animation_frame_id: Cell<Option<i32>>,
+    /// Current animation frame in flight.
+    frame: Rc<RefCell<Option<AnimationFrameRequest>>>,
 
     resize_observer: Rc<RefCell<Option<ResizeObserverContext>>>,
 }
@@ -49,7 +49,7 @@ impl WebRunner {
             panic_handler,
             runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
-            request_animation_frame_id: Cell::new(None),
+            frame: Default::default(),
             resize_observer: Default::default(),
         }
     }
@@ -116,7 +116,7 @@ impl WebRunner {
         }
 
         if let Some(context) = self.resize_observer.take() {
-            context.observer.disconnect();
+            context.resize_observer.disconnect();
             drop(context.closure);
         }
     }
@@ -125,9 +125,9 @@ impl WebRunner {
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
 
-        if let Some(id) = self.request_animation_frame_id.get() {
+        if let Some(frame) = self.frame.take() {
             let window = web_sys::window().unwrap();
-            window.cancel_animation_frame(id).ok();
+            window.cancel_animation_frame(frame.id).ok();
         }
 
         if let Some(runner) = self.runner.replace(None) {
@@ -203,32 +203,67 @@ impl WebRunner {
     }
 
     pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
+        if self.frame.borrow().is_some() {
+            // there is already an animation frame in flight
+            return Ok(());
+        }
+
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
             let runner_ref = self.clone();
-            move || events::paint_and_schedule(&runner_ref)
+            move || {
+                // animation frame is running and can't be cancelled anymore
+                let _ = runner_ref.frame.take();
+
+                // if there hasn't been a panic, then paint and schedule.
+                if let Some(mut runner_lock) = runner_ref.try_lock() {
+                    events::paint_if_needed(&mut runner_lock);
+                    drop(runner_lock);
+                    runner_ref.request_animation_frame()?;
+                }
+
+                Ok(())
+            }
         });
+
         let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-        self.request_animation_frame_id.set(Some(id));
-        closure.forget(); // We must forget it, or else the callback is canceled on drop
+        self.frame
+            .borrow_mut()
+            .replace(AnimationFrameRequest { id, closure });
+
         Ok(())
     }
 
     pub(crate) fn set_resize_observer(
         &self,
-        observer: web_sys::ResizeObserver,
+        resize_observer: web_sys::ResizeObserver,
         closure: Closure<dyn FnMut(js_sys::Array)>,
     ) {
         self.resize_observer
             .borrow_mut()
-            .replace(ResizeObserverContext { observer, closure });
+            .replace(ResizeObserverContext {
+                resize_observer,
+                closure,
+            });
     }
 }
 
 // ----------------------------------------------------------------------------
 
+struct AnimationFrameRequest {
+    /// Represents the ID of a frame in flight.
+    ///
+    /// This is only set between a call to `request_animation_frame` and the invocation of its callback,
+    /// which means that repeated calls to `request_animation_frame` will be ignored.
+    id: i32,
+
+    /// The callback given to `request_animation_frame`, stored here both to prevent it
+    /// from being canceled, and from having to `.forget()` it.
+    closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
+}
+
 struct ResizeObserverContext {
-    observer: web_sys::ResizeObserver,
+    resize_observer: web_sys::ResizeObserver,
     closure: Closure<dyn FnMut(js_sys::Array)>,
 }
 
