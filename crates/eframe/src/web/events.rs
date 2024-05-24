@@ -600,7 +600,7 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
             if let Some(mut runner_lock) = runner_ref.try_lock() {
                 runner_lock.needs_repaint.repaint_asap();
                 let canvas = runner_lock.canvas();
-                let (width, height) = get_display_size(entries).unwrap();
+                let (width, height) = get_display_size(&entries).unwrap();
                 canvas.set_width(width);
                 canvas.set_height(height);
 
@@ -622,7 +622,7 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
 
 // Code ported to Rust from:
 // https://webglfundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
-fn get_display_size(resize_observer_entries: js_sys::Array) -> Result<(u32, u32), JsValue> {
+fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32), JsValue> {
     let width;
     let height;
     let mut dpr = web_sys::window().unwrap().device_pixel_ratio();
