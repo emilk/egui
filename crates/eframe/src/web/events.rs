@@ -620,6 +620,8 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
     Ok(())
 }
 
+// Code ported to Rust from:
+// https://webglfundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
 fn get_display_size(resize_observer_entries: js_sys::Array) -> Result<(u32, u32), JsValue> {
     let width;
     let height;
