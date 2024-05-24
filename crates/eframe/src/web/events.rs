@@ -2,7 +2,20 @@ use super::*;
 
 // ------------------------------------------------------------------------
 
-pub(crate) fn paint_if_needed(runner: &mut AppRunner) {
+/// Calls `request_animation_frame` to schedule repaint.
+///
+/// It will only paint if needed, but will always call `request_animation_frame` immediately.
+pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
+    // Only paint and schedule if there has been no panic
+    if let Some(mut runner_lock) = runner_ref.try_lock() {
+        paint_if_needed(&mut runner_lock);
+        drop(runner_lock);
+        runner_ref.request_animation_frame()?;
+    }
+    Ok(())
+}
+
+fn paint_if_needed(runner: &mut AppRunner) {
     if runner.needs_repaint.needs_repaint() {
         if runner.has_outstanding_paint_data() {
             // We have already run the logic, e.g. in an on-click event,

@@ -1,7 +1,4 @@
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
@@ -128,6 +125,7 @@ impl WebRunner {
         if let Some(frame) = self.frame.take() {
             let window = web_sys::window().unwrap();
             window.cancel_animation_frame(frame.id).ok();
+            drop(frame.closure);
         }
 
         if let Some(runner) = self.runner.replace(None) {
@@ -211,19 +209,7 @@ impl WebRunner {
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
             let runner_ref = self.clone();
-            move || {
-                // animation frame is running and can't be cancelled anymore
-                let _ = runner_ref.frame.take();
-
-                // if there hasn't been a panic, then paint and schedule.
-                if let Some(mut runner_lock) = runner_ref.try_lock() {
-                    events::paint_if_needed(&mut runner_lock);
-                    drop(runner_lock);
-                    runner_ref.request_animation_frame()?;
-                }
-
-                Ok(())
-            }
+            move || events::paint_and_schedule(&runner_ref)
         });
 
         let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
