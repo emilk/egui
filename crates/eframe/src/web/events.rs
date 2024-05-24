@@ -606,7 +606,13 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
     let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
     let mut options = web_sys::ResizeObserverOptions::new();
     options.box_(web_sys::ResizeObserverBoxOptions::ContentBox);
-    observer.observe_with_options(runner_ref.try_lock().unwrap().canvas(), &options);
+    let parent_element = runner_ref
+        .try_lock()
+        .unwrap()
+        .canvas()
+        .parent_element()
+        .unwrap();
+    observer.observe_with_options(&parent_element, &options);
     runner_ref.set_resize_observer(observer, closure);
 
     Ok(())
