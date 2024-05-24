@@ -975,10 +975,10 @@ impl<'a> Plot<'a> {
         }
 
         // Reset bounds to initial bounds if they haven't been modified.
-        if mem.auto_bounds.x {
+        if !default_auto_bounds.x || mem.auto_bounds.x {
             bounds.set_x(&min_auto_bounds);
         }
-        if mem.auto_bounds.y {
+        if !default_auto_bounds.y || mem.auto_bounds.y {
             bounds.set_y(&min_auto_bounds);
         }
 
