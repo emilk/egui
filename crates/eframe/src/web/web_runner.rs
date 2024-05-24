@@ -30,6 +30,8 @@ pub struct WebRunner {
 
     /// Used in `destroy` to cancel a pending frame.
     request_animation_frame_id: Cell<Option<i32>>,
+
+    resize_observer: Rc<RefCell<Option<ResizeObserverContext>>>,
 }
 
 impl WebRunner {
@@ -48,6 +50,7 @@ impl WebRunner {
             runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
             request_animation_frame_id: Cell::new(None),
+            resize_observer: Default::default(),
         }
     }
 
@@ -77,6 +80,8 @@ impl WebRunner {
             if follow_system_theme {
                 events::install_color_scheme_change_event(self)?;
             }
+
+            events::install_resize_observer(self)?;
 
             self.request_animation_frame()?;
         }
@@ -108,6 +113,11 @@ impl WebRunner {
                     );
                 }
             }
+        }
+
+        if let Some(context) = self.resize_observer.take() {
+            context.observer.disconnect();
+            drop(context.closure);
         }
     }
 
@@ -203,9 +213,24 @@ impl WebRunner {
         closure.forget(); // We must forget it, or else the callback is canceled on drop
         Ok(())
     }
+
+    pub(crate) fn set_resize_observer(
+        &self,
+        observer: web_sys::ResizeObserver,
+        closure: Closure<dyn FnMut(js_sys::Array)>,
+    ) {
+        self.resize_observer
+            .borrow_mut()
+            .replace(ResizeObserverContext { observer, closure });
+    }
 }
 
 // ----------------------------------------------------------------------------
+
+struct ResizeObserverContext {
+    observer: web_sys::ResizeObserver,
+    closure: Closure<dyn FnMut(js_sys::Array)>,
+}
 
 struct TargetEvent {
     target: web_sys::EventTarget,

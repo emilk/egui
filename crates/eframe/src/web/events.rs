@@ -247,7 +247,8 @@ pub(crate) fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValu
         runner.save();
     })?;
 
-    for event_name in &["load", "pagehide", "pageshow", "resize"] {
+    // NOTE: resize is handled by `ResizeObserver` below
+    for event_name in &["load", "pagehide", "pageshow"] {
         runner_ref.add_event_listener(&window, event_name, move |_: web_sys::Event, runner| {
             // log::debug!("{event_name:?}");
             runner.needs_repaint.repaint_asap();
@@ -587,6 +588,46 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
             }
         }
     })?;
+
+    Ok(())
+}
+
+trait JsValueExt {
+    fn get(&self, key: &str) -> Result<JsValue, JsValue>;
+    fn at(&self, idx: usize) -> Result<JsValue, JsValue>;
+    fn has(&self, key: &str) -> Result<bool, JsValue>;
+}
+
+impl JsValueExt for JsValue {
+    fn get(&self, key: &str) -> Result<JsValue, JsValue> {
+        js_sys::Reflect::get(self, &JsValue::from_str(key))
+    }
+
+    fn at(&self, idx: usize) -> Result<JsValue, JsValue> {
+        js_sys::Reflect::get(self, &JsValue::from_f64(idx as f64))
+    }
+
+    fn has(&self, key: &str) -> Result<bool, JsValue> {
+        js_sys::Reflect::has(self, &JsValue::from_str(key))
+    }
+}
+
+pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
+    let closure = Closure::wrap(Box::new({
+        let runner_ref = runner_ref.clone();
+        move |entries: js_sys::Array| {
+            // Only call the wrapped closure if the egui code has not panicked
+            if let Some(mut runner_lock) = runner_ref.try_lock() {
+                runner_lock.needs_repaint.repaint_asap();
+            }
+        }
+    }) as Box<dyn FnMut(js_sys::Array)>);
+
+    let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
+    let mut options = web_sys::ResizeObserverOptions::new();
+    options.box_(web_sys::ResizeObserverBoxOptions::ContentBox);
+    observer.observe_with_options(runner_ref.try_lock().unwrap().canvas(), &options);
+    runner_ref.set_resize_observer(observer, closure);
 
     Ok(())
 }
