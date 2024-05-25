@@ -78,7 +78,7 @@ pub struct TextEdit<'t> {
     align: Align2,
     clip_text: bool,
     char_limit: usize,
-    return_key: KeyboardShortcut,
+    return_key: Option<KeyboardShortcut>,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -135,7 +135,7 @@ impl<'t> TextEdit<'t> {
             align: Align2::LEFT_TOP,
             clip_text: false,
             char_limit: usize::MAX,
-            return_key: KeyboardShortcut::new(Modifiers::NONE, Key::Enter),
+            return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
         }
     }
 
@@ -353,9 +353,11 @@ impl<'t> TextEdit<'t> {
     ///
     /// This combination will cause a newline on multiline,
     /// whereas on singleline it will cause the widget to lose focus.
+    ///
+    /// This combination is optional and can be disabled by passing [`None`] into this function.
     #[inline]
-    pub fn return_key(mut self, return_key: KeyboardShortcut) -> Self {
-        self.return_key = return_key;
+    pub fn return_key(mut self, return_key: impl Into<Option<KeyboardShortcut>>) -> Self {
+        self.return_key = return_key.into();
         self
     }
 }
@@ -805,7 +807,7 @@ fn events(
     default_cursor_range: CursorRange,
     char_limit: usize,
     event_filter: EventFilter,
-    return_key: KeyboardShortcut,
+    return_key: Option<KeyboardShortcut>,
 ) -> (bool, CursorRange) {
     let os = ui.ctx().os();
 
@@ -892,8 +894,9 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if *key == return_key.logical_key
-                && modifiers.matches_logically(return_key.modifiers) =>
+            } if return_key.is_some_and(|return_key| {
+                *key == return_key.logical_key && modifiers.matches_logically(return_key.modifiers)
+            }) =>
             {
                 if multiline {
                     let mut ccursor = text.delete_selected(&cursor_range);
