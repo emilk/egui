@@ -553,7 +553,7 @@ impl SubMenu {
     }
 }
 
-pub(crate) struct MenuState {
+pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
     sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
 
