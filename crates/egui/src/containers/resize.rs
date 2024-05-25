@@ -10,7 +10,10 @@ pub(crate) struct State {
     pub(crate) desired_size: Vec2,
 
     /// Actual size of content last frame
-    last_content_size: Vec2,
+    pub(crate) last_content_size: Vec2,
+
+    /// Actual size of content largest frame
+    pub(crate) largest_content_size: Vec2,
 
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
@@ -38,8 +41,9 @@ pub struct Resize {
 
     pub(crate) min_size: Vec2,
     pub(crate) max_size: Vec2,
+    pub(crate) margins: Vec2,
 
-    default_size: Vec2,
+    pub(crate) default_size: Vec2,
 
     with_stroke: bool,
 }
@@ -52,6 +56,7 @@ impl Default for Resize {
             resizable: Vec2b::TRUE,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
+            margins: Vec2::ZERO,
             default_size: vec2(320.0, 128.0), // TODO(emilk): preferred size of [`Resize`] area.
             with_stroke: true,
         }
@@ -205,17 +210,10 @@ impl Resize {
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
             ui.ctx().request_repaint(); // counter frame delay
 
-            let default_size = self
-                .default_size
-                .at_least(self.min_size)
-                .at_most(self.max_size)
-                .at_most(
-                    ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
-                );
-
             State {
-                desired_size: default_size,
-                last_content_size: vec2(0.0, 0.0),
+                desired_size: self.default_size,
+                last_content_size: Vec2::ZERO,
+                largest_content_size: Vec2::ZERO,
                 requested_size: None,
             }
         });
@@ -223,7 +221,8 @@ impl Resize {
         state.desired_size = state
             .desired_size
             .at_least(self.min_size)
-            .at_most(self.max_size);
+            .at_most(self.max_size)
+            .at_most(ui.ctx().screen_rect().size() - self.margins);
 
         let mut user_requested_size = state.requested_size.take();
 
@@ -296,7 +295,8 @@ impl Resize {
             content_ui,
         } = prepared;
 
-        state.last_content_size = content_ui.min_size();
+        state.last_content_size = content_ui.min_size().at_least(state.largest_content_size);
+        state.largest_content_size = content_ui.min_size().at_least(state.largest_content_size);
 
         // ------------------------------
 
