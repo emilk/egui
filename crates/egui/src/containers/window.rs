@@ -54,10 +54,7 @@ impl<'open> Window<'open> {
             open: None,
             area,
             frame: None,
-            resize: Resize::default()
-                .with_stroke(false)
-                .min_size([96.0, 32.0])
-                .default_size([340.0, 420.0]), // Default inner size of a window
+            resize: Resize::default().with_stroke(false).min_size([96.0, 32.0]),
             scroll: ScrollArea::neither(),
             collapsible: true,
             default_open: true,
@@ -397,7 +394,7 @@ impl<'open> Window<'open> {
             open,
             area,
             frame,
-            resize,
+            mut resize,
             scroll,
             collapsible,
             default_open,
@@ -430,12 +427,6 @@ impl<'open> Window<'open> {
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
-        let resize = resize.resizable(false); // We resize it manually
-        let mut resize = resize.id(resize_id);
-
-        let on_top = Some(area_layer_id) == ctx.top_layer_id();
-        let mut area = area.begin(ctx);
-
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
@@ -448,35 +439,41 @@ impl<'open> Window<'open> {
             (0.0, 0.0)
         };
 
-        {
-            // Prevent window from becoming larger than the constraint rect and/or screen rect.
-            let screen_rect = ctx.screen_rect();
-            let max_rect = area.constrain_rect().unwrap_or(screen_rect);
-            let max_width = max_rect.width();
-            let max_height = max_rect.height() - title_bar_height;
-            resize.max_size.x = resize.max_size.x.min(max_width);
-            resize.max_size.y = resize.max_size.y.min(max_height);
-        }
-
-        // First check for resize to avoid frame delay:
-        let last_frame_outer_rect = area.state().rect();
-        let resize_interaction =
-            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
-
         let margins = window_frame.outer_margin.sum()
             + window_frame.inner_margin.sum()
             + vec2(0.0, title_bar_height);
+        resize.margins = margins;
+
+        let mut resize = resize.id(resize_id);
+
+        let mut prepared_area = area.begin(ctx);
+        let last_frame_outer_rect = prepared_area.state().rect();
+
+        // Prevent window from becoming larger than the screen rect.
+        {
+            let screen_rect_size = ctx.screen_rect().size() - margins;
+            resize.max_size = resize.max_size.at_most(screen_rect_size);
+        }
+
+        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
+            resize_state.desired_size = last_frame_outer_rect.size() - margins;
+            resize_state.store(ctx, resize_id);
+        }
+
+        // First check for resize to avoid frame delay:
+        let resize_interaction =
+            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
 
         resize_response(
             resize_interaction,
             ctx,
-            margins,
+            resize,
             area_layer_id,
-            &mut area,
+            &mut prepared_area,
             resize_id,
         );
 
-        let mut area_content_ui = area.content_ui(ctx);
+        let mut area_content_ui = prepared_area.content_ui(ctx);
 
         let content_inner = {
             // BEGIN FRAME --------------------------------
@@ -544,6 +541,7 @@ impl<'open> Window<'open> {
                     },
                 );
 
+                let on_top = Some(area_layer_id) == ctx.top_layer_id();
                 title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
 
                 if on_top && area_content_ui.visuals().window_highlight_topmost {
@@ -585,7 +583,7 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        let full_response = area.end(ctx, area_content_ui);
+        let full_response = prepared_area.end(ctx, area_content_ui);
 
         let inner_response = InnerResponse {
             inner: content_inner,
@@ -738,7 +736,7 @@ impl ResizeInteraction {
 fn resize_response(
     resize_interaction: ResizeInteraction,
     ctx: &Context,
-    margins: Vec2,
+    resize: Resize,
     area_layer_id: LayerId,
     area: &mut area::Prepared,
     resize_id: Id,
@@ -757,7 +755,21 @@ fn resize_response(
 
     if resize_interaction.any_dragged() {
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
-            state.requested_size = Some(new_rect.size() - margins);
+            let resizable = resize.is_resizable();
+            let requested_size = (new_rect.size()).at_most(resize.max_size) - resize.margins;
+
+            state.requested_size = Some(requested_size);
+            state.last_content_size = Vec2::ZERO;
+            match resizable {
+                Vec2b { x: false, y: false } => state.largest_content_size = Vec2::ZERO,
+                Vec2b { x: true, y: true } => state.largest_content_size = requested_size,
+                Vec2b { x: true, y: false } => {
+                    state.largest_content_size = vec2(requested_size.x, 0.0)
+                }
+                Vec2b { x: false, y: true } => {
+                    state.largest_content_size = vec2(0.0, requested_size.y)
+                }
+            }
             state.store(ctx, resize_id);
         }
     }
