@@ -301,13 +301,14 @@ impl Resize {
                 // We show how large we are,
                 // so we must follow the contents:
 
-                state.desired_size[d] = state.desired_size[d].max(state.last_content_size[d]);
+                state.desired_size[d] = state.desired_size[d].at_least(state.last_content_size[d]);
 
                 // We are as large as we look
                 size[d] = state.desired_size[d];
             } else {
                 // Probably a window.
-                size[d] = state.last_content_size[d];
+                state.desired_size[d] = state.last_content_size[d];
+                size[d] = state.desired_size[d];
             }
         }
         ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
