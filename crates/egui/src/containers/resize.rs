@@ -42,6 +42,7 @@ pub struct Resize {
     pub(crate) min_size: Vec2,
     pub(crate) max_size: Vec2,
     pub(crate) margins: Vec2,
+    pub(crate) is_manually: bool,
 
     pub(crate) default_size: Vec2,
 
@@ -57,7 +58,8 @@ impl Default for Resize {
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
             margins: Vec2::ZERO,
-            default_size: vec2(320.0, 128.0), // TODO(emilk): preferred size of [`Resize`] area.
+            is_manually: false,
+            default_size: Vec2::splat(16.0), // TODO(emilk): preferred size of [`Resize`] area.
             with_stroke: true,
         }
     }
@@ -226,7 +228,8 @@ impl Resize {
 
         let mut user_requested_size = state.requested_size.take();
 
-        let corner_id = self.resizable.any().then(|| id.with("__resize_corner"));
+        let resizable = self.resizable.any() && !self.is_manually;
+        let corner_id = resizable.then(|| id.with("__resize_corner"));
 
         if let Some(corner_id) = corner_id {
             if let Some(corner_response) = ui.ctx().read_response(corner_id) {
@@ -295,35 +298,40 @@ impl Resize {
             content_ui,
         } = prepared;
 
-        state.last_content_size = content_ui.min_size().at_least(state.largest_content_size);
-        state.largest_content_size = content_ui.min_size().at_least(state.largest_content_size);
+        let content_size = content_ui.min_size();
+        state.last_content_size = content_size.at_least(state.largest_content_size);
+        state.largest_content_size = content_size.at_least(state.largest_content_size);
 
         // ------------------------------
 
         let mut size = state.last_content_size;
         for d in 0..2 {
-            if self.with_stroke || self.resizable[d] {
+            if !self.is_manually && (self.with_stroke || self.resizable[d]) {
                 // We show how large we are,
                 // so we must follow the contents:
 
-                state.desired_size[d] = state.desired_size[d].max(state.last_content_size[d]);
+                state.desired_size[d] = state.desired_size[d].at_least(state.last_content_size[d]);
 
                 // We are as large as we look
                 size[d] = state.desired_size[d];
             } else {
                 // Probably a window.
-                size[d] = state.last_content_size[d];
+                state.desired_size[d] = state.last_content_size[d];
+                size[d] = state.desired_size[d];
             }
         }
         ui.advance_cursor_after_rect(Rect::from_min_size(content_ui.min_rect().min, size));
 
         // ------------------------------
 
+        let item_spacing = ui.spacing().item_spacing;
+
         let corner_response = if let Some(corner_id) = corner_id {
             // We do the corner interaction last to place it on top of the content:
             let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
             let corner_rect = Rect::from_min_size(
-                content_ui.min_rect().left_top() + size - corner_size,
+                // content_ui.min_rect().left_top() + size - corner_size,
+                content_ui.min_rect().min + size + item_spacing - corner_size,
                 corner_size,
             );
             Some(ui.interact(corner_rect, corner_id, Sense::drag()))
