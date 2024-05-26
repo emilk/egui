@@ -55,10 +55,7 @@ impl<'open> Window<'open> {
             open: None,
             area,
             frame: None,
-            resize: Resize::default()
-                .with_stroke(false)
-                .min_size([96.0, 32.0])
-                .default_size([340.0, 420.0]), // Default inner size of a window
+            resize: Resize::default().with_stroke(false).min_size([96.0, 32.0]),
             scroll: ScrollArea::neither(),
             collapsible: true,
             closebutton: true,
@@ -457,11 +454,8 @@ impl<'open> Window<'open> {
             + vec2(0.0, title_bar_height);
         resize.margins = margins;
 
-        let resize = resize.resizable(false); // We resize it manually
+        resize.is_manually = true;
         let mut resize = resize.id(resize_id);
-
-        let mut prepared_area = area.begin(ctx);
-        let last_frame_outer_rect = prepared_area.state().rect();
 
         // Prevent window from becoming larger than the screen rect.
         {
@@ -470,7 +464,29 @@ impl<'open> Window<'open> {
         }
 
         if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
-            resize_state.desired_size = last_frame_outer_rect.size() - margins;
+            let resizable = resize.is_resizable();
+            let scroll_enabled = scroll.scroll_enabled;
+            for d in 0..2 {
+                resize_state.desired_size[d] = match resizable[d] && !scroll_enabled[d] {
+                    true => resize_state.desired_size[d],
+                    false => 0.0,
+                }
+            }
+            resize_state.store(ctx, resize_id);
+        }
+
+        let mut prepared_area = area.begin(ctx);
+        let last_frame_outer_rect = prepared_area.state().rect();
+
+        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
+            let resizable = resize.is_resizable();
+            let scroll_enabled = scroll.scroll_enabled;
+            for d in 0..2 {
+                resize_state.largest_content_size[d] = match resizable[d] && !scroll_enabled[d] {
+                    true => resize_state.largest_content_size[d],
+                    false => 0.0,
+                }
+            }
             resize_state.store(ctx, resize_id);
         }
 
@@ -772,12 +788,12 @@ fn resize_response(
     area.state_mut().set_left_top_pos(new_rect.left_top());
 
     if resize_interaction.any_dragged() {
-        if let Some(mut state) = resize::State::load(ctx, resize_id) {
-            state.requested_size = Some(new_rect.size() - resize.margins);
-            state.last_content_size = Vec2::ZERO;
-            state.largest_content_size =
-                (new_rect.size()).at_most(resize.max_size) - resize.margins;
-            state.store(ctx, resize_id);
+        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
+            let requested_size = (new_rect.size()).at_most(resize.max_size) - resize.margins;
+            resize_state.requested_size = Some(requested_size);
+            resize_state.last_content_size = Vec2::ZERO;
+            resize_state.largest_content_size = requested_size;
+            resize_state.store(ctx, resize_id);
         }
     }
 
