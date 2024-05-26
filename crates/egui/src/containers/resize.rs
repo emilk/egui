@@ -324,14 +324,11 @@ impl Resize {
 
         // ------------------------------
 
-        let item_spacing = ui.spacing().item_spacing;
-
         let corner_response = if let Some(corner_id) = corner_id {
             // We do the corner interaction last to place it on top of the content:
             let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
             let corner_rect = Rect::from_min_size(
-                // content_ui.min_rect().left_top() + size - corner_size,
-                content_ui.min_rect().min + size + item_spacing - corner_size,
+                content_ui.min_rect().left_top() + size - corner_size,
                 corner_size,
             );
             Some(ui.interact(corner_rect, corner_id, Sense::drag()))
