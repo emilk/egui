@@ -443,7 +443,6 @@ impl<'open> Window<'open> {
             + window_frame.inner_margin.sum()
             + vec2(0.0, title_bar_height);
         resize.margins = margins;
-        resize.scroll_enabled = scroll.scroll_enabled;
 
         resize.is_manually = true;
         let mut resize = resize.id(resize_id);
