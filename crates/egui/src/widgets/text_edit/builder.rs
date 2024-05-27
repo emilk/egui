@@ -60,6 +60,7 @@ use super::{TextEditOutput, TextEditState};
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
     hint_text: WidgetText,
+    hint_text_font: Option<FontSelection>,
     id: Option<Id>,
     id_source: Option<Id>,
     font_selection: FontSelection,
@@ -111,6 +112,7 @@ impl<'t> TextEdit<'t> {
         Self {
             text,
             hint_text: Default::default(),
+            hint_text_font: None,
             id: None,
             id_source: None,
             font_selection: Default::default(),
@@ -186,6 +188,13 @@ impl<'t> TextEdit<'t> {
     #[inline]
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
+        self
+    }
+
+    /// Set a specific style for the hint text.
+    #[inline]
+    pub fn hint_text_font(mut self, hint_text_font: impl Into<FontSelection>) -> Self {
+        self.hint_text_font = Some(hint_text_font.into());
         self
     }
 
@@ -438,6 +447,7 @@ impl<'t> TextEdit<'t> {
         let TextEdit {
             text,
             hint_text,
+            hint_text_font,
             id,
             id_source,
             font_selection,
@@ -653,10 +663,11 @@ impl<'t> TextEdit<'t> {
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
+                let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
-                    hint_text.into_galley(ui, Some(true), desired_inner_size.x, font_id)
+                    hint_text.into_galley(ui, Some(true), desired_inner_size.x, hint_text_font_id)
                 } else {
-                    hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
+                    hint_text.into_galley(ui, Some(false), f32::INFINITY, hint_text_font_id)
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }
