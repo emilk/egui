@@ -4,4 +4,4 @@ Example how to show multiple viewports (native windows) can be created in `egui`
 cargo run -p multiple_viewports
 ```
 
-For a more advanced example, see [../test_viewports].
+For a more advanced example, see [../../tests/test_viewports].
