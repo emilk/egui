@@ -28,8 +28,10 @@ pub struct WebRunner {
     /// the panic handler, since they aren't `Send`.
     events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
 
-    /// Used in `destroy` to cancel a pending frame.
+    /// Current animation frame in flight.
     request_animation_frame_id: Cell<Option<i32>>,
+
+    resize_observer: Rc<RefCell<Option<ResizeObserverContext>>>,
 }
 
 impl WebRunner {
@@ -48,6 +50,7 @@ impl WebRunner {
             runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
             request_animation_frame_id: Cell::new(None),
+            resize_observer: Default::default(),
         }
     }
 
@@ -77,6 +80,8 @@ impl WebRunner {
             if follow_system_theme {
                 events::install_color_scheme_change_event(self)?;
             }
+
+            events::install_resize_observer(self)?;
 
             self.request_animation_frame()?;
         }
@@ -108,6 +113,11 @@ impl WebRunner {
                     );
                 }
             }
+        }
+
+        if let Some(context) = self.resize_observer.take() {
+            context.resize_observer.disconnect();
+            drop(context.closure);
         }
     }
 
@@ -198,14 +208,34 @@ impl WebRunner {
             let runner_ref = self.clone();
             move || events::paint_and_schedule(&runner_ref)
         });
+
         let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
         self.request_animation_frame_id.set(Some(id));
         closure.forget(); // We must forget it, or else the callback is canceled on drop
+
         Ok(())
+    }
+
+    pub(crate) fn set_resize_observer(
+        &self,
+        resize_observer: web_sys::ResizeObserver,
+        closure: Closure<dyn FnMut(js_sys::Array)>,
+    ) {
+        self.resize_observer
+            .borrow_mut()
+            .replace(ResizeObserverContext {
+                resize_observer,
+                closure,
+            });
     }
 }
 
 // ----------------------------------------------------------------------------
+
+struct ResizeObserverContext {
+    resize_observer: web_sys::ResizeObserver,
+    closure: Closure<dyn FnMut(js_sys::Array)>,
+}
 
 struct TargetEvent {
     target: web_sys::EventTarget,
