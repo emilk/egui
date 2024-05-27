@@ -99,11 +99,11 @@ impl LegendEntry {
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui, text: String, text_style: &TextStyle) -> Response {
+    fn ui(&self, ui: &mut Ui, text: String, text_style: &TextStyle) -> Response {
         let Self {
             color,
             checked,
-            hovered,
+            hovered: _,
         } = self;
 
         let font_id = text_style.resolve(ui.style());
@@ -161,9 +161,6 @@ impl LegendEntry {
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
         painter.galley(text_position, galley, visuals.text_color());
-
-        *checked ^= response.clicked_by(PointerButton::Primary);
-        *hovered = response.hovered();
 
         response
     }
@@ -274,6 +271,9 @@ impl Widget for &mut LegendWidget {
                             .map(|(name, entry)| {
                                 let response = entry.ui(ui, name.clone(), &config.text_style);
 
+                                // Handle interactions. Alt-clicking must be deferred to end of loop
+                                // since it may affect all entries.
+                                handle_interaction_on_legend_item(&response, entry);
                                 if response.clicked() && ui.input(|r| r.modifiers.alt) {
                                     focus_on_item = Some(name.clone());
                                 }
@@ -284,7 +284,7 @@ impl Widget for &mut LegendWidget {
                             .unwrap();
 
                         if let Some(focus_on_item) = focus_on_item {
-                            handle_focus_on_item(&focus_on_item, entries);
+                            handle_focus_on_legend_item(&focus_on_item, entries);
                         }
 
                         response_union
@@ -295,15 +295,24 @@ impl Widget for &mut LegendWidget {
     }
 }
 
-/// Handle the behavior when alt-clicking on a legend item.
-fn handle_focus_on_item(item_name: &str, entries: &mut BTreeMap<String, LegendEntry>) {
+/// Handle per-entry interactions.
+fn handle_interaction_on_legend_item(response: &Response, entry: &mut LegendEntry) {
+    entry.checked ^= response.clicked_by(PointerButton::Primary);
+    entry.hovered = response.hovered();
+}
+
+/// Handle alt-click interaction (which may affect all entries).
+fn handle_focus_on_legend_item(
+    clicked_entry_name: &str,
+    entries: &mut BTreeMap<String, LegendEntry>,
+) {
     // if all other items are already hidden, we show everything
     let is_focus_item_only_visible = entries
         .iter()
-        .all(|(name, entry)| !entry.checked || (item_name == name));
+        .all(|(name, entry)| !entry.checked || (clicked_entry_name == name));
 
     // either show everything or show only the focus item
     for (name, entry) in entries.iter_mut() {
-        entry.checked = is_focus_item_only_visible || item_name == name;
+        entry.checked = is_focus_item_only_visible || clicked_entry_name == name;
     }
 }
