@@ -416,7 +416,8 @@ impl<'open> Window<'open> {
         let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
         // Keep the original inner margin for later use
         let window_margin = window_frame.inner_margin;
-        let border_padding = window_frame.stroke.width / 2.0;
+        let outer_stroke = ctx.style().visuals.widgets.noninteractive.fg_stroke;
+        let border_padding = (window_frame.stroke.width / 2.0) + (outer_stroke.width / 2.0);
         // Add border padding to the inner margin to prevent it from covering the contents
         window_frame.inner_margin += border_padding;
 
@@ -585,14 +586,9 @@ impl<'open> Window<'open> {
                         round.sw = 0.0;
                     }
 
-                    let outer_stroke = ctx.style().visuals.widgets.noninteractive.fg_stroke;
                     area_content_ui.painter().set(
                         *where_to_put_header_background,
-                        RectShape::filled(
-                            title_rect.shrink(outer_stroke.width),
-                            round,
-                            header_color,
-                        ),
+                        RectShape::filled(title_rect, round, header_color),
                     );
                 };
 
