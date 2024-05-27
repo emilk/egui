@@ -15,7 +15,7 @@ mod transform;
 
 use std::{cmp::Ordering, ops::RangeInclusive, sync::Arc};
 
-use egui::ahash::HashMap;
+use ahash::HashMap;
 use egui::*;
 use emath::Float as _;
 use epaint::Hsva;

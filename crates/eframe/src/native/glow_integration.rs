@@ -26,10 +26,10 @@ use winit::{
     window::{Window, WindowId},
 };
 
+use ahash::{HashMap, HashSet};
 use egui::{
-    ahash::HashSet, epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport,
-    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportInfo,
-    ViewportOutput,
+    DeferredViewportUiCallback, ImmediateViewport, ViewportBuilder, ViewportClass, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportInfo, ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
