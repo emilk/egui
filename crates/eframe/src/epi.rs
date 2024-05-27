@@ -455,11 +455,6 @@ pub struct WebOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
-
-    /// The size limit of the web app canvas.
-    ///
-    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
-    pub max_size_points: egui::Vec2,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -475,8 +470,6 @@ impl Default for WebOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
-
-            max_size_points: egui::Vec2::INFINITY,
         }
     }
 }
