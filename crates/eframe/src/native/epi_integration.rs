@@ -131,6 +131,7 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     None
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
     return Some(Box::new(
