@@ -267,14 +267,43 @@ impl Widget for &mut LegendWidget {
                 .multiply_with_opacity(config.background_alpha);
                 background_frame
                     .show(ui, |ui| {
-                        entries
+                        let mut focus_on_item = None;
+
+                        let response_union = entries
                             .iter_mut()
-                            .map(|(name, entry)| entry.ui(ui, name.clone(), &config.text_style))
+                            .map(|(name, entry)| {
+                                let response = entry.ui(ui, name.clone(), &config.text_style);
+
+                                if response.clicked() && ui.input(|r| r.modifiers.alt) {
+                                    focus_on_item = Some(name.clone());
+                                }
+
+                                response
+                            })
                             .reduce(|r1, r2| r1.union(r2))
-                            .unwrap()
+                            .unwrap();
+
+                        if let Some(focus_on_item) = focus_on_item {
+                            handle_focus_on_item(&focus_on_item, entries);
+                        }
+
+                        response_union
                     })
                     .inner
             })
             .inner
+    }
+}
+
+/// Handle the behavior when alt-clicking on a legend item.
+fn handle_focus_on_item(item_name: &str, entries: &mut BTreeMap<String, LegendEntry>) {
+    // if all other items are already hidden, we show everything
+    let is_focus_item_only_visible = entries
+        .iter()
+        .all(|(name, entry)| !entry.checked || (item_name == name));
+
+    // either show everything or show only the focus item
+    for (name, entry) in entries.iter_mut() {
+        entry.checked = is_focus_item_only_visible || item_name == name;
     }
 }
