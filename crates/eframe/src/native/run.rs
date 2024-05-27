@@ -123,10 +123,15 @@ fn run_and_return(
             }
 
             winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
-                ..
+                start: _,
+                requested_resume,
             }) => {
                 log::trace!("Woke up to check next_repaint_time");
-                EventResult::Wait
+                if let Some(window_id) = winit_app.window_id_from_viewport_id(egui::ViewportId::ROOT) {
+                    EventResult::RepaintAt(window_id, *requested_resume)
+                } else {
+                    EventResult::Wait
+                }
             }
 
             event => match winit_app.on_event(event_loop_window_target, event) {
