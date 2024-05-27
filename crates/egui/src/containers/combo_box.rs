@@ -44,6 +44,11 @@ pub struct ComboBox {
 }
 
 impl ComboBox {
+    /// Convert a [`ComboBox`] id to the id used to store it's popup state.
+    pub(crate) fn widget_to_popup_id(widget_id: Id) -> Id {
+        widget_id.with("popup")
+    }
+
     /// Create new [`ComboBox`] with id and label
     pub fn new(id_source: impl std::hash::Hash, label: impl Into<WidgetText>) -> Self {
         Self {
@@ -262,7 +267,7 @@ fn combo_box_dyn<'c, R>(
     wrap_enabled: bool,
     (width, height): (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
-    let popup_id = button_id.with("popup");
+    let popup_id = ComboBox::widget_to_popup_id(button_id);
 
     let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 

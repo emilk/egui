@@ -2,7 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect, WidgetText,
+    menu, ComboBox, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect,
+    WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -571,7 +572,10 @@ impl Response {
             return false;
         }
 
-        if self.ctx.memory(|m| m.any_popup_open()) {
+        if self
+            .ctx
+            .memory(|m| m.is_popup_open(ComboBox::widget_to_popup_id(self.id)))
+        {
             return false;
         }
 
