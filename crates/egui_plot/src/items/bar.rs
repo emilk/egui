@@ -1,5 +1,5 @@
-use egui::emath::NumExt;
-use egui::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
+use emath::NumExt;
+use epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
 use crate::{BarChart, Cursor, PlotPoint, PlotTransform};

@@ -18,7 +18,6 @@ use std::{cmp::Ordering, ops::RangeInclusive, sync::Arc};
 use ahash::HashMap;
 use egui::*;
 use emath::Float as _;
-use epaint::Hsva;
 
 pub use crate::{
     axis::{Axis, AxisHints, HPlacement, Placement, VPlacement},

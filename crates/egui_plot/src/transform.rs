@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 
-use super::PlotPoint;
-use crate::*;
+use super::{Axis, PlotPoint};
+use emath::{pos2, remap, Pos2, Rect, Vec2};
 
 /// 2D bounding box of f64 precision.
 ///
