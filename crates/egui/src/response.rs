@@ -571,6 +571,10 @@ impl Response {
             return false;
         }
 
+        if self.ctx.memory(|m| m.any_popup_open()) {
+            return false;
+        }
+
         if self.enabled {
             if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
