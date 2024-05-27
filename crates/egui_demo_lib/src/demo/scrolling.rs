@@ -236,6 +236,7 @@ struct ScrollTo {
     track_item: usize,
     tack_item_align: Option<Align>,
     offset: f32,
+    delta: f32,
 }
 
 impl Default for ScrollTo {
@@ -244,6 +245,7 @@ impl Default for ScrollTo {
             track_item: 25,
             tack_item_align: Some(Align::Center),
             offset: 0.0,
+            delta: 64.0,
         }
     }
 }
@@ -293,8 +295,19 @@ impl super::View for ScrollTo {
         ui.horizontal(|ui| {
             scroll_top |= ui.button("Scroll to top").clicked();
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
-            if ui.button("Scroll down by 64px").clicked() {
-                scroll_delta = Some(64.0 * Vec2::UP); // move contents up
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Scroll by");
+            DragValue::new(&mut self.delta)
+                .speed(1.0)
+                .suffix("px")
+                .ui(ui);
+            if ui.button("⬇").clicked() {
+                scroll_delta = Some(self.delta * Vec2::UP); // scroll down (move contents up)
+            }
+            if ui.button("⬆").clicked() {
+                scroll_delta = Some(self.delta * Vec2::DOWN); // scroll up (move contents down)
             }
         });
 
