@@ -553,6 +553,7 @@ impl SubMenu {
     }
 }
 
+///Components of menu state, public for advanced usage. Usually you don't need to use it directly
 pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
     sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
