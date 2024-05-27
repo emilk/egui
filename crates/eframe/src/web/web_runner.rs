@@ -1,4 +1,7 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use wasm_bindgen::prelude::*;
 
@@ -26,7 +29,7 @@ pub struct WebRunner {
     events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
 
     /// Current animation frame in flight.
-    frame: Rc<RefCell<Option<AnimationFrameRequest>>>,
+    request_animation_frame_id: Cell<Option<i32>>,
 
     resize_observer: Rc<RefCell<Option<ResizeObserverContext>>>,
 }
@@ -46,7 +49,7 @@ impl WebRunner {
             panic_handler,
             runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
-            frame: Default::default(),
+            request_animation_frame_id: Cell::new(None),
             resize_observer: Default::default(),
         }
     }
@@ -122,10 +125,9 @@ impl WebRunner {
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
 
-        if let Some(frame) = self.frame.take() {
+        if let Some(id) = self.request_animation_frame_id.get() {
             let window = web_sys::window().unwrap();
-            window.cancel_animation_frame(frame.id).ok();
-            drop(frame.closure);
+            window.cancel_animation_frame(id).ok();
         }
 
         if let Some(runner) = self.runner.replace(None) {
@@ -201,27 +203,14 @@ impl WebRunner {
     }
 
     pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
-        if self.frame.borrow().is_some() {
-            // there is already an animation frame in flight
-            return Ok(());
-        }
-
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
             let runner_ref = self.clone();
-            move || {
-                // we can paint now, so clear the animation frame
-                // this drop the `closure` and allows another
-                // animation frame to be scheduled
-                let _ = runner_ref.frame.take();
-                events::paint_and_schedule(&runner_ref)
-            }
+            move || events::paint_and_schedule(&runner_ref)
         });
 
-        let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-        self.frame
-            .borrow_mut()
-            .replace(AnimationFrameRequest { id, closure });
+        self.request_animation_frame_id.set(Some(id));
+        closure.forget(); // We must forget it, or else the callback is canceled on drop
 
         Ok(())
     }
@@ -241,18 +230,6 @@ impl WebRunner {
 }
 
 // ----------------------------------------------------------------------------
-
-struct AnimationFrameRequest {
-    /// Represents the ID of a frame in flight.
-    ///
-    /// This is only set between a call to `request_animation_frame` and the invocation of its callback,
-    /// which means that repeated calls to `request_animation_frame` will be ignored.
-    id: i32,
-
-    /// The callback given to `request_animation_frame`, stored here both to prevent it
-    /// from being canceled, and from having to `.forget()` it.
-    closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
-}
 
 struct ResizeObserverContext {
     resize_observer: web_sys::ResizeObserver,
