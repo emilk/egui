@@ -191,7 +191,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Forces a specific style for the hint text.
+    /// Set a specific style for the hint text.
     #[inline]
     pub fn hint_text_font(mut self, hint_text_font: impl Into<FontSelection>) -> Self {
         self.hint_text_font = Some(hint_text_font.into());
@@ -661,20 +661,11 @@ impl<'t> TextEdit<'t> {
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
+                let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
-                    hint_text.into_galley(
-                        ui,
-                        Some(true),
-                        desired_inner_size.x,
-                        hint_text_font.unwrap_or(font_id.into()),
-                    )
+                    hint_text.into_galley(ui, Some(true), desired_inner_size.x, hint_text_font_id)
                 } else {
-                    hint_text.into_galley(
-                        ui,
-                        Some(false),
-                        f32::INFINITY,
-                        hint_text_font.unwrap_or(font_id.into()),
-                    )
+                    hint_text.into_galley(ui, Some(false), f32::INFINITY, hint_text_font_id)
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }
