@@ -131,10 +131,10 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     None
 }
 
-pub fn create_storage_with_file(file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
+pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
     return Some(Box::new(
-        super::file_storage::FileStorage::from_ron_filepath(file),
+        super::file_storage::FileStorage::from_ron_filepath(_file),
     ));
     #[cfg(not(feature = "persistence"))]
     None
