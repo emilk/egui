@@ -787,7 +787,8 @@ impl Prepared {
             .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta));
 
         for d in 0..2 {
-            let mut delta = scroll_delta[d];
+            // FrameState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+            let mut delta = -scroll_delta[d];
 
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.

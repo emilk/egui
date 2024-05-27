@@ -42,6 +42,14 @@ pub(crate) struct FrameState {
     pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
 
     /// The current scroll area should scroll by this much.
+    ///
+    /// The delta dictates how the _content_ should move.
+    ///
+    /// A positive X-value indicates the content is being moved right,
+    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+    ///
+    /// A positive Y-value indicates the content is being moved down,
+    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub(crate) scroll_delta: Vec2,
 
     #[cfg(feature = "accesskit")]

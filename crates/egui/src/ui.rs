@@ -1073,7 +1073,7 @@ impl Ui {
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     ///
-    /// If this is called multiple times per frame for the same ScrollArea, the deltas will be combined.
+    /// If this is called multiple times per frame for the same [`ScrollArea`], the deltas will be combined.
     ///
     /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
     ///
