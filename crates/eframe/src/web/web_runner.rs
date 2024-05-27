@@ -115,7 +115,6 @@ impl WebRunner {
         if let Some(frame) = self.frame.take() {
             let window = web_sys::window().unwrap();
             window.cancel_animation_frame(frame.id).ok();
-            drop(frame.closure);
         }
 
         if let Some(runner) = self.runner.replace(None) {
@@ -209,9 +208,10 @@ impl WebRunner {
         });
 
         let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-        self.frame
-            .borrow_mut()
-            .replace(AnimationFrameRequest { id, closure });
+        self.frame.borrow_mut().replace(AnimationFrameRequest {
+            id,
+            _closure: closure,
+        });
 
         Ok(())
     }
@@ -229,7 +229,7 @@ struct AnimationFrameRequest {
 
     /// The callback given to `request_animation_frame`, stored here both to prevent it
     /// from being canceled, and from having to `.forget()` it.
-    closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
+    _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
 }
 
 struct TargetEvent {
