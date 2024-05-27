@@ -356,6 +356,7 @@ impl MenuRoot {
         } else if button
             .ctx
             .input(|i| i.pointer.any_pressed() && i.pointer.primary_down())
+            && !button.contains_pointer()
         {
             if let Some(pos) = button.ctx.input(|i| i.pointer.interact_pos()) {
                 if let Some(root) = root.inner.as_mut() {
