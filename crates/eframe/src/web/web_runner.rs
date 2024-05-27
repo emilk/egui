@@ -27,6 +27,8 @@ pub struct WebRunner {
 
     /// Current animation frame in flight.
     frame: Rc<RefCell<Option<AnimationFrameRequest>>>,
+
+    resize_observer: Rc<RefCell<Option<ResizeObserverContext>>>,
 }
 
 impl WebRunner {
@@ -45,6 +47,7 @@ impl WebRunner {
             runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
             frame: Default::default(),
+            resize_observer: Default::default(),
         }
     }
 
@@ -74,6 +77,8 @@ impl WebRunner {
             if follow_system_theme {
                 events::install_color_scheme_change_event(self)?;
             }
+
+            events::install_resize_observer(self)?;
 
             self.request_animation_frame()?;
         }
@@ -105,6 +110,11 @@ impl WebRunner {
                     );
                 }
             }
+        }
+
+        if let Some(context) = self.resize_observer.take() {
+            context.resize_observer.disconnect();
+            drop(context.closure);
         }
     }
 
@@ -215,6 +225,19 @@ impl WebRunner {
 
         Ok(())
     }
+
+    pub(crate) fn set_resize_observer(
+        &self,
+        resize_observer: web_sys::ResizeObserver,
+        closure: Closure<dyn FnMut(js_sys::Array)>,
+    ) {
+        self.resize_observer
+            .borrow_mut()
+            .replace(ResizeObserverContext {
+                resize_observer,
+                closure,
+            });
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -230,6 +253,11 @@ struct AnimationFrameRequest {
     /// The callback given to `request_animation_frame`, stored here both to prevent it
     /// from being canceled, and from having to `.forget()` it.
     _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
+}
+
+struct ResizeObserverContext {
+    resize_observer: web_sys::ResizeObserver,
+    closure: Closure<dyn FnMut(js_sys::Array)>,
 }
 
 struct TargetEvent {
