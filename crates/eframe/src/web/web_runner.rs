@@ -209,7 +209,13 @@ impl WebRunner {
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
             let runner_ref = self.clone();
-            move || events::paint_and_schedule(&runner_ref)
+            move || {
+                // we can paint now, so clear the animation frame
+                // this drop the `closure` and allows another
+                // animation frame to be scheduled
+                let _ = runner_ref.frame.take();
+                events::paint_and_schedule(&runner_ref)
+            }
         });
 
         let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;

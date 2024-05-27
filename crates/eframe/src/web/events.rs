@@ -598,7 +598,6 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
         move |entries: js_sys::Array| {
             // Only call the wrapped closure if the egui code has not panicked
             if let Some(mut runner_lock) = runner_ref.try_lock() {
-                runner_lock.needs_repaint.repaint_asap();
                 let canvas = runner_lock.canvas();
                 let (width, height) = get_display_size(&entries).unwrap();
                 canvas.set_width(width);
