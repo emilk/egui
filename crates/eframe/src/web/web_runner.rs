@@ -209,6 +209,7 @@ impl WebRunner {
             move || events::paint_and_schedule(&runner_ref)
         });
 
+        let id = window.request_animation_frame(closure.as_ref().unchecked_ref())?;
         self.request_animation_frame_id.set(Some(id));
         closure.forget(); // We must forget it, or else the callback is canceled on drop
 
