@@ -599,7 +599,13 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
             // Only call the wrapped closure if the egui code has not panicked
             if let Some(mut runner_lock) = runner_ref.try_lock() {
                 let canvas = runner_lock.canvas();
-                let (width, height) = get_display_size(&entries).unwrap();
+                let (width, height) = match get_display_size(&entries) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        log::error!("{}", super::string_from_js_value(&err));
+                        return;
+                    }
+                };
                 canvas.set_width(width);
                 canvas.set_height(height);
 
@@ -613,8 +619,11 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
     let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
     let mut options = web_sys::ResizeObserverOptions::new();
     options.box_(web_sys::ResizeObserverBoxOptions::ContentBox);
-    observer.observe_with_options(runner_ref.try_lock().unwrap().canvas(), &options);
-    runner_ref.set_resize_observer(observer, closure);
+    if let Some(runner_lock) = runner_ref.try_lock() {
+        observer.observe_with_options(runner_lock.canvas(), &options);
+        drop(runner_lock);
+        runner_ref.set_resize_observer(observer, closure);
+    }
 
     Ok(())
 }
