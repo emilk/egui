@@ -133,7 +133,6 @@ struct LineDemo {
     show_axes: bool,
     show_grid: bool,
     line_style: LineStyle,
-    interact_radius: f32,
 }
 
 impl Default for LineDemo {
@@ -149,7 +148,6 @@ impl Default for LineDemo {
             show_axes: true,
             show_grid: true,
             line_style: LineStyle::Solid,
-            interact_radius: egui::style::Interaction::default().interact_radius,
         }
     }
 }
@@ -167,7 +165,6 @@ impl LineDemo {
             show_axes,
             show_grid,
             line_style,
-            interact_radius,
         } = self;
 
         ui.horizontal(|ui| {
@@ -200,10 +197,6 @@ impl LineDemo {
                 ui.checkbox(show_grid, "Show grid");
                 ui.checkbox(coordinates, "Show coordinates on hover")
                     .on_hover_text("Can take a custom formatting function.");
-                ui.horizontal(|ui| {
-                    ui.add(egui::DragValue::new(interact_radius).clamp_range(0.0..=100.0));
-                    ui.label("Interact radius");
-                });
             });
 
             ui.vertical(|ui| {
@@ -296,7 +289,6 @@ impl LineDemo {
         if self.coordinates {
             plot = plot.coordinates_formatter(Corner::LeftBottom, CoordinatesFormatter::default());
         }
-        ui.style_mut().interaction.interact_radius = self.interact_radius;
         plot.show(ui, |plot_ui| {
             plot_ui.line(self.circle());
             plot_ui.line(self.sin());
