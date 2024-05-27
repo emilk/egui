@@ -202,7 +202,7 @@ impl WebRunner {
                 // We can paint now, so clear the animation frame.
                 // This drops the `closure` and allows another
                 // animation frame to be scheduled
-                runner_ref.frame = None;
+                let _ = runner_ref.frame.take();
                 events::paint_and_schedule(&runner_ref)
             }
         });
