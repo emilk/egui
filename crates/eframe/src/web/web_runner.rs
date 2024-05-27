@@ -199,6 +199,10 @@ impl WebRunner {
         Ok(())
     }
 
+    /// Request an animation frame from the browser in which we can perform a paint.
+    ///
+    /// It is safe to call `request_animation_frame` multiple times in quick succession,
+    /// this function guarantees that only one animation frame is scheduled at a time.
     pub(crate) fn request_animation_frame(&self) -> Result<(), wasm_bindgen::JsValue> {
         if self.frame.borrow().is_some() {
             // there is already an animation frame in flight
@@ -245,9 +249,6 @@ impl WebRunner {
 // https://rustwasm.github.io/wasm-bindgen/api/wasm_bindgen/closure/struct.Closure.html#using-fnonce-and-closureonce-with-requestanimationframe
 struct AnimationFrameRequest {
     /// Represents the ID of a frame in flight.
-    ///
-    /// This is only set between a call to `request_animation_frame` and the invocation of its callback,
-    /// which means that repeated calls to `request_animation_frame` will be ignored.
     id: i32,
 
     /// The callback given to `request_animation_frame`, stored here both to prevent it
