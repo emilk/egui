@@ -200,8 +200,8 @@ impl WebRunner {
         let closure = Closure::once({
             let runner_ref = self.clone();
             move || {
-                // we can paint now, so clear the animation frame
-                // this drop the `closure` and allows another
+                // We can paint now, so clear the animation frame.
+                // This drops the `closure` and allows another
                 // animation frame to be scheduled
                 let _ = runner_ref.frame.take();
                 events::paint_and_schedule(&runner_ref)
