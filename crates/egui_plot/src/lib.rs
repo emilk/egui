@@ -1666,7 +1666,7 @@ impl<'a> PreparedPlot<'a> {
             return (Vec::new(), None);
         }
 
-        let interact_radius_sq = (16.0_f32).powi(2);
+        let interact_radius_sq = ui.style().interaction.interact_radius.powi(2);
 
         let candidates = items
             .iter()
