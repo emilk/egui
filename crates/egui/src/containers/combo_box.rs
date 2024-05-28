@@ -158,7 +158,7 @@ impl ComboBox {
 
     /// Controls the wrap mode used for the selected text.
     ///
-    /// By default, the text will extend the [`Ui`] boundary. This default behavior can be
+    /// By default, [`Ui::wrap_mode`] will be used, which can be
     /// overridden with [`Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
