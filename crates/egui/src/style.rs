@@ -188,8 +188,8 @@ pub struct Style {
     /// **Note**: this API is deprecated, use `wrap_mode` instead.
     ///
     /// * `None`: use `wrap_mode` instead
-    /// * `Some(true)`: wrap mode defaults to [`crate::text::TextWrapMode::Wrap`]
-    /// * `Some(false)`: wrap mode defaults to [`crate::text::TextWrapMode::Extend`]
+    /// * `Some(true)`: wrap mode defaults to [`crate::TextWrapMode::Wrap`]
+    /// * `Some(false)`: wrap mode defaults to [`crate::TextWrapMode::Extend`]
     #[deprecated = "Use wrap_mode instead"]
     pub wrap: Option<bool>,
 
@@ -199,7 +199,7 @@ pub struct Style {
     ///
     /// * `None`: follow layout (with may wrap)
     /// * `Some(mode)`: use the specified mode as default
-    pub wrap_mode: Option<crate::text::TextWrapMode>,
+    pub wrap_mode: Option<crate::TextWrapMode>,
 
     /// Sizes and distances between widgets
     pub spacing: Spacing,

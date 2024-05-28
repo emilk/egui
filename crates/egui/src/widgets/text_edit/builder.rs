@@ -667,14 +667,14 @@ impl<'t> TextEdit<'t> {
                 let galley = if multiline {
                     hint_text.into_galley(
                         ui,
-                        Some(text::TextWrapMode::Wrap),
+                        Some(TextWrapMode::Wrap),
                         desired_inner_size.x,
                         hint_text_font_id,
                     )
                 } else {
                     hint_text.into_galley(
                         ui,
-                        Some(text::TextWrapMode::Extend),
+                        Some(TextWrapMode::Extend),
                         f32::INFINITY,
                         hint_text_font_id,
                     )

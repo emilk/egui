@@ -338,7 +338,7 @@
 //! ## Code snippets
 //!
 //! ```
-//! # use egui::text::TextWrapMode;
+//! # use egui::TextWrapMode;
 //! # egui::__run_test_ui(|ui| {
 //! # let mut some_bool = true;
 //! // Miscellaneous tips and tricks
@@ -437,7 +437,7 @@ pub mod text {
     pub use crate::text_selection::{CCursorRange, CursorRange};
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TextWrapMode, TextWrapping, TAB_SIZE,
+        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
     };
 }
 
@@ -452,6 +452,7 @@ pub use {
         Key,
     },
     drag_and_drop::DragAndDrop,
+    epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},

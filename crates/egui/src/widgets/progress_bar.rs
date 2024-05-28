@@ -185,7 +185,7 @@ impl Widget for ProgressBar {
                 };
                 let galley = text.into_galley(
                     ui,
-                    Some(text::TextWrapMode::Extend),
+                    Some(TextWrapMode::Extend),
                     f32::INFINITY,
                     TextStyle::Button,
                 );

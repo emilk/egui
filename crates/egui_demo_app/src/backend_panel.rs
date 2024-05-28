@@ -180,7 +180,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
 
     #[cfg(target_arch = "wasm32")]
     ui.collapsing("Web info (location)", |ui| {
-        ui.style_mut().wrap_mode = Some(egui::text::TextWrapMode::Extend);
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
         ui.monospace(format!("{:#?}", _frame.info().web_info.location));
     });
 

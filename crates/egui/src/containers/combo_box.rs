@@ -1,4 +1,3 @@
-use epaint::text::TextWrapMode;
 use epaint::Shape;
 
 use crate::{style::WidgetVisuals, *};

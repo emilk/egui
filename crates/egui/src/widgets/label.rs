@@ -9,7 +9,7 @@ use self::text_selection::LabelSelectionState;
 /// Usually it is more convenient to use [`Ui::label`].
 ///
 /// ```
-/// # use egui::text::TextWrapMode;
+/// # use egui::TextWrapMode;
 /// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");
 /// ui.add(egui::Label::new("Equivalent"));
@@ -23,7 +23,7 @@ use self::text_selection::LabelSelectionState;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     text: WidgetText,
-    wrap_mode: Option<text::TextWrapMode>,
+    wrap_mode: Option<TextWrapMode>,
     sense: Option<Sense>,
     selectable: Option<bool>,
 }
@@ -49,9 +49,9 @@ impl Label {
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         if wrap {
-            self.wrap_mode = Some(text::TextWrapMode::Wrap);
+            self.wrap_mode = Some(TextWrapMode::Wrap);
         } else {
-            self.wrap_mode = Some(text::TextWrapMode::Extend);
+            self.wrap_mode = Some(TextWrapMode::Extend);
         }
         self
     }
@@ -65,9 +65,9 @@ impl Label {
     #[inline]
     pub fn truncate(mut self, truncate: bool) -> Self {
         if truncate {
-            self.wrap_mode = Some(text::TextWrapMode::Truncate);
+            self.wrap_mode = Some(TextWrapMode::Truncate);
         } else {
-            self.wrap_mode = Some(text::TextWrapMode::Extend);
+            self.wrap_mode = Some(TextWrapMode::Extend);
         }
         self
     }
@@ -80,7 +80,7 @@ impl Label {
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
-    pub fn wrap_mode(mut self, wrap_mode: text::TextWrapMode) -> Self {
+    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
         self
     }
@@ -167,7 +167,7 @@ impl Label {
         let available_width = ui.available_width();
 
         let wrap_mode = self.wrap_mode.unwrap_or_else(|| ui.wrap_mode());
-        if wrap_mode == text::TextWrapMode::Wrap
+        if wrap_mode == TextWrapMode::Wrap
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
             && available_width.is_finite()

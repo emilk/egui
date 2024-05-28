@@ -178,7 +178,7 @@ impl LayoutTest {
 fn demo_ui(ui: &mut Ui) {
     ui.add(
         egui::Label::new("Wrapping text followed by example widgets:")
-            .wrap_mode(text::TextWrapMode::Wrap),
+            .wrap_mode(TextWrapMode::Wrap),
     );
     let mut dummy = false;
     ui.checkbox(&mut dummy, "checkbox");

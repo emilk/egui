@@ -200,7 +200,7 @@ impl LineDemo {
             });
 
             ui.vertical(|ui| {
-                ui.style_mut().wrap_mode = Some(text::TextWrapMode::Extend);
+                ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                 ui.checkbox(animate, "Animate");
                 ui.checkbox(square, "Square view")
                     .on_hover_text("Always keep the viewport square.");

@@ -23,7 +23,7 @@ pub struct Button<'a> {
     image: Option<Image<'a>>,
     text: Option<WidgetText>,
     shortcut_text: WidgetText,
-    wrap_mode: Option<text::TextWrapMode>,
+    wrap_mode: Option<TextWrapMode>,
 
     /// None means default for interact
     fill: Option<Color32>,
@@ -77,9 +77,9 @@ impl<'a> Button<'a> {
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         if wrap {
-            self.wrap_mode = Some(text::TextWrapMode::Wrap);
+            self.wrap_mode = Some(TextWrapMode::Wrap);
         } else {
-            self.wrap_mode = Some(text::TextWrapMode::Extend);
+            self.wrap_mode = Some(TextWrapMode::Extend);
         }
         self
     }
@@ -92,7 +92,7 @@ impl<'a> Button<'a> {
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
-    pub fn wrap_mode(mut self, wrap_mode: text::TextWrapMode) -> Self {
+    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
         self
     }
@@ -229,7 +229,7 @@ impl Widget for Button<'_> {
         let shortcut_galley = (!shortcut_text.is_empty()).then(|| {
             shortcut_text.into_galley(
                 ui,
-                Some(text::TextWrapMode::Extend),
+                Some(TextWrapMode::Extend),
                 f32::INFINITY,
                 TextStyle::Button,
             )

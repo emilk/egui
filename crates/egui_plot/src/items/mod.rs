@@ -852,7 +852,7 @@ impl PlotItem for Text {
 
         let galley = self.text.clone().into_galley(
             ui,
-            Some(egui::text::TextWrapMode::Extend),
+            Some(egui::TextWrapMode::Extend),
             f32::INFINITY,
             TextStyle::Small,
         );

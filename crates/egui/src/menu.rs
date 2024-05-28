@@ -481,7 +481,7 @@ impl SubMenuButton {
         let text_available_width = ui.available_width() - total_extra.x;
         let text_galley = text.into_galley(
             ui,
-            Some(text::TextWrapMode::Wrap),
+            Some(TextWrapMode::Wrap),
             text_available_width,
             text_style.clone(),
         );
@@ -489,7 +489,7 @@ impl SubMenuButton {
         let icon_available_width = text_available_width - text_galley.size().x;
         let icon_galley = icon.into_galley(
             ui,
-            Some(text::TextWrapMode::Wrap),
+            Some(TextWrapMode::Wrap),
             icon_available_width,
             text_style,
         );

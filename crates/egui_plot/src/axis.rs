@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 use egui::{
     emath::{remap_clamp, round_to_decimals, Rot2},
     epaint::TextShape,
-    text, Pos2, Rangef, Rect, Response, Sense, TextStyle, Ui, Vec2, WidgetText,
+    Pos2, Rangef, Rect, Response, Sense, TextStyle, TextWrapMode, Ui, Vec2, WidgetText,
 };
 
 use super::{transform::PlotTransform, GridMark};
@@ -266,7 +266,7 @@ impl<'a> AxisWidget<'a> {
             let text = self.hints.label;
             let galley = text.into_galley(
                 ui,
-                Some(text::TextWrapMode::Extend),
+                Some(TextWrapMode::Extend),
                 f32::INFINITY,
                 TextStyle::Body,
             );

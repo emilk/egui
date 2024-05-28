@@ -1,8 +1,8 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-    text::{LayoutJob, TextWrapMode, TextWrapping},
-    Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, Ui, Visuals,
+    text::{LayoutJob, TextWrapping},
+    Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.

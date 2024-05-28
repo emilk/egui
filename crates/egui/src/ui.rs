@@ -4,7 +4,6 @@
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use epaint::mutex::RwLock;
-use epaint::text::TextWrapMode;
 
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,

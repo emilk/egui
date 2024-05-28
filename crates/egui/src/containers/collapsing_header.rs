@@ -508,7 +508,7 @@ impl CollapsingHeader {
         let wrap_width = available.right() - text_pos.x;
         let galley = text.into_galley(
             ui,
-            Some(text::TextWrapMode::Extend),
+            Some(TextWrapMode::Extend),
             wrap_width,
             TextStyle::Button,
         );

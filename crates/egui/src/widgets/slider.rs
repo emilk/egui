@@ -905,7 +905,7 @@ impl<'a> Slider<'a> {
 
         if !self.text.is_empty() {
             let label_response =
-                ui.add(Label::new(self.text.clone()).wrap_mode(text::TextWrapMode::Extend));
+                ui.add(Label::new(self.text.clone()).wrap_mode(TextWrapMode::Extend));
             // The slider already has an accessibility label via widget info,
             // but sometimes it's useful for a screen reader to know
             // that a piece of text is a label for another widget,

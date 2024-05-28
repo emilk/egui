@@ -1,5 +1,5 @@
 use egui::emath::TSTransform;
-use egui::text;
+use egui::TextWrapMode;
 
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -123,7 +123,7 @@ impl super::View for PanZoom {
                         .stroke(ui.ctx().style().visuals.window_stroke)
                         .fill(ui.style().visuals.panel_fill)
                         .show(ui, |ui| {
-                            ui.style_mut().wrap_mode = Some(text::TextWrapMode::Extend);
+                            ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                             callback(ui, self)
                         });
                 })

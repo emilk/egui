@@ -1030,7 +1030,7 @@ fn show_title_bar(
 
         let title_galley = title.into_galley(
             ui,
-            Some(crate::text::TextWrapMode::Extend),
+            Some(crate::TextWrapMode::Extend),
             f32::INFINITY,
             TextStyle::Heading,
         );
