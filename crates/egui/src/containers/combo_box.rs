@@ -148,14 +148,6 @@ impl ComboBox {
         self
     }
 
-    /// Controls whether text wrap is used for the selected text.
-    #[deprecated = "Use `wrap_mode` instead"]
-    #[inline]
-    pub fn wrap(mut self, wrap: bool) -> Self {
-        self.wrap_mode = if wrap { Some(TextWrapMode::Wrap) } else { None };
-        self
-    }
-
     /// Controls the wrap mode used for the selected text.
     ///
     /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
@@ -164,6 +156,21 @@ impl ComboBox {
     #[inline]
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
+    #[inline]
+    pub fn wrap(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Wrap);
+
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
+    #[inline]
+    pub fn truncate(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Truncate);
         self
     }
 

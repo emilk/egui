@@ -329,7 +329,7 @@ pub enum TextWrapMode {
     Extend,
     /// The text should wrap to the next line when reaching the `Ui` boundary.
     Wrap,
-    /// The text should elided using "…" when reaching the `Ui` boundary.
+    /// The text should be elided using "…" when reaching the `Ui` boundary.
     ///
     /// Note that using [`TextWrapping`] and [`LayoutJob`] offers more control over the elision.
     Truncate,

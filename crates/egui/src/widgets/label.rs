@@ -13,7 +13,7 @@ use self::text_selection::LabelSelectionState;
 /// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");
 /// ui.add(egui::Label::new("Equivalent"));
-/// ui.add(egui::Label::new("With Options").wrap_mode(TextWrapMode::Truncate));
+/// ui.add(egui::Label::new("With Options").truncate());
 /// ui.label(egui::RichText::new("With formatting").underline());
 /// # });
 /// ```
@@ -42,36 +42,6 @@ impl Label {
         self.text.text()
     }
 
-    /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
-    ///
-    /// Deprecated. Use [`Self::wrap_mode`] instead.
-    #[deprecated = "Use `wrap_mode(TextWrapMode::Wrap)` instead"]
-    #[inline]
-    pub fn wrap(mut self, wrap: bool) -> Self {
-        if wrap {
-            self.wrap_mode = Some(TextWrapMode::Wrap);
-        } else {
-            self.wrap_mode = Some(TextWrapMode::Extend);
-        }
-        self
-    }
-
-    /// If `true`, the text will stop at the max width of the [`Ui`],
-    /// and what doesn't fit will be elided, replaced with `…`.
-    ///
-    /// [`Self::wrap_mode`] instead.
-    /// If the text is truncated, the full text will be shown on hover as a tool-tip.
-    #[deprecated = "Use `wrap_mode(TextWrapMode::Truncate)` instead"]
-    #[inline]
-    pub fn truncate(mut self, truncate: bool) -> Self {
-        if truncate {
-            self.wrap_mode = Some(TextWrapMode::Truncate);
-        } else {
-            self.wrap_mode = Some(TextWrapMode::Extend);
-        }
-        self
-    }
-
     /// Set the wrap mode for the text.
     ///
     /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
@@ -80,6 +50,21 @@ impl Label {
     #[inline]
     pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
+    #[inline]
+    pub fn wrap(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Wrap);
+
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
+    #[inline]
+    pub fn truncate(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Truncate);
         self
     }
 
