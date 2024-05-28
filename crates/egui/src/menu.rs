@@ -150,6 +150,7 @@ fn menu_popup<'c, R>(
         .fixed_pos(pos)
         .constrain_to(ctx.screen_rect())
         .interactable(true)
+        .default_width(ctx.style().spacing.menu_width)
         .sense(Sense::hover());
 
     let area_response = area.show(ctx, |ui| {
@@ -157,7 +158,6 @@ fn menu_popup<'c, R>(
 
         Frame::menu(ui.style())
             .show(ui, |ui| {
-                ui.set_max_width(ui.spacing().menu_width);
                 ui.set_menu_state(Some(menu_state_arc.clone()));
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
                     .inner
