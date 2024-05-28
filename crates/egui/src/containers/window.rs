@@ -1104,14 +1104,12 @@ impl TitleBar {
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
-        if self.closebutton {
-            if let Some(open) = open {
-                // Add close button now that we know our full width:
-                if self.close_button_ui(ui).clicked() {
-                    *open = false;
-                    if let Some(resize_id) = resize.id {
-                        resize::reset_largest_content_size(ui.ctx(), resize_id);
-                    }
+        if let Some(open) = open {
+            // Add close button now that we know our full width:
+            if self.close_button_ui(ui).clicked() {
+                *open = false;
+                if let Some(resize_id) = resize.id {
+                    resize::reset_largest_content_size(ui.ctx(), resize_id);
                 }
             }
         }
