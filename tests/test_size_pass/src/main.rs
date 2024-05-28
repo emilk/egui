@@ -14,6 +14,11 @@ fn main() -> eframe::Result<()> {
                 let _ = ui.button("Very wide text").clicked();
                 let _ = ui.button("Narrow").clicked();
             });
+
+            ui.label("Hover for tooltip").on_hover_ui(|ui| {
+                ui.label("A separator:");
+                ui.separator();
+            });
         });
     })
 }
