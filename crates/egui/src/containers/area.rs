@@ -515,7 +515,7 @@ impl Prepared {
         // This avoid rounding errors, especially important after a sizing pass.
         // If during the sizing pass we measure our width to `123.45` and
         // then try to wrap to exactly that next frame,
-        // we may accidentally wrapping the last letter of some text.
+        // we may accidentally wrap the last letter of some text.
         state.size = content_ui.min_size().ceil();
 
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
