@@ -2,7 +2,7 @@ use egui::TexturesDelta;
 
 use crate::{epi, App};
 
-use super::{now_sec, web_painter::WebPainter, NeedRepaint};
+use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint};
 
 pub struct AppRunner {
     #[allow(dead_code)]
@@ -14,7 +14,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    pub(crate) ime: Option<egui::output::IMEOutput>,
+    pub(crate) text_agent: TextAgent,
     pub(crate) mutable_text_under_cursor: bool,
 
     // Output for the last run:
@@ -35,6 +35,7 @@ impl AppRunner {
         canvas_id: &str,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
+        text_agent: TextAgent,
     ) -> Result<Self, String> {
         let painter = super::ActiveWebPainter::new(canvas_id, &web_options).await?;
 
@@ -118,7 +119,7 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            ime: None,
+            text_agent,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
             clipped_primitives: None,
@@ -269,9 +270,11 @@ impl AppRunner {
 
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
-        if self.ime != ime {
-            super::text_agent::move_text_cursor(ime, self.canvas());
-            self.ime = ime;
+        if let Err(err) = self.text_agent.move_to(ime, self.canvas()) {
+            log::error!(
+                "failed to update text agent position: {}",
+                super::string_from_js_value(&err)
+            );
         }
     }
 }

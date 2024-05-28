@@ -53,6 +53,13 @@ pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
 }
 
+pub(crate) fn focused_element() -> Option<web_sys::HtmlElement> {
+    web_sys::window()?
+        .document()?
+        .active_element()
+        .and_then(|v| v.dyn_into().ok())
+}
+
 /// Current time in seconds (since undefined point in time).
 ///
 /// Monotonically increasing.

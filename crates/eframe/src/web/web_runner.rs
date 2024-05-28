@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::{epi, App};
 
-use super::{events, AppRunner, PanicHandler};
+use super::{events, text_agent::TextAgent, AppRunner, PanicHandler};
 
 /// This is how `eframe` runs your wepp application
 ///
@@ -65,14 +65,15 @@ impl WebRunner {
 
         let follow_system_theme = web_options.follow_system_theme;
 
-        let runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
+        let text_agent = TextAgent::attach(self)?;
+
+        let runner = AppRunner::new(canvas_id, web_options, app_creator, text_agent).await?;
         self.runner.replace(Some(runner));
 
         {
             events::install_canvas_events(self)?;
             events::install_document_events(self)?;
             events::install_window_events(self)?;
-            super::text_agent::install_text_agent(self)?;
 
             if follow_system_theme {
                 events::install_color_scheme_change_event(self)?;
