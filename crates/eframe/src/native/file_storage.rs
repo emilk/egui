@@ -41,7 +41,7 @@ impl Drop for FileStorage {
 
 impl FileStorage {
     /// Store the state in this .ron file.
-    fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
+    pub(crate) fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         crate::profile_function!();
         let ron_filepath: PathBuf = ron_filepath.into();
         log::debug!("Loading app state from {:?}…", ron_filepath);

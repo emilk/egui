@@ -239,6 +239,19 @@ pub struct Options {
 
     /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
     pub scroll_zoom_speed: f32,
+
+    /// If `true`, `egui` will discard the loaded image data after
+    /// the texture is loaded onto the GPU to reduce memory usage.
+    ///
+    /// In modern GPU rendering, the texture data is not required after the texture is loaded.
+    ///
+    /// This is beneficial when using a large number or resolution of images and there is no need to
+    /// retain the image data, potentially saving a significant amount of memory.
+    ///
+    /// The drawback is that it becomes impossible to serialize the loaded images or render in non-GPU systems.
+    ///
+    /// Default is `false`.
+    pub reduce_texture_memory: bool,
 }
 
 impl Default for Options {
@@ -265,6 +278,7 @@ impl Default for Options {
             // Input:
             line_scroll_speed,
             scroll_zoom_speed: 1.0 / 200.0,
+            reduce_texture_memory: false,
         }
     }
 }
@@ -285,6 +299,7 @@ impl Options {
 
             line_scroll_speed,
             scroll_zoom_speed,
+            reduce_texture_memory,
         } = self;
 
         use crate::Widget as _;
@@ -305,6 +320,8 @@ impl Options {
                 );
 
                 ui.checkbox(warn_on_id_clash, "Warn if two widgets have the same Id");
+
+                ui.checkbox(reduce_texture_memory, "Reduce texture memory");
             });
 
         use crate::containers::*;
