@@ -572,10 +572,7 @@ impl Response {
             return false;
         }
 
-        if self
-            .ctx
-            .memory(|m| m.is_popup_open(ComboBox::widget_to_popup_id(self.id)))
-        {
+        if ComboBox::is_open(&self.ctx, self.id) {
             return false;
         }
 

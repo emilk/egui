@@ -44,11 +44,6 @@ pub struct ComboBox {
 }
 
 impl ComboBox {
-    /// Convert a [`ComboBox`] id to the id used to store it's popup state.
-    pub(crate) fn widget_to_popup_id(widget_id: Id) -> Id {
-        widget_id.with("popup")
-    }
-
     /// Create new [`ComboBox`] with id and label
     pub fn new(id_source: impl std::hash::Hash, label: impl Into<WidgetText>) -> Self {
         Self {
@@ -274,6 +269,16 @@ impl ComboBox {
             response.mark_changed();
         }
         response
+    }
+
+    /// Check if the [`ComboBox`] with the given id has its popup menu currently opened.
+    pub fn is_open(ctx: &Context, id: Id) -> bool {
+        ctx.memory(|m| m.is_popup_open(ComboBox::widget_to_popup_id(id)))
+    }
+
+    /// Convert a [`ComboBox`] id to the id used to store it's popup state.
+    fn widget_to_popup_id(widget_id: Id) -> Id {
+        widget_id.with("popup")
     }
 }
 
