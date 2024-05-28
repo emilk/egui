@@ -593,6 +593,7 @@ impl<'open> Window<'open> {
                     open,
                     &mut collapsing,
                     collapsible,
+                    &resize,
                 );
             }
 
@@ -1096,17 +1097,22 @@ impl TitleBar {
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
-        collapsible: bool,
+        resize: &Resize,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
-        if let Some(open) = open {
-            // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked() {
-                *open = false;
+        if self.closebutton {
+            if let Some(open) = open {
+                // Add close button now that we know our full width:
+                if self.close_button_ui(ui).clicked() {
+                    *open = false;
+                    if let Some(resize_id) = resize.id {
+                        resize::reset_largest_content_size(ui.ctx(), resize_id);
+                    }
+                }
             }
         }
 
