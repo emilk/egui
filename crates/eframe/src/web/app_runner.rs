@@ -30,7 +30,7 @@ impl Drop for AppRunner {
 
 impl AppRunner {
     /// # Errors
-    /// Failure to initialize WebGL renderer.
+    /// Failure to initialize WebGL renderer, or failure to create app.
     pub async fn new(
         canvas_id: &str,
         web_options: crate::WebOptions,
@@ -71,7 +71,7 @@ impl AppRunner {
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
 
-        let app = app_creator(&epi::CreationContext {
+        let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
@@ -86,7 +86,8 @@ impl AppRunner {
             wgpu_render_state: painter.render_state(),
             #[cfg(all(feature = "wgpu", feature = "glow"))]
             wgpu_render_state: None,
-        });
+        };
+        let app = app_creator(&cc).map_err(|err| err.to_string())?;
 
         let frame = epi::Frame {
             info,
