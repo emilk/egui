@@ -335,7 +335,7 @@ fn file_menu_button(ui: &mut Ui) {
 
     ui.menu_button("File", |ui| {
         ui.set_min_width(220.0);
-        ui.style_mut().wrap = Some(false);
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
         // On the web the browser controls the zoom
         #[cfg(not(target_arch = "wasm32"))]
