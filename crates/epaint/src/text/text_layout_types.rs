@@ -325,8 +325,13 @@ impl TextFormat {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextWrapMode {
+    /// The text should expand the `Ui` size when reaching its boundary.
     Extend,
+    /// The text should wrap to the next line when reaching the `Ui` boundary.
     Wrap,
+    /// The text should elided using "…" when reaching the `Ui` boundary.
+    ///
+    /// Note that using [`TextWrapping`] and [`LayoutJob`] offers more control over the elision.
     Truncate,
 }
 
@@ -346,7 +351,7 @@ pub struct TextWrapping {
 
     /// Maximum amount of rows the text galley should have.
     ///
-    /// If this limit is reached, text will be truncated and
+    /// If this limit is reached, text will be truncated
     /// and [`Self::overflow_character`] appended to the final row.
     /// You can detect this by checking [`Galley::elided`].
     ///
