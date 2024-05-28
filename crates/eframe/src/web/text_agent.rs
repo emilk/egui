@@ -53,7 +53,7 @@ impl TextAgent {
 
         let on_composition_start = {
             let input = input.clone();
-            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
+            move |_: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 input.set_value("");
                 let event = egui::Event::Ime(egui::ImeEvent::Enabled);
                 runner.input.raw.events.push(event);
