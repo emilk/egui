@@ -1141,7 +1141,7 @@ impl TitleBar {
         if ui
             .interact(double_click_rect, self.id, Sense::click())
             .double_clicked()
-            && collapsible
+            && self.collapsible
         {
             collapsing.toggle(ui);
         }
