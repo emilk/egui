@@ -1,4 +1,4 @@
-use egui::TextStyle;
+use egui::{text, TextStyle};
 
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -196,7 +196,7 @@ impl TableDemo {
                                 ui.label(long_text(row_index));
                             });
                             row.col(|ui| {
-                                ui.style_mut().wrap = Some(false);
+                                ui.style_mut().wrap_mode = Some(egui::text::TextWrapMode::Extend);
                                 if is_thick {
                                     ui.heading("Extra thick row");
                                 } else {
@@ -227,7 +227,8 @@ impl TableDemo {
                         });
                         row.col(|ui| {
                             ui.add(
-                                egui::Label::new("Thousands of rows of even height").wrap(false),
+                                egui::Label::new("Thousands of rows of even height")
+                                    .wrap_mode(text::TextWrapMode::Extend),
                             );
                         });
 
@@ -253,7 +254,7 @@ impl TableDemo {
                             ui.label(long_text(row_index));
                         });
                         row.col(|ui| {
-                            ui.style_mut().wrap = Some(false);
+                            ui.style_mut().wrap_mode = Some(egui::text::TextWrapMode::Extend);
                             if thick_row(row_index) {
                                 ui.heading("Extra thick row");
                             } else {

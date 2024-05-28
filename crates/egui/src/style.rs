@@ -182,14 +182,24 @@ pub struct Style {
     /// The style to use for [`DragValue`] text.
     pub drag_value_text_style: TextStyle,
 
-    /// If set, labels buttons wtc will use this to determine whether or not
-    /// to wrap the text at the right edge of the [`Ui`] they are in.
-    /// By default this is `None`.
+    /// If set, labels, buttons, etc. will use this to determine whether to wrap the text at the
+    /// right edge of the [`Ui`] they are in. By default, this is `None`.
     ///
-    /// * `None`: follow layout
-    /// * `Some(true)`: default on
-    /// * `Some(false)`: default off
+    /// **Note**: this API is deprecated, use `wrap_mode` instead.
+    ///
+    /// * `None`: use `wrap_mode` instead
+    /// * `Some(true)`: wrap mode defaults to [`TextWrapMode::Wrap`]
+    /// * `Some(false)`: wrap mode defaults to [`TextWrapMode::Extend`]
+    #[deprecated = "Use wrap_mode instead"]
     pub wrap: Option<bool>,
+
+    /// If set, labels, buttons, etc. will use this to determine whether to wrap or truncate the
+    /// text at the right edge of the [`Ui`] they are in, or to extend it. By default, this is
+    /// `None`.
+    ///
+    /// * `None`: follow layout (with may wrap)
+    /// * `Some(mode)`: use the specified mode as default
+    pub wrap_mode: Option<crate::text::TextWrapMode>,
 
     /// Sizes and distances between widgets
     pub spacing: Spacing,
@@ -1026,12 +1036,14 @@ pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
 
 impl Default for Style {
     fn default() -> Self {
+        #[allow(deprecated)]
         Self {
             override_font_id: None,
             override_text_style: None,
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             wrap: None,
+            wrap_mode: None,
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
@@ -1317,12 +1329,14 @@ use crate::{widgets::*, Ui};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
+        #[allow(deprecated)]
         let Self {
             override_font_id,
             override_text_style,
             text_styles,
             drag_value_text_style,
             wrap: _,
+            wrap_mode: _,
             spacing,
             interaction,
             visuals,

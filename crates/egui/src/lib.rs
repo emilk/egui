@@ -338,6 +338,7 @@
 //! ## Code snippets
 //!
 //! ```
+//! # use egui::text::TextWrapMode;
 //! # egui::__run_test_ui(|ui| {
 //! # let mut some_bool = true;
 //! // Miscellaneous tips and tricks
@@ -358,7 +359,7 @@
 //! ui.scope(|ui| {
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
-//!     ui.style_mut().wrap = Some(false);
+//!     ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
 //!
 //!     ui.label("This text will be red, monospace, and won't wrap to a new line");
 //! }); // the temporary settings are reverted here
@@ -436,7 +437,7 @@ pub mod text {
     pub use crate::text_selection::{CCursorRange, CursorRange};
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
+        LayoutSection, TextFormat, TextWrapMode, TextWrapping, TAB_SIZE,
     };
 }
 

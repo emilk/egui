@@ -319,6 +319,17 @@ impl TextFormat {
 
 // ----------------------------------------------------------------------------
 
+/// How to wrap and elide text.
+///
+/// This enum is used in high-level APIs where providing a [`TextWrapping`] is too verbose.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum TextWrapMode {
+    Extend,
+    Wrap,
+    Truncate,
+}
+
 /// Controls the text wrapping and elision of a [`LayoutJob`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -394,10 +405,27 @@ impl Default for TextWrapping {
 }
 
 impl TextWrapping {
+    /// Create a [`TextWrapping`] from a [`TextWrapMode`] and an available width.
+    pub fn from_wrap_mode_and_width(mode: TextWrapMode, max_width: f32) -> Self {
+        match mode {
+            TextWrapMode::Extend => Self::no_max_width(),
+            TextWrapMode::Wrap => Self::wrap_at_width(max_width),
+            TextWrapMode::Truncate => Self::truncate_at_width(max_width),
+        }
+    }
+
     /// A row can be as long as it need to be.
     pub fn no_max_width() -> Self {
         Self {
             max_width: f32::INFINITY,
+            ..Default::default()
+        }
+    }
+
+    /// A row can be at most `max_width` wide but can wrap in any number of lines.
+    pub fn wrap_at_width(max_width: f32) -> Self {
+        Self {
+            max_width,
             ..Default::default()
         }
     }

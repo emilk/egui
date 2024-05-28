@@ -60,7 +60,7 @@ impl super::View for FrameDemo {
                     .rounding(ui.visuals().widgets.noninteractive.rounding)
                     .show(ui, |ui| {
                         self.frame.show(ui, |ui| {
-                            ui.style_mut().wrap = Some(false);
+                            ui.style_mut().wrap_mode = Some(egui::text::TextWrapMode::Extend);
                             ui.label(egui::RichText::new("Content").color(egui::Color32::WHITE));
                         });
                     });

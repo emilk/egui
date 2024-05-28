@@ -176,7 +176,10 @@ impl LayoutTest {
 }
 
 fn demo_ui(ui: &mut Ui) {
-    ui.add(egui::Label::new("Wrapping text followed by example widgets:").wrap(true));
+    ui.add(
+        egui::Label::new("Wrapping text followed by example widgets:")
+            .wrap_mode(text::TextWrapMode::Wrap),
+    );
     let mut dummy = false;
     ui.checkbox(&mut dummy, "checkbox");
     ui.radio_value(&mut dummy, false, "radio");

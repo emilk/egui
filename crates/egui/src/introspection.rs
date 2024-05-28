@@ -129,7 +129,7 @@ impl Widget for &epaint::stats::PaintStats {
 }
 
 fn label(ui: &mut Ui, alloc_info: &epaint::stats::AllocInfo, what: &str) -> Response {
-    ui.add(Label::new(alloc_info.format(what)).wrap(false))
+    ui.add(Label::new(alloc_info.format(what)).wrap_mode(text::TextWrapMode::Extend))
 }
 
 impl Widget for &mut epaint::TessellationOptions {

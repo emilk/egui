@@ -1028,7 +1028,12 @@ fn show_title_bar(
             collapsing.show_default_button_with_size(ui, button_size);
         }
 
-        let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);
+        let title_galley = title.into_galley(
+            ui,
+            Some(crate::text::TextWrapMode::Extend),
+            f32::INFINITY,
+            TextStyle::Heading,
+        );
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):
