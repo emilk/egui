@@ -88,7 +88,7 @@ impl TextAgent {
         runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
 
-        Ok(TextAgent {
+        Ok(Self {
             input,
             prev_ime_output: Default::default(),
         })
