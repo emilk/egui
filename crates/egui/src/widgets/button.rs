@@ -86,9 +86,7 @@ impl<'a> Button<'a> {
 
     /// Set the wrap mode for the text.
     ///
-    /// By default, the text will wrap at the [`Ui`] boundary in vertical layouts and wrapping
-    /// horizontal layouts, or extend the [`Ui`] otherwise. This default behavior can be overridden
-    /// with [`Style::wrap_mode`].
+    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
