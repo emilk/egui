@@ -373,9 +373,7 @@ fn combo_box_dyn<'c, R>(
                     // result in labels that wrap very early.
                     // Instead, we turn it off by default so that the labels
                     // expand the width of the menu.
-                    if ui.style().wrap_mode == Some(TextWrapMode::Wrap) {
-                        ui.style_mut().wrap_mode = None;
-                    }
+                    ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                     menu_contents(ui)
                 })
                 .inner
