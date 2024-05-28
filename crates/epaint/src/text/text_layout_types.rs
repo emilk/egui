@@ -327,8 +327,10 @@ impl TextFormat {
 pub enum TextWrapMode {
     /// The text should expand the `Ui` size when reaching its boundary.
     Extend,
+
     /// The text should wrap to the next line when reaching the `Ui` boundary.
     Wrap,
+
     /// The text should be elided using "…" when reaching the `Ui` boundary.
     ///
     /// Note that using [`TextWrapping`] and [`LayoutJob`] offers more control over the elision.
