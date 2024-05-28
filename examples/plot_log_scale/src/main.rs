@@ -117,12 +117,14 @@ impl eframe::App for PlotExample {
 #[allow(clippy::needless_pass_by_value)]
 fn log_axis_spacer(input: GridInput) -> Vec<GridMark> {
     let (min, max) = input.bounds;
-    (min.ceil() as i32..=max.floor() as i32)
-        .map(|i| GridMark {
-            value: i as f64,
-            step_size: 1.0,
-        })
-        .collect()
+    let mut marks = vec![];
+    for i in min.floor() as i32..=max.ceil() as i32 {
+        marks.extend((1..10).map(|j| GridMark {
+            value: i as f64 + (j as f64).log10(),
+            step_size: if j == 1 { 1.0 } else { 0.1 },
+        }));
+    }
+    marks
 }
 
 fn log_axis_formatter(gm: GridMark, max_size: usize, _bounds: &RangeInclusive<f64>) -> String {
