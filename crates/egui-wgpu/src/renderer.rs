@@ -2,7 +2,8 @@
 
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
-use epaint::{ahash::HashMap, emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
+use ahash::HashMap;
+use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
 
 use wgpu::util::DeviceExt as _;
 

@@ -23,7 +23,7 @@ pub struct Button<'a> {
     image: Option<Image<'a>>,
     text: Option<WidgetText>,
     shortcut_text: WidgetText,
-    wrap: Option<bool>,
+    wrap_mode: Option<TextWrapMode>,
 
     /// None means default for interact
     fill: Option<Color32>,
@@ -58,7 +58,7 @@ impl<'a> Button<'a> {
             text,
             image,
             shortcut_text: Default::default(),
-            wrap: None,
+            wrap_mode: None,
             fill: None,
             stroke: None,
             sense: Sense::click(),
@@ -70,16 +70,29 @@ impl<'a> Button<'a> {
         }
     }
 
-    /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
+    /// Set the wrap mode for the text.
     ///
-    /// By default [`Self::wrap`] will be true in vertical layouts
-    /// and horizontal layouts with wrapping,
-    /// and false on non-wrapping horizontal layouts.
+    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
-    pub fn wrap(mut self, wrap: bool) -> Self {
-        self.wrap = Some(wrap);
+    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
+        self.wrap_mode = Some(wrap_mode);
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
+    #[inline]
+    pub fn wrap(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Wrap);
+
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
+    #[inline]
+    pub fn truncate(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Truncate);
         self
     }
 
@@ -165,7 +178,7 @@ impl Widget for Button<'_> {
             text,
             image,
             shortcut_text,
-            wrap,
+            wrap_mode,
             fill,
             stroke,
             sense,
@@ -211,9 +224,15 @@ impl Widget for Button<'_> {
         }
 
         let galley =
-            text.map(|text| text.into_galley(ui, wrap, text_wrap_width, TextStyle::Button));
-        let shortcut_galley = (!shortcut_text.is_empty())
-            .then(|| shortcut_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button));
+            text.map(|text| text.into_galley(ui, wrap_mode, text_wrap_width, TextStyle::Button));
+        let shortcut_galley = (!shortcut_text.is_empty()).then(|| {
+            shortcut_text.into_galley(
+                ui,
+                Some(TextWrapMode::Extend),
+                f32::INFINITY,
+                TextStyle::Button,
+            )
+        });
 
         let mut desired_size = Vec2::ZERO;
         if image.is_some() {
