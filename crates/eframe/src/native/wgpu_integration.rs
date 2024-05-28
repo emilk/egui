@@ -182,7 +182,7 @@ impl WgpuWinitApp {
         storage: Option<Box<dyn Storage>>,
         window: Window,
         builder: ViewportBuilder,
-    ) -> Result<&mut WgpuWinitRunning, egui_wgpu::WgpuError> {
+    ) -> crate::Result<&mut WgpuWinitRunning> {
         crate::profile_function!();
 
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
@@ -272,7 +272,7 @@ impl WgpuWinitApp {
         };
         let app = {
             crate::profile_scope!("user_app_creator");
-            app_creator(&cc)
+            app_creator(&cc).map_err(crate::Error::AppCreation)?
         };
 
         let mut viewport_from_window = HashMap::default();

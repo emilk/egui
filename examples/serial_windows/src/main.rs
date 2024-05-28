@@ -23,7 +23,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "First Window",
         options.clone(),
-        Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -32,7 +32,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Second Window",
         options.clone(),
-        Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -41,7 +41,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Third Window",
         options,
-        Box::new(|_cc| Box::new(MyApp { has_next: false })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: false }))),
     )
 }
 

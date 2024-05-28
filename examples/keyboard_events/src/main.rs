@@ -10,7 +10,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Keyboard events",
         options,
-        Box::new(|_cc| Box::<Content>::default()),
+        Box::new(|_cc| Ok(Box::<Content>::default())),
     )
 }
 
