@@ -316,7 +316,7 @@ pub struct Spacing {
     /// This is the spacing between the icon and the text
     pub icon_spacing: f32,
 
-    /// The size used for the [`Ui::max_size`] the first frame.
+    /// The size used for the [`Ui::max_rect`] the first frame.
     ///
     /// Text will wrap at this width, and images that expand to fill the available space
     /// will expand to this size.

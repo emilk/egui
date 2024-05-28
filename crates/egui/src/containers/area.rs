@@ -165,7 +165,7 @@ impl Area {
         self
     }
 
-    /// The size used for the [`Ui::max_size`] the first frame.
+    /// The size used for the [`Ui::max_rect`] the first frame.
     ///
     /// Text will wrap at this width, and images that expand to fill the available space
     /// will expand to this size.
@@ -173,7 +173,7 @@ impl Area {
     /// If the contents are smaller than this size, the area will shrink to fit the contents.
     /// If the contents overflow, the area will grow.
     ///
-    /// If not set, [`Spacing::default_area_size`] will be used.
+    /// If not set, [`style::Spacing::default_area_size`] will be used.
     #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.default_size = default_size.into();
