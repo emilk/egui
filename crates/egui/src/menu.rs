@@ -476,6 +476,7 @@ impl SubMenuButton {
         let text_style = TextStyle::Button;
         let sense = Sense::click();
 
+        let text_icon_gap = ui.spacing().item_spacing.x;
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
@@ -494,7 +495,7 @@ impl SubMenuButton {
             text_style,
         );
         let text_and_icon_size = Vec2::new(
-            text_galley.size().x + icon_galley.size().x,
+            text_galley.size().x + text_icon_gap + icon_galley.size().x,
             text_galley.size().y.max(icon_galley.size().y),
         );
         let mut desired_size = text_and_icon_size + 2.0 * button_padding;
