@@ -573,7 +573,7 @@ impl Response {
         }
 
         if ComboBox::is_open(&self.ctx, self.id) {
-            return false;
+            return false; // Don't cover the open ComboBox with a tooltip
         }
 
         if self.enabled {
