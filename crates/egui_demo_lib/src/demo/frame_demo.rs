@@ -1,7 +1,10 @@
+use egui::{epaint::PathStroke, lerp, remap_clamp, Color32};
+
 /// Shows off a table with dynamic layout
 #[derive(PartialEq)]
 pub struct FrameDemo {
     frame: egui::Frame,
+    fancy: bool,
 }
 
 impl Default for FrameDemo {
@@ -18,8 +21,9 @@ impl Default for FrameDemo {
                     color: egui::Color32::from_black_alpha(180),
                 },
                 fill: egui::Color32::from_rgba_unmultiplied(97, 0, 255, 128),
-                stroke: egui::Stroke::new(1.0, egui::Color32::GRAY),
+                stroke: egui::Stroke::new(1.0, egui::Color32::GRAY).into(),
             },
+            fancy: false,
         }
     }
 }
@@ -59,7 +63,34 @@ impl super::View for FrameDemo {
                     .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
                     .rounding(ui.visuals().widgets.noninteractive.rounding)
                     .show(ui, |ui| {
-                        self.frame.show(ui, |ui| {
+                        if ui.checkbox(&mut self.fancy, "Fancy Stroke").clicked() {
+                            let width = self.frame.stroke.width;
+                            if self.fancy {
+                                self.frame.stroke = PathStroke::new_uv(width, |rect, pos| {
+                                    let x_t = remap_clamp(pos.x, rect.x_range(), 0.0..=1.0);
+                                    let y_t = remap_clamp(pos.y, rect.y_range(), 0.0..=1.0);
+
+                                    Color32::from_rgb(
+                                        lerp(
+                                            Color32::RED.r() as f32..=Color32::GREEN.r() as f32,
+                                            x_t,
+                                        ) as u8,
+                                        lerp(
+                                            Color32::RED.g() as f32..=Color32::GREEN.g() as f32,
+                                            y_t,
+                                        ) as u8,
+                                        lerp(
+                                            Color32::RED.b() as f32..=Color32::GREEN.b() as f32,
+                                            x_t,
+                                        ) as u8,
+                                    )
+                                });
+                            } else {
+                                self.frame.stroke =
+                                    egui::Stroke::new(width, egui::Color32::GRAY).into();
+                            }
+                        }
+                        self.frame.clone().show(ui, |ui| {
                             ui.style_mut().wrap = Some(false);
                             ui.label(egui::RichText::new("Content").color(egui::Color32::WHITE));
                         });

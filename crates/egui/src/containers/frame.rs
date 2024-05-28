@@ -1,5 +1,7 @@
 //! Frame container
 
+use std::sync::Arc;
+
 use crate::{layers::ShapeIdx, *};
 use epaint::*;
 
@@ -51,7 +53,7 @@ use epaint::*;
 ///
 /// Note that you cannot change the margins after calling `begin`.
 #[doc(alias = "border")]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[must_use = "You should call .show()"]
 pub struct Frame {
@@ -67,7 +69,7 @@ pub struct Frame {
 
     pub fill: Color32,
 
-    pub stroke: Stroke,
+    pub stroke: PathStroke,
 }
 
 impl Frame {
@@ -80,7 +82,7 @@ impl Frame {
         Self {
             inner_margin: Margin::same(6.0), // same and symmetric looks best in corners when nesting groups
             rounding: style.visuals.widgets.noninteractive.rounding,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
+            stroke: style.visuals.widgets.noninteractive.bg_stroke.into(),
             ..Default::default()
         }
     }
@@ -107,7 +109,7 @@ impl Frame {
             rounding: style.visuals.window_rounding,
             shadow: style.visuals.window_shadow,
             fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
+            stroke: style.visuals.window_stroke().into(),
             ..Default::default()
         }
     }
@@ -118,7 +120,7 @@ impl Frame {
             rounding: style.visuals.menu_rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
+            stroke: style.visuals.window_stroke().into(),
             ..Default::default()
         }
     }
@@ -129,7 +131,7 @@ impl Frame {
             rounding: style.visuals.menu_rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
+            stroke: style.visuals.window_stroke().into(),
             ..Default::default()
         }
     }
@@ -143,7 +145,7 @@ impl Frame {
             inner_margin: Margin::same(2.0),
             rounding: style.visuals.widgets.noninteractive.rounding,
             fill: style.visuals.extreme_bg_color,
-            stroke: style.visuals.window_stroke(),
+            stroke: style.visuals.window_stroke().into(),
             ..Default::default()
         }
     }
@@ -165,7 +167,7 @@ impl Frame {
     }
 
     #[inline]
-    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+    pub fn stroke(mut self, stroke: impl Into<PathStroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
@@ -203,7 +205,13 @@ impl Frame {
     #[inline]
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
         self.fill = self.fill.gamma_multiply(opacity);
-        self.stroke.color = self.stroke.color.gamma_multiply(opacity);
+        self.stroke.color = match self.stroke.color {
+            ColorMode::Solid(color) => ColorMode::Solid(color.gamma_multiply(opacity)),
+            ColorMode::UV(callback) => ColorMode::UV(Arc::new(move |rect, pos| {
+                let color = callback(rect, pos);
+                color.gamma_multiply(opacity)
+            })),
+        };
         self.shadow.color = self.shadow.color.gamma_multiply(opacity);
         self
     }
@@ -288,14 +296,19 @@ impl Frame {
             shadow,
             fill,
             stroke,
-        } = *self;
+        } = self;
 
-        let frame_shape = Shape::Rect(epaint::RectShape::new(outer_rect, rounding, fill, stroke));
+        let frame_shape = Shape::Rect(epaint::RectShape::new(
+            outer_rect,
+            *rounding,
+            *fill,
+            stroke.to_owned(),
+        ));
 
-        if shadow == Default::default() {
+        if *shadow == Default::default() {
             frame_shape
         } else {
-            let shadow = shadow.as_shape(outer_rect, rounding);
+            let shadow = shadow.as_shape(outer_rect, *rounding);
             Shape::Vec(vec![Shape::from(shadow), frame_shape])
         }
     }

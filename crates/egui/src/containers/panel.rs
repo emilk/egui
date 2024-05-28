@@ -260,9 +260,10 @@ impl SidePanel {
         let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+        let inner_margin = frame.inner_margin.sum();
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
-            ui.set_min_width((width_range.min - frame.inner_margin.sum().x).at_least(0.0));
+            ui.set_min_width((width_range.min - inner_margin.x).at_least(0.0));
             add_contents(ui)
         });
 
@@ -726,9 +727,10 @@ impl TopBottomPanel {
         let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+        let inner_margin = frame.inner_margin.sum();
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
-            ui.set_min_height((height_range.min - frame.inner_margin.sum().y).at_least(0.0));
+            ui.set_min_height((height_range.min - inner_margin.y).at_least(0.0));
             add_contents(ui)
         });
 

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use emath::{Float as _, Rot2};
-use epaint::RectShape;
+use epaint::{PathStroke, RectShape};
 
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
@@ -761,7 +761,7 @@ pub fn paint_texture_at(
                 rect,
                 rounding: options.rounding,
                 fill: options.tint,
-                stroke: Stroke::NONE,
+                stroke: PathStroke::NONE,
                 blur_width: 0.0,
                 fill_texture_id: texture.id,
                 uv: options.uv,

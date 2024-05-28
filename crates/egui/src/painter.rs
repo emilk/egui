@@ -340,7 +340,7 @@ impl Painter {
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> ShapeIdx {
         self.add(RectShape::new(rect, rounding, fill_color, stroke))
     }
@@ -358,7 +358,7 @@ impl Painter {
         &self,
         rect: Rect,
         rounding: impl Into<Rounding>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> ShapeIdx {
         self.add(RectShape::stroke(rect, rounding, stroke))
     }

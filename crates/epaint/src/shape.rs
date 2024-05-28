@@ -266,7 +266,7 @@ impl Shape {
     pub fn rect_stroke(
         rect: Rect,
         rounding: impl Into<Rounding>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self::Rect(RectShape::stroke(rect, rounding, stroke))
     }
@@ -658,7 +658,7 @@ impl From<PathShape> for Shape {
 // ----------------------------------------------------------------------------
 
 /// How to paint a rectangle.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RectShape {
     pub rect: Rect,
@@ -670,7 +670,7 @@ pub struct RectShape {
     pub fill: Color32,
 
     /// The thickness and color of the outline.
-    pub stroke: Stroke,
+    pub stroke: PathStroke,
 
     /// If larger than zero, the edges of the rectangle
     /// (for both fill and stroke) will be blurred.
@@ -700,7 +700,7 @@ impl RectShape {
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
+        stroke: impl Into<PathStroke>,
     ) -> Self {
         Self {
             rect,
@@ -731,7 +731,11 @@ impl RectShape {
     }
 
     #[inline]
-    pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
+    pub fn stroke(
+        rect: Rect,
+        rounding: impl Into<Rounding>,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
         Self {
             rect,
             rounding: rounding.into(),

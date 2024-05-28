@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use epaint::{Rounding, Shadow, Stroke};
+use epaint::{ColorMode, PathStroke, Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
@@ -2264,6 +2264,41 @@ impl Widget for &mut Stroke {
             let left = stroke_rect.left_center();
             let right = stroke_rect.right_center();
             ui.painter().line_segment([left, right], (*width, *color));
+        })
+        .response
+    }
+}
+
+impl Widget for &mut PathStroke {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let PathStroke { width, color } = self;
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(width)
+                    .speed(0.1)
+                    .clamp_range(0.0..=f32::INFINITY),
+            )
+            .on_hover_text("Width");
+
+            match color {
+                ColorMode::Solid(color) => ui.color_edit_button_srgba(color),
+                ColorMode::UV(_) => ui.label("[CALLBACK]").on_hover_text(
+                    "This stroke uses a custom callback function. This isn't editable.",
+                ),
+            };
+
+            let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
+            let left = stroke_rect.left_center();
+            let right = stroke_rect.right_center();
+
+            ui.painter().line_segment(
+                [left, right],
+                PathStroke {
+                    width: *width,
+                    color: color.to_owned(),
+                },
+            );
         })
         .response
     }

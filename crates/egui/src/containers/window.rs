@@ -404,8 +404,9 @@ impl<'open> Window<'open> {
             with_title_bar,
         } = self;
 
-        let header_color =
-            frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
+        let header_color = frame
+            .as_ref()
+            .map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
         let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
         // Keep the original inner margin for later use
         let window_margin = window_frame.inner_margin;
@@ -480,7 +481,8 @@ impl<'open> Window<'open> {
 
         let content_inner = {
             // BEGIN FRAME --------------------------------
-            let frame_stroke = window_frame.stroke;
+            let frame_stroke = window_frame.stroke.clone();
+            let rounding = window_frame.rounding;
             let mut frame = window_frame.begin(&mut area_content_ui);
 
             let show_close_button = open.is_some();
@@ -530,7 +532,7 @@ impl<'open> Window<'open> {
                 &possible,
                 outer_rect,
                 frame_stroke,
-                window_frame.rounding,
+                rounding,
             );
 
             // END FRAME --------------------------------
@@ -547,7 +549,7 @@ impl<'open> Window<'open> {
                 title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
 
                 if on_top && area_content_ui.visuals().window_highlight_topmost {
-                    let mut round = window_frame.rounding;
+                    let mut round = rounding;
 
                     // Eliminate the rounding gap between the title bar and the window frame
                     round -= border_padding;
@@ -599,7 +601,7 @@ fn paint_resize_corner(
     ui: &Ui,
     possible: &PossibleInteractions,
     outer_rect: Rect,
-    stroke: impl Into<Stroke>,
+    stroke: impl Into<PathStroke>,
     rounding: impl Into<Rounding>,
 ) {
     let stroke = stroke.into();
