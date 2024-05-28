@@ -1024,6 +1024,9 @@ struct TitleBar {
     /// Size of the title bar in an expanded state. This size become known only
     /// after expanding window and painting its content
     rect: Rect,
+
+    /// Can the window be collapsed by clicking on its title?
+    collapsible: bool,
 }
 
 fn show_title_bar(
@@ -1065,6 +1068,7 @@ fn show_title_bar(
             title_galley,
             min_rect,
             rect: Rect::NAN, // Will be filled in later
+            collapsible,
         }
     });
 
