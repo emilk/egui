@@ -159,6 +159,7 @@ pub struct Plot<'a> {
     boxed_zoom_pointer_button: PointerButton,
     linked_axes: Option<(Id, Vec2b)>,
     linked_cursors: Option<(Id, Vec2b)>,
+    enable_cursor_drawing: bool,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -206,6 +207,7 @@ impl<'a> Plot<'a> {
             boxed_zoom_pointer_button: PointerButton::Secondary,
             linked_axes: None,
             linked_cursors: None,
+            enable_cursor_drawing: true,
 
             min_size: Vec2::splat(64.0),
             width: None,
@@ -599,6 +601,15 @@ impl<'a> Plot<'a> {
         self
     }
 
+    /// Show or hide the cursor lines.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn enable_cursor_drawing(mut self, enable: bool) -> Self {
+        self.enable_cursor_drawing = enable;
+        self
+    }
+
     /// Round grid positions to full pixels to avoid aliasing. Improves plot appearance but might have an
     /// undesired effect when shifting the plot bounds. Enabled by default.
     #[inline]
@@ -763,6 +774,7 @@ impl<'a> Plot<'a> {
             grid_spacing,
             linked_axes,
             linked_cursors,
+            enable_cursor_drawing,
 
             clamp_grid,
             grid_spacers,
@@ -1181,6 +1193,7 @@ impl<'a> Plot<'a> {
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
             draw_cursors,
+            enable_cursor_drawing,
             grid_spacers,
             sharp_grid_lines,
             clamp_grid,
@@ -1465,6 +1478,7 @@ struct PreparedPlot<'a> {
     draw_cursor_x: bool,
     draw_cursor_y: bool,
     draw_cursors: Vec<Cursor>,
+    enable_cursor_drawing: bool,
 
     sharp_grid_lines: bool,
     clamp_grid: bool,
@@ -1530,7 +1544,9 @@ impl<'a> PreparedPlot<'a> {
         };
 
         draw_cursor(&self.draw_cursors, false);
-        draw_cursor(&cursors, true);
+        if self.enable_cursor_drawing {
+            draw_cursor(&cursors, true);
+        }
 
         let painter = ui.painter().with_clip_rect(*transform.frame());
         painter.extend(shapes);
