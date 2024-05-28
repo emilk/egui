@@ -333,16 +333,17 @@ impl Ui {
     ///
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
     pub fn wrap_mode(&self) -> TextWrapMode {
-        // `wrap` handling for backward compatibility
         #[allow(deprecated)]
-        if let Some(wrap) = self.style.wrap {
+        if let Some(wrap_mode) = self.style.wrap_mode {
+            wrap_mode
+        }
+        // `wrap` handling for backward compatibility
+        else if let Some(wrap) = self.style.wrap {
             if wrap {
                 TextWrapMode::Wrap
             } else {
                 TextWrapMode::Extend
             }
-        } else if let Some(wrap_mode) = self.style.wrap_mode {
-            wrap_mode
         } else if let Some(grid) = self.placer.grid() {
             if grid.wrap_text() {
                 TextWrapMode::Wrap
