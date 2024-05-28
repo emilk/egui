@@ -44,7 +44,7 @@ impl Label {
 
     /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
     ///
-    /// Deprecated. Use [`wrap_mode`] instead.
+    /// Deprecated. Use [`Self::wrap_mode`] instead.
     #[deprecated = "Use `wrap_mode(TextWrapMode::Wrap)` instead"]
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
@@ -59,6 +59,7 @@ impl Label {
     /// If `true`, the text will stop at the max width of the [`Ui`],
     /// and what doesn't fit will be elided, replaced with `…`.
     ///
+    /// [`Self::wrap_mode`] instead.
     /// If the text is truncated, the full text will be shown on hover as a tool-tip.
     #[deprecated = "Use `wrap_mode(TextWrapMode::Truncate)` instead"]
     #[inline]

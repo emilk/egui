@@ -188,8 +188,8 @@ pub struct Style {
     /// **Note**: this API is deprecated, use `wrap_mode` instead.
     ///
     /// * `None`: use `wrap_mode` instead
-    /// * `Some(true)`: wrap mode defaults to [`TextWrapMode::Wrap`]
-    /// * `Some(false)`: wrap mode defaults to [`TextWrapMode::Extend`]
+    /// * `Some(true)`: wrap mode defaults to [`crate::text::TextWrapMode::Wrap`]
+    /// * `Some(false)`: wrap mode defaults to [`crate::text::TextWrapMode::Extend`]
     #[deprecated = "Use wrap_mode instead"]
     pub wrap: Option<bool>,
 

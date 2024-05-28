@@ -72,7 +72,7 @@ impl<'a> Button<'a> {
 
     /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
     ///
-    /// Deprecated. Use [`wrap_mode`] instead.
+    /// Deprecated. Use [`Self::wrap_mode`] instead.
     #[deprecated = "Use `wrap_mode` instead"]
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
