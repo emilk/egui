@@ -215,16 +215,14 @@ impl Widget for Button<'_> {
             Vec2::ZERO
         };
 
+        let gap_before_shortcut_text = ui.spacing().item_spacing.x;
+
         let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
         if image.is_some() {
             text_wrap_width -= image_size.x + ui.spacing().icon_spacing;
         }
-        if !shortcut_text.is_empty() {
-            text_wrap_width -= 60.0; // Some space for the shortcut text (which we never wrap).
-        }
 
-        let galley =
-            text.map(|text| text.into_galley(ui, wrap_mode, text_wrap_width, TextStyle::Button));
+        // Note: we don't wrap the shortcut text
         let shortcut_galley = (!shortcut_text.is_empty()).then(|| {
             shortcut_text.into_galley(
                 ui,
@@ -233,6 +231,14 @@ impl Widget for Button<'_> {
                 TextStyle::Button,
             )
         });
+
+        if let Some(shortcut_galley) = &shortcut_galley {
+            // Leave space for the shortcut text:
+            text_wrap_width -= gap_before_shortcut_text + shortcut_galley.size().x;
+        }
+
+        let galley =
+            text.map(|text| text.into_galley(ui, wrap_mode, text_wrap_width, TextStyle::Button));
 
         let mut desired_size = Vec2::ZERO;
         if image.is_some() {
@@ -246,9 +252,9 @@ impl Widget for Button<'_> {
             desired_size.x += text.size().x;
             desired_size.y = desired_size.y.max(text.size().y);
         }
-        if let Some(shortcut_text) = &shortcut_galley {
-            desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
-            desired_size.y = desired_size.y.max(shortcut_text.size().y);
+        if let Some(shortcut_galley) = &shortcut_galley {
+            desired_size.x += gap_before_shortcut_text + shortcut_galley.size().x;
+            desired_size.y = desired_size.y.max(shortcut_galley.size().y);
         }
         desired_size += 2.0 * button_padding;
         if !small {
