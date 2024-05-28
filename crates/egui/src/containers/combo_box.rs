@@ -270,6 +270,16 @@ impl ComboBox {
         }
         response
     }
+
+    /// Check if the [`ComboBox`] with the given id has its popup menu currently opened.
+    pub fn is_open(ctx: &Context, id: Id) -> bool {
+        ctx.memory(|m| m.is_popup_open(Self::widget_to_popup_id(id)))
+    }
+
+    /// Convert a [`ComboBox`] id to the id used to store it's popup state.
+    fn widget_to_popup_id(widget_id: Id) -> Id {
+        widget_id.with("popup")
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -282,7 +292,7 @@ fn combo_box_dyn<'c, R>(
     wrap_mode: Option<TextWrapMode>,
     (width, height): (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
-    let popup_id = button_id.with("popup");
+    let popup_id = ComboBox::widget_to_popup_id(button_id);
 
     let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 

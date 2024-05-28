@@ -2,7 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect, WidgetText,
+    menu, ComboBox, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect,
+    WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -569,6 +570,10 @@ impl Response {
 
         if self.context_menu_opened() {
             return false;
+        }
+
+        if ComboBox::is_open(&self.ctx, self.id) {
+            return false; // Don't cover the open ComboBox with a tooltip
         }
 
         if self.enabled {
