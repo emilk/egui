@@ -13,7 +13,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Plot",
         options,
-        Box::new(|_cc| Box::<PlotExample>::default()),
+        Box::new(|_cc| Ok(Box::<PlotExample>::default())),
     )
 }
 
