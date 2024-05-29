@@ -525,19 +525,10 @@ impl Prepared {
             enabled: _,
             constrain: _,
             constrain_rect: _,
-            sizing_pass,
+            sizing_pass: _,
         } = self;
 
         state.size = content_ui.min_size();
-
-        if sizing_pass {
-            // If during the sizing pass we measure our width to `123.45` and
-            // then try to wrap to exactly that next frame,
-            // we may accidentally wrap the last letter of some text.
-            // We only do this after the initial sizing pass though;
-            // otherwise we could end up with for-ever expanding areas.
-            state.size = state.size.ceil();
-        }
 
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 
