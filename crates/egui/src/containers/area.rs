@@ -4,25 +4,34 @@
 
 use crate::*;
 
-/// State that is persisted between frames.
-// TODO(emilk): this is not currently stored in `Memory::data`, but maybe it should be?
+/// State of an [`Area`] that is persisted between frames.
+///
+/// Areas back [`crate::Window`]s and other floating containers,
+/// like tooltips and the popups of [`crate::ComboBox`].
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct State {
-    /// Last known pos of the pivot
+pub struct AreaState {
+    /// Last known position of the pivot.
     pub pivot_pos: Pos2,
 
+    /// The anchor point of the area, i.e. where on the area the [`Self::pivot_pos`] refers to.
     pub pivot: Align2,
 
-    /// Last know size. Used for catching clicks.
+    /// Last known size.
     pub size: Vec2,
 
-    /// If false, clicks goes straight through to what is behind us.
-    /// Good for tooltips etc.
+    /// If false, clicks goes straight through to what is behind us. Useful for tooltips etc.
     pub interactable: bool,
 }
 
-impl State {
+impl AreaState {
+    /// Load the state of an [`Area`] from memory.
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        // TODO(emilk): Area state is not currently stored in `Memory::data`, but maybe it should be?
+        ctx.memory(|mem| mem.areas().get(id).copied())
+    }
+
+    /// The left top positions of the area.
     pub fn left_top_pos(&self) -> Pos2 {
         pos2(
             self.pivot_pos.x - self.pivot.x().to_factor() * self.size.x,
@@ -30,6 +39,7 @@ impl State {
         )
     }
 
+    /// Move the left top positions of the area.
     pub fn set_left_top_pos(&mut self, pos: Pos2) {
         self.pivot_pos = pos2(
             pos.x + self.pivot.x().to_factor() * self.size.x,
@@ -37,6 +47,7 @@ impl State {
         );
     }
 
+    /// Where the area is on screen.
     pub fn rect(&self) -> Rect {
         Rect::from_min_size(self.left_top_pos(), self.size)
     }
@@ -73,6 +84,10 @@ pub struct Area {
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
+}
+
+impl WidgetWithState for Area {
+    type State = AreaState;
 }
 
 impl Area {
@@ -267,7 +282,7 @@ impl Area {
 
 pub(crate) struct Prepared {
     layer_id: LayerId,
-    state: State,
+    state: AreaState,
     move_response: Response,
     enabled: bool,
     constrain: bool,
@@ -313,13 +328,11 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx
-            .memory(|mem| mem.areas().get(id).copied())
-            .map(|mut state| {
-                // override the saved state with the correct value
-                state.pivot = pivot;
-                state
-            });
+        let state = AreaState::load(ctx, id).map(|mut state| {
+            // override the saved state with the correct value
+            state.pivot = pivot;
+            state
+        });
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
@@ -341,7 +354,7 @@ impl Area {
                 size = size.at_most(constrain_rect.size());
             }
 
-            State {
+            AreaState {
                 pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
                 pivot,
                 size,
@@ -433,7 +446,7 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx.memory(|mem| mem.areas().get(self.id).map(|area| area.rect()));
+        let area_rect = AreaState::load(ctx, self.id).map(|state| state.rect());
         if let Some(area_rect) = area_rect {
             let clip_rect = Rect::EVERYTHING;
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
@@ -449,11 +462,11 @@ impl Area {
 }
 
 impl Prepared {
-    pub(crate) fn state(&self) -> &State {
+    pub(crate) fn state(&self) -> &AreaState {
         &self.state
     }
 
-    pub(crate) fn state_mut(&mut self) -> &mut State {
+    pub(crate) fn state_mut(&mut self) -> &mut AreaState {
         &mut self.state
     }
 
@@ -542,7 +555,7 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
         mem.areas()
             .visible_windows()
             .into_iter()
-            .map(State::rect)
+            .map(AreaState::rect)
             .collect()
     });
     existing.sort_by_key(|r| r.left().round() as i32);
