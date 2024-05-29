@@ -329,18 +329,43 @@ impl Ui {
         self.placer.layout()
     }
 
-    /// Should text wrap in this [`Ui`]?
+    /// Which wrap mode should the text use in this [`Ui`]?
     ///
-    /// This is determined first by [`Style::wrap`], and then by the layout of this [`Ui`].
-    pub fn wrap_text(&self) -> bool {
-        if let Some(wrap) = self.style.wrap {
-            wrap
+    /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
+    pub fn wrap_mode(&self) -> TextWrapMode {
+        #[allow(deprecated)]
+        if let Some(wrap_mode) = self.style.wrap_mode {
+            wrap_mode
+        }
+        // `wrap` handling for backward compatibility
+        else if let Some(wrap) = self.style.wrap {
+            if wrap {
+                TextWrapMode::Wrap
+            } else {
+                TextWrapMode::Extend
+            }
         } else if let Some(grid) = self.placer.grid() {
-            grid.wrap_text()
+            if grid.wrap_text() {
+                TextWrapMode::Wrap
+            } else {
+                TextWrapMode::Extend
+            }
         } else {
             let layout = self.layout();
-            layout.is_vertical() || layout.is_horizontal() && layout.main_wrap()
+            if layout.is_vertical() || layout.is_horizontal() && layout.main_wrap() {
+                TextWrapMode::Wrap
+            } else {
+                TextWrapMode::Extend
+            }
         }
+    }
+
+    /// Should text wrap in this [`Ui`]?
+    ///
+    /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
+    #[deprecated = "Use `wrap_mode` instead"]
+    pub fn wrap_text(&self) -> bool {
+        self.wrap_mode() == TextWrapMode::Wrap
     }
 
     /// Create a painter for a sub-region of this Ui.

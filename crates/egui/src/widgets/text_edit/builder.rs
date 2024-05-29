@@ -665,9 +665,19 @@ impl<'t> TextEdit<'t> {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
-                    hint_text.into_galley(ui, Some(true), desired_inner_size.x, hint_text_font_id)
+                    hint_text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Wrap),
+                        desired_inner_size.x,
+                        hint_text_font_id,
+                    )
                 } else {
-                    hint_text.into_galley(ui, Some(false), f32::INFINITY, hint_text_font_id)
+                    hint_text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Extend),
+                        f32::INFINITY,
+                        hint_text_font_id,
+                    )
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }

@@ -294,7 +294,6 @@ impl Renderer {
                         // 2: uint color
                         attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Uint32],
                     }],
-                    compilation_options: wgpu::PipelineCompilationOptions::default()
                 },
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -336,7 +335,6 @@ impl Renderer {
                         }),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
-                    compilation_options: wgpu::PipelineCompilationOptions::default()
                 }),
                 multiview: None,
             }

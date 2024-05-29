@@ -54,7 +54,7 @@ impl WebRunner {
     /// Create the application, install callbacks, and start running the app.
     ///
     /// # Errors
-    /// Failing to initialize graphics.
+    /// Failing to initialize graphics, or failure to create app.
     pub async fn start(
         &self,
         canvas_id: &str,

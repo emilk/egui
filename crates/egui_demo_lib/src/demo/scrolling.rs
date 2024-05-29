@@ -82,7 +82,7 @@ impl super::View for Scrolling {
             }
             ScrollDemo::Bidirectional => {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    ui.style_mut().wrap = Some(false);
+                    ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                     for _ in 0..100 {
                         ui.label(crate::LOREM_IPSUM);
                     }

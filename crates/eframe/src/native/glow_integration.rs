@@ -314,7 +314,7 @@ impl GlowWinitApp {
                 raw_window_handle: window.window_handle().map(|h| h.as_raw()),
             };
             crate::profile_scope!("app_creator");
-            app_creator(&cc)
+            app_creator(&cc).map_err(crate::Error::AppCreation)?
         };
 
         let glutin = Rc::new(RefCell::new(glutin));
