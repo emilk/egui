@@ -134,8 +134,7 @@ impl TextAgent {
     }
 
     pub fn has_focus(&self) -> bool {
-        let active_element = super::focused_element();
-        self.input.clone().dyn_into().ok() == active_element
+        super::has_focus(&self.input)
     }
 
     fn focus(&self) {

@@ -53,11 +53,27 @@ pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
 }
 
-pub(crate) fn focused_element() -> Option<web_sys::HtmlElement> {
+/// Returns the `Element` with active focus.
+///
+/// Elements can only be focused if they are:
+/// - `<a>`/`<area>` with an `href` attribute
+/// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
+/// - any other element with a `tabindex` attribute
+pub(crate) fn focused_element() -> Option<web_sys::Element> {
     web_sys::window()?
         .document()?
-        .active_element()
-        .and_then(|v| v.dyn_into().ok())
+        .active_element()?
+        .dyn_into()
+        .ok()
+}
+
+pub(crate) fn has_focus<T: Clone + JsCast>(element: &T) -> bool {
+    fn inner<T: Clone + JsCast>(element: &T) -> Option<bool> {
+        let element = element.dyn_ref::<web_sys::Element>()?;
+        let focused_element = focused_element()?;
+        Some(element == &focused_element)
+    }
+    inner(element).unwrap_or(false)
 }
 
 /// Current time in seconds (since undefined point in time).
