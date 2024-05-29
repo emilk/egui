@@ -523,12 +523,7 @@ impl Response {
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_for(
-                &self.ctx,
-                self.id.with("__tooltip"),
-                &self.rect,
-                add_contents,
-            );
+            self.show_tooltip_ui(add_contents);
         }
         self
     }
@@ -556,6 +551,27 @@ impl Response {
             );
         }
         self
+    }
+
+    /// Always show this tooltip, even if disabled and the user isn't hovering it.
+    ///
+    /// This can be used to give attention to a widget during a tutorial.
+    pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
+        crate::containers::show_tooltip_for(
+            &self.ctx,
+            self.id.with("__tooltip"),
+            &self.rect,
+            add_contents,
+        );
+    }
+
+    /// Always show this tooltip, even if disabled and the user isn't hovering it.
+    ///
+    /// This can be used to give attention to a widget during a tutorial.
+    pub fn show_tooltip_text(&self, text: impl Into<WidgetText>) {
+        self.show_tooltip_ui(|ui| {
+            ui.label(text);
+        });
     }
 
     /// Was the tooltip open last frame?
