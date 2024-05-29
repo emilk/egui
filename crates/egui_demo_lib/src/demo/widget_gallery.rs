@@ -172,8 +172,6 @@ impl WidgetGallery {
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{radio:?}"))
             .show_ui(ui, |ui| {
-                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-                ui.set_min_width(60.0);
                 ui.selectable_value(radio, Enum::First, "First");
                 ui.selectable_value(radio, Enum::Second, "Second");
                 ui.selectable_value(radio, Enum::Third, "Third");

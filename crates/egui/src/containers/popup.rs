@@ -307,7 +307,7 @@ pub fn popup_below_widget<R>(
 ///
 /// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
 ///
-/// The opened popup will have the same width as the parent.
+/// The opened popup will have a minimum width matching its parent.
 ///
 /// You must open the popup with [`Memory::open_popup`] or  [`Memory::toggle_popup`].
 ///
@@ -341,18 +341,21 @@ pub fn popup_above_or_below_widget<R>(
             AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
         };
 
+        let frame = Frame::popup(parent_ui.style());
+        let frame_margin = frame.total_margin();
+        let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
             .constrain(true)
             .fixed_pos(pos)
+            .default_width(inner_width)
             .pivot(pivot)
             .show(parent_ui.ctx(), |ui| {
-                let frame = Frame::popup(parent_ui.style());
-                let frame_margin = frame.total_margin();
                 frame
                     .show(ui, |ui| {
                         ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                            ui.set_width(widget_response.rect.width() - frame_margin.sum().x);
+                            ui.set_min_width(inner_width);
                             add_contents(ui)
                         })
                         .inner
