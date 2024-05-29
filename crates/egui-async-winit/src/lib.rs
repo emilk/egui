@@ -9,6 +9,8 @@
 
 #![allow(clippy::manual_range_contains)]
 
+use std::sync::{Arc, Mutex};
+
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use async_winit;
@@ -31,6 +33,7 @@ pub(crate) use profiling_scopes::*;
 
 use async_winit::{
     dpi::{PhysicalPosition, PhysicalSize},
+    event::{MouseInput, MouseWheel, ScaleFactorChanged, ScaleFactorChanging},
     event_loop::EventLoopWindowTarget,
     window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
 };
@@ -241,6 +244,68 @@ impl State {
             .native_pixels_per_point = Some(window.scale_factor() as f32);
 
         self.egui_input.take()
+    }
+
+    pub fn register_event_handlers(
+        s: &Arc<Mutex<Self>>,
+        window: &async_winit::window::Window<async_winit::ThreadSafe>,
+    ) {
+        let s2 = s.clone();
+        let sfc1 = move |sfc: ScaleFactorChanged| {
+            let s2 = s2.clone();
+            async move {
+                println!("Scale factor changed");
+                let mut s4 = s2.lock().unwrap();
+                let vp = s4.viewport_id;
+                s4.egui_input
+                    .viewports
+                    .entry(vp)
+                    .or_default()
+                    .native_pixels_per_point
+                    .as_mut()
+                    .map(|a| *a *= sfc.scale_factor as f32);
+                true
+            }
+        };
+        window.scale_factor_changed().wait_direct_async(sfc1);
+        let s2 = s.clone();
+        window
+            .mouse_input()
+            .wait_direct_async(move |m: MouseInput| {
+                let s2 = s2.clone();
+                async move {
+                    println!("Mouse input event");
+                    let mut s = s2.lock().unwrap();
+                    s.on_mouse_button_input(m.state, m.button);
+                    true
+                }
+            });
+        let s2 = s.clone();
+        let window2 = window.clone();
+        window
+            .mouse_wheel()
+            .wait_direct_async(move |m: MouseWheel| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                async move {
+                    println!("Mouse scroll event");
+                    let mut s = s2.lock().unwrap();
+                    s.on_mouse_wheel(&window, m.delta);
+                    true
+                }
+            });
+        let s2 = s.clone();
+        let window2 = window.clone();
+        window.cursor_moved().wait_direct_async(move |c| {
+            let s2 = s2.clone();
+            let window = window2.clone();
+            async move {
+                println!("Cursor moved event");
+                let mut s = s2.lock().unwrap();
+                s.on_cursor_moved(&window, c.position);
+                true
+            }
+        });
     }
 
     /// Call this when there is a new event.

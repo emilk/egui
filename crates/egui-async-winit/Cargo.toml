@@ -62,7 +62,7 @@ egui = { workspace = true, default-features = false, features = ["log"] }
 log.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
-async-winit = { workspace = true, default-features = false }
+async-winit = { workspace = true, default-features = false, features = ["thread_safe"] }
 # glutin stuck on old version of raw-window-handle:
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
   "std",

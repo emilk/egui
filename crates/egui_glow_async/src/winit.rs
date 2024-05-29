@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 pub use egui_async_winit;
 pub use egui_async_winit::EventResponse;
 
@@ -9,7 +11,7 @@ use crate::shader_version::ShaderVersion;
 /// Use [`egui`] from a [`glow`] app based on [`winit`].
 pub struct EguiGlow {
     pub egui_ctx: egui::Context,
-    pub egui_winit: egui_async_winit::State,
+    pub egui_winit: Arc<Mutex<egui_async_winit::State>>,
     pub painter: crate::Painter,
 
     viewport_info: egui::ViewportInfo,
@@ -46,7 +48,7 @@ impl EguiGlow {
 
         Self {
             egui_ctx,
-            egui_winit,
+            egui_winit: Arc::new(Mutex::new(egui_winit)),
             painter,
             viewport_info: Default::default(),
             shapes: Default::default(),
@@ -60,7 +62,10 @@ impl EguiGlow {
         window: &async_winit::window::Window<TS>,
         event: &async_winit::event::WindowEvent,
     ) -> EventResponse {
-        self.egui_winit.on_window_event(window, event)
+        self.egui_winit
+            .lock()
+            .unwrap()
+            .on_window_event(window, event)
     }
 
     /// Call [`Self::paint`] later to paint.
@@ -69,7 +74,8 @@ impl EguiGlow {
         window: &async_winit::window::Window<TS>,
         run_ui: impl FnMut(&egui::Context),
     ) {
-        let raw_input = self.egui_winit.take_egui_input(window).await;
+        let mut egui_winit = self.egui_winit.lock().unwrap();
+        let raw_input = egui_winit.take_egui_input(window).await;
 
         let egui::FullOutput {
             platform_output,
@@ -99,7 +105,7 @@ impl EguiGlow {
             }
         }
 
-        self.egui_winit
+        egui_winit
             .handle_platform_output(window, platform_output)
             .await;
 
