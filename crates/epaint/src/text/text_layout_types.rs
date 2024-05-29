@@ -74,6 +74,10 @@ pub struct LayoutJob {
 
     /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
+
+    /// Rounding to the closest ui point (not pixel!) allows the rest of the
+    /// layout code to run on perfect integers, avoiding rounding errors.
+    pub round_output_size_to_nearest_ui_point: bool,
 }
 
 impl Default for LayoutJob {
@@ -87,6 +91,7 @@ impl Default for LayoutJob {
             break_on_newline: true,
             halign: Align::LEFT,
             justify: false,
+            round_output_size_to_nearest_ui_point: true,
         }
     }
 }
@@ -180,6 +185,7 @@ impl std::hash::Hash for LayoutJob {
             break_on_newline,
             halign,
             justify,
+            round_output_size_to_nearest_ui_point,
         } = self;
 
         text.hash(state);
@@ -189,6 +195,7 @@ impl std::hash::Hash for LayoutJob {
         break_on_newline.hash(state);
         halign.hash(state);
         justify.hash(state);
+        round_output_size_to_nearest_ui_point.hash(state);
     }
 }
 
