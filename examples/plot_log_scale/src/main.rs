@@ -119,9 +119,16 @@ fn log_axis_spacer(input: GridInput) -> Vec<GridMark> {
     let (min, max) = input.bounds;
     let mut marks = vec![];
     for i in min.floor() as i32..=max.ceil() as i32 {
-        marks.extend((1..10).map(|j| GridMark {
-            value: i as f64 + (j as f64).log10(),
-            step_size: if j == 1 { 1.0 } else { 0.1 },
+        marks.extend((10..100).map(|j| {
+            let value = i as f64 + (j as f64).log10() - 1.0;
+            let step_size = if j == 10 {
+                1.0
+            } else if j % 10 == 0 {
+                0.1
+            } else {
+                0.01
+            };
+            GridMark { value, step_size }
         }));
     }
     marks
