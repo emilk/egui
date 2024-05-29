@@ -91,7 +91,7 @@ where
     }
 }
 
-/// Helper so that you can do e.g. [`TextEdit::State::load`].
+/// Helper so that you can do e.g. `TextEdit::State::load`.
 pub trait WidgetWithState {
     type State;
 }
