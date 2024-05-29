@@ -260,15 +260,11 @@ fn show_tooltip_area_dyn<'c, R>(
     Area::new(area_id)
         .order(Order::Tooltip)
         .fixed_pos(window_pos)
+        .default_width(ctx.style().spacing.tooltip_width)
         .constrain_to(ctx.screen_rect())
         .interactable(false)
         .show(ctx, |ui| {
-            Frame::popup(&ctx.style())
-                .show(ui, |ui| {
-                    ui.set_max_width(ui.spacing().tooltip_width);
-                    add_contents(ui)
-                })
-                .inner
+            Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
         })
 }
 

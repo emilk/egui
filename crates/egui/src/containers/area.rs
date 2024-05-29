@@ -69,6 +69,7 @@ pub struct Area {
     constrain_rect: Option<Rect>,
     order: Order,
     default_pos: Option<Pos2>,
+    default_size: Vec2,
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
@@ -87,6 +88,7 @@ impl Area {
             enabled: true,
             order: Order::Middle,
             default_pos: None,
+            default_size: Vec2::NAN,
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
@@ -160,6 +162,35 @@ impl Area {
     #[inline]
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.default_pos = Some(default_pos.into());
+        self
+    }
+
+    /// The size used for the [`Ui::max_rect`] the first frame.
+    ///
+    /// Text will wrap at this width, and images that expand to fill the available space
+    /// will expand to this size.
+    ///
+    /// If the contents are smaller than this size, the area will shrink to fit the contents.
+    /// If the contents overflow, the area will grow.
+    ///
+    /// If not set, [`style::Spacing::default_area_size`] will be used.
+    #[inline]
+    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
+        self.default_size = default_size.into();
+        self
+    }
+
+    /// See [`Self::default_size`].
+    #[inline]
+    pub fn default_width(mut self, default_width: f32) -> Self {
+        self.default_size.x = default_width;
+        self
+    }
+
+    /// See [`Self::default_size`].
+    #[inline]
+    pub fn default_height(mut self, default_height: f32) -> Self {
+        self.default_size.y = default_height;
         self
     }
 
@@ -247,7 +278,7 @@ pub(crate) struct Prepared {
     /// This is so that we use the first frame to calculate the window size,
     /// and then can correctly position the window and its contents the next frame,
     /// without having one frame where the window is wrongly positioned or sized.
-    temporarily_invisible: bool,
+    sizing_pass: bool,
 }
 
 impl Area {
@@ -272,6 +303,7 @@ impl Area {
             interactable,
             enabled,
             default_pos,
+            default_size,
             new_pos,
             pivot,
             anchor,
@@ -292,11 +324,29 @@ impl Area {
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
         }
-        let mut state = state.unwrap_or_else(|| State {
-            pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
-            pivot,
-            size: Vec2::ZERO,
-            interactable,
+        let mut state = state.unwrap_or_else(|| {
+            // during the sizing pass we will use this as the max size
+            let mut size = default_size;
+
+            let default_area_size = ctx.style().spacing.default_area_size;
+            if size.x.is_nan() {
+                size.x = default_area_size.x;
+            }
+            if size.y.is_nan() {
+                size.y = default_area_size.y;
+            }
+
+            if constrain {
+                let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
+                size = size.at_most(constrain_rect.size());
+            }
+
+            State {
+                pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+                pivot,
+                size,
+                interactable,
+            }
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
@@ -365,7 +415,7 @@ impl Area {
             enabled,
             constrain,
             constrain_rect,
-            temporarily_invisible: is_new,
+            sizing_pass: is_new,
         }
     }
 
@@ -431,12 +481,7 @@ impl Prepared {
             }
         };
 
-        let max_rect = Rect::from_min_max(
-            self.state.left_top_pos(),
-            constrain_rect
-                .max
-                .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
-        );
+        let max_rect = Rect::from_min_size(self.state.left_top_pos(), self.state.size);
 
         let clip_rect = constrain_rect; // Don't paint outside our bounds
 
@@ -448,7 +493,9 @@ impl Prepared {
             clip_rect,
         );
         ui.set_enabled(self.enabled);
-        ui.set_visible(!self.temporarily_invisible);
+        if self.sizing_pass {
+            ui.set_sizing_pass();
+        }
         ui
     }
 
@@ -461,10 +508,19 @@ impl Prepared {
             enabled: _,
             constrain: _,
             constrain_rect: _,
-            temporarily_invisible: _,
+            sizing_pass,
         } = self;
 
         state.size = content_ui.min_size();
+
+        if sizing_pass {
+            // If during the sizing pass we measure our width to `123.45` and
+            // then try to wrap to exactly that next frame,
+            // we may accidentally wrap the last letter of some text.
+            // We only do this after the initial sizing pass though;
+            // otherwise we could end up with for-ever expanding areas.
+            state.size = state.size.ceil();
+        }
 
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 

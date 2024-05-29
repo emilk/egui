@@ -61,6 +61,10 @@ pub struct Ui {
     /// and all widgets will assume a gray style.
     enabled: bool,
 
+    /// Set to true in special cases where we do one frame
+    /// where we size up the contents of the Ui, without actually showing it.
+    sizing_pass: bool,
+
     /// Indicates whether this Ui belongs to a Menu.
     menu_state: Option<Arc<RwLock<MenuState>>>,
 }
@@ -82,6 +86,7 @@ impl Ui {
             style,
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
+            sizing_pass: false,
             menu_state: None,
         };
 
@@ -108,9 +113,18 @@ impl Ui {
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
-        layout: Layout,
+        mut layout: Layout,
         id_source: impl Hash,
     ) -> Self {
+        if self.sizing_pass {
+            // During the sizing pass we want widgets to use up as little space as possible,
+            // so that we measure the only the space we _need_.
+            layout.cross_justify = false;
+            if layout.cross_align == Align::Center {
+                layout.cross_align = Align::Min;
+            }
+        }
+
         debug_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
@@ -121,6 +135,7 @@ impl Ui {
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
+            sizing_pass: self.sizing_pass,
             menu_state: self.menu_state.clone(),
         };
 
@@ -136,6 +151,26 @@ impl Ui {
         });
 
         child_ui
+    }
+
+    // -------------------------------------------------
+
+    /// Set to true in special cases where we do one frame
+    /// where we size up the contents of the Ui, without actually showing it.
+    ///
+    /// This will also turn the Ui invisible.
+    /// Should be called right after [`Self::new`], if at all.
+    #[inline]
+    pub fn set_sizing_pass(&mut self) {
+        self.sizing_pass = true;
+        self.set_visible(false);
+    }
+
+    /// Set to true in special cases where we do one frame
+    /// where we size up the contents of the Ui, without actually showing it.
+    #[inline]
+    pub fn is_sizing_pass(&self) -> bool {
+        self.sizing_pass
     }
 
     // -------------------------------------------------

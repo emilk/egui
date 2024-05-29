@@ -80,8 +80,6 @@ impl super::View for ContextMenus {
         ui.label("Right-click plot to edit it!");
         ui.horizontal(|ui| {
             self.example_plot(ui).context_menu(|ui| {
-                ui.set_min_width(220.0);
-
                 ui.menu_button("Plot", |ui| {
                     if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
                         || ui
@@ -188,6 +186,6 @@ impl ContextMenus {
                 ui.close_menu();
             }
         });
-        let _ = ui.button("Very long text for this item");
+        let _ = ui.button("Very long text for this item that should be wrapped");
     }
 }

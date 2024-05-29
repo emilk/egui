@@ -3629,6 +3629,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_size_pass"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "test_viewports"
 version = "0.1.0"
 dependencies = [
