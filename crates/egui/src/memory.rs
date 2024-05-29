@@ -934,7 +934,7 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    areas: IdMap<area::State>,
+    areas: IdMap<area::AreaState>,
 
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
@@ -955,7 +955,7 @@ impl Areas {
         self.areas.len()
     }
 
-    pub(crate) fn get(&self, id: Id) -> Option<&area::State> {
+    pub(crate) fn get(&self, id: Id) -> Option<&area::AreaState> {
         self.areas.get(&id)
     }
 
@@ -973,7 +973,7 @@ impl Areas {
             .collect()
     }
 
-    pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
+    pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
         self.visible_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
         if !self.order.iter().any(|x| *x == layer_id) {
@@ -1022,7 +1022,7 @@ impl Areas {
             .collect()
     }
 
-    pub(crate) fn visible_windows(&self) -> Vec<&area::State> {
+    pub(crate) fn visible_windows(&self) -> Vec<&area::AreaState> {
         self.visible_layer_ids()
             .iter()
             .filter(|layer| layer.order == crate::Order::Middle)
