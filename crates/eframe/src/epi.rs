@@ -41,7 +41,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
-type DynError = Box<dyn std::error::Error>;
+type DynError = Box<dyn std::error::Error + Send + Sync>;
 
 /// This is how your app is created.
 ///
