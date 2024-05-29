@@ -68,12 +68,12 @@ pub(crate) fn focused_element() -> Option<web_sys::Element> {
 }
 
 pub(crate) fn has_focus<T: Clone + JsCast>(element: &T) -> bool {
-    fn inner<T: Clone + JsCast>(element: &T) -> Option<bool> {
+    fn try_has_focus<T: Clone + JsCast>(element: &T) -> Option<bool> {
         let element = element.dyn_ref::<web_sys::Element>()?;
         let focused_element = focused_element()?;
         Some(element == &focused_element)
     }
-    inner(element).unwrap_or(false)
+    try_has_focus(element).unwrap_or(false)
 }
 
 /// Current time in seconds (since undefined point in time).

@@ -166,7 +166,7 @@ impl Drop for TextAgent {
 
 /// Returns `true` if the app is likely running on a mobile device.
 fn is_mobile() -> bool {
-    fn inner() -> Option<bool> {
+    fn try_is_mobile() -> Option<bool> {
         const MOBILE_DEVICE: [&str; 6] =
             ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
 
@@ -174,5 +174,5 @@ fn is_mobile() -> bool {
         let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
         Some(is_mobile)
     }
-    inner().unwrap_or(false)
+    try_is_mobile().unwrap_or(false)
 }
