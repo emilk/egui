@@ -328,7 +328,9 @@ pub struct Spacing {
     /// Width of a tooltip (`on_hover_ui`, `on_hover_text` etc).
     pub tooltip_width: f32,
 
-    /// The default width of a menu.
+    /// The default wrapping width of a menu.
+    ///
+    /// Items longer than this will wrap to a new line.
     pub menu_width: f32,
 
     /// Horizontal distance between a menu and a submenu.
@@ -1084,7 +1086,7 @@ impl Default for Spacing {
             icon_spacing: 4.0,
             default_area_size: vec2(600.0, 400.0),
             tooltip_width: 600.0,
-            menu_width: 150.0,
+            menu_width: 400.0,
             menu_spacing: 2.0,
             combo_height: 200.0,
             scroll: Default::default(),
