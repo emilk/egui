@@ -67,8 +67,8 @@ pub(crate) fn focused_element() -> Option<web_sys::Element> {
         .ok()
 }
 
-pub(crate) fn has_focus<T: Clone + JsCast>(element: &T) -> bool {
-    fn try_has_focus<T: Clone + JsCast>(element: &T) -> Option<bool> {
+pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
+    fn try_has_focus<T: JsCast>(element: &T) -> Option<bool> {
         let element = element.dyn_ref::<web_sys::Element>()?;
         let focused_element = focused_element()?;
         Some(element == &focused_element)
