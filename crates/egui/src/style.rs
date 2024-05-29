@@ -232,7 +232,7 @@ pub struct Style {
 }
 
 impl Style {
-    // TODO(emilk): rename style.interact() to maybe... `style.interactive` ?
+    // TODO(emilk): rename style.interact() to maybe… `style.interactive` ?
     /// Use this style for interactive things.
     /// Note that you must already have a response,
     /// i.e. you must allocate space and interact BEFORE painting the widget!
