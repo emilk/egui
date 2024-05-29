@@ -248,11 +248,13 @@ impl State {
 
     pub fn register_event_handlers(
         s: &Arc<Mutex<Self>>,
-        window: &async_winit::window::Window<async_winit::ThreadSafe>,
+        window: &Arc<async_winit::window::Window<async_winit::ThreadSafe>>,
     ) {
         let s2 = s.clone();
+        let window2 = std::sync::Arc::downgrade(window);
         let sfc1 = move |sfc: ScaleFactorChanged| {
             let s2 = s2.clone();
+            let window2 = window2.clone();
             async move {
                 println!("Scale factor changed");
                 let mut s4 = s2.lock().unwrap();
@@ -264,7 +266,10 @@ impl State {
                     .native_pixels_per_point
                     .as_mut()
                     .map(|a| *a *= sfc.scale_factor as f32);
-                true
+                if let Some(window) = window2.upgrade() {
+                    window.request_redraw();
+                }
+                false
             }
         };
         window.scale_factor_changed().wait_direct_async(sfc1);
@@ -277,11 +282,11 @@ impl State {
                     println!("Mouse input event");
                     let mut s = s2.lock().unwrap();
                     s.on_mouse_button_input(m.state, m.button);
-                    true
+                    false
                 }
             });
         let s2 = s.clone();
-        let window2 = window.clone();
+        let window2 = std::sync::Arc::downgrade(window);
         window
             .mouse_wheel()
             .wait_direct_async(move |m: MouseWheel| {
@@ -290,20 +295,25 @@ impl State {
                 async move {
                     println!("Mouse scroll event");
                     let mut s = s2.lock().unwrap();
-                    s.on_mouse_wheel(&window, m.delta);
+                    if let Some(window) = window.upgrade() {
+                        s.on_mouse_wheel(&window, m.delta);
+                    }
                     true
                 }
             });
         let s2 = s.clone();
-        let window2 = window.clone();
+        let window2 = std::sync::Arc::downgrade(window);
         window.cursor_moved().wait_direct_async(move |c| {
             let s2 = s2.clone();
             let window = window2.clone();
             async move {
                 println!("Cursor moved event");
                 let mut s = s2.lock().unwrap();
-                s.on_cursor_moved(&window, c.position);
-                true
+                if let Some(window) = window.upgrade() {
+                    s.on_cursor_moved(&window, c.position);
+                    window.request_redraw();
+                }
+                false
             }
         });
     }
