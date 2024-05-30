@@ -422,7 +422,7 @@ impl MenuRoot {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum MenuResponse {
     Close,
     Stay,
