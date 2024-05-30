@@ -341,7 +341,7 @@ impl Ui {
     /// Make the widget in this [`Ui`] semi-transparent.
     ///
     /// `opacity` must be between 0.0 and 1.0, where 0.0 means fully transparent (i.e., invisible)
-    /// and 1.0 means fully opaque (i.e., the same as not calling the method at all).
+    /// and 1.0 means fully opaque.
     ///
     /// ### Example
     /// ```
@@ -354,8 +354,25 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    ///
+    /// See also: [`Self::opacity`] and [`Self::multiply_opacity`].
     pub fn set_opacity(&mut self, opacity: f32) {
         self.painter.set_opacity(opacity);
+    }
+
+    /// Like [`Self::set_opacity`], but multiplies the given value with the current opacity.
+    ///
+    /// See also: [`Self::set_opacity`] and [`Self::opacity`].
+    pub fn multiply_opacity(&mut self, opacity: f32) {
+        self.painter.multiply_opacity(opacity);
+    }
+
+    /// Read the current opacity of the underlying painter.
+    ///
+    /// See also: [`Self::set_opacity`] and [`Self::multiply_opacity`].
+    #[inline]
+    pub fn opacity(&self) -> f32 {
+        self.painter.opacity()
     }
 
     /// Read the [`Layout`].

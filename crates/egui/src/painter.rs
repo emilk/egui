@@ -83,10 +83,33 @@ impl Painter {
         self.fade_to_color = fade_to_color;
     }
 
-    pub(crate) fn set_opacity(&mut self, opacity: f32) {
+    /// Set the opacity (alpha multiplier) of everything painted by this painter from this point forward.
+    ///
+    /// `opacity` must be between 0.0 and 1.0, where 0.0 means fully transparent (i.e., invisible)
+    /// and 1.0 means fully opaque.
+    ///
+    /// See also: [`Self::opacity`] and [`Self::multiply_opacity`].
+    pub fn set_opacity(&mut self, opacity: f32) {
         if opacity.is_finite() {
             self.opacity_factor = opacity.clamp(0.0, 1.0);
         }
+    }
+
+    /// Like [`Self::set_opacity`], but multiplies the given value with the current opacity.
+    ///
+    /// See also: [`Self::set_opacity`] and [`Self::opacity`].
+    pub fn multiply_opacity(&mut self, opacity: f32) {
+        if opacity.is_finite() {
+            self.opacity_factor *= opacity.clamp(0.0, 1.0);
+        }
+    }
+
+    /// Read the current opacity of the underlying painter.
+    ///
+    /// See also: [`Self::set_opacity`] and [`Self::multiply_opacity`].
+    #[inline]
+    pub fn opacity(&self) -> f32 {
+        self.opacity_factor
     }
 
     pub(crate) fn is_visible(&self) -> bool {
