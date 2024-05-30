@@ -71,7 +71,7 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
             rect
         }
         .shrink(4.0);
-        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+        let mut content_ui = ui.child_ui(content_rect, *ui.layout(), None);
         add_contents(&mut content_ui);
     });
 }
