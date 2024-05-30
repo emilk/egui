@@ -2,6 +2,7 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
+use containers::area::AreaState;
 use epaint::{
     emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
 };
@@ -490,7 +491,7 @@ impl ContextImpl {
         // Ensure we register the background area so panels and background ui can catch clicks:
         self.memory.areas_mut().set_state(
             LayerId::background(),
-            containers::area::State {
+            AreaState {
                 pivot_pos: screen_rect.left_top(),
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
@@ -2713,7 +2714,7 @@ impl Context {
             ui.label("Hover to highlight");
             let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
             for layer_id in layers_ids {
-                let area = self.memory(|mem| mem.areas().get(layer_id.id).copied());
+                let area = AreaState::load(self, layer_id.id);
                 if let Some(area) = area {
                     let is_visible = self.memory(|mem| mem.areas().is_visible(&layer_id));
                     if !is_visible {

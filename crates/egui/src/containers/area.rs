@@ -4,25 +4,38 @@
 
 use crate::*;
 
-/// State that is persisted between frames.
-// TODO(emilk): this is not currently stored in `Memory::data`, but maybe it should be?
+/// State of an [`Area`] that is persisted between frames.
+///
+/// Areas back [`crate::Window`]s and other floating containers,
+/// like tooltips and the popups of [`crate::ComboBox`].
+///
+/// Area state is intentionally NOT persisted between sessions,
+/// so that a bad tooltip or menu size won't be remembered forever.
+/// A resizable [`Window`] remembers the size the user picked using
+/// the state in the [`Resize`] container.
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct State {
-    /// Last known pos of the pivot
+pub struct AreaState {
+    /// Last known position of the pivot.
     pub pivot_pos: Pos2,
 
+    /// The anchor point of the area, i.e. where on the area the [`Self::pivot_pos`] refers to.
     pub pivot: Align2,
 
-    /// Last know size. Used for catching clicks.
+    /// Last known size.
     pub size: Vec2,
 
-    /// If false, clicks goes straight through to what is behind us.
-    /// Good for tooltips etc.
+    /// If false, clicks goes straight through to what is behind us. Useful for tooltips etc.
     pub interactable: bool,
 }
 
-impl State {
+impl AreaState {
+    /// Load the state of an [`Area`] from memory.
+    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
+        // TODO(emilk): Area state is not currently stored in `Memory::data`, but maybe it should be?
+        ctx.memory(|mem| mem.areas().get(id).copied())
+    }
+
+    /// The left top positions of the area.
     pub fn left_top_pos(&self) -> Pos2 {
         pos2(
             self.pivot_pos.x - self.pivot.x().to_factor() * self.size.x,
@@ -30,6 +43,7 @@ impl State {
         )
     }
 
+    /// Move the left top positions of the area.
     pub fn set_left_top_pos(&mut self, pos: Pos2) {
         self.pivot_pos = pos2(
             pos.x + self.pivot.x().to_factor() * self.size.x,
@@ -37,6 +51,7 @@ impl State {
         );
     }
 
+    /// Where the area is on screen.
     pub fn rect(&self) -> Rect {
         Rect::from_min_size(self.left_top_pos(), self.size)
     }
@@ -69,9 +84,14 @@ pub struct Area {
     constrain_rect: Option<Rect>,
     order: Order,
     default_pos: Option<Pos2>,
+    default_size: Vec2,
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
+}
+
+impl WidgetWithState for Area {
+    type State = AreaState;
 }
 
 impl Area {
@@ -87,6 +107,7 @@ impl Area {
             enabled: true,
             order: Order::Middle,
             default_pos: None,
+            default_size: Vec2::NAN,
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
@@ -163,6 +184,35 @@ impl Area {
         self
     }
 
+    /// The size used for the [`Ui::max_rect`] the first frame.
+    ///
+    /// Text will wrap at this width, and images that expand to fill the available space
+    /// will expand to this size.
+    ///
+    /// If the contents are smaller than this size, the area will shrink to fit the contents.
+    /// If the contents overflow, the area will grow.
+    ///
+    /// If not set, [`style::Spacing::default_area_size`] will be used.
+    #[inline]
+    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
+        self.default_size = default_size.into();
+        self
+    }
+
+    /// See [`Self::default_size`].
+    #[inline]
+    pub fn default_width(mut self, default_width: f32) -> Self {
+        self.default_size.x = default_width;
+        self
+    }
+
+    /// See [`Self::default_size`].
+    #[inline]
+    pub fn default_height(mut self, default_height: f32) -> Self {
+        self.default_size.y = default_height;
+        self
+    }
+
     /// Positions the window and prevents it from being moved
     #[inline]
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
@@ -236,7 +286,7 @@ impl Area {
 
 pub(crate) struct Prepared {
     layer_id: LayerId,
-    state: State,
+    state: AreaState,
     move_response: Response,
     enabled: bool,
     constrain: bool,
@@ -247,7 +297,7 @@ pub(crate) struct Prepared {
     /// This is so that we use the first frame to calculate the window size,
     /// and then can correctly position the window and its contents the next frame,
     /// without having one frame where the window is wrongly positioned or sized.
-    temporarily_invisible: bool,
+    sizing_pass: bool,
 }
 
 impl Area {
@@ -272,6 +322,7 @@ impl Area {
             interactable,
             enabled,
             default_pos,
+            default_size,
             new_pos,
             pivot,
             anchor,
@@ -281,22 +332,38 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx
-            .memory(|mem| mem.areas().get(id).copied())
-            .map(|mut state| {
-                // override the saved state with the correct value
-                state.pivot = pivot;
-                state
-            });
+        let state = AreaState::load(ctx, id).map(|mut state| {
+            // override the saved state with the correct value
+            state.pivot = pivot;
+            state
+        });
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
         }
-        let mut state = state.unwrap_or_else(|| State {
-            pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
-            pivot,
-            size: Vec2::ZERO,
-            interactable,
+        let mut state = state.unwrap_or_else(|| {
+            // during the sizing pass we will use this as the max size
+            let mut size = default_size;
+
+            let default_area_size = ctx.style().spacing.default_area_size;
+            if size.x.is_nan() {
+                size.x = default_area_size.x;
+            }
+            if size.y.is_nan() {
+                size.y = default_area_size.y;
+            }
+
+            if constrain {
+                let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
+                size = size.at_most(constrain_rect.size());
+            }
+
+            AreaState {
+                pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+                pivot,
+                size,
+                interactable,
+            }
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
@@ -365,7 +432,7 @@ impl Area {
             enabled,
             constrain,
             constrain_rect,
-            temporarily_invisible: is_new,
+            sizing_pass: is_new,
         }
     }
 
@@ -383,7 +450,7 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx.memory(|mem| mem.areas().get(self.id).map(|area| area.rect()));
+        let area_rect = AreaState::load(ctx, self.id).map(|state| state.rect());
         if let Some(area_rect) = area_rect {
             let clip_rect = Rect::EVERYTHING;
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
@@ -399,11 +466,11 @@ impl Area {
 }
 
 impl Prepared {
-    pub(crate) fn state(&self) -> &State {
+    pub(crate) fn state(&self) -> &AreaState {
         &self.state
     }
 
-    pub(crate) fn state_mut(&mut self) -> &mut State {
+    pub(crate) fn state_mut(&mut self) -> &mut AreaState {
         &mut self.state
     }
 
@@ -431,12 +498,7 @@ impl Prepared {
             }
         };
 
-        let max_rect = Rect::from_min_max(
-            self.state.left_top_pos(),
-            constrain_rect
-                .max
-                .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
-        );
+        let max_rect = Rect::from_min_size(self.state.left_top_pos(), self.state.size);
 
         let clip_rect = constrain_rect; // Don't paint outside our bounds
 
@@ -448,7 +510,9 @@ impl Prepared {
             clip_rect,
         );
         ui.set_enabled(self.enabled);
-        ui.set_visible(!self.temporarily_invisible);
+        if self.sizing_pass {
+            ui.set_sizing_pass();
+        }
         ui
     }
 
@@ -461,7 +525,7 @@ impl Prepared {
             enabled: _,
             constrain: _,
             constrain_rect: _,
-            temporarily_invisible: _,
+            sizing_pass: _,
         } = self;
 
         state.size = content_ui.min_size();
@@ -486,7 +550,7 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
         mem.areas()
             .visible_windows()
             .into_iter()
-            .map(State::rect)
+            .map(AreaState::rect)
             .collect()
     });
     existing.sort_by_key(|r| r.left().round() as i32);

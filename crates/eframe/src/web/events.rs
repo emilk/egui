@@ -94,8 +94,8 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
             if !modifiers.ctrl
                 && !modifiers.command
                 && !should_ignore_key(&key)
-                // When text agent is shown, it sends text event instead.
-                && text_agent::text_agent().hidden()
+                // When text agent is focused, it is responsible for handling input events
+                && !runner.text_agent.has_focus()
             {
                 runner.input.raw.events.push(egui::Event::Text(key));
             }
@@ -375,10 +375,12 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                 // event callback, which is why we run the app logic here and now:
                 runner.logic();
 
+                runner
+                    .text_agent
+                    .set_focus(runner.mutable_text_under_cursor);
+
                 // Make sure we paint the output of the above logic call asap:
                 runner.needs_repaint.repaint_asap();
-
-                text_agent::update_text_agent(runner);
             }
             event.stop_propagation();
             event.prevent_default();
@@ -467,13 +469,15 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                 runner.input.raw.events.push(egui::Event::PointerGone);
 
                 push_touches(runner, egui::TouchPhase::End, &event);
+
+                runner
+                    .text_agent
+                    .set_focus(runner.mutable_text_under_cursor);
+
                 runner.needs_repaint.repaint_asap();
                 event.stop_propagation();
                 event.prevent_default();
             }
-
-            // Finally, focus or blur text agent to toggle mobile keyboard:
-            text_agent::update_text_agent(runner);
         },
     )?;
 

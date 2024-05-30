@@ -103,9 +103,9 @@ impl eframe::App for Application {
                         None => "Unfocus the window, fast!".to_owned(),
                         Some(t) => {
                             if let Ok(elapsed) = t.duration_since(SystemTime::now()) {
-                                format!("Resetting attention in {} s...", elapsed.as_secs())
+                                format!("Resetting attention in {} s…", elapsed.as_secs())
                             } else {
-                                "Resetting attention...".to_owned()
+                                "Resetting attention…".to_owned()
                             }
                         }
                     }

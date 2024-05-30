@@ -334,7 +334,7 @@ pub fn run_simple_native(
 #[derive(Debug)]
 pub enum Error {
     /// Something went wrong in user code when creating the app.
-    AppCreation(Box<dyn std::error::Error>),
+    AppCreation(Box<dyn std::error::Error + Send + Sync>),
 
     /// An error from [`winit`].
     #[cfg(not(target_arch = "wasm32"))]

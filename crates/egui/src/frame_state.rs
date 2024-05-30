@@ -1,10 +1,23 @@
 use crate::{id::IdSet, *};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct TooltipFrameState {
-    pub common_id: Id,
-    pub rect: Rect,
-    pub count: usize,
+    pub widget_tooltips: IdMap<PerWidgetTooltipState>,
+}
+
+impl TooltipFrameState {
+    pub(crate) fn clear(&mut self) {
+        self.widget_tooltips.clear();
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PerWidgetTooltipState {
+    /// Bounding rectangle for all widget and all previous tooltips.
+    pub bounding_rect: Rect,
+
+    /// How many tooltips have been shown for this widget this frame?
+    pub tooltip_count: usize,
 }
 
 #[cfg(feature = "accesskit")]
@@ -35,8 +48,8 @@ pub(crate) struct FrameState {
 
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
-    /// Initialized to `None` at the start of each frame.
-    pub(crate) tooltip_state: Option<TooltipFrameState>,
+    /// Reset at the start of each frame.
+    pub(crate) tooltip_state: TooltipFrameState,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
     pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
@@ -72,7 +85,7 @@ impl Default for FrameState {
             available_rect: Rect::NAN,
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
-            tooltip_state: None,
+            tooltip_state: Default::default(),
             scroll_target: [None, None],
             scroll_delta: Vec2::default(),
             #[cfg(feature = "accesskit")]
@@ -110,7 +123,7 @@ impl FrameState {
         *available_rect = screen_rect;
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
-        *tooltip_state = None;
+        tooltip_state.clear();
         *scroll_target = [None, None];
         *scroll_delta = Vec2::default();
 
