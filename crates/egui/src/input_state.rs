@@ -321,7 +321,7 @@ impl InputState {
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
-            smooth_scroll_delta: self.smooth_scroll_delta,
+            smooth_scroll_delta,
             zoom_factor_delta,
             screen_rect,
             pixels_per_point,
@@ -335,39 +335,6 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
-        }
-    }
-
-    pub fn create_scroll_delta(&mut self, is_begin_frame: bool, is_contains_pointer: bool) {
-        if !is_begin_frame && !is_contains_pointer {
-            return;
-        }
-
-        if !is_begin_frame && is_contains_pointer {
-            self.unprocessed_scroll_delta += self.raw_scroll_delta;
-            self.raw_scroll_delta = Vec2::ZERO;
-        }
-
-        if self.unprocessed_scroll_delta != Vec2::ZERO {
-            let dt = self.stable_dt.at_most(0.1);
-            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt);
-
-            for d in 0..2 {
-                if self.unprocessed_scroll_delta[d].abs() < 1.0 {
-                    self.smooth_scroll_delta[d] += self.unprocessed_scroll_delta[d];
-                    self.unprocessed_scroll_delta[d] = 0.0;
-                } else {
-                    let smooth_delta = t * self.unprocessed_scroll_delta[d];
-                    let direct_delta = self.unprocessed_scroll_delta[d];
-                    // Smooth: smooth_delta > 0.0, Direct: smooth_delta < 0.0
-                    let applied = match smooth_delta < 0.0 {
-                        true => smooth_delta.min(direct_delta),
-                        false => smooth_delta.max(direct_delta),
-                    };
-                    self.smooth_scroll_delta[d] += applied;
-                    self.unprocessed_scroll_delta[d] -= applied;
-                }
-            }
         }
     }
 
