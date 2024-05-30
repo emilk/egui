@@ -615,7 +615,7 @@ impl Response {
         // another widget should show the tooltip for that widget right away.
 
         // Let the user quickly move over some dead space to hover the next thing
-        let recent_sec = 0.1;
+        let recent_sec = 0.2;
         let tooltip_was_recently_shown =
             when_was_a_toolip_last_shown.map_or(false, |time| ((now - time) as f32) < recent_sec);
 
