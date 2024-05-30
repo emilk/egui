@@ -369,6 +369,10 @@ pub struct NativeOptions {
     /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
     /// from [directories].
     pub persistence_path: Option<std::path::PathBuf>,
+
+    /// Controls whether colors should be dithered to minimize banding.
+    /// Default to true.
+    pub dithering: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -429,6 +433,8 @@ impl Default for NativeOptions {
             persist_window: true,
 
             persistence_path: None,
+
+            dithering: true,
         }
     }
 }
@@ -466,6 +472,10 @@ pub struct WebOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
+
+    /// Controls whether colors should be dithered to minimize banding.
+    /// Defaults to true.
+    pub dithering: bool,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -481,6 +491,8 @@ impl Default for WebOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+
+            dithering: true,
         }
     }
 }

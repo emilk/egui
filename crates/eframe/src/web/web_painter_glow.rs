@@ -26,7 +26,7 @@ impl WebPainterGlow {
         #[allow(clippy::arc_with_non_send_sync)]
         let gl = std::sync::Arc::new(gl);
 
-        let painter = egui_glow::Painter::new(gl, shader_prefix, None)
+        let painter = egui_glow::Painter::new(gl, shader_prefix, None, options.dithering)
             .map_err(|err| format!("Error starting glow painter: {err}"))?;
 
         Ok(Self { canvas, painter })

@@ -62,5 +62,8 @@ void main() {
 
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
-    gl_FragColor = vec4(dither_interleaved(frag_color_gamma.rgb, 256.), frag_color_gamma.a);
+#if DITHERING
+    frag_color_gamma.rgb = dither_interleaved(frag_color_gamma.rgb, 256.);
+#endif
+    gl_FragColor = frag_color_gamma;
 }
