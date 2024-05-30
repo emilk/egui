@@ -1111,9 +1111,7 @@ impl TitleBar {
             // Add close button now that we know our full width:
             if self.close_button_ui(ui).clicked() {
                 *open = false;
-                if let Some(resize_id) = resize.id {
-                    resize::reset_largest_content_size(ui.ctx(), resize_id);
-                }
+                resize::reset_largest_content_size(ui.ctx(), &resize);
             }
         }
 
