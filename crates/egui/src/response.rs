@@ -584,14 +584,7 @@ impl Response {
             return true;
         }
 
-        if self.context_menu_opened() {
-            return false;
-        }
-
-        if ComboBox::is_open(&self.ctx, self.id) {
-            return false; // Don't cover the open ComboBox with a tooltip
-        }
-
+        // Fast early-outs:
         if self.enabled {
             if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
@@ -600,20 +593,41 @@ impl Response {
             return false;
         }
 
-        if self.ctx.style().interaction.show_tooltips_only_when_still {
-            // We only show the tooltip when the mouse pointer is still,
-            // but once shown we keep showing it until the mouse leaves the parent.
-
-            if !self.ctx.input(|i| i.pointer.is_still()) && !self.is_tooltip_open() {
-                // wait for mouse to stop
-                self.ctx.request_repaint();
-                return false;
-            }
+        if self.context_menu_opened() {
+            return false;
         }
 
-        if !self.is_tooltip_open() {
-            let time_til_tooltip = self.ctx.style().interaction.tooltip_delay
-                - self.ctx.input(|i| i.pointer.time_since_last_movement());
+        if ComboBox::is_open(&self.ctx, self.id) {
+            return false; // Don't cover the open ComboBox with a tooltip
+        }
+
+        let when_was_a_toolip_last_shown_id = Id::new("when_was_a_toolip_last_shown");
+        let now = self.ctx.input(|i| i.time);
+
+        let when_was_a_toolip_last_shown = self
+            .ctx
+            .data(|d| d.get_temp::<f64>(when_was_a_toolip_last_shown_id));
+
+        let tooltip_delay = self.ctx.style().interaction.tooltip_delay;
+
+        let tooltip_was_recently_shown = when_was_a_toolip_last_shown
+            .map_or(false, |time| ((now - time) as f32) < tooltip_delay);
+
+        // There is a tooltip_delay before showing the first tooltip,
+        // but once one tooltips is show, moving the mouse cursor to
+        // another widget should show the tooltip for that widget right away.
+        if !tooltip_was_recently_shown && !self.is_tooltip_open() {
+            if self.ctx.style().interaction.show_tooltips_only_when_still {
+                // We only show the tooltip when the mouse pointer is still.
+                if !self.ctx.input(|i| i.pointer.is_still()) {
+                    // wait for mouse to stop
+                    self.ctx.request_repaint();
+                    return false;
+                }
+            }
+
+            let time_til_tooltip =
+                tooltip_delay - self.ctx.input(|i| i.pointer.time_since_last_movement());
 
             if 0.0 < time_til_tooltip {
                 // Wait until the mouse has been still for a while
@@ -632,6 +646,12 @@ impl Response {
         {
             return false;
         }
+
+        // All checks passed: show the tooltip!
+
+        // Remember that we're showing a tooltip
+        self.ctx
+            .data_mut(|data| data.insert_temp::<f64>(when_was_a_toolip_last_shown_id, now));
 
         true
     }
