@@ -7,8 +7,8 @@ struct VertexOutput {
 };
 
 struct Locals {
-    screen_size: vec2<f32>, // in points
-    dithering: u32,
+    screen_size: vec2<f32>,
+    dithering: u32, // 1 if dithering is enabled, 0 otherwise
     // Uniform buffers need to be at least 16 bytes in WebGL.
     // See https://github.com/gfx-rs/wgpu/issues/2072
     _padding: u32,
