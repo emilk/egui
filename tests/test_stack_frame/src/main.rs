@@ -241,7 +241,7 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
             .column(Column::auto())
             .header(20.0, |mut header| {
                 header.col(|ui| {
-                    ui.strong("frame_id");
+                    ui.strong("id");
                 });
                 header.col(|ui| {
                     ui.strong("kind");
