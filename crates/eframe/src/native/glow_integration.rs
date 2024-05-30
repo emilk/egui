@@ -496,6 +496,16 @@ impl WinitApp for GlowWinitApp {
                     EventResult::Wait
                 }
             }
+
+            winit::event::Event::NewEvents(winit::event::StartCause::Poll) => {
+                if let Some(running) = &mut self.running {
+                    let window_id = running.glutin.borrow().window_from_viewport[&ViewportId::ROOT];
+                    EventResult::RepaintNow(window_id)
+                } else {
+                    EventResult::Wait
+                }
+            }
+
             _ => EventResult::Wait,
         })
     }
