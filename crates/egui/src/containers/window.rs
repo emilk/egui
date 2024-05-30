@@ -603,6 +603,7 @@ impl<'open> Window<'open> {
                     &content_response,
                     open,
                     &mut collapsing,
+                    &resize,
                 );
             }
 
@@ -1119,6 +1120,7 @@ impl TitleBar {
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
+        resize: &Resize,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
@@ -1130,6 +1132,9 @@ impl TitleBar {
                 // Add close button now that we know our full width:
                 if self.close_button_ui(ui).clicked() {
                     *open = false;
+                    if let Some(resize_id) = resize.id {
+                        resize::reset_largest_content_size(ui.ctx(), resize_id);
+                    }
                 }
             }
         }
