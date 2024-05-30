@@ -8,7 +8,7 @@ struct VertexOutput {
 
 struct Locals {
     screen_size: vec2<f32>, // in points
-    pixels_per_point: f32,
+    dithering: u32,
     // Uniform buffers need to be at least 16 bytes in WebGL.
     // See https://github.com/gfx-rs/wgpu/issues/2072
     _padding: u32,
@@ -104,6 +104,9 @@ fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     let out_color_linear = linear_from_gamma_rgb(out_color_gamma.rgb);
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
+    if r_locals.dithering == 0 {
+        return vec4<f32>(out_color_linear, out_color_gamma.a);
+    }
     let out_color_dithered = dither_interleaved(out_color_linear, 256.0, in.position);
     return vec4<f32>(out_color_dithered, out_color_gamma.a);
 }
@@ -114,6 +117,14 @@ fn fs_main_gamma_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     let tex_gamma = gamma_from_linear_rgba(tex_linear);
     let out_color_gamma = in.color * tex_gamma;
-    let out_color_dithered = vec4<f32>(dither_interleaved(out_color_gamma.rgb, 256.0, in.position * r_locals.pixels_per_point), out_color_gamma.a);
+    if r_locals.dithering == 0 {
+        return out_color_gamma;
+    }
+    // Dither the float color down to eight bits to reduce banding.
+    // This step is optional for egui backends.
+    let out_color_dithered = vec4<f32>(
+        dither_interleaved(out_color_gamma.rgb, 256.0, in.position),
+        out_color_gamma.a
+    );
     return out_color_dithered;
 }

@@ -27,8 +27,9 @@ impl EguiGlow {
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
+        dithering: bool,
     ) -> Self {
-        let painter = crate::Painter::new(gl, "", shader_version)
+        let painter = crate::Painter::new(gl, "", shader_version, dithering)
             .map_err(|err| {
                 log::error!("error occurred in initializing painter:\n{err}");
             })

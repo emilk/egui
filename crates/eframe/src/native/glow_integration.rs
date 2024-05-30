@@ -184,7 +184,7 @@ impl GlowWinitApp {
             }))
         };
 
-        let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)?;
+        let painter = egui_glow::Painter::new(gl, "", native_options.shader_version, true)?;
 
         Ok((glutin_window_context, painter))
     }

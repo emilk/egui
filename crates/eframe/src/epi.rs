@@ -362,6 +362,10 @@ pub struct NativeOptions {
     /// Controls whether or not the native window position and size will be
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
+
+    /// Controls whether colors should be dithered to minimize banding.
+    /// Default to true.
+    pub dithering: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -418,6 +422,8 @@ impl Default for NativeOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             persist_window: true,
+
+            dithering: true,
         }
     }
 }
@@ -460,6 +466,10 @@ pub struct WebOptions {
     ///
     /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
     pub max_size_points: egui::Vec2,
+
+    /// Controls whether colors should be dithered to minimize banding.
+    /// Defaults to true.
+    pub dithering: bool,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -477,6 +487,7 @@ impl Default for WebOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             max_size_points: egui::Vec2::INFINITY,
+            dithering: true,
         }
     }
 }

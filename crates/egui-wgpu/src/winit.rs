@@ -83,6 +83,7 @@ pub struct Painter {
     configuration: WgpuConfiguration,
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
+    dithering: bool,
     depth_format: Option<wgpu::TextureFormat>,
     screen_capture_state: Option<CaptureState>,
 
@@ -113,6 +114,7 @@ impl Painter {
         msaa_samples: u32,
         depth_format: Option<wgpu::TextureFormat>,
         support_transparent_backbuffer: bool,
+        dithering: bool,
     ) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: configuration.supported_backends,
@@ -123,6 +125,7 @@ impl Painter {
             configuration,
             msaa_samples,
             support_transparent_backbuffer,
+            dithering,
             depth_format,
             screen_capture_state: None,
 
@@ -264,6 +267,7 @@ impl Painter {
                 &surface,
                 self.depth_format,
                 self.msaa_samples,
+                self.dithering,
             )
             .await?;
             self.render_state.get_or_insert(render_state)
