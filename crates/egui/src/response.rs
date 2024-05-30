@@ -610,12 +610,15 @@ impl Response {
 
         let tooltip_delay = self.ctx.style().interaction.tooltip_delay;
 
-        let tooltip_was_recently_shown = when_was_a_toolip_last_shown
-            .map_or(false, |time| ((now - time) as f32) < tooltip_delay);
-
         // There is a tooltip_delay before showing the first tooltip,
         // but once one tooltips is show, moving the mouse cursor to
         // another widget should show the tooltip for that widget right away.
+
+        // Let the user quickly move over some dead space to hover the next thing
+        let recent_sec = 0.1;
+        let tooltip_was_recently_shown =
+            when_was_a_toolip_last_shown.map_or(false, |time| ((now - time) as f32) < recent_sec);
+
         if !tooltip_was_recently_shown && !self.is_tooltip_open() {
             if self.ctx.style().interaction.show_tooltips_only_when_still {
                 // We only show the tooltip when the mouse pointer is still.
