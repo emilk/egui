@@ -1102,7 +1102,7 @@ impl Default for Interaction {
             resize_grab_radius_corner: 10.0,
             interact_radius: 5.0,
             show_tooltips_only_when_still: true,
-            tooltip_delay: 0.3,
+            tooltip_delay: 0.5,
             selectable_labels: true,
             multi_widget_text_select: true,
         }
