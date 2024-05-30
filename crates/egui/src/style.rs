@@ -658,6 +658,13 @@ pub struct Interaction {
     /// Delay in seconds before showing tooltips after the mouse stops moving
     pub tooltip_delay: f32,
 
+    /// If you have waited for a tooltip and then hover some other widget within
+    /// this many seconds, then show the new tooltip right away,
+    /// skipping [`Self::tooltip_delay`].
+    ///
+    /// This lets the user quickly move over some dead space to hover the next thing.
+    pub tooltip_grace_time: f32,
+
     /// Can you select the text on a [`crate::Label`] by default?
     pub selectable_labels: bool,
 
@@ -1103,6 +1110,7 @@ impl Default for Interaction {
             interact_radius: 5.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
+            tooltip_grace_time: 0.2,
             selectable_labels: true,
             multi_widget_text_select: true,
         }
@@ -1590,6 +1598,7 @@ impl Interaction {
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
             tooltip_delay,
+            tooltip_grace_time,
             selectable_labels,
             multi_widget_text_select,
         } = self;
@@ -1618,6 +1627,17 @@ impl Interaction {
                 );
                 ui.add(
                     DragValue::new(tooltip_delay)
+                        .clamp_range(0.0..=1.0)
+                        .speed(0.05)
+                        .suffix(" s"),
+                );
+                ui.end_row();
+
+                ui.label("Tooltip grace time").on_hover_text(
+                    "If a tooltip is open and you hover another widget within this grace period, show the next tooltip right away",
+                );
+                ui.add(
+                    DragValue::new(tooltip_grace_time)
                         .clamp_range(0.0..=1.0)
                         .speed(0.05)
                         .suffix(" s"),
