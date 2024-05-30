@@ -33,7 +33,7 @@ impl State {
 #[derive(Clone, Copy, Debug)]
 #[must_use = "You should call .show()"]
 pub struct Resize {
-    id: Option<Id>,
+    pub(crate) id: Option<Id>,
     id_source: Option<Id>,
 
     /// If false, we are no enabled
@@ -374,7 +374,12 @@ impl Resize {
     }
 }
 
-use epaint::Stroke;
+pub fn reset_largest_content_size(ctx: &Context, resize_id: Id) {
+    if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
+        resize_state.largest_content_size = Vec2::ZERO;
+        resize_state.store(ctx, resize_id);
+    }
+}
 
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
