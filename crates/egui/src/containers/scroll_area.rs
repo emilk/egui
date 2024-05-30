@@ -783,14 +783,7 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let scroll_delta = content_ui
-            .ctx()
-            .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta));
-
         for d in 0..2 {
-            // FrameState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-            let mut delta = -scroll_delta[d];
-
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
@@ -798,6 +791,13 @@ impl Prepared {
                 .frame_state_mut(|state| state.scroll_target[d].take());
 
             if scroll_enabled[d] {
+                let scroll_delta = content_ui
+                    .ctx()
+                    .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta[d]));
+
+                // FrameState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+                let mut delta = -scroll_delta;
+
                 delta += if let Some((target_range, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
@@ -879,13 +879,7 @@ impl Prepared {
 
         let max_offset = content_size - inner_rect.size();
         let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
-
-        if scrolling_enabled
-            && (is_hovering_outer_rect
-                || scroll_bar_visibility == ScrollBarVisibility::AlwaysVisible)
-        {
-            ui.ctx().create_scroll_delta(inner_rect);
-
+        if scrolling_enabled && is_hovering_outer_rect {
             let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
                 && scroll_enabled[0] != scroll_enabled[1];
             for d in 0..2 {
@@ -904,19 +898,20 @@ impl Prepared {
 
                     if scrolling_up || scrolling_down {
                         state.offset[d] -= scroll_delta;
+
+                        // Clear scroll delta so no parent scroll will use it:
+                        ui.ctx().input_mut(|input| {
+                            if always_scroll_enabled_direction {
+                                input.smooth_scroll_delta[0] = 0.0;
+                                input.smooth_scroll_delta[1] = 0.0;
+                            } else {
+                                input.smooth_scroll_delta[d] = 0.0;
+                            }
+                        });
+
                         state.scroll_stuck_to_end[d] = false;
                         state.offset_target[d] = None;
                     }
-
-                    // Clear scroll delta so no parent scroll will use it:
-                    ui.ctx().input_mut(|input| {
-                        if always_scroll_enabled_direction {
-                            input.smooth_scroll_delta[0] = 0.0;
-                            input.smooth_scroll_delta[1] = 0.0;
-                        } else {
-                            input.smooth_scroll_delta[d] = 0.0;
-                        }
-                    });
                 }
             }
         }
