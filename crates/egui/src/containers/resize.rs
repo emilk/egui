@@ -374,7 +374,11 @@ impl Resize {
     }
 }
 
-pub fn reset_largest_content_size(ctx: &Context, resize_id: Id) {
+pub fn reset_largest_content_size(ctx: &Context, resize: &Resize) {
+    let Some(resize_id) = resize.id else {
+        return;
+    };
+
     if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
         resize_state.largest_content_size = Vec2::ZERO;
         resize_state.store(ctx, resize_id);
