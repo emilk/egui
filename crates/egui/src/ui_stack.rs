@@ -3,34 +3,34 @@ use std::sync::Arc;
 
 use crate::{Color32, Direction, Frame, Id, Rect};
 
-/// What kind is this [`Ui`]?
+/// What kind is this [`crate::Ui`]?
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UiKind {
-    /// A [`egui::Window`].
+    /// A [`crate::Window`].
     Window,
 
-    /// A [`egui::CentralPanel`].
+    /// A [`crate::CentralPanel`].
     CentralPanel,
 
-    /// A left [`egui::SidePanel`].
+    /// A left [`crate::SidePanel`].
     LeftPanel,
 
-    /// A right [`egui::SidePanel`].
+    /// A right [`crate::SidePanel`].
     RightPanel,
 
-    /// A top [`egui::TopBottomPanel`].
+    /// A top [`crate::TopBottomPanel`].
     TopPanel,
 
-    /// A bottom [`egui::TopBottomPanel`].
+    /// A bottom [`crate::TopBottomPanel`].
     BottomPanel,
 
-    /// A [`egui::Frame`].
+    /// A [`crate::Frame`].
     Frame,
 
-    /// A [`egui::ScrollArea`].
+    /// A [`crate::ScrollArea`].
     ScrollArea,
 
-    /// A [`egui::Resize`].
+    /// A [`crate::Resize`].
     Resize,
 
     /// The content of a regular menu.
@@ -39,7 +39,7 @@ pub enum UiKind {
     /// The content of a popup menu.
     Popup,
 
-    /// A tooltip, as shown by e.g. [`egui::Response::on_hover_ui`].
+    /// A tooltip, as shown by e.g. [`crate::Response::on_hover_ui`].
     Tooltip,
 
     /// A picker, such as color picker.
@@ -48,7 +48,7 @@ pub enum UiKind {
     /// A table cell (from the `egui_extras` crate).
     TableCell,
 
-    /// An [`egui::Area`] that is not of any other kind.
+    /// An [`crate::Area`] that is not of any other kind.
     GenericArea,
 }
 
@@ -68,7 +68,7 @@ impl UiKind {
 
 // ----------------------------------------------------------------------------
 
-/// Information about a [`egui::Ui`] to be included in the corresponding [`UiStack`].
+/// Information about a [`crate::Ui`] to be included in the corresponding [`UiStack`].
 #[derive(Default, Copy, Clone, Debug)]
 pub struct UiStackInfo {
     pub kind: Option<UiKind>,
@@ -77,11 +77,11 @@ pub struct UiStackInfo {
 
 // ----------------------------------------------------------------------------
 
-/// Information about a [`egui::Ui`] and its parents.
+/// Information about a [`crate::Ui`] and its parents.
 ///
-/// [`UiStack`] serves to keep track of the current hierarchy of [`egui::Ui`]s, such
+/// [`UiStack`] serves to keep track of the current hierarchy of [`crate::Ui`]s, such
 /// that nested widgets or user code may adapt to the surrounding context or obtain layout information
-/// from a [`egui::Ui`] that might be several steps higher in the hierarchy.
+/// from a [`crate::Ui`] that might be several steps higher in the hierarchy.
 ///
 /// Note: since [`UiStack`] contains a reference to its parent, it is both a stack, and a node within
 /// that stack. Most of its methods are about the specific node, but some methods walk up the
@@ -100,19 +100,19 @@ pub struct UiStack {
 
 // these methods act on this specific node
 impl UiStack {
-    /// Is this [`egui::Ui`] a panel?
+    /// Is this [`crate::Ui`] a panel?
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
         self.kind.map_or(false, |kind| kind.is_panel())
     }
 
-    /// Is this a root [`egui::Ui`], i.e. created with [`Ui::new()`]?
+    /// Is this a root [`crate::Ui`], i.e. created with [`crate::Ui::new()`]?
     #[inline]
     pub fn is_root_ui(&self) -> bool {
         self.parent.is_none()
     }
 
-    /// This this [`egui::Ui`] a [`egui::Frame`] with a visible stroke?
+    /// This this [`crate::Ui`] a [`crate::Frame`] with a visible stroke?
     #[inline]
     pub fn has_visible_frame(&self) -> bool {
         self.frame.stroke.width > 0.0 && self.frame.stroke.color != Color32::TRANSPARENT
@@ -129,7 +129,7 @@ impl UiStack {
         }
     }
 
-    /// Check if this node is or is contained in a [`egui::Ui`] of a specific kind.
+    /// Check if this node is or is contained in a [`crate::Ui`] of a specific kind.
     pub fn contained_id(&self, kind: UiKind) -> bool {
         self.iter().any(|frame| frame.kind == Some(kind))
     }
