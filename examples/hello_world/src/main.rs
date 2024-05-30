@@ -53,6 +53,12 @@ impl eframe::App for MyApp {
             ui.image(egui::include_image!(
                 "../../../crates/egui/assets/ferris.png"
             ));
+
+            ui.scope(|ui| {
+                ui.scope(|ui| {
+                    ui.label(format!("{:?}", ui.stack()));
+                });
+            });
         });
     }
 }

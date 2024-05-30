@@ -556,7 +556,14 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
-        let mut content_ui = ui.child_ui(content_max_rect, *ui.layout());
+        let mut content_ui = ui.child_ui(
+            content_max_rect,
+            *ui.layout(),
+            Some(UiStackInfo {
+                kind: Some(UiKind::ScrollArea),
+                frame: Frame::default(),
+            }),
+        );
 
         {
             // Clip the content, but only when we really need to:

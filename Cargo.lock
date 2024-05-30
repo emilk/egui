@@ -3637,6 +3637,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_stack_frame"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+]
+
+[[package]]
 name = "test_viewports"
 version = "0.1.0"
 dependencies = [

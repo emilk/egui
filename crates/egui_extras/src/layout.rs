@@ -195,9 +195,15 @@ impl<'l> StripLayout<'l> {
         child_ui_id_source: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
-        let mut child_ui =
-            self.ui
-                .child_ui_with_id_source(rect, self.cell_layout, child_ui_id_source);
+        let mut child_ui = self.ui.child_ui_with_id_source_and_frame_data(
+            rect,
+            self.cell_layout,
+            child_ui_id_source,
+            Some(egui::UiStackInfo {
+                kind: Some(egui::UiKind::TableCell),
+                frame: egui::Frame::default(),
+            }),
+        );
 
         if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);

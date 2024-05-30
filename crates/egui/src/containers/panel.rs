@@ -257,7 +257,18 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        let mut panel_ui = ui.child_ui_with_id_source_and_frame_data(
+            panel_rect,
+            Layout::top_down(Align::Min),
+            id,
+            Some(UiStackInfo {
+                kind: Some(match side {
+                    Side::Left => UiKind::LeftPanel,
+                    Side::Right => UiKind::RightPanel,
+                }),
+                frame: Frame::default(),
+            }),
+        );
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
@@ -348,7 +359,17 @@ impl SidePanel {
         let side = self.side;
         let available_rect = ctx.available_rect();
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            layer_id,
+            self.id,
+            available_rect,
+            clip_rect,
+            UiStackInfo {
+                kind: None, // set by show_inside_dyn
+                frame: Frame::default(),
+            },
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -723,7 +744,18 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        let mut panel_ui = ui.child_ui_with_id_source_and_frame_data(
+            panel_rect,
+            Layout::top_down(Align::Min),
+            id,
+            Some(UiStackInfo {
+                kind: Some(match side {
+                    TopBottomSide::Top => UiKind::TopPanel,
+                    TopBottomSide::Bottom => UiKind::BottomPanel,
+                }),
+                frame: Frame::default(),
+            }),
+        );
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
@@ -816,7 +848,17 @@ impl TopBottomPanel {
         let side = self.side;
 
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            layer_id,
+            self.id,
+            available_rect,
+            clip_rect,
+            UiStackInfo {
+                kind: None, // set by show_inside_dyn
+                frame: Frame::default(),
+            },
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -1045,7 +1087,14 @@ impl CentralPanel {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+        let mut panel_ui = ui.child_ui(
+            panel_rect,
+            Layout::top_down(Align::Min),
+            Some(UiStackInfo {
+                kind: Some(UiKind::CentralPanel),
+                frame: Frame::default(),
+            }),
+        );
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame.show(&mut panel_ui, |ui| {
@@ -1074,7 +1123,17 @@ impl CentralPanel {
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            layer_id,
+            id,
+            available_rect,
+            clip_rect,
+            UiStackInfo {
+                kind: None, // set by show_inside_dyn
+                frame: Frame::default(),
+            },
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 

@@ -140,6 +140,7 @@ impl<'a> Widget for DatePickerButton<'a> {
                 inner: saved,
                 response: area_response,
             } = Area::new(ui.make_persistent_id(self.id_source))
+                .kind(egui::UiKind::Picker)
                 .order(Order::Foreground)
                 .fixed_pos(pos)
                 .constrain_to(ui.ctx().screen_rect())

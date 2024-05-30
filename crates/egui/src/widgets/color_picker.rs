@@ -489,6 +489,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory(|mem| mem.is_popup_open(popup_id)) {
         let area_response = Area::new(popup_id)
+            .kind(UiKind::Picker)
             .order(Order::Foreground)
             .fixed_pos(button_response.rect.max)
             .constrain(true)
