@@ -2,9 +2,10 @@ use egui::TexturesDelta;
 
 use crate::{epi, App};
 
-use super::{now_sec, web_painter::WebPainter, NeedRepaint};
+use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint};
 
 pub struct AppRunner {
+    #[allow(dead_code)]
     web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -13,7 +14,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    pub(crate) ime: Option<egui::output::IMEOutput>,
+    pub(crate) text_agent: TextAgent,
     pub(crate) mutable_text_under_cursor: bool,
 
     // Output for the last run:
@@ -29,11 +30,12 @@ impl Drop for AppRunner {
 
 impl AppRunner {
     /// # Errors
-    /// Failure to initialize WebGL renderer.
+    /// Failure to initialize WebGL renderer, or failure to create app.
     pub async fn new(
         canvas_id: &str,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
+        text_agent: TextAgent,
     ) -> Result<Self, String> {
         let painter = super::ActiveWebPainter::new(canvas_id, &web_options).await?;
 
@@ -70,7 +72,7 @@ impl AppRunner {
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
 
-        let app = app_creator(&epi::CreationContext {
+        let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
             integration_info: info.clone(),
             storage: Some(&storage),
@@ -85,7 +87,8 @@ impl AppRunner {
             wgpu_render_state: painter.render_state(),
             #[cfg(all(feature = "wgpu", feature = "glow"))]
             wgpu_render_state: None,
-        });
+        };
+        let app = app_creator(&cc).map_err(|err| err.to_string())?;
 
         let frame = epi::Frame {
             info,
@@ -117,7 +120,7 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            ime: None,
+            text_agent,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
             clipped_primitives: None,
@@ -184,7 +187,6 @@ impl AppRunner {
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
-        super::resize_canvas_to_screen_size(self.canvas(), self.web_options.max_size_points);
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let raw_input = self.input.new_frame(canvas_size);
 
@@ -269,9 +271,11 @@ impl AppRunner {
 
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
-        if self.ime != ime {
-            super::text_agent::move_text_cursor(ime, self.canvas());
-            self.ime = ime;
+        if let Err(err) = self.text_agent.move_to(ime, self.canvas()) {
+            log::error!(
+                "failed to update text agent position: {}",
+                super::string_from_js_value(&err)
+            );
         }
     }
 }

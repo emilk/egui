@@ -50,6 +50,7 @@ x11 = ["winit?/x11"]
 egui = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
+ahash.workspace = true
 bytemuck.workspace = true
 document-features.workspace = true
 log.workspace = true

@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eframe::run_native(
         "My test app",
         options,
-        Box::new(|_cc| Box::<MyTestApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyTestApp>::default())),
     )?;
     Ok(())
 }

@@ -80,8 +80,6 @@ impl super::View for ContextMenus {
         ui.label("Right-click plot to edit it!");
         ui.horizontal(|ui| {
             self.example_plot(ui).context_menu(|ui| {
-                ui.set_min_width(220.0);
-
                 ui.menu_button("Plot", |ui| {
                     if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
                         || ui
@@ -158,24 +156,24 @@ impl ContextMenus {
     }
 
     fn nested_menus(ui: &mut egui::Ui) {
-        if ui.button("Open...").clicked() {
+        if ui.button("Open…").clicked() {
             ui.close_menu();
         }
         ui.menu_button("SubMenu", |ui| {
             ui.menu_button("SubMenu", |ui| {
-                if ui.button("Open...").clicked() {
+                if ui.button("Open…").clicked() {
                     ui.close_menu();
                 }
                 let _ = ui.button("Item");
             });
             ui.menu_button("SubMenu", |ui| {
-                if ui.button("Open...").clicked() {
+                if ui.button("Open…").clicked() {
                     ui.close_menu();
                 }
                 let _ = ui.button("Item");
             });
             let _ = ui.button("Item");
-            if ui.button("Open...").clicked() {
+            if ui.button("Open…").clicked() {
                 ui.close_menu();
             }
         });
@@ -184,10 +182,10 @@ impl ContextMenus {
             let _ = ui.button("Item2");
             let _ = ui.button("Item3");
             let _ = ui.button("Item4");
-            if ui.button("Open...").clicked() {
+            if ui.button("Open…").clicked() {
                 ui.close_menu();
             }
         });
-        let _ = ui.button("Very long text for this item");
+        let _ = ui.button("Very long text for this item that should be wrapped");
     }
 }

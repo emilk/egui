@@ -32,7 +32,7 @@ impl WebHandle {
             .start(
                 canvas_id,
                 eframe::WebOptions::default(),
-                Box::new(|cc| Box::new(WrapApp::new(cc))),
+                Box::new(|cc| Ok(Box::new(WrapApp::new(cc)))),
             )
             .await
     }

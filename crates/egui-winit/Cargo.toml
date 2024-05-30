@@ -59,6 +59,8 @@ x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["log"] }
+
+ahash.workspace = true
 log.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true

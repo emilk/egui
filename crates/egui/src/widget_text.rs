@@ -1,8 +1,8 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-    text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, Ui,
-    Visuals,
+    text::{LayoutJob, TextWrapping},
+    Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
 };
 
 /// Text and optional style choices for it.
@@ -640,47 +640,39 @@ impl WidgetText {
 
     /// Layout with wrap mode based on the containing [`Ui`].
     ///
-    /// wrap: override for [`Ui::wrap_text`].
+    /// `wrap_mode`: override for [`Ui::wrap_mode`]
     pub fn into_galley(
         self,
         ui: &Ui,
-        wrap: Option<bool>,
+        wrap_mode: Option<TextWrapMode>,
         available_width: f32,
         fallback_font: impl Into<FontSelection>,
     ) -> Arc<Galley> {
-        let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
         let valign = ui.layout().vertical_align();
         let style = ui.style();
 
-        self.into_galley_impl(
-            ui.ctx(),
-            style,
-            wrap,
-            available_width,
-            fallback_font.into(),
-            valign,
-        )
+        let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+        let text_wrapping = TextWrapping::from_wrap_mode_and_width(wrap_mode, available_width);
+
+        self.into_galley_impl(ui.ctx(), style, text_wrapping, fallback_font.into(), valign)
     }
 
     pub fn into_galley_impl(
         self,
         ctx: &crate::Context,
         style: &Style,
-        wrap: bool,
-        available_width: f32,
+        text_wrapping: TextWrapping,
         fallback_font: FontSelection,
         default_valign: Align,
     ) -> Arc<Galley> {
-        let wrap_width = if wrap { available_width } else { f32::INFINITY };
-
         match self {
             Self::RichText(text) => {
                 let mut layout_job = text.into_layout_job(style, fallback_font, default_valign);
-                layout_job.wrap.max_width = wrap_width;
+                layout_job.wrap = text_wrapping;
                 ctx.fonts(|f| f.layout_job(layout_job))
             }
             Self::LayoutJob(mut job) => {
-                job.wrap.max_width = wrap_width;
+                job.wrap = text_wrapping;
                 ctx.fonts(|f| f.layout_job(job))
             }
             Self::Galley(galley) => galley,

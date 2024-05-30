@@ -37,6 +37,7 @@ serde = ["dep:serde", "egui/serde"]
 [dependencies]
 egui = { workspace = true, default-features = false }
 
+ahash.workspace = true
 
 #! ### Optional dependencies
 ## Enable this when generating docs.

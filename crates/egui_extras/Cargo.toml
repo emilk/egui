@@ -64,6 +64,7 @@ syntect = ["dep:syntect"]
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["serde"] }
 
+ahash.workspace = true
 enum-map = { version = "2", features = ["serde"] }
 log.workspace = true
 serde.workspace = true

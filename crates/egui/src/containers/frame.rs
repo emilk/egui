@@ -266,7 +266,8 @@ impl Frame {
         self.show_dyn(ui, Box::new(add_contents))
     }
 
-    fn show_dyn<'c, R>(
+    /// Show using dynamic dispatch.
+    pub fn show_dyn<'c, R>(
         self,
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,

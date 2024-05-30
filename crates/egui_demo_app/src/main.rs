@@ -48,7 +48,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "egui demo app",
         options,
-        Box::new(|cc| Box::new(egui_demo_app::WrapApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(egui_demo_app::WrapApp::new(cc)))),
     )
 }
 

@@ -426,7 +426,7 @@ impl ExplicitGenerator {
 
 /// Result of [`super::PlotItem::find_closest()`] search, identifies an element inside the item for immediate use
 pub struct ClosestElem {
-    /// Position of hovered-over value (or bar/box-plot/...) in `PlotItem`
+    /// Position of hovered-over value (or bar/box-plot/…) in `PlotItem`
     pub index: usize,
 
     /// Squared distance from the mouse cursor (needed to compare against other `PlotItems`, which might be nearer)

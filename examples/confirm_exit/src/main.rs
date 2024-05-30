@@ -12,7 +12,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Confirm exit",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 

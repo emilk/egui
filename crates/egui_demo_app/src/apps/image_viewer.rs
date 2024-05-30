@@ -184,6 +184,11 @@ impl eframe::App for ImageViewer {
             ui.add_space(5.0);
             ui.label("Aspect ratio is maintained by scaling both sides as necessary");
             ui.checkbox(&mut self.maintain_aspect_ratio, "Maintain aspect ratio");
+
+            // forget all images
+            if ui.button("Forget all images").clicked() {
+                ui.ctx().forget_all_images();
+            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

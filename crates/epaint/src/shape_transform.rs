@@ -10,22 +10,16 @@ pub fn adjust_colors(
     #![allow(clippy::match_same_arms)]
     match shape {
         Shape::Noop => {}
+
         Shape::Vec(shapes) => {
             for shape in shapes {
                 adjust_colors(shape, adjust_color);
             }
         }
-        Shape::LineSegment { stroke, points: _ } => match &stroke.color {
-            color::ColorMode::Solid(mut col) => adjust_color(&mut col),
-            color::ColorMode::UV(callback) => {
-                let callback = callback.clone();
-                stroke.color = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
-                    let mut col = callback(rect, pos);
-                    adjust_color(&mut col);
-                    col
-                })));
-            }
-        },
+
+        Shape::LineSegment { stroke, points: _ } => {
+            adjust_color_mode(&mut stroke.color, adjust_color);
+        }
 
         Shape::Path(PathShape {
             points: _,
@@ -46,17 +40,7 @@ pub fn adjust_colors(
             stroke,
         }) => {
             adjust_color(fill);
-            match &stroke.color {
-                color::ColorMode::Solid(mut col) => adjust_color(&mut col),
-                color::ColorMode::UV(callback) => {
-                    let callback = callback.clone();
-                    stroke.color = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
-                        let mut col = callback(rect, pos);
-                        adjust_color(&mut col);
-                        col
-                    })));
-                }
-            }
+            adjust_color_mode(&mut stroke.color, adjust_color);
         }
 
         Shape::Circle(CircleShape {
@@ -121,6 +105,23 @@ pub fn adjust_colors(
 
         Shape::Callback(_) => {
             // Can't tint user callback code
+        }
+    }
+}
+
+fn adjust_color_mode(
+    color_mode: &mut ColorMode,
+    adjust_color: impl Fn(&mut Color32) + Send + Sync + Copy + 'static,
+) {
+    match color_mode {
+        color::ColorMode::Solid(color) => adjust_color(color),
+        color::ColorMode::UV(callback) => {
+            let callback = callback.clone();
+            *color_mode = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
+                let mut color = callback(rect, pos);
+                adjust_color(&mut color);
+                color
+            })));
         }
     }
 }

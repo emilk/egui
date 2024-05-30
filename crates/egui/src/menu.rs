@@ -133,10 +133,10 @@ pub(crate) fn submenu_button<R>(
 }
 
 /// wrapper for the contents of every menu.
-pub(crate) fn menu_ui<'c, R>(
+fn menu_popup<'c, R>(
     ctx: &Context,
-    menu_id: Id,
     menu_state_arc: &Arc<RwLock<MenuState>>,
+    menu_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
     let pos = {
@@ -150,6 +150,7 @@ pub(crate) fn menu_ui<'c, R>(
         .fixed_pos(pos)
         .constrain_to(ctx.screen_rect())
         .interactable(true)
+        .default_width(ctx.style().spacing.menu_width)
         .sense(Sense::hover());
 
     let area_response = area.show(ctx, |ui| {
@@ -157,7 +158,6 @@ pub(crate) fn menu_ui<'c, R>(
 
         Frame::menu(ui.style())
             .show(ui, |ui| {
-                ui.set_max_width(ui.spacing().menu_width);
                 ui.set_menu_state(Some(menu_state_arc.clone()));
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
                     .inner
@@ -306,8 +306,7 @@ impl MenuRoot {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
         if self.id == button.id {
-            let inner_response =
-                MenuState::show(&button.ctx, &self.menu_state, self.id, add_contents);
+            let inner_response = menu_popup(&button.ctx, &self.menu_state, self.id, add_contents);
             let menu_state = self.menu_state.read();
 
             if menu_state.response.is_close() {
@@ -476,16 +475,26 @@ impl SubMenuButton {
         let text_style = TextStyle::Button;
         let sense = Sense::click();
 
+        let text_icon_gap = ui.spacing().item_spacing.x;
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
-        let text_galley =
-            text.into_galley(ui, Some(true), text_available_width, text_style.clone());
+        let text_galley = text.into_galley(
+            ui,
+            Some(TextWrapMode::Wrap),
+            text_available_width,
+            text_style.clone(),
+        );
 
         let icon_available_width = text_available_width - text_galley.size().x;
-        let icon_galley = icon.into_galley(ui, Some(true), icon_available_width, text_style);
+        let icon_galley = icon.into_galley(
+            ui,
+            Some(TextWrapMode::Wrap),
+            icon_available_width,
+            text_style,
+        );
         let text_and_icon_size = Vec2::new(
-            text_galley.size().x + icon_galley.size().x,
+            text_galley.size().x + text_icon_gap + icon_galley.size().x,
             text_galley.size().y.max(icon_galley.size().y),
         );
         let mut desired_size = text_and_icon_size + 2.0 * button_padding;
@@ -583,15 +592,6 @@ impl MenuState {
         self.response = MenuResponse::Close;
     }
 
-    pub fn show<R>(
-        ctx: &Context,
-        menu_state: &Arc<RwLock<Self>>,
-        id: Id,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        crate::menu::menu_ui(ctx, id, menu_state, add_contents)
-    }
-
     fn show_submenu<R>(
         &mut self,
         ctx: &Context,
@@ -599,7 +599,7 @@ impl MenuState {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
         let (sub_response, response) = self.submenu(id).map(|sub| {
-            let inner_response = Self::show(ctx, sub, id, add_contents);
+            let inner_response = menu_popup(ctx, sub, id, add_contents);
             (sub.read().response, inner_response.inner)
         })?;
         self.cascade_close_response(sub_response);

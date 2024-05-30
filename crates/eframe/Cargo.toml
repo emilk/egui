@@ -129,6 +129,7 @@ egui = { workspace = true, default-features = false, features = [
   "log",
 ] }
 
+ahash.workspace = true
 document-features.workspace = true
 log.workspace = true
 parking_lot.workspace = true
@@ -236,7 +237,14 @@ web-sys = { workspace = true, features = [
   "MediaQueryListEvent",
   "MouseEvent",
   "Navigator",
+  "Node",
+  "NodeList",
   "Performance",
+  "ResizeObserver",
+  "ResizeObserverEntry",
+  "ResizeObserverBoxOptions",
+  "ResizeObserverOptions",
+  "ResizeObserverSize",
   "Storage",
   "Touch",
   "TouchEvent",

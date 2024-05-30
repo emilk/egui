@@ -1,5 +1,5 @@
+use ahash::HashMap;
 use egui::{
-    ahash::HashMap,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage,

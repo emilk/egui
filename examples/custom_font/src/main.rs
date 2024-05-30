@@ -12,7 +12,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "egui example: custom font",
         options,
-        Box::new(|cc| Box::new(MyApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
 }
 

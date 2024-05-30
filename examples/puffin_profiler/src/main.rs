@@ -22,7 +22,7 @@ fn main() -> Result<(), eframe::Error> {
 
             ..Default::default()
         },
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 

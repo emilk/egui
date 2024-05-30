@@ -22,7 +22,7 @@ fn main() {
 
             ..Default::default()
         },
-        Box::new(|_| Box::<App>::default()),
+        Box::new(|_cc| Ok(Box::<App>::default())),
     );
 }
 

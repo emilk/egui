@@ -1,6 +1,8 @@
 //! Common tools used by [`super::glow_integration`] and [`super::wgpu_integration`].
 
 use web_time::Instant;
+
+use std::path::PathBuf;
 use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
@@ -129,6 +131,16 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     if let Some(storage) = super::file_storage::FileStorage::from_app_id(_app_name) {
         return Some(Box::new(storage));
     }
+    None
+}
+
+#[allow(clippy::unnecessary_wraps)]
+pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
+    #[cfg(feature = "persistence")]
+    return Some(Box::new(
+        super::file_storage::FileStorage::from_ron_filepath(_file),
+    ));
+    #[cfg(not(feature = "persistence"))]
     None
 }
 

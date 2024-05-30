@@ -370,9 +370,11 @@ impl Font {
             .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR)
             .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
             .unwrap_or_else(|| {
-                panic!(
-                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}"
-                )
+                #[cfg(feature = "log")]
+                log::warn!(
+                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
+                );
+                (0, GlyphInfo::default())
             });
         slf.replacement_glyph = replacement_glyph;
 

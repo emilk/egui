@@ -3,12 +3,12 @@ use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 use egui::{
     emath::{remap_clamp, round_to_decimals, Rot2},
     epaint::TextShape,
-    Pos2, Rangef, Rect, Response, Sense, TextStyle, Ui, Vec2, WidgetText,
+    Pos2, Rangef, Rect, Response, Sense, TextStyle, TextWrapMode, Ui, Vec2, WidgetText,
 };
 
 use super::{transform::PlotTransform, GridMark};
 
-pub(super) type AxisFormatterFn = dyn Fn(GridMark, usize, &RangeInclusive<f64>) -> String;
+pub(super) type AxisFormatterFn<'a> = dyn Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a;
 
 /// X or Y axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,9 +98,9 @@ impl From<Placement> for VPlacement {
 ///
 /// Used to configure axis label and ticks.
 #[derive(Clone)]
-pub struct AxisHints {
+pub struct AxisHints<'a> {
     pub(super) label: WidgetText,
-    pub(super) formatter: Arc<AxisFormatterFn>,
+    pub(super) formatter: Arc<AxisFormatterFn<'a>>,
     pub(super) digits: usize,
     pub(super) placement: Placement,
     pub(super) label_spacing: Rangef,
@@ -109,7 +109,7 @@ pub struct AxisHints {
 // TODO(JohannesProgrammiert): this just a guess. It might cease to work if a user changes font size.
 const LINE_HEIGHT: f32 = 12.0;
 
-impl AxisHints {
+impl<'a> AxisHints<'a> {
     /// Initializes a default axis configuration for the X axis.
     pub fn new_x() -> Self {
         Self::new(Axis::X)
@@ -145,7 +145,7 @@ impl AxisHints {
     /// The second parameter of `formatter` is the currently shown range on this axis.
     pub fn formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'static,
+        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         self.formatter = Arc::new(fmt);
         self
@@ -230,9 +230,9 @@ impl AxisHints {
 }
 
 #[derive(Clone)]
-pub(super) struct AxisWidget {
+pub(super) struct AxisWidget<'a> {
     pub range: RangeInclusive<f64>,
-    pub hints: AxisHints,
+    pub hints: AxisHints<'a>,
 
     /// The region where we draw the axis labels.
     pub rect: Rect,
@@ -240,9 +240,9 @@ pub(super) struct AxisWidget {
     pub steps: Arc<Vec<GridMark>>,
 }
 
-impl AxisWidget {
+impl<'a> AxisWidget<'a> {
     /// if `rect` as width or height == 0, is will be automatically calculated from ticks and text.
-    pub fn new(hints: AxisHints, rect: Rect) -> Self {
+    pub fn new(hints: AxisHints<'a>, rect: Rect) -> Self {
         Self {
             range: (0.0..=0.0),
             hints,
@@ -264,7 +264,12 @@ impl AxisWidget {
 
         {
             let text = self.hints.label;
-            let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Body);
+            let galley = text.into_galley(
+                ui,
+                Some(TextWrapMode::Extend),
+                f32::INFINITY,
+                TextStyle::Body,
+            );
             let text_color = visuals
                 .override_text_color
                 .unwrap_or_else(|| ui.visuals().text_color());

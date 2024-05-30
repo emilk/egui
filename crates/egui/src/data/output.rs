@@ -113,7 +113,7 @@ pub struct PlatformOutput {
     /// Use by `eframe` web to show/hide mobile keyboard and IME agent.
     pub mutable_text_under_cursor: bool,
 
-    /// This is et if, and only if, the user is currently editing text.
+    /// This is set if, and only if, the user is currently editing text.
     ///
     /// Useful for IME.
     pub ime: Option<IMEOutput>,

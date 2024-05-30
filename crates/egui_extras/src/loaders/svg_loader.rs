@@ -1,7 +1,8 @@
 use std::{mem::size_of, path::Path, sync::Arc};
 
+use ahash::HashMap;
+
 use egui::{
-    ahash::HashMap,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage,

@@ -426,21 +426,6 @@ pub enum Event {
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
 
-    /// How many points (logical pixels) the user scrolled.
-    ///
-    /// The direction of the vector indicates how to move the _content_ that is being viewed.
-    /// So if you get positive values, the content being viewed should move to the right and down,
-    /// revealing new things to the left and up.
-    ///
-    /// A positive X-value indicates the content is being moved right,
-    /// as when swiping right on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// A positive Y-value indicates the content is being moved down,
-    /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    ///
-    /// Shift-scroll should result in horizontal scrolling (it is up to the integrations to do this).
-    Scroll(Vec2),
-
     /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
     /// * `zoom = 1`: no change.
     /// * `zoom < 1`: pinch together
@@ -473,16 +458,22 @@ pub enum Event {
         force: Option<f32>,
     },
 
-    /// A raw mouse wheel event as sent by the backend (minus the z coordinate),
-    /// for implementing alternative custom controls.
-    /// Note that the same event can also trigger [`Self::Zoom`] and [`Self::Scroll`],
-    /// so you probably want to handle only one of them.
+    /// A raw mouse wheel event as sent by the backend.
+    ///
+    /// Used for scrolling.
     MouseWheel {
-        /// The unit of scrolling: points, lines, or pages.
+        /// The unit of `delta`: points, lines, or pages.
         unit: MouseWheelUnit,
 
-        /// The amount scrolled horizontally and vertically. The amount and direction corresponding
-        /// to one step of the wheel depends on the platform.
+        /// The direction of the vector indicates how to move the _content_ that is being viewed.
+        /// So if you get positive values, the content being viewed should move to the right and down,
+        /// revealing new things to the left and up.
+        ///
+        /// A positive X-value indicates the content is being moved right,
+        /// as when swiping right on a touch-screen or track-pad with natural scrolling.
+        ///
+        /// A positive Y-value indicates the content is being moved down,
+        /// as when swiping down on a touch-screen or track-pad with natural scrolling.
         delta: Vec2,
 
         /// The state of the modifier keys at the time of the event.
