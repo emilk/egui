@@ -1132,7 +1132,7 @@ impl TitleBar {
                 // Add close button now that we know our full width:
                 if self.close_button_ui(ui).clicked() {
                     *open = false;
-                    resize::reset_largest_content_size(ui.ctx(), &resize);
+                    resize::reset_largest_content_size(ui.ctx(), resize);
                 }
             }
         }
