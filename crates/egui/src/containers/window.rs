@@ -40,6 +40,7 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
+    fade_out: bool,
 }
 
 impl<'open> Window<'open> {
@@ -62,6 +63,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
+            fade_out: true,
         }
     }
 
@@ -108,6 +110,26 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn order(mut self, order: Order) -> Self {
         self.area = self.area.order(order);
+        self
+    }
+
+    /// If `true`, quickly fade in the `Window` when it first appears.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn fade_in(mut self, fade_in: bool) -> Self {
+        self.area = self.area.fade_in(fade_in);
+        self
+    }
+
+    /// If `true`, quickly fade out the `Window` when it closes.
+    ///
+    /// This only works if you use [`Self::open`] to close the window.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn fade_out(mut self, fade_out: bool) -> Self {
+        self.fade_out = fade_out;
         self
     }
 
@@ -402,6 +424,7 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
+            fade_out,
         } = self;
 
         let header_color =
@@ -415,9 +438,8 @@ impl<'open> Window<'open> {
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        area.show_open_close_animation(ctx, &window_frame, is_open);
-
-        if !is_open {
+        let opacity = ctx.animate_bool(area.id.with("fade-out"), is_open);
+        if opacity <= 0.0 {
             return None;
         }
 
@@ -477,6 +499,12 @@ impl<'open> Window<'open> {
         );
 
         let mut area_content_ui = area.content_ui(ctx);
+        if is_open {
+            // `Area` already takes care of fade-in animations,
+            // so we only need to handle fade-out animations here.
+        } else if fade_out {
+            area_content_ui.multiply_opacity(opacity);
+        }
 
         let content_inner = {
             // BEGIN FRAME --------------------------------
