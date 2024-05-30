@@ -100,15 +100,17 @@ fn fs_main_linear_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     // We always have an sRGB aware texture at the moment.
     let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     let tex_gamma = gamma_from_linear_rgba(tex_linear);
-    let out_color_gamma = in.color * tex_gamma;
-    let out_color_linear = linear_from_gamma_rgb(out_color_gamma.rgb);
+    var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
-    if r_locals.dithering == 0 {
-        return vec4<f32>(out_color_linear, out_color_gamma.a);
+    // Note that dithering is performed on the gamma encoded values,
+    // because this function is used together with a srgb converting target.
+    if r_locals.dithering == 1 {
+        let out_color_gamma_rgb = dither_interleaved(out_color_gamma.rgb, 256.0, in.position);
+        out_color_gamma = vec4<f32>(out_color_gamma_rgb, out_color_gamma.a);
     }
-    let out_color_dithered = dither_interleaved(out_color_linear, 256.0, in.position);
-    return vec4<f32>(out_color_dithered, out_color_gamma.a);
+    let out_color_linear = linear_from_gamma_rgb(out_color_gamma.rgb);
+    return vec4<f32>(out_color_linear, out_color_gamma.a);
 }
 
 @fragment
@@ -116,15 +118,12 @@ fn fs_main_gamma_framebuffer(in: VertexOutput) -> @location(0) vec4<f32> {
     // We always have an sRGB aware texture at the moment.
     let tex_linear = textureSample(r_tex_color, r_tex_sampler, in.tex_coord);
     let tex_gamma = gamma_from_linear_rgba(tex_linear);
-    let out_color_gamma = in.color * tex_gamma;
-    if r_locals.dithering == 0 {
-        return out_color_gamma;
-    }
+    var out_color_gamma = in.color * tex_gamma;
     // Dither the float color down to eight bits to reduce banding.
     // This step is optional for egui backends.
-    let out_color_dithered = vec4<f32>(
-        dither_interleaved(out_color_gamma.rgb, 256.0, in.position),
-        out_color_gamma.a
-    );
-    return out_color_dithered;
+    if r_locals.dithering == 1 {
+        let out_color_gamma_rgb = dither_interleaved(out_color_gamma.rgb, 256.0, in.position);
+        out_color_gamma = vec4<f32>(out_color_gamma_rgb, out_color_gamma.a);
+    }
+    return out_color_gamma;
 }
