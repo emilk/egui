@@ -278,7 +278,7 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                         });
                         row.col(|ui| {
                             let s = if let Some(kind) = stack_frame.kind {
-                                format!("{:?}", kind)
+                                format!("{kind:?}")
                             } else {
                                 "-".to_owned()
                             };
