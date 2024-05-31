@@ -608,6 +608,8 @@ impl Rect {
 
 impl Rect {
     /// Does this Rect intersect the given ray (where `d` is normalized)?
+    ///
+    /// A ray that starts inside the rect will return `true`.
     pub fn intersects_ray(&self, o: Pos2, d: Vec2) -> bool {
         let mut tmin = -f32::INFINITY;
         let mut tmax = f32::INFINITY;
@@ -628,7 +630,7 @@ impl Rect {
             tmax = tmax.min(ty1.max(ty2));
         }
 
-        0.0 <= tmin && tmin <= tmax
+        0.0 <= tmax && tmin <= tmax
     }
 }
 
@@ -709,5 +711,28 @@ mod tests {
         assert_eq!(r.distance_sq_to_pos(pos2(15.0, 5.0)), 25.0); // above
         assert_eq!(r.distance_sq_to_pos(pos2(15.0, 25.0)), 25.0); // below
         assert_eq!(r.distance_sq_to_pos(pos2(25.0, 5.0)), 50.0); // right and above
+    }
+
+    #[test]
+    fn test_ray_intersection() {
+        let rect = Rect::from_min_max(pos2(1.0, 1.0), pos2(3.0, 3.0));
+
+        eprintln!("Righward ray from left:");
+        assert!(rect.intersects_ray(pos2(0.0, 2.0), Vec2::RIGHT));
+
+        eprintln!("Righward ray from center:");
+        assert!(rect.intersects_ray(pos2(2.0, 2.0), Vec2::RIGHT));
+
+        eprintln!("Righward ray from right:");
+        assert!(!rect.intersects_ray(pos2(4.0, 2.0), Vec2::RIGHT));
+
+        eprintln!("Leftward ray from left:");
+        assert!(!rect.intersects_ray(pos2(0.0, 2.0), Vec2::LEFT));
+
+        eprintln!("Leftward ray from center:");
+        assert!(rect.intersects_ray(pos2(2.0, 2.0), Vec2::LEFT));
+
+        eprintln!("Leftward ray from right:");
+        assert!(rect.intersects_ray(pos2(4.0, 2.0), Vec2::LEFT));
     }
 }
