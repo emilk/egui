@@ -108,7 +108,7 @@ impl Area {
             sense: None,
             movable: true,
             interactable: true,
-            constrain: false,
+            constrain: true,
             constrain_rect: None,
             enabled: true,
             order: Order::Middle,
@@ -229,6 +229,8 @@ impl Area {
     }
 
     /// Constrains this area to [`Context::screen_rect`]?
+    ///
+    /// Default: `true`.
     #[inline]
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.constrain = constrain;
