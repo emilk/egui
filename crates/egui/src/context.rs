@@ -1776,23 +1776,7 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
-    ///
-    /// If area is `None`, will constrain to [`Self::available_rect`].
-    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Option<Rect>) -> Rect {
-        let mut area = area.unwrap_or_else(|| self.available_rect());
-
-        if window.width() > area.width() {
-            // Allow overlapping side bars.
-            // This is important for small screens, e.g. mobiles running the web demo.
-            let screen_rect = self.screen_rect();
-            (area.min.x, area.max.x) = (screen_rect.min.x, screen_rect.max.x);
-        }
-        if window.height() > area.height() {
-            // Allow overlapping top/bottom bars:
-            let screen_rect = self.screen_rect();
-            (area.min.y, area.max.y) = (screen_rect.min.y, screen_rect.max.y);
-        }
-
+    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Rect) -> Rect {
         let mut pos = window.min;
 
         // Constrain to screen, unless window is too large to fit:

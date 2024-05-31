@@ -220,7 +220,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Constrains this window to the screen bounds.
+    /// Constrains this window to [`Context::screen_rect`].
     ///
     /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
@@ -471,11 +471,10 @@ impl<'open> Window<'open> {
         };
 
         {
-            // Prevent window from becoming larger than the constraint rect and/or screen rect.
-            let screen_rect = ctx.screen_rect();
-            let max_rect = area.constrain_rect().unwrap_or(screen_rect);
-            let max_width = max_rect.width();
-            let max_height = max_rect.height() - title_bar_height;
+            // Prevent window from becoming larger than the constrain rect.
+            let constrain_rect = area.constrain_rect();
+            let max_width = constrain_rect.width();
+            let max_height = constrain_rect.height() - title_bar_height;
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
         }
