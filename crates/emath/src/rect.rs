@@ -628,7 +628,7 @@ impl Rect {
             tmax = tmax.min(ty1.max(ty2));
         }
 
-        tmin <= tmax
+        0.0 <= tmin && tmin <= tmax
     }
 }
 
