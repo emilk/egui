@@ -531,12 +531,7 @@ impl Response {
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if !self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_for(
-                &self.ctx,
-                self.id.with("__tooltip"),
-                &self.rect,
-                add_contents,
-            );
+            crate::containers::show_tooltip_for(&self.ctx, self.id, &self.rect, add_contents);
         }
         self
     }
@@ -544,11 +539,7 @@ impl Response {
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_at_pointer(
-                &self.ctx,
-                self.id.with("__tooltip"),
-                add_contents,
-            );
+            crate::containers::show_tooltip_at_pointer(&self.ctx, self.id, add_contents);
         }
         self
     }
@@ -557,12 +548,7 @@ impl Response {
     ///
     /// This can be used to give attention to a widget during a tutorial.
     pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
-        crate::containers::show_tooltip_for(
-            &self.ctx,
-            self.id.with("__tooltip"),
-            &self.rect,
-            add_contents,
-        );
+        crate::containers::show_tooltip_for(&self.ctx, self.id, &self.rect, add_contents);
     }
 
     /// Always show this tooltip, even if disabled and the user isn't hovering it.
@@ -576,7 +562,7 @@ impl Response {
 
     /// Was the tooltip open last frame?
     pub fn is_tooltip_open(&self) -> bool {
-        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id.with("__tooltip"))
+        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id)
     }
 
     fn should_show_hover_ui(&self) -> bool {
