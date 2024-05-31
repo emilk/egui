@@ -174,7 +174,7 @@ impl CollapsingState {
     ) -> Option<InnerResponse<R>> {
         let id = self.id;
         self.show_body_unindented(ui, |ui| {
-            ui.indent(id, |ui| {
+            ui.indent(|ui| {
                 // make as wide as the header:
                 ui.expand_to_include_x(header_response.rect.right());
                 add_body(ui)

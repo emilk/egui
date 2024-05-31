@@ -1904,17 +1904,12 @@ impl Ui {
     /// The `id_source` here be anything at all.
     // TODO(emilk): remove `id_source` argument?
     #[inline]
-    pub fn indent<R>(
-        &mut self,
-        id_source: impl Hash,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.indent_dyn(id_source, Box::new(add_contents))
+    pub fn indent<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.indent_dyn(Box::new(add_contents))
     }
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_source: impl Hash,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(
@@ -1927,7 +1922,7 @@ impl Ui {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
-        let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
+        let mut child_ui = self.child_ui(child_rect, *self.layout());
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;

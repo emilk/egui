@@ -2699,7 +2699,7 @@ impl Context {
                 self.memory_mut(|mem| *mem.areas_mut() = Default::default());
             }
         });
-        ui.indent("areas", |ui| {
+        ui.indent(|ui| {
             ui.label("Visible areas, ordered back to front.");
             ui.label("Hover to highlight");
             let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
