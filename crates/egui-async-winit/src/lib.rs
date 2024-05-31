@@ -257,7 +257,6 @@ impl State {
                 let s2 = s2.clone();
                 let window2 = window2.clone();
                 async move {
-                    println!("Scale factor changed");
                     let mut s4 = s2.lock().unwrap();
                     let vp = s4.viewport_id;
                     s4.egui_input
@@ -283,7 +282,6 @@ impl State {
                     let s2 = s2.clone();
                     let window2 = window2.clone();
                     async move {
-                        println!("Mouse input event");
                         let mut s = s2.lock().unwrap();
                         s.on_mouse_button_input(m.state, m.button);
                         let done = s.egui_ctx.wants_pointer_input();
@@ -303,7 +301,6 @@ impl State {
                     let s2 = s2.clone();
                     let window = window2.clone();
                     async move {
-                        println!("Mouse scroll event");
                         let mut s = s2.lock().unwrap();
                         let done = s.egui_ctx.wants_pointer_input();
                         if let Some(window) = window.upgrade() {
@@ -321,7 +318,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("Cursor moved event");
                     let mut s = s2.lock().unwrap();
                     let done = s.egui_ctx.is_using_pointer();
                     if let Some(window) = window.upgrade() {
@@ -339,11 +335,11 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("Cursor left event");
                     let mut s = s2.lock().unwrap();
                     s.pointer_pos_in_points = None;
                     s.egui_input.events.push(egui::Event::PointerGone);
                     if let Some(window) = window.upgrade() {
+                        println!("Cursor left {:?}", window.id());
                         window.request_redraw();
                     }
                     false
@@ -357,8 +353,8 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("Cursor entered event");
                     if let Some(window) = window.upgrade() {
+                        println!("Cursor entered {:?}", window.id());
                         window.request_redraw();
                     }
                     false
@@ -372,7 +368,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("Touch event");
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
@@ -395,7 +390,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("IME event");
                     let mut s = s2.lock().unwrap();
                     match ime {
                         async_winit::event::Ime::Enabled => {}
@@ -432,7 +426,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("keyboard input event");
                     let mut s = s2.lock().unwrap();
                     s.on_keyboard_input(&ki.event);
 
@@ -456,7 +449,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("Focused event");
                     let mut s = s2.lock().unwrap();
                     s.egui_input.focused = focused;
                     s.egui_input
@@ -476,7 +468,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("modifiers changed event");
                     let mut s = s2.lock().unwrap();
 
                     let alt = state.alt_key();
@@ -507,7 +498,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("occluded event");
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
@@ -522,7 +512,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("resized event");
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
@@ -537,7 +526,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("window moved event");
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
@@ -552,7 +540,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("theme changed event");
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
@@ -569,7 +556,6 @@ impl State {
                     let s2 = s2.clone();
                     let window = window2.clone();
                     async move {
-                        println!("touchpad pressure event");
                         if let Some(window) = window.upgrade() {
                             window.request_redraw();
                         }
@@ -584,7 +570,6 @@ impl State {
                 let s2 = s2.clone();
                 let window = window2.clone();
                 async move {
-                    println!("touchpad pressure event");
                     let mut s = s2.lock().unwrap();
                     let zoom_factor = (magnify.delta as f32).exp();
                     s.egui_input.events.push(egui::Event::Zoom(zoom_factor));

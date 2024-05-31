@@ -1035,6 +1035,7 @@ impl CentralPanel {
     }
 }
 
+use std::ops::DerefMut;
 #[cfg(feature = "async")]
 use std::rc::Rc;
 #[cfg(feature = "async")]
@@ -1069,9 +1070,11 @@ impl CentralPanel {
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame
             .show_async(panel_ui, |ui| async {
-                ui.lock()
-                    .unwrap()
-                    .expand_to_include_rect(ui.lock().unwrap().max_rect()); // Expand frame to include it all
+                let mut uil = ui.lock()
+                    .unwrap();
+                let rect = uil.max_rect();
+                uil.expand_to_include_rect(rect); // Expand frame to include it all
+                drop(uil);
                 add_contents(ui).await
             })
             .await
