@@ -128,7 +128,6 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         .pivot(pivot)
         .fixed_pos(anchor)
         .default_width(ctx.style().spacing.tooltip_width)
-        .constrain_to(screen_rect)
         .interactable(false)
         .show(ctx, |ui| {
             Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
@@ -288,7 +287,6 @@ pub fn popup_above_or_below_widget<R>(
 
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
-            .constrain(true)
             .fixed_pos(pos)
             .default_width(inner_width)
             .pivot(pivot)

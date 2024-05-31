@@ -148,7 +148,6 @@ fn menu_popup<'c, R>(
     let area = Area::new(menu_id.with("__menu"))
         .order(Order::Foreground)
         .fixed_pos(pos)
-        .constrain_to(ctx.screen_rect())
         .interactable(true)
         .default_width(ctx.style().spacing.menu_width)
         .sense(Sense::hover());

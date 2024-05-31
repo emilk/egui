@@ -491,7 +491,6 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)
             .fixed_pos(button_response.rect.max)
-            .constrain(true)
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
                 Frame::popup(ui.style()).show(ui, |ui| {
