@@ -371,7 +371,7 @@ pub struct NativeOptions {
     pub persistence_path: Option<std::path::PathBuf>,
 
     /// Controls whether colors should be dithered to minimize banding.
-    /// Default to true.
+    /// Defaults to true.
     pub dithering: bool,
 }
 
@@ -431,6 +431,7 @@ impl Default for NativeOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             persist_window: true,
+
             persistence_path: None,
 
             dithering: true,

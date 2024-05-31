@@ -142,6 +142,7 @@ struct UniformBuffer {
 impl PartialEq for UniformBuffer {
     fn eq(&self, other: &Self) -> bool {
         self.screen_size_in_points == other.screen_size_in_points
+            && self.dithering == other.dithering
     }
 }
 
