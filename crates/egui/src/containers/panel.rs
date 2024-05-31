@@ -93,6 +93,7 @@ impl Side {
 pub struct SidePanel {
     side: Side,
     id: Id,
+    layer_id: LayerId,
     frame: Option<Frame>,
     resizable: bool,
     show_separator_line: bool,
@@ -116,12 +117,20 @@ impl SidePanel {
         Self {
             side,
             id: id.into(),
+            layer_id: LayerId::background(),
             frame: None,
             resizable: true,
             show_separator_line: true,
             default_width: 200.0,
             width_range: Rangef::new(96.0, f32::INFINITY),
         }
+    }
+
+    /// Redirect shapes to another paint layer.
+    #[must_use]
+    pub fn with_layer_id(mut self, layer_id: LayerId) -> Self {
+        self.layer_id = layer_id;
+        self
     }
 
     /// Can panel be resized by dragging the edge of it?
@@ -219,6 +228,7 @@ impl SidePanel {
         let Self {
             side,
             id,
+            layer_id: _, //ignored
             frame,
             resizable,
             show_separator_line,
@@ -344,11 +354,16 @@ impl SidePanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            self.layer_id,
+            self.id,
+            available_rect,
+            clip_rect,
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -552,6 +567,7 @@ impl TopBottomSide {
 pub struct TopBottomPanel {
     side: TopBottomSide,
     id: Id,
+    layer_id: LayerId,
     frame: Option<Frame>,
     resizable: bool,
     show_separator_line: bool,
@@ -575,12 +591,20 @@ impl TopBottomPanel {
         Self {
             side,
             id: id.into(),
+            layer_id: LayerId::background(),
             frame: None,
             resizable: false,
             show_separator_line: true,
             default_height: None,
             height_range: Rangef::new(20.0, f32::INFINITY),
         }
+    }
+
+    /// Redirect shapes to another paint layer.
+    #[must_use]
+    pub fn with_layer_id(mut self, layer_id: LayerId) -> Self {
+        self.layer_id = layer_id;
+        self
     }
 
     /// Can panel be resized by dragging the edge of it?
@@ -681,6 +705,7 @@ impl TopBottomPanel {
         let Self {
             side,
             id,
+            layer_id: _, //ignored
             frame,
             resizable,
             show_separator_line,
@@ -811,12 +836,17 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let available_rect = ctx.available_rect();
         let side = self.side;
 
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            self.layer_id,
+            self.id,
+            available_rect,
+            clip_rect,
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -1012,9 +1042,18 @@ impl TopBottomPanel {
 /// # });
 /// ```
 #[must_use = "You should call .show()"]
-#[derive(Default)]
 pub struct CentralPanel {
     frame: Option<Frame>,
+    layer_id: LayerId,
+}
+
+impl Default for CentralPanel {
+    fn default() -> Self {
+        Self {
+            frame: None,
+            layer_id: LayerId::background(),
+        }
+    }
 }
 
 impl CentralPanel {
@@ -1027,6 +1066,13 @@ impl CentralPanel {
 }
 
 impl CentralPanel {
+    /// Redirect shapes to another paint layer.
+    #[must_use]
+    pub fn with_layer_id(mut self, layer_id: LayerId) -> Self {
+        self.layer_id = layer_id;
+        self
+    }
+
     /// Show the panel inside a [`Ui`].
     pub fn show_inside<R>(
         self,
@@ -1042,7 +1088,10 @@ impl CentralPanel {
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let Self { frame } = self;
+        let Self {
+            frame,
+            layer_id: _, //ignored
+        } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
         let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
@@ -1070,11 +1119,10 @@ impl CentralPanel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
-        let layer_id = LayerId::background();
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(ctx.clone(), self.layer_id, id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
