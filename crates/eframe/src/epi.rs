@@ -371,7 +371,7 @@ pub struct NativeOptions {
     pub persistence_path: Option<std::path::PathBuf>,
 
     /// Controls whether colors should be dithered to minimize banding.
-    /// Default to true.
+    /// Defaults to true.
     pub dithering: bool,
 }
 
