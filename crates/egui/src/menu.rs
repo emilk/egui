@@ -152,7 +152,11 @@ fn menu_popup<'c, R>(
         .default_width(ctx.style().spacing.menu_width)
         .sense(Sense::hover());
 
+    let mut sizing_pass = false;
+
     let area_response = area.show(ctx, |ui| {
+        sizing_pass = ui.is_sizing_pass();
+
         set_menu_style(ui.style_mut());
 
         Frame::menu(ui.style())
@@ -164,7 +168,16 @@ fn menu_popup<'c, R>(
             .inner
     });
 
-    menu_state_arc.write().rect = area_response.response.rect;
+    menu_state_arc.write().rect = if sizing_pass {
+        // During the sizing pass we didn't know the size yet,
+        // so we might have just constrained the position unnecessarily.
+        // Therefore keep the original=desired position until the next frame.
+        Rect::from_min_size(pos, area_response.response.rect.size())
+    } else {
+        // We knew the size, and this is where it ended up (potentially constrained to screen).
+        // Remember it for the future:
+        area_response.response.rect
+    };
 
     area_response
 }
