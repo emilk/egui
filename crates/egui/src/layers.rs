@@ -49,7 +49,7 @@ impl Order {
             | Self::Middle
             | Self::Foreground
             | Self::Debug => true,
-            Self::Tooltip => false,
+            Self::Tooltip => true,
         }
     }
 

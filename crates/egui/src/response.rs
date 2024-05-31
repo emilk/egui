@@ -2,8 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, ComboBox, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect,
-    WidgetText,
+    menu, tooltip_area_state, ComboBox, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui,
+    WidgetRect, WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -570,6 +570,31 @@ impl Response {
             return true;
         }
 
+        let is_tooltip_open = self.is_tooltip_open();
+
+        if is_tooltip_open {
+            if let Some(area) = tooltip_area_state(&self.ctx, self.id) {
+                // We keep the tooltip open if hovered,
+                // or if the pointer is on its way to it,
+                // so that the user can interact with the tooltip
+                // (i.e. click links that are in it).
+
+                let rect = area.rect();
+                let pointer_in_area_or_on_the_way_there = self.ctx.input(|i| {
+                    if let Some(pos) = i.pointer.hover_pos() {
+                        rect.contains(pos)
+                            || rect.intersects_ray(pos, i.pointer.velocity().normalized())
+                    } else {
+                        false
+                    }
+                });
+
+                if pointer_in_area_or_on_the_way_there {
+                    return true;
+                }
+            }
+        }
+
         // Fast early-outs:
         if self.enabled {
             if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
@@ -605,7 +630,7 @@ impl Response {
         let tooltip_was_recently_shown = when_was_a_toolip_last_shown
             .map_or(false, |time| ((now - time) as f32) < tooltip_grace_time);
 
-        if !tooltip_was_recently_shown && !self.is_tooltip_open() {
+        if !tooltip_was_recently_shown && !is_tooltip_open {
             if self.ctx.style().interaction.show_tooltips_only_when_still {
                 // We only show the tooltip when the mouse pointer is still.
                 if !self.ctx.input(|i| i.pointer.is_still()) {

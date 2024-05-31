@@ -135,7 +135,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         .pivot(pivot)
         .fixed_pos(anchor)
         .default_width(ctx.style().spacing.tooltip_width)
-        .interactable(false)
+        // .interactable(false)
         .show(ctx, |ui| {
             Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
         });
@@ -232,6 +232,11 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
         mem.areas()
             .visible_last_frame(&LayerId::new(Order::Tooltip, primary_tooltip_area_id))
     })
+}
+
+pub fn tooltip_area_state(ctx: &Context, widget_id: Id) -> Option<AreaState> {
+    let primary_tooltip_area_id = tooltip_id(widget_id, 0);
+    AreaState::load(ctx, primary_tooltip_area_id)
 }
 
 /// Helper for [`popup_above_or_below_widget`].
