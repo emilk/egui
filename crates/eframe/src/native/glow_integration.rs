@@ -890,8 +890,6 @@ fn change_gl_context(
     crate::profile_scope!("make_current");
     if let Ok(current) = not_current.make_current(gl_surface) {
         *current_gl_context = Some(current);
-    } else {
-        dbg!(&current_gl_context);
     }
 }
 
