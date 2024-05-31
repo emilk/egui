@@ -139,14 +139,16 @@ fn log_axis_spacer(input: GridInput) -> Vec<GridMark> {
 }
 
 fn log_axis_formatter(gm: GridMark, max_size: usize, _bounds: &RangeInclusive<f64>) -> String {
-    let precision = (-gm.value).clamp(1.0, 10.0) as usize;
-    let digits = (gm.value).clamp(0.0, 10.0) as usize;
-    let size = digits + precision + 1;
+    let min_precision = (-gm.value + 1.0).ceil().clamp(1.0, 10.0) as usize;
+    let digits = (gm.value).ceil().max(1.0) as usize;
+    let size = digits + min_precision + 1;
     let value = 10.0f64.powf(gm.value);
     if size < max_size {
+        let precision = max_size.saturating_sub(digits + 1);
         format!("{value:.precision$}")
     } else {
-        let precision = max_size.saturating_sub(size);
+        let exp_digits = (digits as f64).log10() as usize;
+        let precision = max_size.saturating_sub(exp_digits).saturating_sub(3);
         format!("{value:.precision$e}")
     }
 }
