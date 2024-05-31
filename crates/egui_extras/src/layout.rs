@@ -195,7 +195,7 @@ impl<'l> StripLayout<'l> {
         child_ui_id_source: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
-        let mut child_ui = self.ui.child_ui_with_id_source_and_frame_data(
+        let mut child_ui = self.ui.child_ui_with_id_source(
             rect,
             self.cell_layout,
             child_ui_id_source,

@@ -183,13 +183,15 @@ impl eframe::App for MyApp {
     }
 }
 
+/// Demo of a widget that highlights its background all the way to the edge of its container when
+/// hovered.
 fn full_span_widget(ui: &mut egui::Ui, permanent: bool) {
     let bg_shape_idx = ui.painter().add(Shape::Noop);
     let response = ui.label("Full span test");
-    let stack_frame = ui.stack();
+    let ui_stack = ui.stack();
 
     let rect = egui::Rect::from_x_y_ranges(
-        full_span_horizontal_range(&stack_frame),
+        full_span_horizontal_range(&ui_stack),
         response.rect.y_range(),
     );
 
@@ -201,14 +203,15 @@ fn full_span_widget(ui: &mut egui::Ui, permanent: bool) {
     }
 }
 
-fn full_span_horizontal_range(stack: &egui::UiStack) -> Rangef {
-    for stack_frame in stack.iter() {
-        if stack_frame.has_visible_frame()
-            || stack_frame.is_panel_ui()
-            || stack_frame.is_root_ui()
-            || stack_frame.kind == Some(UiKind::TableCell)
+/// Find the horizontal range of the enclosing container.
+fn full_span_horizontal_range(ui_stack: &egui::UiStack) -> Rangef {
+    for node in ui_stack.iter() {
+        if node.has_visible_frame()
+            || node.is_panel_ui()
+            || node.is_root_ui()
+            || node.kind == Some(UiKind::TableCell)
         {
-            return (stack_frame.max_rect + stack_frame.frame.inner_margin).x_range();
+            return (node.max_rect + node.frame.inner_margin).x_range();
         }
     }
 
@@ -217,9 +220,9 @@ fn full_span_horizontal_range(stack: &egui::UiStack) -> Rangef {
 }
 
 fn stack_ui(ui: &mut egui::Ui) {
-    let stack_frame = &ui.stack();
+    let ui_stack = &ui.stack();
     ui.scope(|ui| {
-        stack_ui_impl(ui, stack_frame);
+        stack_ui_impl(ui, ui_stack);
     });
 }
 
@@ -260,24 +263,24 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                 });
             })
             .body(|mut body| {
-                for stack_frame in stack.iter() {
+                for node in stack.iter() {
                     body.row(20.0, |mut row| {
                         row.col(|ui| {
-                            if ui.label(format!("{:?}", stack_frame.id)).hovered() {
+                            if ui.label(format!("{:?}", node.id)).hovered() {
                                 ui.ctx().debug_painter().debug_rect(
-                                    stack_frame.max_rect,
+                                    node.max_rect,
                                     egui::Color32::GREEN,
                                     "max",
                                 );
                                 ui.ctx().debug_painter().circle_filled(
-                                    stack_frame.min_rect.min,
+                                    node.min_rect.min,
                                     2.0,
                                     egui::Color32::RED,
                                 );
                             }
                         });
                         row.col(|ui| {
-                            let s = if let Some(kind) = stack_frame.kind {
+                            let s = if let Some(kind) = node.kind {
                                 format!("{kind:?}")
                             } else {
                                 "-".to_owned()
@@ -286,7 +289,7 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                             ui.label(s);
                         });
                         row.col(|ui| {
-                            if stack_frame.frame.stroke == egui::Stroke::NONE {
+                            if node.frame.stroke == egui::Stroke::NONE {
                                 ui.label("-");
                             } else {
                                 let mut layout_job = egui::text::LayoutJob::default();
@@ -295,11 +298,11 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                                     0.0,
                                     egui::TextFormat::simple(
                                         egui::TextStyle::Body.resolve(ui.style()),
-                                        stack_frame.frame.stroke.color,
+                                        node.frame.stroke.color,
                                     ),
                                 );
                                 layout_job.append(
-                                    format!("{}px", stack_frame.frame.stroke.width).as_str(),
+                                    format!("{}px", node.frame.stroke.width).as_str(),
                                     0.0,
                                     egui::TextFormat::simple(
                                         egui::TextStyle::Body.resolve(ui.style()),
@@ -311,13 +314,13 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                             }
                         });
                         row.col(|ui| {
-                            ui.label(print_margin(&stack_frame.frame.inner_margin));
+                            ui.label(print_margin(&node.frame.inner_margin));
                         });
                         row.col(|ui| {
-                            ui.label(print_margin(&stack_frame.frame.outer_margin));
+                            ui.label(print_margin(&node.frame.outer_margin));
                         });
                         row.col(|ui| {
-                            ui.label(format!("{:?}", stack_frame.layout_direction));
+                            ui.label(format!("{:?}", node.layout_direction));
                         });
                     });
                 }

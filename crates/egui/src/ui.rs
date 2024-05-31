@@ -86,16 +86,16 @@ impl Ui {
         id: Id,
         max_rect: Rect,
         clip_rect: Rect,
-        stack_frame_data: UiStackInfo,
+        ui_stack_info: UiStackInfo,
     ) -> Self {
         let style = ctx.style();
         let layout = Layout::default();
         let placer = Placer::new(max_rect, layout);
-        let stack_frame = UiStack {
+        let ui_stack = UiStack {
             id,
             layout_direction: layout.main_dir,
-            kind: stack_frame_data.kind,
-            frame: stack_frame_data.frame,
+            kind: ui_stack_info.kind,
+            frame: ui_stack_info.frame,
             parent: None,
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
@@ -109,7 +109,7 @@ impl Ui {
             enabled: true,
             sizing_pass: false,
             menu_state: None,
-            stack: Arc::new(stack_frame),
+            stack: Arc::new(ui_stack),
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -134,18 +134,18 @@ impl Ui {
         &mut self,
         max_rect: Rect,
         layout: Layout,
-        stack_frame_data: Option<UiStackInfo>,
+        ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
-        self.child_ui_with_id_source_and_frame_data(max_rect, layout, "child", stack_frame_data)
+        self.child_ui_with_id_source(max_rect, layout, "child", ui_stack_info)
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
-    pub fn child_ui_with_id_source_and_frame_data(
+    pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
         mut layout: Layout,
         id_source: impl Hash,
-        stack_frame_data: Option<UiStackInfo>,
+        ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -162,8 +162,8 @@ impl Ui {
 
         let new_id = self.id.with(id_source);
         let placer = Placer::new(max_rect, layout);
-        let ui_stack_info = stack_frame_data.unwrap_or_default();
-        let stack_frame = UiStack {
+        let ui_stack_info = ui_stack_info.unwrap_or_default();
+        let ui_stack = UiStack {
             id: new_id,
             layout_direction: layout.main_dir,
             kind: ui_stack_info.kind,
@@ -181,7 +181,7 @@ impl Ui {
             enabled: self.enabled,
             sizing_pass: self.sizing_pass,
             menu_state: self.menu_state.clone(),
-            stack: Arc::new(stack_frame),
+            stack: Arc::new(ui_stack),
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -1918,12 +1918,8 @@ impl Ui {
     ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui = self.child_ui_with_id_source_and_frame_data(
-            child_rect,
-            *self.layout(),
-            id_source,
-            None,
-        );
+        let mut child_ui =
+            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -1982,12 +1978,8 @@ impl Ui {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
-        let mut child_ui = self.child_ui_with_id_source_and_frame_data(
-            child_rect,
-            *self.layout(),
-            id_source,
-            None,
-        );
+        let mut child_ui =
+            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;

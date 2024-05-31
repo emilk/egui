@@ -1,5 +1,5 @@
 [package]
-name = "test_stack_frame"
+name = "test_ui_stack"
 version = "0.1.0"
 authors = ["Antoine Beyeler <abeyeler@gmail.com>"]
 license = "MIT OR Apache-2.0"

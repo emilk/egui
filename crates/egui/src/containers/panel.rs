@@ -257,7 +257,7 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source_and_frame_data(
+        let mut panel_ui = ui.child_ui_with_id_source(
             panel_rect,
             Layout::top_down(Align::Min),
             id,
@@ -744,7 +744,7 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source_and_frame_data(
+        let mut panel_ui = ui.child_ui_with_id_source(
             panel_rect,
             Layout::top_down(Align::Min),
             id,

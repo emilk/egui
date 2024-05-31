@@ -3637,7 +3637,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "test_stack_frame"
+name = "test_ui_stack"
 version = "0.1.0"
 dependencies = [
  "eframe",
