@@ -356,6 +356,15 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// If there is ScrollArea, For each axis, should the containing area shrink if the content is small?
+    ///
+    /// Show the [`ScrollArea::auto_shrink`]
+    #[inline]
+    pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
+        self.scroll = self.scroll.auto_shrink(auto_shrink);
+        self
+    }
+
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
     ///
     /// You can pass in `false`, `true`, `[false, true]` etc.
