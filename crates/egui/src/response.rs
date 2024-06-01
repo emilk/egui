@@ -1,5 +1,6 @@
 use std::{any::Any, sync::Arc};
 
+use crate::style::ScrollAnimation;
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
     menu, ComboBox, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect,
@@ -764,9 +765,13 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
+        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
+    }
+
+    pub fn scroll_to_me_animation(&self, align: Option<Align>, animation: ScrollAnimation) {
         self.ctx.frame_state_mut(|state| {
-            state.scroll_target[0] = Some((self.rect.x_range(), align));
-            state.scroll_target[1] = Some((self.rect.y_range(), align));
+            state.scroll_target[0] = Some((self.rect.x_range(), align, animation));
+            state.scroll_target[1] = Some((self.rect.y_range(), align, animation));
         });
     }
 

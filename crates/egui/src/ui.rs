@@ -5,6 +5,7 @@ use std::{any::Any, hash::Hash, sync::Arc};
 
 use epaint::mutex::RwLock;
 
+use crate::style::ScrollAnimation;
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     util::IdTypeMap, widgets::*, *,
@@ -1104,10 +1105,20 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
+        self.scroll_to_rect_animation(rect, align, self.style.scroll_animation);
+    }
+
+    /// Same as [`Self::scroll_to_rect`], but allows you to specify the [`ScrollAnimation`].
+    pub fn scroll_to_rect_animation(
+        &self,
+        rect: Rect,
+        align: Option<Align>,
+        animation: ScrollAnimation,
+    ) {
         for d in 0..2 {
             let range = Rangef::new(rect.min[d], rect.max[d]);
             self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((range, align)));
+                .frame_state_mut(|state| state.scroll_target[d] = Some((range, align, animation)));
         }
     }
 
@@ -1134,11 +1145,16 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_to_cursor(&self, align: Option<Align>) {
+        self.scroll_to_cursor_animation(align, self.style.scroll_animation);
+    }
+
+    /// Same as [`Self::scroll_to_cursor`], but allows you to specify the [`ScrollAnimation`].
+    pub fn scroll_to_cursor_animation(&self, align: Option<Align>, animation: ScrollAnimation) {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = Rangef::point(target[d]);
             self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((target, align)));
+                .frame_state_mut(|state| state.scroll_target[d] = Some((target, align, animation)));
         }
     }
 
@@ -1172,8 +1188,14 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
+        self.scroll_with_delta_animation(delta, self.style.scroll_animation);
+    }
+
+    /// Same as [`Self::scroll_with_delta`], but allows you to specify the [`ScrollAnimation`].
+    pub fn scroll_with_delta_animation(&self, delta: Vec2, animation: ScrollAnimation) {
         self.ctx().frame_state_mut(|state| {
-            state.scroll_delta += delta;
+            state.scroll_delta.0 += delta;
+            state.scroll_delta.1 = animation;
         });
     }
 }
