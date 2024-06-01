@@ -480,10 +480,12 @@ impl<'open> Window<'open> {
         resize.is_manually = true;
         let mut resize = resize.id(resize_id);
 
-        // Prevent window from becoming larger than the screen rect.
+        let mut prepared_area = area.begin(ctx);
+        let last_frame_outer_rect = prepared_area.state().rect();
+
         {
             // Prevent window from becoming larger than the constrain rect.
-            let constrain_rect = area.constrain_rect();
+            let constrain_rect = prepared_area.constrain_rect();
             let max_width = constrain_rect.width();
             let max_height = constrain_rect.height() - title_bar_height;
             resize.max_size.x = resize.max_size.x.min(max_width);
@@ -501,9 +503,6 @@ impl<'open> Window<'open> {
             }
             resize_state.store(ctx, resize_id);
         }
-
-        let mut prepared_area = area.begin(ctx);
-        let last_frame_outer_rect = prepared_area.state().rect();
 
         if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
             let resizable = resize.is_resizable();
