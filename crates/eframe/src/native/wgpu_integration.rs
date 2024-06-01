@@ -503,6 +503,20 @@ impl WinitApp for WgpuWinitApp {
                     EventResult::Wait
                 }
             }
+
+            winit::event::Event::NewEvents(winit::event::StartCause::Poll) => {
+                if let Some(running) = &mut self.running {
+                    let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
+                    if let Some(window) = viewport.window.as_ref() {
+                        EventResult::RepaintNow(window.id())
+                    } else {
+                        EventResult::Wait
+                    }
+                } else {
+                    EventResult::Wait
+                }
+            }
+
             _ => EventResult::Wait,
         })
     }
