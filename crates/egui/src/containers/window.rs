@@ -40,6 +40,7 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
+    fade_out: bool,
 }
 
 impl<'open> Window<'open> {
@@ -48,7 +49,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text())).constrain(true);
+        let area = Area::new(Id::new(title.text()));
         Self {
             title,
             open: None,
@@ -62,6 +63,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
+            fade_out: true,
         }
     }
 
@@ -108,6 +110,26 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn order(mut self, order: Order) -> Self {
         self.area = self.area.order(order);
+        self
+    }
+
+    /// If `true`, quickly fade in the `Window` when it first appears.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn fade_in(mut self, fade_in: bool) -> Self {
+        self.area = self.area.fade_in(fade_in);
+        self
+    }
+
+    /// If `true`, quickly fade out the `Window` when it closes.
+    ///
+    /// This only works if you use [`Self::open`] to close the window.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn fade_out(mut self, fade_out: bool) -> Self {
+        self.fade_out = fade_out;
         self
     }
 
@@ -198,7 +220,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Constrains this window to the screen bounds.
+    /// Constrains this window to [`Context::screen_rect`].
     ///
     /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
@@ -402,6 +424,7 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
+            fade_out,
         } = self;
 
         let header_color =
@@ -415,9 +438,8 @@ impl<'open> Window<'open> {
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        area.show_open_close_animation(ctx, &window_frame, is_open);
-
-        if !is_open {
+        let opacity = ctx.animate_bool(area.id.with("fade-out"), is_open);
+        if opacity <= 0.0 {
             return None;
         }
 
@@ -450,14 +472,17 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
 
-        // Prevent window from becoming larger than the screen rect.
-        {
-            let screen_rect_size = ctx.screen_rect().size() - margins;
-            resize.max_size = resize.max_size.at_most(screen_rect_size);
-        }
-
         let mut prepared_area = area.begin(ctx);
         let last_frame_outer_rect = prepared_area.state().rect();
+
+        {
+            // Prevent window from becoming larger than the constrain rect.
+            let constrain_rect = area.constrain_rect();
+            let max_width = constrain_rect.width();
+            let max_height = constrain_rect.height() - title_bar_height;
+            resize.max_size.x = resize.max_size.x.min(max_width);
+            resize.max_size.y = resize.max_size.y.min(max_height);
+        }
 
         if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
             resize_state.desired_size = last_frame_outer_rect.size() - margins;
@@ -478,6 +503,12 @@ impl<'open> Window<'open> {
         );
 
         let mut area_content_ui = prepared_area.content_ui(ctx);
+        if is_open {
+            // `Area` already takes care of fade-in animations,
+            // so we only need to handle fade-out animations here.
+        } else if fade_out {
+            area_content_ui.multiply_opacity(opacity);
+        }
 
         let content_inner = {
             // BEGIN FRAME --------------------------------
@@ -1031,7 +1062,12 @@ fn show_title_bar(
             collapsing.show_default_button_with_size(ui, button_size);
         }
 
-        let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);
+        let title_galley = title.into_galley(
+            ui,
+            Some(crate::TextWrapMode::Extend),
+            f32::INFINITY,
+            TextStyle::Heading,
+        );
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):

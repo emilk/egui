@@ -26,10 +26,10 @@ use winit::{
     window::{Window, WindowId},
 };
 
+use ahash::{HashMap, HashSet};
 use egui::{
-    ahash::HashSet, epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport,
-    ViewportBuilder, ViewportClass, ViewportId, ViewportIdMap, ViewportIdPair, ViewportInfo,
-    ViewportOutput,
+    DeferredViewportUiCallback, ImmediateViewport, ViewportBuilder, ViewportClass, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportInfo, ViewportOutput,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -195,13 +195,17 @@ impl GlowWinitApp {
     ) -> Result<&mut GlowWinitRunning> {
         crate::profile_function!();
 
-        let storage = epi_integration::create_storage(
-            self.native_options
-                .viewport
-                .app_id
-                .as_ref()
-                .unwrap_or(&self.app_name),
-        );
+        let storage = if let Some(file) = &self.native_options.persistence_path {
+            epi_integration::create_storage_with_file(file)
+        } else {
+            epi_integration::create_storage(
+                self.native_options
+                    .viewport
+                    .app_id
+                    .as_ref()
+                    .unwrap_or(&self.app_name),
+            )
+        };
 
         let egui_ctx = create_egui_context(storage.as_deref());
 
@@ -309,7 +313,7 @@ impl GlowWinitApp {
                 raw_window_handle: window.window_handle().map(|h| h.as_raw()),
             };
             crate::profile_scope!("app_creator");
-            app_creator(&cc)
+            app_creator(&cc).map_err(crate::Error::AppCreation)?
         };
 
         let glutin = Rc::new(RefCell::new(glutin));

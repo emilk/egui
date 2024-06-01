@@ -61,6 +61,10 @@ pub struct Ui {
     /// and all widgets will assume a gray style.
     enabled: bool,
 
+    /// Set to true in special cases where we do one frame
+    /// where we size up the contents of the Ui, without actually showing it.
+    sizing_pass: bool,
+
     /// Indicates whether this Ui belongs to a Menu.
     menu_state: Option<Arc<RwLock<MenuState>>>,
 }
@@ -82,6 +86,7 @@ impl Ui {
             style,
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
+            sizing_pass: false,
             menu_state: None,
         };
 
@@ -108,9 +113,18 @@ impl Ui {
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
-        layout: Layout,
+        mut layout: Layout,
         id_source: impl Hash,
     ) -> Self {
+        if self.sizing_pass {
+            // During the sizing pass we want widgets to use up as little space as possible,
+            // so that we measure the only the space we _need_.
+            layout.cross_justify = false;
+            if layout.cross_align == Align::Center {
+                layout.cross_align = Align::Min;
+            }
+        }
+
         debug_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
@@ -121,6 +135,7 @@ impl Ui {
             style: self.style.clone(),
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
+            sizing_pass: self.sizing_pass,
             menu_state: self.menu_state.clone(),
         };
 
@@ -136,6 +151,26 @@ impl Ui {
         });
 
         child_ui
+    }
+
+    // -------------------------------------------------
+
+    /// Set to true in special cases where we do one frame
+    /// where we size up the contents of the Ui, without actually showing it.
+    ///
+    /// This will also turn the Ui invisible.
+    /// Should be called right after [`Self::new`], if at all.
+    #[inline]
+    pub fn set_sizing_pass(&mut self) {
+        self.sizing_pass = true;
+        self.set_visible(false);
+    }
+
+    /// Set to true in special cases where we do one frame
+    /// where we size up the contents of the Ui, without actually showing it.
+    #[inline]
+    pub fn is_sizing_pass(&self) -> bool {
+        self.sizing_pass
     }
 
     // -------------------------------------------------
@@ -306,7 +341,7 @@ impl Ui {
     /// Make the widget in this [`Ui`] semi-transparent.
     ///
     /// `opacity` must be between 0.0 and 1.0, where 0.0 means fully transparent (i.e., invisible)
-    /// and 1.0 means fully opaque (i.e., the same as not calling the method at all).
+    /// and 1.0 means fully opaque.
     ///
     /// ### Example
     /// ```
@@ -319,8 +354,25 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    ///
+    /// See also: [`Self::opacity`] and [`Self::multiply_opacity`].
     pub fn set_opacity(&mut self, opacity: f32) {
         self.painter.set_opacity(opacity);
+    }
+
+    /// Like [`Self::set_opacity`], but multiplies the given value with the current opacity.
+    ///
+    /// See also: [`Self::set_opacity`] and [`Self::opacity`].
+    pub fn multiply_opacity(&mut self, opacity: f32) {
+        self.painter.multiply_opacity(opacity);
+    }
+
+    /// Read the current opacity of the underlying painter.
+    ///
+    /// See also: [`Self::set_opacity`] and [`Self::multiply_opacity`].
+    #[inline]
+    pub fn opacity(&self) -> f32 {
+        self.painter.opacity()
     }
 
     /// Read the [`Layout`].
@@ -329,18 +381,43 @@ impl Ui {
         self.placer.layout()
     }
 
-    /// Should text wrap in this [`Ui`]?
+    /// Which wrap mode should the text use in this [`Ui`]?
     ///
-    /// This is determined first by [`Style::wrap`], and then by the layout of this [`Ui`].
-    pub fn wrap_text(&self) -> bool {
-        if let Some(wrap) = self.style.wrap {
-            wrap
+    /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
+    pub fn wrap_mode(&self) -> TextWrapMode {
+        #[allow(deprecated)]
+        if let Some(wrap_mode) = self.style.wrap_mode {
+            wrap_mode
+        }
+        // `wrap` handling for backward compatibility
+        else if let Some(wrap) = self.style.wrap {
+            if wrap {
+                TextWrapMode::Wrap
+            } else {
+                TextWrapMode::Extend
+            }
         } else if let Some(grid) = self.placer.grid() {
-            grid.wrap_text()
+            if grid.wrap_text() {
+                TextWrapMode::Wrap
+            } else {
+                TextWrapMode::Extend
+            }
         } else {
             let layout = self.layout();
-            layout.is_vertical() || layout.is_horizontal() && layout.main_wrap()
+            if layout.is_vertical() || layout.is_horizontal() && layout.main_wrap() {
+                TextWrapMode::Wrap
+            } else {
+                TextWrapMode::Extend
+            }
         }
+    }
+
+    /// Should text wrap in this [`Ui`]?
+    ///
+    /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
+    #[deprecated = "Use `wrap_mode` instead"]
+    pub fn wrap_text(&self) -> bool {
+        self.wrap_mode() == TextWrapMode::Wrap
     }
 
     /// Create a painter for a sub-region of this Ui.
@@ -1075,6 +1152,8 @@ impl Ui {
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     ///
+    /// If this is called multiple times per frame for the same [`ScrollArea`], the deltas will be summed.
+    ///
     /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
     ///
     /// ```
@@ -1093,8 +1172,9 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
-        self.ctx()
-            .input_mut(|input| input.smooth_scroll_delta += delta);
+        self.ctx().frame_state_mut(|state| {
+            state.scroll_delta += delta;
+        });
     }
 }
 

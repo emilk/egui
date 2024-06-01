@@ -19,7 +19,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Custom 3D painting in eframe using glow",
         options,
-        Box::new(|cc| Box::new(MyApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
 }
 

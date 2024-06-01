@@ -30,7 +30,7 @@
 //!
 //! fn main() {
 //!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))));
 //! }
 //!
 //! #[derive(Default)]
@@ -90,7 +90,7 @@
 //!             .start(
 //!                 canvas_id,
 //!                 eframe::WebOptions::default(),
-//!                 Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+//!                 Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc))),)
 //!             )
 //!             .await
 //!     }
@@ -199,7 +199,7 @@ pub mod icon_data;
 ///
 /// fn main() -> eframe::Result<()> {
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))))
 /// }
 ///
 /// #[derive(Default)]
@@ -324,7 +324,7 @@ pub fn run_simple_native(
     run_native(
         app_name,
         native_options,
-        Box::new(|_cc| Box::new(SimpleApp { update_fun })),
+        Box::new(|_cc| Ok(Box::new(SimpleApp { update_fun }))),
     )
 }
 
@@ -333,6 +333,9 @@ pub fn run_simple_native(
 /// The different problems that can occur when trying to run `eframe`.
 #[derive(Debug)]
 pub enum Error {
+    /// Something went wrong in user code when creating the app.
+    AppCreation(Box<dyn std::error::Error + Send + Sync>),
+
     /// An error from [`winit`].
     #[cfg(not(target_arch = "wasm32"))]
     Winit(winit::error::OsError),
@@ -403,6 +406,8 @@ impl From<egui_wgpu::WgpuError> for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::AppCreation(err) => write!(f, "app creation error: {err}"),
+
             #[cfg(not(target_arch = "wasm32"))]
             Self::Winit(err) => {
                 write!(f, "winit error: {err}")
