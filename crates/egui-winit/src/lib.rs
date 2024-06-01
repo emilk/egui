@@ -14,9 +14,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{
-    ahash::HashSet, Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo,
-};
+use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
 pub mod clipboard;
@@ -24,6 +22,7 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
+use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
 #[allow(unused_imports)]

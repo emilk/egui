@@ -94,8 +94,8 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
             if !modifiers.ctrl
                 && !modifiers.command
                 && !should_ignore_key(&key)
-                // When text agent is shown, it sends text event instead.
-                && text_agent::text_agent().hidden()
+                // When text agent is focused, it is responsible for handling input events
+                && !runner.text_agent.has_focus()
             {
                 runner.input.raw.events.push(egui::Event::Text(key));
             }
@@ -247,7 +247,8 @@ pub(crate) fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValu
         runner.save();
     })?;
 
-    for event_name in &["load", "pagehide", "pageshow", "resize"] {
+    // NOTE: resize is handled by `ResizeObserver` below
+    for event_name in &["load", "pagehide", "pageshow"] {
         runner_ref.add_event_listener(&window, event_name, move |_: web_sys::Event, runner| {
             // log::debug!("{event_name:?}");
             runner.needs_repaint.repaint_asap();
@@ -374,10 +375,12 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                 // event callback, which is why we run the app logic here and now:
                 runner.logic();
 
+                runner
+                    .text_agent
+                    .set_focus(runner.mutable_text_under_cursor);
+
                 // Make sure we paint the output of the above logic call asap:
                 runner.needs_repaint.repaint_asap();
-
-                text_agent::update_text_agent(runner);
             }
             event.stop_propagation();
             event.prevent_default();
@@ -466,13 +469,15 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                 runner.input.raw.events.push(egui::Event::PointerGone);
 
                 push_touches(runner, egui::TouchPhase::End, &event);
+
+                runner
+                    .text_agent
+                    .set_focus(runner.mutable_text_under_cursor);
+
                 runner.needs_repaint.repaint_asap();
                 event.stop_propagation();
                 event.prevent_default();
             }
-
-            // Finally, focus or blur text agent to toggle mobile keyboard:
-            text_agent::update_text_agent(runner);
         },
     )?;
 
@@ -589,4 +594,80 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
     })?;
 
     Ok(())
+}
+
+pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
+    let closure = Closure::wrap(Box::new({
+        let runner_ref = runner_ref.clone();
+        move |entries: js_sys::Array| {
+            // Only call the wrapped closure if the egui code has not panicked
+            if let Some(mut runner_lock) = runner_ref.try_lock() {
+                let canvas = runner_lock.canvas();
+                let (width, height) = match get_display_size(&entries) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        log::error!("{}", super::string_from_js_value(&err));
+                        return;
+                    }
+                };
+                canvas.set_width(width);
+                canvas.set_height(height);
+
+                // force an immediate repaint
+                runner_lock.needs_repaint.repaint_asap();
+                paint_if_needed(&mut runner_lock);
+            }
+        }
+    }) as Box<dyn FnMut(js_sys::Array)>);
+
+    let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
+    let mut options = web_sys::ResizeObserverOptions::new();
+    options.box_(web_sys::ResizeObserverBoxOptions::ContentBox);
+    if let Some(runner_lock) = runner_ref.try_lock() {
+        observer.observe_with_options(runner_lock.canvas(), &options);
+        drop(runner_lock);
+        runner_ref.set_resize_observer(observer, closure);
+    }
+
+    Ok(())
+}
+
+// Code ported to Rust from:
+// https://webglfundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
+fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32), JsValue> {
+    let width;
+    let height;
+    let mut dpr = web_sys::window().unwrap().device_pixel_ratio();
+
+    let entry: web_sys::ResizeObserverEntry = resize_observer_entries.at(0).dyn_into()?;
+    if JsValue::from_str("devicePixelContentBoxSize").js_in(entry.as_ref()) {
+        // NOTE: Only this path gives the correct answer for most browsers.
+        // Unfortunately this doesn't work perfectly everywhere.
+        let size: web_sys::ResizeObserverSize =
+            entry.device_pixel_content_box_size().at(0).dyn_into()?;
+        width = size.inline_size();
+        height = size.block_size();
+        dpr = 1.0; // no need to apply
+    } else if JsValue::from_str("contentBoxSize").js_in(entry.as_ref()) {
+        let content_box_size = entry.content_box_size();
+        let idx0 = content_box_size.at(0);
+        if !idx0.is_undefined() {
+            let size: web_sys::ResizeObserverSize = idx0.dyn_into()?;
+            width = size.inline_size();
+            height = size.block_size();
+        } else {
+            // legacy
+            let size = JsValue::clone(content_box_size.as_ref());
+            let size: web_sys::ResizeObserverSize = size.dyn_into()?;
+            width = size.inline_size();
+            height = size.block_size();
+        }
+    } else {
+        // legacy
+        let content_rect = entry.content_rect();
+        width = content_rect.width();
+        height = content_rect.height();
+    }
+
+    Ok(((width.round() * dpr) as u32, (height.round() * dpr) as u32))
 }

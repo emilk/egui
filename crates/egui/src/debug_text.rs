@@ -12,7 +12,7 @@ use crate::*;
 ///
 /// This is a built-in plugin in egui,
 /// meaning [`Context`] calls this from its `Default` implementation,
-/// so this i marked as `pub(crate)`.
+/// so this is marked as `pub(crate)`.
 pub(crate) fn register(ctx: &Context) {
     ctx.on_end_frame("debug_text", std::sync::Arc::new(State::end_frame));
 }
@@ -105,13 +105,11 @@ impl State {
 
             {
                 // Paint `text` to right of `pos`:
-                let wrap = true;
                 let available_width = ctx.screen_rect().max.x - pos.x;
                 let galley = text.into_galley_impl(
                     ctx,
                     &ctx.style(),
-                    wrap,
-                    available_width,
+                    text::TextWrapping::wrap_at_width(available_width),
                     font_id.clone().into(),
                     Align::TOP,
                 );

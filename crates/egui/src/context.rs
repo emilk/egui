@@ -2,6 +2,7 @@
 
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
+use containers::area::AreaState;
 use epaint::{
     emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
 };
@@ -490,11 +491,12 @@ impl ContextImpl {
         // Ensure we register the background area so panels and background ui can catch clicks:
         self.memory.areas_mut().set_state(
             LayerId::background(),
-            containers::area::State {
+            AreaState {
                 pivot_pos: screen_rect.left_top(),
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
                 interactable: true,
+                last_became_visible_at: f64::NEG_INFINITY,
             },
         );
 
@@ -1774,23 +1776,7 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
-    ///
-    /// If area is `None`, will constrain to [`Self::available_rect`].
-    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Option<Rect>) -> Rect {
-        let mut area = area.unwrap_or_else(|| self.available_rect());
-
-        if window.width() > area.width() {
-            // Allow overlapping side bars.
-            // This is important for small screens, e.g. mobiles running the web demo.
-            let screen_rect = self.screen_rect();
-            (area.min.x, area.max.x) = (screen_rect.min.x, screen_rect.max.x);
-        }
-        if window.height() > area.height() {
-            // Allow overlapping top/bottom bars:
-            let screen_rect = self.screen_rect();
-            (area.min.y, area.max.y) = (screen_rect.min.y, screen_rect.max.y);
-        }
-
+    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Rect) -> Rect {
         let mut pos = window.min;
 
         // Constrain to screen, unless window is too large to fit:
@@ -2702,7 +2688,7 @@ impl Context {
             ui.label("Hover to highlight");
             let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
             for layer_id in layers_ids {
-                let area = self.memory(|mem| mem.areas().get(layer_id.id).copied());
+                let area = AreaState::load(self, layer_id.id);
                 if let Some(area) = area {
                     let is_visible = self.memory(|mem| mem.areas().is_visible(&layer_id));
                     if !is_visible {

@@ -63,7 +63,7 @@ impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add_enabled_ui(self.enabled, |ui| {
             ui.set_visible(self.visible);
-            ui.set_opacity(self.opacity);
+            ui.multiply_opacity(self.opacity);
 
             egui::Grid::new("my_grid")
                 .num_columns(2)
@@ -172,8 +172,6 @@ impl WidgetGallery {
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{radio:?}"))
             .show_ui(ui, |ui| {
-                ui.style_mut().wrap = Some(false);
-                ui.set_min_width(60.0);
                 ui.selectable_value(radio, Enum::First, "First");
                 ui.selectable_value(radio, Enum::Second, "Second");
                 ui.selectable_value(radio, Enum::Third, "Third");
