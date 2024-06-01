@@ -477,7 +477,7 @@ impl<'open> Window<'open> {
 
         {
             // Prevent window from becoming larger than the constrain rect.
-            let constrain_rect = area.constrain_rect();
+            let constrain_rect = prepared_area.constrain_rect();
             let max_width = constrain_rect.width();
             let max_height = constrain_rect.height() - title_bar_height;
             resize.max_size.x = resize.max_size.x.min(max_width);
