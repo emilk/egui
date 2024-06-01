@@ -497,7 +497,6 @@ impl<'open> Window<'open> {
             resize_state.store(ctx, resize_id);
         }
 
-
         // First check for resize to avoid frame delay:
         let resize_interaction =
             resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
