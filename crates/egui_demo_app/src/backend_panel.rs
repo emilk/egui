@@ -403,6 +403,7 @@ impl EguiWindows {
         egui::Window::new("🔍 Inspection")
             .open(inspection)
             .vscroll(true)
+            .auto_shrink(false)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
