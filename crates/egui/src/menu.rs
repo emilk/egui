@@ -25,16 +25,16 @@ use std::sync::Arc;
 
 /// What is saved between frames.
 #[derive(Clone, Default)]
-pub(crate) struct BarState {
+pub struct BarState {
     open_menu: MenuRootManager,
 }
 
 impl BarState {
-    fn load(ctx: &Context, bar_id: Id) -> Self {
+    pub fn load(ctx: &Context, bar_id: Id) -> Self {
         ctx.data_mut(|d| d.get_temp::<Self>(bar_id).unwrap_or_default())
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
+    pub fn store(self, ctx: &Context, bar_id: Id) {
         ctx.data_mut(|d| d.insert_temp(bar_id, self));
     }
 
@@ -148,12 +148,15 @@ fn menu_popup<'c, R>(
     let area = Area::new(menu_id.with("__menu"))
         .order(Order::Foreground)
         .fixed_pos(pos)
-        .constrain_to(ctx.screen_rect())
         .interactable(true)
         .default_width(ctx.style().spacing.menu_width)
         .sense(Sense::hover());
 
+    let mut sizing_pass = false;
+
     let area_response = area.show(ctx, |ui| {
+        sizing_pass = ui.is_sizing_pass();
+
         set_menu_style(ui.style_mut());
 
         Frame::menu(ui.style())
@@ -165,7 +168,16 @@ fn menu_popup<'c, R>(
             .inner
     });
 
-    menu_state_arc.write().rect = area_response.response.rect;
+    menu_state_arc.write().rect = if sizing_pass {
+        // During the sizing pass we didn't know the size yet,
+        // so we might have just constrained the position unnecessarily.
+        // Therefore keep the original=desired position until the next frame.
+        Rect::from_min_size(pos, area_response.response.rect.size())
+    } else {
+        // We knew the size, and this is where it ended up (potentially constrained to screen).
+        // Remember it for the future:
+        area_response.response.rect
+    };
 
     area_response
 }
@@ -242,7 +254,7 @@ pub(crate) fn context_menu_opened(response: &Response) -> bool {
 
 /// Stores the state for the context menu.
 #[derive(Clone, Default)]
-pub(crate) struct MenuRootManager {
+pub struct MenuRootManager {
     inner: Option<MenuRoot>,
 }
 
@@ -287,7 +299,7 @@ impl std::ops::DerefMut for MenuRootManager {
 
 /// Menu root associated with an Id from a Response
 #[derive(Clone)]
-pub(crate) struct MenuRoot {
+pub struct MenuRoot {
     pub menu_state: Arc<RwLock<MenuState>>,
     pub id: Id,
 }
@@ -372,7 +384,7 @@ impl MenuRoot {
     }
 
     /// Interaction with a context menu (secondary click).
-    fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
+    pub fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
         let response = response.interact(Sense::click());
         let hovered = response.hovered();
         let secondary_clicked = response.secondary_clicked();
@@ -398,7 +410,7 @@ impl MenuRoot {
         })
     }
 
-    fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
+    pub fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
         match menu_response {
             MenuResponse::Create(pos, id) => {
                 root.inner = Some(Self::new(pos, id));
@@ -421,8 +433,8 @@ impl MenuRoot {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
-pub(crate) enum MenuResponse {
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum MenuResponse {
     Close,
     Stay,
     Create(Pos2, Id),
@@ -562,7 +574,10 @@ impl SubMenu {
     }
 }
 
-pub(crate) struct MenuState {
+/// Components of menu state, public for advanced usage.
+///
+/// Usually you don't need to use it directly.
+pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
     sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
 

@@ -81,7 +81,11 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
 
     let painter = ui.painter();
 
-    let title_bar_response = ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
+    let title_bar_response = ui.interact(
+        title_bar_rect,
+        Id::new("title_bar"),
+        Sense::click_and_drag(),
+    );
 
     // Paint the title:
     painter.text(
@@ -108,7 +112,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
             .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
     }
 
-    if title_bar_response.is_pointer_button_down_on() {
+    if title_bar_response.dragged_by(PointerButton::Primary) {
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
 

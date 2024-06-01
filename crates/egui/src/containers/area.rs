@@ -26,6 +26,11 @@ pub struct AreaState {
 
     /// If false, clicks goes straight through to what is behind us. Useful for tooltips etc.
     pub interactable: bool,
+
+    /// At what time was this area first shown?
+    ///
+    /// Used to fade in the area.
+    pub last_became_visible_at: f64,
 }
 
 impl AreaState {
@@ -88,6 +93,7 @@ pub struct Area {
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
+    fade_in: bool,
 }
 
 impl WidgetWithState for Area {
@@ -102,7 +108,7 @@ impl Area {
             sense: None,
             movable: true,
             interactable: true,
-            constrain: false,
+            constrain: true,
             constrain_rect: None,
             enabled: true,
             order: Order::Middle,
@@ -111,6 +117,7 @@ impl Area {
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
+            fade_in: true,
         }
     }
 
@@ -221,7 +228,9 @@ impl Area {
         self
     }
 
-    /// Constrains this area to the screen bounds.
+    /// Constrains this area to [`Context::screen_rect`]?
+    ///
+    /// Default: `true`.
     #[inline]
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.constrain = constrain;
@@ -282,6 +291,15 @@ impl Area {
             Align2::LEFT_TOP
         }
     }
+
+    /// If `true`, quickly fade in the area.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn fade_in(mut self, fade_in: bool) -> Self {
+        self.fade_in = fade_in;
+        self
+    }
 }
 
 pub(crate) struct Prepared {
@@ -290,7 +308,7 @@ pub(crate) struct Prepared {
     move_response: Response,
     enabled: bool,
     constrain: bool,
-    constrain_rect: Option<Rect>,
+    constrain_rect: Rect,
 
     /// We always make windows invisible the first frame to hide "first-frame-jitters".
     ///
@@ -298,6 +316,8 @@ pub(crate) struct Prepared {
     /// and then can correctly position the window and its contents the next frame,
     /// without having one frame where the window is wrongly positioned or sized.
     sizing_pass: bool,
+
+    fade_in: bool,
 }
 
 impl Area {
@@ -328,7 +348,10 @@ impl Area {
             anchor,
             constrain,
             constrain_rect,
+            fade_in,
         } = self;
+
+        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
 
         let layer_id = LayerId::new(order, id);
 
@@ -354,7 +377,6 @@ impl Area {
             }
 
             if constrain {
-                let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
                 size = size.at_most(constrain_rect.size());
             }
 
@@ -363,15 +385,25 @@ impl Area {
                 pivot,
                 size,
                 interactable,
+                last_became_visible_at: ctx.input(|i| i.time),
             }
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
 
+        // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smmother fade-in
+        let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));
+
+        if !visible_last_frame {
+            state.last_became_visible_at = ctx.input(|i| i.time);
+        }
+
         if let Some((anchor, offset)) = anchor {
-            let screen = ctx.available_rect();
             state.set_left_top_pos(
-                anchor.align_size_within_rect(state.size, screen).left_top() + offset,
+                anchor
+                    .align_size_within_rect(state.size, constrain_rect)
+                    .left_top()
+                    + offset,
             );
         }
 
@@ -421,7 +453,7 @@ impl Area {
 
         state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
 
-        // Update responsbe with posisbly moved/constrained rect:
+        // Update response with possibly moved/constrained rect:
         move_response.rect = state.rect();
         move_response.interact_rect = state.rect();
 
@@ -433,34 +465,7 @@ impl Area {
             constrain,
             constrain_rect,
             sizing_pass: is_new,
-        }
-    }
-
-    pub fn show_open_close_animation(&self, ctx: &Context, frame: &Frame, is_open: bool) {
-        // must be called first so animation managers know the latest state
-        let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open);
-
-        if is_open {
-            // we actually only show close animations.
-            // when opening a window we show it right away.
-            return;
-        }
-        if visibility_factor <= 0.0 {
-            return;
-        }
-
-        let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = AreaState::load(ctx, self.id).map(|state| state.rect());
-        if let Some(area_rect) = area_rect {
-            let clip_rect = Rect::EVERYTHING;
-            let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
-
-            // shrinkage: looks kinda a bad on its own
-            // let area_rect =
-            //     Rect::from_center_size(area_rect.center(), visibility_factor * area_rect.size());
-
-            let frame = frame.multiply_with_opacity(visibility_factor);
-            painter.add(frame.paint(area_rect));
+            fade_in,
         }
     }
 }
@@ -478,29 +483,14 @@ impl Prepared {
         self.constrain
     }
 
-    pub(crate) fn constrain_rect(&self) -> Option<Rect> {
+    pub(crate) fn constrain_rect(&self) -> Rect {
         self.constrain_rect
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
-        let screen_rect = ctx.screen_rect();
-
-        let constrain_rect = if let Some(constrain_rect) = self.constrain_rect {
-            constrain_rect.intersect(screen_rect) // protect against infinite bounds
-        } else {
-            let central_area = ctx.available_rect();
-
-            let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
-            if is_within_central_area {
-                central_area // let's try to not cover side panels
-            } else {
-                screen_rect
-            }
-        };
-
         let max_rect = Rect::from_min_size(self.state.left_top_pos(), self.state.size);
 
-        let clip_rect = constrain_rect; // Don't paint outside our bounds
+        let clip_rect = self.constrain_rect; // Don't paint outside our bounds
 
         let mut ui = Ui::new(
             ctx.clone(),
@@ -509,6 +499,17 @@ impl Prepared {
             max_rect,
             clip_rect,
         );
+
+        if self.fade_in {
+            let age =
+                ctx.input(|i| (i.time - self.state.last_became_visible_at) as f32 + i.predicted_dt);
+            let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
+            ui.multiply_opacity(opacity);
+            if opacity < 1.0 {
+                ctx.request_repaint();
+            }
+        }
+
         ui.set_enabled(self.enabled);
         if self.sizing_pass {
             ui.set_sizing_pass();
@@ -522,10 +523,7 @@ impl Prepared {
             layer_id,
             mut state,
             move_response,
-            enabled: _,
-            constrain: _,
-            constrain_rect: _,
-            sizing_pass: _,
+            ..
         } = self;
 
         state.size = content_ui.min_size();
@@ -555,6 +553,8 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
     });
     existing.sort_by_key(|r| r.left().round() as i32);
 
+    // NOTE: for the benefit of the egui demo, we position the windows so they don't
+    // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
     let available_rect = ctx.available_rect();
 
     let spacing = 16.0;

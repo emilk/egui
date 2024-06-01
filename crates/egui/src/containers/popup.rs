@@ -25,10 +25,10 @@ use crate::*;
 /// ```
 pub fn show_tooltip<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    show_tooltip_at_pointer(ctx, id, add_contents)
+    show_tooltip_at_pointer(ctx, widget_id, add_contents)
 }
 
 /// Show a tooltip at the current pointer position (if any).
@@ -50,11 +50,12 @@ pub fn show_tooltip<R>(
 /// ```
 pub fn show_tooltip_at_pointer<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    ctx.input(|i| i.pointer.hover_pos())
-        .map(|pointer_pos| show_tooltip_at(ctx, id, pointer_pos + vec2(16.0, 16.0), add_contents))
+    ctx.input(|i| i.pointer.hover_pos()).map(|pointer_pos| {
+        show_tooltip_at(ctx, widget_id, pointer_pos + vec2(16.0, 16.0), add_contents)
+    })
 }
 
 /// Show a tooltip under the given area.
@@ -62,7 +63,7 @@ pub fn show_tooltip_at_pointer<R>(
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
 pub fn show_tooltip_for<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     widget_rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
@@ -70,7 +71,7 @@ pub fn show_tooltip_for<R>(
     let allow_placing_below = !is_touch_screen; // There is a finger below.
     show_tooltip_at_avoid_dyn(
         ctx,
-        id,
+        widget_id,
         allow_placing_below,
         widget_rect,
         Box::new(add_contents),
@@ -82,13 +83,19 @@ pub fn show_tooltip_for<R>(
 /// Returns `None` if the tooltip could not be placed.
 pub fn show_tooltip_at<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     suggested_position: Pos2,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let allow_placing_below = true;
     let rect = Rect::from_center_size(suggested_position, Vec2::ZERO);
-    show_tooltip_at_avoid_dyn(ctx, id, allow_placing_below, &rect, Box::new(add_contents))
+    show_tooltip_at_avoid_dyn(
+        ctx,
+        widget_id,
+        allow_placing_below,
+        &rect,
+        Box::new(add_contents),
+    )
 }
 
 fn show_tooltip_at_avoid_dyn<'c, R>(
@@ -128,7 +135,6 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         .pivot(pivot)
         .fixed_pos(anchor)
         .default_width(ctx.style().spacing.tooltip_width)
-        .constrain_to(screen_rect)
         .interactable(false)
         .show(ctx, |ui| {
             Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
@@ -213,8 +219,8 @@ fn find_tooltip_position(
 /// }
 /// # });
 /// ```
-pub fn show_tooltip_text(ctx: &Context, id: Id, text: impl Into<WidgetText>) -> Option<()> {
-    show_tooltip(ctx, id, |ui| {
+pub fn show_tooltip_text(ctx: &Context, widget_id: Id, text: impl Into<WidgetText>) -> Option<()> {
+    show_tooltip(ctx, widget_id, |ui| {
         crate::widgets::Label::new(text).ui(ui);
     })
 }
@@ -288,7 +294,6 @@ pub fn popup_above_or_below_widget<R>(
 
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
-            .constrain(true)
             .fixed_pos(pos)
             .default_width(inner_width)
             .pivot(pivot)
