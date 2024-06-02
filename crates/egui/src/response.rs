@@ -585,7 +585,7 @@ impl Response {
         let is_tooltip_open = self.is_tooltip_open();
 
         if is_tooltip_open {
-            let tooltip_id = crate::tooltip_id(self.id, 0); // TODO: correct index
+            let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
             let layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {

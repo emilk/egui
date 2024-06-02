@@ -154,6 +154,17 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     inner
 }
 
+/// What is the id of the next tooltip for this widget?
+pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
+    let tooltip_count = ctx.frame_state(|fs| {
+        fs.tooltip_state
+            .widget_tooltips
+            .get(&widget_id)
+            .map_or(0, |state| state.tooltip_count)
+    });
+    tooltip_id(widget_id, tooltip_count)
+}
+
 pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
     widget_id.with(tooltip_count)
 }
