@@ -472,6 +472,11 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
 
+        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
+            resize_state.desired_size = Vec2::ZERO;
+            resize_state.store(ctx, resize_id);
+        }
+
         let mut prepared_area = area.begin(ctx);
         let last_frame_outer_rect = prepared_area.state().rect();
 
@@ -482,11 +487,6 @@ impl<'open> Window<'open> {
             let max_height = constrain_rect.height() - title_bar_height;
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
-        }
-
-        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
-            resize_state.desired_size = last_frame_outer_rect.size() - margins;
-            resize_state.store(ctx, resize_id);
         }
 
         // First check for resize to avoid frame delay:
