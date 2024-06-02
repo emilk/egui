@@ -1092,7 +1092,7 @@ impl Default for Spacing {
             icon_width_inner: 8.0,
             icon_spacing: 4.0,
             default_area_size: vec2(600.0, 400.0),
-            tooltip_width: 600.0,
+            tooltip_width: 500.0,
             menu_width: 400.0,
             menu_spacing: 2.0,
             combo_height: 200.0,
