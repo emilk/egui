@@ -527,11 +527,13 @@ impl Response {
     /// but you can change this by setting [`style::Interaction::selectable_labels` from within the tooltip:
     ///
     /// ```
-    /// # let ui = &mut egui::Ui::__test();
+    /// # egui::__run_test_ui(|ui| {
     /// ui.label("Hover me").on_hover_ui(|ui| {
     ///     ui.style_mut().interaction.selectable_labels = true;
     ///     ui.label("This text can be selected");
     /// });
+    /// # });
+    /// ```
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
