@@ -135,8 +135,15 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         .pivot(pivot)
         .fixed_pos(anchor)
         .default_width(ctx.style().spacing.tooltip_width)
-        // .interactable(false)
+        .interactable(false) // Only affects the actual area, i.e. clicking and dragging it. The content can still be interactive.
         .show(ctx, |ui| {
+            // By default the text in tooltips aren't selectable.
+            // This means that most tooltips aren't interactable,
+            // which also mean they won't stick around so you can click them.
+            // Only tooltips that have actual interactive stuff (buttons, links, …)
+            // will stick around when you try to click them.
+            ui.style_mut().interaction.selectable_labels = false;
+
             Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
         });
 
@@ -147,7 +154,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     inner
 }
 
-fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
+pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
     widget_id.with(tooltip_count)
 }
 
@@ -232,11 +239,6 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
         mem.areas()
             .visible_last_frame(&LayerId::new(Order::Tooltip, primary_tooltip_area_id))
     })
-}
-
-pub fn tooltip_area_state(ctx: &Context, widget_id: Id) -> Option<AreaState> {
-    let primary_tooltip_area_id = tooltip_id(widget_id, 0);
-    AreaState::load(ctx, primary_tooltip_area_id)
 }
 
 /// Helper for [`popup_above_or_below_widget`].

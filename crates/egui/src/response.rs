@@ -2,7 +2,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, tooltip_area_state, ComboBox, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui,
+    menu, AreaState, ComboBox, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui,
     WidgetRect, WidgetText,
 };
 
@@ -520,6 +520,18 @@ impl Response {
     /// For that, use [`Self::on_disabled_hover_ui`] instead.
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    ///
+    /// The widget can contain interactive widgets, such as buttons and links.
+    /// If so, it will stay open as the user moves their pointer over it.
+    /// By default, the text of a tooltip is NOT selectable (i.e. interactive),
+    /// but you can change this by setting [`style::Interaction::selectable_labels` from within the tooltip:
+    ///
+    /// ```
+    /// # let ui = &mut egui::Ui::__test();
+    /// ui.label("Hover me").on_hover_ui(|ui| {
+    ///     ui.style_mut().interaction.selectable_labels = true;
+    ///     ui.label("This text can be selected");
+    /// });
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
@@ -573,24 +585,34 @@ impl Response {
         let is_tooltip_open = self.is_tooltip_open();
 
         if is_tooltip_open {
-            if let Some(area) = tooltip_area_state(&self.ctx, self.id) {
+            let tooltip_id = crate::tooltip_id(self.id, 0); // TODO: correct index
+            let layer_id = LayerId::new(Order::Tooltip, tooltip_id);
+
+            let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
+                vp.widgets_prev_frame
+                    .get_layer(layer_id)
+                    .any(|w| w.sense.interactive())
+            });
+
+            if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,
                 // or if the pointer is on its way to it,
                 // so that the user can interact with the tooltip
                 // (i.e. click links that are in it).
+                if let Some(area) = AreaState::load(&self.ctx, tooltip_id) {
+                    let rect = area.rect();
+                    let pointer_in_area_or_on_the_way_there = self.ctx.input(|i| {
+                        if let Some(pos) = i.pointer.hover_pos() {
+                            rect.contains(pos)
+                                || rect.intersects_ray(pos, i.pointer.velocity().normalized())
+                        } else {
+                            false
+                        }
+                    });
 
-                let rect = area.rect();
-                let pointer_in_area_or_on_the_way_there = self.ctx.input(|i| {
-                    if let Some(pos) = i.pointer.hover_pos() {
-                        rect.contains(pos)
-                            || rect.intersects_ray(pos, i.pointer.velocity().normalized())
-                    } else {
-                        false
+                    if pointer_in_area_or_on_the_way_there {
+                        return true;
                     }
-                });
-
-                if pointer_in_area_or_on_the_way_there {
-                    return true;
                 }
             }
         }
