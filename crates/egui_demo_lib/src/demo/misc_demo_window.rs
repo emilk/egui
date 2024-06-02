@@ -264,7 +264,7 @@ impl Widgets {
                 ui.label("This tooltip was created with");
                 ui.monospace(".on_hover_ui(…)");
             });
-            let _ = ui.button("A button you can never press");
+            let _ = ui.button("A button you can press, but that does nothing.");
         };
         let disabled_tooltip_ui = |ui: &mut Ui| {
             ui.heading("Different tooltip when widget is disabled");
