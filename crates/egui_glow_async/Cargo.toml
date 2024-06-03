@@ -58,6 +58,7 @@ x11 = ["async-winit?/x11"]
 egui = { workspace = true, default-features = false, features = ["bytemuck"] }
 egui-async-winit = { workspace = true, optional = true, default-features = false }
 async-winit = { workspace=true, optional=true }
+rust-mutex = { git = "https://github.com/uglyoldbob/rust-mutex.git" }
 
 bytemuck.workspace = true
 glow.workspace = true

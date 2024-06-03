@@ -9,7 +9,9 @@
 
 #![allow(clippy::manual_range_contains)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use rust_mutex::Mutex;
 
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
@@ -253,19 +255,21 @@ impl State {
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window.scale_factor_changed().wait_direct_async(move |sfc| {
+            window.scale_factor_changed().wait_direct(move |sfc| {
                 let s2 = s2.clone();
                 let window2 = window2.clone();
-                async move {
-                    let mut s4 = s2.lock().unwrap();
-                    let vp = s4.viewport_id;
-                    s4.egui_input
-                        .viewports
-                        .entry(vp)
-                        .or_default()
-                        .native_pixels_per_point
-                        .as_mut()
-                        .map(|a| *a *= sfc.scale_factor as f32);
+                {
+                    {
+                        let mut s4 = s2.lock();
+                        let vp = s4.viewport_id;
+                        s4.egui_input
+                            .viewports
+                            .entry(vp)
+                            .or_default()
+                            .native_pixels_per_point
+                            .as_mut()
+                            .map(|a| *a *= sfc.scale_factor as f32);
+                    }
                     if let Some(window) = window2.upgrade() {
                         window.request_redraw();
                     }
@@ -276,52 +280,17 @@ impl State {
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window
-                .mouse_input()
-                .wait_direct_async(move |m: MouseInput| {
-                    let s2 = s2.clone();
-                    let window2 = window2.clone();
-                    async move {
-                        let mut s = s2.lock().unwrap();
+            window.mouse_input().wait_direct(move |m: MouseInput| {
+                let s2 = s2.clone();
+                let window2 = window2.clone();
+                {
+                    let done = {
+                        let mut s = s2.lock();
                         s.on_mouse_button_input(m.state, m.button);
                         let done = s.egui_ctx.wants_pointer_input();
-                        if let Some(window) = window2.upgrade() {
-                            window.request_redraw();
-                        }
                         done
-                    }
-                });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window
-                .mouse_wheel()
-                .wait_direct_async(move |m: MouseWheel| {
-                    let s2 = s2.clone();
-                    let window = window2.clone();
-                    async move {
-                        let mut s = s2.lock().unwrap();
-                        let done = s.egui_ctx.wants_pointer_input();
-                        if let Some(window) = window.upgrade() {
-                            s.on_mouse_wheel(&window, m.delta);
-                            window.request_redraw();
-                        }
-                        done
-                    }
-                });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window.cursor_moved().wait_direct_async(move |c| {
-                let s2 = s2.clone();
-                let window = window2.clone();
-                async move {
-                    let mut s = s2.lock().unwrap();
-                    let done = s.egui_ctx.is_using_pointer();
-                    if let Some(window) = window.upgrade() {
-                        s.on_cursor_moved(&window, c.position);
+                    };
+                    if let Some(window) = window2.upgrade() {
                         window.request_redraw();
                     }
                     done
@@ -331,13 +300,59 @@ impl State {
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window.cursor_left().wait_direct_async(move |c| {
+            window.mouse_wheel().wait_direct(move |m: MouseWheel| {
                 let s2 = s2.clone();
                 let window = window2.clone();
-                async move {
-                    let mut s = s2.lock().unwrap();
-                    s.pointer_pos_in_points = None;
-                    s.egui_input.events.push(egui::Event::PointerGone);
+                {
+                    let done = {
+                        let mut s = s2.lock();
+                        let r = s.egui_ctx.wants_pointer_input();
+                        if let Some(window) = window.upgrade() {
+                            s.on_mouse_wheel(&window, m.delta);
+                        }
+                        r
+                    };
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    done
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.cursor_moved().wait_direct(move |c| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    let done = {
+                        let mut s = s2.lock();
+                        let done = s.egui_ctx.is_using_pointer();
+                        if let Some(window) = window.upgrade() {
+                            s.on_cursor_moved(&window, c.position);
+                        }
+                        done
+                    };
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    done
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.cursor_left().wait_direct(move |c| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    {
+                        let mut s = s2.lock();
+                        s.pointer_pos_in_points = None;
+                        s.egui_input.events.push(egui::Event::PointerGone);
+                    }
                     if let Some(window) = window.upgrade() {
                         println!("Cursor left {:?}", window.id());
                         window.request_redraw();
@@ -349,10 +364,10 @@ impl State {
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window.cursor_entered().wait_direct_async(move |c| {
+            window.cursor_entered().wait_direct(move |c| {
                 let s2 = s2.clone();
                 let window = window2.clone();
-                async move {
+                {
                     if let Some(window) = window.upgrade() {
                         println!("Cursor entered {:?}", window.id());
                         window.request_redraw();
@@ -364,77 +379,86 @@ impl State {
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window.touch().wait_direct_async(move |c| {
+            window.touch().wait_direct(move |c| {
                 let s2 = s2.clone();
                 let window = window2.clone();
-                async move {
-                    if let Some(window) = window.upgrade() {
-                        window.request_redraw();
-                    }
-                    let mut s = s2.lock().unwrap();
-                    match c.phase {
-                        async_winit::event::TouchPhase::Started
-                        | async_winit::event::TouchPhase::Ended
-                        | async_winit::event::TouchPhase::Cancelled => {
-                            s.egui_ctx.wants_pointer_input()
-                        }
-                        async_winit::event::TouchPhase::Moved => s.egui_ctx.is_using_pointer(),
-                    }
-                }
-            });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window.ime().wait_direct_async(move |ime| {
-                let s2 = s2.clone();
-                let window = window2.clone();
-                async move {
-                    let mut s = s2.lock().unwrap();
-                    match ime {
-                        async_winit::event::Ime::Enabled => {}
-                        async_winit::event::Ime::Preedit(_, None) => {
-                            s.ime_event_enable();
-                        }
-                        async_winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                            s.ime_event_enable();
-                            s.egui_input
-                                .events
-                                .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
-                        }
-                        async_winit::event::Ime::Commit(text) => {
-                            s.egui_input
-                                .events
-                                .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                            s.ime_event_disable();
-                        }
-                        async_winit::event::Ime::Disabled => {
-                            s.ime_event_disable();
-                        }
+                {
+                    let r = {
+                        let mut s = s2.lock();
+                        let r = match c.phase {
+                            async_winit::event::TouchPhase::Started
+                            | async_winit::event::TouchPhase::Ended
+                            | async_winit::event::TouchPhase::Cancelled => {
+                                s.egui_ctx.wants_pointer_input()
+                            }
+                            async_winit::event::TouchPhase::Moved => s.egui_ctx.is_using_pointer(),
+                        };
+                        r
                     };
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
-                    s.egui_ctx.wants_keyboard_input()
+                    r
                 }
             });
         }
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window.keyboard_input().wait_direct_async(move |ki| {
+            window.ime().wait_direct(move |ime| {
                 let s2 = s2.clone();
                 let window = window2.clone();
-                async move {
-                    let mut s = s2.lock().unwrap();
-                    s.on_keyboard_input(&ki.event);
+                {
+                    let r = {
+                        let mut s = s2.lock();
+                        match ime {
+                            async_winit::event::Ime::Enabled => {}
+                            async_winit::event::Ime::Preedit(_, None) => {
+                                s.ime_event_enable();
+                            }
+                            async_winit::event::Ime::Preedit(text, Some(_cursor)) => {
+                                s.ime_event_enable();
+                                s.egui_input
+                                    .events
+                                    .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
+                            }
+                            async_winit::event::Ime::Commit(text) => {
+                                s.egui_input
+                                    .events
+                                    .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
+                                s.ime_event_disable();
+                            }
+                            async_winit::event::Ime::Disabled => {
+                                s.ime_event_disable();
+                            }
+                        };
+                        s.egui_ctx.wants_keyboard_input()
+                    };
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    r
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.keyboard_input().wait_direct(move |ki| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    let consumed = {
+                        let mut s = s2.lock();
+                        s.on_keyboard_input(&ki.event);
 
-                    // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                    let consumed = s.egui_ctx.wants_keyboard_input()
-                        || ki.event.logical_key
-                            == async_winit::keyboard::Key::Named(
-                                async_winit::keyboard::NamedKey::Tab,
-                            );
+                        // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
+                        s.egui_ctx.wants_keyboard_input()
+                            || ki.event.logical_key
+                                == async_winit::keyboard::Key::Named(
+                                    async_winit::keyboard::NamedKey::Tab,
+                                )
+                    };
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
@@ -445,15 +469,17 @@ impl State {
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window.focused().wait_direct_async(move |focused| {
+            window.focused().wait_direct(move |focused| {
                 let s2 = s2.clone();
                 let window = window2.clone();
-                async move {
-                    let mut s = s2.lock().unwrap();
-                    s.egui_input.focused = focused;
-                    s.egui_input
-                        .events
-                        .push(egui::Event::WindowFocused(focused));
+                {
+                    {
+                        let mut s = s2.lock();
+                        s.egui_input.focused = focused;
+                        s.egui_input
+                            .events
+                            .push(egui::Event::WindowFocused(focused));
+                    }
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
@@ -464,119 +490,122 @@ impl State {
         {
             let s2 = s.clone();
             let window2 = std::sync::Arc::downgrade(window);
-            window.modifiers_changed().wait_direct_async(move |state| {
+            window.modifiers_changed().wait_direct(move |state| {
                 let s2 = s2.clone();
                 let window = window2.clone();
-                async move {
-                    let mut s = s2.lock().unwrap();
+                {
+                    {
+                        let mut s = s2.lock();
 
-                    let alt = state.alt_key();
-                    let ctrl = state.control_key();
-                    let shift = state.shift_key();
-                    let super_ = state.super_key();
+                        let alt = state.alt_key();
+                        let ctrl = state.control_key();
+                        let shift = state.shift_key();
+                        let super_ = state.super_key();
 
-                    s.egui_input.modifiers.alt = alt;
-                    s.egui_input.modifiers.ctrl = ctrl;
-                    s.egui_input.modifiers.shift = shift;
-                    s.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
-                    s.egui_input.modifiers.command = if cfg!(target_os = "macos") {
-                        super_
-                    } else {
-                        ctrl
+                        s.egui_input.modifiers.alt = alt;
+                        s.egui_input.modifiers.ctrl = ctrl;
+                        s.egui_input.modifiers.shift = shift;
+                        s.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
+                        s.egui_input.modifiers.command = if cfg!(target_os = "macos") {
+                            super_
+                        } else {
+                            ctrl
+                        };
+                    }
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    false
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.occluded().wait_direct(move |occluded| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    false
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.resized().wait_direct(move |size| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    false
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.moved().wait_direct(move |position| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    false
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.theme_changed().wait_direct(move |theme| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    false
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.touchpad_pressure().wait_direct(move |pressure| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    if let Some(window) = window.upgrade() {
+                        window.request_redraw();
+                    }
+                    false
+                }
+            });
+        }
+        {
+            let s2 = s.clone();
+            let window2 = std::sync::Arc::downgrade(window);
+            window.touchpad_magnify().wait_direct(move |magnify| {
+                let s2 = s2.clone();
+                let window = window2.clone();
+                {
+                    let r = {
+                        let mut s = s2.lock();
+                        let zoom_factor = (magnify.delta as f32).exp();
+                        s.egui_input.events.push(egui::Event::Zoom(zoom_factor));
+                        s.egui_ctx.wants_pointer_input()
                     };
                     if let Some(window) = window.upgrade() {
                         window.request_redraw();
                     }
-                    false
-                }
-            });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window.occluded().wait_direct_async(move |occluded| {
-                let s2 = s2.clone();
-                let window = window2.clone();
-                async move {
-                    if let Some(window) = window.upgrade() {
-                        window.request_redraw();
-                    }
-                    false
-                }
-            });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window.resized().wait_direct_async(move |size| {
-                let s2 = s2.clone();
-                let window = window2.clone();
-                async move {
-                    if let Some(window) = window.upgrade() {
-                        window.request_redraw();
-                    }
-                    false
-                }
-            });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window.moved().wait_direct_async(move |position| {
-                let s2 = s2.clone();
-                let window = window2.clone();
-                async move {
-                    if let Some(window) = window.upgrade() {
-                        window.request_redraw();
-                    }
-                    false
-                }
-            });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window.theme_changed().wait_direct_async(move |theme| {
-                let s2 = s2.clone();
-                let window = window2.clone();
-                async move {
-                    if let Some(window) = window.upgrade() {
-                        window.request_redraw();
-                    }
-                    false
-                }
-            });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window
-                .touchpad_pressure()
-                .wait_direct_async(move |pressure| {
-                    let s2 = s2.clone();
-                    let window = window2.clone();
-                    async move {
-                        if let Some(window) = window.upgrade() {
-                            window.request_redraw();
-                        }
-                        false
-                    }
-                });
-        }
-        {
-            let s2 = s.clone();
-            let window2 = std::sync::Arc::downgrade(window);
-            window.touchpad_magnify().wait_direct_async(move |magnify| {
-                let s2 = s2.clone();
-                let window = window2.clone();
-                async move {
-                    let mut s = s2.lock().unwrap();
-                    let zoom_factor = (magnify.delta as f32).exp();
-                    s.egui_input.events.push(egui::Event::Zoom(zoom_factor));
-                    if let Some(window) = window.upgrade() {
-                        window.request_redraw();
-                    }
-                    s.egui_ctx.wants_pointer_input()
+                    r
                 }
             });
         }

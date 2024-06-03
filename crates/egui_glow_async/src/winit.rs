@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use rust_mutex::Mutex;
+use std::sync::Arc;
 
 pub use egui_async_winit;
 pub use egui_async_winit::EventResponse;
@@ -62,10 +63,7 @@ impl EguiGlow {
         window: &async_winit::window::Window<TS>,
         event: &async_winit::event::WindowEvent,
     ) -> EventResponse {
-        self.egui_winit
-            .lock()
-            .unwrap()
-            .on_window_event(window, event)
+        self.egui_winit.lock().on_window_event(window, event)
     }
 
     /// Call [`Self::paint`] later to paint.
@@ -74,7 +72,7 @@ impl EguiGlow {
         window: &async_winit::window::Window<TS>,
         run_ui: impl FnMut(&egui::Context),
     ) {
-        let mut egui_winit = self.egui_winit.lock().unwrap();
+        let mut egui_winit = self.egui_winit.lock();
         let raw_input = egui_winit.take_egui_input(window).await;
 
         let egui::FullOutput {
