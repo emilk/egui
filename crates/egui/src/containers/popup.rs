@@ -135,8 +135,15 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         .pivot(pivot)
         .fixed_pos(anchor)
         .default_width(ctx.style().spacing.tooltip_width)
-        .interactable(false)
+        .interactable(false) // Only affects the actual area, i.e. clicking and dragging it. The content can still be interactive.
         .show(ctx, |ui| {
+            // By default the text in tooltips aren't selectable.
+            // This means that most tooltips aren't interactable,
+            // which also mean they won't stick around so you can click them.
+            // Only tooltips that have actual interactive stuff (buttons, links, …)
+            // will stick around when you try to click them.
+            ui.style_mut().interaction.selectable_labels = false;
+
             Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
         });
 
@@ -147,7 +154,18 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     inner
 }
 
-fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
+/// What is the id of the next tooltip for this widget?
+pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
+    let tooltip_count = ctx.frame_state(|fs| {
+        fs.tooltip_state
+            .widget_tooltips
+            .get(&widget_id)
+            .map_or(0, |state| state.tooltip_count)
+    });
+    tooltip_id(widget_id, tooltip_count)
+}
+
+pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
     widget_id.with(tooltip_count)
 }
 
