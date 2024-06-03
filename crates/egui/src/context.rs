@@ -608,6 +608,14 @@ impl ContextImpl {
             .unwrap_or(&ViewportId::ROOT)
     }
 
+    /// Return the `ViewportId` of his parent.
+    pub(crate) fn parent_viewport_id_of(&self, viewport_id: ViewportId) -> ViewportId {
+        *self
+            .viewport_parents
+            .get(&viewport_id)
+            .unwrap_or(&ViewportId::ROOT)
+    }
+
     fn all_viewport_ids(&self) -> ViewportIdSet {
         self.viewports
             .keys()
@@ -3090,6 +3098,11 @@ impl Context {
     /// Don't use this outside of `Self::run`, or after `Self::end_frame`.
     pub fn parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.parent_viewport_id())
+    }
+
+    /// Return the `ViewportId` of his parent.
+    pub fn parent_viewport_id_of(&self, viewport_id: ViewportId) -> ViewportId {
+        self.read(|ctx| ctx.parent_viewport_id_of(viewport_id))
     }
 
     /// For integrations: Set this to render a sync viewport.
