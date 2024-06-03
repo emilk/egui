@@ -1,4 +1,4 @@
-use rust_mutex::Mutex;
+use parking_lot::Mutex;
 use std::sync::Arc;
 
 pub use egui_async_winit;

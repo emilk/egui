@@ -60,7 +60,7 @@ x11 = ["async-winit/x11", "bytemuck"]
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["log"] }
 log.workspace = true
-rust-mutex = { git = "https://github.com/uglyoldbob/rust-mutex.git" }
+parking_lot.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
 async-winit = { workspace = true, default-features = false, features = ["thread_safe"] }

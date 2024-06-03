@@ -9,9 +9,8 @@
 
 #![allow(clippy::manual_range_contains)]
 
+use parking_lot::Mutex;
 use std::sync::Arc;
-
-use rust_mutex::Mutex;
 
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
