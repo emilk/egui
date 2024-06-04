@@ -110,7 +110,7 @@ impl Area {
             sense: None,
             movable: true,
             interactable: true,
-            constrain: false,
+            constrain: true,
             constrain_rect: None,
             enabled: true,
             order: Order::Middle,
@@ -239,7 +239,9 @@ impl Area {
         self
     }
 
-    /// Constrains this area to the screen bounds.
+    /// Constrains this area to [`Context::screen_rect`]?
+    ///
+    /// Default: `true`.
     #[inline]
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.constrain = constrain;
@@ -318,7 +320,7 @@ pub(crate) struct Prepared {
     move_response: Response,
     enabled: bool,
     constrain: bool,
-    constrain_rect: Option<Rect>,
+    constrain_rect: Rect,
 
     /// We always make windows invisible the first frame to hide "first-frame-jitters".
     ///
@@ -362,6 +364,8 @@ impl Area {
             fade_in,
         } = self;
 
+        let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
+
         let layer_id = LayerId::new(order, id);
 
         let state = AreaState::load(ctx, id).map(|mut state| {
@@ -386,7 +390,6 @@ impl Area {
             }
 
             if constrain {
-                let constrain_rect = constrain_rect.unwrap_or_else(|| ctx.screen_rect());
                 size = size.at_most(constrain_rect.size());
             }
 
@@ -409,9 +412,11 @@ impl Area {
         }
 
         if let Some((anchor, offset)) = anchor {
-            let screen = ctx.available_rect();
             state.set_left_top_pos(
-                anchor.align_size_within_rect(state.size, screen).left_top() + offset,
+                anchor
+                    .align_size_within_rect(state.size, constrain_rect)
+                    .left_top()
+                    + offset,
             );
         }
 
@@ -492,29 +497,14 @@ impl Prepared {
         self.constrain
     }
 
-    pub(crate) fn constrain_rect(&self) -> Option<Rect> {
+    pub(crate) fn constrain_rect(&self) -> Rect {
         self.constrain_rect
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
-        let screen_rect = ctx.screen_rect();
-
-        let constrain_rect = if let Some(constrain_rect) = self.constrain_rect {
-            constrain_rect.intersect(screen_rect) // protect against infinite bounds
-        } else {
-            let central_area = ctx.available_rect();
-
-            let is_within_central_area = central_area.contains_rect(self.state.rect().shrink(1.0));
-            if is_within_central_area {
-                central_area // let's try to not cover side panels
-            } else {
-                screen_rect
-            }
-        };
-
         let max_rect = Rect::from_min_size(self.state.left_top_pos(), self.state.size);
 
-        let clip_rect = constrain_rect; // Don't paint outside our bounds
+        let clip_rect = self.constrain_rect; // Don't paint outside our bounds
 
         let mut ui = Ui::new(
             ctx.clone(),
@@ -579,6 +569,8 @@ fn automatic_area_position(ctx: &Context) -> Pos2 {
     });
     existing.sort_by_key(|r| r.left().round() as i32);
 
+    // NOTE: for the benefit of the egui demo, we position the windows so they don't
+    // cover the side panels, which means we use `available_rect` here instead of `constrain_rect` or `screen_rect`.
     let available_rect = ctx.available_rect();
 
     let spacing = 16.0;

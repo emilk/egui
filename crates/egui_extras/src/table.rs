@@ -956,7 +956,7 @@ impl<'a> TableBody<'a> {
     /// Add rows with varying heights.
     ///
     /// This takes a very slight performance hit compared to [`TableBody::rows`] due to the need to
-    /// iterate over all row heights in to calculate the virtual table height above and below the
+    /// iterate over all row heights in order to calculate the virtual table height above and below the
     /// visible region, but it is many orders of magnitude more performant than adding individual
     /// heterogeneously-sized rows using [`TableBody::row`] at the cost of the additional complexity
     /// that comes with pre-calculating row heights and representing them as an iterator.

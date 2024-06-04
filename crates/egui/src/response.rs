@@ -2,8 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, ComboBox, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect,
-    WidgetText,
+    menu, AreaState, ComboBox, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui,
+    WidgetRect, WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -520,6 +520,20 @@ impl Response {
     /// For that, use [`Self::on_disabled_hover_ui`] instead.
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    ///
+    /// The widget can contain interactive widgets, such as buttons and links.
+    /// If so, it will stay open as the user moves their pointer over it.
+    /// By default, the text of a tooltip is NOT selectable (i.e. interactive),
+    /// but you can change this by setting [`style::Interaction::selectable_labels` from within the tooltip:
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.label("Hover me").on_hover_ui(|ui| {
+    ///     ui.style_mut().interaction.selectable_labels = true;
+    ///     ui.label("This text can be selected");
+    /// });
+    /// # });
+    /// ```
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
@@ -531,12 +545,7 @@ impl Response {
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if !self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_for(
-                &self.ctx,
-                self.id.with("__tooltip"),
-                &self.rect,
-                add_contents,
-            );
+            crate::containers::show_tooltip_for(&self.ctx, self.id, &self.rect, add_contents);
         }
         self
     }
@@ -544,11 +553,7 @@ impl Response {
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_at_pointer(
-                &self.ctx,
-                self.id.with("__tooltip"),
-                add_contents,
-            );
+            crate::containers::show_tooltip_at_pointer(&self.ctx, self.id, add_contents);
         }
         self
     }
@@ -557,12 +562,7 @@ impl Response {
     ///
     /// This can be used to give attention to a widget during a tutorial.
     pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
-        crate::containers::show_tooltip_for(
-            &self.ctx,
-            self.id.with("__tooltip"),
-            &self.rect,
-            add_contents,
-        );
+        crate::containers::show_tooltip_for(&self.ctx, self.id, &self.rect, add_contents);
     }
 
     /// Always show this tooltip, even if disabled and the user isn't hovering it.
@@ -576,12 +576,47 @@ impl Response {
 
     /// Was the tooltip open last frame?
     pub fn is_tooltip_open(&self) -> bool {
-        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id.with("__tooltip"))
+        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id)
     }
 
     fn should_show_hover_ui(&self) -> bool {
         if self.ctx.memory(|mem| mem.everything_is_visible()) {
             return true;
+        }
+
+        let is_tooltip_open = self.is_tooltip_open();
+
+        if is_tooltip_open {
+            let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
+            let layer_id = LayerId::new(Order::Tooltip, tooltip_id);
+
+            let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
+                vp.widgets_prev_frame
+                    .get_layer(layer_id)
+                    .any(|w| w.sense.interactive())
+            });
+
+            if tooltip_has_interactive_widget {
+                // We keep the tooltip open if hovered,
+                // or if the pointer is on its way to it,
+                // so that the user can interact with the tooltip
+                // (i.e. click links that are in it).
+                if let Some(area) = AreaState::load(&self.ctx, tooltip_id) {
+                    let rect = area.rect();
+                    let pointer_in_area_or_on_the_way_there = self.ctx.input(|i| {
+                        if let Some(pos) = i.pointer.hover_pos() {
+                            rect.contains(pos)
+                                || rect.intersects_ray(pos, i.pointer.velocity().normalized())
+                        } else {
+                            false
+                        }
+                    });
+
+                    if pointer_in_area_or_on_the_way_there {
+                        return true;
+                    }
+                }
+            }
         }
 
         // Fast early-outs:
@@ -619,7 +654,7 @@ impl Response {
         let tooltip_was_recently_shown = when_was_a_toolip_last_shown
             .map_or(false, |time| ((now - time) as f32) < tooltip_grace_time);
 
-        if !tooltip_was_recently_shown && !self.is_tooltip_open() {
+        if !tooltip_was_recently_shown && !is_tooltip_open {
             if self.ctx.style().interaction.show_tooltips_only_when_still {
                 // We only show the tooltip when the mouse pointer is still.
                 if !self.ctx.input(|i| i.pointer.is_still()) {

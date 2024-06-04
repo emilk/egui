@@ -198,36 +198,39 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
-/// State stored per viewport
+/// State stored per viewport.
+///
+/// Mostly for internal use.
+/// Things here may move and change without warning.
 #[derive(Default)]
-struct ViewportState {
+pub struct ViewportState {
     /// The type of viewport.
     ///
     /// This will never be [`ViewportClass::Embedded`],
     /// since those don't result in real viewports.
-    class: ViewportClass,
+    pub class: ViewportClass,
 
     /// The latest delta
-    builder: ViewportBuilder,
+    pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.
     ///
     /// `None` for immediate viewports.
-    viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
+    pub viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
-    input: InputState,
+    pub input: InputState,
 
     /// State that is collected during a frame and then cleared
-    frame_state: FrameState,
+    pub frame_state: FrameState,
 
     /// Has this viewport been updated this frame?
-    used: bool,
+    pub used: bool,
 
     /// Written to during the frame.
-    widgets_this_frame: WidgetRects,
+    pub widgets_this_frame: WidgetRects,
 
     /// Read
-    widgets_prev_frame: WidgetRects,
+    pub widgets_prev_frame: WidgetRects,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -236,20 +239,20 @@ struct ViewportState {
     // Updated at the start of the frame:
     //
     /// Which widgets are under the pointer?
-    hits: WidgetHits,
+    pub hits: WidgetHits,
 
     /// What widgets are being interacted with this frame?
     ///
     /// Based on the widgets from last frame, and input in this frame.
-    interact_widgets: InteractionSnapshot,
+    pub interact_widgets: InteractionSnapshot,
 
     // ----------------------
     // The output of a frame:
     //
-    graphics: GraphicLayers,
+    pub graphics: GraphicLayers,
     // Most of the things in `PlatformOutput` are not actually viewport dependent.
-    output: PlatformOutput,
-    commands: Vec<ViewportCommand>,
+    pub output: PlatformOutput,
+    pub commands: Vec<ViewportCommand>,
 }
 
 /// What called [`Context::request_repaint`]?
@@ -1776,23 +1779,7 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
-    ///
-    /// If area is `None`, will constrain to [`Self::available_rect`].
-    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Option<Rect>) -> Rect {
-        let mut area = area.unwrap_or_else(|| self.available_rect());
-
-        if window.width() > area.width() {
-            // Allow overlapping side bars.
-            // This is important for small screens, e.g. mobiles running the web demo.
-            let screen_rect = self.screen_rect();
-            (area.min.x, area.max.x) = (screen_rect.min.x, screen_rect.max.x);
-        }
-        if window.height() > area.height() {
-            // Allow overlapping top/bottom bars:
-            let screen_rect = self.screen_rect();
-            (area.min.y, area.max.y) = (screen_rect.min.y, screen_rect.max.y);
-        }
-
+    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Rect) -> Rect {
         let mut pos = window.min;
 
         // Constrain to screen, unless window is too large to fit:
@@ -3106,6 +3093,20 @@ impl Context {
     /// Don't use this outside of `Self::run`, or after `Self::end_frame`.
     pub fn parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.parent_viewport_id())
+    }
+
+    /// Read the state of the current viewport.
+    pub fn viewport<R>(&self, reader: impl FnOnce(&ViewportState) -> R) -> R {
+        self.write(|ctx| reader(ctx.viewport()))
+    }
+
+    /// Read the state of a specific current viewport.
+    pub fn viewport_for<R>(
+        &self,
+        viewport_id: ViewportId,
+        reader: impl FnOnce(&ViewportState) -> R,
+    ) -> R {
+        self.write(|ctx| reader(ctx.viewport_for(viewport_id)))
     }
 
     /// For integrations: Set this to render a sync viewport.

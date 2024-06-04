@@ -238,7 +238,6 @@ fn label_ui(ui: &mut egui::Ui) {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
     angle: f32,
-    enabled: bool,
     password: String,
 }
 
@@ -246,7 +245,6 @@ impl Default for Widgets {
     fn default() -> Self {
         Self {
             angle: std::f32::consts::TAU / 3.0,
-            enabled: true,
             password: "hunter2".to_owned(),
         }
     }
@@ -254,37 +252,10 @@ impl Default for Widgets {
 
 impl Widgets {
     pub fn ui(&mut self, ui: &mut Ui) {
-        let Self {
-            angle,
-            enabled,
-            password,
-        } = self;
+        let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file_line!());
         });
-
-        let tooltip_ui = |ui: &mut Ui| {
-            ui.heading("The name of the tooltip");
-            ui.horizontal(|ui| {
-                ui.label("This tooltip was created with");
-                ui.monospace(".on_hover_ui(…)");
-            });
-            let _ = ui.button("A button you can never press");
-        };
-        let disabled_tooltip_ui = |ui: &mut Ui| {
-            ui.heading("Different tooltip when widget is disabled");
-            ui.horizontal(|ui| {
-                ui.label("This tooltip was created with");
-                ui.monospace(".on_disabled_hover_ui(…)");
-            });
-        };
-        ui.checkbox(enabled, "Enabled");
-        ui.add_enabled(
-            *enabled,
-            egui::Label::new("Tooltips can be more than just simple text."),
-        )
-        .on_hover_ui(tooltip_ui)
-        .on_disabled_hover_ui(disabled_tooltip_ui);
 
         ui.separator();
 
