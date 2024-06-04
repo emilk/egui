@@ -273,10 +273,7 @@ impl Resize {
         let mut content_ui = ui.child_ui(
             inner_rect,
             *ui.layout(),
-            Some(UiStackInfo {
-                kind: Some(UiKind::Resize),
-                frame: Frame::default(),
-            }),
+            Some(UiStackInfo::new(UiKind::Resize)),
         );
         content_ui.set_clip_rect(content_clip_rect);
 

@@ -522,10 +522,7 @@ impl Prepared {
             self.layer_id.id,
             max_rect,
             clip_rect,
-            UiStackInfo {
-                kind: Some(self.kind),
-                frame: Default::default(),
-            },
+            UiStackInfo::new(self.kind),
         );
 
         if self.fade_in {

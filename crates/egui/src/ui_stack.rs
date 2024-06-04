@@ -1,7 +1,7 @@
 use std::iter::FusedIterator;
 use std::sync::Arc;
 
-use crate::{Color32, Direction, Frame, Id, Rect};
+use crate::{Direction, Frame, Id, Rect};
 
 /// What kind is this [`crate::Ui`]?
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,6 +73,16 @@ impl UiKind {
 pub struct UiStackInfo {
     pub kind: Option<UiKind>,
     pub frame: Frame,
+}
+
+impl UiStackInfo {
+    /// Create a new [`UiStackInfo`] with the given kind and an empty frame.
+    pub fn new(kind: UiKind) -> Self {
+        Self {
+            kind: Some(kind),
+            frame: Default::default(),
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

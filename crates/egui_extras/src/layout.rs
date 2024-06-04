@@ -199,10 +199,7 @@ impl<'l> StripLayout<'l> {
             rect,
             self.cell_layout,
             child_ui_id_source,
-            Some(egui::UiStackInfo {
-                kind: Some(egui::UiKind::TableCell),
-                frame: egui::Frame::default(),
-            }),
+            Some(egui::UiStackInfo::new(egui::UiKind::TableCell)),
         );
 
         if flags.clip {

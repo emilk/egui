@@ -559,10 +559,7 @@ impl ScrollArea {
         let mut content_ui = ui.child_ui(
             content_max_rect,
             *ui.layout(),
-            Some(UiStackInfo {
-                kind: Some(UiKind::ScrollArea),
-                frame: Frame::default(),
-            }),
+            Some(UiStackInfo::new(UiKind::ScrollArea)),
         );
 
         {

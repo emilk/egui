@@ -261,13 +261,10 @@ impl SidePanel {
             panel_rect,
             Layout::top_down(Align::Min),
             id,
-            Some(UiStackInfo {
-                kind: Some(match side {
-                    Side::Left => UiKind::LeftPanel,
-                    Side::Right => UiKind::RightPanel,
-                }),
-                frame: Frame::default(),
-            }),
+            Some(UiStackInfo::new(match side {
+                Side::Left => UiKind::LeftPanel,
+                Side::Right => UiKind::RightPanel,
+            })),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
@@ -748,13 +745,10 @@ impl TopBottomPanel {
             panel_rect,
             Layout::top_down(Align::Min),
             id,
-            Some(UiStackInfo {
-                kind: Some(match side {
-                    TopBottomSide::Top => UiKind::TopPanel,
-                    TopBottomSide::Bottom => UiKind::BottomPanel,
-                }),
-                frame: Frame::default(),
-            }),
+            Some(UiStackInfo::new(match side {
+                TopBottomSide::Top => UiKind::TopPanel,
+                TopBottomSide::Bottom => UiKind::BottomPanel,
+            })),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
@@ -1090,10 +1084,7 @@ impl CentralPanel {
         let mut panel_ui = ui.child_ui(
             panel_rect,
             Layout::top_down(Align::Min),
-            Some(UiStackInfo {
-                kind: Some(UiKind::CentralPanel),
-                frame: Frame::default(),
-            }),
+            Some(UiStackInfo::new(UiKind::CentralPanel)),
         );
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
