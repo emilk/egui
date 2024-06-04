@@ -218,9 +218,9 @@ impl Frame {
 }
 
 #[cfg(feature = "async")]
-use std::rc::Rc;
+use parking_lot::Mutex;
 #[cfg(feature = "async")]
-use std::sync::Mutex;
+use std::rc::Rc;
 
 // ----------------------------------------------------------------------------
 
@@ -337,9 +337,9 @@ impl Frame {
         F: std::future::Future<Output = R>,
     {
         use std::ops::DerefMut;
-        let prepared = self.begin_async(ui.lock().unwrap().deref_mut());
+        let prepared = self.begin_async(ui.lock().deref_mut());
         let ret = add_contents(prepared.content_ui.clone()).await;
-        let response = prepared.end(ui.lock().unwrap().deref_mut());
+        let response = prepared.end(ui.lock().deref_mut());
         InnerResponse::new(ret, response)
     }
 
@@ -413,9 +413,7 @@ impl Prepared {
 
 impl PreparedAsync {
     fn content_with_margin(&self) -> Rect {
-        self.content_ui.lock().unwrap().min_rect()
-            + self.frame.inner_margin
-            + self.frame.outer_margin
+        self.content_ui.lock().min_rect() + self.frame.inner_margin + self.frame.outer_margin
     }
 
     /// Allocate the space that was used by [`Self::content_ui`].
@@ -431,7 +429,7 @@ impl PreparedAsync {
     ///
     /// This can be called before or after [`Self::allocate_space`].
     pub fn paint(&self, ui: &Ui) {
-        let paint_rect = self.content_ui.lock().unwrap().min_rect() + self.frame.inner_margin;
+        let paint_rect = self.content_ui.lock().min_rect() + self.frame.inner_margin;
 
         if ui.is_rect_visible(paint_rect) {
             let shape = self.frame.paint(paint_rect);

@@ -1035,11 +1035,10 @@ impl CentralPanel {
     }
 }
 
-use std::ops::DerefMut;
 #[cfg(feature = "async")]
 use std::rc::Rc;
 #[cfg(feature = "async")]
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 impl CentralPanel {
     /// Show the panel inside a [`Ui`].
@@ -1063,15 +1062,14 @@ impl CentralPanel {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let panel_ui = std::rc::Rc::new(std::sync::Mutex::new(
+        let panel_ui = std::rc::Rc::new(parking_lot::Mutex::new(
             ui.child_ui(panel_rect, Layout::top_down(Align::Min)),
         ));
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame
             .show_async(panel_ui, |ui| async {
-                let mut uil = ui.lock()
-                    .unwrap();
+                let mut uil = ui.lock();
                 let rect = uil.max_rect();
                 uil.expand_to_include_rect(rect); // Expand frame to include it all
                 drop(uil);
