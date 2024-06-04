@@ -304,8 +304,9 @@ impl Ui {
     }
 
     /// Get a reference to this [`Ui`]'s [`UiStack`].
-    pub fn stack(&self) -> Arc<UiStack> {
-        self.stack.clone()
+    #[inline]
+    pub fn stack(&self) -> &Arc<UiStack> {
+        &self.stack
     }
 
     /// Get a reference to the parent [`Context`].
