@@ -218,8 +218,6 @@ impl Frame {
 }
 
 #[cfg(feature = "async")]
-use parking_lot::Mutex;
-#[cfg(feature = "async")]
 use std::rc::Rc;
 
 // ----------------------------------------------------------------------------
@@ -250,7 +248,7 @@ pub struct PreparedAsync {
     where_to_put_background: ShapeIdx,
 
     /// Add your widgets to this UI so it ends up within the frame.
-    pub content_ui: Rc<Mutex<Ui>>,
+    pub content_ui: Option<Rc<Ui>>,
 }
 
 impl Frame {
@@ -278,7 +276,7 @@ impl Frame {
         PreparedAsync {
             frame: self,
             where_to_put_background,
-            content_ui: Rc::new(Mutex::new(content_ui)),
+            content_ui: Some(Rc::new(content_ui)),
         }
     }
 
@@ -313,11 +311,11 @@ impl Frame {
     #[cfg(feature = "async")]
     pub async fn show_async<R, F>(
         self,
-        ui: Rc<Mutex<Ui>>,
-        add_contents: impl FnOnce(Rc<Mutex<Ui>>) -> F,
+        ui: &mut Rc<Ui>,
+        add_contents: impl FnOnce(Rc<Ui>) -> F,
     ) -> InnerResponse<R>
     where
-        F: std::future::Future<Output = R>,
+        F: std::future::Future<Output = (R, Rc<Ui>)>,
     {
         self.show_dyn_async(ui, add_contents).await
     }
@@ -330,16 +328,18 @@ impl Frame {
     #[cfg(feature = "async")]
     async fn show_dyn_async<R, F>(
         self,
-        ui: Rc<Mutex<Ui>>,
-        add_contents: impl FnOnce(Rc<Mutex<Ui>>) -> F,
+        ui: &mut Rc<Ui>,
+        add_contents: impl FnOnce(Rc<Ui>) -> F,
     ) -> InnerResponse<R>
     where
-        F: std::future::Future<Output = R>,
+        F: std::future::Future<Output = (R, Rc<Ui>)>,
     {
-        use std::ops::DerefMut;
-        let prepared = self.begin_async(ui.lock().deref_mut());
-        let ret = add_contents(prepared.content_ui.clone()).await;
-        let response = prepared.end(ui.lock().deref_mut());
+        let ui = Rc::<ui::Ui>::get_mut(ui).unwrap();
+        let mut prepared = self.begin_async(ui);
+        let ui2 = prepared.content_ui.take().unwrap();
+        let (ret, ui3) = add_contents(ui2).await;
+        prepared.content_ui.replace(ui3);
+        let response = prepared.end(ui);
         InnerResponse::new(ret, response)
     }
 
@@ -413,7 +413,7 @@ impl Prepared {
 
 impl PreparedAsync {
     fn content_with_margin(&self) -> Rect {
-        self.content_ui.lock().min_rect() + self.frame.inner_margin + self.frame.outer_margin
+        self.content_ui.as_ref().unwrap().min_rect() + self.frame.inner_margin + self.frame.outer_margin
     }
 
     /// Allocate the space that was used by [`Self::content_ui`].
@@ -429,7 +429,7 @@ impl PreparedAsync {
     ///
     /// This can be called before or after [`Self::allocate_space`].
     pub fn paint(&self, ui: &Ui) {
-        let paint_rect = self.content_ui.lock().min_rect() + self.frame.inner_margin;
+        let paint_rect = self.content_ui.as_ref().unwrap().min_rect() + self.frame.inner_margin;
 
         if ui.is_rect_visible(paint_rect) {
             let shape = self.frame.paint(paint_rect);

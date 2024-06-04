@@ -1036,9 +1036,16 @@ impl CentralPanel {
 }
 
 #[cfg(feature = "async")]
-use std::rc::Rc;
+pub struct AsyncClosure<'s, 'l: 's, R>(futures::future::BoxFuture<'s, R>, std::marker::PhantomData<&'l R>);
+
+impl<'s, 'l, R> AsyncClosure<'s, 'l, R> {
+    pub fn new<F>(f: F) -> Self where F: futures::Future<Output=R> + Send + 's {
+        Self(Box::pin(f), std::marker::PhantomData)
+    }
+}
+
 #[cfg(feature = "async")]
-use parking_lot::Mutex;
+use std::rc::Rc;
 
 impl CentralPanel {
     /// Show the panel inside a [`Ui`].
@@ -1051,29 +1058,27 @@ impl CentralPanel {
     }
 
     /// Show the panel inside a [`Ui`].
-    async fn show_inside_dyn_async<'a, R, F>(
+    async fn show_inside_dyn_async<'a, R: 'a>(
         self,
-        ui: &'a mut Ui,
-        add_contents: impl FnOnce(Rc<Mutex<Ui>>) -> F,
+        ui: &'_ mut Ui,
+        add_contents: impl 'a  + for<'b> FnOnce(&'b mut Ui) -> AsyncClosure<'b, 'a, R>,
     ) -> InnerResponse<R>
-    where
-        F: std::future::Future<Output = R>,
     {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let panel_ui = std::rc::Rc::new(parking_lot::Mutex::new(
-            ui.child_ui(panel_rect, Layout::top_down(Align::Min)),
+        let mut panel_ui = std::rc::Rc::new(
+            ui.child_ui(panel_rect, Layout::top_down(Align::Min),
         ));
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame
-            .show_async(panel_ui, |ui| async {
-                let mut uil = ui.lock();
-                let rect = uil.max_rect();
-                uil.expand_to_include_rect(rect); // Expand frame to include it all
-                drop(uil);
-                add_contents(ui).await
+            .show_async(&mut panel_ui, |mut ui| async move {
+                let rect = ui.max_rect();
+                let ui2 = Rc::<ui::Ui>::get_mut(&mut ui).unwrap();
+                ui2.expand_to_include_rect(rect); // Expand frame to include it all
+                let r = add_contents(ui2).0.await;
+                (r, ui)
             })
             .await
     }
@@ -1097,10 +1102,10 @@ impl CentralPanel {
     }
 
     #[cfg(feature = "async")]
-    pub async fn show_async<'a, R, Fut: std::future::Future<Output = R>>(
+    pub async fn show_async<'a, R: 'a>(
         self,
         ctx: &'a Context,
-        add_contents: impl FnOnce(Rc<Mutex<Ui>>) -> Fut + 'a,
+        add_contents: impl 'a  + for<'b> FnOnce(&'b mut Ui) -> AsyncClosure<'b, 'a, R>,
     ) -> InnerResponse<R> {
         self.show_dyn_async(ctx, add_contents).await
     }
@@ -1115,13 +1120,11 @@ impl CentralPanel {
     }
 
     #[cfg(feature = "async")]
-    async fn show_dyn_async<R, F>(
+    async fn show_dyn_async<'a, R: 'a>(
         self,
-        ctx: &Context,
-        add_contents: impl FnOnce(Rc<Mutex<Ui>>) -> F,
+        ctx: &'_ Context,
+        add_contents: impl 'a  + for<'b> FnOnce(&'b mut Ui) -> AsyncClosure<'b, 'a, R>,
     ) -> InnerResponse<R>
-    where
-        F: std::future::Future<Output = R>,
     {
         let available_rect = ctx.available_rect();
         let layer_id = LayerId::background();
