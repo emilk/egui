@@ -191,7 +191,7 @@ fn full_span_widget(ui: &mut egui::Ui, permanent: bool) {
     let ui_stack = ui.stack();
 
     let rect = egui::Rect::from_x_y_ranges(
-        full_span_horizontal_range(&ui_stack),
+        full_span_horizontal_range(ui_stack),
         response.rect.y_range(),
     );
 
