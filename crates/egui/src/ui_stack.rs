@@ -133,10 +133,8 @@ impl UiStack {
 impl UiStack {
     /// Return an iterator that walks the stack from this node to the root.
     #[allow(clippy::iter_without_into_iter)]
-    pub fn iter(&self) -> UiStackIterator {
-        UiStackIterator {
-            next: Some(Arc::new(self.clone())),
-        }
+    pub fn iter(&self) -> UiStackIterator<'_> {
+        UiStackIterator { next: Some(self) }
     }
 
     /// Check if this node is or is contained in a [`crate::Ui`] of a specific kind.
@@ -150,19 +148,19 @@ impl UiStack {
 /// Iterator that walks up a stack of `StackFrame`s.
 ///
 /// See [`UiStack::iter`].
-pub struct UiStackIterator {
-    next: Option<Arc<UiStack>>,
+pub struct UiStackIterator<'a> {
+    next: Option<&'a UiStack>,
 }
 
-impl Iterator for UiStackIterator {
-    type Item = Arc<UiStack>;
+impl<'a> Iterator for UiStackIterator<'a> {
+    type Item = &'a UiStack;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let current = self.next.clone();
-        self.next = current.as_ref().and_then(|frame| frame.parent.clone());
+        let current = self.next;
+        self.next = current.and_then(|frame| frame.parent.as_deref());
         current
     }
 }
 
-impl FusedIterator for UiStackIterator {}
+impl<'a> FusedIterator for UiStackIterator<'a> {}
