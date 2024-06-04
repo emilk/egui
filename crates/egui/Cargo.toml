@@ -29,7 +29,7 @@ default = ["default_fonts"]
 ## accessibility APIs. Also requires support in the egui integration.
 accesskit = ["dep:accesskit"]
 
-async = [ "dep:futures", "dep:parking_lot" ]
+async = [ "dep:futures" ]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
@@ -83,7 +83,6 @@ unity = ["epaint/unity"]
 [dependencies]
 emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
-parking_lot = { workspace = true, optional = true, default-features = false }
 futures = { version = "0.3.30", optional = true }
 
 ahash.workspace = true
