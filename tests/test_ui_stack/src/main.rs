@@ -161,7 +161,7 @@ impl eframe::App for MyApp {
                                 row.col(|ui| {
                                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                                     ui.label("See stack below");
-                                    cell_stack = Some(ui.stack());
+                                    cell_stack = Some(ui.stack().clone());
                                 });
                             });
                         });
@@ -220,9 +220,9 @@ fn full_span_horizontal_range(ui_stack: &egui::UiStack) -> Rangef {
 }
 
 fn stack_ui(ui: &mut egui::Ui) {
-    let ui_stack = &ui.stack();
+    let ui_stack = ui.stack().clone();
     ui.scope(|ui| {
-        stack_ui_impl(ui, ui_stack);
+        stack_ui_impl(ui, &ui_stack);
     });
 }
 

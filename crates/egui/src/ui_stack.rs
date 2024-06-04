@@ -115,7 +115,7 @@ impl UiStack {
     /// This this [`crate::Ui`] a [`crate::Frame`] with a visible stroke?
     #[inline]
     pub fn has_visible_frame(&self) -> bool {
-        self.frame.stroke.width > 0.0 && self.frame.stroke.color != Color32::TRANSPARENT
+        !self.frame.stroke.is_empty()
     }
 }
 
@@ -130,7 +130,7 @@ impl UiStack {
     }
 
     /// Check if this node is or is contained in a [`crate::Ui`] of a specific kind.
-    pub fn contained_id(&self, kind: UiKind) -> bool {
+    pub fn contained_in(&self, kind: UiKind) -> bool {
         self.iter().any(|frame| frame.kind == Some(kind))
     }
 }
@@ -147,6 +147,7 @@ pub struct UiStackIterator {
 impl Iterator for UiStackIterator {
     type Item = Arc<UiStack>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.next.clone();
         self.next = current.as_ref().and_then(|frame| frame.parent.clone());
