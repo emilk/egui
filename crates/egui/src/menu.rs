@@ -146,6 +146,7 @@ fn menu_popup<'c, R>(
     };
 
     let area = Area::new(menu_id.with("__menu"))
+        .kind(UiKind::Menu)
         .order(Order::Foreground)
         .fixed_pos(pos)
         .interactable(true)

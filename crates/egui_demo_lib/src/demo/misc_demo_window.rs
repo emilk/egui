@@ -1,4 +1,5 @@
 use super::*;
+
 use egui::*;
 
 /// Showcase some ui code
@@ -153,6 +154,10 @@ impl View for MiscDemoWindow {
                     ui.label("Just pull the handle on the bottom right");
                 });
             });
+
+        CollapsingHeader::new("Ui Stack")
+            .default_open(false)
+            .show(ui, ui_stack_demo);
 
         CollapsingHeader::new("Misc")
             .default_open(false)
@@ -488,6 +493,72 @@ impl Tree {
 
         Action::Keep
     }
+}
+
+// ----------------------------------------------------------------------------
+
+fn ui_stack_demo(ui: &mut Ui) {
+    ui.horizontal_wrapped(|ui| {
+        ui.label("The");
+        ui.code("egui::Ui");
+        ui.label("core type is typically deeply nested in");
+        ui.code("egui");
+        ui.label(
+            "applications. To provide context to nested code, it maintains a stack \
+                        with various information.\n\nThis is how the stack looks like here:",
+        );
+    });
+    let stack = ui.stack().clone();
+    Frame {
+        inner_margin: ui.spacing().menu_margin,
+        stroke: ui.visuals().widgets.noninteractive.bg_stroke,
+        ..Default::default()
+    }
+    .show(ui, |ui| {
+        egui_extras::TableBuilder::new(ui)
+            .column(egui_extras::Column::auto())
+            .column(egui_extras::Column::auto())
+            .header(18.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong("id");
+                });
+                header.col(|ui| {
+                    ui.strong("kind");
+                });
+            })
+            .body(|mut body| {
+                for node in stack.iter() {
+                    body.row(18.0, |mut row| {
+                        row.col(|ui| {
+                            let response = ui.label(format!("{:?}", node.id));
+
+                            if response.hovered() {
+                                ui.ctx().debug_painter().debug_rect(
+                                    node.max_rect,
+                                    Color32::GREEN,
+                                    "max_rect",
+                                );
+                                ui.ctx().debug_painter().circle_filled(
+                                    node.min_rect.min,
+                                    2.0,
+                                    Color32::RED,
+                                );
+                            }
+                        });
+
+                        row.col(|ui| {
+                            ui.label(if let Some(kind) = node.kind {
+                                format!("{kind:?}")
+                            } else {
+                                "-".to_owned()
+                            });
+                        });
+                    });
+                }
+            });
+    });
+
+    ui.small("Hover on UI's ids to display their origin and max rect.");
 }
 
 // ----------------------------------------------------------------------------

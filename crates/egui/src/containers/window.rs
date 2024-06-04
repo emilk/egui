@@ -49,7 +49,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text()));
+        let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
         Self {
             title,
             open: None,

@@ -81,6 +81,7 @@ impl AreaState {
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
     pub(crate) id: Id,
+    kind: UiKind,
     sense: Option<Sense>,
     movable: bool,
     interactable: bool,
@@ -105,6 +106,7 @@ impl Area {
     pub fn new(id: Id) -> Self {
         Self {
             id,
+            kind: UiKind::GenericArea,
             sense: None,
             movable: true,
             interactable: true,
@@ -127,6 +129,15 @@ impl Area {
     #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = id;
+        self
+    }
+
+    /// Change the [`UiKind`] of the arena.
+    ///
+    /// Default to [`UiKind::GenericArea`].
+    #[inline]
+    pub fn kind(mut self, kind: UiKind) -> Self {
+        self.kind = kind;
         self
     }
 
@@ -303,6 +314,7 @@ impl Area {
 }
 
 pub(crate) struct Prepared {
+    kind: UiKind,
     layer_id: LayerId,
     state: AreaState,
     move_response: Response,
@@ -336,6 +348,7 @@ impl Area {
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
         let Self {
             id,
+            kind,
             sense,
             movable,
             order,
@@ -458,6 +471,7 @@ impl Area {
         move_response.interact_rect = state.rect();
 
         Prepared {
+            kind,
             layer_id,
             state,
             move_response,
@@ -498,6 +512,7 @@ impl Prepared {
             self.layer_id.id,
             max_rect,
             clip_rect,
+            UiStackInfo::new(self.kind),
         );
 
         if self.fade_in {
@@ -520,6 +535,7 @@ impl Prepared {
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
         let Self {
+            kind: _,
             layer_id,
             mut state,
             move_response,

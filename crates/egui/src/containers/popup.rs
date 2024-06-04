@@ -131,6 +131,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     );
 
     let InnerResponse { inner, response } = Area::new(tooltip_area_id)
+        .kind(UiKind::Popup)
         .order(Order::Tooltip)
         .pivot(pivot)
         .fixed_pos(anchor)
@@ -311,6 +312,7 @@ pub fn popup_above_or_below_widget<R>(
         let inner_width = widget_response.rect.width() - frame_margin.sum().x;
 
         let inner = Area::new(popup_id)
+            .kind(UiKind::Popup)
             .order(Order::Foreground)
             .fixed_pos(pos)
             .default_width(inner_width)

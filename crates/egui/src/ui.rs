@@ -67,6 +67,9 @@ pub struct Ui {
 
     /// Indicates whether this Ui belongs to a Menu.
     menu_state: Option<Arc<RwLock<MenuState>>>,
+
+    /// The [`UiStack`] for this [`Ui`].
+    stack: Arc<UiStack>,
 }
 
 impl Ui {
@@ -77,17 +80,36 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
+    pub fn new(
+        ctx: Context,
+        layer_id: LayerId,
+        id: Id,
+        max_rect: Rect,
+        clip_rect: Rect,
+        ui_stack_info: UiStackInfo,
+    ) -> Self {
         let style = ctx.style();
+        let layout = Layout::default();
+        let placer = Placer::new(max_rect, layout);
+        let ui_stack = UiStack {
+            id,
+            layout_direction: layout.main_dir,
+            kind: ui_stack_info.kind,
+            frame: ui_stack_info.frame,
+            parent: None,
+            min_rect: placer.min_rect(),
+            max_rect: placer.max_rect(),
+        };
         let ui = Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
-            placer: Placer::new(max_rect, Layout::default()),
+            placer,
             enabled: true,
             sizing_pass: false,
             menu_state: None,
+            stack: Arc::new(ui_stack),
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -105,8 +127,16 @@ impl Ui {
     }
 
     /// Create a new [`Ui`] at a specific region.
-    pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
-        self.child_ui_with_id_source(max_rect, layout, "child")
+    ///
+    /// Note: calling this function twice from the same [`Ui`] will create a conflict of id. Use
+    /// [`Self::scope`] if needed.
+    pub fn child_ui(
+        &mut self,
+        max_rect: Rect,
+        layout: Layout,
+        ui_stack_info: Option<UiStackInfo>,
+    ) -> Self {
+        self.child_ui_with_id_source(max_rect, layout, "child", ui_stack_info)
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
@@ -115,6 +145,7 @@ impl Ui {
         max_rect: Rect,
         mut layout: Layout,
         id_source: impl Hash,
+        ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -128,15 +159,29 @@ impl Ui {
         debug_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+
+        let new_id = self.id.with(id_source);
+        let placer = Placer::new(max_rect, layout);
+        let ui_stack_info = ui_stack_info.unwrap_or_default();
+        let ui_stack = UiStack {
+            id: new_id,
+            layout_direction: layout.main_dir,
+            kind: ui_stack_info.kind,
+            frame: ui_stack_info.frame,
+            parent: Some(self.stack.clone()),
+            min_rect: placer.min_rect(),
+            max_rect: placer.max_rect(),
+        };
         let child_ui = Ui {
-            id: self.id.with(id_source),
+            id: new_id,
             next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
-            placer: Placer::new(max_rect, layout),
+            placer,
             enabled: self.enabled,
             sizing_pass: self.sizing_pass,
             menu_state: self.menu_state.clone(),
+            stack: Arc::new(ui_stack),
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -256,6 +301,12 @@ impl Ui {
     /// ```
     pub fn visuals_mut(&mut self) -> &mut crate::Visuals {
         &mut self.style_mut().visuals
+    }
+
+    /// Get a reference to this [`Ui`]'s [`UiStack`].
+    #[inline]
+    pub fn stack(&self) -> &Arc<UiStack> {
+        &self.stack
     }
 
     /// Get a reference to the parent [`Context`].
@@ -1021,7 +1072,7 @@ impl Ui {
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
-        let mut child_ui = self.child_ui(child_rect, layout);
+        let mut child_ui = self.child_ui(child_rect, layout, None);
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -1042,7 +1093,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
         debug_assert!(max_rect.is_finite());
-        let mut child_ui = self.child_ui(max_rect, *self.layout());
+        let mut child_ui = self.child_ui(max_rect, *self.layout(), None);
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -1868,7 +1919,8 @@ impl Ui {
     ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
+        let mut child_ui =
+            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -1927,7 +1979,8 @@ impl Ui {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
-        let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
+        let mut child_ui =
+            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;
@@ -2149,7 +2202,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
+        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout, None);
         let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
@@ -2233,7 +2286,7 @@ impl Ui {
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
                 let mut column_ui =
-                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT));
+                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
                 column_ui.set_width(column_width);
                 column_ui
             })

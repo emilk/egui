@@ -1488,7 +1488,7 @@ impl<'a> PreparedPlot<'a> {
 
         let transform = &self.transform;
 
-        let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default());
+        let mut plot_ui = ui.child_ui(*transform.frame(), Layout::default(), None);
         plot_ui.set_clip_rect(transform.frame().intersect(ui.clip_rect()));
         for item in &self.items {
             item.shapes(&plot_ui, transform, &mut shapes);
