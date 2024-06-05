@@ -94,8 +94,7 @@ impl Ui {
         let ui_stack = UiStack {
             id,
             layout_direction: layout.main_dir,
-            kind: ui_stack_info.kind,
-            frame: ui_stack_info.frame,
+            info: ui_stack_info,
             parent: None,
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
@@ -130,6 +129,8 @@ impl Ui {
     ///
     /// Note: calling this function twice from the same [`Ui`] will create a conflict of id. Use
     /// [`Self::scope`] if needed.
+    ///
+    /// When in doubt, use `None` for the `UiStackInfo` argument.
     pub fn child_ui(
         &mut self,
         max_rect: Rect,
@@ -140,6 +141,8 @@ impl Ui {
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
+    ///
+    /// When in doubt, use `None` for the `UiStackInfo` argument.
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
@@ -162,12 +165,10 @@ impl Ui {
 
         let new_id = self.id.with(id_source);
         let placer = Placer::new(max_rect, layout);
-        let ui_stack_info = ui_stack_info.unwrap_or_default();
         let ui_stack = UiStack {
             id: new_id,
             layout_direction: layout.main_dir,
-            kind: ui_stack_info.kind,
-            frame: ui_stack_info.frame,
+            info: ui_stack_info.unwrap_or_default(),
             parent: Some(self.stack.clone()),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),

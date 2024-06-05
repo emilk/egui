@@ -100,8 +100,7 @@ impl UiStackInfo {
 pub struct UiStack {
     // stuff that `Ui::child_ui` can deal with directly
     pub id: Id,
-    pub kind: Option<UiKind>,
-    pub frame: Frame,
+    pub info: UiStackInfo,
     pub layout_direction: Direction,
     pub min_rect: Rect,
     pub max_rect: Rect,
@@ -110,10 +109,20 @@ pub struct UiStack {
 
 // these methods act on this specific node
 impl UiStack {
+    #[inline]
+    pub fn kind(&self) -> Option<UiKind> {
+        self.info.kind
+    }
+
+    #[inline]
+    pub fn frame(&self) -> &Frame {
+        &self.info.frame
+    }
+
     /// Is this [`crate::Ui`] a panel?
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
-        self.kind.map_or(false, |kind| kind.is_panel())
+        self.kind().map_or(false, |kind| kind.is_panel())
     }
 
     /// Is this a root [`crate::Ui`], i.e. created with [`crate::Ui::new()`]?
@@ -125,7 +134,7 @@ impl UiStack {
     /// This this [`crate::Ui`] a [`crate::Frame`] with a visible stroke?
     #[inline]
     pub fn has_visible_frame(&self) -> bool {
-        !self.frame.stroke.is_empty()
+        !self.info.frame.stroke.is_empty()
     }
 }
 
@@ -139,7 +148,7 @@ impl UiStack {
 
     /// Check if this node is or is contained in a [`crate::Ui`] of a specific kind.
     pub fn contained_in(&self, kind: UiKind) -> bool {
-        self.iter().any(|frame| frame.kind == Some(kind))
+        self.iter().any(|frame| frame.kind() == Some(kind))
     }
 }
 
