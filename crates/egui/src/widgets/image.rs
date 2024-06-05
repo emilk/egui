@@ -1,4 +1,4 @@
-use std::{borrow::Cow, time::Duration};
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use emath::{Float as _, Rot2};
 use epaint::RectShape;
@@ -788,22 +788,25 @@ pub fn paint_texture_at(
 
 fn get_index(ctx: &Context, uri: &str) -> usize {
     let now = ctx.input(|i| Duration::from_secs_f64(i.time));
-    let durations: Vec<Duration> = ctx
-        .data(|data| data.get_temp(Id::new(format!("{uri}-index"))))
-        .unwrap_or_default();
-    let frames: Duration = durations.iter().sum();
-    let pos = now.as_millis() % frames.as_millis().max(1);
-    let mut cumulative_duration = 0;
-    let mut index = 0;
-    for (i, duration) in durations.iter().enumerate() {
-        cumulative_duration += duration.as_millis();
-        if cumulative_duration >= pos {
-            index = i;
-            break;
+    let durations: Option<Arc<Vec<Duration>>> =
+        ctx.data(|data| data.get_temp(Id::new(format!("{uri}-index"))));
+    if let Some(durations) = durations {
+        let frames: Duration = durations.iter().sum();
+        let pos = now.as_millis() % frames.as_millis().max(1);
+        let mut cumulative_duration = 0;
+        let mut index = 0;
+        for (i, duration) in durations.iter().enumerate() {
+            cumulative_duration += duration.as_millis();
+            if cumulative_duration >= pos {
+                index = i;
+                break;
+            }
         }
+        if let Some(duration) = durations.get(index) {
+            ctx.request_repaint_after(*duration);
+        }
+        index
+    } else {
+        0
     }
-    if let Some(duration) = durations.get(index) {
-        ctx.request_repaint_after(*duration);
-    }
-    index
 }
