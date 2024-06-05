@@ -320,7 +320,7 @@ impl Widget for Button<'_> {
                     image.image_options(),
                 );
                 response = widgets::image::texture_load_result_response(
-                    image.source(ui.ctx()),
+                    &image.source(ui.ctx()),
                     &tlr,
                     response,
                 );

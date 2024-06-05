@@ -287,28 +287,6 @@ impl<'a> Image<'a> {
         &self.image_options
     }
 
-    fn get_index(&self, ctx: &Context, uri: &Cow<'a, str>) -> usize {
-        let now = ctx.input(|i| Duration::from_secs_f64(i.time));
-        let durations: Vec<Duration> = ctx
-            .data(|data| data.get_temp(Id::new(format!("{uri}-index"))))
-            .unwrap_or_default();
-        let frames: Duration = durations.iter().sum();
-        let pos = now.as_millis() % frames.as_millis().max(1);
-        let mut cumulative_duration = 0;
-        let mut index = 0;
-        for (i, duration) in durations.iter().enumerate() {
-            cumulative_duration += duration.as_millis();
-            if cumulative_duration >= pos {
-                index = i;
-                break;
-            }
-        }
-        if let Some(duration) = durations.get(index) {
-            ctx.request_repaint_after(*duration);
-        }
-        index
-    }
-
     #[inline]
     pub fn source(&'a self, ctx: &Context) -> ImageSource<'a> {
         match &self.source {
@@ -318,10 +296,10 @@ impl<'a> Image<'a> {
             },
             _ => None,
         }
-        .map(|v| format!("{}-{}", v, self.get_index(ctx, v)))
+        .map(|v| format!("{}-{}", v, get_index(ctx, v)))
         .map(|v| match &self.source {
             ImageSource::Uri(_) => ImageSource::Uri(Cow::Owned(v)),
-            ImageSource::Texture(v) => ImageSource::Texture(v.clone()),
+            ImageSource::Texture(v) => ImageSource::Texture(*v),
             ImageSource::Bytes { bytes, .. } => ImageSource::Bytes {
                 uri: Cow::Owned(v),
                 bytes: bytes.clone(),
@@ -382,7 +360,7 @@ impl<'a> Widget for Image<'a> {
                 &self.image_options,
             );
         }
-        texture_load_result_response(self.source(ui.ctx()), &tlr, response)
+        texture_load_result_response(&self.source(ui.ctx()), &tlr, response)
     }
 }
 
@@ -639,7 +617,7 @@ pub fn paint_texture_load_result(
 
 /// Attach tooltips like "Loading…" or "Failed loading: …".
 pub fn texture_load_result_response(
-    source: ImageSource<'_>,
+    source: &ImageSource<'_>,
     tlr: &TextureLoadResult,
     response: Response,
 ) -> Response {
@@ -806,4 +784,26 @@ pub fn paint_texture_at(
             });
         }
     }
+}
+
+fn get_index(ctx: &Context, uri: &str) -> usize {
+    let now = ctx.input(|i| Duration::from_secs_f64(i.time));
+    let durations: Vec<Duration> = ctx
+        .data(|data| data.get_temp(Id::new(format!("{uri}-index"))))
+        .unwrap_or_default();
+    let frames: Duration = durations.iter().sum();
+    let pos = now.as_millis() % frames.as_millis().max(1);
+    let mut cumulative_duration = 0;
+    let mut index = 0;
+    for (i, duration) in durations.iter().enumerate() {
+        cumulative_duration += duration.as_millis();
+        if cumulative_duration >= pos {
+            index = i;
+            break;
+        }
+    }
+    if let Some(duration) = durations.get(index) {
+        ctx.request_repaint_after(*duration);
+    }
+    index
 }

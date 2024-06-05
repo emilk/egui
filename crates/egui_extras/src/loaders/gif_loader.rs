@@ -26,7 +26,9 @@ impl AnimatedImage {
                 })
                 .sum::<usize>()
     }
-    pub fn source(&self, index: usize) -> Arc<ColorImage> {
+
+    /// Gets image at index
+    pub fn get_image(&self, index: usize) -> Arc<ColorImage> {
         self.frames
             .get(index % self.frames.len())
             .cloned()
@@ -91,7 +93,7 @@ impl ImageLoader for GifLoader {
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready {
-                    image: image.source(index),
+                    image: image.get_image(index),
                 }),
                 Err(err) => Err(LoadError::Loading(err)),
             }
@@ -110,7 +112,7 @@ impl ImageLoader for GifLoader {
                     cache.insert(uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready {
-                            image: image.source(index),
+                            image: image.get_image(index),
                         }),
                         Err(err) => Err(LoadError::Loading(err)),
                     }
