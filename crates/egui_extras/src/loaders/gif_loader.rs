@@ -51,7 +51,7 @@ pub fn gif_to_sources(data: Bytes) -> Result<AnimatedImage, String> {
         .map_err(|_err| "Couldnt decode gif".to_owned())?;
     let mut images = vec![];
     let mut durations = vec![];
-    for (index, frame) in decoder.into_frames().enumerate() {
+    for frame in decoder.into_frames() {
         let frame = frame.map_err(|_err| "Couldnt decode gif".to_owned())?;
         let img = frame.buffer();
         let pixels = img.as_flat_samples();
