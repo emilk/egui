@@ -208,7 +208,7 @@ impl Ui {
     #[inline]
     pub fn set_sizing_pass(&mut self) {
         self.sizing_pass = true;
-        self.set_visible(false);
+        self.set_invisible();
     }
 
     /// Set to true in special cases where we do one frame
@@ -328,6 +328,36 @@ impl Ui {
         self.enabled
     }
 
+    /// Calling `disable()` will cause the [`Ui`] to deny all future interaction
+    /// and all the widgets will draw with a gray look.
+    ///
+    /// Usually it is more convenient to use [`Self::add_enabled_ui`] or [`Self::add_enabled`].
+    ///
+    /// Note that once disabled, there is no way to re-enable the [`Ui`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut enabled = true;
+    /// ui.group(|ui| {
+    ///     ui.checkbox(&mut enabled, "Enable subsection");
+    ///     if !enabled {
+    ///         ui.disable();
+    ///     }
+    ///     if ui.button("Button that is not always clickable").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn disable(&mut self) {
+        self.enabled = false;
+        if self.is_visible() {
+            self.painter
+                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
+        }
+    }
+
     /// Calling `set_enabled(false)` will cause the [`Ui`] to deny all future interaction
     /// and all the widgets will draw with a gray look.
     ///
@@ -348,11 +378,10 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use disable(), add_enabled_ui(), or add_enabled() instead"]
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled &= enabled;
-        if !self.enabled && self.is_visible() {
-            self.painter
-                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
+        if !enabled {
+            self.disable();
         }
     }
 
@@ -360,6 +389,35 @@ impl Ui {
     #[inline]
     pub fn is_visible(&self) -> bool {
         self.painter.is_visible()
+    }
+
+    /// Calling `set_invisible()` will cause all further widgets to be invisible,
+    /// yet still allocate space.
+    ///
+    /// The widgets will not be interactive (`set_invisible()` implies `disable()`).
+    ///
+    /// Once invisible, there is no way to make the [`Ui`] visible again.
+    ///
+    /// Usually it is more convenient to use [`Self::add_visible_ui`] or [`Self::add_visible`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut visible = true;
+    /// ui.group(|ui| {
+    ///     ui.checkbox(&mut visible, "Show subsection");
+    ///     if !visible {
+    ///         ui.set_invisible();
+    ///     }
+    ///     if ui.button("Button that is not always shown").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn set_invisible(&mut self) {
+        self.painter.set_invisible();
+        self.disable();
     }
 
     /// Calling `set_visible(false)` will cause all further widgets to be invisible,
@@ -382,10 +440,11 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use set_invisible(), add_visible_ui(), or add_visible() instead"]
     pub fn set_visible(&mut self, visible: bool) {
-        self.set_enabled(visible);
         if !visible {
             self.painter.set_invisible();
+            self.disable();
         }
     }
 
@@ -1299,7 +1358,7 @@ impl Ui {
     pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response {
         if self.is_enabled() && !enabled {
             let old_painter = self.painter.clone();
-            self.set_enabled(false);
+            self.disable();
             let response = self.add(widget);
             self.enabled = true;
             self.painter = old_painter;
@@ -1334,7 +1393,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope(|ui| {
-            ui.set_enabled(enabled);
+            if !enabled {
+                ui.disable();
+            }
             add_contents(ui)
         })
     }
@@ -1359,7 +1420,7 @@ impl Ui {
             let old_painter = self.painter.clone();
             let old_enabled = self.enabled;
 
-            self.set_visible(false);
+            self.set_invisible();
 
             let response = self.add(widget);
 
@@ -1396,7 +1457,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope(|ui| {
-            ui.set_visible(visible);
+            if !visible {
+                ui.set_invisible();
+            }
             add_contents(ui)
         })
     }

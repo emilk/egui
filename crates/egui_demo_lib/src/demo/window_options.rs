@@ -115,7 +115,9 @@ impl super::View for WindowOptions {
             ui.group(|ui| {
                 ui.vertical(|ui| {
                     ui.checkbox(anchored, "anchored");
-                    ui.set_enabled(*anchored);
+                    if !*anchored {
+                        ui.disable();
+                    }
                     ui.horizontal(|ui| {
                         ui.label("x:");
                         ui.selectable_value(&mut anchor[0], egui::Align::LEFT, "Left");
