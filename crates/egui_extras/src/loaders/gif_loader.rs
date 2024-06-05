@@ -15,7 +15,7 @@ pub struct AnimatedImage {
 
 impl AnimatedImage {
     pub fn byte_len(&self) -> usize {
-        size_of::<AnimatedImage>()
+        size_of::<Self>()
             + self
                 .frames
                 .iter()
@@ -53,10 +53,10 @@ fn is_supported_uri(uri: &str) -> bool {
 
 pub fn gif_to_sources(data: Bytes) -> Result<AnimatedImage, String> {
     let decoder = image::codecs::gif::GifDecoder::new(Cursor::new(data))
-        .map_err(|_| "Couldnt decode gif".to_string())?;
+        .map_err(|_err| "Couldnt decode gif".to_owned())?;
     let mut res = vec![];
     for (index, frame) in decoder.into_frames().enumerate() {
-        let frame = frame.map_err(|_| "Couldnt decode gif".to_string())?;
+        let frame = frame.map_err(|_err| "Couldnt decode gif".to_owned())?;
         let img = frame.buffer();
         let pixels = img.as_flat_samples();
 
@@ -84,11 +84,11 @@ impl ImageLoader for GifLoader {
             return Err(LoadError::NotSupported);
         }
         let (uri, index) = uri_data
-            .rsplit_once("-")
-            .ok_or(LoadError::Loading("No -{index} at end of uri".to_string()))?;
+            .rsplit_once('-')
+            .ok_or(LoadError::Loading("No -{index} at end of uri".to_owned()))?;
         let index: usize = index
             .parse()
-            .map_err(|_| LoadError::Loading("Failed to parse index".to_string()))?;
+            .map_err(|_err| LoadError::Loading("Failed to parse index".to_owned()))?;
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {
