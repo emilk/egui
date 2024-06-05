@@ -12,9 +12,6 @@ pub(crate) struct State {
     /// Actual size of content last frame
     pub(crate) last_content_size: Vec2,
 
-    /// Actual size of content largest frame
-    pub(crate) largest_content_size: Vec2,
-
     /// Externally requested size (e.g. by Window) for the next frame
     pub(crate) requested_size: Option<Vec2>,
 }
@@ -215,7 +212,6 @@ impl Resize {
             State {
                 desired_size: self.default_size,
                 last_content_size: Vec2::ZERO,
-                largest_content_size: Vec2::ZERO,
                 requested_size: None,
             }
         });
@@ -272,11 +268,7 @@ impl Resize {
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
-        let mut content_ui = ui.child_ui(
-            inner_rect,
-            *ui.layout(),
-            Some(UiStackInfo::new(UiKind::Resize)),
-        );
+        let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
         content_ui.set_clip_rect(content_clip_rect);
 
         Prepared {
