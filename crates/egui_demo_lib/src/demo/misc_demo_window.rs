@@ -547,7 +547,7 @@ fn ui_stack_demo(ui: &mut Ui) {
                         });
 
                         row.col(|ui| {
-                            ui.label(if let Some(kind) = node.kind {
+                            ui.label(if let Some(kind) = node.kind() {
                                 format!("{kind:?}")
                             } else {
                                 "-".to_owned()
