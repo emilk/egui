@@ -498,18 +498,27 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
             web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
             _ => return,
         };
-        // delta sign is flipped to match native (winit) convention.
+
         let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
 
-        // NOTE: pinch-to-zoom on a trackpad will set the `ctrl` modifier on the event,
-        // even though the user is not holding down ctrl!
         let modifiers = modifiers_from_wheel_event(&event);
 
-        runner.input.raw.events.push(egui::Event::MouseWheel {
-            unit,
-            delta,
-            modifiers,
-        });
+        if modifiers.ctrl && !runner.input.raw.modifiers.ctrl {
+            // The browser is saying the ctrl key is down, but it isn't _really_.
+            // This happens on pinch-to-zoom on a Mac trackpad.
+            // egui will treat ctrl+scroll as zoom, so it all works.
+            // However, we explicitly handle it here in order to better match the pinch-to-zoom
+            // speed of a native app, without being sensitive to egui's `scroll_zoom_speed` setting.
+            let pinch_to_zoom_sensitivity = 0.01; // Feels good on a Mac trackpad in 2024
+            let zoom_factor = (pinch_to_zoom_sensitivity * delta.y).exp();
+            runner.input.raw.events.push(egui::Event::Zoom(zoom_factor));
+        } else {
+            runner.input.raw.events.push(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+        }
 
         runner.needs_repaint.repaint_asap();
         event.stop_propagation();
