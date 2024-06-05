@@ -39,6 +39,9 @@ pub struct State {
     /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
     /// it remains false until the scroll touches the end position, which reenables stickiness.
     scroll_stuck_to_end: Vec2b,
+
+    /// Area that can be dragged. This is the size of the content from the last frame.
+    interact_rect: Option<Rect>,
 }
 
 impl Default for State {
@@ -52,6 +55,7 @@ impl Default for State {
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
             scroll_stuck_to_end: Vec2b::TRUE,
+            interact_rect: None,
         }
     }
 }
@@ -473,9 +477,6 @@ struct Prepared {
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
     animated: bool,
-
-    /// Id of the drag area. We store this until we know the size of the content to interact with.
-    drag_area_id: Id,
 }
 
 impl ScrollArea {
@@ -588,16 +589,15 @@ impl ScrollArea {
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
         let dt = ui.input(|i| i.stable_dt).at_most(0.1);
 
-        let drag_area_id = id.with("area");
-
         if (scrolling_enabled && drag_to_scroll)
             && (state.content_is_too_large[0] || state.content_is_too_large[1])
         {
             // Drag contents to scroll (for touch screens mostly).
             // We must do this BEFORE adding content to the `ScrollArea`,
             // or we will steal input from the widgets we contain.
-            // This response is not available on the first frame.
-            let content_response_option = ui.ctx().read_response(drag_area_id);
+            let content_response_option = state
+                .interact_rect
+                .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
 
             if content_response_option.map(|response| response.dragged()) == Some(true) {
                 for d in 0..2 {
@@ -677,7 +677,6 @@ impl ScrollArea {
             scrolling_enabled,
             stick_to_end,
             animated,
-            drag_area_id,
         }
     }
 
@@ -790,7 +789,6 @@ impl Prepared {
             scrolling_enabled,
             stick_to_end,
             animated,
-            drag_area_id,
         } = self;
 
         let content_size = content_ui.min_size();
@@ -881,10 +879,6 @@ impl Prepared {
 
             Rect::from_min_size(inner_rect.min, inner_size)
         };
-
-        // At this point we know the actual size of the area we can interact with, so we do the interaction
-        // here. The result is ignored and read at the start of the frame.
-        let _ = ui.interact(inner_rect, drag_area_id, Sense::drag());
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
@@ -1211,6 +1205,7 @@ impl Prepared {
 
         state.show_scroll = show_scroll_this_frame;
         state.content_is_too_large = content_is_too_large;
+        state.interact_rect = Some(inner_rect);
 
         state.store(ui.ctx(), id);
 
