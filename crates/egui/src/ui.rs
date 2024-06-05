@@ -1957,7 +1957,22 @@ impl Ui {
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new(id_source))
+        self.scope_dyn(Box::new(add_contents), Id::new(id_source), None)
+    }
+
+    /// Push another level onto the [`UiStack`].
+    ///
+    /// You can use this, for instance, to tag a group of widgets.
+    pub fn push_stack_info<R>(
+        &mut self,
+        ui_stack_info: UiStackInfo,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.scope_dyn(
+            Box::new(add_contents),
+            Id::new("child"),
+            Some(ui_stack_info),
+        )
     }
 
     /// Create a scoped child ui.
@@ -1973,18 +1988,19 @@ impl Ui {
     /// # });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new("child"))
+        self.scope_dyn(Box::new(add_contents), Id::new("child"), None)
     }
 
     fn scope_dyn<'c, R>(
         &mut self,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
         id_source: Id,
+        ui_stack_info: Option<UiStackInfo>,
     ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
         let mut child_ui =
-            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
+            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, ui_stack_info);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
