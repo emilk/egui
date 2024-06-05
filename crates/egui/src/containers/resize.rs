@@ -298,9 +298,7 @@ impl Resize {
             content_ui,
         } = prepared;
 
-        let content_size = content_ui.min_size();
-        state.last_content_size = content_size.at_least(state.largest_content_size);
-        state.largest_content_size = content_size.at_least(state.largest_content_size);
+        state.last_content_size = content_ui.min_size();
 
         // ------------------------------
 
@@ -371,17 +369,6 @@ impl Resize {
                 "last_content_size",
             );
         }
-    }
-}
-
-pub fn reset_largest_content_size(ctx: &Context, resize: &Resize) {
-    let Some(resize_id) = resize.id else {
-        return;
-    };
-
-    if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
-        resize_state.largest_content_size = Vec2::ZERO;
-        resize_state.store(ctx, resize_id);
     }
 }
 
