@@ -116,7 +116,7 @@ impl UiStackInfo {
 /// User-chosen tags.
 ///
 /// You can use this in any way you want,
-/// i.e. to set some tag on a [`Ui`] and then in your own widget check
+/// i.e. to set some tag on a [`crate::Ui`] and then in your own widget check
 /// for the existence of this tag up the [`UiStack`].
 ///
 /// Note that egui never sets any tags itself, so this is purely for user code.
