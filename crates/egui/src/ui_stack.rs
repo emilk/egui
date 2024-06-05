@@ -120,6 +120,8 @@ impl UiStackInfo {
 /// for the existence of this tag up the [`UiStack`].
 ///
 /// Note that egui never sets any tags itself, so this is purely for user code.
+///
+/// All tagging is transient, and will only live as long as the parent [`crate::Ui`], i.e. within a single render frame.
 #[derive(Clone, Default, Debug)]
 pub struct UiTags(pub ahash::HashMap<String, Option<Arc<dyn Any + Send + Sync + 'static>>>);
 
