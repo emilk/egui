@@ -16,7 +16,7 @@ eframe = { workspace = true, features = [
   "default",
   "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
-egui_extras = { workspace = true, features = ["default", "all_loaders"] }
+egui_extras = { workspace = true, features = ["default", "all_loaders", "gif"] }
 env_logger = { version = "0.10", default-features = false, features = [
   "auto-color",
   "humantime",

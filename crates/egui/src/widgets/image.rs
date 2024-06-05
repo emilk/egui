@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, time::Duration};
 
 use emath::{Float as _, Rot2};
 use epaint::RectShape;
@@ -287,9 +287,47 @@ impl<'a> Image<'a> {
         &self.image_options
     }
 
+    fn get_index(&self, ctx: &Context, uri: &Cow<'a, str>) -> usize {
+        let now = ctx.input(|i| Duration::from_secs_f64(i.time));
+        let durations: Vec<Duration> = ctx
+            .data(|data| data.get_temp(Id::new(format!("{uri}-index"))))
+            .unwrap_or_default();
+        let frames: Duration = durations.iter().sum();
+        let pos = now.as_millis() % frames.as_millis().max(1);
+        let mut cumulative_duration = 0;
+        let mut index = 0;
+        for (i, duration) in durations.iter().enumerate() {
+            cumulative_duration += duration.as_millis();
+            if cumulative_duration >= pos {
+                index = i;
+                break;
+            }
+        }
+        if let Some(duration) = durations.get(index) {
+            ctx.request_repaint_after(*duration);
+        }
+        index
+    }
+
     #[inline]
-    pub fn source(&self) -> &ImageSource<'a> {
-        &self.source
+    pub fn source(&'a self, ctx: &Context) -> ImageSource<'a> {
+        match &self.source {
+            ImageSource::Bytes { uri, .. } => match uri.starts_with("gif://") {
+                true => Some(uri),
+                false => None,
+            },
+            _ => None,
+        }
+        .map(|v| format!("{}-{}", v, self.get_index(ctx, v)))
+        .map(|v| match &self.source {
+            ImageSource::Uri(_) => ImageSource::Uri(Cow::Owned(v)),
+            ImageSource::Texture(v) => ImageSource::Texture(v.clone()),
+            ImageSource::Bytes { bytes, .. } => ImageSource::Bytes {
+                uri: Cow::Owned(v),
+                bytes: bytes.clone(),
+            },
+        })
+        .unwrap_or(self.source.clone())
     }
 
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
@@ -300,7 +338,7 @@ impl<'a> Image<'a> {
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load_for_size(&self, ctx: &Context, available_size: Vec2) -> TextureLoadResult {
         let size_hint = self.size.hint(available_size);
-        self.source
+        self.source(ctx)
             .clone()
             .load(ctx, self.texture_options, size_hint)
     }
@@ -344,7 +382,7 @@ impl<'a> Widget for Image<'a> {
                 &self.image_options,
             );
         }
-        texture_load_result_response(&self.source, &tlr, response)
+        texture_load_result_response(self.source(ui.ctx()), &tlr, response)
     }
 }
 
@@ -601,7 +639,7 @@ pub fn paint_texture_load_result(
 
 /// Attach tooltips like "Loading…" or "Failed loading: …".
 pub fn texture_load_result_response(
-    source: &ImageSource<'_>,
+    source: ImageSource<'_>,
     tlr: &TextureLoadResult,
     response: Response,
 ) -> Response {

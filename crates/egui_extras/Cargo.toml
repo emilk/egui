@@ -49,6 +49,9 @@ http = ["dep:ehttp"]
 ## ```
 image = ["dep:image"]
 
+## Support loading gif images.
+gif = ["image", "image/gif"]
+
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 ##
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.

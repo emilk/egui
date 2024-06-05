@@ -519,6 +519,15 @@ macro_rules! include_image {
     };
 }
 
+#[macro_export]
+macro_rules! include_gif {
+    ($path:expr $(,)?) => {
+        $crate::ImageSource::Bytes {
+            uri: ::std::borrow::Cow::Borrowed(concat!("gif://", $path)),
+            bytes: $crate::load::Bytes::Static(include_bytes!($path)),
+        }
+    };
+}
 /// Create a [`Hyperlink`] to the current [`file!()`] (and line) on Github
 ///
 /// ```
