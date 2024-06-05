@@ -500,7 +500,10 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
         };
         // delta sign is flipped to match native (winit) convention.
         let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
-        let modifiers = runner.input.raw.modifiers;
+
+        // NOTE: pinch-to-zoom on a trackpad will set the `ctrl` modifier on the event,
+        // even though the user is not holding down ctrl!
+        let modifiers = modifiers_from_wheel_event(&event);
 
         runner.input.raw.events.push(egui::Event::MouseWheel {
             unit,
