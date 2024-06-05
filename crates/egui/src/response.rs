@@ -587,6 +587,17 @@ impl Response {
         let is_tooltip_open = self.is_tooltip_open();
 
         if is_tooltip_open {
+            let (pointer_pos, pointer_vel) = self
+                .ctx
+                .input(|i| (i.pointer.hover_pos(), i.pointer.velocity()));
+
+            if let Some(pointer_pos) = pointer_pos {
+                if self.rect.contains(pointer_pos) {
+                    // Handle the case of a big tooltip that covers the widget:
+                    return true;
+                }
+            }
+
             let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
             let layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
@@ -603,17 +614,14 @@ impl Response {
                 // (i.e. click links that are in it).
                 if let Some(area) = AreaState::load(&self.ctx, tooltip_id) {
                     let rect = area.rect();
-                    let pointer_in_area_or_on_the_way_there = self.ctx.input(|i| {
-                        if let Some(pos) = i.pointer.hover_pos() {
-                            rect.contains(pos)
-                                || rect.intersects_ray(pos, i.pointer.velocity().normalized())
-                        } else {
-                            false
-                        }
-                    });
 
-                    if pointer_in_area_or_on_the_way_there {
-                        return true;
+                    if let Some(pos) = pointer_pos {
+                        let pointer_in_area_or_on_the_way_there = rect.contains(pos)
+                            || rect.intersects_ray(pos, pointer_vel.normalized());
+
+                        if pointer_in_area_or_on_the_way_there {
+                            return true;
+                        }
                     }
                 }
             }
