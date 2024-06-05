@@ -519,6 +519,12 @@ macro_rules! include_image {
     };
 }
 
+/// Include an image in the binary.
+///
+/// This is a wrapper over `include_bytes!`, and behaves in the same way.
+///
+/// It produces an [`ImageSource`] which can be used directly in [`Ui::image`] or [`Image::new`]:
+///
 #[macro_export]
 macro_rules! include_gif {
     ($path:expr $(,)?) => {
@@ -528,6 +534,7 @@ macro_rules! include_gif {
         }
     };
 }
+
 /// Create a [`Hyperlink`] to the current [`file!()`] (and line) on Github
 ///
 /// ```
