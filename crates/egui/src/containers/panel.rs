@@ -362,10 +362,7 @@ impl SidePanel {
             self.id,
             available_rect,
             clip_rect,
-            UiStackInfo {
-                kind: None, // set by show_inside_dyn
-                frame: Frame::default(),
-            },
+            UiStackInfo::default(),
         );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
@@ -848,10 +845,7 @@ impl TopBottomPanel {
             self.id,
             available_rect,
             clip_rect,
-            UiStackInfo {
-                kind: None, // set by show_inside_dyn
-                frame: Frame::default(),
-            },
+            UiStackInfo::default(), // set by show_inside_dyn
         );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
@@ -1120,10 +1114,7 @@ impl CentralPanel {
             id,
             available_rect,
             clip_rect,
-            UiStackInfo {
-                kind: None, // set by show_inside_dyn
-                frame: Frame::default(),
-            },
+            UiStackInfo::default(), // set by show_inside_dyn
         );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);

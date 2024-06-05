@@ -1,5 +1,5 @@
-use std::iter::FusedIterator;
 use std::sync::Arc;
+use std::{any::Any, iter::FusedIterator};
 
 use crate::{Direction, Frame, Id, Rect};
 
@@ -69,19 +69,90 @@ impl UiKind {
 // ----------------------------------------------------------------------------
 
 /// Information about a [`crate::Ui`] to be included in the corresponding [`UiStack`].
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct UiStackInfo {
     pub kind: Option<UiKind>,
     pub frame: Frame,
+    pub tags: UiTags,
 }
 
 impl UiStackInfo {
     /// Create a new [`UiStackInfo`] with the given kind and an empty frame.
+    #[inline]
     pub fn new(kind: UiKind) -> Self {
         Self {
             kind: Some(kind),
-            frame: Default::default(),
+            ..Default::default()
         }
+    }
+
+    #[inline]
+    pub fn with_frame(mut self, frame: Frame) -> Self {
+        self.frame = frame;
+        self
+    }
+
+    /// Insert a tag with no value.
+    #[inline]
+    pub fn with_tag(mut self, key: impl Into<String>) -> Self {
+        self.tags.insert(key, None);
+        self
+    }
+
+    /// Insert a tag with some value.
+    #[inline]
+    pub fn with_tag_value(
+        mut self,
+        key: impl Into<String>,
+        value: impl Any + Send + Sync + 'static,
+    ) -> Self {
+        self.tags.insert(key, Some(Arc::new(value)));
+        self
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// User-chosen tags.
+///
+/// You can use this in any way you want,
+/// i.e. to set some tag on a [`Ui`] and then in your own widget check
+/// for the existence of this tag up the [`UiStack`].
+///
+/// Note that egui never sets any tags itself, so this is purely for user code.
+#[derive(Clone, Default, Debug)]
+pub struct UiTags(pub ahash::HashMap<String, Option<Arc<dyn Any + Send + Sync + 'static>>>);
+
+impl UiTags {
+    #[inline]
+    pub fn insert(
+        &mut self,
+        key: impl Into<String>,
+        value: Option<Arc<dyn Any + Send + Sync + 'static>>,
+    ) {
+        self.0.insert(key.into(), value);
+    }
+
+    #[inline]
+    pub fn contains(&self, key: &str) -> bool {
+        self.0.contains_key(key)
+    }
+
+    /// Get the value of a tag.
+    ///
+    /// Note that `None` is returned both if the key is set to the value `None`,
+    /// and if the key is not set at all.
+    #[inline]
+    pub fn get_any(&self, key: &str) -> Option<&Arc<dyn Any + Send + Sync + 'static>> {
+        self.0.get(key)?.as_ref()
+    }
+
+    /// Get the value of a tag.
+    ///
+    /// Note that `None` is returned both if the key is set to the value `None`,
+    /// and if the key is not set at all.
+    pub fn get_downcast<T: Any + Send + Sync + 'static>(&self, key: &str) -> Option<&T> {
+        self.0.get(key)?.as_ref().and_then(|any| any.downcast_ref())
     }
 }
 
@@ -96,7 +167,7 @@ impl UiStackInfo {
 /// Note: since [`UiStack`] contains a reference to its parent, it is both a stack, and a node within
 /// that stack. Most of its methods are about the specific node, but some methods walk up the
 /// hierarchy to provide information about the entire stack.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct UiStack {
     // stuff that `Ui::child_ui` can deal with directly
     pub id: Id,
@@ -117,6 +188,12 @@ impl UiStack {
     #[inline]
     pub fn frame(&self) -> &Frame {
         &self.info.frame
+    }
+
+    /// User tags.
+    #[inline]
+    pub fn tags(&self) -> &UiTags {
+        &self.info.tags
     }
 
     /// Is this [`crate::Ui`] a panel?
