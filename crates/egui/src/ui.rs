@@ -208,7 +208,7 @@ impl Ui {
     #[inline]
     pub fn set_sizing_pass(&mut self) {
         self.sizing_pass = true;
-        self.set_visible(false);
+        self.set_invisible();
     }
 
     /// Set to true in special cases where we do one frame
@@ -391,6 +391,35 @@ impl Ui {
         self.painter.is_visible()
     }
 
+    /// Calling `set_invisible()` will cause all further widgets to be invisible,
+    /// yet still allocate space.
+    ///
+    /// The widgets will not be interactive (`set_invisible()` implies `disable()`).
+    ///
+    /// Once invisible, there is no way to make the [`Ui`] visible again.
+    ///
+    /// Usually it is more convenient to use [`Self::add_visible_ui`] or [`Self::add_visible`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut visible = true;
+    /// ui.group(|ui| {
+    ///     ui.checkbox(&mut visible, "Show subsection");
+    ///     if !*visible {
+    ///         ui.set_invisible();
+    ///     }
+    ///     if ui.button("Button that is not always shown").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn set_invisible(&mut self) {
+        self.painter.set_invisible();
+        self.disable();
+    }
+
     /// Calling `set_visible(false)` will cause all further widgets to be invisible,
     /// yet still allocate space.
     ///
@@ -411,6 +440,7 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use set_invisible(), add_visible_ui(), or add_visible() instead"]
     pub fn set_visible(&mut self, visible: bool) {
         if !visible {
             self.painter.set_invisible();
@@ -1390,7 +1420,7 @@ impl Ui {
             let old_painter = self.painter.clone();
             let old_enabled = self.enabled;
 
-            self.set_visible(false);
+            self.set_invisible();
 
             let response = self.add(widget);
 
@@ -1427,7 +1457,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope(|ui| {
-            ui.set_visible(visible);
+            if !visible {
+                ui.set_invisible();
+            }
             add_contents(ui)
         })
     }
