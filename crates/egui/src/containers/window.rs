@@ -56,7 +56,11 @@ impl<'open> Window<'open> {
             open: None,
             area,
             frame: None,
-            resize: Resize::default().with_stroke(false).min_size([96.0, 32.0]),
+            resize: Resize::default()
+                .with_stroke(false)
+                .min_size([96.0, 32.0])
+                .default_size([340.0, 420.0]), // Default inner size of a window
+            // resize: Resize::default().with_stroke(false).min_size([96.0, 32.0]),
             scroll: ScrollArea::neither(),
             collapsible: true,
             closebutton: true,
@@ -362,6 +366,15 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// If there is [`ScrollArea`], For each axis, should the containing area shrink if the content is small?
+    ///
+    /// Show the [`ScrollArea::auto_shrink`]
+    #[inline]
+    pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
+        self.scroll = self.scroll.auto_shrink(auto_shrink);
+        self
+    }
+
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
     ///
     /// You can pass in `false`, `true`, `[false, true]` etc.
@@ -480,6 +493,11 @@ impl<'open> Window<'open> {
         resize.is_manually = true;
         let mut resize = resize.id(resize_id);
 
+        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
+            resize_state.desired_size = Vec2::ZERO;
+            resize_state.store(ctx, resize_id);
+        }
+
         let mut prepared_area = area.begin(ctx);
         let last_frame_outer_rect = prepared_area.state().rect();
 
@@ -490,30 +508,6 @@ impl<'open> Window<'open> {
             let max_height = constrain_rect.height() - title_bar_height;
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
-        }
-
-        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
-            let resizable = resize.is_resizable();
-            let scroll_enabled = scroll.scroll_enabled;
-            for d in 0..2 {
-                resize_state.desired_size[d] = match resizable[d] && !scroll_enabled[d] {
-                    true => resize_state.desired_size[d],
-                    false => 0.0,
-                }
-            }
-            resize_state.store(ctx, resize_id);
-        }
-
-        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
-            let resizable = resize.is_resizable();
-            let scroll_enabled = scroll.scroll_enabled;
-            for d in 0..2 {
-                resize_state.largest_content_size[d] = match resizable[d] && !scroll_enabled[d] {
-                    true => resize_state.largest_content_size[d],
-                    false => 0.0,
-                }
-            }
-            resize_state.store(ctx, resize_id);
         }
 
         // First check for resize to avoid frame delay:
@@ -634,7 +628,7 @@ impl<'open> Window<'open> {
                     &content_response,
                     open,
                     &mut collapsing,
-                    &resize,
+                    // &resize,
                 );
             }
 
@@ -816,12 +810,13 @@ fn resize_response(
     area.state_mut().set_left_top_pos(new_rect.left_top());
 
     if resize_interaction.any_dragged() {
-        if let Some(mut resize_state) = resize::State::load(ctx, resize_id) {
-            let requested_size = (new_rect.size()).at_most(resize.max_size) - resize.margins;
-            resize_state.requested_size = Some(requested_size);
-            resize_state.last_content_size = Vec2::ZERO;
-            resize_state.largest_content_size = requested_size;
-            resize_state.store(ctx, resize_id);
+        if let Some(mut state) = resize::State::load(ctx, resize_id) {
+            // let requested_size = (new_rect.size()).at_most(resize.max_size) - resize.margins;
+            // state.requested_size = Some(requested_size);
+            // state.last_content_size = Vec2::ZERO;
+            // state.largest_content_size = requested_size;
+            state.requested_size = Some(new_rect.size() - resize.margins);
+            state.store(ctx, resize_id);
         }
     }
 
@@ -1151,7 +1146,7 @@ impl TitleBar {
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
-        resize: &Resize,
+        // resize: &Resize,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
@@ -1163,7 +1158,7 @@ impl TitleBar {
                 // Add close button now that we know our full width:
                 if self.close_button_ui(ui).clicked() {
                     *open = false;
-                    resize::reset_largest_content_size(ui.ctx(), resize);
+                    // resize::reset_largest_content_size(ui.ctx(), resize);
                 }
             }
         }
