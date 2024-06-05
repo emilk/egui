@@ -791,7 +791,6 @@ fn resize_response(
     if resize_interaction.any_dragged() {
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
             state.requested_size = Some(new_rect.size() - resize.margins);
-            state.last_content_size = Vec2::ZERO;
             state.store(ctx, resize_id);
         }
     }
