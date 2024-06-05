@@ -158,7 +158,7 @@ impl ScrollBarVisibility {
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
     /// Do we have horizontal/vertical scrolling enabled?
-    pub(crate) scroll_enabled: Vec2b,
+    scroll_enabled: Vec2b,
 
     auto_shrink: Vec2b,
     max_size: Vec2,
