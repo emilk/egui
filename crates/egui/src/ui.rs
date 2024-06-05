@@ -406,7 +406,7 @@ impl Ui {
     /// # let mut visible = true;
     /// ui.group(|ui| {
     ///     ui.checkbox(&mut visible, "Show subsection");
-    ///     if !*visible {
+    ///     if !visible {
     ///         ui.set_invisible();
     ///     }
     ///     if ui.button("Button that is not always shown").clicked() {
