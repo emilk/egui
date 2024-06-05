@@ -48,8 +48,8 @@ impl Order {
             | Self::PanelResizeLine
             | Self::Middle
             | Self::Foreground
+            | Self::Tooltip
             | Self::Debug => true,
-            Self::Tooltip => false,
         }
     }
 

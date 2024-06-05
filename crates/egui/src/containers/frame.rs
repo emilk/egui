@@ -250,7 +250,14 @@ impl Frame {
         inner_rect.max.x = inner_rect.max.x.max(inner_rect.min.x);
         inner_rect.max.y = inner_rect.max.y.max(inner_rect.min.y);
 
-        let content_ui = ui.child_ui(inner_rect, *ui.layout());
+        let content_ui = ui.child_ui(
+            inner_rect,
+            *ui.layout(),
+            Some(UiStackInfo {
+                frame: self,
+                kind: Some(UiKind::Frame),
+            }),
+        );
 
         // content_ui.set_clip_rect(outer_rect_bounds.shrink(self.stroke.width * 0.5)); // Can't do this since we don't know final size yet
 
