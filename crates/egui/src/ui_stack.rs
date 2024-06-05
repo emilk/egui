@@ -54,6 +54,7 @@ pub enum UiKind {
 
 impl UiKind {
     /// Is this any kind of panel?
+    #[inline]
     pub fn is_panel(&self) -> bool {
         matches!(
             self,
@@ -63,6 +64,29 @@ impl UiKind {
                 | Self::TopPanel
                 | Self::BottomPanel
         )
+    }
+
+    /// Is this any kind of [`crate::Area`]?
+    #[inline]
+    pub fn is_area(&self) -> bool {
+        match self {
+            Self::CentralPanel
+            | Self::LeftPanel
+            | Self::RightPanel
+            | Self::TopPanel
+            | Self::BottomPanel
+            | Self::Frame
+            | Self::ScrollArea
+            | Self::Resize
+            | Self::TableCell => false,
+
+            Self::Window
+            | Self::Menu
+            | Self::Popup
+            | Self::Tooltip
+            | Self::Picker
+            | Self::GenericArea => true,
+        }
     }
 }
 
