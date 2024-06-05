@@ -525,7 +525,9 @@ impl Prepared {
             }
         }
 
-        ui.set_enabled(self.enabled);
+        if !self.enabled {
+            ui.disable();
+        }
         if self.sizing_pass {
             ui.set_sizing_pass();
         }

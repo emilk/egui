@@ -429,7 +429,7 @@ impl CollapsingHeader {
 
     /// If you set this to `false`, the [`CollapsingHeader`] will be grayed out and un-clickable.
     ///
-    /// This is a convenience for [`Ui::set_enabled`].
+    /// This is a convenience for [`Ui::disable`].
     #[inline]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
@@ -616,7 +616,9 @@ impl CollapsingHeader {
         // Make sure body is bellow header,
         // and make sure it is one unit (necessary for putting a [`CollapsingHeader`] in a grid).
         ui.vertical(|ui| {
-            ui.set_enabled(self.enabled);
+            if !self.enabled {
+                ui.disable();
+            }
 
             let Prepared {
                 header_response,
