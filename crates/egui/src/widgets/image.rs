@@ -8,6 +8,8 @@ use crate::{
     *,
 };
 
+const RENDER_TIME: Duration = Duration::from_millis(6);
+
 /// A widget which displays an image.
 ///
 /// The task of actually loading the image is deferred to when the `Image` is added to the [`Ui`],
@@ -41,7 +43,6 @@ use crate::{
 /// # });
 /// ```
 ///
-const RENDER_TIME: Duration = Duration::from_millis(6);
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
