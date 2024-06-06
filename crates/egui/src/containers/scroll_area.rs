@@ -39,6 +39,9 @@ pub struct State {
     /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
     /// it remains false until the scroll touches the end position, which reenables stickiness.
     scroll_stuck_to_end: Vec2b,
+
+    /// Area that can be dragged. This is the size of the content from the last frame.
+    interact_rect: Option<Rect>,
 }
 
 impl Default for State {
@@ -52,6 +55,7 @@ impl Default for State {
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
             scroll_stuck_to_end: Vec2b::TRUE,
+            interact_rect: None,
         }
     }
 }
@@ -591,9 +595,11 @@ impl ScrollArea {
             // Drag contents to scroll (for touch screens mostly).
             // We must do this BEFORE adding content to the `ScrollArea`,
             // or we will steal input from the widgets we contain.
-            let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
+            let content_response_option = state
+                .interact_rect
+                .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
 
-            if content_response.dragged() {
+            if content_response_option.map(|response| response.dragged()) == Some(true) {
                 for d in 0..2 {
                     if scroll_enabled[d] {
                         ui.input(|input| {
@@ -1199,6 +1205,7 @@ impl Prepared {
 
         state.show_scroll = show_scroll_this_frame;
         state.content_is_too_large = content_is_too_large;
+        state.interact_rect = Some(inner_rect);
 
         state.store(ui.ctx(), id);
 
