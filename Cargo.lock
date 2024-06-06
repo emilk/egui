@@ -1165,6 +1165,7 @@ dependencies = [
  "cint",
  "color-hex",
  "document-features",
+ "emath",
  "serde",
 ]
 
