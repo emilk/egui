@@ -1,4 +1,6 @@
-use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba};
+use crate::{
+    fast_round, gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba,
+};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
