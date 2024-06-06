@@ -630,11 +630,6 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
                         return;
                     }
                 };
-                log::info!(
-                    "ResizeObserver canvas={:?} to={:?}",
-                    super::canvas_size_in_points(canvas, runner_lock.egui_ctx()),
-                    (width, height),
-                );
                 canvas.set_width(width);
                 canvas.set_height(height);
 
