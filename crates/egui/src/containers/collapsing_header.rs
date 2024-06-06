@@ -72,7 +72,12 @@ impl CollapsingState {
         if ctx.memory(|mem| mem.everything_is_visible()) {
             1.0
         } else {
-            ctx.animate_bool(self.id, self.state.open)
+            let t = ctx.animate_bool(self.id, self.state.open);
+            if self.state.open {
+                emath::easing::quadratic_out(t)
+            } else {
+                emath::easing::quadratic_in(t)
+            }
         }
     }
 
