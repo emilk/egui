@@ -438,7 +438,11 @@ impl<'open> Window<'open> {
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        let opacity = ctx.animate_bool(area.id.with("fade-out"), is_open);
+        let opacity = ctx.animate_bool_with_easing(
+            area.id.with("fade-out"),
+            is_open,
+            emath::easing::cubic_out,
+        );
         if opacity <= 0.0 {
             return None;
         }

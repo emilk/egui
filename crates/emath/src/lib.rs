@@ -26,6 +26,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 // ----------------------------------------------------------------------------
 
 pub mod align;
+pub mod easing;
 mod history;
 mod numeric;
 mod ordered_float;
