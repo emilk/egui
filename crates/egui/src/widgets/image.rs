@@ -793,13 +793,13 @@ fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
 }
 
 /// extracts uri and frame index
-pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
+/// # Errors
+/// Will return `Err` if `uri` does not match pattern {uri}-{frame_index}
+pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), &'static str> {
     let (uri, index) = uri
         .rsplit_once('-')
         .ok_or("Failed to find index seperator '-'")?;
-    let index: usize = index
-        .parse()
-        .map_err(|_err| "Failed to parse index".to_string())?;
+    let index: usize = index.parse().map_err(|_err| "Failed to parse index")?;
     Ok((uri, index))
 }
 

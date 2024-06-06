@@ -72,7 +72,7 @@ impl ImageLoader for GifLoader {
     }
 
     fn load(&self, ctx: &egui::Context, uri_data: &str, _: SizeHint) -> ImageLoadResult {
-        let uri_index = decode_gif_uri(uri_data).map_err(LoadError::Loading);
+        let uri_index = decode_gif_uri(uri_data).map_err(|e| LoadError::Loading(e.to_owned()));
         let uri = uri_index.as_ref().map(|v| v.0).unwrap_or(uri_data);
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
@@ -95,7 +95,7 @@ impl ImageLoader for GifLoader {
                     let result = gif_to_sources(bytes).map(Arc::new);
                     if let Ok(v) = &result {
                         ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(Id::new(uri)) = v.frame_durations.clone()
+                            *data.get_temp_mut_or_default(Id::new(uri)) = v.frame_durations.clone();
                         });
                     }
                     log::trace!("finished loading {uri:?}");
