@@ -81,7 +81,7 @@ pub fn install_image_loaders(ctx: &egui::Context) {
     #[cfg(feature = "gif")]
     if !ctx.is_loader_installed(self::gif_loader::GifLoader::ID) {
         ctx.add_image_loader(std::sync::Arc::new(self::gif_loader::GifLoader::default()));
-        log::trace!("installed SvgLoader");
+        log::trace!("installed GifLoader");
     }
 
     #[cfg(feature = "svg")]
