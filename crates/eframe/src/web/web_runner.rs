@@ -79,9 +79,8 @@ impl WebRunner {
                 events::install_color_scheme_change_event(self)?;
             }
 
+            // The resize observer handles calling `request_animation_frame` to start the render loop.
             events::install_resize_observer(self)?;
-
-            self.request_animation_frame()?;
         }
 
         Ok(())

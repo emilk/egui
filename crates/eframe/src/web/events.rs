@@ -608,6 +608,14 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
     Ok(())
 }
 
+/// Install a `ResizeObserver` to observe changes to the size of the canvas.
+///
+/// This is the only way to ensure a canvas size change without an associated window `resize` event
+/// actually results in a resize of the canvas.
+///
+/// The resize observer is called the by the browser at `observe` time, instead of just on the first actual resize.
+/// We use that to trigger the first `request_animation_frame` _after_ updating the size of the canvas to the correct dimensions,
+/// to avoid [#4622](https://github.com/emilk/egui/issues/4622).
 pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new({
         let runner_ref = runner_ref.clone();
@@ -628,6 +636,11 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
                 // force an immediate repaint
                 runner_lock.needs_repaint.repaint_asap();
                 paint_if_needed(&mut runner_lock);
+                drop(runner_lock);
+                // we rely on the resize observer to trigger the first `request_animation_frame`:
+                if let Err(err) = runner_ref.request_animation_frame() {
+                    log::error!("{}", super::string_from_js_value(&err));
+                };
             }
         }
     }) as Box<dyn FnMut(js_sys::Array)>);
