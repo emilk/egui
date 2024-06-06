@@ -64,6 +64,15 @@ impl BytesLoader for EhttpLoader {
             return Err(LoadError::NotSupported);
         }
 
+        #[cfg(feature = "gif")]
+        let uri = match uri.rsplit_once('-').map(|v| v.0) {
+            Some(base_uri) => match base_uri.ends_with(".gif") {
+                true => base_uri,
+                false => uri,
+            },
+            None => uri,
+        };
+
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {

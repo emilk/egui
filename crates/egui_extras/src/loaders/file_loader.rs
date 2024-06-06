@@ -49,6 +49,15 @@ impl BytesLoader for FileLoader {
             return Err(LoadError::NotSupported);
         };
 
+        #[cfg(feature = "gif")]
+        let uri = match uri.rsplit_once('-').map(|v| v.0) {
+            Some(base_uri) => match base_uri.ends_with(".gif") {
+                true => base_uri,
+                false => uri,
+            },
+            None => uri,
+        };
+
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
             // `path` has either begun loading, is loaded, or has failed to load.
