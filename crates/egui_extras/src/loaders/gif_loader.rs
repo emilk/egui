@@ -2,7 +2,7 @@ use egui::{
     ahash::HashMap,
     load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, Id,
+    ColorImage, ImageDataIdIndex,
 };
 use image::AnimationDecoder as _;
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
@@ -99,7 +99,7 @@ impl ImageLoader for GifLoader {
                     let result = gif_to_sources(bytes).map(Arc::new);
                     if let Ok(v) = &result {
                         ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(Id::new(format!("{uri}-index"))) =
+                            *data.get_temp_mut_or_default(ImageDataIdIndex.id(uri)) =
                                 v.delays.clone();
                         });
                     }

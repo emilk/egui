@@ -27,7 +27,9 @@ pub use self::{
     checkbox::Checkbox,
     drag_value::DragValue,
     hyperlink::{Hyperlink, Link},
-    image::{paint_texture_at, Image, ImageFit, ImageOptions, ImageSize, ImageSource},
+    image::{
+        paint_texture_at, Image, ImageDataIdIndex, ImageFit, ImageOptions, ImageSize, ImageSource,
+    },
     image_button::ImageButton,
     label::Label,
     progress_bar::ProgressBar,

@@ -788,8 +788,9 @@ pub fn paint_texture_at(
 
 fn get_index(ctx: &Context, uri: &str) -> usize {
     let now = ctx.input(|i| Duration::from_secs_f64(i.time));
+
     let durations: Option<Arc<Vec<Duration>>> =
-        ctx.data(|data| data.get_temp(Id::new(format!("{uri}-index"))));
+        ctx.data(|data| data.get_temp(ImageDataIdIndex.id(uri)));
     if let Some(durations) = durations {
         let frames: Duration = durations.iter().sum();
         let pos = now.as_millis() % frames.as_millis().max(1);
@@ -808,5 +809,15 @@ fn get_index(ctx: &Context, uri: &str) -> usize {
         index
     } else {
         0
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ImageDataIdIndex;
+
+impl ImageDataIdIndex {
+    #[inline]
+    pub fn id(self, uri: &str) -> Id {
+        Id::new((std::any::TypeId::of::<Self>(), self, uri))
     }
 }
