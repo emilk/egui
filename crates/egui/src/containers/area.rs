@@ -519,6 +519,7 @@ impl Prepared {
             let age =
                 ctx.input(|i| (i.time - self.state.last_became_visible_at) as f32 + i.predicted_dt);
             let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
+            let opacity = emath::easing::cubic_out(opacity); // slow fade-out = quick fade-in
             ui.multiply_opacity(opacity);
             if opacity < 1.0 {
                 ctx.request_repaint();

@@ -502,6 +502,7 @@ impl<'open> Window<'open> {
             // `Area` already takes care of fade-in animations,
             // so we only need to handle fade-out animations here.
         } else if fade_out {
+            let opacity = emath::easing::cubic_in(opacity); // slow fade-in = quick fade-out
             area_content_ui.multiply_opacity(opacity);
         }
 
