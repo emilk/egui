@@ -28,7 +28,8 @@ pub use self::{
     drag_value::DragValue,
     hyperlink::{Hyperlink, Link},
     image::{
-        paint_texture_at, Image, ImageDataIdIndex, ImageFit, ImageOptions, ImageSize, ImageSource,
+        decode_gif_uri, paint_texture_at, GifFrameDurations, Image, ImageFit, ImageOptions,
+        ImageSize, ImageSource,
     },
     image_button::ImageButton,
     label::Label,

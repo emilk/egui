@@ -40,6 +40,8 @@ use crate::{
 ///     .paint_at(ui, rect);
 /// # });
 /// ```
+///
+const RENDER_TIME: Duration = Duration::from_millis(6);
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
@@ -290,22 +292,21 @@ impl<'a> Image<'a> {
     #[inline]
     pub fn source(&'a self, ctx: &Context) -> ImageSource<'a> {
         match &self.source {
-            ImageSource::Bytes { uri, .. } => match uri.starts_with("gif://") {
-                true => Some(uri),
-                false => None,
-            },
-            _ => None,
+            ImageSource::Uri(uri) if is_gif_uri(uri) => {
+                let frame_uri = encode_gif_uri(uri, gif_frame_index(ctx, uri));
+                ImageSource::Uri(Cow::Owned(frame_uri))
+            }
+
+            ImageSource::Bytes { uri, bytes } if is_gif_uri(uri) || has_gif_magic_header(bytes) => {
+                let frame_uri = encode_gif_uri(uri, gif_frame_index(ctx, uri));
+                ImageSource::Bytes {
+                    uri: Cow::Owned(frame_uri),
+                    bytes: bytes.clone(),
+                }
+            }
+
+            _ => self.source.clone(),
         }
-        .map(|v| format!("{}-{}", v, get_index(ctx, v)))
-        .map(|v| match &self.source {
-            ImageSource::Uri(_) => ImageSource::Uri(Cow::Owned(v)),
-            ImageSource::Texture(v) => ImageSource::Texture(*v),
-            ImageSource::Bytes { bytes, .. } => ImageSource::Bytes {
-                uri: Cow::Owned(v),
-                bytes: bytes.clone(),
-            },
-        })
-        .unwrap_or(self.source.clone())
     }
 
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
@@ -786,25 +787,51 @@ pub fn paint_texture_at(
     }
 }
 
-fn get_index(ctx: &Context, uri: &str) -> usize {
+/// gif uris contain the uri & the frame that will be displayed
+fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
+    format!("{uri}-{frame_index}")
+}
+
+/// extracts uri and frame index
+pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
+    let (uri, index) = uri
+        .rsplit_once('-')
+        .ok_or("Failed to find index seperator '-'")?;
+    let index: usize = index
+        .parse()
+        .map_err(|_err| "Failed to parse index".to_string())?;
+    Ok((uri, index))
+}
+
+/// checks if uri is a gif file or starts with gif://
+fn is_gif_uri(uri: &str) -> bool {
+    uri.ends_with(".gif") || uri.starts_with("gif://")
+}
+
+/// checks if bytes are gifs
+fn has_gif_magic_header(bytes: &Bytes) -> bool {
+    bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a")
+}
+
+/// calculates at which frame the gif is
+fn gif_frame_index(ctx: &Context, uri: &str) -> usize {
     let now = ctx.input(|i| Duration::from_secs_f64(i.time));
 
-    let durations: Option<Arc<Vec<Duration>>> =
-        ctx.data(|data| data.get_temp(ImageDataIdIndex.id(uri)));
+    let durations: Option<GifFrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
     if let Some(durations) = durations {
-        let frames: Duration = durations.iter().sum();
+        let frames: Duration = durations.0.iter().sum();
         let pos = now.as_millis() % frames.as_millis().max(1);
         let mut cumulative_duration = 0;
         let mut index = 0;
-        for (i, duration) in durations.iter().enumerate() {
+        for (i, duration) in durations.0.iter().enumerate() {
             cumulative_duration += duration.as_millis();
             if cumulative_duration >= pos {
                 index = i;
                 break;
             }
         }
-        if let Some(duration) = durations.get(index) {
-            ctx.request_repaint_after(*duration);
+        if let Some(duration) = durations.0.get(index) {
+            ctx.request_repaint_after(*duration - RENDER_TIME);
         }
         index
     } else {
@@ -812,12 +839,6 @@ fn get_index(ctx: &Context, uri: &str) -> usize {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ImageDataIdIndex;
-
-impl ImageDataIdIndex {
-    #[inline]
-    pub fn id(self, uri: &str) -> Id {
-        Id::new((std::any::TypeId::of::<Self>(), self, uri))
-    }
-}
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+/// Stores the durations between each frame of a gif
+pub struct GifFrameDurations(pub Arc<Vec<Duration>>);

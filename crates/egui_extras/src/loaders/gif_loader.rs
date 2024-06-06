@@ -1,8 +1,9 @@
 use egui::{
     ahash::HashMap,
+    decode_gif_uri,
     load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, ImageDataIdIndex,
+    ColorImage, GifFrameDurations, Id,
 };
 use image::AnimationDecoder as _;
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
@@ -11,7 +12,7 @@ use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 #[derive(Debug, Clone)]
 pub struct AnimatedImage {
     frames: Vec<Arc<ColorImage>>,
-    delays: Arc<Vec<Duration>>,
+    frame_durations: GifFrameDurations,
 }
 
 impl AnimatedImage {
@@ -28,7 +29,7 @@ impl AnimatedImage {
 
     /// Gets image at index
     pub fn get_image(&self, index: usize) -> Arc<ColorImage> {
-        self.frames.get(index % self.frames.len()).cloned().unwrap()
+        self.frames[index % self.frames.len()].clone()
     }
 }
 type Entry = Result<Arc<AnimatedImage>, String>;
@@ -40,10 +41,6 @@ pub struct GifLoader {
 
 impl GifLoader {
     pub const ID: &'static str = egui::generate_loader_id!(GifLoader);
-}
-
-fn is_supported_uri(uri: &str) -> bool {
-    uri.starts_with("gif://")
 }
 
 pub fn gif_to_sources(data: Bytes) -> Result<AnimatedImage, String> {
@@ -65,7 +62,7 @@ pub fn gif_to_sources(data: Bytes) -> Result<AnimatedImage, String> {
     }
     Ok(AnimatedImage {
         frames: images,
-        delays: Arc::new(durations),
+        frame_durations: GifFrameDurations(Arc::new(durations)),
     })
 }
 
@@ -75,17 +72,11 @@ impl ImageLoader for GifLoader {
     }
 
     fn load(&self, ctx: &egui::Context, uri_data: &str, _: SizeHint) -> ImageLoadResult {
-        if !is_supported_uri(uri_data) {
-            return Err(LoadError::NotSupported);
-        }
-        let (uri, index) = uri_data
-            .rsplit_once('-')
-            .ok_or(LoadError::Loading("No -{index} at end of uri".to_owned()))?;
-        let index: usize = index
-            .parse()
-            .map_err(|_err| LoadError::Loading("Failed to parse index".to_owned()))?;
+        let uri_index = decode_gif_uri(uri_data).map_err(LoadError::Loading);
+        let uri = uri_index.as_ref().map(|v| v.0).unwrap_or(uri_data);
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
+            let index = uri_index?.1;
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready {
                     image: image.get_image(index),
@@ -95,12 +86,16 @@ impl ImageLoader for GifLoader {
         } else {
             match ctx.try_load_bytes(uri_data) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
+                    let is_gif = bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a");
+                    if !is_gif {
+                        return Err(LoadError::NotSupported);
+                    }
+                    let index = uri_index?.1;
                     log::trace!("started loading {uri:?}");
                     let result = gif_to_sources(bytes).map(Arc::new);
                     if let Ok(v) = &result {
                         ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(ImageDataIdIndex.id(uri)) =
-                                v.delays.clone();
+                            *data.get_temp_mut_or_default(Id::new(uri)) = v.frame_durations.clone()
                         });
                     }
                     log::trace!("finished loading {uri:?}");
