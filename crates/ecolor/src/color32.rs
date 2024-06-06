@@ -235,4 +235,16 @@ impl Color32 {
             a as f32 / 255.0,
         ]
     }
+
+    /// Lerp this color towards `other` by `t` in gamma space.
+    pub fn lerp_to_gamma(&self, other: Self, t: f32) -> Self {
+        use emath::lerp;
+
+        Self::from_rgba_premultiplied(
+            lerp((self[0] as f32)..=(other[0] as f32), t).round() as u8,
+            lerp((self[1] as f32)..=(other[1] as f32), t).round() as u8,
+            lerp((self[2] as f32)..=(other[2] as f32), t).round() as u8,
+            lerp((self[3] as f32)..=(other[3] as f32), t).round() as u8,
+        )
+    }
 }
