@@ -49,7 +49,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text()));
+        let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
         Self {
             title,
             open: None,
@@ -438,7 +438,11 @@ impl<'open> Window<'open> {
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        let opacity = ctx.animate_bool(area.id.with("fade-out"), is_open);
+        let opacity = ctx.animate_bool_with_easing(
+            area.id.with("fade-out"),
+            is_open,
+            emath::easing::cubic_out,
+        );
         if opacity <= 0.0 {
             return None;
         }

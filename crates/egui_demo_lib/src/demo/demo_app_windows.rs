@@ -42,6 +42,7 @@ impl Default for Demos {
             Box::<super::table_demo::TableDemo>::default(),
             Box::<super::text_edit::TextEditDemo>::default(),
             Box::<super::text_layout::TextLayoutDemo>::default(),
+            Box::<super::tooltips::Tooltips>::default(),
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
             Box::<super::tests::WindowResizeTest>::default(),

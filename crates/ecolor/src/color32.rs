@@ -1,4 +1,6 @@
-use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba};
+use crate::{
+    fast_round, gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba,
+};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -234,5 +236,17 @@ impl Color32 {
             b as f32 / 255.0,
             a as f32 / 255.0,
         ]
+    }
+
+    /// Lerp this color towards `other` by `t` in gamma space.
+    pub fn lerp_to_gamma(&self, other: Self, t: f32) -> Self {
+        use emath::lerp;
+
+        Self::from_rgba_premultiplied(
+            fast_round(lerp((self[0] as f32)..=(other[0] as f32), t)),
+            fast_round(lerp((self[1] as f32)..=(other[1] as f32), t)),
+            fast_round(lerp((self[2] as f32)..=(other[2] as f32), t)),
+            fast_round(lerp((self[3] as f32)..=(other[3] as f32), t)),
+        )
     }
 }

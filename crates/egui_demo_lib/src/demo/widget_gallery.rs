@@ -62,7 +62,9 @@ impl super::Demo for WidgetGallery {
 impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add_enabled_ui(self.enabled, |ui| {
-            ui.set_visible(self.visible);
+            if !self.visible {
+                ui.set_invisible();
+            }
             ui.multiply_opacity(self.opacity);
 
             egui::Grid::new("my_grid")

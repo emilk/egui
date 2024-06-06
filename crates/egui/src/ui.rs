@@ -67,6 +67,9 @@ pub struct Ui {
 
     /// Indicates whether this Ui belongs to a Menu.
     menu_state: Option<Arc<RwLock<MenuState>>>,
+
+    /// The [`UiStack`] for this [`Ui`].
+    stack: Arc<UiStack>,
 }
 
 impl Ui {
@@ -77,17 +80,35 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
+    pub fn new(
+        ctx: Context,
+        layer_id: LayerId,
+        id: Id,
+        max_rect: Rect,
+        clip_rect: Rect,
+        ui_stack_info: UiStackInfo,
+    ) -> Self {
         let style = ctx.style();
+        let layout = Layout::default();
+        let placer = Placer::new(max_rect, layout);
+        let ui_stack = UiStack {
+            id,
+            layout_direction: layout.main_dir,
+            info: ui_stack_info,
+            parent: None,
+            min_rect: placer.min_rect(),
+            max_rect: placer.max_rect(),
+        };
         let ui = Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
-            placer: Placer::new(max_rect, Layout::default()),
+            placer,
             enabled: true,
             sizing_pass: false,
             menu_state: None,
+            stack: Arc::new(ui_stack),
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -105,16 +126,29 @@ impl Ui {
     }
 
     /// Create a new [`Ui`] at a specific region.
-    pub fn child_ui(&mut self, max_rect: Rect, layout: Layout) -> Self {
-        self.child_ui_with_id_source(max_rect, layout, "child")
+    ///
+    /// Note: calling this function twice from the same [`Ui`] will create a conflict of id. Use
+    /// [`Self::scope`] if needed.
+    ///
+    /// When in doubt, use `None` for the `UiStackInfo` argument.
+    pub fn child_ui(
+        &mut self,
+        max_rect: Rect,
+        layout: Layout,
+        ui_stack_info: Option<UiStackInfo>,
+    ) -> Self {
+        self.child_ui_with_id_source(max_rect, layout, "child", ui_stack_info)
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
+    ///
+    /// When in doubt, use `None` for the `UiStackInfo` argument.
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
         mut layout: Layout,
         id_source: impl Hash,
+        ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -128,15 +162,27 @@ impl Ui {
         debug_assert!(!max_rect.any_nan());
         let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+
+        let new_id = self.id.with(id_source);
+        let placer = Placer::new(max_rect, layout);
+        let ui_stack = UiStack {
+            id: new_id,
+            layout_direction: layout.main_dir,
+            info: ui_stack_info.unwrap_or_default(),
+            parent: Some(self.stack.clone()),
+            min_rect: placer.min_rect(),
+            max_rect: placer.max_rect(),
+        };
         let child_ui = Ui {
-            id: self.id.with(id_source),
+            id: new_id,
             next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
-            placer: Placer::new(max_rect, layout),
+            placer,
             enabled: self.enabled,
             sizing_pass: self.sizing_pass,
             menu_state: self.menu_state.clone(),
+            stack: Arc::new(ui_stack),
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -163,7 +209,7 @@ impl Ui {
     #[inline]
     pub fn set_sizing_pass(&mut self) {
         self.sizing_pass = true;
-        self.set_visible(false);
+        self.set_invisible();
     }
 
     /// Set to true in special cases where we do one frame
@@ -258,6 +304,12 @@ impl Ui {
         &mut self.style_mut().visuals
     }
 
+    /// Get a reference to this [`Ui`]'s [`UiStack`].
+    #[inline]
+    pub fn stack(&self) -> &Arc<UiStack> {
+        &self.stack
+    }
+
     /// Get a reference to the parent [`Context`].
     #[inline]
     pub fn ctx(&self) -> &Context {
@@ -275,6 +327,36 @@ impl Ui {
     #[inline]
     pub fn is_enabled(&self) -> bool {
         self.enabled
+    }
+
+    /// Calling `disable()` will cause the [`Ui`] to deny all future interaction
+    /// and all the widgets will draw with a gray look.
+    ///
+    /// Usually it is more convenient to use [`Self::add_enabled_ui`] or [`Self::add_enabled`].
+    ///
+    /// Note that once disabled, there is no way to re-enable the [`Ui`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut enabled = true;
+    /// ui.group(|ui| {
+    ///     ui.checkbox(&mut enabled, "Enable subsection");
+    ///     if !enabled {
+    ///         ui.disable();
+    ///     }
+    ///     if ui.button("Button that is not always clickable").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn disable(&mut self) {
+        self.enabled = false;
+        if self.is_visible() {
+            self.painter
+                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
+        }
     }
 
     /// Calling `set_enabled(false)` will cause the [`Ui`] to deny all future interaction
@@ -297,11 +379,10 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use disable(), add_enabled_ui(), or add_enabled() instead"]
     pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled &= enabled;
-        if !self.enabled && self.is_visible() {
-            self.painter
-                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
+        if !enabled {
+            self.disable();
         }
     }
 
@@ -309,6 +390,35 @@ impl Ui {
     #[inline]
     pub fn is_visible(&self) -> bool {
         self.painter.is_visible()
+    }
+
+    /// Calling `set_invisible()` will cause all further widgets to be invisible,
+    /// yet still allocate space.
+    ///
+    /// The widgets will not be interactive (`set_invisible()` implies `disable()`).
+    ///
+    /// Once invisible, there is no way to make the [`Ui`] visible again.
+    ///
+    /// Usually it is more convenient to use [`Self::add_visible_ui`] or [`Self::add_visible`].
+    ///
+    /// ### Example
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut visible = true;
+    /// ui.group(|ui| {
+    ///     ui.checkbox(&mut visible, "Show subsection");
+    ///     if !visible {
+    ///         ui.set_invisible();
+    ///     }
+    ///     if ui.button("Button that is not always shown").clicked() {
+    ///         /* … */
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn set_invisible(&mut self) {
+        self.painter.set_invisible();
+        self.disable();
     }
 
     /// Calling `set_visible(false)` will cause all further widgets to be invisible,
@@ -331,10 +441,11 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use set_invisible(), add_visible_ui(), or add_visible() instead"]
     pub fn set_visible(&mut self, visible: bool) {
-        self.set_enabled(visible);
         if !visible {
             self.painter.set_invisible();
+            self.disable();
         }
     }
 
@@ -1021,7 +1132,7 @@ impl Ui {
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
-        let mut child_ui = self.child_ui(child_rect, layout);
+        let mut child_ui = self.child_ui(child_rect, layout, None);
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -1042,7 +1153,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
         debug_assert!(max_rect.is_finite());
-        let mut child_ui = self.child_ui(max_rect, *self.layout());
+        let mut child_ui = self.child_ui(max_rect, *self.layout(), None);
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -1248,7 +1359,7 @@ impl Ui {
     pub fn add_enabled(&mut self, enabled: bool, widget: impl Widget) -> Response {
         if self.is_enabled() && !enabled {
             let old_painter = self.painter.clone();
-            self.set_enabled(false);
+            self.disable();
             let response = self.add(widget);
             self.enabled = true;
             self.painter = old_painter;
@@ -1283,7 +1394,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope(|ui| {
-            ui.set_enabled(enabled);
+            if !enabled {
+                ui.disable();
+            }
             add_contents(ui)
         })
     }
@@ -1308,7 +1421,7 @@ impl Ui {
             let old_painter = self.painter.clone();
             let old_enabled = self.enabled;
 
-            self.set_visible(false);
+            self.set_invisible();
 
             let response = self.add(widget);
 
@@ -1345,7 +1458,9 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope(|ui| {
-            ui.set_visible(visible);
+            if !visible {
+                ui.set_invisible();
+            }
             add_contents(ui)
         })
     }
@@ -1842,7 +1957,22 @@ impl Ui {
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new(id_source))
+        self.scope_dyn(Box::new(add_contents), Id::new(id_source), None)
+    }
+
+    /// Push another level onto the [`UiStack`].
+    ///
+    /// You can use this, for instance, to tag a group of widgets.
+    pub fn push_stack_info<R>(
+        &mut self,
+        ui_stack_info: UiStackInfo,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.scope_dyn(
+            Box::new(add_contents),
+            Id::new("child"),
+            Some(ui_stack_info),
+        )
     }
 
     /// Create a scoped child ui.
@@ -1858,17 +1988,19 @@ impl Ui {
     /// # });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new("child"))
+        self.scope_dyn(Box::new(add_contents), Id::new("child"), None)
     }
 
     fn scope_dyn<'c, R>(
         &mut self,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
         id_source: Id,
+        ui_stack_info: Option<UiStackInfo>,
     ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
+        let mut child_ui =
+            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, ui_stack_info);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -1927,7 +2059,8 @@ impl Ui {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
-        let mut child_ui = self.child_ui_with_id_source(child_rect, *self.layout(), id_source);
+        let mut child_ui =
+            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;
@@ -2149,7 +2282,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout);
+        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout, None);
         let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
@@ -2233,7 +2366,7 @@ impl Ui {
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
                 let mut column_ui =
-                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT));
+                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
                 column_ui.set_width(column_width);
                 column_ui
             })

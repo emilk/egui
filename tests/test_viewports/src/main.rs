@@ -457,7 +457,7 @@ fn drop_target<R>(
 
     let available_rect = ui.available_rect_before_wrap();
     let inner_rect = available_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
+    let mut content_ui = ui.child_ui(inner_rect, *ui.layout(), None);
     let ret = body(&mut content_ui);
 
     let outer_rect =

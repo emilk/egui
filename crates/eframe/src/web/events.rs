@@ -498,15 +498,27 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
             web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
             _ => return,
         };
-        // delta sign is flipped to match native (winit) convention.
-        let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
-        let modifiers = runner.input.raw.modifiers;
 
-        runner.input.raw.events.push(egui::Event::MouseWheel {
-            unit,
-            delta,
-            modifiers,
-        });
+        let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
+
+        let modifiers = modifiers_from_wheel_event(&event);
+
+        if modifiers.ctrl && !runner.input.raw.modifiers.ctrl {
+            // The browser is saying the ctrl key is down, but it isn't _really_.
+            // This happens on pinch-to-zoom on a Mac trackpad.
+            // egui will treat ctrl+scroll as zoom, so it all works.
+            // However, we explicitly handle it here in order to better match the pinch-to-zoom
+            // speed of a native app, without being sensitive to egui's `scroll_zoom_speed` setting.
+            let pinch_to_zoom_sensitivity = 0.01; // Feels good on a Mac trackpad in 2024
+            let zoom_factor = (pinch_to_zoom_sensitivity * delta.y).exp();
+            runner.input.raw.events.push(egui::Event::Zoom(zoom_factor));
+        } else {
+            runner.input.raw.events.push(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+        }
 
         runner.needs_repaint.repaint_asap();
         event.stop_propagation();
@@ -596,6 +608,14 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
     Ok(())
 }
 
+/// Install a `ResizeObserver` to observe changes to the size of the canvas.
+///
+/// This is the only way to ensure a canvas size change without an associated window `resize` event
+/// actually results in a resize of the canvas.
+///
+/// The resize observer is called the by the browser at `observe` time, instead of just on the first actual resize.
+/// We use that to trigger the first `request_animation_frame` _after_ updating the size of the canvas to the correct dimensions,
+/// to avoid [#4622](https://github.com/emilk/egui/issues/4622).
 pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new({
         let runner_ref = runner_ref.clone();
@@ -616,6 +636,11 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
                 // force an immediate repaint
                 runner_lock.needs_repaint.repaint_asap();
                 paint_if_needed(&mut runner_lock);
+                drop(runner_lock);
+                // we rely on the resize observer to trigger the first `request_animation_frame`:
+                if let Err(err) = runner_ref.request_animation_frame() {
+                    log::error!("{}", super::string_from_js_value(&err));
+                };
             }
         }
     }) as Box<dyn FnMut(js_sys::Array)>);
