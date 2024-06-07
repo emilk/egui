@@ -821,20 +821,17 @@ fn gif_frame_index(ctx: &Context, uri: &str) -> usize {
     let durations: Option<GifFrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
     if let Some(durations) = durations {
         let frames: Duration = durations.0.iter().sum();
-        let pos = now.as_millis() % frames.as_millis().max(1);
-        let mut cumulative_duration = 0;
-        let mut index = 0;
+        let pos_ms = now.as_millis() % frames.as_millis().max(1);
+        let mut cumulative_ms = 0;
         for (i, duration) in durations.0.iter().enumerate() {
-            cumulative_duration += duration.as_millis();
-            if cumulative_duration >= pos {
-                index = i;
-                break;
+            cumulative_ms += duration.as_millis();
+            if pos_ms <= cumulative_duration {
+                let ms_until_next_frame = cumulative_duration - pos_ms;
+                ctx.request_repaint_after(std::time::Duration::from_millis(ms_until_next_frame));
+                return i;
             }
         }
-        if let Some(duration) = durations.0.get(index) {
-            ctx.request_repaint_after(*duration - RENDER_TIME);
-        }
-        index
+        0
     } else {
         0
     }
