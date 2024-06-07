@@ -961,7 +961,7 @@ impl<'a> Plot<'a> {
                     mem.auto_bounds = false.into();
                 }
                 BoundsModification::Translate(delta) => {
-                    bounds.translate(delta);
+                    bounds.translate(delta.to_f64_tuple());
                     mem.auto_bounds = false.into();
                 }
                 BoundsModification::AutoBounds(new_auto_bounds) => {
@@ -1027,12 +1027,13 @@ impl<'a> Plot<'a> {
         // Dragging
         if allow_drag.any() && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
-            let mut delta = -response.drag_delta();
+            use std::ops::Neg;
+            let mut delta = response.drag_delta().neg().to_f64_tuple();
             if !allow_drag.x {
-                delta.x = 0.0;
+                delta.0 = 0.0;
             }
             if !allow_drag.y {
-                delta.y = 0.0;
+                delta.1 = 0.0;
             }
             mem.transform.translate_bounds(delta);
             mem.auto_bounds = mem.auto_bounds.and(!allow_drag);
@@ -1115,15 +1116,16 @@ impl<'a> Plot<'a> {
                 }
             }
             if allow_scroll.any() {
-                let mut scroll_delta = ui.input(|i| i.smooth_scroll_delta);
+                let mut scroll_delta = ui.input(|i| i.smooth_scroll_delta).to_f64_tuple();
                 if !allow_scroll.x {
-                    scroll_delta.x = 0.0;
+                    scroll_delta.0 = 0.0;
                 }
                 if !allow_scroll.y {
-                    scroll_delta.y = 0.0;
+                    scroll_delta.1 = 0.0;
                 }
-                if scroll_delta != Vec2::ZERO {
-                    mem.transform.translate_bounds(-scroll_delta);
+                if scroll_delta != (0.0, 0.0) {
+                    mem.transform
+                        .translate_bounds((-scroll_delta.0, -scroll_delta.1));
                     mem.auto_bounds = false.into();
                 }
             }
