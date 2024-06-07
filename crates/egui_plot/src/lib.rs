@@ -1028,16 +1028,15 @@ impl<'a> Plot<'a> {
         // Dragging
         if allow_drag.any() && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
-            use std::ops::Neg;
-            let delta = response.drag_delta().neg();
-            let mut delta = (delta.x as f64, delta.y as f64);
+            let mut delta = -response.drag_delta();
             if !allow_drag.x {
-                delta.0 = 0.0;
+                delta.x = 0.0;
             }
             if !allow_drag.y {
-                delta.1 = 0.0;
+                delta.y = 0.0;
             }
-            mem.transform.translate_bounds(delta);
+            mem.transform
+                .translate_bounds((delta.x as f64, delta.y as f64));
             mem.auto_bounds = mem.auto_bounds.and(!allow_drag);
         }
 
@@ -1118,17 +1117,16 @@ impl<'a> Plot<'a> {
                 }
             }
             if allow_scroll.any() {
-                let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
-                let mut scroll_delta = (scroll_delta.x as f64, scroll_delta.y as f64);
+                let mut scroll_delta = ui.input(|i| i.smooth_scroll_delta);
                 if !allow_scroll.x {
-                    scroll_delta.0 = 0.0;
+                    scroll_delta.x = 0.0;
                 }
                 if !allow_scroll.y {
-                    scroll_delta.1 = 0.0;
+                    scroll_delta.y = 0.0;
                 }
-                if scroll_delta != (0.0, 0.0) {
+                if scroll_delta != Vec2::ZERO {
                     mem.transform
-                        .translate_bounds((-scroll_delta.0, -scroll_delta.1));
+                        .translate_bounds((-scroll_delta.x as f64, -scroll_delta.y as f64));
                     mem.auto_bounds = false.into();
                 }
             }
