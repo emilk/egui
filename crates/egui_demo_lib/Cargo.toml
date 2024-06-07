@@ -34,7 +34,7 @@ default = []
 chrono = ["egui_extras/datepicker", "dep:chrono"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["egui/serde", "egui_plot/serde", "dep:serde"]
+serde = ["egui/serde", "egui_plot/serde", "dep:serde", "egui_extras/serde"]
 
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["egui_extras/syntect"]
