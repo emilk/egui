@@ -298,12 +298,9 @@ impl<'a> Image<'a> {
 
             ImageSource::Bytes { uri, bytes } if is_gif_uri(uri) || has_gif_magic_header(bytes) => {
                 let frame_uri = encode_gif_uri(uri, gif_frame_index(ctx, uri));
-                ImageSource::Bytes {
-                    uri: Cow::Owned(frame_uri),
-                    bytes: bytes.clone(),
-                }
+                ctx.include_bytes(uri.clone(), bytes.clone());
+                ImageSource::Uri(Cow::Owned(frame_uri))
             }
-
             _ => self.source.clone(),
         }
     }

@@ -53,7 +53,7 @@ pub fn gif_to_sources(data: Bytes) -> Result<AnimatedImage, String> {
         let img = frame.buffer();
         let pixels = img.as_flat_samples();
 
-        let delay: std::time::Duration = frame.delay().into();
+        let delay: Duration = frame.delay().into();
         images.push(Arc::new(ColorImage::from_rgba_unmultiplied(
             [img.width() as usize, img.height() as usize],
             pixels.as_slice(),
@@ -71,11 +71,11 @@ impl ImageLoader for GifLoader {
         Self::ID
     }
 
-    fn load(&self, ctx: &egui::Context, image_uri: &str, _: SizeHint) -> ImageLoadResult {
-        let uri_index = decode_gif_uri(image_uri).map_err(|e| LoadError::Loading(e.to_owned()));
-        let uri = uri_index.as_ref().map(|v| v.0).unwrap_or(image_uri);
+    fn load(&self, ctx: &egui::Context, frame_uri: &str, _: SizeHint) -> ImageLoadResult {
+        let uri_index = decode_gif_uri(frame_uri).map_err(|e| LoadError::Loading(e.to_owned()));
+        let image_uri = uri_index.as_ref().map(|v| v.0).unwrap_or(frame_uri);
         let mut cache = self.cache.lock();
-        if let Some(entry) = cache.get(uri).cloned() {
+        if let Some(entry) = cache.get(image_uri).cloned() {
             let index = uri_index?.1;
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready {
@@ -91,15 +91,16 @@ impl ImageLoader for GifLoader {
                         return Err(LoadError::NotSupported);
                     }
                     let index = uri_index?.1;
-                    log::trace!("started loading {uri:?}");
+                    log::trace!("started loading {image_uri:?}");
                     let result = gif_to_sources(bytes).map(Arc::new);
                     if let Ok(v) = &result {
                         ctx.data_mut(|data| {
-                            *data.get_temp_mut_or_default(Id::new(uri)) = v.frame_durations.clone();
+                            *data.get_temp_mut_or_default(Id::new(image_uri)) =
+                                v.frame_durations.clone();
                         });
                     }
-                    log::trace!("finished loading {uri:?}");
-                    cache.insert(uri.into(), result.clone());
+                    log::trace!("finished loading {image_uri:?}");
+                    cache.insert(image_uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready {
                             image: image.get_image(index),
