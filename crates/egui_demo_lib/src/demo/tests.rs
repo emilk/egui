@@ -630,6 +630,7 @@ impl super::View for PopupsTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         use egui::*;
 
+        ui.label("PopupCloseBehavior::CloseOnClickAway example");
         let button_response = ui.button("Open a popup");
         let popup_id = Id::new("test_popup_1_id");
 
@@ -648,6 +649,7 @@ impl super::View for PopupsTest {
             },
         );
 
+        ui.label("PopupCloseBehavior::CloseOnClick example");
         ComboBox::from_label("ComboBox")
             .selected_text(format!("{}", self.selected))
             .show_ui(ui, |ui| {
