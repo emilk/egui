@@ -452,13 +452,7 @@ impl<'a> Widget for DragValue<'a> {
 
         let value_text = match custom_formatter {
             Some(custom_formatter) => custom_formatter(value, auto_decimals..=max_decimals),
-            None => {
-                if value == 0.0 {
-                    "0".to_owned()
-                } else {
-                    emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals)
-                }
-            }
+            None => emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals),
         };
 
         let text_style = ui.style().drag_value_text_style.clone();
