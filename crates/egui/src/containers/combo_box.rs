@@ -380,6 +380,7 @@ fn combo_box_dyn<'c, R>(
         popup_id,
         &button_response,
         above_or_below,
+        PopupCloseBehavior::CloseOnClick,
         |ui| {
             ScrollArea::vertical()
                 .max_height(height)

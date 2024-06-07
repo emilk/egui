@@ -113,6 +113,7 @@ impl Default for Tests {
             Box::<super::layout_test::LayoutTest>::default(),
             Box::<super::tests::ManualLayoutTest>::default(),
             Box::<super::tests::TableTest>::default(),
+            Box::<super::tests::PopupsTest>::default(),
         ])
     }
 }

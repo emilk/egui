@@ -253,11 +253,24 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
     })
 }
 
+/// Determines popup's close behavior
+#[derive(Clone, Copy)]
+pub enum PopupCloseBehavior {
+    /// Popup will be closed on click
+    /// It is used in the [`ComboBox`]
+    CloseOnClick,
+
+    /// Popup will be closed if the click happened somewhere else
+    /// but in the popup's body
+    CloseOnClickAway,
+}
+
 /// Helper for [`popup_above_or_below_widget`].
 pub fn popup_below_widget<R>(
     ui: &Ui,
     popup_id: Id,
     widget_response: &Response,
+    close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     popup_above_or_below_widget(
@@ -265,6 +278,7 @@ pub fn popup_below_widget<R>(
         popup_id,
         widget_response,
         AboveOrBelow::Below,
+        close_behavior,
         add_contents,
     )
 }
@@ -299,6 +313,7 @@ pub fn popup_above_or_below_widget<R>(
     popup_id: Id,
     widget_response: &Response,
     above_or_below: AboveOrBelow,
+    close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     if parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
@@ -311,7 +326,7 @@ pub fn popup_above_or_below_widget<R>(
         let frame_margin = frame.total_margin();
         let inner_width = widget_response.rect.width() - frame_margin.sum().x;
 
-        let inner = Area::new(popup_id)
+        let response = Area::new(popup_id)
             .kind(UiKind::Popup)
             .order(Order::Foreground)
             .fixed_pos(pos)
@@ -327,13 +342,19 @@ pub fn popup_above_or_below_widget<R>(
                         .inner
                     })
                     .inner
-            })
-            .inner;
+            });
 
-        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || widget_response.clicked_elsewhere() {
+        let is_close = match close_behavior {
+            PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
+            PopupCloseBehavior::CloseOnClickAway => {
+                widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
+            }
+        };
+
+        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || is_close {
             parent_ui.memory_mut(|mem| mem.close_popup());
         }
-        Some(inner)
+        Some(response.inner)
     } else {
         None
     }

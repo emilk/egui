@@ -1,3 +1,5 @@
+use crate::demo::View;
+
 #[derive(Default)]
 pub struct CursorTest {}
 
@@ -600,4 +602,58 @@ fn lorem_ipsum(ui: &mut egui::Ui, text: &str) {
             ui.label(egui::RichText::new(text).weak());
         },
     );
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Default)]
+pub struct PopupsTest {
+    is_checked: bool,
+    selected: u8,
+}
+
+impl super::Demo for PopupsTest {
+    fn name(&self) -> &'static str {
+        "Popups test"
+    }
+
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        use egui::*;
+
+        Window::new("Popups test")
+            .open(open)
+            .show(ctx, |ui| self.ui(ui));
+    }
+}
+
+impl super::View for PopupsTest {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        use egui::*;
+
+        let button_response = ui.button("Open a popup");
+        let popup_id = Id::new("test_popup_1_id");
+
+        if button_response.clicked() {
+            ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+        }
+
+        popup::popup_below_widget(
+            ui,
+            popup_id,
+            &button_response,
+            PopupCloseBehavior::CloseOnClickAway,
+            |ui| {
+                ui.label("Some text");
+                ui.checkbox(&mut self.is_checked, "A checkbox");
+            },
+        );
+
+        ComboBox::from_label("ComboBox")
+            .selected_text(format!("{}", self.selected))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut self.selected, 1, "1");
+                ui.selectable_value(&mut self.selected, 2, "2");
+                ui.selectable_value(&mut self.selected, 3, "3");
+            });
+    }
 }
