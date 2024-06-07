@@ -1,5 +1,3 @@
-use crate::demo::View;
-
 #[derive(Default)]
 pub struct CursorTest {}
 
@@ -620,9 +618,10 @@ impl super::Demo for PopupsTest {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use egui::*;
 
-        Window::new("Popups test")
-            .open(open)
-            .show(ctx, |ui| self.ui(ui));
+        Window::new("Popups test").open(open).show(ctx, |ui| {
+            use super::View as _;
+            self.ui(ui);
+        });
     }
 }
 
