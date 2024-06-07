@@ -8,8 +8,6 @@ use crate::{
     *,
 };
 
-const RENDER_TIME: Duration = Duration::from_millis(6);
-
 /// A widget which displays an image.
 ///
 /// The task of actually loading the image is deferred to when the `Image` is added to the [`Ui`],
@@ -790,7 +788,7 @@ pub fn paint_texture_at(
 
 /// gif uris contain the uri & the frame that will be displayed
 fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
-    format!("{uri}-{frame_index}")
+    format!("{uri}#{frame_index}")
 }
 
 /// extracts uri and frame index
@@ -798,15 +796,15 @@ fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
 /// Will return `Err` if `uri` does not match pattern {uri}-{frame_index}
 pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), &'static str> {
     let (uri, index) = uri
-        .rsplit_once('-')
-        .ok_or("Failed to find index seperator '-'")?;
+        .rsplit_once('#')
+        .ok_or("Failed to find index seperator '#'")?;
     let index: usize = index.parse().map_err(|_err| "Failed to parse index")?;
     Ok((uri, index))
 }
 
 /// checks if uri is a gif file or starts with gif://
 fn is_gif_uri(uri: &str) -> bool {
-    uri.ends_with(".gif") || uri.starts_with("gif://")
+    uri.ends_with(".gif")
 }
 
 /// checks if bytes are gifs
@@ -825,9 +823,9 @@ fn gif_frame_index(ctx: &Context, uri: &str) -> usize {
         let mut cumulative_ms = 0;
         for (i, duration) in durations.0.iter().enumerate() {
             cumulative_ms += duration.as_millis();
-            if pos_ms <= cumulative_duration {
-                let ms_until_next_frame = cumulative_duration - pos_ms;
-                ctx.request_repaint_after(std::time::Duration::from_millis(ms_until_next_frame));
+            if pos_ms <= cumulative_ms {
+                let ms_until_next_frame = cumulative_ms - pos_ms;
+                ctx.request_repaint_after(Duration::from_millis(ms_until_next_frame as u64));
                 return i;
             }
         }

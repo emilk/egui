@@ -71,9 +71,9 @@ impl ImageLoader for GifLoader {
         Self::ID
     }
 
-    fn load(&self, ctx: &egui::Context, uri_data: &str, _: SizeHint) -> ImageLoadResult {
-        let uri_index = decode_gif_uri(uri_data).map_err(|e| LoadError::Loading(e.to_owned()));
-        let uri = uri_index.as_ref().map(|v| v.0).unwrap_or(uri_data);
+    fn load(&self, ctx: &egui::Context, image_uri: &str, _: SizeHint) -> ImageLoadResult {
+        let uri_index = decode_gif_uri(image_uri).map_err(|e| LoadError::Loading(e.to_owned()));
+        let uri = uri_index.as_ref().map(|v| v.0).unwrap_or(image_uri);
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
             let index = uri_index?.1;
@@ -84,7 +84,7 @@ impl ImageLoader for GifLoader {
                 Err(err) => Err(LoadError::Loading(err)),
             }
         } else {
-            match ctx.try_load_bytes(uri_data) {
+            match ctx.try_load_bytes(image_uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     let is_gif = bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a");
                     if !is_gif {

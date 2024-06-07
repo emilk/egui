@@ -50,7 +50,7 @@ impl BytesLoader for FileLoader {
         };
 
         #[cfg(feature = "gif")]
-        let uri = match uri.rsplit_once('-').map(|v| v.0) {
+        let uri = match uri.rsplit_once('#').map(|v| v.0) {
             Some(base_uri) => match base_uri.ends_with(".gif") {
                 true => base_uri,
                 false => uri,
