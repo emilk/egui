@@ -138,10 +138,6 @@ impl Vec2 {
         Self { x, y }
     }
 
-    pub const fn to_f64_tuple(self) -> (f64, f64) {
-        (self.x as f64, self.y as f64)
-    }
-
     /// Set both `x` and `y` to the same value.
     #[inline(always)]
     pub const fn splat(v: f32) -> Self {

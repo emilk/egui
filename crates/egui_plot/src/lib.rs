@@ -961,7 +961,8 @@ impl<'a> Plot<'a> {
                     mem.auto_bounds = false.into();
                 }
                 BoundsModification::Translate(delta) => {
-                    bounds.translate(delta.to_f64_tuple());
+                    let delta = (delta.x as f64, delta.y as f64);
+                    bounds.translate(delta);
                     mem.auto_bounds = false.into();
                 }
                 BoundsModification::AutoBounds(new_auto_bounds) => {
@@ -1028,7 +1029,8 @@ impl<'a> Plot<'a> {
         if allow_drag.any() && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
             use std::ops::Neg;
-            let mut delta = response.drag_delta().neg().to_f64_tuple();
+            let delta = response.drag_delta().neg();
+            let mut delta = (delta.x as f64, delta.y as f64);
             if !allow_drag.x {
                 delta.0 = 0.0;
             }
@@ -1116,7 +1118,8 @@ impl<'a> Plot<'a> {
                 }
             }
             if allow_scroll.any() {
-                let mut scroll_delta = ui.input(|i| i.smooth_scroll_delta).to_f64_tuple();
+                let scroll_delta = ui.input(|i| i.smooth_scroll_delta);
+                let mut scroll_delta = (scroll_delta.x as f64, scroll_delta.y as f64);
                 if !allow_scroll.x {
                     scroll_delta.0 = 0.0;
                 }
