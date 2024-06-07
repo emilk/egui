@@ -328,8 +328,8 @@ impl PlotTransform {
         if self.y_centered {
             delta_pos.1 = 0.;
         }
-        delta_pos.1 *= self.dvalue_dpos()[0];
-        delta_pos.0 *= self.dvalue_dpos()[1];
+        delta_pos.0 *= self.dvalue_dpos()[0];
+        delta_pos.1 *= self.dvalue_dpos()[1];
         self.bounds.translate((delta_pos.0, delta_pos.1));
     }
 
