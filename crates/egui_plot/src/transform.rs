@@ -253,6 +253,8 @@ pub struct PlotTransform {
 
 impl PlotTransform {
     pub fn new(frame: Rect, bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
+        // Since the current Y bounds an affect the final X bounds and vice versa, we need to keep
+        // the original version of the `bounds` before we start modifying it.
         let mut new_bounds = bounds;
 
         // Sanitize bounds.
