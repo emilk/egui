@@ -63,7 +63,7 @@ impl super::View for Tooltips {
             });
         };
         let disabled_tooltip_ui = |ui: &mut egui::Ui| {
-            ui.label("A fifferent tooltip when widget is disabled.");
+            ui.label("A different tooltip when widget is disabled.");
             ui.horizontal(|ui| {
                 ui.label("This tooltip was created with");
                 ui.code(".on_disabled_hover_ui(…)");
