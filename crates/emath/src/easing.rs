@@ -26,6 +26,14 @@ pub fn quadratic_in(t: f32) -> f32 {
     t * t
 }
 
+/// Inverse of `quadratic_in`.
+///
+/// This is not the same as `1.0 - quadratic_in(t)`.
+#[inline]
+pub fn quadratic_in_inverse(y: f32) -> f32 {
+    y.sqrt()
+}
+
 /// <https://easings.net/#easeOutQuad>
 ///
 /// Same as `1.0 - quadratic_in(1.0 - t)`.
