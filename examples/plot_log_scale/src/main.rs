@@ -144,8 +144,8 @@ fn log_axis_formatter(gm: GridMark, max_size: usize, _bounds: &RangeInclusive<f6
     let size = digits + min_precision + 1;
     let value = 10.0f64.powf(gm.value);
     if size < max_size {
-        let precision = max_size.saturating_sub(digits + 1);
-        format!("{value:.precision$}")
+        let precision = max_size.saturating_sub(digits + 1).max(1);
+        egui::emath::format_with_decimals_in_range(value, 1..=precision)
     } else {
         let exp_digits = (digits as f64).log10() as usize;
         let precision = max_size.saturating_sub(exp_digits).saturating_sub(3);
