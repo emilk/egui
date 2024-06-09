@@ -828,34 +828,28 @@ impl State {
             self.clipboard.set(copied_text);
         }
 
-        let allow_ime = ime.is_some();
-        if self.allow_ime != allow_ime {
-            self.allow_ime = allow_ime;
-            crate::profile_scope!("set_ime_allowed");
-            window.set_ime_allowed(allow_ime);
-        }
-
         if let Some(ime) = ime {
+            if self.allow_ime != ime.allowed_ime {
+                self.allow_ime = ime.allowed_ime;
+                crate::profile_scope!("set_ime_allowed");
+                self.egui_ctx
+                    .send_viewport_cmd(ViewportCommand::IMEAllowed(self.allow_ime));
+            }
+
             let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = pixels_per_point * ime.rect;
-            if self.ime_rect_px != Some(ime_rect_px)
-                || self.egui_ctx.input(|i| !i.events.is_empty())
-            {
+            let ime_rect_px = ime.cursor_rect * pixels_per_point;
+
+            let is_need_cursor_area = self.ime_rect_px != Some(ime_rect_px)
+                && self.egui_ctx.input(|i| !i.events.is_empty());
+
+            if ime.visible && is_need_cursor_area {
                 self.ime_rect_px = Some(ime_rect_px);
                 crate::profile_scope!("set_ime_cursor_area");
-                window.set_ime_cursor_area(
-                    winit::dpi::PhysicalPosition {
-                        x: ime_rect_px.min.x,
-                        y: ime_rect_px.min.y,
-                    },
-                    winit::dpi::PhysicalSize {
-                        width: ime_rect_px.width(),
-                        height: ime_rect_px.height(),
-                    },
-                );
+                self.egui_ctx
+                    .send_viewport_cmd(ViewportCommand::IMERect(ime.cursor_rect));
+            } else {
+                self.ime_rect_px = None;
             }
-        } else {
-            self.ime_rect_px = None;
         }
 
         #[cfg(feature = "accesskit")]
@@ -1441,14 +1435,18 @@ fn process_viewport_command(
             let winit_icon = icon.and_then(|icon| to_winit_icon(&icon));
             window.set_window_icon(winit_icon);
         }
-        ViewportCommand::IMERect(rect) => {
+        ViewportCommand::IMERect(ime_rect) => {
+            let ime_rect_px = ime_rect * pixels_per_point;
             window.set_ime_cursor_area(
-                PhysicalPosition::new(pixels_per_point * rect.min.x, pixels_per_point * rect.min.y),
-                PhysicalSize::new(
-                    pixels_per_point * rect.size().x,
-                    pixels_per_point * rect.size().y,
-                ),
+                PhysicalPosition::new(ime_rect_px.min.x, ime_rect_px.min.y),
+                PhysicalSize::new(ime_rect_px.width(), ime_rect_px.height()),
             );
+
+            egui_ctx.output_mut(|o| {
+                if let Some(ime) = &mut o.ime {
+                    ime.cursor_rect = ime_rect;
+                }
+            });
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
         ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(match p {
