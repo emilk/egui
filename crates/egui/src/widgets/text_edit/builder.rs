@@ -732,8 +732,8 @@ impl<'t> TextEdit<'t> {
                             let mut ime_cursor_rect = primary_cursor_rect;
                             ime_cursor_rect.max.x += primary_cursor_rect.height();
                             o.ime = Some(crate::output::IMEOutput {
-                                visible: true,
-                                allowed_ime: true,
+                                visible: ui.visuals().text_cursor.ime_visible,
+                                allowed_ime: ui.visuals().text_cursor.ime_allowed,
                                 rect: transform * rect,
                                 cursor_rect: transform * ime_cursor_rect,
                             });
