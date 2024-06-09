@@ -2022,7 +2022,7 @@ impl TextCursorStyle {
             });
         }
 
-        ui.checkbox(ime_allowed, "Whether the IME is allowed.");
+        ui.checkbox(ime_allowed, "Whether the IME is allowed");
 
         ui.checkbox(ime_visible, "Whether the IME should be visible");
     }
