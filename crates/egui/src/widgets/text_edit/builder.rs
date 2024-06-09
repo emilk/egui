@@ -729,9 +729,13 @@ impl<'t> TextEdit<'t> {
                             .unwrap_or_default();
 
                         ui.ctx().output_mut(|o| {
+                            let mut ime_cursor_rect = primary_cursor_rect;
+                            ime_cursor_rect.max.x += primary_cursor_rect.height();
                             o.ime = Some(crate::output::IMEOutput {
+                                visible: true,
+                                allowed_ime: true,
                                 rect: transform * rect,
-                                cursor_rect: transform * primary_cursor_rect,
+                                cursor_rect: transform * ime_cursor_rect,
                             });
                         });
                     }
