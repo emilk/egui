@@ -15,8 +15,8 @@ use winit::{
     window::{Window, WindowId},
 };
 
+use ahash::{HashMap, HashSet, HashSetExt};
 use egui::{
-    ahash::{HashMap, HashSet, HashSetExt},
     DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder, ViewportClass,
     ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
 };
@@ -176,7 +176,7 @@ impl WgpuWinitApp {
         storage: Option<Box<dyn Storage>>,
         window: Window,
         builder: ViewportBuilder,
-    ) -> Result<&mut WgpuWinitRunning, egui_wgpu::WgpuError> {
+    ) -> crate::Result<&mut WgpuWinitRunning> {
         crate::profile_function!();
 
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
@@ -266,7 +266,7 @@ impl WgpuWinitApp {
         };
         let app = {
             crate::profile_scope!("user_app_creator");
-            app_creator(&cc)
+            app_creator(&cc).map_err(crate::Error::AppCreation)?
         };
 
         let mut viewport_from_window = HashMap::default();
@@ -400,13 +400,17 @@ impl WinitApp for WgpuWinitApp {
                     self.recreate_window(event_loop, running);
                     running
                 } else {
-                    let storage = epi_integration::create_storage(
-                        self.native_options
-                            .viewport
-                            .app_id
-                            .as_ref()
-                            .unwrap_or(&self.app_name),
-                    );
+                    let storage = if let Some(file) = &self.native_options.persistence_path {
+                        epi_integration::create_storage_with_file(file)
+                    } else {
+                        epi_integration::create_storage(
+                            self.native_options
+                                .viewport
+                                .app_id
+                                .as_ref()
+                                .unwrap_or(&self.app_name),
+                        )
+                    };
                     let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
                     let (window, builder) = create_window(
                         &egui_ctx,

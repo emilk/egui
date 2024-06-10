@@ -74,6 +74,10 @@ pub struct LayoutJob {
 
     /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
+
+    /// Rounding to the closest ui point (not pixel!) allows the rest of the
+    /// layout code to run on perfect integers, avoiding rounding errors.
+    pub round_output_size_to_nearest_ui_point: bool,
 }
 
 impl Default for LayoutJob {
@@ -87,6 +91,7 @@ impl Default for LayoutJob {
             break_on_newline: true,
             halign: Align::LEFT,
             justify: false,
+            round_output_size_to_nearest_ui_point: true,
         }
     }
 }
@@ -180,6 +185,7 @@ impl std::hash::Hash for LayoutJob {
             break_on_newline,
             halign,
             justify,
+            round_output_size_to_nearest_ui_point,
         } = self;
 
         text.hash(state);
@@ -189,6 +195,7 @@ impl std::hash::Hash for LayoutJob {
         break_on_newline.hash(state);
         halign.hash(state);
         justify.hash(state);
+        round_output_size_to_nearest_ui_point.hash(state);
     }
 }
 
@@ -319,6 +326,24 @@ impl TextFormat {
 
 // ----------------------------------------------------------------------------
 
+/// How to wrap and elide text.
+///
+/// This enum is used in high-level APIs where providing a [`TextWrapping`] is too verbose.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum TextWrapMode {
+    /// The text should expand the `Ui` size when reaching its boundary.
+    Extend,
+
+    /// The text should wrap to the next line when reaching the `Ui` boundary.
+    Wrap,
+
+    /// The text should be elided using "…" when reaching the `Ui` boundary.
+    ///
+    /// Note that using [`TextWrapping`] and [`LayoutJob`] offers more control over the elision.
+    Truncate,
+}
+
 /// Controls the text wrapping and elision of a [`LayoutJob`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -335,7 +360,7 @@ pub struct TextWrapping {
 
     /// Maximum amount of rows the text galley should have.
     ///
-    /// If this limit is reached, text will be truncated and
+    /// If this limit is reached, text will be truncated
     /// and [`Self::overflow_character`] appended to the final row.
     /// You can detect this by checking [`Galley::elided`].
     ///
@@ -394,10 +419,27 @@ impl Default for TextWrapping {
 }
 
 impl TextWrapping {
+    /// Create a [`TextWrapping`] from a [`TextWrapMode`] and an available width.
+    pub fn from_wrap_mode_and_width(mode: TextWrapMode, max_width: f32) -> Self {
+        match mode {
+            TextWrapMode::Extend => Self::no_max_width(),
+            TextWrapMode::Wrap => Self::wrap_at_width(max_width),
+            TextWrapMode::Truncate => Self::truncate_at_width(max_width),
+        }
+    }
+
     /// A row can be as long as it need to be.
     pub fn no_max_width() -> Self {
         Self {
             max_width: f32::INFINITY,
+            ..Default::default()
+        }
+    }
+
+    /// A row can be at most `max_width` wide but can wrap in any number of lines.
+    pub fn wrap_at_width(max_width: f32) -> Self {
+        Self {
+            max_width,
             ..Default::default()
         }
     }
@@ -890,7 +932,7 @@ impl Galley {
                 pcursor_it.offset += row.char_count_including_newline();
             }
         }
-        crate::epaint_assert!(ccursor_it == self.end().ccursor);
+        debug_assert!(ccursor_it == self.end().ccursor);
         Cursor {
             ccursor: ccursor_it, // clamp
             rcursor: self.end_rcursor(),

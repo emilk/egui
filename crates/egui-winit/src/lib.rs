@@ -14,9 +14,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{
-    ahash::HashSet, Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo,
-};
+use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
 pub mod clipboard;
@@ -24,6 +22,7 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
+use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
 #[allow(unused_imports)]
@@ -31,6 +30,7 @@ pub(crate) use profiling_scopes::*;
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
+    event::ElementState,
     event_loop::ActiveEventLoop,
     window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
 };
@@ -342,20 +342,12 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                        self.has_sent_ime_enabled = true;
+                    winit::event::Ime::Enabled => {}
+                    winit::event::Ime::Preedit(_, None) => {
+                        self.ime_event_enable();
                     }
-                    winit::event::Ime::Preedit(_, None) => {}
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                        if !self.has_sent_ime_enabled {
-                            self.egui_input
-                                .events
-                                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
-                            self.has_sent_ime_enabled = true;
-                        }
+                        self.ime_event_enable();
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
@@ -364,16 +356,10 @@ impl State {
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enabled = false;
+                        self.ime_event_disable();
                     }
                     winit::event::Ime::Disabled => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
-                        self.has_sent_ime_enabled = false;
+                        self.ime_event_disable();
                     }
                 };
 
@@ -382,16 +368,31 @@ impl State {
                     consumed: self.egui_ctx.wants_keyboard_input(),
                 }
             }
-            WindowEvent::KeyboardInput { event, .. } => {
-                self.on_keyboard_input(event);
+            WindowEvent::KeyboardInput {
+                event,
+                is_synthetic,
+                ..
+            } => {
+                // Winit generates fake "synthetic" KeyboardInput events when the focus
+                // is changed to the window, or away from it. Synthetic key presses
+                // represent no real key presses and should be ignored.
+                // See https://github.com/rust-windowing/winit/issues/3543
+                if *is_synthetic && event.state == ElementState::Pressed {
+                    EventResponse {
+                        repaint: true,
+                        consumed: false,
+                    }
+                } else {
+                    self.on_keyboard_input(event);
 
-                // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                let consumed = self.egui_ctx.wants_keyboard_input()
-                    || event.logical_key
-                        == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
-                EventResponse {
-                    repaint: true,
-                    consumed,
+                    // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
+                    let consumed = self.egui_ctx.wants_keyboard_input()
+                        || event.logical_key
+                            == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
+                    EventResponse {
+                        repaint: true,
+                        consumed,
+                    }
                 }
             }
             WindowEvent::Focused(focused) => {
@@ -491,6 +492,22 @@ impl State {
                 }
             }
         }
+    }
+
+    pub fn ime_event_enable(&mut self) {
+        if !self.has_sent_ime_enabled {
+            self.egui_input
+                .events
+                .push(egui::Event::Ime(egui::ImeEvent::Enabled));
+            self.has_sent_ime_enabled = true;
+        }
+    }
+
+    pub fn ime_event_disable(&mut self) {
+        self.egui_input
+            .events
+            .push(egui::Event::Ime(egui::ImeEvent::Disabled));
+        self.has_sent_ime_enabled = false;
     }
 
     pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
@@ -677,29 +694,6 @@ impl State {
                 modifiers,
             });
         }
-        let delta = match delta {
-            winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
-                egui::vec2(x, y) * points_per_scroll_line
-            }
-            winit::event::MouseScrollDelta::PixelDelta(delta) => {
-                egui::vec2(delta.x as f32, delta.y as f32) / pixels_per_point
-            }
-        };
-
-        if self.egui_input.modifiers.ctrl || self.egui_input.modifiers.command {
-            // Treat as zoom instead:
-            let factor = (delta.y / 200.0).exp();
-            self.egui_input.events.push(egui::Event::Zoom(factor));
-        } else if self.egui_input.modifiers.shift {
-            // Treat as horizontal scrolling.
-            // Note: one Mac we already get horizontal scroll events when shift is down.
-            self.egui_input
-                .events
-                .push(egui::Event::Scroll(egui::vec2(delta.x + delta.y, 0.0)));
-        } else {
-            self.egui_input.events.push(egui::Event::Scroll(delta));
-        }
     }
 
     fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) {
@@ -747,15 +741,19 @@ impl State {
             physical_key
         );
 
-        if let Some(logical_key) = logical_key {
+        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
+        // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
+        // are mapped to the physical keys that normally contain C, X, V, etc.
+        // See also: https://github.com/emilk/egui/issues/3653
+        if let Some(active_key) = logical_key.or(physical_key) {
             if pressed {
-                if is_cut_command(self.egui_input.modifiers, logical_key) {
+                if is_cut_command(self.egui_input.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return;
-                } else if is_copy_command(self.egui_input.modifiers, logical_key) {
+                } else if is_copy_command(self.egui_input.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Copy);
                     return;
-                } else if is_paste_command(self.egui_input.modifiers, logical_key) {
+                } else if is_paste_command(self.egui_input.modifiers, active_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
                         if !contents.is_empty() {
@@ -767,7 +765,7 @@ impl State {
             }
 
             self.egui_input.events.push(egui::Event::Key {
-                key: logical_key,
+                key: active_key,
                 physical_key,
                 pressed,
                 repeat: false, // egui will fill this in for us!

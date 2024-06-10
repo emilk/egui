@@ -1,5 +1,6 @@
 //! Common tools used by [`super::glow_integration`] and [`super::wgpu_integration`].
 
+use std::path::PathBuf;
 use web_time::Instant;
 use winit::event_loop::ActiveEventLoop;
 
@@ -20,10 +21,9 @@ pub fn viewport_builder(
 
     let mut viewport_builder = native_options.viewport.clone();
 
-    let clamp_size_to_monitor_size = viewport_builder.clamp_size_to_monitor_size.unwrap_or(
-        // On some Linux systems, a window size larger than the monitor causes crashes
-        cfg!(target_os = "linux"),
-    );
+    // On some Linux systems, a window size larger than the monitor causes crashes,
+    // and on Windows the window does not appear at all.
+    let clamp_size_to_monitor_size = viewport_builder.clamp_size_to_monitor_size.unwrap_or(true);
 
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
@@ -39,7 +39,11 @@ pub fn viewport_builder(
         }
         window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
-        viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
+        viewport_builder = window_settings.initialize_viewport_builder(
+            egui_zoom_factor,
+            event_loop,
+            viewport_builder,
+        );
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = viewport_builder.position {
@@ -123,6 +127,16 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     if let Some(storage) = super::file_storage::FileStorage::from_app_id(_app_name) {
         return Some(Box::new(storage));
     }
+    None
+}
+
+#[allow(clippy::unnecessary_wraps)]
+pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
+    #[cfg(feature = "persistence")]
+    return Some(Box::new(
+        super::file_storage::FileStorage::from_ron_filepath(_file),
+    ));
+    #[cfg(not(feature = "persistence"))]
     None
 }
 

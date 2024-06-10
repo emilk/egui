@@ -17,6 +17,10 @@
 
 use crate::*;
 
+fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
+    ctx.animate_bool_responsive(id, is_expanded)
+}
+
 /// State regarding panels.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -257,14 +261,20 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        let mut panel_ui = ui.child_ui_with_id_source(
+            panel_rect,
+            Layout::top_down(Align::Min),
+            id,
+            Some(UiStackInfo::new(match side {
+                Side::Left => UiKind::LeftPanel,
+                Side::Right => UiKind::RightPanel,
+            })),
+        );
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
-            ui.set_min_width(
-                width_range.min - (frame.inner_margin.left + frame.inner_margin.right),
-            );
+            ui.set_min_width((width_range.min - frame.inner_margin.sum().x).at_least(0.0));
             add_contents(ui)
         });
 
@@ -350,7 +360,14 @@ impl SidePanel {
         let side = self.side;
         let available_rect = ctx.available_rect();
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            layer_id,
+            self.id,
+            available_rect,
+            clip_rect,
+            UiStackInfo::default(),
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -374,7 +391,7 @@ impl SidePanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -407,9 +424,7 @@ impl SidePanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -442,7 +457,7 @@ impl SidePanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -474,9 +489,8 @@ impl SidePanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -725,14 +739,20 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(panel_rect, Layout::top_down(Align::Min), id);
+        let mut panel_ui = ui.child_ui_with_id_source(
+            panel_rect,
+            Layout::top_down(Align::Min),
+            id,
+            Some(UiStackInfo::new(match side {
+                TopBottomSide::Top => UiKind::TopPanel,
+                TopBottomSide::Bottom => UiKind::BottomPanel,
+            })),
+        );
         panel_ui.expand_to_include_rect(panel_rect);
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
-            ui.set_min_height(
-                height_range.min - (frame.inner_margin.top + frame.inner_margin.bottom),
-            );
+            ui.set_min_height((height_range.min - frame.inner_margin.sum().y).at_least(0.0));
             add_contents(ui)
         });
 
@@ -820,7 +840,14 @@ impl TopBottomPanel {
         let side = self.side;
 
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            layer_id,
+            self.id,
+            available_rect,
+            clip_rect,
+            UiStackInfo::default(), // set by show_inside_dyn
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -849,7 +876,7 @@ impl TopBottomPanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -884,9 +911,7 @@ impl TopBottomPanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ui.ctx(), self.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             None
@@ -921,7 +946,7 @@ impl TopBottomPanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -959,9 +984,8 @@ impl TopBottomPanel {
         expanded_panel: Self,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            animate_expansion(ui.ctx(), expanded_panel.id.with("animation"), is_expanded);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -1049,7 +1073,11 @@ impl CentralPanel {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let mut panel_ui = ui.child_ui(panel_rect, Layout::top_down(Align::Min));
+        let mut panel_ui = ui.child_ui(
+            panel_rect,
+            Layout::top_down(Align::Min),
+            Some(UiStackInfo::new(UiKind::CentralPanel)),
+        );
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame.show(&mut panel_ui, |ui| {
@@ -1078,7 +1106,14 @@ impl CentralPanel {
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let clip_rect = ctx.screen_rect();
-        let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
+        let mut panel_ui = Ui::new(
+            ctx.clone(),
+            layer_id,
+            id,
+            available_rect,
+            clip_rect,
+            UiStackInfo::default(), // set by show_inside_dyn
+        );
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 

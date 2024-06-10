@@ -342,7 +342,7 @@ impl Gradient {
             (0..=n)
                 .map(|i| {
                     let t = i as f32 / n as f32;
-                    lerp_color_gamma(left, right, t)
+                    left.lerp_to_gamma(right, t)
                 })
                 .collect(),
         )
@@ -398,12 +398,27 @@ impl TextureManager {
 /// Requires eyes and a magnifying glass to verify.
 pub fn pixel_test(ui: &mut Ui) {
     ui.heading("Pixel alignment test");
+    ui.label("If anything is blurry, then everything will be blurry, including text.");
+    ui.label("You might need a magnifying glass to check this test.");
+
+    if cfg!(target_arch = "wasm32") {
+        ui.label("Make sure these test pass even when you zoom in/out and resize the browser.");
+    }
+
+    ui.add_space(4.0);
+
+    pixel_test_lines(ui);
+
+    ui.add_space(4.0);
+
+    pixel_test_squares(ui);
+}
+
+fn pixel_test_squares(ui: &mut Ui) {
     ui.label("The first square should be exactly one physical pixel big.");
     ui.label("They should be exactly one physical pixel apart.");
     ui.label("Each subsequent square should be one physical pixel larger than the previous.");
     ui.label("They should be perfectly aligned to the physical pixel grid.");
-    ui.label("If these squares are blurry, everything will be blurry, including text.");
-    ui.label("You might need a magnifying glass to check this test.");
 
     let color = if ui.style().visuals.dark_mode {
         egui::Color32::WHITE
@@ -412,6 +427,7 @@ pub fn pixel_test(ui: &mut Ui) {
     };
 
     let pixels_per_point = ui.ctx().pixels_per_point();
+
     let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
     let size_pixels = vec2(
         ((num_squares + 1) * (num_squares + 2) / 2) as f32,
@@ -427,14 +443,55 @@ pub fn pixel_test(ui: &mut Ui) {
     .ceil();
     for size in 1..=num_squares {
         let rect_points = Rect::from_min_size(
-            Pos2::new(
-                cursor_pixel.x / pixels_per_point,
-                cursor_pixel.y / pixels_per_point,
-            ),
-            Vec2::splat(size as f32) / pixels_per_point,
+            Pos2::new(cursor_pixel.x, cursor_pixel.y),
+            Vec2::splat(size as f32),
         );
-        painter.rect_filled(rect_points, 0.0, color);
+        painter.rect_filled(rect_points / pixels_per_point, 0.0, color);
         cursor_pixel.x += (1 + size) as f32;
+    }
+}
+
+fn pixel_test_lines(ui: &mut Ui) {
+    let pixels_per_point = ui.ctx().pixels_per_point();
+    let n = (96.0 * pixels_per_point) as usize;
+
+    ui.label("The lines should be exactly one physical pixel wide, one physical pixel apart.");
+    ui.label("They should be perfectly white and black.");
+
+    let hspace_px = pixels_per_point * 4.0;
+
+    let size_px = Vec2::new(2.0 * n as f32 + hspace_px, n as f32);
+    let size_points = size_px / pixels_per_point + Vec2::splat(2.0);
+    let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
+
+    let mut cursor_px = Pos2::new(
+        response.rect.min.x * pixels_per_point,
+        response.rect.min.y * pixels_per_point,
+    )
+    .ceil();
+
+    // Vertical stripes:
+    for x in 0..n / 2 {
+        let rect_px = Rect::from_min_size(
+            Pos2::new(cursor_px.x + 2.0 * x as f32, cursor_px.y),
+            Vec2::new(1.0, n as f32),
+        );
+        painter.rect_filled(rect_px / pixels_per_point, 0.0, egui::Color32::WHITE);
+        let rect_px = rect_px.translate(vec2(1.0, 0.0));
+        painter.rect_filled(rect_px / pixels_per_point, 0.0, egui::Color32::BLACK);
+    }
+
+    cursor_px.x += n as f32 + hspace_px;
+
+    // Horizontal stripes:
+    for y in 0..n / 2 {
+        let rect_px = Rect::from_min_size(
+            Pos2::new(cursor_px.x, cursor_px.y + 2.0 * y as f32),
+            Vec2::new(n as f32, 1.0),
+        );
+        painter.rect_filled(rect_px / pixels_per_point, 0.0, egui::Color32::WHITE);
+        let rect_px = rect_px.translate(vec2(0.0, 1.0));
+        painter.rect_filled(rect_px / pixels_per_point, 0.0, egui::Color32::BLACK);
     }
 }
 
@@ -575,14 +632,5 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
         (left.g() as f32 * right.g() as f32 / 255.0).round() as u8,
         (left.b() as f32 * right.b() as f32 / 255.0).round() as u8,
         (left.a() as f32 * right.a() as f32 / 255.0).round() as u8,
-    )
-}
-
-fn lerp_color_gamma(left: Color32, right: Color32, t: f32) -> Color32 {
-    Color32::from_rgba_premultiplied(
-        lerp((left[0] as f32)..=(right[0] as f32), t).round() as u8,
-        lerp((left[1] as f32)..=(right[1] as f32), t).round() as u8,
-        lerp((left[2] as f32)..=(right[2] as f32), t).round() as u8,
-        lerp((left[3] as f32)..=(right[3] as f32), t).round() as u8,
     )
 }

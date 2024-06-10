@@ -2,7 +2,7 @@ use std::{cell::RefCell, time::Instant};
 
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 
-use egui::epaint::ahash::HashMap;
+use ahash::HashMap;
 
 use crate::{
     epi,

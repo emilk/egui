@@ -37,9 +37,10 @@ serde = ["dep:serde", "egui/serde"]
 [dependencies]
 egui = { workspace = true, default-features = false }
 
+ahash.workspace = true
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-serde = { version = "1", optional = true, features = ["derive"] }
+serde = { workspace = true, optional = true }

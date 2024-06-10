@@ -1,4 +1,6 @@
-use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba};
+use crate::{
+    fast_round, gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba,
+};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -199,7 +201,7 @@ impl Color32 {
     /// This is perceptually even, and faster that [`Self::linear_multiply`].
     #[inline]
     pub fn gamma_multiply(self, factor: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= factor && factor <= 1.0);
+        debug_assert!(0.0 <= factor && factor <= 1.0);
         let Self([r, g, b, a]) = self;
         Self([
             (r as f32 * factor + 0.5) as u8,
@@ -215,7 +217,7 @@ impl Color32 {
     /// You likely want to use [`Self::gamma_multiply`] instead.
     #[inline]
     pub fn linear_multiply(self, factor: f32) -> Self {
-        crate::ecolor_assert!(0.0 <= factor && factor <= 1.0);
+        debug_assert!(0.0 <= factor && factor <= 1.0);
         // As an unfortunate side-effect of using premultiplied alpha
         // we need a somewhat expensive conversion to linear space and back.
         Rgba::from(self).multiply(factor).into()
@@ -234,5 +236,17 @@ impl Color32 {
             b as f32 / 255.0,
             a as f32 / 255.0,
         ]
+    }
+
+    /// Lerp this color towards `other` by `t` in gamma space.
+    pub fn lerp_to_gamma(&self, other: Self, t: f32) -> Self {
+        use emath::lerp;
+
+        Self::from_rgba_premultiplied(
+            fast_round(lerp((self[0] as f32)..=(other[0] as f32), t)),
+            fast_round(lerp((self[1] as f32)..=(other[1] as f32), t)),
+            fast_round(lerp((self[2] as f32)..=(other[2] as f32), t)),
+            fast_round(lerp((self[3] as f32)..=(other[3] as f32), t)),
+        )
     }
 }

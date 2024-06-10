@@ -54,7 +54,7 @@ pub enum UserEvent {
 #[cfg(feature = "accesskit")]
 impl From<accesskit_winit::Event> for UserEvent {
     fn from(event: accesskit_winit::Event) -> Self {
-        UserEvent::AccessKitEvent(event)
+        Self::AccessKitEvent(event)
     }
 }
 

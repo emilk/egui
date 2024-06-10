@@ -1,49 +1,8 @@
 //! Show popup windows, tooltips, context menus etc.
 
+use frame_state::PerWidgetTooltipState;
+
 use crate::*;
-
-// ----------------------------------------------------------------------------
-
-/// Same state for all tooltips.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct TooltipState {
-    last_common_id: Option<Id>,
-    individual_ids_and_sizes: ahash::HashMap<usize, (Id, Vec2)>,
-}
-
-impl TooltipState {
-    pub fn load(ctx: &Context) -> Option<Self> {
-        ctx.data_mut(|d| d.get_temp(Id::NULL))
-    }
-
-    fn store(self, ctx: &Context) {
-        ctx.data_mut(|d| d.insert_temp(Id::NULL, self));
-    }
-
-    fn individual_tooltip_size(&self, common_id: Id, index: usize) -> Option<Vec2> {
-        if self.last_common_id == Some(common_id) {
-            Some(self.individual_ids_and_sizes.get(&index)?.1)
-        } else {
-            None
-        }
-    }
-
-    fn set_individual_tooltip(
-        &mut self,
-        common_id: Id,
-        index: usize,
-        individual_id: Id,
-        size: Vec2,
-    ) {
-        if self.last_common_id != Some(common_id) {
-            self.last_common_id = Some(common_id);
-            self.individual_ids_and_sizes.clear();
-        }
-
-        self.individual_ids_and_sizes
-            .insert(index, (individual_id, size));
-    }
-}
 
 // ----------------------------------------------------------------------------
 
@@ -66,10 +25,10 @@ impl TooltipState {
 /// ```
 pub fn show_tooltip<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    show_tooltip_at_pointer(ctx, id, add_contents)
+    show_tooltip_at_pointer(ctx, widget_id, add_contents)
 }
 
 /// Show a tooltip at the current pointer position (if any).
@@ -91,13 +50,12 @@ pub fn show_tooltip<R>(
 /// ```
 pub fn show_tooltip_at_pointer<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    let suggested_pos = ctx
-        .input(|i| i.pointer.hover_pos())
-        .map(|pointer_pos| pointer_pos + vec2(16.0, 16.0));
-    show_tooltip_at(ctx, id, suggested_pos, add_contents)
+    ctx.input(|i| i.pointer.hover_pos()).map(|pointer_pos| {
+        show_tooltip_at(ctx, widget_id, pointer_pos + vec2(16.0, 16.0), add_contents)
+    })
 }
 
 /// Show a tooltip under the given area.
@@ -105,22 +63,17 @@ pub fn show_tooltip_at_pointer<R>(
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
 pub fn show_tooltip_for<R>(
     ctx: &Context,
-    id: Id,
-    rect: &Rect,
+    widget_id: Id,
+    widget_rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
-) -> Option<R> {
-    let expanded_rect = rect.expand2(vec2(2.0, 4.0));
-    let (above, position) = if ctx.input(|i| i.any_touches()) {
-        (true, expanded_rect.left_top())
-    } else {
-        (false, expanded_rect.left_bottom())
-    };
+) -> R {
+    let is_touch_screen = ctx.input(|i| i.any_touches());
+    let allow_placing_below = !is_touch_screen; // There is a finger below.
     show_tooltip_at_avoid_dyn(
         ctx,
-        id,
-        Some(position),
-        above,
-        expanded_rect,
+        widget_id,
+        allow_placing_below,
+        widget_rect,
         Box::new(add_contents),
     )
 }
@@ -130,102 +83,144 @@ pub fn show_tooltip_for<R>(
 /// Returns `None` if the tooltip could not be placed.
 pub fn show_tooltip_at<R>(
     ctx: &Context,
-    id: Id,
-    suggested_position: Option<Pos2>,
+    widget_id: Id,
+    suggested_position: Pos2,
     add_contents: impl FnOnce(&mut Ui) -> R,
-) -> Option<R> {
-    let above = false;
+) -> R {
+    let allow_placing_below = true;
+    let rect = Rect::from_center_size(suggested_position, Vec2::ZERO);
     show_tooltip_at_avoid_dyn(
         ctx,
-        id,
-        suggested_position,
-        above,
-        Rect::NOTHING,
+        widget_id,
+        allow_placing_below,
+        &rect,
         Box::new(add_contents),
     )
 }
 
 fn show_tooltip_at_avoid_dyn<'c, R>(
     ctx: &Context,
-    individual_id: Id,
-    suggested_position: Option<Pos2>,
-    above: bool,
-    mut avoid_rect: Rect,
+    widget_id: Id,
+    allow_placing_below: bool,
+    widget_rect: &Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-) -> Option<R> {
+) -> R {
+    // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
+    let mut state = ctx.frame_state(|fs| {
+        fs.tooltip_state
+            .widget_tooltips
+            .get(&widget_id)
+            .copied()
+            .unwrap_or(PerWidgetTooltipState {
+                bounding_rect: *widget_rect,
+                tooltip_count: 0,
+            })
+    });
+
+    let tooltip_area_id = tooltip_id(widget_id, state.tooltip_count);
+    let expected_tooltip_size =
+        AreaState::load(ctx, tooltip_area_id).map_or(vec2(64.0, 32.0), |area| area.size);
+
+    let screen_rect = ctx.screen_rect();
+
+    let (pivot, anchor) = find_tooltip_position(
+        screen_rect,
+        state.bounding_rect,
+        allow_placing_below,
+        expected_tooltip_size,
+    );
+
+    let InnerResponse { inner, response } = Area::new(tooltip_area_id)
+        .kind(UiKind::Popup)
+        .order(Order::Tooltip)
+        .pivot(pivot)
+        .fixed_pos(anchor)
+        .default_width(ctx.style().spacing.tooltip_width)
+        .sense(Sense::hover()) // don't click to bring to front
+        .show(ctx, |ui| {
+            // By default the text in tooltips aren't selectable.
+            // This means that most tooltips aren't interactable,
+            // which also mean they won't stick around so you can click them.
+            // Only tooltips that have actual interactive stuff (buttons, links, …)
+            // will stick around when you try to click them.
+            ui.style_mut().interaction.selectable_labels = false;
+
+            Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
+        });
+
+    state.tooltip_count += 1;
+    state.bounding_rect = state.bounding_rect.union(response.rect);
+    ctx.frame_state_mut(|fs| fs.tooltip_state.widget_tooltips.insert(widget_id, state));
+
+    inner
+}
+
+/// What is the id of the next tooltip for this widget?
+pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
+    let tooltip_count = ctx.frame_state(|fs| {
+        fs.tooltip_state
+            .widget_tooltips
+            .get(&widget_id)
+            .map_or(0, |state| state.tooltip_count)
+    });
+    tooltip_id(widget_id, tooltip_count)
+}
+
+pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
+    widget_id.with(tooltip_count)
+}
+
+/// Returns `(PIVOT, POS)` to mean: put the `PIVOT` corner of the tooltip at `POS`.
+///
+/// Note: the position might need to be constrained to the screen,
+/// (e.g. moved sideways if shown under the widget)
+/// but the `Area` will take care of that.
+fn find_tooltip_position(
+    screen_rect: Rect,
+    widget_rect: Rect,
+    allow_placing_below: bool,
+    tooltip_size: Vec2,
+) -> (Align2, Pos2) {
     let spacing = 4.0;
 
-    // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
-    let mut frame_state =
-        ctx.frame_state(|fs| fs.tooltip_state)
-            .unwrap_or(crate::frame_state::TooltipFrameState {
-                common_id: individual_id,
-                rect: Rect::NOTHING,
-                count: 0,
-            });
-
-    let mut position = if frame_state.rect.is_positive() {
-        avoid_rect = avoid_rect.union(frame_state.rect);
-        if above {
-            frame_state.rect.left_top() - spacing * Vec2::Y
-        } else {
-            frame_state.rect.left_bottom() + spacing * Vec2::Y
-        }
-    } else if let Some(position) = suggested_position {
-        position
-    } else if ctx.memory(|mem| mem.everything_is_visible()) {
-        Pos2::ZERO
-    } else {
-        return None; // No good place for a tooltip :(
-    };
-
-    let mut long_state = TooltipState::load(ctx).unwrap_or_default();
-    let expected_size =
-        long_state.individual_tooltip_size(frame_state.common_id, frame_state.count);
-    let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
-
-    if above {
-        position.y -= expected_size.y;
-    }
-
-    position = position.at_most(ctx.screen_rect().max - expected_size);
-
-    // check if we intersect the avoid_rect
+    // Does it fit below?
+    if allow_placing_below
+        && widget_rect.bottom() + spacing + tooltip_size.y <= screen_rect.bottom()
     {
-        let new_rect = Rect::from_min_size(position, expected_size);
-
-        // Note: We use shrink so that we don't get false positives when the rects just touch
-        if new_rect.shrink(1.0).intersects(avoid_rect) {
-            if above {
-                // place below instead:
-                position = avoid_rect.left_bottom() + spacing * Vec2::Y;
-            } else {
-                // place above instead:
-                position = Pos2::new(position.x, avoid_rect.min.y - expected_size.y - spacing);
-            }
-        }
+        return (
+            Align2::LEFT_TOP,
+            widget_rect.left_bottom() + spacing * Vec2::DOWN,
+        );
     }
 
-    let position = position.at_least(ctx.screen_rect().min);
+    // Does it fit above?
+    if screen_rect.top() + tooltip_size.y + spacing <= widget_rect.top() {
+        return (
+            Align2::LEFT_BOTTOM,
+            widget_rect.left_top() + spacing * Vec2::UP,
+        );
+    }
 
-    let area_id = frame_state.common_id.with(frame_state.count);
+    // Does it fit to the right?
+    if widget_rect.right() + spacing + tooltip_size.x <= screen_rect.right() {
+        return (
+            Align2::LEFT_TOP,
+            widget_rect.right_top() + spacing * Vec2::RIGHT,
+        );
+    }
 
-    let InnerResponse { inner, response } =
-        show_tooltip_area_dyn(ctx, area_id, position, add_contents);
+    // Does it fit to the left?
+    if screen_rect.left() + tooltip_size.x + spacing <= widget_rect.left() {
+        return (
+            Align2::RIGHT_TOP,
+            widget_rect.left_top() + spacing * Vec2::LEFT,
+        );
+    }
 
-    long_state.set_individual_tooltip(
-        frame_state.common_id,
-        frame_state.count,
-        individual_id,
-        response.rect.size(),
-    );
-    long_state.store(ctx);
+    // It doesn't fit anywhere :(
 
-    frame_state.count += 1;
-    frame_state.rect = frame_state.rect.union(response.rect);
-    ctx.frame_state_mut(|fs| fs.tooltip_state = Some(frame_state));
-
-    Some(inner)
+    // Just show it anyway:
+    (Align2::LEFT_TOP, screen_rect.left_top())
 }
 
 /// Show some text at the current pointer position (if any).
@@ -243,52 +238,19 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 /// }
 /// # });
 /// ```
-pub fn show_tooltip_text(ctx: &Context, id: Id, text: impl Into<WidgetText>) -> Option<()> {
-    show_tooltip(ctx, id, |ui| {
+pub fn show_tooltip_text(ctx: &Context, widget_id: Id, text: impl Into<WidgetText>) -> Option<()> {
+    show_tooltip(ctx, widget_id, |ui| {
         crate::widgets::Label::new(text).ui(ui);
     })
 }
 
-/// Show a pop-over window.
-fn show_tooltip_area_dyn<'c, R>(
-    ctx: &Context,
-    area_id: Id,
-    window_pos: Pos2,
-    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-) -> InnerResponse<R> {
-    use containers::*;
-    Area::new(area_id)
-        .order(Order::Tooltip)
-        .fixed_pos(window_pos)
-        .constrain_to(ctx.screen_rect())
-        .interactable(false)
-        .show(ctx, |ui| {
-            Frame::popup(&ctx.style())
-                .show(ui, |ui| {
-                    ui.set_max_width(ui.spacing().tooltip_width);
-                    add_contents(ui)
-                })
-                .inner
-        })
-}
-
 /// Was this popup visible last frame?
-pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
-    if let Some(state) = TooltipState::load(ctx) {
-        if let Some(common_id) = state.last_common_id {
-            for (count, (individual_id, _size)) in &state.individual_ids_and_sizes {
-                if *individual_id == tooltip_id {
-                    let area_id = common_id.with(count);
-                    let layer_id = LayerId::new(Order::Tooltip, area_id);
-                    if ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id)) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-
-    false
+pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
+    let primary_tooltip_area_id = tooltip_id(widget_id, 0);
+    ctx.memory(|mem| {
+        mem.areas()
+            .visible_last_frame(&LayerId::new(Order::Tooltip, primary_tooltip_area_id))
+    })
 }
 
 /// Helper for [`popup_above_or_below_widget`].
@@ -311,7 +273,7 @@ pub fn popup_below_widget<R>(
 ///
 /// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
 ///
-/// The opened popup will have the same width as the parent.
+/// The opened popup will have a minimum width matching its parent.
 ///
 /// You must open the popup with [`Memory::open_popup`] or  [`Memory::toggle_popup`].
 ///
@@ -345,18 +307,21 @@ pub fn popup_above_or_below_widget<R>(
             AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
         };
 
+        let frame = Frame::popup(parent_ui.style());
+        let frame_margin = frame.total_margin();
+        let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+
         let inner = Area::new(popup_id)
+            .kind(UiKind::Popup)
             .order(Order::Foreground)
-            .constrain(true)
             .fixed_pos(pos)
+            .default_width(inner_width)
             .pivot(pivot)
             .show(parent_ui.ctx(), |ui| {
-                let frame = Frame::popup(parent_ui.style());
-                let frame_margin = frame.total_margin();
                 frame
                     .show(ui, |ui| {
                         ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                            ui.set_width(widget_response.rect.width() - frame_margin.sum().x);
+                            ui.set_min_width(inner_width);
                             add_contents(ui)
                         })
                         .inner

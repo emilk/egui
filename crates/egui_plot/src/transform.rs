@@ -146,9 +146,21 @@ impl PlotBounds {
     }
 
     #[inline]
+    pub fn set_x_center_width(&mut self, x: f64, width: f64) {
+        self.min[0] = x - width / 2.0;
+        self.max[0] = x + width / 2.0;
+    }
+
+    #[inline]
     pub fn set_y(&mut self, other: &Self) {
         self.min[1] = other.min[1];
         self.max[1] = other.max[1];
+    }
+
+    #[inline]
+    pub fn set_y_center_height(&mut self, y: f64, height: f64) {
+        self.min[1] = y - height / 2.0;
+        self.max[1] = y + height / 2.0;
     }
 
     #[inline]
@@ -240,26 +252,53 @@ pub struct PlotTransform {
 }
 
 impl PlotTransform {
-    pub fn new(frame: Rect, mut bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
-        // Make sure they are not empty.
-        if !bounds.is_valid_x() {
-            bounds.set_x(&PlotBounds::new_symmetrical(1.0));
-        }
-        if !bounds.is_valid_y() {
-            bounds.set_y(&PlotBounds::new_symmetrical(1.0));
-        }
+    pub fn new(frame: Rect, bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
+        // Since the current Y bounds an affect the final X bounds and vice versa, we need to keep
+        // the original version of the `bounds` before we start modifying it.
+        let mut new_bounds = bounds;
+
+        // Sanitize bounds.
+        //
+        // When a given bound axis is "thin" (e.g. width or height is 0) but finite, we center the
+        // bounds around that value. If the other axis is "fat", we reuse its extent for the thin
+        // axis, and default to +/- 1.0 otherwise.
+        if !bounds.is_finite_x() {
+            new_bounds.set_x(&PlotBounds::new_symmetrical(1.0));
+        } else if bounds.width() == 0.0 {
+            new_bounds.set_x_center_width(
+                bounds.center().x,
+                if bounds.is_valid_y() {
+                    bounds.height()
+                } else {
+                    1.0
+                },
+            );
+        };
+
+        if !bounds.is_finite_y() {
+            new_bounds.set_y(&PlotBounds::new_symmetrical(1.0));
+        } else if bounds.height() == 0.0 {
+            new_bounds.set_y_center_height(
+                bounds.center().y,
+                if bounds.is_valid_x() {
+                    bounds.width()
+                } else {
+                    1.0
+                },
+            );
+        };
 
         // Scale axes so that the origin is in the center.
         if x_centered {
-            bounds.make_x_symmetrical();
+            new_bounds.make_x_symmetrical();
         };
         if y_centered {
-            bounds.make_y_symmetrical();
+            new_bounds.make_y_symmetrical();
         };
 
         Self {
             frame,
-            bounds,
+            bounds: new_bounds,
             x_centered,
             y_centered,
         }

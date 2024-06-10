@@ -99,11 +99,11 @@ impl LegendEntry {
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui, text: String, text_style: &TextStyle) -> Response {
+    fn ui(&self, ui: &mut Ui, text: String, text_style: &TextStyle) -> Response {
         let Self {
             color,
             checked,
-            hovered,
+            hovered: _,
         } = self;
 
         let font_id = text_style.resolve(ui.style());
@@ -161,9 +161,6 @@ impl LegendEntry {
 
         let text_position = pos2(text_position_x, rect.center().y - 0.5 * galley.size().y);
         painter.galley(text_position, galley, visuals.text_color());
-
-        *checked ^= response.clicked_by(PointerButton::Primary);
-        *hovered = response.hovered();
 
         response
     }
@@ -253,7 +250,7 @@ impl Widget for &mut LegendWidget {
         let layout = Layout::from_main_dir_and_cross_align(main_dir, cross_align);
         let legend_pad = 4.0;
         let legend_rect = rect.shrink(legend_pad);
-        let mut legend_ui = ui.child_ui(legend_rect, layout);
+        let mut legend_ui = ui.child_ui(legend_rect, layout, None);
         legend_ui
             .scope(|ui| {
                 let background_frame = Frame {
@@ -267,14 +264,55 @@ impl Widget for &mut LegendWidget {
                 .multiply_with_opacity(config.background_alpha);
                 background_frame
                     .show(ui, |ui| {
-                        entries
+                        let mut focus_on_item = None;
+
+                        let response_union = entries
                             .iter_mut()
-                            .map(|(name, entry)| entry.ui(ui, name.clone(), &config.text_style))
+                            .map(|(name, entry)| {
+                                let response = entry.ui(ui, name.clone(), &config.text_style);
+
+                                // Handle interactions. Alt-clicking must be deferred to end of loop
+                                // since it may affect all entries.
+                                handle_interaction_on_legend_item(&response, entry);
+                                if response.clicked() && ui.input(|r| r.modifiers.alt) {
+                                    focus_on_item = Some(name.clone());
+                                }
+
+                                response
+                            })
                             .reduce(|r1, r2| r1.union(r2))
-                            .unwrap()
+                            .unwrap();
+
+                        if let Some(focus_on_item) = focus_on_item {
+                            handle_focus_on_legend_item(&focus_on_item, entries);
+                        }
+
+                        response_union
                     })
                     .inner
             })
             .inner
+    }
+}
+
+/// Handle per-entry interactions.
+fn handle_interaction_on_legend_item(response: &Response, entry: &mut LegendEntry) {
+    entry.checked ^= response.clicked_by(PointerButton::Primary);
+    entry.hovered = response.hovered();
+}
+
+/// Handle alt-click interaction (which may affect all entries).
+fn handle_focus_on_legend_item(
+    clicked_entry_name: &str,
+    entries: &mut BTreeMap<String, LegendEntry>,
+) {
+    // if all other items are already hidden, we show everything
+    let is_focus_item_only_visible = entries
+        .iter()
+        .all(|(name, entry)| !entry.checked || (clicked_entry_name == name));
+
+    // either show everything or show only the focus item
+    for (name, entry) in entries.iter_mut() {
+        entry.checked = is_focus_item_only_visible || clicked_entry_name == name;
     }
 }

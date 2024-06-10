@@ -85,7 +85,7 @@ impl GridLayout {
         // TODO(emilk): respect current layout
 
         let initial_available = ui.placer().max_rect().intersect(ui.cursor());
-        crate::egui_assert!(
+        debug_assert!(
             initial_available.min.x.is_finite(),
             "Grid not yet available for right-to-left layouts"
         );
@@ -426,7 +426,10 @@ impl Grid {
         // which we do here:
         let max_rect = ui.cursor().intersect(ui.max_rect());
         ui.allocate_ui_at_rect(max_rect, |ui| {
-            ui.set_visible(prev_state.is_some()); // Avoid visible first-frame jitter
+            if prev_state.is_none() {
+                // Hide the ui this frame, and make things as narrow as possible.
+                ui.set_sizing_pass();
+            }
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
                 let mut grid = GridLayout {

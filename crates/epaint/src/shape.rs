@@ -313,7 +313,7 @@ impl Shape {
 
     #[inline]
     pub fn mesh(mesh: Mesh) -> Self {
-        crate::epaint_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid());
         Self::Mesh(mesh)
     }
 

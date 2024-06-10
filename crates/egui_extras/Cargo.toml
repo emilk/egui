@@ -45,8 +45,7 @@ http = ["dep:ehttp"]
 ##
 ## You also need to ALSO opt-in to the image formats you want to support, like so:
 ## ```toml
-## image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
-
+## image = { version = "0.25", features = ["jpeg", "png"] } # Add the types you want support for
 ## ```
 image = ["dep:image"]
 
@@ -65,9 +64,10 @@ syntect = ["dep:syntect"]
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["serde"] }
 
+ahash.workspace = true
 enum-map = { version = "2", features = ["serde"] }
 log.workspace = true
-serde = { version = "1", features = ["derive"] }
+serde.workspace = true
 
 #! ### Optional dependencies
 
@@ -82,7 +82,7 @@ chrono = { version = "0.4", optional = true, default-features = false, features 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-image = { version = "0.24", optional = true, default-features = false }
+image = { workspace = true, optional = true }
 
 # file feature
 mime_guess2 = { version = "2", optional = true, default-features = false }
