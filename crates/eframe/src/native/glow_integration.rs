@@ -21,6 +21,7 @@ use glutin::{
     prelude::{GlDisplay, PossiblyCurrentGlContext},
     surface::GlSurface,
 };
+use raw_window_handle::HasWindowHandle;
 use winit::{
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
@@ -466,23 +467,32 @@ impl WinitApp for GlowWinitApp {
             }
 
             #[cfg(feature = "accesskit")]
-            winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest {
-                request,
-                window_id,
-            }) => {
+            winit::event::Event::UserEvent(UserEvent::AccessKitEvent(
+                egui_winit::accesskit_winit::Event {
+                    window_id,
+                    window_event,
+                },
+            )) => {
                 if let Some(running) = &self.running {
                     let mut glutin = running.glutin.borrow_mut();
                     if let Some(viewport_id) = glutin.viewport_from_window.get(window_id).copied() {
                         if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                             if let Some(egui_winit) = &mut viewport.egui_winit {
-                                crate::profile_scope!("on_accesskit_action_request");
-                                egui_winit.on_accesskit_action_request(request.clone());
+                                crate::profile_scope!("on_accesskit_window_event");
+                                winit_integration::on_accesskit_window_event(
+                                    egui_winit,
+                                    *window_id,
+                                    window_event,
+                                )
+                            } else {
+                                EventResult::Wait
                             }
+                        } else {
+                            EventResult::Wait
                         }
+                    } else {
+                        EventResult::Wait
                     }
-                    // As a form of user input, accessibility actions should
-                    // lead to a repaint.
-                    EventResult::RepaintNext(*window_id)
                 } else {
                     EventResult::Wait
                 }
@@ -939,7 +949,7 @@ impl GlutinWindowContext {
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-            .with_window_builder(Some(egui_winit::create_winit_window_attributes(
+            .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,
                 viewport_builder.clone(),
@@ -974,10 +984,9 @@ impl GlutinWindowContext {
             gl_display.version_string(),
             gl_display.supported_features()
         );
-        let glutin_raw_window_handle = window.as_ref().map(|w| {
-            use rwh_05::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
-            w.raw_window_handle()
-        });
+        let glutin_raw_window_handle = window
+            .as_ref()
+            .and_then(|w| w.window_handle().ok().map(|h| h.as_raw()));
         log::debug!("creating gl context using raw window handle: {glutin_raw_window_handle:?}");
 
         // create gl context. if core context cannot be created, try gl es context as fallback.
@@ -1092,7 +1101,7 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_builder = egui_winit::create_winit_window_builder(
+            let window_builder = egui_winit::create_winit_window_attributes(
                 &self.egui_ctx,
                 event_loop,
                 viewport.builder.clone(),
@@ -1132,9 +1141,12 @@ impl GlutinWindowContext {
             let width_px = NonZeroU32::new(width_px).unwrap_or(NonZeroU32::MIN);
             let height_px = NonZeroU32::new(height_px).unwrap_or(NonZeroU32::MIN);
             let surface_attributes = {
-                use rwh_05::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                    .build(window.raw_window_handle(), width_px, height_px)
+                    .build(
+                        window.window_handle().unwrap().as_raw(),
+                        width_px,
+                        height_px,
+                    )
             };
 
             log::trace!("creating surface with attributes: {surface_attributes:?}");

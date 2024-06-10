@@ -467,10 +467,12 @@ impl WinitApp for WgpuWinitApp {
             }
 
             #[cfg(feature = "accesskit")]
-            winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest {
-                request,
-                window_id,
-            }) => {
+            winit::event::Event::UserEvent(UserEvent::AccessKitEvent(
+                egui_winit::accesskit_winit::Event {
+                    window_id,
+                    window_event,
+                },
+            )) => {
                 if let Some(running) = &mut self.running {
                     let mut shared_lock = running.shared.borrow_mut();
                     let SharedState {
@@ -483,12 +485,17 @@ impl WinitApp for WgpuWinitApp {
                         .and_then(|id| viewports.get_mut(id))
                     {
                         if let Some(egui_winit) = &mut viewport.egui_winit {
-                            egui_winit.on_accesskit_action_request(request.clone());
+                            winit_integration::on_accesskit_window_event(
+                                egui_winit,
+                                *window_id,
+                                window_event,
+                            )
+                        } else {
+                            EventResult::Wait
                         }
+                    } else {
+                        EventResult::Wait
                     }
-                    // As a form of user input, accessibility actions should
-                    // lead to a repaint.
-                    EventResult::RepaintNext(*window_id)
                 } else {
                     EventResult::Wait
                 }

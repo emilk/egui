@@ -5,8 +5,6 @@ use winit::{
     window::{Window, WindowId},
 };
 
-#[cfg(feature = "accesskit")]
-use egui::accesskit;
 use egui::ViewportId;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -48,26 +46,47 @@ pub enum UserEvent {
         frame_nr: u64,
     },
 
-    /// A request related to [`accesskit`](https://accesskit.dev/).
+    /// An event related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
-    AccessKitActionRequest {
-        request: accesskit::ActionRequest,
-        window_id: WindowId,
-    },
+    AccessKitEvent(accesskit_winit::Event),
 }
 
 #[cfg(feature = "accesskit")]
 impl From<accesskit_winit::Event> for UserEvent {
     fn from(event: accesskit_winit::Event) -> Self {
-        match event.window_event {
-            accesskit_winit::WindowEvent::InitialTreeRequested => todo!(),
-            accesskit_winit::WindowEvent::AccessibilityDeactivated => todo!(),
-            accesskit_winit::WindowEvent::ActionRequested(request) => {
-                Self::AccessKitActionRequest {
-                    request,
-                    window_id: event.window_id,
-                }
-            }
+        UserEvent::AccessKitEvent(event)
+    }
+}
+
+#[cfg(feature = "accesskit")]
+pub(crate) fn on_accesskit_window_event(
+    egui_winit: &mut egui_winit::State,
+    window_id: WindowId,
+    event: &accesskit_winit::WindowEvent,
+) -> EventResult {
+    match event {
+        accesskit_winit::WindowEvent::InitialTreeRequested => {
+            egui_winit.egui_ctx().enable_accesskit();
+            // Because we can't provide the initial tree synchronously
+            // (because that would require the activation handler to access
+            // the same mutable state as the winit event handler), some
+            // AccessKit platform adapters will use a placeholder tree
+            // until we send the first tree update. To minimize the possible
+            // bad effects of that workaround, repaint and send the tree
+            // immediately.
+            EventResult::RepaintNow(window_id)
+        }
+        accesskit_winit::WindowEvent::ActionRequested(request) => {
+            egui_winit.on_accesskit_action_request(request.clone());
+            // As a form of user input, accessibility actions should cause
+            // a repaint, but not until the next regular frame.
+            EventResult::RepaintNext(window_id)
+        }
+        accesskit_winit::WindowEvent::AccessibilityDeactivated => {
+            egui_winit.egui_ctx().disable_accesskit();
+            // Disabling AccessKit support should have no visible effect,
+            // so there's no need to repaint.
+            EventResult::Wait
         }
     }
 }
@@ -134,7 +153,7 @@ pub fn short_event_description(event: &winit::event::Event<UserEvent>) -> &'stat
         winit::event::Event::UserEvent(user_event) => match user_event {
             UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
             #[cfg(feature = "accesskit")]
-            UserEvent::AccessKitActionRequest { .. } => "UserEvent::AccessKitActionRequest",
+            UserEvent::AccessKitEvent(_) => "UserEvent::AccessKitEvent",
         },
         _ => egui_winit::short_generic_event_description(event),
     }

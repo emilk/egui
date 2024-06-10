@@ -59,14 +59,7 @@ android-native-activity = ["egui-winit/android-native-activity"]
 default_fonts = ["egui/default_fonts"]
 
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
-glow = [
-  "dep:egui_glow",
-  "dep:glow",
-  "dep:glutin-winit",
-  "dep:glutin",
-  "dep:rwh_05",
-  "winit/rwh_05",
-]
+glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
 persistence = [
@@ -141,10 +134,6 @@ web-time.workspace = true
 
 egui_glow = { workspace = true, optional = true, default-features = false }
 glow = { workspace = true, optional = true }
-# glutin stuck on old version of raw-window-handle:
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", optional = true, features = [
-  "std",
-] }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
 
@@ -158,7 +147,7 @@ egui-winit = { workspace = true, default-features = false, features = [
 image = { version = "0.24", default-features = false, features = [
   "png",
 ] } # Needed for app icon
-winit = { workspace = true, default-features = false, features = ["rwh_06"] }
+winit = { workspace = true, default-features = false }
 
 # optional native:
 directories-next = { version = "2", optional = true }
@@ -169,8 +158,8 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 
 # we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
 # this can be done at the same time we expose x11/wayland features of winit crate.
-glutin = { version = "0.31", optional = true }
-glutin-winit = { version = "0.4", optional = true }
+glutin = { version = "0.32", optional = true }
+glutin-winit = { version = "0.5", optional = true }
 puffin = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = [
   # Let's enable some backends so that users can use `eframe` out-of-the-box

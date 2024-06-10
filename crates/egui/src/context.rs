@@ -2855,6 +2855,12 @@ impl Context {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
     }
 
+    /// Disable generation of AccessKit tree updates in all future frames.
+    #[cfg(feature = "accesskit")]
+    pub fn disable_accesskit(&self) {
+        self.write(|ctx| ctx.is_accesskit_enabled = false);
+    }
+
     /// Return a tree update that the egui integration should provide to the
     /// AccessKit adapter if it cannot immediately run the egui application
     /// to get a full tree update after running [`Context::enable_accesskit`].
