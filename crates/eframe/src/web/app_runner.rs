@@ -188,7 +188,9 @@ impl AppRunner {
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
-        let raw_input = self.input.new_frame(canvas_size);
+        let mut raw_input = self.input.new_frame(canvas_size);
+
+        self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             self.app.update(egui_ctx, &mut self.frame);
