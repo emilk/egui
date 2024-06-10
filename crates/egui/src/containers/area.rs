@@ -172,7 +172,10 @@ impl Area {
     }
 
     /// If false, clicks goes straight through to what is behind us.
-    /// Good for tooltips etc.
+    ///
+    /// Can be used for semi-invisible areas that the user should be able to click through.
+    ///
+    /// Default: `true`.
     #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.interactable = interactable;

@@ -92,7 +92,11 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// If `false` the window will be non-interactive.
+    /// If false, clicks goes straight through to what is behind us.
+    ///
+    /// Can be used for semi-invisible areas that the user should be able to click through.
+    ///
+    /// Default: `true`.
     #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.area = self.area.interactable(interactable);

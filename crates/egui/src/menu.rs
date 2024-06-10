@@ -149,7 +149,6 @@ fn menu_popup<'c, R>(
         .kind(UiKind::Menu)
         .order(Order::Foreground)
         .fixed_pos(pos)
-        .interactable(true)
         .default_width(ctx.style().spacing.menu_width)
         .sense(Sense::hover());
 
