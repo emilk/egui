@@ -23,7 +23,7 @@ use static_assertions::assert_not_impl_any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use winit::{event_loop::EventLoopBuilder, window::WindowBuilder};
+pub use winit::{event_loop::EventLoopBuilder, window::WindowAttributes};
 
 /// Hook into the building of an event loop before it is run
 ///

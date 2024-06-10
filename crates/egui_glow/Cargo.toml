@@ -69,9 +69,7 @@ document-features = { workspace = true, optional = true }
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 puffin = { workspace = true, optional = true }
-winit = { workspace = true, optional = true, default-features = false, features = [
-  "rwh_06", # for compatibility with egui-winit
-] }
+winit = { workspace = true, optional = true, default-features = false }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -82,15 +80,7 @@ wasm-bindgen.workspace = true
 [dev-dependencies]
 glutin.workspace = true       # examples/pure_glow
 glutin-winit.workspace = true
-# glutin stuck on old version of raw-window-handle:
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
-  "std",
-] }
 
 [[example]]
 name = "pure_glow"
-required-features = [
-  "winit",
-  "egui/default_fonts",
-  "winit/rwh_05",       # glutin stuck on old version of raw-window-handle
-]
+required-features = ["winit", "egui/default_fonts"]

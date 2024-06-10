@@ -392,8 +392,6 @@ struct ContextImpl {
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
-    #[cfg(feature = "accesskit")]
-    accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
 }
@@ -683,6 +681,19 @@ impl ContextImpl {
 /// ```
 #[derive(Clone)]
 pub struct Context(Arc<RwLock<ContextImpl>>);
+
+#[cfg(feature = "accesskit")]
+impl accesskit::ActivationHandler for Context {
+    fn request_initial_tree(&mut self) -> Option<accesskit::TreeUpdate> {
+        // This function is called when an accessibility client
+        // (e.g. screen reader) makes its first request. If we got here,
+        // we know that an accessibility tree is actually wanted.
+        self.enable_accesskit();
+        // Enqueue a repaint so we'll receive a full tree update soon.
+        self.request_repaint();
+        Some(self.accesskit_placeholder_tree_update())
+    }
+}
 
 impl std::fmt::Debug for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -1985,12 +1996,7 @@ impl ContextImpl {
                     state
                         .node_builders
                         .into_iter()
-                        .map(|(id, builder)| {
-                            (
-                                id.accesskit_id(),
-                                builder.build(&mut self.accesskit_node_classes),
-                            )
-                        })
+                        .map(|(id, builder)| (id.accesskit_id(), builder.build()))
                         .collect()
                 };
                 let focus_id = self
@@ -2884,6 +2890,12 @@ impl Context {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
     }
 
+    /// Disable generation of AccessKit tree updates in all future frames.
+    #[cfg(feature = "accesskit")]
+    pub fn disable_accesskit(&self) {
+        self.write(|ctx| ctx.is_accesskit_enabled = false);
+    }
+
     /// Return a tree update that the egui integration should provide to the
     /// AccessKit adapter if it cannot immediately run the egui application
     /// to get a full tree update after running [`Context::enable_accesskit`].
@@ -2894,11 +2906,8 @@ impl Context {
         use accesskit::{NodeBuilder, Role, Tree, TreeUpdate};
 
         let root_id = crate::accesskit_root_id().accesskit_id();
-        self.write(|ctx| TreeUpdate {
-            nodes: vec![(
-                root_id,
-                NodeBuilder::new(Role::Window).build(&mut ctx.accesskit_node_classes),
-            )],
+        self.write(|_ctx| TreeUpdate {
+            nodes: vec![(root_id, NodeBuilder::new(Role::Window).build())],
             tree: Some(Tree::new(root_id)),
             focus: root_id,
         })

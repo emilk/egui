@@ -23,13 +23,13 @@ impl GlutinWindowContext {
     // refactor this function to use `glutin-winit` crate eventually.
     // preferably add android support at the same time.
     #[allow(unsafe_code)]
-    unsafe fn new(event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent>) -> Self {
+    unsafe fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
         use glutin::context::NotCurrentGlContext;
         use glutin::display::GetGlDisplay;
         use glutin::display::GlDisplay;
         use glutin::prelude::GlSurface;
         use rwh_05::HasRawWindowHandle;
-        let winit_window_builder = winit::window::WindowBuilder::new()
+        let winit_window_attributes = winit::window::WindowAttributes::default()
             .with_resizable(true)
             .with_inner_size(winit::dpi::LogicalSize {
                 width: 800.0,
@@ -48,7 +48,7 @@ impl GlutinWindowContext {
         let (mut window, gl_config) =
             glutin_winit::DisplayBuilder::new() // let glutin-winit helper crate handle the complex parts of opengl context creation
                 .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-                .with_window_builder(Some(winit_window_builder.clone()))
+                .with_window_attributes(Some(winit_window_attributes.clone()))
                 .build(
                     event_loop,
                     config_template_builder,
@@ -87,7 +87,7 @@ impl GlutinWindowContext {
         // this is where the window is created, if it has not been created while searching for suitable gl_config
         let window = window.take().unwrap_or_else(|| {
             log::debug!("window doesn't exist yet. creating one now with finalize_window");
-            glutin_winit::finalize_window(event_loop, winit_window_builder.clone(), &gl_config)
+            glutin_winit::finalize_window(event_loop, winit_window_attributes.clone(), &gl_config)
                 .expect("failed to finalize glutin window")
         });
         let (width, height): (u32, u32) = window.inner_size().into();
