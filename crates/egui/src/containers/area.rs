@@ -24,9 +24,6 @@ pub struct AreaState {
     /// Last known size.
     pub size: Vec2,
 
-    /// If false, clicks goes straight through to what is behind us. Useful for tooltips etc.
-    pub interactable: bool,
-
     /// At what time was this area first shown?
     ///
     /// Used to fade in the area.
@@ -397,12 +394,10 @@ impl Area {
                 pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
                 pivot,
                 size,
-                interactable,
                 last_became_visible_at: ctx.input(|i| i.time),
             }
         });
         state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
-        state.interactable = interactable;
 
         // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smmother fade-in
         let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));

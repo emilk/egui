@@ -498,7 +498,6 @@ impl ContextImpl {
                 pivot_pos: screen_rect.left_top(),
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
-                interactable: true,
                 last_became_visible_at: f64::NEG_INFINITY,
             },
         );

@@ -81,5 +81,12 @@ impl super::View for Tooltips {
                 .on_hover_ui(tooltip_ui)
                 .on_disabled_hover_ui(disabled_tooltip_ui);
         });
+
+        ui.separator(); // ---------------------------------------------------------
+
+        ui.label("This widget has a tooltip that fills the screen")
+            .on_hover_ui(|ui| {
+                ui.allocate_exact_size(ui.ctx().screen_rect().size() * 0.8, egui::Sense::hover());
+            });
     }
 }

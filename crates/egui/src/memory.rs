@@ -994,14 +994,13 @@ impl Areas {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
-                    if state.interactable {
-                        if let Some(transform) = layer_transforms.get(layer) {
-                            rect = *transform * rect;
-                        }
 
-                        if rect.contains(pos) {
-                            return Some(*layer);
-                        }
+                    if let Some(transform) = layer_transforms.get(layer) {
+                        rect = *transform * rect;
+                    }
+
+                    if rect.contains(pos) {
+                        return Some(*layer);
                     }
                 }
             }
