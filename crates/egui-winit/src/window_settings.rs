@@ -58,8 +58,8 @@ impl WindowSettings {
     ) -> ViewportBuilder {
         crate::profile_function!();
 
-        // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
-        // See [`winit::window::WindowBuilder::with_position`] for details.
+        // `WindowAttributes::with_position` expects inner position in Macos, and outer position elsewhere
+        // See [`winit::window::WindowAttributes::with_position`] for details.
         let pos_px = if cfg!(target_os = "macos") {
             self.inner_position_pixels
         } else {
@@ -89,7 +89,7 @@ impl WindowSettings {
     pub fn initialize_window(&self, window: &winit::window::Window) {
         if cfg!(target_os = "macos") {
             // Mac sometimes has problems restoring the window to secondary monitors
-            // using only `WindowBuilder::with_position`, so we need this extra step:
+            // using only `WindowAttributes::with_position`, so we need this extra step:
             if let Some(pos) = self.outer_position_pixels {
                 window.set_outer_position(winit::dpi::PhysicalPosition { x: pos.x, y: pos.y });
             }

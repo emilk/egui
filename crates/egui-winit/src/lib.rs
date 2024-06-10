@@ -1533,7 +1533,7 @@ pub fn create_window(
     let window_attributes =
         create_winit_window_attributes(egui_ctx, event_loop, viewport_builder.clone());
     let window = {
-        crate::profile_scope!("WindowBuilder::build");
+        crate::profile_scope!("WindowAttributes::build");
         event_loop.create_window(window_attributes)?
     };
     apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
@@ -1709,7 +1709,7 @@ pub fn create_winit_window_attributes(
 
     #[cfg(target_os = "macos")]
     {
-        use winit::platform::macos::WindowBuilderExtMacOS as _;
+        use winit::platform::macos::WindowAttributesExtMacOS as _;
         window_attributes = window_attributes
             .with_title_hidden(!_title_shown.unwrap_or(true))
             .with_titlebar_buttons_hidden(!_titlebar_buttons_shown.unwrap_or(true))
