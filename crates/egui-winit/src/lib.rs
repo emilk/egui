@@ -1451,12 +1451,6 @@ fn process_viewport_command(
                 PhysicalPosition::new(ime_rect_px.min.x, ime_rect_px.min.y),
                 PhysicalSize::new(ime_rect_px.width(), ime_rect_px.height()),
             );
-
-            egui_ctx.output_mut(|o| {
-                if let Some(ime) = &mut o.ime {
-                    ime.cursor_rect = ime_rect;
-                }
-            });
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
         ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(match p {
