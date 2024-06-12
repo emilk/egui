@@ -802,7 +802,6 @@ impl State {
     /// *
     pub fn handle_platform_output(
         &mut self,
-        window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
         crate::profile_function!();
@@ -832,28 +831,31 @@ impl State {
             if self.allow_ime != ime.allowed_ime {
                 self.allow_ime = ime.allowed_ime;
                 crate::profile_scope!("set_ime_allowed");
-                window.set_ime_allowed(self.allow_ime);
+                self.egui_ctx.send_viewport_cmd_to(
+                    self.viewport_id,
+                    ViewportCommand::IMEAllowed(self.allow_ime),
+                );
             }
 
-            let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = ime.cursor_rect * pixels_per_point;
+            if ime.ime_enabled && ime.visible {
+                let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+                let ime_rect_px = ime.cursor_rect * pixels_per_point;
 
-            let is_need_cursor_area = self.ime_rect_px != Some(ime_rect_px)
-                && self.egui_ctx.input(|i| !i.events.is_empty());
+                let is_need_cursor_area = self.ime_rect_px != Some(ime_rect_px)
+                    && self
+                        .egui_ctx
+                        .input_for(self.viewport_id, |i| !i.events.is_empty());
 
-            if ime.visible && is_need_cursor_area {
-                self.ime_rect_px = Some(ime_rect_px);
-                crate::profile_scope!("set_ime_cursor_area");
-                window.set_ime_cursor_area(
-                    winit::dpi::PhysicalPosition {
-                        x: ime_rect_px.min.x,
-                        y: ime_rect_px.min.y,
-                    },
-                    winit::dpi::PhysicalSize {
-                        width: ime_rect_px.width(),
-                        height: ime_rect_px.height(),
-                    },
-                );
+                if is_need_cursor_area {
+                    self.ime_rect_px = Some(ime_rect_px);
+                    crate::profile_scope!("set_ime_cursor_area");
+                    self.egui_ctx.send_viewport_cmd_to(
+                        self.viewport_id,
+                        ViewportCommand::IMERect(ime.cursor_rect),
+                    );
+                } else {
+                    self.ime_rect_px = None;
+                }
             } else {
                 self.ime_rect_px = None;
             }
