@@ -694,6 +694,12 @@ pub struct TextCursorStyle {
 
     /// When blinking, this is how long the cursor is invisible.
     pub off_duration: f32,
+
+    /// Whether the IME (Input Method Editor) is allowed.
+    pub ime_allowed: bool,
+
+    /// Whether the IME should be visible.
+    pub ime_visible: bool,
 }
 
 impl Default for TextCursorStyle {
@@ -704,6 +710,8 @@ impl Default for TextCursorStyle {
             blink: true,
             on_duration: 0.5,
             off_duration: 0.5,
+            ime_allowed: true,
+            ime_visible: false,
         }
     }
 }
@@ -1979,6 +1987,8 @@ impl TextCursorStyle {
             blink,
             on_duration,
             off_duration,
+            ime_allowed,
+            ime_visible,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2011,6 +2021,10 @@ impl TextCursorStyle {
                 ui.end_row();
             });
         }
+
+        ui.checkbox(ime_allowed, "Whether the IME is allowed");
+
+        ui.checkbox(ime_visible, "Whether the IME should be visible");
     }
 }
 
