@@ -663,8 +663,6 @@ impl WgpuWinitRunning {
             return EventResult::Wait;
         };
 
-        egui_winit.handle_platform_output(window, platform_output);
-
         let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
         let screenshot_requested = viewport
@@ -717,6 +715,8 @@ impl WgpuWinitRunning {
         integration.post_rendering(window);
 
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
+
+        egui_winit.handle_platform_output(window, &viewport_id, platform_output);
 
         handle_viewport_output(
             &integration.egui_ctx,
@@ -1028,7 +1028,7 @@ fn render_immediate_viewport(
         false,
     );
 
-    egui_winit.handle_platform_output(window, platform_output);
+    egui_winit.handle_platform_output(window, &ids.this, platform_output);
 
     handle_viewport_output(
         &egui_ctx,
