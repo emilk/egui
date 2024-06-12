@@ -652,8 +652,6 @@ impl GlowWinitRunning {
         let gl_surface = viewport.gl_surface.as_ref().unwrap();
         let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-        egui_winit.handle_platform_output(&window, platform_output);
-
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
         {
@@ -733,6 +731,8 @@ impl GlowWinitRunning {
                 save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
         }
+
+        egui_winit.handle_platform_output(window, &viewport_id, platform_output);
 
         glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
 
@@ -1508,7 +1508,7 @@ fn render_immediate_viewport(
         }
     }
 
-    egui_winit.handle_platform_output(window, platform_output);
+    egui_winit.handle_platform_output(window, &viewport_id, platform_output);
 
     glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
 }
