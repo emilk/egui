@@ -833,7 +833,7 @@ impl State {
                 self.allow_ime = ime.allowed_ime;
                 crate::profile_scope!("set_ime_allowed");
                 self.egui_ctx.send_viewport_cmd_to(
-                    *viewport_id,
+                    self.viewport_id,
                     ViewportCommand::IMEAllowed(self.allow_ime),
                 );
             }
@@ -845,13 +845,13 @@ impl State {
                 let is_need_cursor_area = self.ime_rect_px != Some(ime_rect_px)
                     && self
                         .egui_ctx
-                        .input_for(*viewport_id, |i| !i.events.is_empty());
+                        .input_for(self.viewport_id, |i| !i.events.is_empty());
 
                 if is_need_cursor_area {
                     self.ime_rect_px = Some(ime_rect_px);
                     crate::profile_scope!("set_ime_cursor_area");
                     self.egui_ctx.send_viewport_cmd_to(
-                        *viewport_id,
+                        self.viewport_id,
                         ViewportCommand::IMERect(ime.cursor_rect),
                     );
                 } else {
