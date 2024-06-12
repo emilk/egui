@@ -732,7 +732,7 @@ impl GlowWinitRunning {
             }
         }
 
-        egui_winit.handle_platform_output(window, platform_output);
+        egui_winit.handle_platform_output(&window, platform_output);
 
         glutin.handle_viewport_output(event_loop, &integration.egui_ctx, &viewport_output);
 
