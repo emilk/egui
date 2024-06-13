@@ -1287,13 +1287,7 @@ pub fn process_viewport_commands(
     actions_requested: &mut HashSet<ActionRequested>,
 ) {
     for command in commands {
-        process_viewport_command(
-            egui_ctx,
-            window,
-            command,
-            info,
-            actions_requested,
-        );
+        process_viewport_command(egui_ctx, window, command, info, actions_requested);
     }
 }
 
