@@ -19,7 +19,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Custom window frame", // unused title
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 
@@ -71,7 +71,7 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
             rect
         }
         .shrink(4.0);
-        let mut content_ui = ui.child_ui(content_rect, *ui.layout());
+        let mut content_ui = ui.child_ui(content_rect, *ui.layout(), None);
         add_contents(&mut content_ui);
     });
 }
@@ -81,7 +81,11 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
 
     let painter = ui.painter();
 
-    let title_bar_response = ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
+    let title_bar_response = ui.interact(
+        title_bar_rect,
+        Id::new("title_bar"),
+        Sense::click_and_drag(),
+    );
 
     // Paint the title:
     painter.text(
@@ -108,7 +112,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
             .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
     }
 
-    if title_bar_response.is_pointer_button_down_on() {
+    if title_bar_response.dragged_by(PointerButton::Primary) {
         ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
 

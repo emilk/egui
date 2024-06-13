@@ -17,7 +17,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "My parallel egui App",
         options,
-        Box::new(|_cc| Box::new(MyApp::new())),
+        Box::new(|_cc| Ok(Box::new(MyApp::new()))),
     )
 }
 

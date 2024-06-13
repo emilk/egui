@@ -154,10 +154,10 @@ impl BackendPanel {
                         .button("Wait 2s, then request repaint after another 3s")
                         .clicked()
                     {
-                        log::info!("Waiting 2s before requesting repaint...");
+                        log::info!("Waiting 2s before requesting repaint…");
                         let ctx = ui.ctx().clone();
                         call_after_delay(std::time::Duration::from_secs(2), move || {
-                            log::info!("Request a repaint in 3s...");
+                            log::info!("Request a repaint in 3s…");
                             ctx.request_repaint_after(std::time::Duration::from_secs(3));
                         });
                     }
@@ -298,7 +298,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
 
             let mut size = None;
             egui::ComboBox::from_id_source("viewport-size-combo")
-                .selected_text("Resize to...")
+                .selected_text("Resize to…")
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
                         &mut size,

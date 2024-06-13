@@ -40,6 +40,7 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
+    fade_out: bool,
 }
 
 impl<'open> Window<'open> {
@@ -48,7 +49,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text())).constrain(true);
+        let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
         Self {
             title,
             open: None,
@@ -62,6 +63,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
+            fade_out: true,
         }
     }
 
@@ -90,7 +92,11 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// If `false` the window will be non-interactive.
+    /// If false, clicks goes straight through to what is behind us.
+    ///
+    /// Can be used for semi-invisible areas that the user should be able to click through.
+    ///
+    /// Default: `true`.
     #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.area = self.area.interactable(interactable);
@@ -108,6 +114,26 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn order(mut self, order: Order) -> Self {
         self.area = self.area.order(order);
+        self
+    }
+
+    /// If `true`, quickly fade in the `Window` when it first appears.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn fade_in(mut self, fade_in: bool) -> Self {
+        self.area = self.area.fade_in(fade_in);
+        self
+    }
+
+    /// If `true`, quickly fade out the `Window` when it closes.
+    ///
+    /// This only works if you use [`Self::open`] to close the window.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn fade_out(mut self, fade_out: bool) -> Self {
+        self.fade_out = fade_out;
         self
     }
 
@@ -198,7 +224,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Constrains this window to the screen bounds.
+    /// Constrains this window to [`Context::screen_rect`].
     ///
     /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
@@ -402,6 +428,7 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
+            fade_out,
         } = self;
 
         let header_color =
@@ -415,9 +442,12 @@ impl<'open> Window<'open> {
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        area.show_open_close_animation(ctx, &window_frame, is_open);
-
-        if !is_open {
+        let opacity = ctx.animate_bool_with_easing(
+            area.id.with("fade-out"),
+            is_open,
+            emath::easing::cubic_out,
+        );
+        if opacity <= 0.0 {
             return None;
         }
 
@@ -449,11 +479,10 @@ impl<'open> Window<'open> {
         };
 
         {
-            // Prevent window from becoming larger than the constraint rect and/or screen rect.
-            let screen_rect = ctx.screen_rect();
-            let max_rect = area.constrain_rect().unwrap_or(screen_rect);
-            let max_width = max_rect.width();
-            let max_height = max_rect.height() - title_bar_height;
+            // Prevent window from becoming larger than the constrain rect.
+            let constrain_rect = area.constrain_rect();
+            let max_width = constrain_rect.width();
+            let max_height = constrain_rect.height() - title_bar_height;
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
         }
@@ -477,6 +506,12 @@ impl<'open> Window<'open> {
         );
 
         let mut area_content_ui = area.content_ui(ctx);
+        if is_open {
+            // `Area` already takes care of fade-in animations,
+            // so we only need to handle fade-out animations here.
+        } else if fade_out {
+            area_content_ui.multiply_opacity(opacity);
+        }
 
         let content_inner = {
             // BEGIN FRAME --------------------------------

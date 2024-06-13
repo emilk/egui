@@ -1,45 +1,58 @@
 use crate::{id::IdSet, *};
 
+#[derive(Clone, Debug, Default)]
+pub struct TooltipFrameState {
+    pub widget_tooltips: IdMap<PerWidgetTooltipState>,
+}
+
+impl TooltipFrameState {
+    pub fn clear(&mut self) {
+        self.widget_tooltips.clear();
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TooltipFrameState {
-    pub common_id: Id,
-    pub rect: Rect,
-    pub count: usize,
+pub struct PerWidgetTooltipState {
+    /// Bounding rectangle for all widget and all previous tooltips.
+    pub bounding_rect: Rect,
+
+    /// How many tooltips have been shown for this widget this frame?
+    pub tooltip_count: usize,
 }
 
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
-pub(crate) struct AccessKitFrameState {
-    pub(crate) node_builders: IdMap<accesskit::NodeBuilder>,
-    pub(crate) parent_stack: Vec<Id>,
+pub struct AccessKitFrameState {
+    pub node_builders: IdMap<accesskit::NodeBuilder>,
+    pub parent_stack: Vec<Id>,
 }
 
 /// State that is collected during a frame and then cleared.
 /// Short-term (single frame) memory.
 #[derive(Clone)]
-pub(crate) struct FrameState {
+pub struct FrameState {
     /// All [`Id`]s that were used this frame.
-    pub(crate) used_ids: IdMap<Rect>,
+    pub used_ids: IdMap<Rect>,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
-    pub(crate) available_rect: Rect,
+    pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] retracts from this.
-    pub(crate) unused_rect: Rect,
+    pub unused_rect: Rect,
 
     /// How much space is used by panels.
-    pub(crate) used_by_panels: Rect,
+    pub used_by_panels: Rect,
 
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
-    /// Initialized to `None` at the start of each frame.
-    pub(crate) tooltip_state: Option<TooltipFrameState>,
+    /// Reset at the start of each frame.
+    pub tooltip_state: TooltipFrameState,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
-    pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
+    pub scroll_target: [Option<(Rangef, Option<Align>)>; 2],
 
     /// The current scroll area should scroll by this much.
     ///
@@ -50,19 +63,19 @@ pub(crate) struct FrameState {
     ///
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    pub(crate) scroll_delta: Vec2,
+    pub scroll_delta: Vec2,
 
     #[cfg(feature = "accesskit")]
-    pub(crate) accesskit_state: Option<AccessKitFrameState>,
+    pub accesskit_state: Option<AccessKitFrameState>,
 
     /// Highlight these widgets this next frame. Read from this.
-    pub(crate) highlight_this_frame: IdSet,
+    pub highlight_this_frame: IdSet,
 
     /// Highlight these widgets the next frame. Write to this.
-    pub(crate) highlight_next_frame: IdSet,
+    pub highlight_next_frame: IdSet,
 
     #[cfg(debug_assertions)]
-    pub(crate) has_debug_viewed_this_frame: bool,
+    pub has_debug_viewed_this_frame: bool,
 }
 
 impl Default for FrameState {
@@ -72,7 +85,7 @@ impl Default for FrameState {
             available_rect: Rect::NAN,
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
-            tooltip_state: None,
+            tooltip_state: Default::default(),
             scroll_target: [None, None],
             scroll_delta: Vec2::default(),
             #[cfg(feature = "accesskit")]
@@ -110,7 +123,7 @@ impl FrameState {
         *available_rect = screen_rect;
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
-        *tooltip_state = None;
+        tooltip_state.clear();
         *scroll_target = [None, None];
         *scroll_delta = Vec2::default();
 

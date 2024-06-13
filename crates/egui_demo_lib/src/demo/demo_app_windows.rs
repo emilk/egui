@@ -42,6 +42,7 @@ impl Default for Demos {
             Box::<super::table_demo::TableDemo>::default(),
             Box::<super::text_edit::TextEditDemo>::default(),
             Box::<super::text_layout::TextLayoutDemo>::default(),
+            Box::<super::tooltips::Tooltips>::default(),
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
             Box::<super::tests::WindowResizeTest>::default(),
@@ -334,7 +335,6 @@ fn file_menu_button(ui: &mut Ui) {
     }
 
     ui.menu_button("File", |ui| {
-        ui.set_min_width(220.0);
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
         // On the web the browser controls the zoom

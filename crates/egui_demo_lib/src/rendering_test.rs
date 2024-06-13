@@ -342,7 +342,7 @@ impl Gradient {
             (0..=n)
                 .map(|i| {
                     let t = i as f32 / n as f32;
-                    lerp_color_gamma(left, right, t)
+                    left.lerp_to_gamma(right, t)
                 })
                 .collect(),
         )
@@ -632,14 +632,5 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
         (left.g() as f32 * right.g() as f32 / 255.0).round() as u8,
         (left.b() as f32 * right.b() as f32 / 255.0).round() as u8,
         (left.a() as f32 * right.a() as f32 / 255.0).round() as u8,
-    )
-}
-
-fn lerp_color_gamma(left: Color32, right: Color32, t: f32) -> Color32 {
-    Color32::from_rgba_premultiplied(
-        lerp((left[0] as f32)..=(right[0] as f32), t).round() as u8,
-        lerp((left[1] as f32)..=(right[1] as f32), t).round() as u8,
-        lerp((left[2] as f32)..=(right[2] as f32), t).round() as u8,
-        lerp((left[3] as f32)..=(right[3] as f32), t).round() as u8,
     )
 }

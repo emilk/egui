@@ -437,8 +437,11 @@ impl<'a> TableBuilder<'a> {
 
         let table_top = ui.cursor().top();
 
-        // Hide first-frame-jitters when auto-sizing.
-        ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
+        ui.scope(|ui| {
+            if first_frame_auto_size_columns {
+                // Hide first-frame-jitters when auto-sizing.
+                ui.set_sizing_pass();
+            }
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
@@ -648,7 +651,11 @@ impl<'a> Table<'a> {
             let clip_rect = ui.clip_rect();
 
             // Hide first-frame-jitters when auto-sizing.
-            ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
+            ui.scope(|ui| {
+                if first_frame_auto_size_columns {
+                    ui.set_sizing_pass();
+                }
+
                 let hovered_row_index_id = self.state_id.with("__table_hovered_row");
                 let hovered_row_index =
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
@@ -956,7 +963,7 @@ impl<'a> TableBody<'a> {
     /// Add rows with varying heights.
     ///
     /// This takes a very slight performance hit compared to [`TableBody::rows`] due to the need to
-    /// iterate over all row heights in to calculate the virtual table height above and below the
+    /// iterate over all row heights in order to calculate the virtual table height above and below the
     /// visible region, but it is many orders of magnitude more performant than adding individual
     /// heterogeneously-sized rows using [`TableBody::row`] at the cost of the additional complexity
     /// that comes with pre-calculating row heights and representing them as an iterator.
