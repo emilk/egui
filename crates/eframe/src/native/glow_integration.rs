@@ -1284,7 +1284,6 @@ impl GlutinWindowContext {
             if let Some(window) = &viewport.window {
                 let old_inner_size = window.inner_size();
 
-                let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                 viewport.deferred_commands.append(&mut commands);
 
                 egui_winit::process_viewport_commands(
@@ -1292,7 +1291,6 @@ impl GlutinWindowContext {
                     &mut viewport.info,
                     std::mem::take(&mut viewport.deferred_commands),
                     window,
-                    is_viewport_focused,
                     &mut viewport.actions_requested,
                 );
 
