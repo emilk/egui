@@ -235,45 +235,47 @@ pub fn load_svg_bytes_with_size(
     size_hint: Option<SizeHint>,
 ) -> Result<egui::ColorImage, String> {
     use resvg::tiny_skia::{IntSize, Pixmap};
-    use resvg::usvg::{Options, Tree, TreeParsing};
+    use resvg::usvg::{Options, Transform, Tree};
 
     crate::profile_function!();
-    let opt = Options::default();
 
-    let mut rtree = Tree::from_data(svg_bytes, &opt).map_err(|err| err.to_string())?;
+    let mut opt = Options::default();
+    #[cfg(feature = "svg_text")]
+    opt.fontdb_mut().load_system_fonts();
 
-    let mut size = rtree.size.to_int_size();
-    match size_hint {
-        None => (),
-        Some(SizeHint::Size(w, h)) => {
-            size = size.scale_to(
-                IntSize::from_wh(w, h).ok_or_else(|| format!("Failed to scale SVG to {w}x{h}"))?,
-            );
-        }
-        Some(SizeHint::Height(h)) => {
-            size = size
-                .scale_to_height(h)
-                .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?;
-        }
-        Some(SizeHint::Width(w)) => {
-            size = size
-                .scale_to_width(w)
-                .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?;
-        }
+    let rtree = Tree::from_data(svg_bytes, &opt).map_err(|err| err.to_string())?;
+
+    let size = rtree.size().to_int_size();
+    let scaled_size = match size_hint {
+        None => size,
+        Some(SizeHint::Size(w, h)) => size.scale_to(
+            IntSize::from_wh(w, h).ok_or_else(|| format!("Failed to scale SVG to {w}x{h}"))?,
+        ),
+        Some(SizeHint::Height(h)) => size
+            .scale_to_height(h)
+            .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?,
+        Some(SizeHint::Width(w)) => size
+            .scale_to_width(w)
+            .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?,
         Some(SizeHint::Scale(z)) => {
             let z_inner = z.into_inner();
-            size = size
-                .scale_by(z_inner)
-                .ok_or_else(|| format!("Failed to scale SVG by {z_inner}"))?;
+            size.scale_by(z_inner)
+                .ok_or_else(|| format!("Failed to scale SVG by {z_inner}"))?
         }
     };
-    let (w, h) = (size.width(), size.height());
+    let (w, h) = (scaled_size.width(), scaled_size.height());
 
     let mut pixmap =
         Pixmap::new(w, h).ok_or_else(|| format!("Failed to create SVG Pixmap of size {w}x{h}"))?;
 
-    rtree.size = size.to_size();
-    resvg::Tree::from_usvg(&rtree).render(Default::default(), &mut pixmap.as_mut());
+    resvg::render(
+        &rtree,
+        Transform::from_scale(
+            w as f32 / size.width() as f32,
+            h as f32 / size.height() as f32,
+        ),
+        &mut pixmap.as_mut(),
+    );
 
     let image = egui::ColorImage::from_rgba_unmultiplied([w as _, h as _], pixmap.data());
 
