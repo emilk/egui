@@ -367,7 +367,7 @@ pub struct NativeOptions {
     pub persist_window: bool,
 
     /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
-    /// from [directories_next].
+    /// from [directories].
     pub persistence_path: Option<std::path::PathBuf>,
 }
 
