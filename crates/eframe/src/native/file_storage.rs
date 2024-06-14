@@ -15,7 +15,7 @@ use std::{
 /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
 /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
 pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
-    directories_next::ProjectDirs::from("", "", app_id)
+    directories::ProjectDirs::from("", "", app_id)
         .map(|proj_dirs| proj_dirs.data_dir().to_path_buf())
 }
 

@@ -70,7 +70,7 @@ glow = [
 
 ## Enable saving app state to disk.
 persistence = [
-  "directories-next",
+  "directories",
   "egui-winit/serde",
   "egui/persistence",
   "ron",
@@ -159,7 +159,7 @@ image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
-directories-next = { version = "2", optional = true }
+directories = { version = "5", optional = true }
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
