@@ -239,7 +239,9 @@ pub fn load_svg_bytes_with_size(
 
     crate::profile_function!();
 
+    #[allow(unused_mut)]
     let mut opt = Options::default();
+
     #[cfg(feature = "svg_text")]
     opt.fontdb_mut().load_system_fonts();
 
