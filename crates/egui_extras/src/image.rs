@@ -239,6 +239,7 @@ pub fn load_svg_bytes_with_size(
 
     crate::profile_function!();
 
+    // opt is mutated when `svg_text` feature flag is enabled
     #[allow(unused_mut)]
     let mut opt = Options::default();
 
