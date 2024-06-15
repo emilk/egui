@@ -979,8 +979,7 @@ impl Prepared {
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
             let cross = if scroll_style.floating {
-                let max_bar_rect = outer_rect.with_min_y(max_cross - scroll_style.bar_width);
-                if d == 0 {
+                let max_bar_rect = if d == 0 {
                     outer_rect.with_min_y(max_cross - scroll_style.bar_width)
                 } else {
                     outer_rect.with_min_x(max_cross - scroll_style.bar_width)
