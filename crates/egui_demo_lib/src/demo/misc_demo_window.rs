@@ -226,7 +226,7 @@ fn label_ui(ui: &mut egui::Ui) {
 
     ui.add(
         egui::Label::new(
-            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::elide`. When hovered, the label will show the full text.",
+            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::truncate`. When hovered, the label will show the full text.",
         )
         .truncate(),
     );
