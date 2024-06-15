@@ -967,9 +967,9 @@ impl Prepared {
             // left/rigth of a vertical scroll (d==1).
             let mut cross = if scroll_style.floating {
                 let max_bar_rect = if d == 0 {
-                    outer_rect.with_min_y(outer_rect.max.y - scroll_style.bar_width)
+                    outer_rect.with_min_y(outer_rect.max.y - scroll_style.bar_width - outer_margin)
                 } else {
-                    outer_rect.with_min_x(outer_rect.max.x - scroll_style.bar_width)
+                    outer_rect.with_min_x(outer_rect.max.x - scroll_style.bar_width - outer_margin)
                 };
                 let is_hovering_bar_area = is_hovering_outer_rect
                     && ui.rect_contains_pointer(max_bar_rect)
