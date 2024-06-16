@@ -568,34 +568,18 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
 
                             log::debug!("Loading {:?} ({} bytes)…", name, file.size());
 
-                            let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
-
                             let runner_ref = runner_ref.clone();
-                            let future = async move {
-                                match future.await {
-                                    Ok(array_buffer) => {
-                                        let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        log::debug!("Loaded {:?} ({} bytes).", name, bytes.len());
-
-                                        if let Some(mut runner_lock) = runner_ref.try_lock() {
-                                            runner_lock.input.raw.dropped_files.push(
-                                                egui::DroppedFile {
-                                                    name,
-                                                    mime,
-                                                    last_modified: Some(last_modified),
-                                                    bytes: Some(bytes.into()),
-                                                    ..Default::default()
-                                                },
-                                            );
-                                            runner_lock.needs_repaint.repaint_asap();
-                                        }
-                                    }
-                                    Err(err) => {
-                                        log::error!("Failed to read file: {:?}", err);
-                                    }
-                                }
+                            if let Some(mut runner_lock) = runner_ref.try_lock() {
+                                runner_lock.input.raw.dropped_files.push(egui::DroppedFile {
+                                    name,
+                                    mime,
+                                    last_modified: Some(last_modified),
+                                    stream_url: web_sys::Url::create_object_url_with_blob(&file)
+                                        .ok(),
+                                    ..Default::default()
+                                });
+                                runner_lock.needs_repaint.repaint_asap();
                             };
-                            wasm_bindgen_futures::spawn_local(future);
                         }
                     }
                 }
