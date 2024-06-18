@@ -579,7 +579,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                                         name: name.clone(),
                                         mime,
                                         last_modified: Some(last_modified),
-                                        stream_url: stream_url,
+                                        stream_url,
                                         ..Default::default()
                                     });
                                     runner_lock.needs_repaint.repaint_asap();

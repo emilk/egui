@@ -496,23 +496,23 @@ impl WrapApp {
 
                         ui.label(info);
                         #[cfg(target_arch = "wasm32")]
-                        if let Some(_) = &file.stream_url {
-                            if ui.button("Read file (output in console)").clicked() {
-                                let one_file = file.clone();
-                                let func = async move {
-                                    let res = eframe::web::get_data(&one_file);
-                                    match res.await {
-                                        Ok(data) => {
-                                            log::info!("Read {} bytes", data.len());
-                                            log::info!("First 100 bytes: {:?}", &data[..100])
-                                        }
-                                        Err(err) => {
-                                            log::error!("Failed to read file: {}", err);
-                                        }
+                        if file.stream_url.is_some()
+                            && ui.button("Read file (output in console)").clicked()
+                        {
+                            let one_file = file.clone();
+                            let func = async move {
+                                let res = eframe::web::get_data(&one_file);
+                                match res.await {
+                                    Ok(data) => {
+                                        log::info!("Read {} bytes", data.len());
+                                        log::info!("First 100 bytes: {:?}", &data[..100]);
                                     }
-                                };
-                                wasm_bindgen_futures::spawn_local(func);
-                            }
+                                    Err(err) => {
+                                        log::error!("Failed to read file: {}", err);
+                                    }
+                                }
+                            };
+                            wasm_bindgen_futures::spawn_local(func);
                         }
                     }
                 });

@@ -256,32 +256,29 @@ use web_sys::window;
 
 /// Load the data from a dropped file.
 pub async fn get_data(dropped_file: &egui::DroppedFile) -> Result<Arc<[u8]>, String> {
-    let url = dropped_file
-        .stream_url
-        .clone()
-        .ok_or_else(|| "No stream URL".to_string())?;
+    let url = dropped_file.stream_url.clone().ok_or("No stream URL")?;
 
-    let window = window().ok_or_else(|| "No Window object".to_string())?;
+    let window = window().ok_or("No Window object")?;
     let fetch = window.fetch_with_str(&url);
 
     let response_value = JsFuture::from(fetch).await.map_err(|err| {
-        error!("Failed to fetch: {:?}", err);
-        format!("Failed to fetch: {:?}", err)
+        error!("Failed to fetch: {err:?}");
+        format!("Failed to fetch: {err:?}")
     })?;
 
-    let response: web_sys::Response = response_value.dyn_into().map_err(|_| {
-        error!("Failed to cast response to web_sys::Response");
-        "Failed to cast response to web_sys::Response".to_string()
+    let response: web_sys::Response = response_value.dyn_into().map_err(|err| {
+        error!("Failed to cast response to web_sys::Response {err:?}");
+        format!("Failed to cast response to web_sys::Response {err:?}")
     })?;
 
     let array_buffer_promise = response.array_buffer().map_err(|err| {
-        error!("Failed to get array buffer: {:?}", err);
-        format!("Failed to get array buffer: {:?}", err)
+        error!("Failed to get array buffer: {err:?}",);
+        format!("Failed to get array buffer: {err:?}",)
     })?;
 
     let array_buffer = JsFuture::from(array_buffer_promise).await.map_err(|err| {
-        error!("Failed to convert to array buffer: {:?}", err);
-        format!("Failed to convert to array buffer: {:?}", err)
+        error!("Failed to convert to array buffer: {err:?}");
+        format!("Failed to convert to array buffer: {err:?}")
     })?;
 
     let bytes = Uint8Array::new(&array_buffer).to_vec();
