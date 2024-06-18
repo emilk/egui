@@ -72,7 +72,7 @@ impl CursorRange {
     }
 
     /// If there is a selection, None is returned.
-    /// If the two ends is the same, that is returned.
+    /// If the two ends are the same, that is returned.
     pub fn single(&self) -> Option<Cursor> {
         if self.is_empty() {
             Some(self.primary)
@@ -98,7 +98,7 @@ impl CursorRange {
         }
     }
 
-    /// returns the two ends ordered
+    /// Returns the two ends ordered.
     pub fn sorted_cursors(&self) -> [Cursor; 2] {
         if self.is_sorted() {
             [self.primary, self.secondary]
