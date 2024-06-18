@@ -468,7 +468,7 @@ impl Div<f32> for Vec2 {
 
 impl fmt::Debug for Vec2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{:.1} {:.1}]", self.x, self.y)
+        write!(f, "[{:.3} {:.3}]", self.x, self.y)
     }
 }
 

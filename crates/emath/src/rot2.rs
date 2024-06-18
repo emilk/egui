@@ -93,7 +93,7 @@ impl std::fmt::Debug for Rot2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Rot2 {{ angle: {:.1}°, length: {} }}",
+            "Rot2 {{ angle: {:.3}°, length: {} }}",
             self.angle().to_degrees(),
             self.length()
         )
