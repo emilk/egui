@@ -739,7 +739,7 @@ impl Ui {
     }
 
     /// Helper: shrinks the max height to the current height,
-    /// so further widgets will try not to be wider than previous widgets.
+    /// so further widgets will try not to be taller than previous widgets.
     pub fn shrink_height_to_current(&mut self) {
         self.set_max_height(self.min_rect().height());
     }
