@@ -4,6 +4,7 @@
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use epaint::mutex::RwLock;
+use new_menu::MenuData;
 
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
@@ -68,6 +69,8 @@ pub struct Ui {
     /// Indicates whether this Ui belongs to a Menu.
     menu_state: Option<Arc<RwLock<MenuState>>>,
 
+    new_menu_state: Option<Arc<RwLock<MenuData>>>,
+
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
 }
@@ -108,6 +111,7 @@ impl Ui {
             enabled: true,
             sizing_pass: false,
             menu_state: None,
+            new_menu_state: None,
             stack: Arc::new(ui_stack),
         };
 
@@ -182,6 +186,7 @@ impl Ui {
             enabled: self.enabled,
             sizing_pass: self.sizing_pass,
             menu_state: self.menu_state.clone(),
+            new_menu_state: self.new_menu_state.clone(),
             stack: Arc::new(ui_stack),
         };
 
@@ -2506,6 +2511,14 @@ impl Ui {
 
     pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
         self.menu_state = menu_state;
+    }
+
+    pub(crate) fn set_new_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuData>>>) {
+        self.new_menu_state = menu_state;
+    }
+
+    pub(crate) fn new_menu_state(&self) -> Option<Arc<RwLock<MenuData>>> {
+        self.new_menu_state.clone()
     }
 
     #[inline]
