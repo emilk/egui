@@ -961,6 +961,7 @@ impl<'a> Plot<'a> {
                     mem.auto_bounds = false.into();
                 }
                 BoundsModification::Translate(delta) => {
+                    let delta = (delta.x as f64, delta.y as f64);
                     bounds.translate(delta);
                     mem.auto_bounds = false.into();
                 }
@@ -1034,7 +1035,8 @@ impl<'a> Plot<'a> {
             if !allow_drag.y {
                 delta.y = 0.0;
             }
-            mem.transform.translate_bounds(delta);
+            mem.transform
+                .translate_bounds((delta.x as f64, delta.y as f64));
             mem.auto_bounds = mem.auto_bounds.and(!allow_drag);
         }
 
@@ -1123,7 +1125,8 @@ impl<'a> Plot<'a> {
                     scroll_delta.y = 0.0;
                 }
                 if scroll_delta != Vec2::ZERO {
-                    mem.transform.translate_bounds(-scroll_delta);
+                    mem.transform
+                        .translate_bounds((-scroll_delta.x as f64, -scroll_delta.y as f64));
                     mem.auto_bounds = false.into();
                 }
             }

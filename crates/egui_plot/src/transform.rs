@@ -184,9 +184,9 @@ impl PlotBounds {
     }
 
     #[inline]
-    pub fn translate(&mut self, delta: Vec2) {
-        self.translate_x(delta.x as f64);
-        self.translate_y(delta.y as f64);
+    pub fn translate(&mut self, delta: (f64, f64)) {
+        self.translate_x(delta.0);
+        self.translate_y(delta.1);
     }
 
     #[inline]
@@ -321,16 +321,16 @@ impl PlotTransform {
         self.bounds = bounds;
     }
 
-    pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
+    pub fn translate_bounds(&mut self, mut delta_pos: (f64, f64)) {
         if self.x_centered {
-            delta_pos.x = 0.;
+            delta_pos.0 = 0.;
         }
         if self.y_centered {
-            delta_pos.y = 0.;
+            delta_pos.1 = 0.;
         }
-        delta_pos.x *= self.dvalue_dpos()[0] as f32;
-        delta_pos.y *= self.dvalue_dpos()[1] as f32;
-        self.bounds.translate(delta_pos);
+        delta_pos.0 *= self.dvalue_dpos()[0];
+        delta_pos.1 *= self.dvalue_dpos()[1];
+        self.bounds.translate((delta_pos.0, delta_pos.1));
     }
 
     /// Zoom by a relative factor with the given screen position as center.
