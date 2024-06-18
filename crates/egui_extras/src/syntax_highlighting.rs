@@ -40,7 +40,8 @@ pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &
 // ----------------------------------------------------------------------------
 
 #[cfg(not(feature = "syntect"))]
-#[derive(Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize, enum_map::Enum)]
+#[derive(Clone, Copy, PartialEq, enum_map::Enum)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum TokenType {
     Comment,
     Keyword,
@@ -51,7 +52,8 @@ enum TokenType {
 }
 
 #[cfg(feature = "syntect")]
-#[derive(Clone, Copy, Hash, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum SyntectTheme {
     Base16EightiesDark,
     Base16MochaDark,
@@ -115,8 +117,12 @@ impl SyntectTheme {
 }
 
 /// A selected color theme.
-#[derive(Clone, Hash, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(default)]
+#[derive(Clone, Hash, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize),
+    serde(default)
+)]
 pub struct CodeTheme {
     dark_mode: bool,
 
