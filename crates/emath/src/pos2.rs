@@ -319,7 +319,11 @@ impl Div<f32> for Pos2 {
 
 impl fmt::Debug for Pos2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{:.1} {:.1}]", self.x, self.y)
+        if let Some(precision) = f.precision() {
+            write!(f, "[{1:.0$} {2:.0$}]", precision, self.x, self.y)
+        } else {
+            write!(f, "[{:.1} {:.1}]", self.x, self.y)
+        }
     }
 }
 
