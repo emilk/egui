@@ -22,7 +22,7 @@ impl eframe::App for MyApp {
             menu(ui, &button, MenuHandle::Context, |ui| {
                 let button = ui.button("subMenu");
                 menu(ui, &button, MenuHandle::Hover, |ui| {
-                    ui.button("Button");
+                    let _ = ui.button("Button");
                     ui.label("Text");
                 });
             });
