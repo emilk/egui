@@ -247,42 +247,44 @@ pub fn percent_decode(s: &str) -> String {
         .to_string()
 }
 
-use js_sys::Uint8Array;
-use log::{debug, error};
-use std::sync::Arc;
-use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::JsFuture;
-use web_sys::window;
-
 /// Load the data from a dropped file.
-pub async fn get_data(dropped_file: &egui::DroppedFile) -> Result<Arc<[u8]>, String> {
+pub async fn get_data(
+    dropped_file: &egui::DroppedFile,
+    drop_file: bool,
+) -> Result<std::sync::Arc<[u8]>, String> {
+    use wasm_bindgen_futures::JsFuture;
+
     let url = dropped_file.stream_url.clone().ok_or("No stream URL")?;
 
-    let window = window().ok_or("No Window object")?;
+    let window = web_sys::window().ok_or("No Window object")?;
     let fetch = window.fetch_with_str(&url);
 
     let response_value = JsFuture::from(fetch).await.map_err(|err| {
-        error!("Failed to fetch: {err:?}");
+        log::error!("Failed to fetch: {err:?}");
         format!("Failed to fetch: {err:?}")
     })?;
 
     let response: web_sys::Response = response_value.dyn_into().map_err(|err| {
-        error!("Failed to cast response to web_sys::Response {err:?}");
+        log::error!("Failed to cast response to web_sys::Response {err:?}");
         format!("Failed to cast response to web_sys::Response {err:?}")
     })?;
 
     let array_buffer_promise = response.array_buffer().map_err(|err| {
-        error!("Failed to get array buffer: {err:?}",);
+        log::error!("Failed to get array buffer: {err:?}",);
         format!("Failed to get array buffer: {err:?}",)
     })?;
 
     let array_buffer = JsFuture::from(array_buffer_promise).await.map_err(|err| {
-        error!("Failed to convert to array buffer: {err:?}");
+        log::error!("Failed to convert to array buffer: {err:?}");
         format!("Failed to convert to array buffer: {err:?}")
     })?;
 
-    let bytes = Uint8Array::new(&array_buffer).to_vec();
-    debug!("Loaded {} bytes", bytes.len());
+    let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
+    log::debug!("Loaded {} bytes", bytes.len());
 
-    Ok(Arc::from(bytes.into_boxed_slice()))
+    if drop_file {
+        let _ = web_sys::Url::revoke_object_url(&url);
+    }
+
+    Ok(std::sync::Arc::from(bytes.into_boxed_slice()))
 }

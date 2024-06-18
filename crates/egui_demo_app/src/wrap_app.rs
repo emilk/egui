@@ -474,7 +474,7 @@ impl WrapApp {
             egui::Window::new("Dropped files")
                 .open(&mut open)
                 .show(ctx, |ui| {
-                    for file in &self.dropped_files {
+                    for file in &mut self.dropped_files {
                         let mut info = if let Some(path) = &file.path {
                             path.display().to_string()
                         } else if !file.name.is_empty() {
@@ -501,7 +501,7 @@ impl WrapApp {
                         {
                             let one_file = file.clone();
                             let func = async move {
-                                let res = eframe::web::get_data(&one_file);
+                                let res = eframe::web::get_data(&one_file, true);
                                 match res.await {
                                     Ok(data) => {
                                         log::info!("Read {} bytes", data.len());
@@ -513,6 +513,7 @@ impl WrapApp {
                                 }
                             };
                             wasm_bindgen_futures::spawn_local(func);
+                            file.stream_url = None;
                         }
                     }
                 });
