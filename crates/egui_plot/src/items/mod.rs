@@ -850,10 +850,12 @@ impl PlotItem for Text {
             self.color
         };
 
-        let galley =
-            self.text
-                .clone()
-                .into_galley(ui, Some(false), f32::INFINITY, TextStyle::Small);
+        let galley = self.text.clone().into_galley(
+            ui,
+            Some(egui::TextWrapMode::Extend),
+            f32::INFINITY,
+            TextStyle::Small,
+        );
 
         let pos = transform.position_from_point(&self.position);
         let rect = self.anchor.anchor_size(pos, galley.size());

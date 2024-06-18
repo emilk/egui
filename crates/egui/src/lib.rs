@@ -338,6 +338,7 @@
 //! ## Code snippets
 //!
 //! ```
+//! # use egui::TextWrapMode;
 //! # egui::__run_test_ui(|ui| {
 //! # let mut some_bool = true;
 //! // Miscellaneous tips and tricks
@@ -358,7 +359,7 @@
 //! ui.scope(|ui| {
 //!     ui.visuals_mut().override_text_color = Some(egui::Color32::RED);
 //!     ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
-//!     ui.style_mut().wrap = Some(false);
+//!     ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
 //!
 //!     ui.label("This text will be red, monospace, and won't wrap to a new line");
 //! }); // the temporary settings are reverted here
@@ -399,6 +400,7 @@ mod sense;
 pub mod style;
 pub mod text_selection;
 mod ui;
+mod ui_stack;
 pub mod util;
 pub mod viewport;
 mod widget_rect;
@@ -451,6 +453,7 @@ pub use {
         Key,
     },
     drag_and_drop::DragAndDrop,
+    epaint::text::TextWrapMode,
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},
@@ -464,6 +467,7 @@ pub use {
     style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    ui_stack::*,
     viewport::*,
     widget_rect::{WidgetRect, WidgetRects},
     widget_text::{RichText, WidgetText},

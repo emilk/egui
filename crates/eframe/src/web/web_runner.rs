@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::{epi, App};
 
-use super::{events, AppRunner, PanicHandler};
+use super::{events, text_agent::TextAgent, AppRunner, PanicHandler};
 
 /// This is how `eframe` runs your wepp application
 ///
@@ -54,7 +54,7 @@ impl WebRunner {
     /// Create the application, install callbacks, and start running the app.
     ///
     /// # Errors
-    /// Failing to initialize graphics.
+    /// Failing to initialize graphics, or failure to create app.
     pub async fn start(
         &self,
         canvas_id: &str,
@@ -65,22 +65,22 @@ impl WebRunner {
 
         let follow_system_theme = web_options.follow_system_theme;
 
-        let runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
+        let text_agent = TextAgent::attach(self)?;
+
+        let runner = AppRunner::new(canvas_id, web_options, app_creator, text_agent).await?;
         self.runner.replace(Some(runner));
 
         {
             events::install_canvas_events(self)?;
             events::install_document_events(self)?;
             events::install_window_events(self)?;
-            super::text_agent::install_text_agent(self)?;
 
             if follow_system_theme {
                 events::install_color_scheme_change_event(self)?;
             }
 
+            // The resize observer handles calling `request_animation_frame` to start the render loop.
             events::install_resize_observer(self)?;
-
-            self.request_animation_frame()?;
         }
 
         Ok(())
