@@ -245,6 +245,8 @@ web-sys = { workspace = true, features = [
   "ResizeObserverBoxOptions",
   "ResizeObserverOptions",
   "ResizeObserverSize",
+  "Response",
+  "ResponseType",
   "Storage",
   "Touch",
   "TouchEvent",

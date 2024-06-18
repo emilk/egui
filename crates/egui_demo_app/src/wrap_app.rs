@@ -487,14 +487,33 @@ impl WrapApp {
                         if !file.mime.is_empty() {
                             additional_info.push(format!("type: {}", file.mime));
                         }
-                        if let Some(bytes) = &file.bytes {
-                            additional_info.push(format!("{} bytes", bytes.len()));
+                        if let Some(file_stream_url) = &file.stream_url {
+                            additional_info.push(format!("File accessible at {file_stream_url}"));
                         }
                         if !additional_info.is_empty() {
                             info += &format!(" ({})", additional_info.join(", "));
                         }
 
                         ui.label(info);
+                        #[cfg(target_arch = "wasm32")]
+                        if let Some(_) = &file.stream_url {
+                            if ui.button("Read file (output in console)").clicked() {
+                                let one_file = file.clone();
+                                let func = async move {
+                                    let res = eframe::web::get_data(&one_file);
+                                    match res.await {
+                                        Ok(data) => {
+                                            log::info!("Read {} bytes", data.len());
+                                            log::info!("First 100 bytes: {:?}", &data[..100])
+                                        }
+                                        Err(err) => {
+                                            log::error!("Failed to read file: {}", err);
+                                        }
+                                    }
+                                };
+                                wasm_bindgen_futures::spawn_local(func);
+                            }
+                        }
                     }
                 });
             if !open {

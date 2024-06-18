@@ -567,19 +567,25 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
                             log::debug!("Loading {:?} ({} bytes)…", name, file.size());
-
                             let runner_ref = runner_ref.clone();
-                            if let Some(mut runner_lock) = runner_ref.try_lock() {
-                                runner_lock.input.raw.dropped_files.push(egui::DroppedFile {
-                                    name,
-                                    mime,
-                                    last_modified: Some(last_modified),
-                                    stream_url: web_sys::Url::create_object_url_with_blob(&file)
-                                        .ok(),
-                                    ..Default::default()
-                                });
-                                runner_lock.needs_repaint.repaint_asap();
+                            // we use a future to access the runner_ref lock
+                            let future = async move {
+                                if let Some(mut runner_lock) = runner_ref.try_lock() {
+                                    log::debug!("Loading {:?}", name);
+                                    let stream_url =
+                                        web_sys::Url::create_object_url_with_blob(&file).ok();
+                                    log::debug!("stream_url: {:?}", stream_url);
+                                    runner_lock.input.raw.dropped_files.push(egui::DroppedFile {
+                                        name: name.clone(),
+                                        mime,
+                                        last_modified: Some(last_modified),
+                                        stream_url: stream_url,
+                                        ..Default::default()
+                                    });
+                                    runner_lock.needs_repaint.repaint_asap();
+                                };
                             };
+                            wasm_bindgen_futures::spawn_local(future);
                         }
                     }
                 }
