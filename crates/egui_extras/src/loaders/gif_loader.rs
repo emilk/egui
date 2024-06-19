@@ -1,6 +1,6 @@
 use egui::{
     ahash::HashMap,
-    decode_gif_uri,
+    decode_gif_uri, has_gif_magic_header,
     load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage, GifFrameDurations, Id,
@@ -13,6 +13,31 @@ use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 pub struct AnimatedImage {
     frames: Vec<Arc<ColorImage>>,
     frame_durations: GifFrameDurations,
+}
+
+impl AnimatedImage {
+    fn load_gif(data: Bytes) -> Result<Self, String> {
+        let decoder = image::codecs::gif::GifDecoder::new(Cursor::new(data))
+            .map_err(|err| format!("Failed to decode gif: {err}"))?;
+        let mut images = vec![];
+        let mut durations = vec![];
+        for frame in decoder.into_frames() {
+            let frame = frame.map_err(|err| format!("Failed to decode gif: {err}"))?;
+            let img = frame.buffer();
+            let pixels = img.as_flat_samples();
+
+            let delay: Duration = frame.delay().into();
+            images.push(Arc::new(ColorImage::from_rgba_unmultiplied(
+                [img.width() as usize, img.height() as usize],
+                pixels.as_slice(),
+            )));
+            durations.push(delay);
+        }
+        Ok(Self {
+            frames: images,
+            frame_durations: GifFrameDurations(Arc::new(durations)),
+        })
+    }
 }
 
 impl AnimatedImage {
@@ -43,56 +68,30 @@ impl GifLoader {
     pub const ID: &'static str = egui::generate_loader_id!(GifLoader);
 }
 
-pub fn gif_to_sources(data: Bytes) -> Result<AnimatedImage, String> {
-    let decoder = image::codecs::gif::GifDecoder::new(Cursor::new(data))
-        .map_err(|_err| "Couldnt decode gif".to_owned())?;
-    let mut images = vec![];
-    let mut durations = vec![];
-    for frame in decoder.into_frames() {
-        let frame = frame.map_err(|_err| "Couldnt decode gif".to_owned())?;
-        let img = frame.buffer();
-        let pixels = img.as_flat_samples();
-
-        let delay: Duration = frame.delay().into();
-        images.push(Arc::new(ColorImage::from_rgba_unmultiplied(
-            [img.width() as usize, img.height() as usize],
-            pixels.as_slice(),
-        )));
-        durations.push(delay);
-    }
-    Ok(AnimatedImage {
-        frames: images,
-        frame_durations: GifFrameDurations(Arc::new(durations)),
-    })
-}
-
 impl ImageLoader for GifLoader {
     fn id(&self) -> &str {
         Self::ID
     }
 
     fn load(&self, ctx: &egui::Context, frame_uri: &str, _: SizeHint) -> ImageLoadResult {
-        let uri_index = decode_gif_uri(frame_uri).map_err(|e| LoadError::Loading(e.to_owned()));
-        let image_uri = uri_index.as_ref().map(|v| v.0).unwrap_or(frame_uri);
+        let (image_uri, frame_index) =
+            decode_gif_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(image_uri).cloned() {
-            let index = uri_index?.1;
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready {
-                    image: image.get_image(index),
+                    image: image.get_image(frame_index),
                 }),
                 Err(err) => Err(LoadError::Loading(err)),
             }
         } else {
             match ctx.try_load_bytes(image_uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
-                    let is_gif = bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a");
-                    if !is_gif {
+                    if !has_gif_magic_header(&bytes) {
                         return Err(LoadError::NotSupported);
                     }
-                    let index = uri_index?.1;
                     log::trace!("started loading {image_uri:?}");
-                    let result = gif_to_sources(bytes).map(Arc::new);
+                    let result = AnimatedImage::load_gif(bytes).map(Arc::new);
                     if let Ok(v) = &result {
                         ctx.data_mut(|data| {
                             *data.get_temp_mut_or_default(Id::new(image_uri)) =
@@ -103,7 +102,7 @@ impl ImageLoader for GifLoader {
                     cache.insert(image_uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready {
-                            image: image.get_image(index),
+                            image: image.get_image(frame_index),
                         }),
                         Err(err) => Err(LoadError::Loading(err)),
                     }

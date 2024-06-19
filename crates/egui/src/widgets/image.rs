@@ -791,21 +791,23 @@ fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
 /// extracts uri and frame index
 /// # Errors
 /// Will return `Err` if `uri` does not match pattern {uri}-{frame_index}
-pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), &'static str> {
+pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
     let (uri, index) = uri
         .rsplit_once('#')
-        .ok_or("Failed to find index seperator '#'")?;
-    let index: usize = index.parse().map_err(|_err| "Failed to parse index")?;
+        .ok_or("Failed to find index separator '#'")?;
+    let index: usize = index
+        .parse()
+        .map_err(|_err| format!("Failed to parse index: \"{}\"", index))?;
     Ok((uri, index))
 }
 
-/// checks if uri is a gif file or starts with gif://
+/// checks if uri is a gif file
 fn is_gif_uri(uri: &str) -> bool {
-    uri.ends_with(".gif")
+    uri.ends_with(".gif") || uri.contains(".gif#")
 }
 
 /// checks if bytes are gifs
-fn has_gif_magic_header(bytes: &Bytes) -> bool {
+pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
     bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a")
 }
 
