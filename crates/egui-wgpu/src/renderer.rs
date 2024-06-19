@@ -50,7 +50,7 @@ impl Callback {
 ///
 /// ## Command Encoder
 ///
-/// The passed-in [`CommandEncoder`] is egui's and can be used directly to register
+/// The passed-in [`wgpu::CommandEncoder`] is egui's and can be used directly to register
 /// wgpu commands for simple use cases.
 /// This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui
 /// rendering itself.
@@ -58,7 +58,7 @@ impl Callback {
 /// ## Command Buffers
 ///
 /// For more complicated use cases, one can also return a list of arbitrary
-/// [`CommandBuffer`]s and have complete control over how they get created and fed.
+/// [`wgpu::CommandBuffer`]s and have complete control over how they get created and fed.
 /// In particular, this gives an opportunity to parallelize command registration and
 /// prevents a faulty callback from poisoning the main wgpu pipeline.
 ///
@@ -635,8 +635,7 @@ impl Renderer {
     ///
     /// This enables the application to reference the texture inside an image ui element.
     /// This effectively enables off-screen rendering inside the egui UI. Texture must have
-    /// the texture format [`TextureFormat::Rgba8UnormSrgb`] and
-    /// [`TextureUsage::SAMPLED`].
+    /// the texture format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
     pub fn register_native_texture(
         &mut self,
         device: &wgpu::Device,
@@ -657,7 +656,7 @@ impl Renderer {
 
     /// Registers a [`wgpu::Texture`] with an existing [`epaint::TextureId`].
     ///
-    /// This enables applications to reuse [`TextureId`]s.
+    /// This enables applications to reuse [`epaint::TextureId`]s.
     pub fn update_egui_texture_from_wgpu_texture(
         &mut self,
         device: &wgpu::Device,
@@ -684,9 +683,8 @@ impl Renderer {
     /// This allows applications to specify individual minification/magnification filters as well as
     /// custom mipmap and tiling options.
     ///
-    /// The [`Texture`] must have the format [`TextureFormat::Rgba8UnormSrgb`] and usage
-    /// [`TextureUsage::SAMPLED`]. Any compare function supplied in the [`wgpu::SamplerDescriptor`] will be
-    /// ignored.
+    /// The texture must have the format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
+    /// Any compare function supplied in the [`wgpu::SamplerDescriptor`] will be ignored.
     #[allow(clippy::needless_pass_by_value)] // false positive
     pub fn register_native_texture_with_sampler_options(
         &mut self,
@@ -726,7 +724,7 @@ impl Renderer {
     /// Registers a [`wgpu::Texture`] with an existing [`epaint::TextureId`] while also accepting custom
     /// [`wgpu::SamplerDescriptor`] options.
     ///
-    /// This allows applications to reuse [`TextureId`]s created with custom sampler options.
+    /// This allows applications to reuse [`epaint::TextureId`]s created with custom sampler options.
     #[allow(clippy::needless_pass_by_value)] // false positive
     pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
         &mut self,
