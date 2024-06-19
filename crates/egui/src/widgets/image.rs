@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use emath::{Float as _, Rot2};
 use epaint::RectShape;
@@ -40,6 +40,7 @@ use crate::{
 ///     .paint_at(ui, rect);
 /// # });
 /// ```
+///
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
@@ -288,8 +289,20 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
-    pub fn source(&self) -> &ImageSource<'a> {
-        &self.source
+    pub fn source(&'a self, ctx: &Context) -> ImageSource<'a> {
+        match &self.source {
+            ImageSource::Uri(uri) if is_gif_uri(uri) => {
+                let frame_uri = encode_gif_uri(uri, gif_frame_index(ctx, uri));
+                ImageSource::Uri(Cow::Owned(frame_uri))
+            }
+
+            ImageSource::Bytes { uri, bytes } if is_gif_uri(uri) || has_gif_magic_header(bytes) => {
+                let frame_uri = encode_gif_uri(uri, gif_frame_index(ctx, uri));
+                ctx.include_bytes(uri.clone(), bytes.clone());
+                ImageSource::Uri(Cow::Owned(frame_uri))
+            }
+            _ => self.source.clone(),
+        }
     }
 
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
@@ -300,7 +313,7 @@ impl<'a> Image<'a> {
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load_for_size(&self, ctx: &Context, available_size: Vec2) -> TextureLoadResult {
         let size_hint = self.size.hint(available_size);
-        self.source
+        self.source(ctx)
             .clone()
             .load(ctx, self.texture_options, size_hint)
     }
@@ -344,7 +357,7 @@ impl<'a> Widget for Image<'a> {
                 &self.image_options,
             );
         }
-        texture_load_result_response(&self.source, &tlr, response)
+        texture_load_result_response(&self.source(ui.ctx()), &tlr, response)
     }
 }
 
@@ -769,3 +782,58 @@ pub fn paint_texture_at(
         }
     }
 }
+
+/// gif uris contain the uri & the frame that will be displayed
+fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
+    format!("{uri}#{frame_index}")
+}
+
+/// extracts uri and frame index
+/// # Errors
+/// Will return `Err` if `uri` does not match pattern {uri}-{frame_index}
+pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
+    let (uri, index) = uri
+        .rsplit_once('#')
+        .ok_or("Failed to find index separator '#'")?;
+    let index: usize = index
+        .parse()
+        .map_err(|_err| format!("Failed to parse gif frame index: {index:?} is not an integer"))?;
+    Ok((uri, index))
+}
+
+/// checks if uri is a gif file
+fn is_gif_uri(uri: &str) -> bool {
+    uri.ends_with(".gif") || uri.contains(".gif#")
+}
+
+/// checks if bytes are gifs
+pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a")
+}
+
+/// calculates at which frame the gif is
+fn gif_frame_index(ctx: &Context, uri: &str) -> usize {
+    let now = ctx.input(|i| Duration::from_secs_f64(i.time));
+
+    let durations: Option<GifFrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
+    if let Some(durations) = durations {
+        let frames: Duration = durations.0.iter().sum();
+        let pos_ms = now.as_millis() % frames.as_millis().max(1);
+        let mut cumulative_ms = 0;
+        for (i, duration) in durations.0.iter().enumerate() {
+            cumulative_ms += duration.as_millis();
+            if pos_ms < cumulative_ms {
+                let ms_until_next_frame = cumulative_ms - pos_ms;
+                ctx.request_repaint_after(Duration::from_millis(ms_until_next_frame as u64));
+                return i;
+            }
+        }
+        0
+    } else {
+        0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+/// Stores the durations between each frame of a gif
+pub struct GifFrameDurations(pub Arc<Vec<Duration>>);

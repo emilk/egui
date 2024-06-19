@@ -27,6 +27,7 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
+                ui.image(egui::include_image!("ferris.gif"));
                 ui.add(
                     egui::Image::new("https://picsum.photos/seed/1.759706314/1024").rounding(10.0),
                 );

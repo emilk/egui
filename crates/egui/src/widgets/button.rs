@@ -319,8 +319,11 @@ impl Widget for Button<'_> {
                     image.show_loading_spinner,
                     image.image_options(),
                 );
-                response =
-                    widgets::image::texture_load_result_response(image.source(), &tlr, response);
+                response = widgets::image::texture_load_result_response(
+                    &image.source(ui.ctx()),
+                    &tlr,
+                    response,
+                );
             }
 
             if image.is_some() && galley.is_some() {

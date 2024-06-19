@@ -27,7 +27,10 @@ pub use self::{
     checkbox::Checkbox,
     drag_value::DragValue,
     hyperlink::{Hyperlink, Link},
-    image::{paint_texture_at, Image, ImageFit, ImageOptions, ImageSize, ImageSource},
+    image::{
+        decode_gif_uri, has_gif_magic_header, paint_texture_at, GifFrameDurations, Image, ImageFit,
+        ImageOptions, ImageSize, ImageSource,
+    },
     image_button::ImageButton,
     label::Label,
     progress_bar::ProgressBar,

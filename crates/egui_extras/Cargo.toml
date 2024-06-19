@@ -30,13 +30,16 @@ all-features = true
 default = ["dep:mime_guess2"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
-all_loaders = ["file", "http", "image", "svg"]
+all_loaders = ["file", "http", "image", "svg", "gif"]
 
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
 ## Add support for loading images from `file://` URIs.
 file = ["dep:mime_guess2"]
+
+## Support loading gif images.
+gif = ["image", "image/gif"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
