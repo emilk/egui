@@ -86,7 +86,7 @@ impl PlotBounds {
     }
 
     #[inline]
-    pub fn center(&self) -> PlotPoint {
+    pub fn center<T>(&self) -> PlotPoint<T> {
         [
             (self.min[0] + self.max[0]) / 2.0,
             (self.min[1] + self.max[1]) / 2.0,
@@ -96,7 +96,7 @@ impl PlotBounds {
 
     /// Expand to include the given (x,y) value
     #[inline]
-    pub fn extend_with(&mut self, value: &PlotPoint) {
+    pub fn extend_with<T>(&mut self, value: &PlotPoint<T>) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);
     }
@@ -217,7 +217,7 @@ impl PlotBounds {
     }
 
     #[inline]
-    pub fn zoom(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+    pub fn zoom<T>(&mut self, zoom_factor: Vec2, center: PlotPoint<T>) {
         self.min[0] = center.x + (self.min[0] - center.x) / (zoom_factor.x as f64);
         self.max[0] = center.x + (self.max[0] - center.x) / (zoom_factor.x as f64);
         self.min[1] = center.y + (self.min[1] - center.y) / (zoom_factor.y as f64);
@@ -293,7 +293,7 @@ impl PlotTransform {
             new_bounds.set_x(&PlotBounds::new_symmetrical(1.0));
         } else if bounds.width() == 0.0 {
             new_bounds.set_x_center_width(
-                bounds.center().x,
+                bounds.center::<()>().x,
                 if bounds.is_valid_y() {
                     bounds.height()
                 } else {
@@ -306,7 +306,7 @@ impl PlotTransform {
             new_bounds.set_y(&PlotBounds::new_symmetrical(1.0));
         } else if bounds.height() == 0.0 {
             new_bounds.set_y_center_height(
-                bounds.center().y,
+                bounds.center::<()>().y,
                 if bounds.is_valid_x() {
                     bounds.width()
                 } else {
@@ -361,8 +361,8 @@ impl PlotTransform {
     }
 
     /// Zoom by a relative factor with the given screen position as center.
-    pub fn zoom(&mut self, zoom_factor: Vec2, center: Pos2) {
-        let center = self.value_from_position(center);
+    pub fn zoom<T>(&mut self, zoom_factor: Vec2, center: Pos2) {
+        let center: PlotPoint<T> = self.value_from_position(center);
 
         let mut new_bounds = self.bounds;
         new_bounds.zoom(zoom_factor, center);
@@ -389,7 +389,7 @@ impl PlotTransform {
     }
 
     /// Screen/ui position from point on plot.
-    pub fn position_from_point(&self, value: &PlotPoint) -> Pos2 {
+    pub fn position_from_point<T>(&self, value: &PlotPoint<T>) -> Pos2 {
         pos2(
             self.position_from_point_x(value.x),
             self.position_from_point_y(value.y),
@@ -397,7 +397,7 @@ impl PlotTransform {
     }
 
     /// Plot point from screen/ui position.
-    pub fn value_from_position(&self, pos: Pos2) -> PlotPoint {
+    pub fn value_from_position<T>(&self, pos: Pos2) -> PlotPoint<T> {
         let x = remap(
             pos.x as f64,
             (self.frame.left() as f64)..=(self.frame.right() as f64),
@@ -415,7 +415,7 @@ impl PlotTransform {
     ///
     /// This typically means that the rect is mirrored vertically (top becomes bottom and vice versa),
     /// since the plot's coordinate system has +Y up, while egui has +Y down.
-    pub fn rect_from_values(&self, value1: &PlotPoint, value2: &PlotPoint) -> Rect {
+    pub fn rect_from_values<T>(&self, value1: &PlotPoint<T>, value2: &PlotPoint<T>) -> Rect {
         let pos1 = self.position_from_point(value1);
         let pos2 = self.position_from_point(value2);
 

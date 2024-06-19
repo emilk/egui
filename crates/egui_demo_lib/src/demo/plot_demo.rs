@@ -21,6 +21,7 @@ enum Panel {
     Interaction,
     CustomAxes,
     LinkedAxes,
+    Userdata,
 }
 
 impl Default for Panel {
@@ -41,6 +42,7 @@ pub struct PlotDemo {
     interaction_demo: InteractionDemo,
     custom_axes_demo: CustomAxesDemo,
     linked_axes_demo: LinkedAxesDemo,
+    userdata_demo: UserdataDemo,
     open_panel: Panel,
 }
 
@@ -87,6 +89,7 @@ impl crate::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
             ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut self.open_panel, Panel::Userdata, "Userdata");
         });
         ui.separator();
 
@@ -114,6 +117,9 @@ impl crate::View for PlotDemo {
             }
             Panel::LinkedAxes => {
                 self.linked_axes_demo.ui(ui);
+            }
+            Panel::Userdata => {
+                self.userdata_demo.ui(ui);
             }
         }
     }
@@ -224,9 +230,9 @@ impl LineDemo {
         });
     }
 
-    fn circle(&self) -> Line {
+    fn circle(&self) -> Line<()> {
         let n = 512;
-        let circle_points: PlotPoints = (0..=n)
+        let circle_points: PlotPoints<()> = (0..=n)
             .map(|i| {
                 let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
                 let r = self.circle_radius;
@@ -242,7 +248,7 @@ impl LineDemo {
             .name("circle")
     }
 
-    fn sin(&self) -> Line {
+    fn sin(&self) -> Line<()> {
         let time = self.time;
         Line::new(PlotPoints::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
@@ -254,7 +260,7 @@ impl LineDemo {
         .name("wave")
     }
 
-    fn thingy(&self) -> Line {
+    fn thingy(&self) -> Line<()> {
         let time = self.time;
         Line::new(PlotPoints::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
@@ -320,7 +326,7 @@ impl Default for MarkerDemo {
 }
 
 impl MarkerDemo {
-    fn markers(&self) -> Vec<Points> {
+    fn markers(&self) -> Vec<Points<()>> {
         MarkerShape::all()
             .enumerate()
             .map(|(i, marker)| {
@@ -383,7 +389,7 @@ struct LegendDemo {
 }
 
 impl LegendDemo {
-    fn line_with_slope(slope: f64) -> Line {
+    fn line_with_slope(slope: f64) -> Line<()> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
             ..,
@@ -391,7 +397,7 @@ impl LegendDemo {
         ))
     }
 
-    fn sin() -> Line {
+    fn sin() -> Line<()> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
             ..,
@@ -399,7 +405,7 @@ impl LegendDemo {
         ))
     }
 
-    fn cos() -> Line {
+    fn cos() -> Line<()> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),
             ..,
@@ -461,7 +467,7 @@ impl CustomAxesDemo {
     const MINS_PER_DAY: f64 = 24.0 * 60.0;
     const MINS_PER_H: f64 = 60.0;
 
-    fn logistic_fn() -> Line {
+    fn logistic_fn() -> Line<()> {
         fn days(min: f64) -> f64 {
             CustomAxesDemo::MINS_PER_DAY * min
         }
@@ -556,7 +562,7 @@ impl CustomAxesDemo {
             }
         };
 
-        let label_fmt = |_s: &str, val: &PlotPoint| {
+        let label_fmt = |_s: &str, val: &PlotPoint<()>| {
             format!(
                 "Day {d}, {h}:{m:02}\n{p:.2}%",
                 d = day(val.x),
@@ -616,7 +622,7 @@ impl Default for LinkedAxesDemo {
 }
 
 impl LinkedAxesDemo {
-    fn line_with_slope(slope: f64) -> Line {
+    fn line_with_slope(slope: f64) -> Line<()> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
             ..,
@@ -624,7 +630,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn sin() -> Line {
+    fn sin() -> Line<()> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
             ..,
@@ -632,7 +638,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn cos() -> Line {
+    fn cos() -> Line<()> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),
             ..,
@@ -640,7 +646,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn configure_plot(plot_ui: &mut egui_plot::PlotUi) {
+    fn configure_plot(plot_ui: &mut egui_plot::PlotUi<()>) {
         plot_ui.line(Self::line_with_slope(0.5));
         plot_ui.line(Self::line_with_slope(1.0));
         plot_ui.line(Self::line_with_slope(2.0));
@@ -707,7 +713,7 @@ impl ItemsDemo {
             .map(|i| [i, i.sin()])
             .collect();
 
-        let line = Line::new(sin_values.split_off(n / 2)).fill(-1.5);
+        let line = Line::<()>::new(sin_values.split_off(n / 2)).fill(-1.5);
         let polygon = Polygon::new(PlotPoints::from_parametric_callback(
             |t| (4.0 * t.sin() + 2.0 * t.cos(), 4.0 * t.cos() + 2.0 * t.sin()),
             0.0..TAU,
@@ -786,7 +792,7 @@ impl InteractionDemo {
             ));
         }
 
-        let plot = Plot::new("interaction_demo").id(id).height(300.0);
+        let plot = Plot::<()>::new("interaction_demo").id(id).height(300.0);
 
         let PlotResponse {
             response,
@@ -950,7 +956,7 @@ impl ChartsDemo {
                     )
                 })
                 // The 10 factor here is purely for a nice 1:1 aspect ratio
-                .map(|(x, f)| Bar::new(x, f * 10.0).width(0.095))
+                .map(|(x, f)| Bar::<()>::new(x, f * 10.0).width(0.095))
                 .collect(),
         )
         .color(Color32::LIGHT_BLUE)
@@ -971,7 +977,7 @@ impl ChartsDemo {
     }
 
     fn bar_stacked(&self, ui: &mut Ui) -> Response {
-        let mut chart1 = BarChart::new(vec![
+        let mut chart1 = BarChart::<()>::new(vec![
             Bar::new(0.5, 1.0).name("Day 1"),
             Bar::new(1.5, 3.0).name("Day 2"),
             Bar::new(2.5, 1.0).name("Day 3"),
@@ -1036,7 +1042,7 @@ impl ChartsDemo {
 
     fn box_plot(&self, ui: &mut Ui) -> Response {
         let yellow = Color32::from_rgb(248, 252, 168);
-        let mut box1 = BoxPlot::new(vec![
+        let mut box1 = BoxPlot::<()>::new(vec![
             BoxElem::new(0.5, BoxSpread::new(1.5, 2.2, 2.5, 2.6, 3.1)).name("Day 1"),
             BoxElem::new(2.5, BoxSpread::new(0.4, 1.0, 1.1, 1.4, 2.1)).name("Day 2"),
             BoxElem::new(4.5, BoxSpread::new(1.7, 2.0, 2.2, 2.5, 2.9)).name("Day 3"),
@@ -1076,6 +1082,99 @@ impl ChartsDemo {
                 plot_ui.box_plot(box3);
             })
             .response
+    }
+}
+
+#[derive(Default, PartialEq)]
+struct UserdataDemo {}
+
+#[derive(Debug)]
+struct Userdata {
+    #[allow(dead_code)]
+    boolean: bool,
+}
+
+impl UserdataDemo {
+    #[allow(clippy::unused_self)]
+    fn ui(&mut self, ui: &mut Ui) -> Response {
+        let id = ui.make_persistent_id("userdata_demo");
+
+        // This demonstrates how to supply custom data to plot points
+        let plot = Plot::<Userdata>::new("interaction_demo")
+            .id(id)
+            .height(300.0)
+            .label_formatter(|_, plot_point| {
+                format!(
+                    "x:{:.3}\ny:{:.3}\nUserdata: {:?}",
+                    plot_point.x, plot_point.y, plot_point.userdata
+                )
+            });
+
+        let PlotResponse {
+            response,
+            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            hovered_plot_item,
+            ..
+        } = plot.show(ui, |plot_ui| {
+            plot_ui.line(
+                Line::new(
+                    (0..10)
+                        .map(|x| {
+                            (
+                                [
+                                    (x as f64 / 10.0) * std::f64::consts::PI * 2.0,
+                                    ((x as f64 / 10.0) * std::f64::consts::PI * 2.0).sin(),
+                                ],
+                                Userdata { boolean: x < 5 },
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                )
+                .color(Color32::RED)
+                .id(egui::Id::new("sin")),
+            );
+
+            (
+                plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
+                plot_ui.pointer_coordinate(),
+                plot_ui.pointer_coordinate_drag_delta(),
+                plot_ui.plot_bounds(),
+                plot_ui.response().hovered(),
+            )
+        });
+
+        ui.label(format!(
+            "plot bounds: min: {:.02?}, max: {:.02?}",
+            bounds.min(),
+            bounds.max()
+        ));
+        ui.label(format!(
+            "origin in screen coordinates: x: {:.02}, y: {:.02}",
+            screen_pos.x, screen_pos.y
+        ));
+        ui.label(format!("plot hovered: {hovered}"));
+        let coordinate_text = if let Some(coordinate) = pointer_coordinate {
+            format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
+        } else {
+            "None".to_owned()
+        };
+        ui.label(format!("pointer coordinate: {coordinate_text}"));
+        let coordinate_text = format!(
+            "x: {:.02}, y: {:.02}",
+            pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
+        );
+        ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
+
+        let hovered_item = if hovered_plot_item == Some(egui::Id::new("sin")) {
+            "red sin"
+        } else if hovered_plot_item == Some(egui::Id::new("cos")) {
+            "blue cos"
+        } else {
+            "none"
+        };
+        ui.label(format!("hovered plot item: {hovered_item}"));
+
+        response
     }
 }
 

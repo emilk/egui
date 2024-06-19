@@ -49,7 +49,7 @@ impl BoxSpread {
 /// A box in a [`BoxPlot`] diagram. This is a low level graphical element; it will not compute quartiles and whiskers,
 /// letting one use their preferred formula. Use [`Points`][`super::Points`] to draw the outliers.
 #[derive(Clone, Debug, PartialEq)]
-pub struct BoxElem {
+pub struct BoxElem<T> {
     /// Name of plot element in the diagram (annotated by default formatter).
     pub name: String,
 
@@ -73,9 +73,11 @@ pub struct BoxElem {
 
     /// Fill color
     pub fill: Color32,
+
+    _t: std::marker::PhantomData<T>,
 }
 
-impl BoxElem {
+impl<T> BoxElem<T> {
     /// Create a box element. Its `orientation` is set by its [`BoxPlot`] parent.
     ///
     /// Check [`BoxElem`] fields for detailed description.
@@ -89,6 +91,7 @@ impl BoxElem {
             whisker_width: 0.15,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             fill: Color32::TRANSPARENT,
+            _t: std::marker::PhantomData::default(),
         }
     }
 
@@ -221,7 +224,7 @@ impl BoxElem {
 
     pub(super) fn add_rulers_and_text(
         &self,
-        parent: &BoxPlot,
+        parent: &BoxPlot<T>,
         plot: &PlotConfig<'_>,
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
@@ -235,24 +238,24 @@ impl BoxElem {
     }
 }
 
-impl RectElement for BoxElem {
+impl<T> RectElement<T> for BoxElem<T> {
     fn name(&self) -> &str {
         self.name.as_str()
     }
 
-    fn bounds_min(&self) -> PlotPoint {
+    fn bounds_min(&self) -> PlotPoint<T> {
         let argument = self.argument - self.box_width.max(self.whisker_width) / 2.0;
         let value = self.spread.lower_whisker;
         self.point_at(argument, value)
     }
 
-    fn bounds_max(&self) -> PlotPoint {
+    fn bounds_max(&self) -> PlotPoint<T> {
         let argument = self.argument + self.box_width.max(self.whisker_width) / 2.0;
         let value = self.spread.upper_whisker;
         self.point_at(argument, value)
     }
 
-    fn values_with_ruler(&self) -> Vec<PlotPoint> {
+    fn values_with_ruler(&self) -> Vec<PlotPoint<T>> {
         let median = self.point_at(self.argument, self.spread.median);
         let q1 = self.point_at(self.argument, self.spread.quartile1);
         let q3 = self.point_at(self.argument, self.spread.quartile3);
@@ -266,7 +269,7 @@ impl RectElement for BoxElem {
         self.orientation
     }
 
-    fn corner_value(&self) -> PlotPoint {
+    fn corner_value(&self) -> PlotPoint<T> {
         self.point_at(self.argument, self.spread.upper_whisker)
     }
 

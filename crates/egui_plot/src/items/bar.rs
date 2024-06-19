@@ -7,7 +7,7 @@ use crate::{BarChart, Cursor, PlotPoint, PlotTransform};
 /// One bar in a [`BarChart`]. Potentially floating, allowing stacked bar charts.
 /// Width can be changed to allow variable-width histograms.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Bar {
+pub struct Bar<T> {
     /// Name of plot element in the diagram (annotated by default formatter)
     pub name: String,
 
@@ -31,9 +31,11 @@ pub struct Bar {
 
     /// Fill color
     pub fill: Color32,
+
+    _t: std::marker::PhantomData<T>,
 }
 
-impl Bar {
+impl<T> Bar<T> {
     /// Create a bar. Its `orientation` is set by its [`BarChart`] parent.
     ///
     /// - `argument`: Position on the argument axis (X if vertical, Y if horizontal).
@@ -50,6 +52,7 @@ impl Bar {
             bar_width: 0.5,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             fill: Color32::TRANSPARENT,
+            _t: std::marker::PhantomData::default(),
         }
     }
 
@@ -141,7 +144,7 @@ impl Bar {
 
     pub(super) fn add_rulers_and_text(
         &self,
-        parent: &BarChart,
+        parent: &BarChart<T>,
         plot: &PlotConfig<'_>,
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
@@ -155,20 +158,20 @@ impl Bar {
     }
 }
 
-impl RectElement for Bar {
+impl<T> RectElement<T> for Bar<T> {
     fn name(&self) -> &str {
         self.name.as_str()
     }
 
-    fn bounds_min(&self) -> PlotPoint {
+    fn bounds_min(&self) -> PlotPoint<T> {
         self.point_at(self.argument - self.bar_width / 2.0, self.lower())
     }
 
-    fn bounds_max(&self) -> PlotPoint {
+    fn bounds_max(&self) -> PlotPoint<T> {
         self.point_at(self.argument + self.bar_width / 2.0, self.upper())
     }
 
-    fn values_with_ruler(&self) -> Vec<PlotPoint> {
+    fn values_with_ruler(&self) -> Vec<PlotPoint<T>> {
         let base = self.base_offset.unwrap_or(0.0);
         let value_center = self.point_at(self.argument, base + self.value);
 

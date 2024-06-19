@@ -32,7 +32,7 @@ pub struct PlotConfig<'a> {
 }
 
 /// Trait shared by things that can be drawn in the plot.
-pub trait PlotItem {
+pub trait PlotItem<T> {
     fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>);
 
     /// For plot-items which are generated based on x values (plotting functions).
@@ -49,7 +49,7 @@ pub trait PlotItem {
     /// Can the user hover this item?
     fn allow_hover(&self) -> bool;
 
-    fn geometry(&self) -> PlotGeometry<'_>;
+    fn geometry(&self) -> PlotGeometry<'_, T>;
 
     fn bounds(&self) -> PlotBounds;
 
@@ -81,7 +81,7 @@ pub trait PlotItem {
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
-        label_formatter: &LabelFormatter<'_>,
+        label_formatter: &LabelFormatter<'_, T>,
     ) {
         let points = match self.geometry() {
             PlotGeometry::Points(points) => points,
@@ -100,7 +100,7 @@ pub trait PlotItem {
         };
 
         // this method is only called, if the value is in the result set of find_closest()
-        let value = points[elem.index];
+        let value = &points[elem.index];
         let pointer = plot.transform.position_from_point(&value);
         shapes.push(Shape::circle_filled(pointer, 3.0, line_color));
 
@@ -206,7 +206,7 @@ impl HLine {
     }
 }
 
-impl PlotItem for HLine {
+impl<T> PlotItem<T> for HLine {
     fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             y,
@@ -219,10 +219,10 @@ impl PlotItem for HLine {
         // Round to minimize aliasing:
         let points = vec![
             ui.painter().round_pos_to_pixels(
-                transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
+                transform.position_from_point(&PlotPoint::<T>::new(transform.bounds().min[0], *y)),
             ),
             ui.painter().round_pos_to_pixels(
-                transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
+                transform.position_from_point(&PlotPoint::<T>::new(transform.bounds().max[0], *y)),
             ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
@@ -250,7 +250,7 @@ impl PlotItem for HLine {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::None
     }
 
@@ -354,7 +354,7 @@ impl VLine {
     }
 }
 
-impl PlotItem for VLine {
+impl<T> PlotItem<T> for VLine {
     fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             x,
@@ -367,10 +367,10 @@ impl PlotItem for VLine {
         // Round to minimize aliasing:
         let points = vec![
             ui.painter().round_pos_to_pixels(
-                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
+                transform.position_from_point(&PlotPoint::<T>::new(*x, transform.bounds().min[1])),
             ),
             ui.painter().round_pos_to_pixels(
-                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
+                transform.position_from_point(&PlotPoint::<T>::new(*x, transform.bounds().max[1])),
             ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
@@ -398,7 +398,7 @@ impl PlotItem for VLine {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::None
     }
 
@@ -415,8 +415,8 @@ impl PlotItem for VLine {
 }
 
 /// A series of values forming a path.
-pub struct Line {
-    pub(super) series: PlotPoints,
+pub struct Line<T> {
+    pub(super) series: PlotPoints<T>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -426,8 +426,8 @@ pub struct Line {
     id: Option<Id>,
 }
 
-impl Line {
-    pub fn new(series: impl Into<PlotPoints>) -> Self {
+impl<T> Line<T> {
+    pub fn new(series: impl Into<PlotPoints<T>>) -> Self {
         Self {
             series: series.into(),
             stroke: Stroke::new(1.5, Color32::TRANSPARENT), // Note: a stroke of 1.0 (or less) can look bad on low-dpi-screens
@@ -517,7 +517,7 @@ fn y_intersection(p1: &Pos2, p2: &Pos2, y: f32) -> Option<f32> {
         .then_some(((y * (p1.x - p2.x)) - (p1.x * p2.y - p1.y * p2.x)) / (p1.y - p2.y))
 }
 
-impl PlotItem for Line {
+impl<T> PlotItem<T> for Line<T> {
     fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
@@ -545,7 +545,7 @@ impl PlotItem for Line {
                 fill_alpha = (2.0 * fill_alpha).at_most(1.0);
             }
             let y = transform
-                .position_from_point(&PlotPoint::new(0.0, y_reference))
+                .position_from_point(&PlotPoint::<T>::new(0.0, y_reference))
                 .y;
             let fill_color = Rgba::from(stroke.color)
                 .to_opaque()
@@ -601,7 +601,7 @@ impl PlotItem for Line {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::Points(self.series.points())
     }
 
@@ -615,8 +615,8 @@ impl PlotItem for Line {
 }
 
 /// A convex polygon.
-pub struct Polygon {
-    pub(super) series: PlotPoints,
+pub struct Polygon<T> {
+    pub(super) series: PlotPoints<T>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -626,8 +626,8 @@ pub struct Polygon {
     id: Option<Id>,
 }
 
-impl Polygon {
-    pub fn new(series: impl Into<PlotPoints>) -> Self {
+impl<T> Polygon<T> {
+    pub fn new(series: impl Into<PlotPoints<T>>) -> Self {
         Self {
             series: series.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
@@ -704,7 +704,7 @@ impl Polygon {
     }
 }
 
-impl PlotItem for Polygon {
+impl<T> PlotItem<T> for Polygon<T> {
     fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
@@ -753,7 +753,7 @@ impl PlotItem for Polygon {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::Points(self.series.points())
     }
 
@@ -768,9 +768,9 @@ impl PlotItem for Polygon {
 
 /// Text inside the plot.
 #[derive(Clone)]
-pub struct Text {
+pub struct Text<T> {
     pub(super) text: WidgetText,
-    pub(super) position: PlotPoint,
+    pub(super) position: PlotPoint<T>,
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) allow_hover: bool,
@@ -779,8 +779,8 @@ pub struct Text {
     id: Option<Id>,
 }
 
-impl Text {
-    pub fn new(position: PlotPoint, text: impl Into<WidgetText>) -> Self {
+impl<T> Text<T> {
+    pub fn new(position: PlotPoint<T>, text: impl Into<WidgetText>) -> Self {
         Self {
             text: text.into(),
             position,
@@ -842,7 +842,7 @@ impl Text {
     }
 }
 
-impl PlotItem for Text {
+impl<T> PlotItem<T> for Text<T> {
     fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let color = if self.color == Color32::TRANSPARENT {
             ui.style().visuals.text_color()
@@ -893,7 +893,7 @@ impl PlotItem for Text {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::None
     }
 
@@ -909,8 +909,8 @@ impl PlotItem for Text {
 }
 
 /// A set of points.
-pub struct Points {
-    pub(super) series: PlotPoints,
+pub struct Points<T> {
+    pub(super) series: PlotPoints<T>,
 
     pub(super) shape: MarkerShape,
 
@@ -933,8 +933,8 @@ pub struct Points {
     id: Option<Id>,
 }
 
-impl Points {
-    pub fn new(series: impl Into<PlotPoints>) -> Self {
+impl<T> Points<T> {
+    pub fn new(series: impl Into<PlotPoints<T>>) -> Self {
         Self {
             series: series.into(),
             shape: MarkerShape::Circle,
@@ -1019,7 +1019,7 @@ impl Points {
     }
 }
 
-impl PlotItem for Points {
+impl<T> PlotItem<T> for Points<T> {
     fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3_f32.sqrt();
         let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
@@ -1051,7 +1051,11 @@ impl PlotItem for Points {
             stem_stroke.width *= 2.0;
         }
 
-        let y_reference = stems.map(|y| transform.position_from_point(&PlotPoint::new(0.0, y)).y);
+        let y_reference = stems.map(|y| {
+            transform
+                .position_from_point(&PlotPoint::<T>::new(0.0, y))
+                .y
+        });
 
         series
             .points()
@@ -1172,7 +1176,7 @@ impl PlotItem for Points {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::Points(self.series.points())
     }
 
@@ -1186,9 +1190,9 @@ impl PlotItem for Points {
 }
 
 /// A set of arrows.
-pub struct Arrows {
-    pub(super) origins: PlotPoints,
-    pub(super) tips: PlotPoints,
+pub struct Arrows<T> {
+    pub(super) origins: PlotPoints<T>,
+    pub(super) tips: PlotPoints<T>,
     pub(super) tip_length: Option<f32>,
     pub(super) color: Color32,
     pub(super) name: String,
@@ -1197,8 +1201,8 @@ pub struct Arrows {
     id: Option<Id>,
 }
 
-impl Arrows {
-    pub fn new(origins: impl Into<PlotPoints>, tips: impl Into<PlotPoints>) -> Self {
+impl<T> Arrows<T> {
+    pub fn new(origins: impl Into<PlotPoints<T>>, tips: impl Into<PlotPoints<T>>) -> Self {
         Self {
             origins: origins.into(),
             tips: tips.into(),
@@ -1260,7 +1264,7 @@ impl Arrows {
     }
 }
 
-impl PlotItem for Arrows {
+impl<T> PlotItem<T> for Arrows<T> {
     fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         use crate::emath::*;
         let Self {
@@ -1330,7 +1334,7 @@ impl PlotItem for Arrows {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::Points(self.origins.points())
     }
 
@@ -1345,8 +1349,8 @@ impl PlotItem for Arrows {
 
 /// An image in the plot.
 #[derive(Clone)]
-pub struct PlotImage {
-    pub(super) position: PlotPoint,
+pub struct PlotImage<T> {
+    pub(super) position: PlotPoint<T>,
     pub(super) texture_id: TextureId,
     pub(super) uv: Rect,
     pub(super) size: Vec2,
@@ -1359,11 +1363,11 @@ pub struct PlotImage {
     id: Option<Id>,
 }
 
-impl PlotImage {
+impl<T> PlotImage<T> {
     /// Create a new image with position and size in plot coordinates.
     pub fn new(
         texture_id: impl Into<TextureId>,
-        center_position: PlotPoint,
+        center_position: PlotPoint<T>,
         size: impl Into<Vec2>,
     ) -> Self {
         Self {
@@ -1437,7 +1441,7 @@ impl PlotImage {
     }
 }
 
-impl PlotItem for PlotImage {
+impl<T> PlotItem<T> for PlotImage<T> {
     fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             position,
@@ -1451,11 +1455,11 @@ impl PlotItem for PlotImage {
             ..
         } = self;
         let image_screen_rect = {
-            let left_top = PlotPoint::new(
+            let left_top = PlotPoint::<T>::new(
                 position.x - 0.5 * size.x as f64,
                 position.y - 0.5 * size.y as f64,
             );
-            let right_bottom = PlotPoint::new(
+            let right_bottom = PlotPoint::<T>::new(
                 position.x + 0.5 * size.x as f64,
                 position.y + 0.5 * size.y as f64,
             );
@@ -1518,17 +1522,17 @@ impl PlotItem for PlotImage {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::None
     }
 
     fn bounds(&self) -> PlotBounds {
         let mut bounds = PlotBounds::NOTHING;
-        let left_top = PlotPoint::new(
+        let left_top = PlotPoint::<T>::new(
             self.position.x as f32 - self.size.x / 2.0,
             self.position.y as f32 - self.size.y / 2.0,
         );
-        let right_bottom = PlotPoint::new(
+        let right_bottom = PlotPoint::<T>::new(
             self.position.x as f32 + self.size.x / 2.0,
             self.position.y as f32 + self.size.y / 2.0,
         );
@@ -1545,22 +1549,22 @@ impl PlotItem for PlotImage {
 // ----------------------------------------------------------------------------
 
 /// A bar chart.
-pub struct BarChart {
-    pub(super) bars: Vec<Bar>,
+pub struct BarChart<T> {
+    pub(super) bars: Vec<Bar<T>>,
     pub(super) default_color: Color32,
     pub(super) name: String,
 
     /// A custom element formatter
-    pub(super) element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
+    pub(super) element_formatter: Option<Box<dyn Fn(&Bar<T>, &BarChart<T>) -> String>>,
 
     highlight: bool,
     allow_hover: bool,
     id: Option<Id>,
 }
 
-impl BarChart {
+impl<T> BarChart<T> {
     /// Create a bar chart. It defaults to vertically oriented elements.
-    pub fn new(bars: Vec<Bar>) -> Self {
+    pub fn new(bars: Vec<Bar<T>>) -> Self {
         Self {
             bars,
             default_color: Color32::TRANSPARENT,
@@ -1646,7 +1650,7 @@ impl BarChart {
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
     #[inline]
-    pub fn element_formatter(mut self, formatter: Box<dyn Fn(&Bar, &Self) -> String>) -> Self {
+    pub fn element_formatter(mut self, formatter: Box<dyn Fn(&Bar<T>, &Self) -> String>) -> Self {
         self.element_formatter = Some(formatter);
         self
     }
@@ -1684,7 +1688,7 @@ impl BarChart {
     }
 }
 
-impl PlotItem for BarChart {
+impl<T> PlotItem<T> for BarChart<T> {
     fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         for b in &self.bars {
             b.add_shapes(transform, self.highlight, shapes);
@@ -1715,7 +1719,7 @@ impl PlotItem for BarChart {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::Rects
     }
 
@@ -1737,7 +1741,7 @@ impl PlotItem for BarChart {
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
-        _: &LabelFormatter<'_>,
+        _: &LabelFormatter<'_, T>,
     ) {
         let bar = &self.bars[elem.index];
 
@@ -1751,22 +1755,22 @@ impl PlotItem for BarChart {
 }
 
 /// A diagram containing a series of [`BoxElem`] elements.
-pub struct BoxPlot {
-    pub(super) boxes: Vec<BoxElem>,
+pub struct BoxPlot<T> {
+    pub(super) boxes: Vec<BoxElem<T>>,
     pub(super) default_color: Color32,
     pub(super) name: String,
 
     /// A custom element formatter
-    pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
+    pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem<T>, &BoxPlot<T>) -> String>>,
 
     highlight: bool,
     allow_hover: bool,
     id: Option<Id>,
 }
 
-impl BoxPlot {
+impl<T> BoxPlot<T> {
     /// Create a plot containing multiple `boxes`. It defaults to vertically oriented elements.
-    pub fn new(boxes: Vec<BoxElem>) -> Self {
+    pub fn new(boxes: Vec<BoxElem<T>>) -> Self {
         Self {
             boxes,
             default_color: Color32::TRANSPARENT,
@@ -1845,7 +1849,10 @@ impl BoxPlot {
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
     #[inline]
-    pub fn element_formatter(mut self, formatter: Box<dyn Fn(&BoxElem, &Self) -> String>) -> Self {
+    pub fn element_formatter(
+        mut self,
+        formatter: Box<dyn Fn(&BoxElem<T>, &Self) -> String>,
+    ) -> Self {
         self.element_formatter = Some(formatter);
         self
     }
@@ -1858,7 +1865,7 @@ impl BoxPlot {
     }
 }
 
-impl PlotItem for BoxPlot {
+impl<T> PlotItem<T> for BoxPlot<T> {
     fn shapes(&self, _ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         for b in &self.boxes {
             b.add_shapes(transform, self.highlight, shapes);
@@ -1889,7 +1896,7 @@ impl PlotItem for BoxPlot {
         self.allow_hover
     }
 
-    fn geometry(&self) -> PlotGeometry<'_> {
+    fn geometry(&self) -> PlotGeometry<'_, T> {
         PlotGeometry::Rects
     }
 
@@ -1911,7 +1918,7 @@ impl PlotItem for BoxPlot {
         shapes: &mut Vec<Shape>,
         cursors: &mut Vec<Cursor>,
         plot: &PlotConfig<'_>,
-        _: &LabelFormatter<'_>,
+        _: &LabelFormatter<'_, T>,
     ) {
         let box_plot = &self.boxes[elem.index];
 
@@ -1965,8 +1972,8 @@ pub(crate) fn horizontal_line(
     )
 }
 
-fn add_rulers_and_text(
-    elem: &dyn RectElement,
+fn add_rulers_and_text<T>(
+    elem: &dyn RectElement<T>,
     plot: &PlotConfig<'_>,
     text: Option<String>,
     shapes: &mut Vec<Shape>,
@@ -2028,14 +2035,14 @@ fn add_rulers_and_text(
 /// Draws a cross of horizontal and vertical ruler at the `pointer` position.
 /// `value` is used to for text displaying X/Y coordinates.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn rulers_at_value(
+pub(super) fn rulers_at_value<T>(
     pointer: Pos2,
-    value: PlotPoint,
+    value: &PlotPoint<T>,
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
     cursors: &mut Vec<Cursor>,
-    label_formatter: &LabelFormatter<'_>,
+    label_formatter: &LabelFormatter<'_, T>,
 ) {
     if plot.show_x {
         cursors.push(Cursor::Vertical { x: value.x });
@@ -2083,13 +2090,13 @@ pub(super) fn rulers_at_value(
     });
 }
 
-fn find_closest_rect<'a, T>(
+fn find_closest_rect<'a, T, T2>(
     rects: impl IntoIterator<Item = &'a T>,
     point: Pos2,
     transform: &PlotTransform,
 ) -> Option<ClosestElem>
 where
-    T: 'a + RectElement,
+    T: 'a + RectElement<T2>,
 {
     rects
         .into_iter()

@@ -167,19 +167,20 @@ impl LegendEntry {
 }
 
 #[derive(Clone)]
-pub(super) struct LegendWidget {
+pub(super) struct LegendWidget<T> {
     rect: Rect,
     entries: BTreeMap<String, LegendEntry>,
     config: Legend,
+    _t: std::marker::PhantomData<T>,
 }
 
-impl LegendWidget {
+impl<T> LegendWidget<T> {
     /// Create a new legend from items, the names of items that are hidden and the style of the
     /// text. Returns `None` if the legend has no entries.
     pub(super) fn try_new(
         rect: Rect,
         config: Legend,
-        items: &[Box<dyn PlotItem>],
+        items: &[Box<dyn PlotItem<T>>],
         hidden_items: &ahash::HashSet<String>, // Existing hiddent items in the plot memory.
     ) -> Option<Self> {
         // If `config.hidden_items` is not `None`, it is used.
@@ -210,6 +211,7 @@ impl LegendWidget {
             rect,
             entries,
             config,
+            _t: std::marker::PhantomData::default(),
         })
     }
 
@@ -231,12 +233,13 @@ impl LegendWidget {
     }
 }
 
-impl Widget for &mut LegendWidget {
+impl<T> Widget for &mut LegendWidget<T> {
     fn ui(self, ui: &mut Ui) -> Response {
         let LegendWidget {
             rect,
             entries,
             config,
+            ..
         } = self;
 
         let main_dir = match config.position {

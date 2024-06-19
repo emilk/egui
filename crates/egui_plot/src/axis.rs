@@ -253,7 +253,7 @@ impl<'a> AxisWidget<'a> {
     }
 
     /// Returns the actual thickness of the axis.
-    pub fn ui(self, ui: &mut Ui, axis: Axis) -> (Response, f32) {
+    pub fn ui<T>(self, ui: &mut Ui, axis: Axis) -> (Response, f32) {
         let response = ui.allocate_rect(self.rect, Sense::hover());
 
         if !ui.is_rect_visible(response.rect) {
@@ -354,7 +354,7 @@ impl<'a> AxisWidget<'a> {
                     Axis::X => {
                         thickness = thickness.max(galley.size().y);
 
-                        let projected_point = super::PlotPoint::new(step.value, 0.0);
+                        let projected_point = super::PlotPoint::<T>::new(step.value, 0.0);
                         let center_x = transform.position_from_point(&projected_point).x;
                         let y = match VPlacement::from(self.hints.placement) {
                             VPlacement::Bottom => self.rect.min.y,
@@ -366,7 +366,7 @@ impl<'a> AxisWidget<'a> {
                     Axis::Y => {
                         thickness = thickness.max(galley.size().x);
 
-                        let projected_point = super::PlotPoint::new(0.0, step.value);
+                        let projected_point = super::PlotPoint::<T>::new(0.0, step.value);
                         let center_y = transform.position_from_point(&projected_point).y;
 
                         match HPlacement::from(self.hints.placement) {

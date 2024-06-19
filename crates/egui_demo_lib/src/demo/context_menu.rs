@@ -139,7 +139,7 @@ impl ContextMenus {
                         Plot::Sigmoid => [x, sigmoid(x)],
                     }
                 })
-                .collect::<PlotPoints>(),
+                .collect::<PlotPoints<()>>(),
         );
         egui_plot::Plot::new("example_plot")
             .show_axes(self.show_axes)

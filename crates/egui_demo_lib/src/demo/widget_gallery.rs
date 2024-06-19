@@ -267,7 +267,7 @@ impl WidgetGallery {
 fn example_plot(ui: &mut egui::Ui) -> egui::Response {
     use egui_plot::{Line, PlotPoints};
     let n = 128;
-    let line_points: PlotPoints = (0..=n)
+    let line_points: PlotPoints<()> = (0..=n)
         .map(|i| {
             use std::f64::consts::TAU;
             let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
