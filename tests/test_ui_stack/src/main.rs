@@ -209,9 +209,9 @@ fn full_span_horizontal_range(ui_stack: &egui::UiStack) -> Rangef {
         if node.has_visible_frame()
             || node.is_panel_ui()
             || node.is_root_ui()
-            || node.kind == Some(UiKind::TableCell)
+            || node.kind() == Some(UiKind::TableCell)
         {
-            return (node.max_rect + node.frame.inner_margin).x_range();
+            return (node.max_rect + node.frame().inner_margin).x_range();
         }
     }
 
@@ -280,7 +280,7 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                             }
                         });
                         row.col(|ui| {
-                            let s = if let Some(kind) = node.kind {
+                            let s = if let Some(kind) = node.kind() {
                                 format!("{kind:?}")
                             } else {
                                 "-".to_owned()
@@ -289,7 +289,8 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                             ui.label(s);
                         });
                         row.col(|ui| {
-                            if node.frame.stroke == egui::Stroke::NONE {
+                            let frame = node.frame();
+                            if frame.stroke == egui::Stroke::NONE {
                                 ui.label("-");
                             } else {
                                 let mut layout_job = egui::text::LayoutJob::default();
@@ -298,11 +299,11 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                                     0.0,
                                     egui::TextFormat::simple(
                                         egui::TextStyle::Body.resolve(ui.style()),
-                                        node.frame.stroke.color,
+                                        frame.stroke.color,
                                     ),
                                 );
                                 layout_job.append(
-                                    format!("{}px", node.frame.stroke.width).as_str(),
+                                    format!("{}px", frame.stroke.width).as_str(),
                                     0.0,
                                     egui::TextFormat::simple(
                                         egui::TextStyle::Body.resolve(ui.style()),
@@ -314,10 +315,10 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                             }
                         });
                         row.col(|ui| {
-                            ui.label(print_margin(&node.frame.inner_margin));
+                            ui.label(print_margin(&node.frame().inner_margin));
                         });
                         row.col(|ui| {
-                            ui.label(print_margin(&node.frame.outer_margin));
+                            ui.label(print_margin(&node.frame().outer_margin));
                         });
                         row.col(|ui| {
                             ui.label(format!("{:?}", node.layout_direction));

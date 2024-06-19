@@ -253,10 +253,7 @@ impl Frame {
         let content_ui = ui.child_ui(
             inner_rect,
             *ui.layout(),
-            Some(UiStackInfo {
-                frame: self,
-                kind: Some(UiKind::Frame),
-            }),
+            Some(UiStackInfo::new(UiKind::Frame).with_frame(self)),
         );
 
         // content_ui.set_clip_rect(outer_rect_bounds.shrink(self.stroke.width * 0.5)); // Can't do this since we don't know final size yet

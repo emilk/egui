@@ -2442,12 +2442,51 @@ impl Context {
     #[track_caller] // To track repaint cause
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
         let animation_time = self.style().animation_time;
-        self.animate_bool_with_time(id, value, animation_time)
+        self.animate_bool_with_time_and_easing(id, value, animation_time, emath::easing::linear)
+    }
+
+    /// Like [`Self::animate_bool`], but uses an easing function that makes the value move
+    /// quickly in the beginning and slow down towards the end.
+    ///
+    /// The exact easing function may come to change in future versions of egui.
+    #[track_caller] // To track repaint cause
+    pub fn animate_bool_responsive(&self, id: Id, value: bool) -> f32 {
+        self.animate_bool_with_easing(id, value, emath::easing::cubic_out)
+    }
+
+    /// Like [`Self::animate_bool`] but allows you to control the easing function.
+    #[track_caller] // To track repaint cause
+    pub fn animate_bool_with_easing(&self, id: Id, value: bool, easing: fn(f32) -> f32) -> f32 {
+        let animation_time = self.style().animation_time;
+        self.animate_bool_with_time_and_easing(id, value, animation_time, easing)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
     #[track_caller] // To track repaint cause
     pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
+        self.animate_bool_with_time_and_easing(
+            id,
+            target_value,
+            animation_time,
+            emath::easing::linear,
+        )
+    }
+
+    /// Like [`Self::animate_bool`] but allows you to control the animation time and easing function.
+    ///
+    /// Use e.g. [`emath::easing::quadratic_out`]
+    /// for a responsive start and a slow end.
+    ///
+    /// The easing function flips when `target_value` is `false`,
+    /// so that when going back towards 0.0, we get
+    #[track_caller] // To track repaint cause
+    pub fn animate_bool_with_time_and_easing(
+        &self,
+        id: Id,
+        target_value: bool,
+        animation_time: f32,
+        easing: fn(f32) -> f32,
+    ) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_bool(
                 &ctx.viewports.entry(ctx.viewport_id()).or_default().input,
@@ -2456,11 +2495,17 @@ impl Context {
                 target_value,
             )
         });
+
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
             self.request_repaint();
         }
-        animated_value
+
+        if target_value {
+            easing(animated_value)
+        } else {
+            1.0 - easing(1.0 - animated_value)
+        }
     }
 
     /// Smoothly animate an `f32` value.

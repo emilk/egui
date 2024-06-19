@@ -92,7 +92,11 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// If `false` the window will be non-interactive.
+    /// If false, clicks goes straight through to what is behind us.
+    ///
+    /// Can be used for semi-invisible areas that the user should be able to click through.
+    ///
+    /// Default: `true`.
     #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.area = self.area.interactable(interactable);
@@ -438,7 +442,11 @@ impl<'open> Window<'open> {
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        let opacity = ctx.animate_bool(area.id.with("fade-out"), is_open);
+        let opacity = ctx.animate_bool_with_easing(
+            area.id.with("fade-out"),
+            is_open,
+            emath::easing::cubic_out,
+        );
         if opacity <= 0.0 {
             return None;
         }

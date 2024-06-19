@@ -39,6 +39,9 @@ pub struct State {
     /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
     /// it remains false until the scroll touches the end position, which reenables stickiness.
     scroll_stuck_to_end: Vec2b,
+
+    /// Area that can be dragged. This is the size of the content from the last frame.
+    interact_rect: Option<Rect>,
 }
 
 impl Default for State {
@@ -52,6 +55,7 @@ impl Default for State {
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
             scroll_stuck_to_end: Vec2b::TRUE,
+            interact_rect: None,
         }
     }
 }
@@ -514,8 +518,8 @@ impl ScrollArea {
         };
 
         let show_bars_factor = Vec2::new(
-            ctx.animate_bool(id.with("h"), show_bars[0]),
-            ctx.animate_bool(id.with("v"), show_bars[1]),
+            ctx.animate_bool_responsive(id.with("h"), show_bars[0]),
+            ctx.animate_bool_responsive(id.with("v"), show_bars[1]),
         );
 
         let current_bar_use = show_bars_factor.yx() * ui.spacing().scroll.allocated_width();
@@ -591,9 +595,11 @@ impl ScrollArea {
             // Drag contents to scroll (for touch screens mostly).
             // We must do this BEFORE adding content to the `ScrollArea`,
             // or we will steal input from the widgets we contain.
-            let content_response = ui.interact(inner_rect, id.with("area"), Sense::drag());
+            let content_response_option = state
+                .interact_rect
+                .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
 
-            if content_response.dragged() {
+            if content_response_option.map(|response| response.dragged()) == Some(true) {
                 for d in 0..2 {
                     if scroll_enabled[d] {
                         ui.input(|input| {
@@ -928,10 +934,10 @@ impl Prepared {
 
         // Avoid frame delay; start showing scroll bar right away:
         if show_scroll_this_frame[0] && show_bars_factor.x <= 0.0 {
-            show_bars_factor.x = ui.ctx().animate_bool(id.with("h"), true);
+            show_bars_factor.x = ui.ctx().animate_bool_responsive(id.with("h"), true);
         }
         if show_scroll_this_frame[1] && show_bars_factor.y <= 0.0 {
-            show_bars_factor.y = ui.ctx().animate_bool(id.with("v"), true);
+            show_bars_factor.y = ui.ctx().animate_bool_responsive(id.with("v"), true);
         }
 
         let scroll_style = ui.spacing().scroll;
@@ -970,7 +976,7 @@ impl Prepared {
                     || state.scroll_bar_interaction[d];
                 let is_hovering_bar_area_t = ui
                     .ctx()
-                    .animate_bool(id.with((d, "bar_hover")), is_hovering_bar_area);
+                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
                 let width = show_factor
                     * lerp(
                         scroll_style.floating_width..=scroll_style.bar_width,
@@ -1125,7 +1131,7 @@ impl Prepared {
                     if response.hovered() || response.dragged() {
                         scroll_style.interact_handle_opacity
                     } else {
-                        let is_hovering_outer_rect_t = ui.ctx().animate_bool(
+                        let is_hovering_outer_rect_t = ui.ctx().animate_bool_responsive(
                             id.with((d, "is_hovering_outer_rect")),
                             is_hovering_outer_rect,
                         );
@@ -1199,6 +1205,7 @@ impl Prepared {
 
         state.show_scroll = show_scroll_this_frame;
         state.content_is_too_large = content_is_too_large;
+        state.interact_rect = Some(inner_rect);
 
         state.store(ui.ctx(), id);
 

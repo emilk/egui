@@ -528,7 +528,8 @@ impl<'a> TableBuilder<'a> {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct TableState {
     column_widths: Vec<f32>,
 }

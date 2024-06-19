@@ -226,7 +226,7 @@ fn label_ui(ui: &mut egui::Ui) {
 
     ui.add(
         egui::Label::new(
-            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::elide`. When hovered, the label will show the full text.",
+            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::truncate`. When hovered, the label will show the full text.",
         )
         .truncate(),
     );
@@ -547,7 +547,7 @@ fn ui_stack_demo(ui: &mut Ui) {
                         });
 
                         row.col(|ui| {
-                            ui.label(if let Some(kind) = node.kind {
+                            ui.label(if let Some(kind) = node.kind() {
                                 format!("{kind:?}")
                             } else {
                                 "-".to_owned()

@@ -277,5 +277,5 @@ The style characters are chosen to be similar to what they are representing:
   - `<url>` and `[url](url)` do the same thing yet look completely different.
   - let's keep similarity with images
 - Tables
-- Inspiration: <https://mycorrhiza.lesarbr.es/page/mycomarkup>
+- Inspiration: <https://mycorrhiza.wiki/help/en/mycomarkup>
 "#;

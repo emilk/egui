@@ -63,16 +63,21 @@ svg = ["resvg"]
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
 
+## Derive serde Serialize/Deserialize on stateful structs
+serde = ["egui/serde", "dep:serde"]
+
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = ["serde"] }
+egui = { workspace = true, default-features = false }
 
 ahash.workspace = true
 enum-map = { version = "2", features = ["serde"] }
 log.workspace = true
-serde.workspace = true
 
 #! ### Optional dependencies
+
+# Serde for serializing state
+serde = { workspace = true, optional = true }
 
 # Date operations needed for datepicker widget
 chrono = { version = "0.4", optional = true, default-features = false, features = [
