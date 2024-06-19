@@ -91,7 +91,7 @@ impl ImageLoader for GifLoader {
                         return Err(LoadError::NotSupported);
                     }
                     log::trace!("started loading {image_uri:?}");
-                    let result = AnimatedImage::load_gif(bytes).map(Arc::new);
+                    let result = AnimatedImage::load_gif(&bytes).map(Arc::new);
                     if let Ok(v) = &result {
                         ctx.data_mut(|data| {
                             *data.get_temp_mut_or_default(Id::new(image_uri)) =
