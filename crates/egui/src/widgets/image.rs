@@ -797,7 +797,7 @@ pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
         .ok_or("Failed to find index separator '#'")?;
     let index: usize = index
         .parse()
-        .map_err(|_err| format!("Failed to parse index: \"{index}\""))?;
+        .map_err(|_err| format!("Failed to parse gif frame index: {index:?} is not an integer"))?;
     Ok((uri, index))
 }
 
