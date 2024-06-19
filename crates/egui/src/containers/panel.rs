@@ -271,6 +271,8 @@ impl SidePanel {
             })),
         );
         panel_ui.expand_to_include_rect(panel_rect);
+        panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
+
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
@@ -335,7 +337,7 @@ impl SidePanel {
             // (hence the shrink).
             let resize_x = side.opposite().side_x(rect.shrink(1.0));
             let resize_x = ui.painter().round_to_pixel(resize_x);
-            ui.painter().vline(resize_x, rect.y_range(), stroke);
+            ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
         inner_response
@@ -749,6 +751,8 @@ impl TopBottomPanel {
             })),
         );
         panel_ui.expand_to_include_rect(panel_rect);
+        panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
+
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
@@ -814,7 +818,7 @@ impl TopBottomPanel {
             // (hence the shrink).
             let resize_y = side.opposite().side_y(rect.shrink(1.0));
             let resize_y = ui.painter().round_to_pixel(resize_y);
-            ui.painter().hline(rect.x_range(), resize_y, stroke);
+            ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 
         inner_response
@@ -1078,6 +1082,7 @@ impl CentralPanel {
             Layout::top_down(Align::Min),
             Some(UiStackInfo::new(UiKind::CentralPanel)),
         );
+        panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
         let frame = frame.unwrap_or_else(|| Frame::central_panel(ui.style()));
         frame.show(&mut panel_ui, |ui| {
