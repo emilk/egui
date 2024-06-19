@@ -110,6 +110,15 @@ impl Rect {
         }
     }
 
+    /// A zero-sized rect at a specific point.
+    #[inline]
+    pub fn from_pos(point: Pos2) -> Self {
+        Self {
+            min: point,
+            max: point,
+        }
+    }
+
     /// Bounding-box around the points.
     pub fn from_points(points: &[Pos2]) -> Self {
         let mut rect = Self::NOTHING;
