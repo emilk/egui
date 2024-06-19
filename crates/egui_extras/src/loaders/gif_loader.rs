@@ -16,7 +16,7 @@ pub struct AnimatedImage {
 }
 
 impl AnimatedImage {
-    fn load_gif(data: Bytes) -> Result<Self, String> {
+    fn load_gif(data: &[u8]) -> Result<Self, String> {
         let decoder = image::codecs::gif::GifDecoder::new(Cursor::new(data))
             .map_err(|err| format!("Failed to decode gif: {err}"))?;
         let mut images = vec![];
