@@ -1,7 +1,7 @@
 use egui::{
     ahash::HashMap,
     decode_gif_uri, has_gif_magic_header,
-    load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
+    load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage, GifFrameDurations, Id,
 };
