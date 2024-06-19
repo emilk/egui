@@ -820,7 +820,7 @@ fn gif_frame_index(ctx: &Context, uri: &str) -> usize {
         let mut cumulative_ms = 0;
         for (i, duration) in durations.0.iter().enumerate() {
             cumulative_ms += duration.as_millis();
-            if pos_ms <= cumulative_ms {
+            if pos_ms < cumulative_ms {
                 let ms_until_next_frame = cumulative_ms - pos_ms;
                 ctx.request_repaint_after(Duration::from_millis(ms_until_next_frame as u64));
                 return i;
