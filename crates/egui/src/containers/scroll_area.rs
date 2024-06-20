@@ -1007,12 +1007,12 @@ impl Prepared {
             let outer_scroll_rect = if d == 0 {
                 Rect::from_min_max(
                     pos2(inner_rect.left(), cross.min - inner_margin),
-                    pos2(inner_rect.right(), cross.max),
+                    pos2(inner_rect.right(), cross.max + outer_margin),
                 )
             } else {
                 Rect::from_min_max(
                     pos2(cross.min - inner_margin, inner_rect.top()),
-                    pos2(cross.max, inner_rect.bottom()),
+                    pos2(cross.max + outer_margin, inner_rect.bottom()),
                 )
             };
 
