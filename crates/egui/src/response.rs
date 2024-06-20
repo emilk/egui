@@ -468,7 +468,7 @@ impl Response {
                 .ctx
                 .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
             {
-                pos = transform * pos;
+                pos = transform.inverse() * pos;
             }
             Some(pos)
         } else {
