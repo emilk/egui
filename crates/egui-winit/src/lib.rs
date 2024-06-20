@@ -1137,6 +1137,7 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::BracketLeft => Key::OpenBracket,
         KeyCode::BracketRight => Key::CloseBracket,
         KeyCode::Backquote => Key::Backtick,
+        KeyCode::Quote => Key::Quote,
 
         KeyCode::Cut => Key::Cut,
         KeyCode::Copy => Key::Copy,
