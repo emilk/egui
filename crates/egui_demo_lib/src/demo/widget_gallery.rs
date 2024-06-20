@@ -49,7 +49,7 @@ impl super::Demo for WidgetGallery {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .resizable([true, false])
             .default_width(280.0)
             .show(ctx, |ui| {

@@ -32,7 +32,7 @@ use super::*;
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,
-    open: Option<&'open mut bool>,
+    open: Option<Open<'open>>,
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
@@ -41,6 +41,11 @@ pub struct Window<'open> {
     default_open: bool,
     with_title_bar: bool,
     fade_out: bool,
+}
+
+enum Open<'open> {
+    Mut(&'open mut bool),
+    NonMut(bool),
 }
 
 impl<'open> Window<'open> {
@@ -74,14 +79,31 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Unlike [`Window::open_mut`], calling this function does not display the close button.
+    /// It is functionally equivalent to the following code:
+    ///
+    /// ``` ignore
+    /// if open {
+    ///     // your window code
+    /// }
+    /// ```
+    ///
+    /// The advantage of calling this function instead of using `if open` is that
+    /// this can display the close animation when the window is closed.
+    #[inline]
+    pub fn open(mut self, open: bool) -> Self {
+        self.open = Some(Open::NonMut(open));
+        self
+    }
+
     /// Call this to add a close-button to the window title bar.
     ///
     /// * If `*open == false`, the window will not be visible.
     /// * If `*open == true`, the window will have a close button.
     /// * If the close button is pressed, `*open` will be set to `false`.
     #[inline]
-    pub fn open(mut self, open: &'open mut bool) -> Self {
-        self.open = Some(open);
+    pub fn open_mut(mut self, open: &'open mut bool) -> Self {
+        self.open = Some(Open::Mut(open));
         self
     }
 
@@ -420,7 +442,7 @@ impl<'open> Window<'open> {
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
-            open,
+            mut open,
             area,
             frame,
             resize,
@@ -440,7 +462,7 @@ impl<'open> Window<'open> {
         // Add border padding to the inner margin to prevent it from covering the contents
         window_frame.inner_margin += border_padding;
 
-        let is_explicitly_closed = matches!(open, Some(false));
+        let is_explicitly_closed = matches!(open, Some(Open::Mut(false) | Open::NonMut(false)));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
         let opacity = ctx.animate_bool_with_easing(
             area.id.with("fade-out"),
@@ -517,6 +539,11 @@ impl<'open> Window<'open> {
             // BEGIN FRAME --------------------------------
             let frame_stroke = window_frame.stroke;
             let mut frame = window_frame.begin(&mut area_content_ui);
+
+            let open = match open.take() {
+                Some(Open::Mut(open)) => Some(open),
+                _ => None,
+            };
 
             let show_close_button = open.is_some();
 

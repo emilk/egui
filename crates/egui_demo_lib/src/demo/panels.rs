@@ -13,7 +13,7 @@ impl super::Demo for Panels {
             .default_width(600.0)
             .default_height(400.0)
             .vscroll(false)
-            .open(open);
+            .open_mut(open);
         window.show(ctx, |ui| self.ui(ui));
     }
 }

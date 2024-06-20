@@ -472,7 +472,7 @@ impl WrapApp {
         if !self.dropped_files.is_empty() {
             let mut open = true;
             egui::Window::new("Dropped files")
-                .open(&mut open)
+                .open_mut(&mut open)
                 .show(ctx, |ui| {
                     for file in &self.dropped_files {
                         let mut info = if let Some(path) = &file.path {

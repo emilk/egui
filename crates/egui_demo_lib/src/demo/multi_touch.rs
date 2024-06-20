@@ -28,7 +28,7 @@ impl super::Demo for MultiTouch {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .default_size(vec2(512.0, 512.0))
             .resizable(true)
             .show(ctx, |ui| {

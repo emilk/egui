@@ -46,7 +46,7 @@ impl super::Demo for Sliders {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
-            .open(open)
+            .open_mut(open)
             .resizable(false)
             .show(ctx, |ui| {
                 use super::View as _;
