@@ -590,6 +590,10 @@ impl ScrollStyle {
             ui.label("Minimum handle length");
         });
         ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+            ui.label("Inner margin");
+        });
+        ui.horizontal(|ui| {
             ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
             ui.label("Outer margin");
         });
@@ -623,11 +627,6 @@ impl ScrollStyle {
                 opacity_ui(ui, active_handle_opacity);
                 opacity_ui(ui, interact_handle_opacity);
                 ui.end_row();
-            });
-        } else {
-            ui.horizontal(|ui| {
-                ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
-                ui.label("Inner margin");
             });
         }
     }
