@@ -151,8 +151,8 @@ impl<'t> TextEdit<'t> {
 
     /// Use if you want to set an explicit [`Id`] for this widget.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 

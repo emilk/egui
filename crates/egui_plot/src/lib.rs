@@ -241,8 +241,8 @@ impl<'a> Plot<'a> {
     ///
     /// This is the same `Id` that can be used for [`PlotMemory::load`].
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 

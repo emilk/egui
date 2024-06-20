@@ -127,8 +127,8 @@ impl Area {
     ///
     /// The `id` must be globally unique.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = id;
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = id.into();
         self
     }
 
