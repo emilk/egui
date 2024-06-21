@@ -1,5 +1,7 @@
 //! The input needed by egui.
 
+use std::sync::Arc;
+
 use epaint::ColorImage;
 
 use crate::{emath::*, Key, ViewportId, ViewportIdMap};
@@ -334,6 +336,9 @@ pub struct DroppedFile {
 
     /// Set by the `eframe` web backend.
     pub last_modified: Option<std::time::SystemTime>,
+
+    /// drop the url
+    pub need_drop_url: Arc<bool>,
 
     /// Set by the `eframe` web backend.
     pub stream_url: Option<String>,

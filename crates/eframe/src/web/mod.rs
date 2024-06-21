@@ -249,11 +249,11 @@ pub fn percent_decode(s: &str) -> String {
 
 /// Load the data from a dropped file.
 pub async fn get_data(
-    dropped_file: &egui::DroppedFile,
-    drop_file: bool,
+    dropped_file: &mut egui::DroppedFile,
 ) -> Result<std::sync::Arc<[u8]>, String> {
     use wasm_bindgen_futures::JsFuture;
 
+    dropped_file.need_drop_url = false.into();
     let url = dropped_file.stream_url.clone().ok_or("No stream URL")?;
 
     let window = web_sys::window().ok_or("No Window object")?;
@@ -282,9 +282,7 @@ pub async fn get_data(
     let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
     log::debug!("Loaded {} bytes", bytes.len());
 
-    if drop_file {
-        let _ = web_sys::Url::revoke_object_url(&url);
-    }
+    dropped_file.need_drop_url = true.into();
 
     Ok(std::sync::Arc::from(bytes.into_boxed_slice()))
 }

@@ -499,9 +499,9 @@ impl WrapApp {
                         if file.stream_url.is_some()
                             && ui.button("Read file (output in console)").clicked()
                         {
-                            let one_file = file.clone();
+                            let mut one_file = file.clone();
                             let func = async move {
-                                let res = eframe::web::get_data(&one_file, true);
+                                let res = eframe::web::get_data(&mut one_file);
                                 match res.await {
                                     Ok(data) => {
                                         log::info!("Read {} bytes", data.len());
@@ -513,7 +513,6 @@ impl WrapApp {
                                 }
                             };
                             wasm_bindgen_futures::spawn_local(func);
-                            file.stream_url = None;
                         }
                     }
                 });
