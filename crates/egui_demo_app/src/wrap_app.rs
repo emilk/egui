@@ -496,9 +496,7 @@ impl WrapApp {
 
                         ui.label(info);
                         #[cfg(target_arch = "wasm32")]
-                        if file.stream_url.is_some()
-                            && ui.button("Read file (output in console)").clicked()
-                        {
+                        if file.stream_url.is_some() {
                             let mut one_file = file.clone();
                             let func = async move {
                                 let res = eframe::web::get_data(&mut one_file);

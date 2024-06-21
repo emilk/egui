@@ -9,24 +9,10 @@ pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> 
     // Only paint and schedule if there has been no panic
     if let Some(mut runner_lock) = runner_ref.try_lock() {
         paint_if_needed(&mut runner_lock);
-        drop_files(&mut runner_lock);
         drop(runner_lock);
         runner_ref.request_animation_frame()?;
     }
     Ok(())
-}
-
-fn drop_files(runner: &mut AppRunner) {
-    if !runner.input.raw.dropped_files.is_empty() {
-        for mut dropped_file in runner.input.raw.dropped_files.drain(..) {
-            if let Some(stream_url) = dropped_file.stream_url {
-                if *dropped_file.need_drop_url {
-                    let _ = web_sys::Url::revoke_object_url(&stream_url);
-                    dropped_file.need_drop_url = false.into();
-                }
-            }
-        }
-    }
 }
 
 fn paint_if_needed(runner: &mut AppRunner) {
