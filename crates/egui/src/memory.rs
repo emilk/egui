@@ -1086,6 +1086,8 @@ impl Areas {
         visible_current_frame.clear();
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
+
+        // For all layers with sublayers, put the sublayers directly after the parent layer:
         for (parent, children) in sublayers {
             let mut moved_layers = vec![*parent];
             order.retain(|l| {
