@@ -117,14 +117,22 @@ impl PlotBounds {
 
     #[inline]
     pub fn expand_x(&mut self, pad: f64) {
-        self.min[0] -= pad;
-        self.max[0] += pad;
+        if (self.min[0] - pad).is_finite() {
+            self.min[0] -= pad;
+        }
+        if (self.max[0] + pad).is_finite() {
+            self.max[0] += pad;
+        }
     }
 
     #[inline]
     pub fn expand_y(&mut self, pad: f64) {
-        self.min[1] -= pad;
-        self.max[1] += pad;
+        if (self.min[1] - pad).is_finite() {
+            self.min[1] -= pad;
+        }
+        if (self.max[1] + pad).is_finite() {
+            self.max[1] += pad;
+        }
     }
 
     #[inline]
@@ -173,14 +181,22 @@ impl PlotBounds {
 
     #[inline]
     pub fn translate_x(&mut self, delta: f64) {
-        self.min[0] += delta;
-        self.max[0] += delta;
+        if (self.min[0] + delta).is_finite() {
+            self.min[0] += delta;
+        }
+        if (self.max[0] + delta).is_finite() {
+            self.max[0] += delta;
+        }
     }
 
     #[inline]
     pub fn translate_y(&mut self, delta: f64) {
-        self.min[1] += delta;
-        self.max[1] += delta;
+        if (self.min[1] + delta).is_finite() {
+            self.min[1] += delta;
+        }
+        if (self.max[1] + delta).is_finite() {
+            self.max[1] += delta;
+        }
     }
 
     #[inline]
@@ -374,12 +390,12 @@ impl PlotTransform {
         let x = remap(
             pos.x as f64,
             (self.frame.left() as f64)..=(self.frame.right() as f64),
-            self.bounds.min[0]..=self.bounds.max[0],
+            self.bounds.range_x(),
         );
         let y = remap(
             pos.y as f64,
             (self.frame.bottom() as f64)..=(self.frame.top() as f64), // negated y axis!
-            self.bounds.min[1]..=self.bounds.max[1],
+            self.bounds.range_y(),
         );
         PlotPoint::new(x, y)
     }
