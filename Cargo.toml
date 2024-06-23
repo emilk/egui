@@ -43,7 +43,10 @@ panic = "abort" # This leads to better optimizations and smaller binaries (and i
 # split-debuginfo = "unpacked" # faster debug builds on mac
 # opt-level = 1                # Make debug builds run faster
 
-panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm anyways).
+# panic = "abort" leads to better optimizations and smaller binaries (and is the default in Wasm anyways),
+# but it also means backtraces don't work with the `backtrace` library (https://github.com/rust-lang/backtrace-rs/issues/397).
+# egui has a feature where if you hold down all modifiers keys on your keyboard and hover any UI widget,
+# you will see the backtrace to that widget, and we don't want to break that feature in dev builds.
 
 [profile.dev.package."*"]
 # Optimize all dependencies even in debug builds (does not affect workspace packages):
