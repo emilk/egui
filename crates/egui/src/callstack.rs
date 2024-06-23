@@ -28,7 +28,7 @@ pub fn capture() -> String {
 
             let name = symbol
                 .name()
-                .map(|name| name.to_string())
+                .map(|name| clean_symbol_name(name.to_string()))
                 .unwrap_or_default();
 
             frames.push(Frame {
@@ -134,6 +134,28 @@ pub fn capture() -> String {
     }
 
     formatted
+}
+
+fn clean_symbol_name(mut s: String) -> String {
+    // We get a hex suffix (at least on macOS) which is quite unhelpful,
+    // e.g. `my_crate::my_function::h3bedd97b1e03baa5`.
+    // Let's strip that.
+    if let Some(h) = s.rfind("::h") {
+        let hex = &s[h + 3..];
+        if hex.len() == 16 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            s.truncate(h);
+        }
+    }
+
+    s
+}
+
+#[test]
+fn test_clean_symbol_name() {
+    assert_eq!(
+        clean_symbol_name("my_crate::my_function::h3bedd97b1e03baa5".to_owned()),
+        "my_crate::my_function"
+    );
 }
 
 /// Shorten a path to a Rust source file from a callstack.
