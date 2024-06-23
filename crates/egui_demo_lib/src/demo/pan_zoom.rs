@@ -110,11 +110,10 @@ impl super::View for PanZoom {
         .into_iter()
         .enumerate()
         {
+            let window_layer = ui.layer_id();
             let id = egui::Area::new(id.with(("subarea", i)))
                 .default_pos(pos)
-                // Need to cover up the pan_zoom demo window,
-                // but may also cover over other windows.
-                .order(egui::Order::Foreground)
+                .order(egui::Order::Middle)
                 .show(ui.ctx(), |ui| {
                     ui.set_clip_rect(transform.inverse() * rect);
                     egui::Frame::default()
@@ -130,6 +129,7 @@ impl super::View for PanZoom {
                 .response
                 .layer_id;
             ui.ctx().set_transform_layer(id, transform);
+            ui.ctx().set_sublayer(window_layer, id);
         }
     }
 }
