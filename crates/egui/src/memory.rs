@@ -2,6 +2,7 @@
 
 use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
+use std::sync::atomic::AtomicBool;
 
 use crate::{
     area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
@@ -80,8 +81,10 @@ pub struct Memory {
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
+    /// The bool is used to detect if a popup was abandoned, that way we can reset `popup` back
+    /// to `None` at the end of the frame.
     #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<Id>,
+    popup: Option<(Id, std::sync::Arc<AtomicBool>)>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
@@ -675,6 +678,13 @@ impl Memory {
         self.caches.update();
         self.areas_mut().end_frame();
         self.focus_mut().end_frame(used_ids);
+
+        if let Some((_id, retained)) = &mut self.popup {
+            let retained = retained.fetch_and(false, std::sync::atomic::Ordering::SeqCst);
+            if !retained {
+                self.popup = None;
+            }
+        }
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -877,7 +887,18 @@ impl Memory {
 impl Memory {
     /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
-        self.popup == Some(popup_id) || self.everything_is_visible()
+        if self.everything_is_visible() {
+            return true;
+        }
+        if let Some((id, retained)) = &self.popup {
+            let is_open = *id == popup_id;
+            if is_open {
+                retained.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+            is_open
+        } else {
+            false
+        }
     }
 
     /// Is any popup open?
@@ -887,7 +908,7 @@ impl Memory {
 
     /// Open the given popup, and close all other.
     pub fn open_popup(&mut self, popup_id: Id) {
-        self.popup = Some(popup_id);
+        self.popup = Some((popup_id, std::sync::Arc::new(true.into())));
     }
 
     /// Close the open popup, if any.
