@@ -2374,6 +2374,17 @@ impl Context {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
 
+    /// Mark the `child` layer as a sublayer of `parent`.
+    ///
+    /// Sublayers are moved directly above the parent layer at the end of the frame. This is mainly
+    /// intended for adding a new [`Area`] inside a [`Window`].
+    ///
+    /// This currently only supports one level of nesting. If `parent` is a sublayer of another
+    /// layer, the behavior is unspecified.
+    pub fn set_sublayer(&self, parent: LayerId, child: LayerId) {
+        self.memory_mut(|mem| mem.areas_mut().set_sublayer(parent, child));
+    }
+
     /// Retrieve the [`LayerId`] of the top level windows.
     pub fn top_layer_id(&self) -> Option<LayerId> {
         self.memory(|mem| mem.areas().top_layer_id(Order::Middle))
