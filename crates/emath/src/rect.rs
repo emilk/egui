@@ -565,6 +565,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "top_left")]
     pub fn left_top(&self) -> Pos2 {
         pos2(self.left(), self.top())
     }
@@ -575,6 +576,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "top_right")]
     pub fn right_top(&self) -> Pos2 {
         pos2(self.right(), self.top())
     }
@@ -590,6 +592,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "bottom_left")]
     pub fn left_bottom(&self) -> Pos2 {
         pos2(self.left(), self.bottom())
     }
@@ -600,6 +603,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "bottom_right")]
     pub fn right_bottom(&self) -> Pos2 {
         pos2(self.right(), self.bottom())
     }
