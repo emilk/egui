@@ -960,10 +960,7 @@ impl Prepared {
             let main_range = Rangef::new(inner_rect.min[d], inner_rect.max[d]);
 
             // Margin on either side of the scroll bar:
-            let inner_margin = match scroll_style.floating {
-                true => 0.0,
-                false => show_factor * scroll_style.bar_inner_margin,
-            };
+            let inner_margin = show_factor * scroll_style.bar_inner_margin;
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
 
             let mut max_cross = outer_rect.max[1 - d] - outer_margin;
