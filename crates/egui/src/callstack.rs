@@ -10,6 +10,7 @@ struct Frame {
 ///
 /// In particular: slips everything before `egui::Context::run`,
 /// and skipping all frames in the `egui::` namespace.
+#[inline(never)]
 pub fn capture() -> String {
     let mut frames = vec![];
     let mut depth = 0;
