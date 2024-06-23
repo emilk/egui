@@ -44,7 +44,8 @@ pub fn capture() -> String {
     });
 
     if frames.is_empty() {
-        return Default::default();
+        return
+            "Failed to capture a backtrace. A common cause of this is compiling with panic=\"abort\" (https://github.com/rust-lang/backtrace-rs/issues/397)".to_owned();
     }
 
     // Inclusive:
