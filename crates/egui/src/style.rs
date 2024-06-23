@@ -401,7 +401,7 @@ pub struct ScrollStyle {
     /// When the user hovers the scroll bars they expand to [`Self::bar_width`].
     pub floating_width: f32,
 
-    /// How much space i allocated for a floating scroll bar?
+    /// How much space is allocated for a floating scroll bar?
     ///
     /// Normally this is zero, but you could set this to something small
     /// like 4.0 and set [`Self::dormant_handle_opacity`] and
@@ -499,7 +499,7 @@ impl ScrollStyle {
             active_background_opacity: 1.0,
             active_handle_opacity: 1.0,
 
-            // Be tranlucent when expanded so we can see the content
+            // Be translucent when expanded so we can see the content
             interact_background_opacity: 0.6,
             interact_handle_opacity: 0.6,
 
@@ -514,6 +514,7 @@ impl ScrollStyle {
         Self {
             floating: true,
             bar_width: 10.0,
+            bar_inner_margin: 0.0,
             foreground_color: true,
             floating_allocated_width: 0.0,
             dormant_background_opacity: 0.0,
@@ -590,6 +591,10 @@ impl ScrollStyle {
             ui.label("Minimum handle length");
         });
         ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+            ui.label("Inner margin");
+        });
+        ui.horizontal(|ui| {
             ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
             ui.label("Outer margin");
         });
@@ -624,11 +629,6 @@ impl ScrollStyle {
                 opacity_ui(ui, interact_handle_opacity);
                 ui.end_row();
             });
-        } else {
-            ui.horizontal(|ui| {
-                ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
-                ui.label("Inner margin");
-            });
         }
     }
 }
@@ -652,7 +652,7 @@ pub struct Interaction {
     /// Radius of the interactive area of the corner of a window during drag-to-resize.
     pub resize_grab_radius_corner: f32,
 
-    /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
+    /// If `false`, tooltips will show up anytime you hover anything, even if mouse is still moving
     pub show_tooltips_only_when_still: bool,
 
     /// Delay in seconds before showing tooltips after the mouse stops moving
@@ -2118,7 +2118,7 @@ impl HandleShape {
 pub enum NumericColorSpace {
     /// RGB is 0-255 in gamma space.
     ///
-    /// Alpha is 0-255 in linear space .
+    /// Alpha is 0-255 in linear space.
     GammaByte,
 
     /// 0-1 in linear space.
