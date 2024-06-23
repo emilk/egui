@@ -81,8 +81,7 @@ pub struct Memory {
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
-    /// The bool is used to detect if a popup was abandoned, that way we can reset `popup` back
-    /// to `None` at the end of the frame.
+    /// The bool is used to detect if a popup stopped showing before calling close_popup
     #[cfg_attr(feature = "persistence", serde(skip))]
     popup: Option<(Id, std::sync::Arc<AtomicBool>)>,
 
