@@ -108,6 +108,7 @@ impl Default for Tests {
         Self::from_demos(vec![
             Box::<super::tests::CursorTest>::default(),
             Box::<super::tests::IdTest>::default(),
+            Box::<super::tests::InputEventHistory>::default(),
             Box::<super::tests::InputTest>::default(),
             Box::<super::tests::LayoutTest>::default(),
             Box::<super::tests::ManualLayoutTest>::default(),

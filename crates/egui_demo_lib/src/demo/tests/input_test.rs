@@ -91,8 +91,8 @@ impl crate::View for InputTest {
         ui.checkbox(&mut self.late_interaction, "Use Response::interact");
 
         ui.label("This tests how egui::Response reports events.\n\
-        The different buttons are sensitive to different things.\n\
-        Try interacting with them with any mouse button by clicking, double-clicking, triple-clicking, or dragging them.");
+            The different buttons are sensitive to different things.\n\
+            Try interacting with them with any mouse button by clicking, double-clicking, triple-clicking, or dragging them.");
 
         ui.columns(4, |columns| {
             for (i, (sense_name, sense)) in [
