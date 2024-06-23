@@ -51,7 +51,7 @@ pub fn capture() -> String {
 
     // Inclusive:
     let mut min_depth = 0;
-    let mut max_depth = frames.len() - 1;
+    let mut max_depth = usize::MAX;
 
     for frame in &frames {
         if frame.name.starts_with("egui::callstack::capture") {
@@ -62,14 +62,23 @@ pub fn capture() -> String {
         }
     }
 
+    /// Is this the name of some sort of useful entry point?
+    fn is_start_name(name: &str) -> bool {
+        name == "main"
+            || name == "_main"
+            || name.starts_with("eframe::run_native")
+            || name.starts_with("egui::context::Context::run")
+    }
+
+    let mut has_kept_any_start_names = false;
+
+    frames.reverse(); // main on top, i.e. chronological order. Same as Python.
+
     // Remove frames that are uninteresting:
     frames.retain(|frame| {
-        // Keep some special frames to give the user a sense of chronology:
-        if frame.name == "main"
-            || frame.name == "_main"
-            || frame.name.starts_with("egui::context::Context::run")
-            || frame.name.starts_with("eframe::run_native")
-        {
+        // Keep the first "start" frame we can detect (e.g. `main`) to give the user a sense of chronology:
+        if is_start_name(&frame.name) && !has_kept_any_start_names {
+            has_kept_any_start_names = true;
             return true;
         }
 
@@ -97,8 +106,6 @@ pub fn capture() -> String {
         }
         true
     });
-
-    frames.reverse(); // main on top, i.e. chronological order. Same as Python.
 
     let mut deepest_depth = 0;
     let mut widest_file_line = 0;
