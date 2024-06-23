@@ -1086,10 +1086,10 @@ impl Areas {
         visible_current_frame.clear();
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
-
         // For all layers with sublayers, put the sublayers directly after the parent layer:
+        let sublayers = std::mem::take(sublayers);
         for (parent, children) in sublayers {
-            let mut moved_layers = vec![*parent];
+            let mut moved_layers = vec![parent];
             order.retain(|l| {
                 if children.contains(l) {
                     moved_layers.push(*l);
@@ -1098,7 +1098,7 @@ impl Areas {
                     true
                 }
             });
-            let Some(parent_pos) = order.iter().position(|l| l == parent) else {
+            let Some(parent_pos) = order.iter().position(|l| l == &parent) else {
                 continue;
             };
             order.splice(parent_pos..=parent_pos, moved_layers);
