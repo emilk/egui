@@ -39,7 +39,7 @@ impl Default for Sliders {
     }
 }
 
-impl super::Demo for Sliders {
+impl crate::Demo for Sliders {
     fn name(&self) -> &'static str {
         "⬌ Sliders"
     }
@@ -49,13 +49,13 @@ impl super::Demo for Sliders {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for Sliders {
+impl crate::View for Sliders {
     fn ui(&mut self, ui: &mut Ui) {
         let Self {
             min,

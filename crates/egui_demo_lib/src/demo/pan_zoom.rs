@@ -10,13 +10,13 @@ pub struct PanZoom {
 
 impl Eq for PanZoom {}
 
-impl super::Demo for PanZoom {
+impl crate::Demo for PanZoom {
     fn name(&self) -> &'static str {
         "🔍 Pan Zoom"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         let window = egui::Window::new("Pan Zoom")
             .default_width(300.0)
             .default_height(300.0)
@@ -26,7 +26,7 @@ impl super::Demo for PanZoom {
     }
 }
 
-impl super::View for PanZoom {
+impl crate::View for PanZoom {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label(
             "Pan, zoom in, and zoom out with scrolling (see the plot demo for more instructions). \

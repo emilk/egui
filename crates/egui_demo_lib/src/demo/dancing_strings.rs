@@ -7,13 +7,13 @@ pub struct DancingStrings {
     colors: bool,
 }
 
-impl super::Demo for DancingStrings {
+impl crate::Demo for DancingStrings {
     fn name(&self) -> &'static str {
         "♫ Dancing Strings"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 256.0))
@@ -22,7 +22,7 @@ impl super::Demo for DancingStrings {
     }
 }
 
-impl super::View for DancingStrings {
+impl crate::View for DancingStrings {
     fn ui(&mut self, ui: &mut Ui) {
         let color = if ui.visuals().dark_mode {
             Color32::from_additive_luminance(196)

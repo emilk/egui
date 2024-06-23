@@ -16,20 +16,20 @@ impl Default for FontBook {
     }
 }
 
-impl super::Demo for FontBook {
+impl crate::Demo for FontBook {
     fn name(&self) -> &'static str {
         "🔤 Font Book"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View as _;
+            use crate::View as _;
             self.ui(ui);
         });
     }
 }
 
-impl super::View for FontBook {
+impl crate::View for FontBook {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
