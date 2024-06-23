@@ -24,7 +24,7 @@ impl Default for FrameDemo {
     }
 }
 
-impl super::Demo for FrameDemo {
+impl crate::Demo for FrameDemo {
     fn name(&self) -> &'static str {
         "▣ Frame"
     }
@@ -34,13 +34,13 @@ impl super::Demo for FrameDemo {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for FrameDemo {
+impl crate::View for FrameDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.vertical(|ui| {

@@ -15,7 +15,7 @@ mod demo;
 pub mod easy_mark;
 mod rendering_test;
 
-pub use demo::{DemoWindows, WidgetGallery};
+pub use demo::{Demo, DemoWindows, View, WidgetGallery};
 pub use rendering_test::ColorTest;
 
 /// View some Rust code with syntax highlighting and selection.

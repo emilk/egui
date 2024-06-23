@@ -3,9 +3,9 @@ use std::collections::BTreeSet;
 use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
 
 use super::About;
-use super::Demo;
-use super::View;
 use crate::is_mobile;
+use crate::Demo;
+use crate::View;
 
 // ----------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@ impl Default for Demos {
             Box::<super::extra_viewport::ExtraViewport>::default(),
             Box::<super::font_book::FontBook>::default(),
             Box::<super::frame_demo::FrameDemo>::default(),
+            Box::<super::highlighting::Highlighting>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
@@ -45,7 +46,6 @@ impl Default for Demos {
             Box::<super::tooltips::Tooltips>::default(),
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
-            Box::<super::tests::WindowResizeTest>::default(),
         ])
     }
 }
@@ -107,12 +107,13 @@ impl Default for Tests {
     fn default() -> Self {
         Self::from_demos(vec![
             Box::<super::tests::CursorTest>::default(),
-            Box::<super::highlighting::Highlighting>::default(),
             Box::<super::tests::IdTest>::default(),
+            Box::<super::tests::InputEventHistory>::default(),
             Box::<super::tests::InputTest>::default(),
-            Box::<super::layout_test::LayoutTest>::default(),
+            Box::<super::tests::LayoutTest>::default(),
             Box::<super::tests::ManualLayoutTest>::default(),
             Box::<super::tests::TableTest>::default(),
+            Box::<super::tests::WindowResizeTest>::default(),
         ])
     }
 }

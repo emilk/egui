@@ -10,13 +10,13 @@ impl Default for Tooltips {
     }
 }
 
-impl super::Demo for Tooltips {
+impl crate::Demo for Tooltips {
     fn name(&self) -> &'static str {
         "🗖 Tooltips"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         let window = egui::Window::new("Tooltips")
             .constrain(false) // So we can test how tooltips behave close to the screen edge
             .resizable(false)
@@ -26,7 +26,7 @@ impl super::Demo for Tooltips {
     }
 }
 
-impl super::View for Tooltips {
+impl crate::View for Tooltips {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.spacing_mut().item_spacing.y = 8.0;
 
@@ -75,7 +75,7 @@ impl super::View for Tooltips {
 
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.enabled, "Enabled")
-                .on_hover_text("Controls whether or not the button below is enabled.");
+                .on_hover_text("Controls whether or not the following button is enabled.");
 
             ui.add_enabled(self.enabled, egui::Button::new("Sometimes clickable"))
                 .on_hover_ui(tooltip_ui)

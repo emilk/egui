@@ -2000,6 +2000,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "env_logger",
+ "winit",
 ]
 
 [[package]]
