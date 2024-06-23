@@ -544,7 +544,7 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
 /// so those key presses are usually not reported to egui.
-#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {
     /// Either of the alt keys are down (option ⌥ on Mac).
@@ -565,6 +565,40 @@ pub struct Modifiers {
     /// This is so that egui can, for instance, select all text by checking for `command + A`
     /// and it will work on both Mac and Windows.
     pub command: bool,
+}
+
+impl std::fmt::Debug for Modifiers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_none() {
+            return write!(f, "Modifiers::NONE");
+        }
+
+        let Self {
+            alt,
+            ctrl,
+            shift,
+            mac_cmd,
+            command,
+        } = *self;
+
+        let mut debug = f.debug_struct("Modifiers");
+        if alt {
+            debug.field("alt", &true);
+        }
+        if ctrl {
+            debug.field("ctrl", &true);
+        }
+        if shift {
+            debug.field("shift", &true);
+        }
+        if mac_cmd {
+            debug.field("mac_cmd", &true);
+        }
+        if command {
+            debug.field("command", &true);
+        }
+        debug.finish()
+    }
 }
 
 impl Modifiers {
