@@ -1,6 +1,6 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use ahash::HashMap;
+use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
 use crate::{
@@ -951,6 +951,11 @@ pub struct Areas {
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
     wants_to_be_on_top: ahash::HashSet<LayerId>,
+
+    /// List of sublayers for each layer
+    ///
+    /// When a layer has sublayers, they are moved directly above it in the ordering.
+    sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
 }
 
 impl Areas {
@@ -1042,12 +1047,29 @@ impl Areas {
         }
     }
 
+    /// Mark the `child` layer as a sublayer of `parent`.
+    ///
+    /// Sublayers are moved directly above the parent layer at the end of the frame. This is mainly
+    /// intended for adding a new [Area](crate::Area) inside a [Window](crate::Window).
+    ///
+    /// This currently only supports one level of nesting. If `parent` is a sublayer of another
+    /// layer, the behavior is unspecified.
+    pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
+        self.sublayers.entry(parent).or_default().insert(child);
+    }
+
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()
-            .filter(|layer| layer.order == order)
+            .filter(|layer| layer.order == order && !self.is_sublayer(layer))
             .last()
             .copied()
+    }
+
+    pub(crate) fn is_sublayer(&self, layer: &LayerId) -> bool {
+        self.sublayers
+            .iter()
+            .any(|(_, children)| children.contains(layer))
     }
 
     pub(crate) fn end_frame(&mut self) {
@@ -1056,6 +1078,7 @@ impl Areas {
             visible_current_frame,
             order,
             wants_to_be_on_top,
+            sublayers,
             ..
         } = self;
 
@@ -1063,6 +1086,21 @@ impl Areas {
         visible_current_frame.clear();
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
+        for (parent, children) in sublayers {
+            let mut moved_layers = vec![*parent];
+            order.retain(|l| {
+                if children.contains(l) {
+                    moved_layers.push(*l);
+                    false
+                } else {
+                    true
+                }
+            });
+            let Some(parent_pos) = order.iter().position(|l| l == parent) else {
+                continue;
+            };
+            order.splice(parent_pos..=parent_pos, moved_layers);
+        }
     }
 }
 
