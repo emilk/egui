@@ -42,7 +42,7 @@ impl Default for WidgetGallery {
     }
 }
 
-impl super::Demo for WidgetGallery {
+impl crate::Demo for WidgetGallery {
     fn name(&self) -> &'static str {
         "🗄 Widget Gallery"
     }
@@ -53,13 +53,13 @@ impl super::Demo for WidgetGallery {
             .resizable([true, false])
             .default_width(280.0)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for WidgetGallery {
+impl crate::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add_enabled_ui(self.enabled, |ui| {
             if !self.visible {

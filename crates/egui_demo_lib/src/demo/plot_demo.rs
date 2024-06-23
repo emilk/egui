@@ -44,13 +44,13 @@ pub struct PlotDemo {
     open_panel: Panel,
 }
 
-impl super::Demo for PlotDemo {
+impl crate::Demo for PlotDemo {
     fn name(&self) -> &'static str {
         "🗠 Plot"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(400.0, 400.0))
@@ -59,7 +59,7 @@ impl super::Demo for PlotDemo {
     }
 }
 
-impl super::View for PlotDemo {
+impl crate::View for PlotDemo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             egui::reset_button(ui, self, "Reset");

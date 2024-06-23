@@ -38,7 +38,7 @@ impl Default for TableDemo {
     }
 }
 
-impl super::Demo for TableDemo {
+impl crate::Demo for TableDemo {
     fn name(&self) -> &'static str {
         "☰ Table"
     }
@@ -48,7 +48,7 @@ impl super::Demo for TableDemo {
             .open(open)
             .default_width(400.0)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
@@ -56,7 +56,7 @@ impl super::Demo for TableDemo {
 
 const NUM_MANUAL_ROWS: usize = 20;
 
-impl super::View for TableDemo {
+impl crate::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
