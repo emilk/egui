@@ -83,7 +83,7 @@ wasm-bindgen.workspace = true
 glutin.workspace = true       # examples/pure_glow
 glutin-winit.workspace = true
 # glutin stuck on old version of raw-window-handle:
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
+rwh_06 = { package = "raw-window-handle", version = "0.6.2", features = [
   "std",
 ] }
 
