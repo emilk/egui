@@ -116,22 +116,37 @@ impl PlotBounds {
     }
 
     #[inline]
-    pub fn expand_x(&mut self, pad: f64) {
-        if (self.min[0] - pad).is_finite() {
-            self.min[0] -= pad;
+    fn clamp_to_finite(&mut self) {
+        for d in 0..2 {
+            self.min[d] = self.min[d].clamp(f64::MIN, f64::MAX);
+            if self.min[d].is_nan() {
+                println!("min[d] is nan");
+                self.min[d] = 0.0;
+            }
+
+            self.max[d] = self.max[d].clamp(f64::MIN, f64::MAX);
+            if self.max[d].is_nan() {
+                println!("max[d] is nan");
+                self.max[d] = 0.0;
+            }
         }
-        if (self.max[0] + pad).is_finite() {
+    }
+
+    #[inline]
+    pub fn expand_x(&mut self, pad: f64) {
+        if pad.is_finite() {
+            self.min[0] -= pad;
             self.max[0] += pad;
+            self.clamp_to_finite();
         }
     }
 
     #[inline]
     pub fn expand_y(&mut self, pad: f64) {
-        if (self.min[1] - pad).is_finite() {
+        if pad.is_finite() {
             self.min[1] -= pad;
-        }
-        if (self.max[1] + pad).is_finite() {
             self.max[1] += pad;
+            self.clamp_to_finite();
         }
     }
 
@@ -181,21 +196,20 @@ impl PlotBounds {
 
     #[inline]
     pub fn translate_x(&mut self, delta: f64) {
-        if (self.min[0] + delta).is_finite() {
+        if delta.is_finite() {
             self.min[0] += delta;
-        }
-        if (self.max[0] + delta).is_finite() {
             self.max[0] += delta;
+            self.clamp_to_finite();
         }
     }
 
     #[inline]
     pub fn translate_y(&mut self, delta: f64) {
-        if (self.min[1] + delta).is_finite() {
+        if delta.is_finite() {
             self.min[1] += delta;
-        }
-        if (self.max[1] + delta).is_finite() {
+
             self.max[1] += delta;
+            self.clamp_to_finite();
         }
     }
 
