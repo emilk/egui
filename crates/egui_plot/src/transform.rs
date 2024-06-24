@@ -207,7 +207,6 @@ impl PlotBounds {
     pub fn translate_y(&mut self, delta: f64) {
         if delta.is_finite() {
             self.min[1] += delta;
-
             self.max[1] += delta;
             self.clamp_to_finite();
         }
