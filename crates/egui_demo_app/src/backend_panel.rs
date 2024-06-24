@@ -396,6 +396,7 @@ impl EguiWindows {
         egui::Window::new("🔧 Settings")
             .open(settings)
             .vscroll(true)
+            .auto_shrink(false)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
