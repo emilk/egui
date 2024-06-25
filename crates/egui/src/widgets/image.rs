@@ -292,7 +292,7 @@ impl<'a> Image<'a> {
     pub fn forget_image(&self, ctx: &Context) {
         let uri = match &self.source {
             ImageSource::Uri(uri) => Some(uri),
-            ImageSource::Bytes { uri, bytes } => Some(uri),
+            ImageSource::Bytes { uri, .. } => Some(uri),
             _ => None,
         };
         if let Some(uri) = uri {
