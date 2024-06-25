@@ -5,7 +5,7 @@
 #![allow(clippy::never_loop)] // False positive
 
 // When compiling natively:
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
             "--profile" => {
