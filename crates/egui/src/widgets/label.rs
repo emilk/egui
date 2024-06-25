@@ -182,8 +182,21 @@ impl Label {
             }
             (pos, galley, response)
         } else {
-            layout_job.wrap =
-                text::TextWrapping::from_wrap_mode_and_width(wrap_mode, available_width);
+            // Apply wrap_mode, but don't overwrite anything important
+            // the user may have set manually on the layout_job:
+            match wrap_mode {
+                TextWrapMode::Extend => {
+                    layout_job.wrap.max_width = f32::INFINITY;
+                }
+                TextWrapMode::Wrap => {
+                    layout_job.wrap.max_width = available_width;
+                }
+                TextWrapMode::Truncate => {
+                    layout_job.wrap.max_width = available_width;
+                    layout_job.wrap.max_rows = 1;
+                    layout_job.wrap.break_anywhere = true;
+                }
+            }
 
             if ui.is_grid() {
                 // TODO(emilk): remove special Grid hacks like these
