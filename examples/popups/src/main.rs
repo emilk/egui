@@ -31,7 +31,7 @@ impl eframe::App for MyApp {
                 ui,
                 popup_id,
                 &response,
-                PopupCloseBehavior::CloseOnClickAway,
+                PopupCloseBehavior::CloseOnClickOutside,
                 |ui| {
                     ui.set_min_width(300.0);
                     ui.label("This popup will be open even if you click the checkbox");

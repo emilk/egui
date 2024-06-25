@@ -256,13 +256,18 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
 /// Determines popup's close behavior
 #[derive(Clone, Copy)]
 pub enum PopupCloseBehavior {
-    /// Popup will be closed on click
-    /// It is used in the [`ComboBox`]
+    /// Popup will be closed on click anywhere, inside or outside the popup.
+    ///
+    /// It is used in [`ComboBox`].
     CloseOnClick,
 
     /// Popup will be closed if the click happened somewhere else
     /// but in the popup's body
-    CloseOnClickAway,
+    CloseOnClickOutside,
+
+    /// Clicks will be ignored. Popup might be closed manually by calling [`Memory::close_popup`]
+    /// or by pressing the escape button
+    IgnoreClicks,
 }
 
 /// Helper for [`popup_above_or_below_widget`].
@@ -344,14 +349,15 @@ pub fn popup_above_or_below_widget<R>(
                     .inner
             });
 
-        let is_close = match close_behavior {
+        let should_close = match close_behavior {
             PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
-            PopupCloseBehavior::CloseOnClickAway => {
+            PopupCloseBehavior::CloseOnClickOutside => {
                 widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
             }
+            PopupCloseBehavior::IgnoreClicks => false,
         };
 
-        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || is_close {
+        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
             parent_ui.memory_mut(|mem| mem.close_popup());
         }
         Some(response.inner)
