@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use eframe::egui::{self, ColorImage};
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
