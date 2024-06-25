@@ -2,7 +2,7 @@
 //!
 //! Check out [`Plot`] for how to get started.
 //!
-//! [**Looking for maintainer!**](https://github.com/rerun-io/rerun/issues/6629)
+//! [**Looking for maintainer!**](https://github.com/emilk/egui/issues/4705)
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]

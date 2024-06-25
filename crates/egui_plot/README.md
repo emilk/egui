@@ -8,4 +8,4 @@
 
 Immediate mode plotting for [`egui`](https://github.com/emilk/egui).
 
-[**Looking for a maintainer!**](https://github.com/rerun-io/rerun/issues/6629)
+[**Looking for a maintainer!**](https://github.com/emilk/egui/issues/4705)
