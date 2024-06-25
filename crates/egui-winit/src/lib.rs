@@ -31,7 +31,6 @@ pub(crate) use profiling_scopes::*;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::ElementState,
-    //event_loop::EventLoopWindowTarget,
     window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
 };
 
@@ -169,11 +168,6 @@ impl State {
             window,
             event_loop_proxy,
         ));
-        //self.accesskit = Some(accesskit_winit::Adapter::new(
-        //    window,
-        //    initial_tree_update_factory,
-        //    event_loop_proxy,
-        //));
     }
 
     /// Call this once a graphics context has been created to update the maximum texture dimensions
@@ -1517,31 +1511,24 @@ fn process_viewport_command(
 /// Possible causes of error include denied permission, incompatible system, and lack of memory.
 pub fn create_window(
     egui_ctx: &egui::Context,
-    //event_loop: &EventLoopWindowTarget<T>,
     event_loop: &winit::event_loop::ActiveEventLoop,
     viewport_builder: &ViewportBuilder,
 ) -> Result<Window, winit::error::OsError> {
     crate::profile_function!();
 
-    let window_builder =
-        create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone());
-    //let window = {
-    //    crate::profile_scope!("WindowBuilder::build");
-    //    window_builder.build(event_loop)?
-    //};
+    let window_attributes =
+        create_winit_window_attributes(egui_ctx, event_loop, viewport_builder.clone());
     let window = event_loop
-        .create_window(window_builder)
+        .create_window(window_attributes)
         .expect("failed to create window");
     apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
     Ok(window)
 }
 
-pub fn create_winit_window_builder(
+pub fn create_winit_window_attributes(
     egui_ctx: &egui::Context,
-    //event_loop: &EventLoopWindowTarget<T>,
     event_loop: &winit::event_loop::ActiveEventLoop,
     viewport_builder: ViewportBuilder,
-    //) -> winit::window::WindowBuilder {
 ) -> winit::window::WindowAttributes {
     crate::profile_function!();
 
@@ -1602,7 +1589,6 @@ pub fn create_winit_window_builder(
     } = viewport_builder;
 
     let mut window_builder = winit::window::WindowAttributes::default()
-        //let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(title.unwrap_or_else(|| "egui window".to_owned()))
         .with_transparent(transparent.unwrap_or(false))
         .with_decorations(decorations.unwrap_or(true))
@@ -1698,7 +1684,6 @@ pub fn create_winit_window_builder(
     #[cfg(target_os = "windows")]
     {
         use winit::platform::windows::WindowAttributesExtWindows as _;
-        //use winit::platform::windows::WindowBuilderExtWindows as _;
         if let Some(enable) = _drag_and_drop {
             window_builder = window_builder.with_drag_and_drop(enable);
         }

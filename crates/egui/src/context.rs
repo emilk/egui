@@ -392,8 +392,7 @@ struct ContextImpl {
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
-    //#[cfg(feature = "accesskit")]
-    //accesskit_node_classes: accesskit::NodeClassSet,
+
     loaders: Arc<Loaders>,
 }
 

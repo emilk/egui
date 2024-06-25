@@ -948,7 +948,7 @@ impl GlutinWindowContext {
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-            .with_window_attributes(Some(egui_winit::create_winit_window_builder(
+            .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,
                 viewport_builder.clone(),
@@ -1104,17 +1104,18 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_builder = egui_winit::create_winit_window_builder(
+            let window_attributes = egui_winit::create_winit_window_attributes(
                 &self.egui_ctx,
                 event_loop,
                 viewport.builder.clone(),
             );
-            if window_builder.transparent() && self.gl_config.supports_transparency() == Some(false)
+            if window_attributes.transparent()
+                && self.gl_config.supports_transparency() == Some(false)
             {
                 log::error!("Cannot create transparent window: the GL config does not support it");
             }
             let window =
-                glutin_winit::finalize_window(event_loop, window_builder, &self.gl_config)?;
+                glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?;
             egui_winit::apply_viewport_builder_to_window(
                 &self.egui_ctx,
                 &window,
