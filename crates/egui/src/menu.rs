@@ -363,6 +363,13 @@ impl MenuRoot {
                 }
             }
 
+            if let Some(transform) = button
+                .ctx
+                .memory(|m| m.layer_transforms.get(&button.layer_id).copied())
+            {
+                pos = transform * pos;
+            }
+
             return MenuResponse::Create(pos, id);
         } else if button
             .ctx
