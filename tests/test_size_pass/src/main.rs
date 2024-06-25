@@ -3,7 +3,7 @@
 
 use eframe::egui;
 
-fn main() -> eframe::Result<()> {
+fn main() -> eframe::Result {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
     let options = eframe::NativeOptions::default();
