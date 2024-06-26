@@ -104,7 +104,7 @@ def get_commit_info(commit: Any) -> CommitInfo:
         return CommitInfo(hexsha=commit.hexsha, title=commit.summary, pr_number=None)
 
 
-def pr_summary(pr: PrInfo) -> str:
+def pr_summary(pr: PrInfo, crate_name: Optional[str] = None) -> str:
     summary = f"{pr.title} [#{pr.pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr.pr_number})"
 
     if INCLUDE_LABELS and 0 < len(pr.labels):
@@ -113,7 +113,20 @@ def pr_summary(pr: PrInfo) -> str:
     if pr.gh_user_name not in OFFICIAL_DEVS:
         summary += f" (thanks [@{pr.gh_user_name}](https://github.com/{pr.gh_user_name})!)"
 
+    if crate_name is not None:
+        # Remove crate name prefix (common in PR titles):
+        summary = remove_prefix(summary, f"[{crate_name}] ")
+        summary = remove_prefix(summary, f"{crate_name}: ")
+        summary = remove_prefix(summary, f"`{crate_name}`: ")
+
+    # Upper-case first letter:
+    summary = summary[0].upper() + summary[1:]
+
     return summary
+
+
+def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
+    return "\n".join([f"* {pr_summary(pr, crate_name)}" for pr in pr_infos])
 
 
 def remove_prefix(text, prefix):
@@ -122,12 +135,11 @@ def remove_prefix(text, prefix):
     return text  # or whatever
 
 
-def print_section(crate: str, items: List[str]) -> None:
-    if 0 < len(items):
-        print(f"#### {crate}")
-        for line in items:
-            print(f"* {line}")
-    print()
+def print_section(heading: str, content: str) -> None:
+    if content != "":
+        print(f"#### {heading}")
+        print(content)
+        print()
 
 
 def changelog_filepath(crate: str) -> str:
@@ -139,10 +151,9 @@ def changelog_filepath(crate: str) -> str:
     return os.path.normpath(file_path)
 
 
-def add_to_changelog_file(crate: str, items: List[str], version: str) -> None:
+def add_to_changelog_file(crate: str, content: str, version: str) -> None:
     insert_text = f"\n## {version} - {date.today()}\n"
-    for item in items:
-        insert_text += f"* {item}\n"
+    insert_text += content
     insert_text += "\n"
 
     file_path = changelog_filepath(crate)
@@ -235,30 +246,16 @@ def main() -> None:
                 # We get so many typo PRs. Let's not flood the changelog with them.
                 continue
 
-            summary = pr_summary(pr_info)
-
             added = False
 
             for crate in crate_names:
                 if crate in pr_info.labels:
-                    crate_sections[crate].append(summary)
+                    crate_sections[crate].append(pr_info)
                     added = True
 
             if not added:
                 if not any(label in pr_info.labels for label in ignore_labels):
-                    unsorted_prs.append(summary)
-
-    # Clean up:
-    for crate in crate_names:
-        if crate in crate_sections:
-            items = crate_sections[crate]
-            for i in range(len(items)):
-                line = items[i]
-                line = remove_prefix(line, f"[{crate}] ")
-                line = remove_prefix(line, f"{crate}: ")
-                line = remove_prefix(line, f"`{crate}`: ")
-                line = line[0].upper() + line[1:]  # Upper-case first letter
-                items[i] = line
+                    unsorted_prs.append(pr_summary(pr_info))
 
 
     print()
@@ -266,14 +263,14 @@ def main() -> None:
     print()
     for crate in crate_names:
         if crate in crate_sections:
-            items = crate_sections[crate]
-            print_section(crate, items)
-    print_section("Unsorted PRs", unsorted_prs)
-    print_section("Unsorted commits", unsorted_commits)
+            prs = crate_sections[crate]
+            print_section(crate, changelog_from_prs(prs, crate))
+    print_section("Unsorted PRs", "\n".join([f"* {item}" for item in unsorted_prs]))
+    print_section("Unsorted commits", "\n".join([f"* {item}" for item in unsorted_commits]))
 
     if args.write:
         for crate in crate_names:
-            items = crate_sections[crate] if crate in crate_sections else ["Nothing new"]
+            items = changelog_from_prs(crate_sections[crate], crate) if crate in crate_sections else "Nothing new"
             add_to_changelog_file(crate, items, args.version)
 
 
