@@ -357,8 +357,6 @@ impl<'open> Window<'open> {
     }
 
     /// If there is [`ScrollArea`], For each axis, should the containing area shrink if the content is small?
-    ///
-    /// Show the [`ScrollArea::auto_shrink`]
     #[inline]
     pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
         self.scroll = self.scroll.auto_shrink(auto_shrink);
