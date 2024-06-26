@@ -12,6 +12,8 @@ import multiprocessing
 import os
 import re
 import sys
+
+from collections import defaultdict
 from datetime import date
 from dataclasses import dataclass
 from typing import Any, List, Optional
@@ -30,8 +32,9 @@ OFFICIAL_DEVS = [
 
 @dataclass
 class PrInfo:
+    pr_number: int
     gh_user_name: str
-    pr_title: str
+    title: str
     labels: List[str]
 
 
@@ -85,7 +88,7 @@ def fetch_pr_info(pr_number: int) -> Optional[PrInfo]:
     if response.status_code == 200:
         labels = [label["name"] for label in json["labels"]]
         gh_user_name = json["user"]["login"]
-        return PrInfo(gh_user_name=gh_user_name, pr_title=json["title"], labels=labels)
+        return PrInfo(pr_number=pr_number, gh_user_name=gh_user_name, title=json["title"], labels=labels)
     else:
         print(f"ERROR {url}: {response.status_code} - {json['message']}")
         return None
@@ -99,6 +102,18 @@ def get_commit_info(commit: Any) -> CommitInfo:
         return CommitInfo(hexsha=commit.hexsha, title=title, pr_number=pr_number)
     else:
         return CommitInfo(hexsha=commit.hexsha, title=commit.summary, pr_number=None)
+
+
+def pr_summary(pr: PrInfo) -> str:
+    summary = f"{pr.title} [#{pr.pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr.pr_number})"
+
+    if INCLUDE_LABELS and 0 < len(pr.labels):
+        summary += f" ({', '.join(pr.labels)})"
+
+    if pr.gh_user_name not in OFFICIAL_DEVS:
+        summary += f" (thanks [@{pr.gh_user_name}](https://github.com/{pr.gh_user_name})!)"
+
+    return summary
 
 
 def remove_prefix(text, prefix):
@@ -193,7 +208,7 @@ def main() -> None:
 
     ignore_labels = ["CI", "dependencies"]
 
-    sections = {}
+    crate_sections = defaultdict(list)
     unsorted_prs = []
     unsorted_commits = []
 
@@ -212,41 +227,31 @@ def main() -> None:
                 print(f"Ignoring PR that is already in the changelog: #{pr_number}")
                 continue
 
-            # We prefer the PR title if available
-            title = pr_info.pr_title if pr_info else title
-            labels = pr_info.labels if pr_info else []
+            assert pr_info is not None
 
-            if "exclude from changelog" in labels:
+            if "exclude from changelog" in pr_info.labels:
                 continue
-            if "typo" in labels:
+            if "typo" in pr_info.labels:
                 # We get so many typo PRs. Let's not flood the changelog with them.
                 continue
 
-            summary = f"{title} [#{pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr_number})"
-
-            if INCLUDE_LABELS and 0 < len(labels):
-                summary += f" ({', '.join(labels)})"
-
-            if pr_info is not None:
-                gh_user_name = pr_info.gh_user_name
-                if gh_user_name not in OFFICIAL_DEVS:
-                    summary += f" (thanks [@{gh_user_name}](https://github.com/{gh_user_name})!)"
+            summary = pr_summary(pr_info)
 
             added = False
 
             for crate in crate_names:
-                if crate in labels:
-                    sections.setdefault(crate, []).append(summary)
+                if crate in pr_info.labels:
+                    crate_sections[crate].append(summary)
                     added = True
 
             if not added:
-                if not any(label in labels for label in ignore_labels):
+                if not any(label in pr_info.labels for label in ignore_labels):
                     unsorted_prs.append(summary)
 
     # Clean up:
     for crate in crate_names:
-        if crate in sections:
-            items = sections[crate]
+        if crate in crate_sections:
+            items = crate_sections[crate]
             for i in range(len(items)):
                 line = items[i]
                 line = remove_prefix(line, f"[{crate}] ")
@@ -260,15 +265,15 @@ def main() -> None:
     print(f"Full diff at https://github.com/emilk/egui/compare/{args.commit_range}")
     print()
     for crate in crate_names:
-        if crate in sections:
-            items = sections[crate]
+        if crate in crate_sections:
+            items = crate_sections[crate]
             print_section(crate, items)
     print_section("Unsorted PRs", unsorted_prs)
     print_section("Unsorted commits", unsorted_commits)
 
     if args.write:
         for crate in crate_names:
-            items = sections[crate] if crate in sections else ["Nothing new"]
+            items = crate_sections[crate] if crate in crate_sections else ["Nothing new"]
             add_to_changelog_file(crate, items, args.version)
 
 
