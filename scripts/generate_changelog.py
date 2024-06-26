@@ -125,8 +125,45 @@ def pr_summary(pr: PrInfo, crate_name: Optional[str] = None) -> str:
     return summary
 
 
+def pr_info_section(prs: List[PrInfo], *, crate_name: str, heading: Optional[str] = None) -> str:
+    result = ""
+    if 0 < len(prs):
+        if heading is not None:
+            result += f"### {heading}\n"
+        for pr in prs:
+            result += f"* {pr_summary(pr, crate_name)}\n"
+        result += "\n"
+    return result
+
+
 def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
-    return "\n".join([f"* {pr_summary(pr, crate_name)}" for pr in pr_infos])
+    if len(pr_infos) == 0:
+        return "Nothing new"
+
+    if len(pr_infos) <= 5:
+        # For small crates, or small releases
+        return pr_info_section(pr_infos, crate_name=crate_name)
+
+
+    fixed = []
+    added = []
+    rest = []
+    for pr in pr_infos:
+        summary = pr_summary(pr, crate_name)
+        if "bug" in pr.labels:
+            fixed.append(pr)
+        elif summary.startswith("Add"):
+            added.append(pr)
+        else:
+            rest.append(pr)
+
+    result = ""
+
+    result += pr_info_section(fixed, crate_name=crate_name, heading="🐛 Fixed")
+    result += pr_info_section(added, crate_name=crate_name, heading="⭐ Added")
+    result += pr_info_section(rest, crate_name=crate_name, heading="🔧 Changed")
+
+    return result.rstrip()
 
 
 def remove_prefix(text, prefix):
@@ -137,7 +174,7 @@ def remove_prefix(text, prefix):
 
 def print_section(heading: str, content: str) -> None:
     if content != "":
-        print(f"#### {heading}")
+        print(f"## {heading}")
         print(content)
         print()
 
@@ -270,7 +307,7 @@ def main() -> None:
 
     if args.write:
         for crate in crate_names:
-            items = changelog_from_prs(crate_sections[crate], crate) if crate in crate_sections else "Nothing new"
+            items = changelog_from_prs(crate_sections[crate], crate)
             add_to_changelog_file(crate, items, args.version)
 
 
