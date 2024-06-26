@@ -562,7 +562,14 @@ impl Response {
     ///
     /// This can be used to give attention to a widget during a tutorial.
     pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
-        crate::containers::show_tooltip_for(&self.ctx, self.id, &self.rect, add_contents);
+        let mut rect = self.rect;
+        if let Some(transform) = self
+            .ctx
+            .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
+        {
+            rect = transform * rect;
+        }
+        crate::containers::show_tooltip_for(&self.ctx, self.id, &rect, add_contents);
     }
 
     /// Always show this tooltip, even if disabled and the user isn't hovering it.

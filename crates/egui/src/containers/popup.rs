@@ -302,10 +302,16 @@ pub fn popup_above_or_below_widget<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     if parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
-        let (pos, pivot) = match above_or_below {
+        let (mut pos, pivot) = match above_or_below {
             AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
             AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
         };
+        if let Some(transform) = parent_ui
+            .ctx()
+            .memory(|m| m.layer_transforms.get(&parent_ui.layer_id()).copied())
+        {
+            pos = transform * pos;
+        }
 
         let frame = Frame::popup(parent_ui.style());
         let frame_margin = frame.total_margin();
