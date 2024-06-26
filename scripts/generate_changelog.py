@@ -25,9 +25,6 @@ from tqdm import tqdm
 OWNER = "emilk"
 REPO = "egui"
 INCLUDE_LABELS = False  # It adds quite a bit of visual noise
-OFFICIAL_DEVS = [
-    "emilk",
-]
 
 
 @dataclass
@@ -110,8 +107,7 @@ def pr_summary(pr: PrInfo, crate_name: Optional[str] = None) -> str:
     if INCLUDE_LABELS and 0 < len(pr.labels):
         summary += f" ({', '.join(pr.labels)})"
 
-    if pr.gh_user_name not in OFFICIAL_DEVS:
-        summary += f" (thanks [@{pr.gh_user_name}](https://github.com/{pr.gh_user_name})!)"
+    summary += f" (by [@{pr.gh_user_name}](https://github.com/{pr.gh_user_name}))"
 
     if crate_name is not None:
         # Remove crate name prefix (common in PR titles):
