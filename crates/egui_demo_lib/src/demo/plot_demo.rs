@@ -74,8 +74,8 @@ impl crate::View for PlotDemo {
                     ui.label("Zoom with ctrl + scroll.");
                 }
                 ui.label("Reset view with double-click.");
-                ui.add(crate::egui_github_link_file!());
             });
+            ui.add(crate::egui_github_link_file!());
         });
         ui.separator();
         ui.horizontal(|ui| {
@@ -277,7 +277,7 @@ impl LineDemo {
         };
         let mut plot = Plot::new("lines_demo")
             .legend(Legend::default())
-            .y_axis_width(4)
+            .y_axis_width(2)
             .show_axes(self.show_axes)
             .show_grid(self.show_grid);
         if self.square {
@@ -673,7 +673,7 @@ impl LinkedAxesDemo {
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
-                .y_axis_width(3)
+                .y_axis_width(2)
                 .y_axis_label("y")
                 .y_axis_position(egui_plot::HPlacement::Right)
                 .link_axis(link_group_id, self.link_x, self.link_y)
@@ -962,7 +962,7 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
-            .y_axis_width(3)
+            .y_axis_width(2)
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
             .allow_scroll(self.allow_scroll)

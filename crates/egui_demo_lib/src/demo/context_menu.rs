@@ -156,6 +156,8 @@ impl ContextMenus {
     }
 
     fn nested_menus(ui: &mut egui::Ui) {
+        ui.set_max_width(200.0); // To make sure we wrap long text
+
         if ui.button("Open…").clicked() {
             ui.close_menu();
         }
