@@ -120,13 +120,11 @@ impl PlotBounds {
         for d in 0..2 {
             self.min[d] = self.min[d].clamp(f64::MIN, f64::MAX);
             if self.min[d].is_nan() {
-                println!("min[d] is nan");
                 self.min[d] = 0.0;
             }
 
             self.max[d] = self.max[d].clamp(f64::MIN, f64::MAX);
             if self.max[d].is_nan() {
-                println!("max[d] is nan");
                 self.max[d] = 0.0;
             }
         }
