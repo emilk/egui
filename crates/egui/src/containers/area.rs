@@ -544,15 +544,21 @@ impl Prepared {
             kind: _,
             layer_id,
             mut state,
-            move_response,
+            move_response: mut response,
             ..
         } = self;
 
         state.size = content_ui.min_size();
 
+        // Make sure we report back the correct size.
+        // Very important after the initial sizing pass, when the initial estimate of the size is way off.
+        let final_rect = state.rect();
+        response.rect = final_rect;
+        response.interact_rect = final_rect;
+
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 
-        move_response
+        response
     }
 }
 

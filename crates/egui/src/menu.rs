@@ -168,15 +168,17 @@ fn menu_popup<'c, R>(
             .inner
     });
 
+    let area_rect = area_response.response.rect;
+
     menu_state_arc.write().rect = if sizing_pass {
         // During the sizing pass we didn't know the size yet,
         // so we might have just constrained the position unnecessarily.
         // Therefore keep the original=desired position until the next frame.
-        Rect::from_min_size(pos, area_response.response.rect.size())
+        Rect::from_min_size(pos, area_rect.size())
     } else {
         // We knew the size, and this is where it ended up (potentially constrained to screen).
         // Remember it for the future:
-        area_response.response.rect
+        area_rect
     };
 
     area_response
