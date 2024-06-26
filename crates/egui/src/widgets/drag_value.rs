@@ -457,7 +457,7 @@ impl<'a> Widget for DragValue<'a> {
 
         let text_style = ui.style().drag_value_text_style.clone();
 
-        if ui.memory(|mem| mem.lost_focus(id)) {
+        if ui.memory(|mem| mem.lost_focus(id)) && !ui.input(|i| i.key_pressed(Key::Escape)) {
             let value_text = ui.data_mut(|data| data.remove_temp::<String>(id));
             if let Some(value_text) = value_text {
                 // We were editing the value as text last frame, but lost focus.
@@ -496,7 +496,7 @@ impl<'a> Widget for DragValue<'a> {
                 response.changed()
             } else {
                 // Update only when the edit has lost focus.
-                response.lost_focus()
+                response.lost_focus() && !ui.input(|i| i.key_pressed(Key::Escape))
             };
             if update {
                 let parsed_value = match &custom_parser {
