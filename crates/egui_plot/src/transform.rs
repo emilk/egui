@@ -116,15 +116,36 @@ impl PlotBounds {
     }
 
     #[inline]
+    fn clamp_to_finite(&mut self) {
+        for d in 0..2 {
+            self.min[d] = self.min[d].clamp(f64::MIN, f64::MAX);
+            if self.min[d].is_nan() {
+                self.min[d] = 0.0;
+            }
+
+            self.max[d] = self.max[d].clamp(f64::MIN, f64::MAX);
+            if self.max[d].is_nan() {
+                self.max[d] = 0.0;
+            }
+        }
+    }
+
+    #[inline]
     pub fn expand_x(&mut self, pad: f64) {
-        self.min[0] -= pad;
-        self.max[0] += pad;
+        if pad.is_finite() {
+            self.min[0] -= pad;
+            self.max[0] += pad;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
     pub fn expand_y(&mut self, pad: f64) {
-        self.min[1] -= pad;
-        self.max[1] += pad;
+        if pad.is_finite() {
+            self.min[1] -= pad;
+            self.max[1] += pad;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
@@ -173,14 +194,20 @@ impl PlotBounds {
 
     #[inline]
     pub fn translate_x(&mut self, delta: f64) {
-        self.min[0] += delta;
-        self.max[0] += delta;
+        if delta.is_finite() {
+            self.min[0] += delta;
+            self.max[0] += delta;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
     pub fn translate_y(&mut self, delta: f64) {
-        self.min[1] += delta;
-        self.max[1] += delta;
+        if delta.is_finite() {
+            self.min[1] += delta;
+            self.max[1] += delta;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
@@ -374,12 +401,12 @@ impl PlotTransform {
         let x = remap(
             pos.x as f64,
             (self.frame.left() as f64)..=(self.frame.right() as f64),
-            self.bounds.min[0]..=self.bounds.max[0],
+            self.bounds.range_x(),
         );
         let y = remap(
             pos.y as f64,
             (self.frame.bottom() as f64)..=(self.frame.top() as f64), // negated y axis!
-            self.bounds.min[1]..=self.bounds.max[1],
+            self.bounds.range_y(),
         );
         PlotPoint::new(x, y)
     }
