@@ -271,7 +271,7 @@ impl MenuRootManager {
     ) -> Option<InnerResponse<R>> {
         if let Some(root) = self.inner.as_mut() {
             let (menu_response, inner_response) = root.show(button, add_contents);
-            if MenuResponse::Close == menu_response {
+            if menu_response.is_close() {
                 self.inner = None;
             }
             inner_response
@@ -323,7 +323,8 @@ impl MenuRoot {
             let inner_response = menu_popup(&button.ctx, &self.menu_state, self.id, add_contents);
             let menu_state = self.menu_state.read();
 
-            if menu_state.response.is_close() {
+            let escape_pressed = button.ctx.input(|i| i.key_pressed(Key::Escape));
+            if menu_state.response.is_close() || escape_pressed {
                 return (MenuResponse::Close, Some(inner_response));
             }
         }
