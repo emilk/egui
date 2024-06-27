@@ -71,9 +71,7 @@ impl WebRunner {
         self.runner.replace(Some(runner));
 
         {
-            events::install_canvas_events(self)?;
-            events::install_document_events(self)?;
-            events::install_window_events(self)?;
+            events::install_event_handlers(self)?;
 
             if follow_system_theme {
                 events::install_color_scheme_change_event(self)?;
