@@ -102,21 +102,26 @@ def get_commit_info(commit: Any) -> CommitInfo:
 
 
 def pr_summary(pr: PrInfo, crate_name: Optional[str] = None) -> str:
-    summary = f"{pr.title} [#{pr.pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr.pr_number})"
+    title = pr.title
+
+    if crate_name is not None:
+        # Remove crate name prefix (common in PR titles):
+        title = remove_prefix(title, f"[{crate_name}] ")
+        title = remove_prefix(title, f"{crate_name}: ")
+        title = remove_prefix(title, f"`{crate_name}`: ")
+
+    # Upper-case first letter:
+    title = title[0].upper() + title[1:]
+
+    # Remove trailing periods:
+    title = title.rstrip(".")
+
+    summary = f"{title} [#{pr.pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr.pr_number})"
 
     if INCLUDE_LABELS and 0 < len(pr.labels):
         summary += f" ({', '.join(pr.labels)})"
 
-    summary += f" (by [@{pr.gh_user_name}](https://github.com/{pr.gh_user_name}))"
-
-    if crate_name is not None:
-        # Remove crate name prefix (common in PR titles):
-        summary = remove_prefix(summary, f"[{crate_name}] ")
-        summary = remove_prefix(summary, f"{crate_name}: ")
-        summary = remove_prefix(summary, f"`{crate_name}`: ")
-
-    # Upper-case first letter:
-    summary = summary[0].upper() + summary[1:]
+    summary += f" by [@{pr.gh_user_name}](https://github.com/{pr.gh_user_name})"
 
     return summary
 
@@ -148,16 +153,16 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
         summary = pr_summary(pr, crate_name)
         if "bug" in pr.labels:
             fixed.append(pr)
-        elif summary.startswith("Add"):
+        elif summary.startswith("Add") or "feature" in pr.labels:
             added.append(pr)
         else:
             rest.append(pr)
 
     result = ""
 
-    result += pr_info_section(fixed, crate_name=crate_name, heading="🐛 Fixed")
     result += pr_info_section(added, crate_name=crate_name, heading="⭐ Added")
     result += pr_info_section(rest, crate_name=crate_name, heading="🔧 Changed")
+    result += pr_info_section(fixed, crate_name=crate_name, heading="🐛 Fixed")
 
     return result.rstrip()
 
@@ -268,7 +273,7 @@ def main() -> None:
             unsorted_commits.append(summary)
         else:
             if f"[#{pr_number}]" in all_changelogs:
-                print(f"Ignoring PR that is already in the changelog: #{pr_number}")
+                print(f"* Ignoring PR that is already in the changelog: [#{pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr_number})")
                 continue
 
             assert pr_info is not None
