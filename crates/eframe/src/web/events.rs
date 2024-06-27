@@ -2,6 +2,9 @@ use web_sys::EventTarget;
 
 use super::*;
 
+// TODO(emilk): there are more calls to `prevent_default` and `stop_propagaton`
+// than what is probably needed.
+
 // ------------------------------------------------------------------------
 
 /// Calls `request_animation_frame` to schedule repaint.
@@ -72,6 +75,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_keyup(runner_ref, &canvas)?;
 
     // It seems copy/cut/paste events only work on the document,
+    // so we check if they have focus inside of them.
     install_copy_cut_paste(runner_ref, &document)?;
 
     install_mousedown(runner_ref, &canvas)?;
@@ -95,9 +99,12 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
 }
 
 fn install_blur_focus(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
+    // NOTE: because of the text agent we sometime miss 'blur' events,
+    // so we also poll the focus state each frame in `AppRunner::logic`.
     for event_name in ["blur", "focus"] {
         let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
             // log::debug!("{event_name:?}");
+
             let has_focus = event_name == "focus";
 
             if !has_focus {
@@ -173,7 +180,6 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
 
     if prevent_default {
         event.prevent_default();
-        // event.stop_propagation();
     }
 }
 
@@ -389,6 +395,7 @@ fn install_mouseup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
     runner_ref.add_event_listener(target, "mouseup", |event: web_sys::MouseEvent, runner| {
         let modifiers = modifiers_from_mouse_event(&event);
         runner.input.raw.modifiers = modifiers;
+
         if let Some(button) = button_from_mouse_event(&event) {
             let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
             let modifiers = runner.input.raw.modifiers;
