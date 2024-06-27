@@ -348,9 +348,6 @@ fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 }
 
 fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    // NOTE: we register "mousemove" on `document` instead of just the canvas
-    // in order to track a dragged mouse outside the canvas.
-    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(target, "mousemove", |event: web_sys::MouseEvent, runner| {
         let modifiers = modifiers_from_mouse_event(&event);
         runner.input.raw.modifiers = modifiers;
@@ -363,8 +360,6 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 }
 
 fn install_mouseup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    // Use `document` here to notice if the user releases a drag outside of the canvas.
-    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(target, "mouseup", |event: web_sys::MouseEvent, runner| {
         let modifiers = modifiers_from_mouse_event(&event);
         runner.input.raw.modifiers = modifiers;
@@ -458,8 +453,6 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 }
 
 fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    // Use `document` here to notice if the user releases a drag outside of the canvas.
-    // See https://github.com/emilk/egui/issues/3157
     runner_ref.add_event_listener(target, "touchend", |event: web_sys::TouchEvent, runner| {
         if let Some(pos) = runner.input.latest_touch_pos {
             let modifiers = runner.input.raw.modifiers;
