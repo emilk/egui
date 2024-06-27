@@ -284,6 +284,21 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
+    pub fn uri(&self) -> Option<&str> {
+        let mut uri: Option<&str> = match &self.source {
+            ImageSource::Bytes { uri, .. } | ImageSource::Uri(uri) => Some(uri),
+            ImageSource::Texture(_) => None,
+        };
+
+        if is_gif_uri(uri.unwrap_or_default()) {
+            if let Ok((gif_uri, _index)) = decode_gif_uri(uri.unwrap_or_default()) {
+                uri = Some(gif_uri);
+            }
+        }
+        uri
+    }
+
+    #[inline]
     pub fn image_options(&self) -> &ImageOptions {
         &self.image_options
     }
