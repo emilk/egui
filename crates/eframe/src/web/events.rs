@@ -181,6 +181,12 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
     if prevent_default {
         event.prevent_default();
     }
+
+    if has_focus {
+        // Assume egui uses all key events, and don't let them propagate to parent elements,
+        // e.g. a jupyter notebook that handles `A` as adding new cells.
+        event.stop_propagation();
+    }
 }
 
 /// If the canvas (or text agent has focus):
@@ -238,6 +244,13 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
         });
     }
     runner.needs_repaint.repaint_asap();
+
+    let has_focus = runner.input.raw.focused;
+    if has_focus {
+        // Assume egui uses all key events, and don't let them propagate to parent elements,
+        // e.g. a jupyter notebook that handles `A` as adding new cells.
+        event.stop_propagation();
+    }
 }
 
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
