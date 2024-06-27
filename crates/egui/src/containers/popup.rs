@@ -306,7 +306,8 @@ pub fn popup_below_widget<R>(
 ///     ui.memory_mut(|mem| mem.toggle_popup(popup_id));
 /// }
 /// let below = egui::AboveOrBelow::Below;
-/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, |ui| {
+/// let close_on_click_outside = egui::popup::PopupCloseBehavior::CloseOnClickOutside;
+/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, close_on_click_outside, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
