@@ -142,6 +142,7 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
     )
 }
 
+#[allow(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     if event.is_composing() || event.key_code() == 229 {
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
@@ -183,8 +184,7 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
     }
 
     if has_focus {
-        // Assume egui uses all key events, and don't let them propagate to parent elements,
-        // e.g. a jupyter notebook that handles `A` as adding new cells.
+        // Assume egui uses all key events, and don't let them propagate to parent elements.
         event.stop_propagation();
     }
 }
@@ -231,6 +231,7 @@ fn install_keyup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
     runner_ref.add_event_listener(target, "keyup", on_keyup)
 }
 
+#[allow(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.raw.modifiers = modifiers;
@@ -247,8 +248,7 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 
     let has_focus = runner.input.raw.focused;
     if has_focus {
-        // Assume egui uses all key events, and don't let them propagate to parent elements,
-        // e.g. a jupyter notebook that handles `A` as adding new cells.
+        // Assume egui uses all key events, and don't let them propagate to parent elements.
         event.stop_propagation();
     }
 }
