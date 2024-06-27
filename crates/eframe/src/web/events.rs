@@ -54,8 +54,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     let document = window.document().unwrap();
     let canvas = runner_ref.try_lock().unwrap().canvas().clone();
 
-    install_blur_focus(runner_ref, &document)?;
-    install_blur_focus(runner_ref, &window)?;
+    install_blur_focus(runner_ref, &canvas)?;
 
     prevent_default(
         runner_ref,
@@ -69,8 +68,10 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
         ],
     )?;
 
-    install_keydown(runner_ref, &document)?;
-    install_keyup(runner_ref, &document)?;
+    install_keydown(runner_ref, &canvas)?;
+    install_keyup(runner_ref, &canvas)?;
+
+    // It seems copy/cut/paste events only work on the document,
     install_copy_cut_paste(runner_ref, &document)?;
 
     install_mousedown(runner_ref, &canvas)?;

@@ -96,8 +96,12 @@
 </head>
 
 <body>
-    <!-- The WASM code will resize the canvas dynamically -->
-    <canvas id="the_canvas_id"></canvas>
+    <!--
+        This is the canvas that will hold the egui/eframe application.
+        Note how we must set tabindex="0" to make it focusable so it can receive keyboard events.
+    -->
+    <canvas id="the_canvas_id" tabindex="0"></canvas>
+
     <div class="centered" id="center_text">
         <p style="font-size:16px">
             Loading…
@@ -175,6 +179,9 @@
 
             console.debug("App started.");
             document.getElementById("center_text").innerHTML = '';
+
+            // Make sure the canvas is focused so it can receive keyboard events right away:
+            document.getElementById("the_canvas_id").focus();
         }
 
         function on_error(error) {

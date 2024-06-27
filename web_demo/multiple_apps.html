@@ -21,10 +21,6 @@
             display: flex;
         }
 
-        .canvas_wrap {
-            /* height: 200px; */
-            width: 400px;
-        }
 
         @media (prefers-color-scheme: dark) {
             body {
@@ -38,21 +34,13 @@
         html,
         body {
             overflow: hidden;
-            margin: 0 !important;
-            padding: 0 !important;
             height: 100%;
             width: 100%;
         }
 
-        /* Position canvas in center-top: */
         canvas {
-            /* margin-right: auto;
-            margin-left: auto; */
-            /* display: block;
-            position: absolute;
-            top: 0%;
-            left: 50%;
-            transform: translate(-50%, 0%); */
+            margin: 8px;
+            padding: 8px;
             width: 45%;
             height: 90%;
         }
@@ -112,13 +100,10 @@
         stop
     </button>
 
-    <div class="canvas_wrap one">
-        <canvas id="canvas_id_one"></canvas>
-    </div>
 
-    <div class="canvas_wrap two">
-        <canvas id="canvas_id_two"></canvas>
-    </div>
+    <canvas id="canvas_id_one" tabindex="0"></canvas>
+
+    <canvas id="canvas_id_two" tabindex="0"></canvas>
 
     <div class="centered" id="center_text">
         <p style="font-size:16px">
