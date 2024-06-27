@@ -122,12 +122,12 @@ echo "Finished ${FINAL_WASM_PATH}"
 if [[ "${OPEN}" == true ]]; then
   if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux, ex: Fedora
-    xdg-open http://localhost:8888/index.html
+    xdg-open http://localhost:8765/index.html
   elif [[ "$OSTYPE" == "msys" ]]; then
     # Windows
-    start http://localhost:8888/index.html
+    start http://localhost:8765/index.html
   else
     # Darwin/MacOS, or something else
-    open http://localhost:8888/index.html
+    open http://localhost:8765/index.html
   fi
 fi
