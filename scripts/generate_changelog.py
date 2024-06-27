@@ -191,8 +191,8 @@ def changelog_filepath(crate: str) -> str:
 
 def add_to_changelog_file(crate: str, content: str, version: str) -> None:
     insert_text = f"\n## {version} - {date.today()}\n"
-    insert_text += content
-    insert_text += "\n"
+    insert_text += content.strip()
+    insert_text += "\n\n"
 
     file_path = changelog_filepath(crate)
 
