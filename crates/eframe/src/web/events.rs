@@ -105,7 +105,7 @@ fn install_blur_focus(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
                 runner.save();
             }
 
-            runner.input.on_web_page_focus_change(has_focus);
+            runner.input.set_focus(has_focus);
             runner.egui_ctx().request_repaint();
         };
 
