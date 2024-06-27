@@ -253,11 +253,29 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
     })
 }
 
+/// Determines popup's close behavior
+#[derive(Clone, Copy)]
+pub enum PopupCloseBehavior {
+    /// Popup will be closed on click anywhere, inside or outside the popup.
+    ///
+    /// It is used in [`ComboBox`].
+    CloseOnClick,
+
+    /// Popup will be closed if the click happened somewhere else
+    /// but in the popup's body
+    CloseOnClickOutside,
+
+    /// Clicks will be ignored. Popup might be closed manually by calling [`Memory::close_popup`]
+    /// or by pressing the escape button
+    IgnoreClicks,
+}
+
 /// Helper for [`popup_above_or_below_widget`].
 pub fn popup_below_widget<R>(
     ui: &Ui,
     popup_id: Id,
     widget_response: &Response,
+    close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     popup_above_or_below_widget(
@@ -265,6 +283,7 @@ pub fn popup_below_widget<R>(
         popup_id,
         widget_response,
         AboveOrBelow::Below,
+        close_behavior,
         add_contents,
     )
 }
@@ -287,7 +306,8 @@ pub fn popup_below_widget<R>(
 ///     ui.memory_mut(|mem| mem.toggle_popup(popup_id));
 /// }
 /// let below = egui::AboveOrBelow::Below;
-/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, |ui| {
+/// let close_on_click_outside = egui::popup::PopupCloseBehavior::CloseOnClickOutside;
+/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, close_on_click_outside, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
@@ -299,6 +319,7 @@ pub fn popup_above_or_below_widget<R>(
     popup_id: Id,
     widget_response: &Response,
     above_or_below: AboveOrBelow,
+    close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     if parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
@@ -317,7 +338,7 @@ pub fn popup_above_or_below_widget<R>(
         let frame_margin = frame.total_margin();
         let inner_width = widget_response.rect.width() - frame_margin.sum().x;
 
-        let inner = Area::new(popup_id)
+        let response = Area::new(popup_id)
             .kind(UiKind::Popup)
             .order(Order::Foreground)
             .fixed_pos(pos)
@@ -333,13 +354,20 @@ pub fn popup_above_or_below_widget<R>(
                         .inner
                     })
                     .inner
-            })
-            .inner;
+            });
 
-        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || widget_response.clicked_elsewhere() {
+        let should_close = match close_behavior {
+            PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
+            PopupCloseBehavior::CloseOnClickOutside => {
+                widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
+            }
+            PopupCloseBehavior::IgnoreClicks => false,
+        };
+
+        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
             parent_ui.memory_mut(|mem| mem.close_popup());
         }
-        Some(inner)
+        Some(response.inner)
     } else {
         None
     }
