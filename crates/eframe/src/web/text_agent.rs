@@ -88,6 +88,11 @@ impl TextAgent {
         runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
 
+        // The canvas doesn't get keydown/keyup events when the text agent is focused,
+        // so we need to forward them to the runner:
+        runner_ref.add_event_listener(&input, "keydown", super::events::on_keydown)?;
+        runner_ref.add_event_listener(&input, "keyup", super::events::on_keyup)?;
+
         Ok(Self {
             input,
             prev_ime_output: Default::default(),

@@ -119,94 +119,119 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
         target,
         "keydown",
         |event: web_sys::KeyboardEvent, runner| {
-            if event.is_composing() || event.key_code() == 229 {
-                // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
-                return;
-            }
-
             let modifiers = modifiers_from_kb_event(&event);
-            runner.input.raw.modifiers = modifiers;
-
             let key = event.key();
-            let egui_key = translate_key(&key);
-
-            if let Some(key) = egui_key {
-                runner.input.raw.events.push(egui::Event::Key {
-                    key,
-                    physical_key: None, // TODO(fornwall)
-                    pressed: true,
-                    repeat: false, // egui will fill this in for us!
-                    modifiers,
-                });
-            }
             if !modifiers.ctrl
                 && !modifiers.command
-                && !should_ignore_key(&key)
+                && !is_nontext_key(&key)
                 // When text agent is focused, it is responsible for handling input events
                 && !runner.text_agent.has_focus()
             {
                 runner.input.raw.events.push(egui::Event::Text(key));
             }
-            runner.needs_repaint.repaint_asap();
 
-            let egui_wants_keyboard = runner.egui_ctx().wants_keyboard_input();
-
-            #[allow(clippy::if_same_then_else)]
-            let prevent_default = if egui_key == Some(egui::Key::Tab) {
-                // Always prevent moving cursor to url bar.
-                // egui wants to use tab to move to the next text field.
-                true
-            } else if egui_key == Some(egui::Key::P) {
-                #[allow(clippy::needless_bool)]
-                if modifiers.ctrl || modifiers.command || modifiers.mac_cmd {
-                    true // Prevent ctrl-P opening the print dialog. Users may want to use it for a command palette.
-                } else {
-                    false // let normal P:s through
-                }
-            } else if egui_wants_keyboard {
-                matches!(
-                    event.key().as_str(),
-                    "Backspace" // so we don't go back to previous page when deleting text
-                    | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "ArrowUp" // cmd-left is "back" on Mac (https://github.com/emilk/egui/issues/58)
-                )
-            } else {
-                // We never want to prevent:
-                // * F5 / cmd-R (refresh)
-                // * cmd-shift-C (debug tools)
-                // * cmd/ctrl-c/v/x (or we stop copy/past/cut events)
-                false
-            };
-
-            // log::debug!(
-            //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
-            //     event.key().as_str(),
-            //     egui_wants_keyboard,
-            //     prevent_default
-            // );
-
-            if prevent_default {
-                event.prevent_default();
-                // event.stop_propagation();
-            }
+            on_keydown(event, runner);
         },
     )
 }
 
+pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
+    if event.is_composing() || event.key_code() == 229 {
+        // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
+        return;
+    }
+
+    let modifiers = modifiers_from_kb_event(&event);
+    runner.input.raw.modifiers = modifiers;
+
+    let key = event.key();
+    let egui_key = translate_key(&key);
+
+    if let Some(key) = egui_key {
+        runner.input.raw.events.push(egui::Event::Key {
+            key,
+            physical_key: None, // TODO(fornwall)
+            pressed: true,
+            repeat: false, // egui will fill this in for us!
+            modifiers,
+        });
+    }
+
+    runner.needs_repaint.repaint_asap();
+
+    let has_focus = runner.input.raw.focused;
+    let prevent_default = has_focus
+        && egui_key.map_or(false, |egui_key| {
+            should_prevent_default_for_key(runner, &modifiers, egui_key)
+        });
+
+    // log::debug!(
+    //     "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+    //     event.key().as_str(),
+    //     runner.egui_ctx().wants_keyboard_input()
+    // );
+
+    if prevent_default {
+        event.prevent_default();
+        // event.stop_propagation();
+    }
+}
+
+/// If the canvas (or text agent has focus):
+/// should we prevent the default browser event action when the user presses this key?
+fn should_prevent_default_for_key(
+    runner: &AppRunner,
+    modifiers: &egui::Modifiers,
+    egui_key: egui::Key,
+) -> bool {
+    // NOTE: We never want to prevent:
+    // * F5 / cmd-R (refresh)
+    // * cmd-shift-C (debug tools)
+    // * cmd/ctrl-c/v/x (or we stop copy/paste/cut events)
+
+    // Prevent ctrl-P opening the print dialog. Users may want to use it for a command palette.
+    if egui_key == egui::Key::P && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
+        return true;
+    }
+
+    if egui_key == egui::Key::Space && !runner.text_agent.has_focus() {
+        // Space scrolls the web page, but we don't want that while canvas has focus
+        // However, don't prevent it if text agent has focus, or we can't type space!
+        return true;
+    }
+
+    matches!(
+        egui_key,
+        // Prevent browser from focusing the next HTML element.
+        // egui uses Tab to move focus within the egui app.
+        egui::Key::Tab
+
+        // So we don't go back to previous page while canvas has focus
+        | egui::Key::Backspace
+
+        // Don't scroll web page while canvas has focus.
+        // Also, cmd-left is "back" on Mac (https://github.com/emilk/egui/issues/58)
+        | egui::Key::ArrowDown | egui::Key::ArrowLeft | egui::Key::ArrowRight |  egui::Key::ArrowUp
+    )
+}
+
 fn install_keyup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    runner_ref.add_event_listener(target, "keyup", |event: web_sys::KeyboardEvent, runner| {
-        let modifiers = modifiers_from_kb_event(&event);
-        runner.input.raw.modifiers = modifiers;
-        if let Some(key) = translate_key(&event.key()) {
-            runner.input.raw.events.push(egui::Event::Key {
-                key,
-                physical_key: None, // TODO(fornwall)
-                pressed: false,
-                repeat: false,
-                modifiers,
-            });
-        }
-        runner.needs_repaint.repaint_asap();
-    })
+    runner_ref.add_event_listener(target, "keyup", on_keyup)
+}
+
+pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
+    let modifiers = modifiers_from_kb_event(&event);
+    runner.input.raw.modifiers = modifiers;
+    if let Some(key) = translate_key(&event.key()) {
+        runner.input.raw.events.push(egui::Event::Key {
+            key,
+            physical_key: None, // TODO(fornwall)
+            pressed: false,
+            repeat: false,
+            modifiers,
+        });
+    }
+    runner.needs_repaint.repaint_asap();
 }
 
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {

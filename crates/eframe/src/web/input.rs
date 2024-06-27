@@ -85,7 +85,7 @@ pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web
 
 /// Web sends all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
-pub fn should_ignore_key(key: &str) -> bool {
+pub fn is_nontext_key(key: &str) -> bool {
     let is_function_key = key.starts_with('F') && key.len() > 1;
     is_function_key
         || matches!(
