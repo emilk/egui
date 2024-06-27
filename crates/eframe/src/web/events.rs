@@ -240,7 +240,7 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         if let Some(data) = event.clipboard_data() {
             if let Ok(text) = data.get_data("text") {
                 let text = text.replace("\r\n", "\n");
-                if !text.is_empty() {
+                if !text.is_empty() && runner.input.raw.focused {
                     runner.input.raw.events.push(egui::Event::Paste(text));
                     runner.needs_repaint.repaint_asap();
                 }
