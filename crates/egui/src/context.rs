@@ -2026,8 +2026,10 @@ impl ContextImpl {
             viewport.widgets_this_frame.clear();
         }
 
-        if repaint_needed || viewport.input.wants_repaint() {
+        if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
+        } else if let Some(delay) = viewport.input.wants_repaint_after() {
+            self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
         }
 
         //  -------------------
