@@ -443,13 +443,11 @@ fn install_mouseup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
                     modifiers,
                 });
 
-                // In Safari we are only allowed to write to the clipboard during the
-                // event callback, which is why we run the app logic here and now:
+                // In Safari we are only allowed to do certain things
+                // (like playing audio, start a download, etc)
+                // on user action, such as a click.
+                // So we need to run the app logic here and now:
                 runner.logic();
-
-                runner
-                    .text_agent
-                    .set_focus(runner.mutable_text_under_cursor);
 
                 // Make sure we paint the output of the above logic call asap:
                 runner.needs_repaint.repaint_asap();
