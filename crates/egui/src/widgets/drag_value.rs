@@ -38,6 +38,7 @@ pub struct DragValue<'a> {
     prefix: String,
     suffix: String,
     clamp_range: RangeInclusive<f64>,
+    only_clamp_on_input: bool,
     min_decimals: usize,
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
@@ -70,6 +71,7 @@ impl<'a> DragValue<'a> {
             prefix: Default::default(),
             suffix: Default::default(),
             clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
+            only_clamp_on_input: false,
             min_decimals: 0,
             max_decimals: None,
             custom_formatter: None,
@@ -91,6 +93,16 @@ impl<'a> DragValue<'a> {
     #[inline]
     pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
         self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
+        self
+    }
+
+    /// If `true`, the value will be clamped to the range only upon user input.
+    ///
+    /// I.e. if a value outside of the range is set programmatically, it will not be edited.
+    /// Defaults to false, meaning that the value will be clamped to the range whenever it is set.
+    #[inline]
+    pub fn only_clamp_on_input(mut self, only_clamp_on_input: bool) -> Self {
+        self.only_clamp_on_input = only_clamp_on_input;
         self
     }
 
@@ -362,6 +374,7 @@ impl<'a> Widget for DragValue<'a> {
             mut get_set_value,
             speed,
             clamp_range,
+            only_clamp_on_input,
             prefix,
             suffix,
             min_decimals,
@@ -439,12 +452,17 @@ impl<'a> Widget for DragValue<'a> {
             });
         }
 
+        // Apply clamping before applying change, since the set value may not be in range in the first place.
+        if !only_clamp_on_input || change != 0.0 {
+            value = clamp_to_range(value, clamp_range.clone());
+        }
+
         if change != 0.0 {
             value += speed * change;
             value = emath::round_to_decimals(value, auto_decimals);
+            value = clamp_to_range(value, clamp_range.clone());
         }
 
-        value = clamp_to_range(value, clamp_range.clone());
         if old_value != value {
             set(&mut get_set_value, value);
             ui.data_mut(|data| data.remove::<String>(id));
