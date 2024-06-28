@@ -514,6 +514,7 @@ impl ScrollStyle {
         Self {
             floating: true,
             bar_width: 10.0,
+            bar_inner_margin: 0.0,
             foreground_color: true,
             floating_allocated_width: 0.0,
             dormant_background_opacity: 0.0,
@@ -590,6 +591,10 @@ impl ScrollStyle {
             ui.label("Minimum handle length");
         });
         ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+            ui.label("Inner margin");
+        });
+        ui.horizontal(|ui| {
             ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
             ui.label("Outer margin");
         });
@@ -623,11 +628,6 @@ impl ScrollStyle {
                 opacity_ui(ui, active_handle_opacity);
                 opacity_ui(ui, interact_handle_opacity);
                 ui.end_row();
-            });
-        } else {
-            ui.horizontal(|ui| {
-                ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
-                ui.label("Inner margin");
             });
         }
     }
