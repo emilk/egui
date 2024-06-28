@@ -83,40 +83,50 @@ pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web
     }
 }
 
-/// Web sends all keys as strings, so it is up to us to figure out if it is
-/// a real text input or the name of a key.
-pub fn is_nontext_key(key: &str) -> bool {
+/// The text input from a keyboard event (e.g. `X` when pressing the `X` key).
+pub fn text_from_keyboard_event(event: &web_sys::KeyboardEvent) -> Option<String> {
+    let key = event.key();
+
     let is_function_key = key.starts_with('F') && key.len() > 1;
-    is_function_key
-        || matches!(
-            key,
-            "Alt"
-                | "ArrowDown"
-                | "ArrowLeft"
-                | "ArrowRight"
-                | "ArrowUp"
-                | "Backspace"
-                | "CapsLock"
-                | "ContextMenu"
-                | "Control"
-                | "Delete"
-                | "End"
-                | "Enter"
-                | "Esc"
-                | "Escape"
-                | "GroupNext" // https://github.com/emilk/egui/issues/510
-                | "Help"
-                | "Home"
-                | "Insert"
-                | "Meta"
-                | "NumLock"
-                | "PageDown"
-                | "PageUp"
-                | "Pause"
-                | "ScrollLock"
-                | "Shift"
-                | "Tab"
-        )
+    if is_function_key {
+        return None;
+    }
+
+    let is_control_key = matches!(
+        key.as_str(),
+        "Alt"
+      | "ArrowDown"
+      | "ArrowLeft"
+      | "ArrowRight"
+      | "ArrowUp"
+      | "Backspace"
+      | "CapsLock"
+      | "ContextMenu"
+      | "Control"
+      | "Delete"
+      | "End"
+      | "Enter"
+      | "Esc"
+      | "Escape"
+      | "GroupNext" // https://github.com/emilk/egui/issues/510
+      | "Help"
+      | "Home"
+      | "Insert"
+      | "Meta"
+      | "NumLock"
+      | "PageDown"
+      | "PageUp"
+      | "Pause"
+      | "ScrollLock"
+      | "Shift"
+      | "Tab"
+    );
+
+    if is_control_key {
+        return None;
+    }
+
+    Some(key)
 }
 
 /// Web sends all keys as strings, so it is up to us to figure out if it is

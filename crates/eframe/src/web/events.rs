@@ -126,15 +126,26 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
         target,
         "keydown",
         |event: web_sys::KeyboardEvent, runner| {
+            if !runner.input.raw.focused {
+                return;
+            }
+
             let modifiers = modifiers_from_kb_event(&event);
-            let key = event.key();
             if !modifiers.ctrl
                 && !modifiers.command
-                && !is_nontext_key(&key)
                 // When text agent is focused, it is responsible for handling input events
                 && !runner.text_agent.has_focus()
             {
-                runner.input.raw.events.push(egui::Event::Text(key));
+                if let Some(text) = text_from_keyboard_event(&event) {
+                    runner.input.raw.events.push(egui::Event::Text(text));
+                    runner.needs_repaint.repaint_asap();
+
+                    // If this is indeed text, then prevent any other action.
+                    event.prevent_default();
+
+                    // Assume egui uses all key events, and don't let them propagate to parent elements.
+                    event.stop_propagation();
+                }
             }
 
             on_keydown(event, runner);
@@ -144,6 +155,11 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
 
 #[allow(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
 pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
+    let has_focus = runner.input.raw.focused;
+    if !has_focus {
+        return;
+    }
+
     if event.is_composing() || event.key_code() == 229 {
         // https://web.archive.org/web/20200526195704/https://www.fxsitecompat.dev/en-CA/docs/2018/keydown-and-keyup-events-are-now-fired-during-ime-composition/
         return;
@@ -155,41 +171,34 @@ pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) 
     let key = event.key();
     let egui_key = translate_key(&key);
 
-    if let Some(key) = egui_key {
+    if let Some(egui_key) = egui_key {
         runner.input.raw.events.push(egui::Event::Key {
-            key,
+            key: egui_key,
             physical_key: None, // TODO(fornwall)
             pressed: true,
             repeat: false, // egui will fill this in for us!
             modifiers,
         });
-    }
+        runner.needs_repaint.repaint_asap();
 
-    runner.needs_repaint.repaint_asap();
+        let prevent_default = should_prevent_default_for_key(runner, &modifiers, egui_key);
 
-    let has_focus = runner.input.raw.focused;
-    let prevent_default = has_focus
-        && egui_key.map_or(false, |egui_key| {
-            should_prevent_default_for_key(runner, &modifiers, egui_key)
-        });
+        // log::debug!(
+        //     "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
+        //     event.key().as_str(),
+        //     runner.egui_ctx().wants_keyboard_input()
+        // );
 
-    // log::debug!(
-    //     "On keydown {:?} {egui_key:?}, has_focus: {has_focus}, egui_wants_keyboard: {}, prevent_default: {prevent_default}",
-    //     event.key().as_str(),
-    //     runner.egui_ctx().wants_keyboard_input()
-    // );
+        if prevent_default {
+            event.prevent_default();
+        }
 
-    if prevent_default {
-        event.prevent_default();
-    }
-
-    if has_focus {
         // Assume egui uses all key events, and don't let them propagate to parent elements.
         event.stop_propagation();
     }
 }
 
-/// If the canvas (or text agent has focus):
+/// If the canvas (or text agent) has focus:
 /// should we prevent the default browser event action when the user presses this key?
 fn should_prevent_default_for_key(
     runner: &AppRunner,
@@ -199,9 +208,9 @@ fn should_prevent_default_for_key(
     // NOTE: We never want to prevent:
     // * F5 / cmd-R (refresh)
     // * cmd-shift-C (debug tools)
-    // * cmd/ctrl-c/v/x (or we stop copy/paste/cut events)
+    // * cmd/ctrl-c/v/x (lest we prevent copy/paste/cut events)
 
-    // Prevent ctrl-P opening the print dialog. Users may want to use it for a command palette.
+    // Prevent ctrl-P from opening the print dialog. Users may want to use it for a command palette.
     if egui_key == egui::Key::P && (modifiers.ctrl || modifiers.command || modifiers.mac_cmd) {
         return true;
     }
