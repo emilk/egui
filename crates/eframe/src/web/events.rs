@@ -75,7 +75,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_keyup(runner_ref, &canvas)?;
 
     // It seems copy/cut/paste events only work on the document,
-    // so we check if they have focus inside of them.
+    // so we check if we have focus inside of the handler.
     install_copy_cut_paste(runner_ref, &document)?;
 
     install_mousedown(runner_ref, &canvas)?;
@@ -271,14 +271,16 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
 
     #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "cut", |event: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Cut);
+        if runner.input.raw.focused {
+            runner.input.raw.events.push(egui::Event::Cut);
 
-        // In Safari we are only allowed to write to the clipboard during the
-        // event callback, which is why we run the app logic here and now:
-        runner.logic();
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic();
 
-        // Make sure we paint the output of the above logic call asap:
-        runner.needs_repaint.repaint_asap();
+            // Make sure we paint the output of the above logic call asap:
+            runner.needs_repaint.repaint_asap();
+        }
 
         event.stop_propagation();
         event.prevent_default();
@@ -286,14 +288,16 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
 
     #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "copy", |event: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Copy);
+        if runner.input.raw.focused {
+            runner.input.raw.events.push(egui::Event::Copy);
 
-        // In Safari we are only allowed to write to the clipboard during the
-        // event callback, which is why we run the app logic here and now:
-        runner.logic();
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic();
 
-        // Make sure we paint the output of the above logic call asap:
-        runner.needs_repaint.repaint_asap();
+            // Make sure we paint the output of the above logic call asap:
+            runner.needs_repaint.repaint_asap();
+        }
 
         event.stop_propagation();
         event.prevent_default();
