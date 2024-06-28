@@ -571,26 +571,26 @@ impl ScrollStyle {
         });
 
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(bar_width).clamp_range(0.0..=32.0));
+            ui.add(DragValue::new(bar_width).range(0.0..=32.0));
             ui.label("Full bar width");
         });
         if *floating {
             ui.horizontal(|ui| {
-                ui.add(DragValue::new(floating_width).clamp_range(0.0..=32.0));
+                ui.add(DragValue::new(floating_width).range(0.0..=32.0));
                 ui.label("Thin bar width");
             });
             ui.horizontal(|ui| {
-                ui.add(DragValue::new(floating_allocated_width).clamp_range(0.0..=32.0));
+                ui.add(DragValue::new(floating_allocated_width).range(0.0..=32.0));
                 ui.label("Allocated width");
             });
         }
 
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(handle_min_length).clamp_range(0.0..=32.0));
+            ui.add(DragValue::new(handle_min_length).range(0.0..=32.0));
             ui.label("Minimum handle length");
         });
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
+            ui.add(DragValue::new(bar_outer_margin).range(0.0..=32.0));
             ui.label("Outer margin");
         });
 
@@ -603,7 +603,7 @@ impl ScrollStyle {
         if *floating {
             crate::Grid::new("opacity").show(ui, |ui| {
                 fn opacity_ui(ui: &mut Ui, opacity: &mut f32) {
-                    ui.add(DragValue::new(opacity).speed(0.01).clamp_range(0.0..=1.0));
+                    ui.add(DragValue::new(opacity).speed(0.01).range(0.0..=1.0));
                 }
 
                 ui.label("Opacity");
@@ -626,7 +626,7 @@ impl ScrollStyle {
             });
         } else {
             ui.horizontal(|ui| {
-                ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+                ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
                 ui.label("Inner margin");
             });
         }
@@ -1418,7 +1418,7 @@ impl Style {
             ui.label("Animation duration");
             ui.add(
                 DragValue::new(animation_time)
-                    .clamp_range(0.0..=1.0)
+                    .range(0.0..=1.0)
                     .speed(0.02)
                     .suffix(" s"),
             );
@@ -1515,19 +1515,19 @@ impl Spacing {
                 ui.end_row();
 
                 ui.label("Indent");
-                ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
+                ui.add(DragValue::new(indent).range(0.0..=100.0));
                 ui.end_row();
 
                 ui.label("Slider width");
-                ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(slider_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Slider rail height");
-                ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
+                ui.add(DragValue::new(slider_rail_height).range(0.0..=50.0));
                 ui.end_row();
 
                 ui.label("ComboBox width");
-                ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(combo_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Default area size");
@@ -1535,20 +1535,20 @@ impl Spacing {
                 ui.end_row();
 
                 ui.label("TextEdit width");
-                ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(text_edit_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Tooltip wrap width");
-                ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(tooltip_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Default menu width");
-                ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(menu_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Menu spacing")
                     .on_hover_text("Horizontal spacing between menus");
-                ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
+                ui.add(DragValue::new(menu_spacing).range(0.0..=10.0));
                 ui.end_row();
 
                 ui.label("Checkboxes etc");
@@ -1556,17 +1556,17 @@ impl Spacing {
                     ui.add(
                         DragValue::new(icon_width)
                             .prefix("outer icon width:")
-                            .clamp_range(0.0..=60.0),
+                            .range(0.0..=60.0),
                     );
                     ui.add(
                         DragValue::new(icon_width_inner)
                             .prefix("inner icon width:")
-                            .clamp_range(0.0..=60.0),
+                            .range(0.0..=60.0),
                     );
                     ui.add(
                         DragValue::new(icon_spacing)
                             .prefix("spacing:")
-                            .clamp_range(0.0..=10.0),
+                            .range(0.0..=10.0),
                     );
                 });
                 ui.end_row();
@@ -1579,7 +1579,7 @@ impl Spacing {
 
         ui.horizontal(|ui| {
             ui.label("Max height of a combo box");
-            ui.add(DragValue::new(combo_height).clamp_range(0.0..=1000.0));
+            ui.add(DragValue::new(combo_height).range(0.0..=1000.0));
         });
 
         ui.collapsing("Scroll Area", |ui| {
@@ -1611,15 +1611,15 @@ impl Interaction {
             .show(ui, |ui| {
                 ui.label("interact_radius")
                     .on_hover_text("Interact with the closest widget within this radius.");
-                ui.add(DragValue::new(interact_radius).clamp_range(0.0..=20.0));
+                ui.add(DragValue::new(interact_radius).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("resize_grab_radius_side").on_hover_text("Radius of the interactive area of the side of a window during drag-to-resize");
-                ui.add(DragValue::new(resize_grab_radius_side).clamp_range(0.0..=20.0));
+                ui.add(DragValue::new(resize_grab_radius_side).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("resize_grab_radius_corner").on_hover_text("Radius of the interactive area of the corner of a window during drag-to-resize.");
-                ui.add(DragValue::new(resize_grab_radius_corner).clamp_range(0.0..=20.0));
+                ui.add(DragValue::new(resize_grab_radius_corner).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("Tooltip delay").on_hover_text(
@@ -1627,7 +1627,7 @@ impl Interaction {
                 );
                 ui.add(
                     DragValue::new(tooltip_delay)
-                        .clamp_range(0.0..=1.0)
+                        .range(0.0..=1.0)
                         .speed(0.05)
                         .suffix(" s"),
                 );
@@ -1638,7 +1638,7 @@ impl Interaction {
                 );
                 ui.add(
                     DragValue::new(tooltip_grace_time)
-                        .clamp_range(0.0..=1.0)
+                        .range(0.0..=1.0)
                         .speed(0.05)
                         .suffix(" s"),
                 );
@@ -1996,7 +1996,7 @@ impl TextCursorStyle {
                 ui.add(
                     DragValue::new(on_duration)
                         .speed(0.1)
-                        .clamp_range(0.0..=2.0)
+                        .range(0.0..=2.0)
                         .suffix(" s"),
                 );
                 ui.end_row();
@@ -2005,7 +2005,7 @@ impl TextCursorStyle {
                 ui.add(
                     DragValue::new(off_duration)
                         .speed(0.1)
-                        .clamp_range(0.0..=2.0)
+                        .range(0.0..=2.0)
                         .suffix(" s"),
                 );
                 ui.end_row();
@@ -2065,12 +2065,12 @@ fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> im
         ui.horizontal(|ui| {
             ui.add(
                 DragValue::new(&mut value.x)
-                    .clamp_range(range.clone())
+                    .range(range.clone())
                     .prefix("x: "),
             );
             ui.add(
                 DragValue::new(&mut value.y)
-                    .clamp_range(range.clone())
+                    .range(range.clone())
                     .prefix("y: "),
             );
         })
@@ -2212,7 +2212,7 @@ impl Widget for &mut Rounding {
                 ui.checkbox(&mut same, "same");
 
                 let mut cr = self.nw;
-                ui.add(DragValue::new(&mut cr).clamp_range(0.0..=f32::INFINITY));
+                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
                 *self = Rounding::same(cr);
             })
             .response
@@ -2222,19 +2222,19 @@ impl Widget for &mut Rounding {
 
                 crate::Grid::new("rounding").num_columns(2).show(ui, |ui| {
                     ui.label("NW");
-                    ui.add(DragValue::new(&mut self.nw).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
                     ui.end_row();
 
                     ui.label("NE");
-                    ui.add(DragValue::new(&mut self.ne).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
                     ui.end_row();
 
                     ui.label("SW");
-                    ui.add(DragValue::new(&mut self.sw).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
                     ui.end_row();
 
                     ui.label("SE");
-                    ui.add(DragValue::new(&mut self.se).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
                     ui.end_row();
                 });
             })
@@ -2266,13 +2266,13 @@ impl Widget for &mut Shadow {
                 ui.add(
                     DragValue::new(&mut offset.x)
                         .speed(1.0)
-                        .clamp_range(-100.0..=100.0)
+                        .range(-100.0..=100.0)
                         .prefix("x: "),
                 );
                 ui.add(
                     DragValue::new(&mut offset.y)
                         .speed(1.0)
-                        .clamp_range(-100.0..=100.0)
+                        .range(-100.0..=100.0)
                         .prefix("y: "),
                 );
                 ui.end_row();
@@ -2280,14 +2280,14 @@ impl Widget for &mut Shadow {
                 ui.add(
                     DragValue::new(blur)
                         .speed(1.0)
-                        .clamp_range(0.0..=100.0)
+                        .range(0.0..=100.0)
                         .prefix("blur: "),
                 );
 
                 ui.add(
                     DragValue::new(spread)
                         .speed(1.0)
-                        .clamp_range(0.0..=100.0)
+                        .range(0.0..=100.0)
                         .prefix("spread: "),
                 );
             });
@@ -2302,12 +2302,8 @@ impl Widget for &mut Stroke {
         let Stroke { width, color } = self;
 
         ui.horizontal(|ui| {
-            ui.add(
-                DragValue::new(width)
-                    .speed(0.1)
-                    .clamp_range(0.0..=f32::INFINITY),
-            )
-            .on_hover_text("Width");
+            ui.add(DragValue::new(width).speed(0.1).range(0.0..=f32::INFINITY))
+                .on_hover_text("Width");
             ui.color_edit_button_srgba(color);
 
             // stroke preview:

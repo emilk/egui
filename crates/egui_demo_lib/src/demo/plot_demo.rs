@@ -174,7 +174,7 @@ impl LineDemo {
                     ui.add(
                         egui::DragValue::new(circle_radius)
                             .speed(0.1)
-                            .clamp_range(0.0..=f64::INFINITY)
+                            .range(0.0..=f64::INFINITY)
                             .prefix("r: "),
                     );
                     ui.horizontal(|ui| {
@@ -353,7 +353,7 @@ impl MarkerDemo {
             ui.add(
                 egui::DragValue::new(&mut self.marker_radius)
                     .speed(0.1)
-                    .clamp_range(0.0..=f64::INFINITY)
+                    .range(0.0..=f64::INFINITY)
                     .prefix("Radius: "),
             );
             ui.checkbox(&mut self.automatic_colors, "Automatic colors");
@@ -432,7 +432,7 @@ impl LegendDemo {
             ui.add(
                 egui::DragValue::new(&mut config.background_alpha)
                     .speed(0.02)
-                    .clamp_range(0.0..=1.0),
+                    .range(0.0..=1.0),
             );
             ui.end_row();
         });

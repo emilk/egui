@@ -48,9 +48,9 @@ pub enum SliderOrientation {
 /// Control a number with a slider.
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
-/// By default, the slider can still show values outside this range,
-/// and still allows users to enter values outside the range by clicking the slider value and editing it.
-/// If you want to clamp incoming and outgoing values, use [`Slider::clamp_to_range`].
+/// By default, the slider does not show values outside this range,
+/// If you want don't want clamp incoming and outgoing values, disable this behavior using [`Slider::clamp_to_range`].
+/// Setting it to `false` will allows users to enter values outside the range by clicking the slider value and editing it.
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///
@@ -818,7 +818,8 @@ impl<'a> Slider<'a> {
         let response = ui.add({
             let mut dv = DragValue::new(&mut value)
                 .speed(speed)
-                .clamp_range(self.clamp_range())
+                .range(self.range.clone())
+                .clamp_to_range(self.clamp_to_range)
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
