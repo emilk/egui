@@ -7,7 +7,7 @@ use crate::{BarChart, Cursor, PlotPoint, PlotTransform};
 /// One bar in a [`BarChart`]. Potentially floating, allowing stacked bar charts.
 /// Width can be changed to allow variable-width histograms.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Bar<T> {
+pub struct Bar<T = ()> {
     /// Name of plot element in the diagram (annotated by default formatter)
     pub name: String,
 
@@ -52,7 +52,7 @@ impl<T> Bar<T> {
             bar_width: 0.5,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             fill: Color32::TRANSPARENT,
-            _t: std::marker::PhantomData::default(),
+            _t: std::marker::PhantomData,
         }
     }
 

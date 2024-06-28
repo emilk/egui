@@ -86,7 +86,7 @@ impl PlotBounds {
     }
 
     #[inline]
-    pub fn center<T>(&self) -> PlotPoint<T> {
+    pub fn center(&self) -> PlotPoint<()> {
         [
             (self.min[0] + self.max[0]) / 2.0,
             (self.min[1] + self.max[1]) / 2.0,
@@ -293,7 +293,7 @@ impl PlotTransform {
             new_bounds.set_x(&PlotBounds::new_symmetrical(1.0));
         } else if bounds.width() == 0.0 {
             new_bounds.set_x_center_width(
-                bounds.center::<()>().x,
+                bounds.center().x,
                 if bounds.is_valid_y() {
                     bounds.height()
                 } else {
@@ -306,7 +306,7 @@ impl PlotTransform {
             new_bounds.set_y(&PlotBounds::new_symmetrical(1.0));
         } else if bounds.height() == 0.0 {
             new_bounds.set_y_center_height(
-                bounds.center::<()>().y,
+                bounds.center().y,
                 if bounds.is_valid_x() {
                     bounds.width()
                 } else {

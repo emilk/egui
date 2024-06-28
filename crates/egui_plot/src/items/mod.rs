@@ -32,7 +32,7 @@ pub struct PlotConfig<'a> {
 }
 
 /// Trait shared by things that can be drawn in the plot.
-pub trait PlotItem<T> {
+pub trait PlotItem<T = ()> {
     fn shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>);
 
     /// For plot-items which are generated based on x values (plotting functions).
@@ -415,7 +415,7 @@ impl<T> PlotItem<T> for VLine {
 }
 
 /// A series of values forming a path.
-pub struct Line<T> {
+pub struct Line<T = ()> {
     pub(super) series: PlotPoints<T>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
@@ -615,7 +615,7 @@ impl<T> PlotItem<T> for Line<T> {
 }
 
 /// A convex polygon.
-pub struct Polygon<T> {
+pub struct Polygon<T = ()> {
     pub(super) series: PlotPoints<T>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
@@ -768,7 +768,7 @@ impl<T> PlotItem<T> for Polygon<T> {
 
 /// Text inside the plot.
 #[derive(Clone)]
-pub struct Text<T> {
+pub struct Text<T = ()> {
     pub(super) text: WidgetText,
     pub(super) position: PlotPoint<T>,
     pub(super) name: String,
@@ -909,7 +909,7 @@ impl<T> PlotItem<T> for Text<T> {
 }
 
 /// A set of points.
-pub struct Points<T> {
+pub struct Points<T = ()> {
     pub(super) series: PlotPoints<T>,
 
     pub(super) shape: MarkerShape,
@@ -1190,7 +1190,7 @@ impl<T> PlotItem<T> for Points<T> {
 }
 
 /// A set of arrows.
-pub struct Arrows<T> {
+pub struct Arrows<T = ()> {
     pub(super) origins: PlotPoints<T>,
     pub(super) tips: PlotPoints<T>,
     pub(super) tip_length: Option<f32>,
@@ -1349,7 +1349,7 @@ impl<T> PlotItem<T> for Arrows<T> {
 
 /// An image in the plot.
 #[derive(Clone)]
-pub struct PlotImage<T> {
+pub struct PlotImage<T = ()> {
     pub(super) position: PlotPoint<T>,
     pub(super) texture_id: TextureId,
     pub(super) uv: Rect,
@@ -1549,7 +1549,7 @@ impl<T> PlotItem<T> for PlotImage<T> {
 // ----------------------------------------------------------------------------
 
 /// A bar chart.
-pub struct BarChart<T> {
+pub struct BarChart<T = ()> {
     pub(super) bars: Vec<Bar<T>>,
     pub(super) default_color: Color32,
     pub(super) name: String,
@@ -1755,7 +1755,7 @@ impl<T> PlotItem<T> for BarChart<T> {
 }
 
 /// A diagram containing a series of [`BoxElem`] elements.
-pub struct BoxPlot<T> {
+pub struct BoxPlot<T = ()> {
     pub(super) boxes: Vec<BoxElem<T>>,
     pub(super) default_color: Color32,
     pub(super) name: String,

@@ -167,7 +167,7 @@ impl LegendEntry {
 }
 
 #[derive(Clone)]
-pub(super) struct LegendWidget<T> {
+pub(super) struct LegendWidget<T = ()> {
     rect: Rect,
     entries: BTreeMap<String, LegendEntry>,
     config: Legend,
@@ -211,7 +211,7 @@ impl<T> LegendWidget<T> {
             rect,
             entries,
             config,
-            _t: std::marker::PhantomData::default(),
+            _t: std::marker::PhantomData,
         })
     }
 

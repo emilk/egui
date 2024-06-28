@@ -76,7 +76,7 @@ impl eframe::App for PlotExample {
 
             ui.label("This example shows how to use raw input events to implement different plot controls than the ones egui provides by default, e.g., default to zooming instead of panning when the Ctrl key is not pressed, or controlling much it zooms with each mouse wheel step.");
 
-            egui_plot::Plot::<()>::new("plot")
+            egui_plot::Plot::new("plot")
                 .allow_zoom(false)
                 .allow_drag(false)
                 .allow_scroll(false)
@@ -121,7 +121,7 @@ impl eframe::App for PlotExample {
                         plot_ui.translate_bounds(pointer_translate);
                     }
 
-                    let sine_points = PlotPoints::from_explicit_callback(|x| x.sin(), .., 5000);
+                    let sine_points = PlotPoints::<()>::from_explicit_callback(|x| x.sin(), .., 5000);
                     plot_ui.line(Line::new(sine_points).name("Sine"));
                 });
         });

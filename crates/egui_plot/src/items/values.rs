@@ -9,7 +9,7 @@ use crate::transform::PlotBounds;
 /// Uses f64 for improved accuracy to enable plotting
 /// large values (e.g. unix time on x axis).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PlotPoint<T> {
+pub struct PlotPoint<T = ()> {
     /// This is often something monotonically increasing, such as time, but doesn't have to be.
     /// Goes from left to right.
     pub x: f64,
@@ -191,7 +191,7 @@ impl Default for Orientation {
 /// Represents many [`PlotPoint`]s.
 ///
 /// These can be an owned `Vec` or generated with a function.
-pub enum PlotPoints<T> {
+pub enum PlotPoints<T = ()> {
     Owned(Vec<PlotPoint<T>>),
     Generator(ExplicitGenerator),
     // Borrowed(&[PlotPoint]), // TODO(EmbersArc): Lifetimes are tricky in this case.
@@ -417,7 +417,7 @@ impl MarkerShape {
 // ----------------------------------------------------------------------------
 
 /// Query the points of the plot, for geometric relations like closest checks
-pub enum PlotGeometry<'a, T> {
+pub enum PlotGeometry<'a, T = ()> {
     /// No geometry based on single elements (examples: text, image, horizontal/vertical line)
     None,
 

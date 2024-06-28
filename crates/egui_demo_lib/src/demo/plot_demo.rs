@@ -230,9 +230,9 @@ impl LineDemo {
         });
     }
 
-    fn circle(&self) -> Line<()> {
+    fn circle(&self) -> Line {
         let n = 512;
-        let circle_points: PlotPoints<()> = (0..=n)
+        let circle_points: PlotPoints = (0..=n)
             .map(|i| {
                 let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
                 let r = self.circle_radius;
@@ -248,7 +248,7 @@ impl LineDemo {
             .name("circle")
     }
 
-    fn sin(&self) -> Line<()> {
+    fn sin(&self) -> Line {
         let time = self.time;
         Line::new(PlotPoints::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
@@ -260,7 +260,7 @@ impl LineDemo {
         .name("wave")
     }
 
-    fn thingy(&self) -> Line<()> {
+    fn thingy(&self) -> Line {
         let time = self.time;
         Line::new(PlotPoints::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
@@ -326,7 +326,7 @@ impl Default for MarkerDemo {
 }
 
 impl MarkerDemo {
-    fn markers(&self) -> Vec<Points<()>> {
+    fn markers(&self) -> Vec<Points> {
         MarkerShape::all()
             .enumerate()
             .map(|(i, marker)| {
@@ -389,7 +389,7 @@ struct LegendDemo {
 }
 
 impl LegendDemo {
-    fn line_with_slope(slope: f64) -> Line<()> {
+    fn line_with_slope(slope: f64) -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
             ..,
@@ -397,7 +397,7 @@ impl LegendDemo {
         ))
     }
 
-    fn sin() -> Line<()> {
+    fn sin() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
             ..,
@@ -405,7 +405,7 @@ impl LegendDemo {
         ))
     }
 
-    fn cos() -> Line<()> {
+    fn cos() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),
             ..,
@@ -467,7 +467,7 @@ impl CustomAxesDemo {
     const MINS_PER_DAY: f64 = 24.0 * 60.0;
     const MINS_PER_H: f64 = 60.0;
 
-    fn logistic_fn() -> Line<()> {
+    fn logistic_fn() -> Line {
         fn days(min: f64) -> f64 {
             CustomAxesDemo::MINS_PER_DAY * min
         }
@@ -562,7 +562,7 @@ impl CustomAxesDemo {
             }
         };
 
-        let label_fmt = |_s: &str, val: &PlotPoint<()>| {
+        let label_fmt = |_s: &str, val: &PlotPoint| {
             format!(
                 "Day {d}, {h}:{m:02}\n{p:.2}%",
                 d = day(val.x),
@@ -622,7 +622,7 @@ impl Default for LinkedAxesDemo {
 }
 
 impl LinkedAxesDemo {
-    fn line_with_slope(slope: f64) -> Line<()> {
+    fn line_with_slope(slope: f64) -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
             ..,
@@ -630,7 +630,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn sin() -> Line<()> {
+    fn sin() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
             ..,
@@ -638,7 +638,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn cos() -> Line<()> {
+    fn cos() -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),
             ..,
@@ -646,7 +646,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn configure_plot(plot_ui: &mut egui_plot::PlotUi<()>) {
+    fn configure_plot(plot_ui: &mut egui_plot::PlotUi) {
         plot_ui.line(Self::line_with_slope(0.5));
         plot_ui.line(Self::line_with_slope(1.0));
         plot_ui.line(Self::line_with_slope(2.0));
@@ -713,7 +713,7 @@ impl ItemsDemo {
             .map(|i| [i, i.sin()])
             .collect();
 
-        let line = Line::<()>::new(sin_values.split_off(n / 2)).fill(-1.5);
+        let line = Line::new(sin_values.split_off(n / 2)).fill(-1.5);
         let polygon = Polygon::new(PlotPoints::from_parametric_callback(
             |t| (4.0 * t.sin() + 2.0 * t.cos(), 4.0 * t.cos() + 2.0 * t.sin()),
             0.0..TAU,
@@ -747,7 +747,7 @@ impl ItemsDemo {
             5.0 * vec2(texture.aspect_ratio(), 1.0),
         );
 
-        let plot = Plot::new("items_demo")
+        let plot = <Plot<'_>>::new("items_demo")
             .legend(Legend::default().position(Corner::RightBottom))
             .show_x(false)
             .show_y(false)
@@ -792,7 +792,7 @@ impl InteractionDemo {
             ));
         }
 
-        let plot = Plot::<()>::new("interaction_demo").id(id).height(300.0);
+        let plot = <Plot<'_>>::new("interaction_demo").id(id).height(300.0);
 
         let PlotResponse {
             response,
@@ -956,7 +956,7 @@ impl ChartsDemo {
                     )
                 })
                 // The 10 factor here is purely for a nice 1:1 aspect ratio
-                .map(|(x, f)| Bar::<()>::new(x, f * 10.0).width(0.095))
+                .map(|(x, f)| Bar::new(x, f * 10.0).width(0.095))
                 .collect(),
         )
         .color(Color32::LIGHT_BLUE)
@@ -965,7 +965,7 @@ impl ChartsDemo {
             chart = chart.horizontal();
         }
 
-        Plot::new("Normal Distribution Demo")
+        <Plot<'_>>::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
             .y_axis_width(2)
@@ -977,7 +977,7 @@ impl ChartsDemo {
     }
 
     fn bar_stacked(&self, ui: &mut Ui) -> Response {
-        let mut chart1 = BarChart::<()>::new(vec![
+        let mut chart1 = BarChart::new(vec![
             Bar::new(0.5, 1.0).name("Day 1"),
             Bar::new(1.5, 3.0).name("Day 2"),
             Bar::new(2.5, 1.0).name("Day 3"),
@@ -1027,7 +1027,7 @@ impl ChartsDemo {
             chart4 = chart4.horizontal();
         }
 
-        Plot::new("Stacked Bar Chart Demo")
+        <Plot<'_>>::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
             .data_aspect(1.0)
             .allow_drag(self.allow_drag)
@@ -1042,7 +1042,7 @@ impl ChartsDemo {
 
     fn box_plot(&self, ui: &mut Ui) -> Response {
         let yellow = Color32::from_rgb(248, 252, 168);
-        let mut box1 = BoxPlot::<()>::new(vec![
+        let mut box1 = BoxPlot::new(vec![
             BoxElem::new(0.5, BoxSpread::new(1.5, 2.2, 2.5, 2.6, 3.1)).name("Day 1"),
             BoxElem::new(2.5, BoxSpread::new(0.4, 1.0, 1.1, 1.4, 2.1)).name("Day 2"),
             BoxElem::new(4.5, BoxSpread::new(1.7, 2.0, 2.2, 2.5, 2.9)).name("Day 3"),
@@ -1072,7 +1072,7 @@ impl ChartsDemo {
             box3 = box3.horizontal();
         }
 
-        Plot::new("Box Plot Demo")
+        <Plot<'_>>::new("Box Plot Demo")
             .legend(Legend::default())
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)

@@ -2,7 +2,7 @@ use crate::*;
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
-pub struct PlotUi<T> {
+pub struct PlotUi<T = ()> {
     pub(crate) ctx: Context,
     pub(crate) items: Vec<Box<dyn PlotItem<T>>>,
     pub(crate) next_auto_color_idx: usize,

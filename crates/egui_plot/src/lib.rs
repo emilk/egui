@@ -145,7 +145,7 @@ pub struct PlotResponse<R> {
 /// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
 /// # });
 /// ```
-pub struct Plot<'a, T> {
+pub struct Plot<'a, T = ()> {
     id_source: Id,
     id: Option<Id>,
 

@@ -21,7 +21,7 @@ pub(super) trait RectElement<T> {
     }
 
     /// At which argument (input; usually X) there is a ruler (usually vertical)
-    fn arguments_with_ruler(&self) -> Vec<PlotPoint<T>> {
+    fn arguments_with_ruler(&self) -> Vec<PlotPoint<()>> {
         // Default: one at center
         vec![self.bounds().center()]
     }

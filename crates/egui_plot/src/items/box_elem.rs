@@ -49,7 +49,7 @@ impl BoxSpread {
 /// A box in a [`BoxPlot`] diagram. This is a low level graphical element; it will not compute quartiles and whiskers,
 /// letting one use their preferred formula. Use [`Points`][`super::Points`] to draw the outliers.
 #[derive(Clone, Debug, PartialEq)]
-pub struct BoxElem<T> {
+pub struct BoxElem<T = ()> {
     /// Name of plot element in the diagram (annotated by default formatter).
     pub name: String,
 
@@ -91,7 +91,7 @@ impl<T> BoxElem<T> {
             whisker_width: 0.15,
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             fill: Color32::TRANSPARENT,
-            _t: std::marker::PhantomData::default(),
+            _t: std::marker::PhantomData,
         }
     }
 
