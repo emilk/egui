@@ -115,8 +115,8 @@ impl TextAgent {
         let Some(ime) = ime else { return Ok(()) };
 
         let ime_pos = ime.cursor_rect.left_top();
-        let canvas_rect = canvas.get_bounding_client_rect();
-        let new_pos = ime_pos + egui::vec2(canvas_rect.left() as f32, canvas_rect.top() as f32);
+        let canvas_rect = super::canvas_content_rect(canvas);
+        let new_pos = canvas_rect.min + ime_pos.to_vec2();
 
         let style = self.input.style();
         style.set_property("top", &format!("{}px", new_pos.y))?;

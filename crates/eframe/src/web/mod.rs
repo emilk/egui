@@ -133,9 +133,30 @@ fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElemen
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
-fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
-    let rect = canvas.get_bounding_client_rect();
-    egui::pos2(rect.left() as f32, rect.top() as f32)
+fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
+    let bounding_rect = canvas.get_bounding_client_rect();
+
+    let mut rect = egui::Rect::from_min_max(
+        egui::pos2(bounding_rect.left() as f32, bounding_rect.top() as f32),
+        egui::pos2(bounding_rect.right() as f32, bounding_rect.bottom() as f32),
+    );
+
+    // We need to subtract padding and border:
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(style)) = window.get_computed_style(canvas) {
+            let get_property = |name: &str| -> Option<f32> {
+                let property = style.get_property_value(name).ok()?;
+                property.trim_end_matches("px").parse::<f32>().ok()
+            };
+
+            rect.min.x += get_property("padding-left").unwrap_or_default();
+            rect.min.y += get_property("padding-top").unwrap_or_default();
+            rect.max.x -= get_property("padding-right").unwrap_or_default();
+            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
+        }
+    }
+
+    rect
 }
 
 fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
