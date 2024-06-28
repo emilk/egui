@@ -921,6 +921,9 @@ impl Response {
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Other => Role::Unknown,
         });
+        if !info.enabled {
+            builder.set_disabled();
+        }
         if let Some(label) = info.label {
             builder.set_name(label);
         }

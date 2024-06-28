@@ -63,6 +63,7 @@ impl Widget for RadioButton {
         response.widget_info(|| {
             WidgetInfo::selected(
                 WidgetType::RadioButton,
+                ui.is_enabled(),
                 checked,
                 galley.as_ref().map_or("", |x| x.text()),
             )

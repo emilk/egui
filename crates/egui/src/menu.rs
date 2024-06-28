@@ -524,7 +524,11 @@ impl SubMenuButton {
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            crate::WidgetInfo::labeled(crate::WidgetType::Button, text_galley.text())
+            crate::WidgetInfo::labeled(
+                crate::WidgetType::Button,
+                ui.is_enabled(),
+                text_galley.text(),
+            )
         });
 
         if ui.is_rect_visible(rect) {

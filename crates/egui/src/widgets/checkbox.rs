@@ -82,11 +82,13 @@ impl<'a> Widget for Checkbox<'a> {
             if indeterminate {
                 WidgetInfo::labeled(
                     WidgetType::Checkbox,
+                    ui.is_enabled(),
                     galley.as_ref().map_or("", |x| x.text()),
                 )
             } else {
                 WidgetInfo::selected(
                     WidgetType::Checkbox,
+                    ui.is_enabled(),
                     *checked,
                     galley.as_ref().map_or("", |x| x.text()),
                 )

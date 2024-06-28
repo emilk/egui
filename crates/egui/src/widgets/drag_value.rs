@@ -588,7 +588,7 @@ impl<'a> Widget for DragValue<'a> {
 
         response.changed = get(&mut get_set_value) != old_value;
 
-        response.widget_info(|| WidgetInfo::drag_value(value));
+        response.widget_info(|| WidgetInfo::drag_value(ui.is_enabled(), value));
 
         #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {

@@ -36,7 +36,7 @@ fn empty_ui_should_return_tree_with_only_root_window() {
 }
 
 #[test]
-fn button_text() {
+fn button_node() {
     let button_text = "This is a test button!";
 
     let ctx = Context::default();
@@ -58,14 +58,51 @@ fn button_text() {
         "Expected only the root node and the button."
     );
 
-    nodes
+    let (_, button) = nodes
         .iter()
-        .find(|(_, node)| node.role() == Role::Button && node.name() == Some(button_text))
+        .find(|(_, node)| node.role() == Role::Button)
         .expect("Button should exist in the accesskit output");
+
+    assert_eq!(button.name(), Some(button_text));
+    assert!(!button.is_disabled());
 }
 
 #[test]
-fn toggle_button_text() {
+fn disabled_button() {
+    let button_text = "This is a test button!";
+
+    let ctx = Context::default();
+    ctx.enable_accesskit();
+
+    let output = ctx.run(RawInput::default(), |ctx| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add_enabled(false, egui::Button::new(button_text))
+        });
+    });
+
+    let nodes = output
+        .platform_output
+        .accesskit_update
+        .expect("Missing accesskit update")
+        .nodes;
+
+    assert_eq!(
+        nodes.len(),
+        2,
+        "Expected only the root node and the button."
+    );
+
+    let (_, button) = nodes
+        .iter()
+        .find(|(_, node)| node.role() == Role::Button)
+        .expect("Button should exist in the accesskit output");
+
+    assert_eq!(button.name(), Some(button_text));
+    assert!(button.is_disabled());
+}
+
+#[test]
+fn toggle_button() {
     let button_text = "A toggle button";
 
     let ctx = Context::default();
@@ -88,8 +125,11 @@ fn toggle_button_text() {
         "Expected only the root node and the button."
     );
 
-    nodes
+    let (_, toggle) = nodes
         .iter()
-        .find(|(_, node)| node.role() == Role::ToggleButton && node.name() == Some(button_text))
+        .find(|(_, node)| node.role() == Role::ToggleButton)
         .expect("Toggle button should exist in the accesskit output");
+
+    assert_eq!(toggle.name(), Some(button_text));
+    assert!(!toggle.is_disabled());
 }

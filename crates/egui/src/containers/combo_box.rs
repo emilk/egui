@@ -213,12 +213,13 @@ impl ComboBox {
                 (width, height),
             );
             if let Some(label) = label {
-                ir.response
-                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
+                ir.response.widget_info(|| {
+                    WidgetInfo::labeled(WidgetType::ComboBox, ui.is_enabled(), label.text())
+                });
                 ir.response |= ui.label(label);
             } else {
                 ir.response
-                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ""));
+                    .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, ui.is_enabled(), ""));
             }
             ir
         })
