@@ -12,10 +12,7 @@ use super::percent_decode;
 #[derive(Default)]
 pub(crate) struct WebInput {
     /// Required because we don't get a position on touched
-    pub latest_touch_pos: Option<egui::Pos2>,
-
-    /// Required to maintain a stable touch position for multi-touch gestures.
-    pub latest_touch_pos_id: Option<egui::TouchId>,
+    pub primary_touch: Option<egui::TouchId>,
 
     /// The raw input to `egui`.
     pub raw: egui::RawInput,
@@ -46,8 +43,7 @@ impl WebInput {
         self.raw.modifiers = egui::Modifiers::default(); // Avoid sticky modifier keys on alt-tab:
         self.raw.focused = focused;
         self.raw.events.push(egui::Event::WindowFocused(focused));
-        self.latest_touch_pos = None;
-        self.latest_touch_pos_id = None;
+        self.primary_touch = None;
     }
 }
 

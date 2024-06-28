@@ -27,33 +27,44 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
 /// A single touch is translated to a pointer movement. When a second touch is added, the pointer
 /// should not jump to a different position. Therefore, we do not calculate the average position
 /// of all touches, but we keep using the same touch as long as it is available.
-///
-/// `touch_id_for_pos` is the [`TouchId`](egui::TouchId) of the [`Touch`](web_sys::Touch) we previously used to determine the
-/// pointer position.
-pub fn pos_from_touch_event(
-    canvas: &web_sys::HtmlCanvasElement,
+pub fn primary_touch_pos(
+    runner: &mut AppRunner,
     event: &web_sys::TouchEvent,
-    touch_id_for_pos: &mut Option<egui::TouchId>,
-    egui_ctx: &egui::Context,
-) -> egui::Pos2 {
-    let touch_for_pos = if let Some(touch_id_for_pos) = touch_id_for_pos {
-        // search for the touch we previously used for the position
-        // (unfortunately, `event.touches()` is not a rust collection):
-        (0..event.touches().length())
-            .map(|i| event.touches().get(i).unwrap())
-            .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos)
-    } else {
-        None
-    };
-    // Use the touch found above or pick the first, or return a default position if there is no
-    // touch at all. (The latter is not expected as the current method is only called when there is
-    // at least one touch.)
-    touch_for_pos
-        .or_else(|| event.touches().get(0))
-        .map_or(Default::default(), |touch| {
-            *touch_id_for_pos = Some(egui::TouchId::from(touch.identifier()));
-            pos_from_touch(canvas_content_rect(canvas), &touch, egui_ctx)
-        })
+) -> Option<egui::Pos2> {
+    let all_touches: Vec<_> = (0..event.touches().length())
+        .filter_map(|i| event.touches().get(i))
+        // On touchend we don't get anything in `touches`, but we still get `changed_touches`, so include those:
+        .chain((0..event.changed_touches().length()).filter_map(|i| event.changed_touches().get(i)))
+        .collect();
+
+    if let Some(primary_touch) = runner.input.primary_touch {
+        // Is the primary touch is gone?
+        if !all_touches
+            .iter()
+            .any(|touch| primary_touch == egui::TouchId::from(touch.identifier()))
+        {
+            runner.input.primary_touch = None;
+        }
+    }
+
+    if runner.input.primary_touch.is_none() {
+        runner.input.primary_touch = all_touches
+            .first()
+            .map(|touch| egui::TouchId::from(touch.identifier()));
+    }
+
+    let primary_touch = runner.input.primary_touch;
+
+    if let Some(primary_touch) = primary_touch {
+        for touch in all_touches {
+            if primary_touch == egui::TouchId::from(touch.identifier()) {
+                let canvas_rect = canvas_content_rect(runner.canvas());
+                return Some(pos_from_touch(canvas_rect, &touch, runner.egui_ctx()));
+            }
+        }
+    }
+
+    None
 }
 
 fn pos_from_touch(

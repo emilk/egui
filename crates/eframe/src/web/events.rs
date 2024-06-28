@@ -405,15 +405,24 @@ fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
     )
 }
 
+/// Returns true if the cursor is above the canvas, or if we're dragging something.
+fn is_interested_in_pointer_event(egui_ctx: &egui::Context, pos: egui::Pos2) -> bool {
+    egui_ctx.input(|i| i.screen_rect().contains(pos) || i.pointer.any_down() || i.any_touches())
+}
+
 fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "mousemove", |event: web_sys::MouseEvent, runner| {
         let modifiers = modifiers_from_mouse_event(&event);
         runner.input.raw.modifiers = modifiers;
+
         let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
-        runner.input.raw.events.push(egui::Event::PointerMoved(pos));
-        runner.needs_repaint.repaint_asap();
-        event.stop_propagation();
-        event.prevent_default();
+
+        if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+            runner.input.raw.events.push(egui::Event::PointerMoved(pos));
+            runner.needs_repaint.repaint_asap();
+            event.stop_propagation();
+            event.prevent_default();
+        }
     })
 }
 
@@ -422,29 +431,31 @@ fn install_mouseup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
         let modifiers = modifiers_from_mouse_event(&event);
         runner.input.raw.modifiers = modifiers;
 
-        if let Some(button) = button_from_mouse_event(&event) {
-            let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
-            let modifiers = runner.input.raw.modifiers;
-            runner.input.raw.events.push(egui::Event::PointerButton {
-                pos,
-                button,
-                pressed: false,
-                modifiers,
-            });
+        let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
 
-            // In Safari we are only allowed to write to the clipboard during the
-            // event callback, which is why we run the app logic here and now:
-            runner.logic();
+        if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+            if let Some(button) = button_from_mouse_event(&event) {
+                let modifiers = runner.input.raw.modifiers;
+                runner.input.raw.events.push(egui::Event::PointerButton {
+                    pos,
+                    button,
+                    pressed: false,
+                    modifiers,
+                });
 
-            runner
-                .text_agent
-                .set_focus(runner.mutable_text_under_cursor);
+                // In Safari we are only allowed to do certain things
+                // (like playing audio, start a download, etc)
+                // on user action, such as a click.
+                // So we need to run the app logic here and now:
+                runner.logic();
 
-            // Make sure we paint the output of the above logic call asap:
-            runner.needs_repaint.repaint_asap();
+                // Make sure we paint the output of the above logic call asap:
+                runner.needs_repaint.repaint_asap();
+
+                event.prevent_default();
+                event.stop_propagation();
+            }
         }
-        event.stop_propagation();
-        event.prevent_default();
     })
 }
 
@@ -466,22 +477,14 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
         target,
         "touchstart",
         |event: web_sys::TouchEvent, runner| {
-            let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-            let pos = pos_from_touch_event(
-                runner.canvas(),
-                &event,
-                &mut latest_touch_pos_id,
-                runner.egui_ctx(),
-            );
-            runner.input.latest_touch_pos_id = latest_touch_pos_id;
-            runner.input.latest_touch_pos = Some(pos);
-            let modifiers = runner.input.raw.modifiers;
-            runner.input.raw.events.push(egui::Event::PointerButton {
-                pos,
-                button: egui::PointerButton::Primary,
-                pressed: true,
-                modifiers,
-            });
+            if let Some(pos) = primary_touch_pos(runner, &event) {
+                runner.input.raw.events.push(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: runner.input.raw.modifiers,
+                });
+            }
 
             push_touches(runner, egui::TouchPhase::Start, &event);
             runner.needs_repaint.repaint_asap();
@@ -493,47 +496,39 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
 
 fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "touchmove", |event: web_sys::TouchEvent, runner| {
-        let mut latest_touch_pos_id = runner.input.latest_touch_pos_id;
-        let pos = pos_from_touch_event(
-            runner.canvas(),
-            &event,
-            &mut latest_touch_pos_id,
-            runner.egui_ctx(),
-        );
-        runner.input.latest_touch_pos_id = latest_touch_pos_id;
-        runner.input.latest_touch_pos = Some(pos);
-        runner.input.raw.events.push(egui::Event::PointerMoved(pos));
+        if let Some(pos) = primary_touch_pos(runner, &event) {
+            if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+                runner.input.raw.events.push(egui::Event::PointerMoved(pos));
 
-        push_touches(runner, egui::TouchPhase::Move, &event);
-        runner.needs_repaint.repaint_asap();
-        event.stop_propagation();
-        event.prevent_default();
+                push_touches(runner, egui::TouchPhase::Move, &event);
+                runner.needs_repaint.repaint_asap();
+                event.stop_propagation();
+                event.prevent_default();
+            }
+        }
     })
 }
 
 fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "touchend", |event: web_sys::TouchEvent, runner| {
-        if let Some(pos) = runner.input.latest_touch_pos {
-            let modifiers = runner.input.raw.modifiers;
-            // First release mouse to click:
-            runner.input.raw.events.push(egui::Event::PointerButton {
-                pos,
-                button: egui::PointerButton::Primary,
-                pressed: false,
-                modifiers,
-            });
-            // Then remove hover effect:
-            runner.input.raw.events.push(egui::Event::PointerGone);
+        if let Some(pos) = primary_touch_pos(runner, &event) {
+            if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+                // First release mouse to click:
+                runner.input.raw.events.push(egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: runner.input.raw.modifiers,
+                });
+                // Then remove hover effect:
+                runner.input.raw.events.push(egui::Event::PointerGone);
 
-            push_touches(runner, egui::TouchPhase::End, &event);
+                push_touches(runner, egui::TouchPhase::End, &event);
 
-            runner
-                .text_agent
-                .set_focus(runner.mutable_text_under_cursor);
-
-            runner.needs_repaint.repaint_asap();
-            event.stop_propagation();
-            event.prevent_default();
+                runner.needs_repaint.repaint_asap();
+                event.stop_propagation();
+                event.prevent_default();
+            }
         }
     })
 }
