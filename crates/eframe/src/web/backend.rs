@@ -36,8 +36,12 @@ impl WebInput {
         raw_input
     }
 
-    /// On alt-tab and similar.
-    pub fn on_web_page_focus_change(&mut self, focused: bool) {
+    /// On alt-tab, or user clicking another HTML element.
+    pub fn set_focus(&mut self, focused: bool) {
+        if self.raw.focused == focused {
+            return;
+        }
+
         // log::debug!("on_web_page_focus_change: {focused}");
         self.raw.modifiers = egui::Modifiers::default(); // Avoid sticky modifier keys on alt-tab:
         self.raw.focused = focused;

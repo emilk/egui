@@ -68,6 +68,16 @@ impl WebRunner {
         let text_agent = TextAgent::attach(self)?;
 
         let runner = AppRunner::new(canvas_id, web_options, app_creator, text_agent).await?;
+
+        {
+            // Make sure the canvas can be given focus.
+            // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
+            runner.canvas().set_tab_index(0);
+
+            // Don't outline the canvas when it has focus:
+            runner.canvas().style().set_property("outline", "none")?;
+        }
+
         self.runner.replace(Some(runner));
 
         {
