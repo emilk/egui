@@ -66,6 +66,7 @@ pub fn primary_touch_pos(
 
     None
 }
+
 fn pos_from_touch(
     canvas_rect: egui::Rect,
     touch: &web_sys::Touch,
