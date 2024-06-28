@@ -50,7 +50,7 @@ fn button_node() {
 }
 
 #[test]
-fn disabled_button() {
+fn disabled_button_node() {
     let button_text = "This is a test button!";
 
     let output = accesskit_output_single_egui_frame(|ctx| {
@@ -76,7 +76,7 @@ fn disabled_button() {
 }
 
 #[test]
-fn toggle_button() {
+fn toggle_button_node() {
     let button_text = "A toggle button";
 
     let mut selected = false;
@@ -101,7 +101,7 @@ fn toggle_button() {
 }
 
 #[test]
-fn test_multiple_disabled_widgets() {
+fn multiple_disabled_widgets() {
     let output = accesskit_output_single_egui_frame(|ctx| {
         CentralPanel::default().show(ctx, |ui| {
             ui.add_enabled_ui(false, |ui| {
@@ -115,7 +115,7 @@ fn test_multiple_disabled_widgets() {
     assert_eq!(
         output.nodes.len(),
         4,
-        "Expected the root node, all the child widgets."
+        "Expected the root node and all the child widgets."
     );
 
     assert_eq!(
