@@ -133,6 +133,7 @@ fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElemen
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
+/// Returns the canvas in client coordinates.
 fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     let bounding_rect = canvas.get_bounding_client_rect();
 

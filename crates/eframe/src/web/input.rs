@@ -63,8 +63,8 @@ fn pos_from_touch(
 ) -> egui::Pos2 {
     let zoom_factor = egui_ctx.zoom_factor();
     egui::Pos2 {
-        x: (touch.page_x() as f32 - canvas_rect.left()) / zoom_factor,
-        y: (touch.page_y() as f32 - canvas_rect.top()) / zoom_factor,
+        x: (touch.client_x() as f32 - canvas_rect.left()) / zoom_factor,
+        y: (touch.client_y() as f32 - canvas_rect.top()) / zoom_factor,
     }
 }
 
