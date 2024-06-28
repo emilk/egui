@@ -587,14 +587,28 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
     runner_ref.add_event_listener(target, "dragover", |event: web_sys::DragEvent, runner| {
         if let Some(data_transfer) = event.data_transfer() {
             runner.input.raw.hovered_files.clear();
-            for i in 0..data_transfer.items().length() {
-                if let Some(item) = data_transfer.items().get(i) {
+
+            // NOTE: data_transfer.files() is always empty in dragover
+
+            let items = data_transfer.items();
+            for i in 0..items.length() {
+                if let Some(item) = items.get(i) {
                     runner.input.raw.hovered_files.push(egui::HoveredFile {
                         mime: item.type_(),
                         ..Default::default()
                     });
                 }
             }
+
+            if runner.input.raw.hovered_files.is_empty() {
+                // Fallback: just preview anything. Needed on Desktop Safari.
+                runner
+                    .input
+                    .raw
+                    .hovered_files
+                    .push(egui::HoveredFile::default());
+            }
+
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
