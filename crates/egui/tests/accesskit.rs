@@ -1,6 +1,6 @@
 //! Tests the accesskit accessibility output of egui.
 
-use accesskit::Role;
+use accesskit::{Role, TreeUpdate};
 use egui::{Context, RawInput};
 
 /// Baseline test that asserts there are no spurious nodes in the
@@ -10,28 +10,18 @@ use egui::{Context, RawInput};
 /// are put there because of the widgets rendered.
 #[test]
 fn empty_ui_should_return_tree_with_only_root_window() {
-    let ctx = Context::default();
-    ctx.enable_accesskit();
-
-    let output = ctx.run(RawInput::default(), |ctx| {
+    let output = accesskit_output_single_egui_frame(|ctx| {
         egui::CentralPanel::default().show(ctx, |_| {});
     });
 
-    let tree_update = output
-        .platform_output
-        .accesskit_update
-        .expect("Missing accesskit update");
-
-    let tree = tree_update.tree.unwrap();
-
     assert_eq!(
-        tree_update.nodes.len(),
+        output.nodes.len(),
         1,
         "Empty ui should produce only the root window."
     );
-    let (id, root) = &tree_update.nodes[0];
+    let (id, root) = &output.nodes[0];
 
-    assert_eq!(*id, tree.root);
+    assert_eq!(*id, output.tree.unwrap().root);
     assert_eq!(root.role(), Role::Window);
 }
 
@@ -39,26 +29,18 @@ fn empty_ui_should_return_tree_with_only_root_window() {
 fn button_node() {
     let button_text = "This is a test button!";
 
-    let ctx = Context::default();
-    ctx.enable_accesskit();
-
-    let output = ctx.run(RawInput::default(), |ctx| {
+    let output = accesskit_output_single_egui_frame(|ctx| {
         egui::CentralPanel::default().show(ctx, |ui| ui.button(button_text));
     });
 
-    let nodes = output
-        .platform_output
-        .accesskit_update
-        .expect("Missing accesskit update")
-        .nodes;
-
     assert_eq!(
-        nodes.len(),
+        output.nodes.len(),
         2,
         "Expected only the root node and the button."
     );
 
-    let (_, button) = nodes
+    let (_, button) = output
+        .nodes
         .iter()
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Button should exist in the accesskit output");
@@ -71,28 +53,20 @@ fn button_node() {
 fn disabled_button() {
     let button_text = "This is a test button!";
 
-    let ctx = Context::default();
-    ctx.enable_accesskit();
-
-    let output = ctx.run(RawInput::default(), |ctx| {
+    let output = accesskit_output_single_egui_frame(|ctx| {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_enabled(false, egui::Button::new(button_text))
         });
     });
 
-    let nodes = output
-        .platform_output
-        .accesskit_update
-        .expect("Missing accesskit update")
-        .nodes;
-
     assert_eq!(
-        nodes.len(),
+        output.nodes.len(),
         2,
         "Expected only the root node and the button."
     );
 
-    let (_, button) = nodes
+    let (_, button) = output
+        .nodes
         .iter()
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Button should exist in the accesskit output");
@@ -105,31 +79,35 @@ fn disabled_button() {
 fn toggle_button() {
     let button_text = "A toggle button";
 
-    let ctx = Context::default();
-    ctx.enable_accesskit();
-
     let mut selected = false;
-    let output = ctx.run(RawInput::default(), |ctx| {
+    let output = accesskit_output_single_egui_frame(|ctx| {
         egui::CentralPanel::default().show(ctx, |ui| ui.toggle_value(&mut selected, button_text));
     });
 
-    let nodes = output
-        .platform_output
-        .accesskit_update
-        .expect("Missing accesskit update")
-        .nodes;
-
     assert_eq!(
-        nodes.len(),
+        output.nodes.len(),
         2,
         "Expected only the root node and the button."
     );
 
-    let (_, toggle) = nodes
+    let (_, toggle) = output
+        .nodes
         .iter()
         .find(|(_, node)| node.role() == Role::ToggleButton)
         .expect("Toggle button should exist in the accesskit output");
 
     assert_eq!(toggle.name(), Some(button_text));
     assert!(!toggle.is_disabled());
+}
+
+fn accesskit_output_single_egui_frame(run_ui: impl FnOnce(&Context)) -> TreeUpdate {
+    let ctx = Context::default();
+    ctx.enable_accesskit();
+
+    let output = ctx.run(RawInput::default(), run_ui);
+
+    output
+        .platform_output
+        .accesskit_update
+        .expect("Missing accesskit update")
 }
