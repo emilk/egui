@@ -545,14 +545,6 @@ impl<'a> Slider<'a> {
         set(&mut self.get_set_value, value);
     }
 
-    fn clamp_range(&self) -> RangeInclusive<f64> {
-        if self.clamp_to_range {
-            self.range()
-        } else {
-            f64::NEG_INFINITY..=f64::INFINITY
-        }
-    }
-
     fn range(&self) -> RangeInclusive<f64> {
         self.range.clone()
     }
@@ -871,7 +863,12 @@ impl<'a> Slider<'a> {
                 builder.set_numeric_value_step(step);
             }
             builder.add_action(Action::SetValue);
-            let clamp_range = self.clamp_range();
+
+            let clamp_range = if self.clamp_to_range {
+                self.range()
+            } else {
+                f64::NEG_INFINITY..=f64::INFINITY
+            };
             if value < *clamp_range.end() {
                 builder.add_action(Action::Increment);
             }
