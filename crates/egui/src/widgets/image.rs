@@ -283,16 +283,16 @@ impl<'a> Image<'a> {
         }
     }
 
+    /// Get the `uri` that this image.
     #[inline]
     pub fn uri(&self) -> Option<&str> {
-        let mut uri = self.source.uri();
+        let uri = self.source.uri()?;
 
-        if is_gif_uri(uri.unwrap_or_default()) {
-            if let Ok((gif_uri, _index)) = decode_gif_uri(uri.unwrap_or_default()) {
-                uri = Some(gif_uri);
-            }
+        if let Ok((gif_uri, _index)) = decode_gif_uri(uri) {
+            Some(gif_uri)
+        } else {
+            Some(uri)
         }
-        uri
     }
 
     #[inline]
