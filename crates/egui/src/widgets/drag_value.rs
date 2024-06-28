@@ -89,9 +89,8 @@ impl<'a> DragValue<'a> {
 
     /// Sets valid range for the value.
     ///
-    /// By default, the drag value does not show values outside this range,
-    /// If you want don't want clamp incoming and outgoing values, disable this behavior using [`Slider::clamp_to_range`].
-    /// Setting it to `false` will allows users to enter values outside the range by clicking the value and editing it.
+    /// By default all values are clamped to this range, even when not interacted with.
+    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
     #[deprecated = "Use `range` instead"]
     #[inline]
     pub fn clamp_range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
@@ -101,16 +100,15 @@ impl<'a> DragValue<'a> {
 
     /// Sets valid range for dragging the value.
     ///
-    /// By default, the drag value does not show values outside this range,
-    /// If you want don't want clamp incoming and outgoing values, disable this behavior using [`Slider::clamp_to_range`].
-    /// Setting it to `false` will allows users to enter values outside the range by clicking the value and editing it.
+    /// By default all values are clamped to this range, even when not interacted with.
+    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
     #[inline]
     pub fn range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
         self.range = range.start().to_f64()..=range.end().to_f64();
         self
     }
 
-    /// If set to `true`, all incoming and outgoing values will be clamped to the slider range.
+    /// If set to `true`, all incoming and outgoing values will be clamped to the sliding [`Self::range`] (if any).
     ///
     /// If set to `false`, a value outside of the range that is set programmatically or by user input will not be changed.
     /// Dragging will be restricted to the range regardless of this setting.

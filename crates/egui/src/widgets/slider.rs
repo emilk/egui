@@ -48,9 +48,8 @@ pub enum SliderOrientation {
 /// Control a number with a slider.
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
-/// By default, the slider does not show values outside this range,
-/// If you want don't want clamp incoming and outgoing values, disable this behavior using [`Slider::clamp_to_range`].
-/// Setting it to `false` will allows users to enter values outside the range by clicking the slider value and editing it.
+/// By default all values are clamped to this range, even when not interacted with.
+/// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///
