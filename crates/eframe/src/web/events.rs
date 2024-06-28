@@ -244,6 +244,7 @@ fn install_keyup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
 pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.raw.modifiers = modifiers;
+
     if let Some(key) = translate_key(&event.key()) {
         runner.input.raw.events.push(egui::Event::Key {
             key,
@@ -253,6 +254,25 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
             modifiers,
         });
     }
+
+    if event.key() == "Meta" || event.key() == "Control" {
+        // When pressing Cmd+A (select all) or Ctrl+C (copy),
+        // chromium will not fire a `keyup` for the letter key.
+        // This leads to stuck keys, unless we do this hack.
+        // See https://github.com/emilk/egui/issues/4724
+
+        let keys_down = runner.egui_ctx().input(|i| i.keys_down.clone());
+        for key in keys_down {
+            runner.input.raw.events.push(egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: false,
+                repeat: false,
+                modifiers,
+            });
+        }
+    }
+
     runner.needs_repaint.repaint_asap();
 
     let has_focus = runner.input.raw.focused;
