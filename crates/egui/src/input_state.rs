@@ -1208,7 +1208,7 @@ impl InputState {
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
         crate::containers::CollapsingHeader::new("🖱 Pointer")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| {
                 pointer.ui(ui);
             });
