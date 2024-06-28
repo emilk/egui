@@ -880,6 +880,9 @@ impl Response {
 
     #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::NodeBuilder) {
+        if !self.enabled {
+            builder.set_disabled();
+        }
         builder.set_bounds(accesskit::Rect {
             x0: self.rect.min.x.into(),
             y0: self.rect.min.y.into(),
