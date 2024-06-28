@@ -59,7 +59,7 @@ impl<'open> Window<'open> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default inner size of a window
-            scroll: ScrollArea::neither(),
+            scroll: ScrollArea::neither().auto_shrink(false),
             collapsible: true,
             default_open: true,
             with_title_bar: true,
