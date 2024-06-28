@@ -43,15 +43,11 @@ impl CodeExample {
             r#"
             ui.add(
                 egui::DragValue::new(age)
-                    .clamp_range(0..=120)
+                    .range(0..=120)
                     .suffix(" years"),
             );"#,
         );
-        ui.add(
-            egui::DragValue::new(age)
-                .clamp_range(0..=120)
-                .suffix(" years"),
-        );
+        ui.add(egui::DragValue::new(age).range(0..=120).suffix(" years"));
         ui.end_row();
 
         show_code(

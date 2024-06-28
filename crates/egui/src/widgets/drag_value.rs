@@ -37,7 +37,8 @@ pub struct DragValue<'a> {
     speed: f64,
     prefix: String,
     suffix: String,
-    clamp_range: RangeInclusive<f64>,
+    range: RangeInclusive<f64>,
+    clamp_to_range: bool,
     min_decimals: usize,
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
@@ -55,9 +56,7 @@ impl<'a> DragValue<'a> {
         });
 
         if Num::INTEGRAL {
-            slf.max_decimals(0)
-                .clamp_range(Num::MIN..=Num::MAX)
-                .speed(0.25)
+            slf.max_decimals(0).range(Num::MIN..=Num::MAX).speed(0.25)
         } else {
             slf
         }
@@ -69,7 +68,8 @@ impl<'a> DragValue<'a> {
             speed: 1.0,
             prefix: Default::default(),
             suffix: Default::default(),
-            clamp_range: f64::NEG_INFINITY..=f64::INFINITY,
+            range: f64::NEG_INFINITY..=f64::INFINITY,
+            clamp_to_range: true,
             min_decimals: 0,
             max_decimals: None,
             custom_formatter: None,
@@ -87,10 +87,35 @@ impl<'a> DragValue<'a> {
         self
     }
 
-    /// Clamp incoming and outgoing values to this range.
+    /// Sets valid range for the value.
+    ///
+    /// By default all values are clamped to this range, even when not interacted with.
+    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+    #[deprecated = "Use `range` instead"]
     #[inline]
-    pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
-        self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
+    pub fn clamp_range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
+        self.range = range.start().to_f64()..=range.end().to_f64();
+        self
+    }
+
+    /// Sets valid range for dragging the value.
+    ///
+    /// By default all values are clamped to this range, even when not interacted with.
+    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+    #[inline]
+    pub fn range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
+        self.range = range.start().to_f64()..=range.end().to_f64();
+        self
+    }
+
+    /// If set to `true`, all incoming and outgoing values will be clamped to the sliding [`Self::range`] (if any).
+    ///
+    /// If set to `false`, a value outside of the range that is set programmatically or by user input will not be changed.
+    /// Dragging will be restricted to the range regardless of this setting.
+    /// Default: `true`.
+    #[inline]
+    pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
+        self.clamp_to_range = clamp_to_range;
         self
     }
 
@@ -157,7 +182,7 @@ impl<'a> DragValue<'a> {
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
     /// ui.add(egui::DragValue::new(&mut my_i32)
-    ///     .clamp_range(0..=((60 * 60 * 24) - 1))
+    ///     .range(0..=((60 * 60 * 24) - 1))
     ///     .custom_formatter(|n, _| {
     ///         let n = n as i32;
     ///         let hours = n / (60 * 60);
@@ -201,7 +226,7 @@ impl<'a> DragValue<'a> {
     /// # egui::__run_test_ui(|ui| {
     /// # let mut my_i32: i32 = 0;
     /// ui.add(egui::DragValue::new(&mut my_i32)
-    ///     .clamp_range(0..=((60 * 60 * 24) - 1))
+    ///     .range(0..=((60 * 60 * 24) - 1))
     ///     .custom_formatter(|n, _| {
     ///         let n = n as i32;
     ///         let hours = n / (60 * 60);
@@ -361,7 +386,8 @@ impl<'a> Widget for DragValue<'a> {
         let Self {
             mut get_set_value,
             speed,
-            clamp_range,
+            range,
+            clamp_to_range,
             prefix,
             suffix,
             min_decimals,
@@ -439,12 +465,15 @@ impl<'a> Widget for DragValue<'a> {
             });
         }
 
+        if clamp_to_range {
+            value = clamp_value_to_range(value, range.clone());
+        }
+
         if change != 0.0 {
             value += speed * change;
             value = emath::round_to_decimals(value, auto_decimals);
         }
 
-        value = clamp_to_range(value, clamp_range.clone());
         if old_value != value {
             set(&mut get_set_value, value);
             ui.data_mut(|data| data.remove::<String>(id));
@@ -466,8 +495,10 @@ impl<'a> Widget for DragValue<'a> {
                     Some(parser) => parser(&value_text),
                     None => value_text.parse().ok(),
                 };
-                if let Some(parsed_value) = parsed_value {
-                    let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
+                if let Some(mut parsed_value) = parsed_value {
+                    if clamp_to_range {
+                        parsed_value = clamp_value_to_range(parsed_value, range.clone());
+                    }
                     set(&mut get_set_value, parsed_value);
                 }
             }
@@ -503,8 +534,10 @@ impl<'a> Widget for DragValue<'a> {
                     Some(parser) => parser(&value_text),
                     None => value_text.parse().ok(),
                 };
-                if let Some(parsed_value) = parsed_value {
-                    let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
+                if let Some(mut parsed_value) = parsed_value {
+                    if clamp_to_range {
+                        parsed_value = clamp_value_to_range(parsed_value, range.clone());
+                    }
                     set(&mut get_set_value, parsed_value);
                 }
             }
@@ -519,9 +552,9 @@ impl<'a> Widget for DragValue<'a> {
             .sense(Sense::click_and_drag())
             .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
-            let cursor_icon = if value <= *clamp_range.start() {
+            let cursor_icon = if value <= *range.start() {
                 CursorIcon::ResizeEast
-            } else if value < *clamp_range.end() {
+            } else if value < *range.end() {
                 CursorIcon::ResizeHorizontal
             } else {
                 CursorIcon::ResizeWest
@@ -576,7 +609,8 @@ impl<'a> Widget for DragValue<'a> {
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
-                    let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range.clone());
+                    // Dragging will always clamp the value to the range.
+                    let rounded_new_value = clamp_value_to_range(rounded_new_value, range.clone());
                     set(&mut get_set_value, rounded_new_value);
 
                     ui.data_mut(|data| data.insert_temp::<f64>(id, precise_value));
@@ -596,18 +630,18 @@ impl<'a> Widget for DragValue<'a> {
             // If either end of the range is unbounded, it's better
             // to leave the corresponding AccessKit field set to None,
             // to allow for platform-specific default behavior.
-            if clamp_range.start().is_finite() {
-                builder.set_min_numeric_value(*clamp_range.start());
+            if range.start().is_finite() {
+                builder.set_min_numeric_value(*range.start());
             }
-            if clamp_range.end().is_finite() {
-                builder.set_max_numeric_value(*clamp_range.end());
+            if range.end().is_finite() {
+                builder.set_max_numeric_value(*range.end());
             }
             builder.set_numeric_value_step(speed);
             builder.add_action(Action::SetValue);
-            if value < *clamp_range.end() {
+            if value < *range.end() {
                 builder.add_action(Action::Increment);
             }
-            if value > *clamp_range.start() {
+            if value > *range.start() {
                 builder.add_action(Action::Decrement);
             }
             // The name field is set to the current value by the button,
@@ -641,7 +675,7 @@ impl<'a> Widget for DragValue<'a> {
     }
 }
 
-fn clamp_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
+fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
     let (mut min, mut max) = (*range.start(), *range.end());
 
     if min.total_cmp(&max) == Ordering::Greater {
@@ -659,7 +693,7 @@ fn clamp_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::clamp_to_range;
+    use super::clamp_value_to_range;
 
     macro_rules! total_assert_eq {
         ($a:expr, $b:expr) => {
@@ -673,16 +707,16 @@ mod tests {
     }
 
     #[test]
-    fn test_total_cmp_clamp_to_range() {
-        total_assert_eq!(0.0_f64, clamp_to_range(-0.0, 0.0..=f64::MAX));
-        total_assert_eq!(-0.0_f64, clamp_to_range(0.0, -1.0..=-0.0));
-        total_assert_eq!(-1.0_f64, clamp_to_range(-25.0, -1.0..=1.0));
-        total_assert_eq!(5.0_f64, clamp_to_range(5.0, -1.0..=10.0));
-        total_assert_eq!(15.0_f64, clamp_to_range(25.0, -1.0..=15.0));
-        total_assert_eq!(1.0_f64, clamp_to_range(1.0, 1.0..=10.0));
-        total_assert_eq!(10.0_f64, clamp_to_range(10.0, 1.0..=10.0));
-        total_assert_eq!(5.0_f64, clamp_to_range(5.0, 10.0..=1.0));
-        total_assert_eq!(5.0_f64, clamp_to_range(15.0, 5.0..=1.0));
-        total_assert_eq!(1.0_f64, clamp_to_range(-5.0, 5.0..=1.0));
+    fn test_total_cmp_clamp_value_to_range() {
+        total_assert_eq!(0.0_f64, clamp_value_to_range(-0.0, 0.0..=f64::MAX));
+        total_assert_eq!(-0.0_f64, clamp_value_to_range(0.0, -1.0..=-0.0));
+        total_assert_eq!(-1.0_f64, clamp_value_to_range(-25.0, -1.0..=1.0));
+        total_assert_eq!(5.0_f64, clamp_value_to_range(5.0, -1.0..=10.0));
+        total_assert_eq!(15.0_f64, clamp_value_to_range(25.0, -1.0..=15.0));
+        total_assert_eq!(1.0_f64, clamp_value_to_range(1.0, 1.0..=10.0));
+        total_assert_eq!(10.0_f64, clamp_value_to_range(10.0, 1.0..=10.0));
+        total_assert_eq!(5.0_f64, clamp_value_to_range(5.0, 10.0..=1.0));
+        total_assert_eq!(5.0_f64, clamp_value_to_range(15.0, 5.0..=1.0));
+        total_assert_eq!(1.0_f64, clamp_value_to_range(-5.0, 5.0..=1.0));
     }
 }

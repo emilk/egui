@@ -47,7 +47,7 @@ impl eframe::App for PlotExample {
             ui.horizontal(|ui| {
                 ui.add(
                     DragValue::new(&mut self.zoom_speed)
-                        .clamp_range(0.1..=2.0)
+                        .range(0.1..=2.0)
                         .speed(0.1),
                 );
                 ui.label("Zoom speed").on_hover_text("How fast to zoom in and out with the mouse wheel");
@@ -55,7 +55,7 @@ impl eframe::App for PlotExample {
             ui.horizontal(|ui| {
                 ui.add(
                     DragValue::new(&mut self.scroll_speed)
-                        .clamp_range(0.1..=100.0)
+                        .range(0.1..=100.0)
                         .speed(0.1),
                 );
                 ui.label("Scroll speed").on_hover_text("How fast to pan with the mouse wheel");

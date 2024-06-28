@@ -48,9 +48,8 @@ pub enum SliderOrientation {
 /// Control a number with a slider.
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
-/// By default, the slider can still show values outside this range,
-/// and still allows users to enter values outside the range by clicking the slider value and editing it.
-/// If you want to clamp incoming and outgoing values, use [`Slider::clamp_to_range`].
+/// By default all values are clamped to this range, even when not interacted with.
+/// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///
@@ -545,14 +544,6 @@ impl<'a> Slider<'a> {
         set(&mut self.get_set_value, value);
     }
 
-    fn clamp_range(&self) -> RangeInclusive<f64> {
-        if self.clamp_to_range {
-            self.range()
-        } else {
-            f64::NEG_INFINITY..=f64::INFINITY
-        }
-    }
-
     fn range(&self) -> RangeInclusive<f64> {
         self.range.clone()
     }
@@ -818,7 +809,8 @@ impl<'a> Slider<'a> {
         let response = ui.add({
             let mut dv = DragValue::new(&mut value)
                 .speed(speed)
-                .clamp_range(self.clamp_range())
+                .range(self.range.clone())
+                .clamp_to_range(self.clamp_to_range)
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
@@ -870,7 +862,12 @@ impl<'a> Slider<'a> {
                 builder.set_numeric_value_step(step);
             }
             builder.add_action(Action::SetValue);
-            let clamp_range = self.clamp_range();
+
+            let clamp_range = if self.clamp_to_range {
+                self.range()
+            } else {
+                f64::NEG_INFINITY..=f64::INFINITY
+            };
             if value < *clamp_range.end() {
                 builder.add_action(Action::Increment);
             }

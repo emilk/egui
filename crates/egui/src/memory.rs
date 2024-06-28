@@ -337,16 +337,16 @@ impl Options {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Line scroll speed");
-                    ui.add(
-                        crate::DragValue::new(line_scroll_speed).clamp_range(0.0..=f32::INFINITY),
-                    )
-                    .on_hover_text("How many lines to scroll with each tick of the mouse wheel");
+                    ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
+                        .on_hover_text(
+                            "How many lines to scroll with each tick of the mouse wheel",
+                        );
                 });
                 ui.horizontal(|ui| {
                     ui.label("Scroll zoom speed");
                     ui.add(
                         crate::DragValue::new(scroll_zoom_speed)
-                            .clamp_range(0.0..=f32::INFINITY)
+                            .range(0.0..=f32::INFINITY)
                             .speed(0.001),
                     )
                     .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
