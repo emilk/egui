@@ -171,6 +171,8 @@ fn set_clipboard_text(s: &str) {
                 }
             };
             wasm_bindgen_futures::spawn_local(future);
+        } else {
+            log::warn!("window.navigator.clipboard is null; can't copy text");
         }
     }
 }
