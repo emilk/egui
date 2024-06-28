@@ -59,7 +59,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
 
     install_blur_focus(runner_ref, &canvas)?;
 
-    prevent_default(
+    prevent_default_and_stop_propagation(
         runner_ref,
         &canvas,
         &[
@@ -357,7 +357,7 @@ pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Resul
     Ok(())
 }
 
-fn prevent_default(
+fn prevent_default_and_stop_propagation(
     runner_ref: &WebRunner,
     target: &EventTarget,
     event_names: &[&'static str],
@@ -365,7 +365,7 @@ fn prevent_default(
     for event_name in event_names {
         let closure = move |event: web_sys::MouseEvent, _runner: &mut AppRunner| {
             event.prevent_default();
-            // event.stop_propagation();
+            event.stop_propagation();
             // log::debug!("Preventing event {event_name:?}");
         };
 
