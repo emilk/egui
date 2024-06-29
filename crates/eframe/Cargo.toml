@@ -135,9 +135,9 @@ web-time.workspace = true
 egui_glow = { workspace = true, optional = true, default-features = false }
 glow = { workspace = true, optional = true }
 # glutin stuck on old version of raw-window-handle:
-rwh_06 = { package = "raw-window-handle", version = "0.6.2", optional = true, features = [
-  "std",
-] }
+#rwh_06 = { package = "raw-window-handle", version = "0.6.2", optional = true, features = [
+#  "std",
+#] }
 ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { workspace = true, optional = true }
 

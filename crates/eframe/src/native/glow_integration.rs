@@ -984,8 +984,6 @@ impl GlutinWindowContext {
             gl_display.supported_features()
         );
         let glutin_raw_window_handle = window.as_ref().map(|w| {
-            //use rwh_06::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
-            //w.raw_window_handle()
             w.window_handle()
                 .expect("failed to get window handle")
                 .as_raw()
@@ -1145,10 +1143,8 @@ impl GlutinWindowContext {
             let width_px = NonZeroU32::new(width_px).unwrap_or(NonZeroU32::MIN);
             let height_px = NonZeroU32::new(height_px).unwrap_or(NonZeroU32::MIN);
             let surface_attributes = {
-                //use rwh_06::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
                     .build(
-                        //window.raw_window_handle(),
                         window
                             .window_handle()
                             .expect("failed to get window handle")
