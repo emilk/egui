@@ -283,6 +283,18 @@ impl<'a> Image<'a> {
         }
     }
 
+    /// Get the `uri` that this image.
+    #[inline]
+    pub fn uri(&self) -> Option<&str> {
+        let uri = self.source.uri()?;
+
+        if let Ok((gif_uri, _index)) = decode_gif_uri(uri) {
+            Some(gif_uri)
+        } else {
+            Some(uri)
+        }
+    }
+
     #[inline]
     pub fn image_options(&self) -> &ImageOptions {
         &self.image_options
@@ -784,7 +796,7 @@ pub fn paint_texture_at(
 }
 
 /// gif uris contain the uri & the frame that will be displayed
-fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
+pub fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
     format!("{uri}#{frame_index}")
 }
 
@@ -802,7 +814,7 @@ pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
 }
 
 /// checks if uri is a gif file
-fn is_gif_uri(uri: &str) -> bool {
+pub fn is_gif_uri(uri: &str) -> bool {
     uri.ends_with(".gif") || uri.contains(".gif#")
 }
 
