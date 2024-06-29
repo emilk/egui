@@ -1588,7 +1588,7 @@ pub fn create_winit_window_attributes(
         clamp_size_to_monitor_size: _, // Handled in `viewport_builder` in `epi_integration.rs`
     } = viewport_builder;
 
-    let mut window_builder = winit::window::WindowAttributes::default()
+    let mut window_attributes = winit::window::WindowAttributes::default()
         .with_title(title.unwrap_or_else(|| "egui window".to_owned()))
         .with_transparent(transparent.unwrap_or(false))
         .with_decorations(decorations.unwrap_or(true))
@@ -1619,28 +1619,28 @@ pub fn create_winit_window_attributes(
         .with_active(active.unwrap_or(true));
 
     if let Some(size) = inner_size {
-        window_builder = window_builder.with_inner_size(PhysicalSize::new(
+        window_attributes = window_attributes.with_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
             pixels_per_point * size.y,
         ));
     }
 
     if let Some(size) = min_inner_size {
-        window_builder = window_builder.with_min_inner_size(PhysicalSize::new(
+        window_attributes = window_attributes.with_min_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
             pixels_per_point * size.y,
         ));
     }
 
     if let Some(size) = max_inner_size {
-        window_builder = window_builder.with_max_inner_size(PhysicalSize::new(
+        window_attributes = window_attributes.with_max_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
             pixels_per_point * size.y,
         ));
     }
 
     if let Some(pos) = position {
-        window_builder = window_builder.with_position(PhysicalPosition::new(
+        window_attributes = window_attributes.with_position(PhysicalPosition::new(
             pixels_per_point * pos.x,
             pixels_per_point * pos.y,
         ));
@@ -1648,13 +1648,13 @@ pub fn create_winit_window_attributes(
 
     if let Some(icon) = icon {
         let winit_icon = to_winit_icon(&icon);
-        window_builder = window_builder.with_window_icon(winit_icon);
+        window_attributes = window_attributes.with_window_icon(winit_icon);
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowAttributesExtWayland as _;
-        window_builder = window_builder.with_name(app_id, "");
+        window_attributes = window_attributes.with_name(app_id, "");
     }
 
     #[cfg(all(feature = "x11", target_os = "linux"))]
@@ -1662,7 +1662,7 @@ pub fn create_winit_window_attributes(
         if let Some(window_type) = _window_type {
             use winit::platform::x11::WindowAttributesExtX11 as _;
             use winit::platform::x11::WindowType;
-            window_builder = window_builder.with_x11_window_type(vec![match window_type {
+            window_attributes = window_attributes.with_x11_window_type(vec![match window_type {
                 egui::X11WindowType::Normal => WindowType::Normal,
                 egui::X11WindowType::Utility => WindowType::Utility,
                 egui::X11WindowType::Dock => WindowType::Dock,
@@ -1685,24 +1685,24 @@ pub fn create_winit_window_attributes(
     {
         use winit::platform::windows::WindowAttributesExtWindows as _;
         if let Some(enable) = _drag_and_drop {
-            window_builder = window_builder.with_drag_and_drop(enable);
+            window_attributes = window_attributes.with_drag_and_drop(enable);
         }
         if let Some(show) = _taskbar {
-            window_builder = window_builder.with_skip_taskbar(!show);
+            window_attributes = window_attributes.with_skip_taskbar(!show);
         }
     }
 
     #[cfg(target_os = "macos")]
     {
         use winit::platform::macos::WindowAttributesExtMacOS as _;
-        window_builder = window_builder
+        window_attributes = window_attributes
             .with_title_hidden(!_title_shown.unwrap_or(true))
             .with_titlebar_buttons_hidden(!_titlebar_buttons_shown.unwrap_or(true))
             .with_titlebar_transparent(!_titlebar_shown.unwrap_or(true))
             .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false));
     }
 
-    window_builder
+    window_attributes
 }
 
 fn to_winit_icon(icon: &egui::IconData) -> Option<winit::window::Icon> {
