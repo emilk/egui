@@ -90,6 +90,6 @@ fn toggle_button_text() {
 
     nodes
         .iter()
-        .find(|(_, node)| node.role() == Role::ToggleButton && node.name() == Some(button_text))
+        .find(|(_, node)| node.role() == Role::Button && node.name() == Some(button_text))
         .expect("Toggle button should exist in the accesskit output");
 }
