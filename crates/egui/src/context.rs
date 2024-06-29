@@ -2973,18 +2973,28 @@ impl Context {
     pub fn forget_image(&self, uri: &str) {
         use load::BytesLoader as _;
 
+        if uri.is_empty() {
+            return;
+        }
+
         crate::profile_function!();
 
         let loaders = self.loaders();
 
         loaders.include.forget(uri);
+        for loader in loaders.texture.lock().iter() {
+            if is_gif_uri(uri) {
+                for frame_index in 0..128 {
+                    let frame_uri = self::encode_gif_uri(uri, frame_index);
+                    loader.forget(&frame_uri);
+                }
+            }
+            loader.forget(uri);
+        }
         for loader in loaders.bytes.lock().iter() {
             loader.forget(uri);
         }
         for loader in loaders.image.lock().iter() {
-            loader.forget(uri);
-        }
-        for loader in loaders.texture.lock().iter() {
             loader.forget(uri);
         }
     }
