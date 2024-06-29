@@ -87,7 +87,7 @@ impl crate::View for WidgetGallery {
                 (ui.add(
                     egui::DragValue::new(&mut self.opacity)
                         .speed(0.01)
-                        .clamp_range(0.0..=1.0),
+                        .range(0.0..=1.0),
                 ) | ui.label("Opacity"))
                 .on_hover_text("Reduce this value to make widgets semi-transparent");
             }

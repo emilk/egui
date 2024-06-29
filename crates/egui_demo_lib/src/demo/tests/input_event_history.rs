@@ -90,7 +90,9 @@ impl crate::View for InputEventHistory {
                 if !self.include_pointer_movements
                     && matches!(
                         event,
-                        egui::Event::PointerMoved(_) | egui::Event::MouseMoved(_)
+                        egui::Event::PointerMoved { .. }
+                            | egui::Event::MouseMoved { .. }
+                            | egui::Event::Touch { .. }
                     )
                 {
                     continue;
@@ -121,10 +123,10 @@ impl crate::View for InputEventHistory {
 
 fn event_summary(event: &egui::Event) -> String {
     match event {
-        egui::Event::PointerMoved(_) => "PointerMoved { .. }".to_owned(),
-        egui::Event::MouseMoved(_) => "MouseMoved { .. }".to_owned(),
-        egui::Event::Zoom(_) => "Zoom { .. }".to_owned(),
-        egui::Event::Touch { phase, .. } => format!("Zoom {{ phase: {phase:?}, .. }}"),
+        egui::Event::PointerMoved { .. } => "PointerMoved { .. }".to_owned(),
+        egui::Event::MouseMoved { .. } => "MouseMoved { .. }".to_owned(),
+        egui::Event::Zoom { .. } => "Zoom { .. }".to_owned(),
+        egui::Event::Touch { phase, .. } => format!("Touch {{ phase: {phase:?}, .. }}"),
         egui::Event::MouseWheel { unit, .. } => format!("MouseWheel {{ unit: {unit:?}, .. }}"),
 
         _ => format!("{event:?}"),

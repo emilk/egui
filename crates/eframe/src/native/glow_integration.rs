@@ -1090,7 +1090,7 @@ impl GlutinWindowContext {
         &mut self,
         viewport_id: ViewportId,
         event_loop: &ActiveEventLoop,
-    ) -> Result<()> {
+    ) -> Result {
         crate::profile_function!();
 
         let viewport = self
@@ -1197,7 +1197,7 @@ impl GlutinWindowContext {
     }
 
     /// only applies for android. but we basically drop surface + window and make context not current
-    fn on_suspend(&mut self) -> Result<()> {
+    fn on_suspend(&mut self) -> Result {
         log::debug!("received suspend event. dropping window and surface");
         for viewport in self.viewports.values_mut() {
             viewport.gl_surface = None;

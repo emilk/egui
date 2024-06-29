@@ -88,6 +88,11 @@ impl TextAgent {
         runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
 
+        // The canvas doesn't get keydown/keyup events when the text agent is focused,
+        // so we need to forward them to the runner:
+        runner_ref.add_event_listener(&input, "keydown", super::events::on_keydown)?;
+        runner_ref.add_event_listener(&input, "keyup", super::events::on_keyup)?;
+
         Ok(Self {
             input,
             prev_ime_output: Default::default(),
@@ -115,8 +120,8 @@ impl TextAgent {
         let Some(ime) = ime else { return Ok(()) };
 
         let ime_pos = ime.cursor_rect.left_top();
-        let canvas_rect = canvas.get_bounding_client_rect();
-        let new_pos = ime_pos + egui::vec2(canvas_rect.left() as f32, canvas_rect.top() as f32);
+        let canvas_rect = super::canvas_content_rect(canvas);
+        let new_pos = canvas_rect.min + ime_pos.to_vec2();
 
         let style = self.input.style();
         style.set_property("top", &format!("{}px", new_pos.y))?;

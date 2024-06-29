@@ -2,7 +2,10 @@ mod touch_state;
 
 use crate::data::input::*;
 use crate::{emath::*, util::History};
-use std::collections::{BTreeMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashSet},
+    time::Duration,
+};
 
 pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
@@ -389,15 +392,30 @@ impl InputState {
     }
 
     /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
-    pub fn wants_repaint(&self) -> bool {
-        self.pointer.wants_repaint()
+    ///
+    /// Returns how long to wait for a repaint.
+    pub fn wants_repaint_after(&self) -> Option<Duration> {
+        if self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
             || self.unprocessed_scroll_delta_for_zoom.abs() > 0.2
             || !self.events.is_empty()
+        {
+            // Immediate repaint
+            return Some(Duration::ZERO);
+        }
 
-        // We need to wake up and check for press-and-hold for the context menu.
-        // TODO(emilk): wake up after `MAX_CLICK_DURATION` instead of every frame.
-        || (self.any_touches() && !self.pointer.is_decidedly_dragging())
+        if self.any_touches() && !self.pointer.is_decidedly_dragging() {
+            // We need to wake up and check for press-and-hold for the context menu.
+            if let Some(press_start_time) = self.pointer.press_start_time {
+                let press_duration = self.time - press_start_time;
+                if press_duration < MAX_CLICK_DURATION {
+                    let secs_until_menu = MAX_CLICK_DURATION - press_duration;
+                    return Some(Duration::from_secs_f64(secs_until_menu));
+                }
+            }
+        }
+
+        None
     }
 
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
@@ -1208,7 +1226,7 @@ impl InputState {
         ui.collapsing("Raw Input", |ui| raw.ui(ui));
 
         crate::containers::CollapsingHeader::new("🖱 Pointer")
-            .default_open(true)
+            .default_open(false)
             .show(ui, |ui| {
                 pointer.ui(ui);
             });

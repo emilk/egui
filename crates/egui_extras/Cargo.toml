@@ -57,14 +57,14 @@ image = ["dep:image"]
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
 puffin = ["dep:puffin", "egui/puffin"]
 
+## Derive serde Serialize/Deserialize on stateful structs
+serde = ["egui/serde", "dep:serde"]
+
 ## Support loading svg images.
 svg = ["resvg"]
 
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
-
-## Derive serde Serialize/Deserialize on stateful structs
-serde = ["egui/serde", "dep:serde"]
 
 
 [dependencies]

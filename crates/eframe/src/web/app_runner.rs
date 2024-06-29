@@ -15,7 +15,6 @@ pub struct AppRunner {
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
     pub(crate) text_agent: TextAgent,
-    pub(crate) mutable_text_under_cursor: bool,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -121,7 +120,6 @@ impl AppRunner {
             needs_repaint,
             last_save_time: now_sec(),
             text_agent,
-            mutable_text_under_cursor: false,
             textures_delta: Default::default(),
             clipped_primitives: None,
         };
@@ -187,6 +185,10 @@ impl AppRunner {
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
+        // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
+        self.input
+            .set_focus(super::has_focus(self.canvas()) || self.text_agent.has_focus());
+
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
 
@@ -271,7 +273,7 @@ impl AppRunner {
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        self.mutable_text_under_cursor = mutable_text_under_cursor;
+        self.text_agent.set_focus(mutable_text_under_cursor);
 
         if let Err(err) = self.text_agent.move_to(ime, self.canvas()) {
             log::error!(

@@ -60,10 +60,7 @@ fn with_event_loop<R>(
 }
 
 #[cfg(not(target_os = "ios"))]
-fn run_and_return(
-    event_loop: &mut EventLoop<UserEvent>,
-    mut winit_app: impl WinitApp,
-) -> Result<()> {
+fn run_and_return(event_loop: &mut EventLoop<UserEvent>, mut winit_app: impl WinitApp) -> Result {
     use winit::{event_loop::ControlFlow, platform::run_on_demand::EventLoopExtRunOnDemand};
 
     log::trace!("Entering the winit event loop (run_on_demand)…");
@@ -234,7 +231,7 @@ fn run_and_return(
 fn run_and_exit(
     event_loop: EventLoop<UserEvent>,
     mut winit_app: impl WinitApp + 'static,
-) -> Result<()> {
+) -> Result {
     use winit::event_loop::ControlFlow;
     log::trace!("Entering the winit event loop (run)…");
 
@@ -390,7 +387,7 @@ pub fn run_glow(
     app_name: &str,
     mut native_options: epi::NativeOptions,
     app_creator: epi::AppCreator,
-) -> Result<()> {
+) -> Result {
     #![allow(clippy::needless_return_with_question_mark)] // False positive
 
     use super::glow_integration::GlowWinitApp;
@@ -415,7 +412,7 @@ pub fn run_wgpu(
     app_name: &str,
     mut native_options: epi::NativeOptions,
     app_creator: epi::AppCreator,
-) -> Result<()> {
+) -> Result {
     #![allow(clippy::needless_return_with_question_mark)] // False positive
 
     use super::wgpu_integration::WgpuWinitApp;
