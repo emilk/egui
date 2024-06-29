@@ -53,7 +53,7 @@ pub enum UserEvent {
 
 impl Default for UserEvent {
     fn default() -> Self {
-        UserEvent::RequestRepaint {
+        Self::RequestRepaint {
             viewport_id: ViewportId::default(),
             when: Instant::now(),
             frame_nr: 0u64,
