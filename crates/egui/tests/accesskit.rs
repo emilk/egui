@@ -1,4 +1,5 @@
 //! Tests the accesskit accessibility output of egui.
+#![cfg(feature = "accesskit")]
 
 use accesskit::Role;
 use egui::{Context, RawInput};
