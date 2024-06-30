@@ -203,13 +203,11 @@ impl<'a> AxisHints<'a> {
 
     pub(super) fn thickness(&self, axis: Axis) -> f32 {
         match axis {
-            Axis::X => {
-                if self.label.is_empty() {
-                    1.0 * LINE_HEIGHT
-                } else {
-                    3.0 * LINE_HEIGHT
-                }
-            }
+            Axis::X => self.min_thickness.max(if self.label.is_empty() {
+                1.0 * LINE_HEIGHT
+            } else {
+                3.0 * LINE_HEIGHT
+            }),
             Axis::Y => {
                 self.min_thickness
                     + if self.label.is_empty() {
