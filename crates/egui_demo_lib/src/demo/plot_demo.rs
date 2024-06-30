@@ -277,7 +277,6 @@ impl LineDemo {
         };
         let mut plot = Plot::new("lines_demo")
             .legend(Legend::default())
-            .y_axis_width(2)
             .show_axes(self.show_axes)
             .show_grid(self.show_grid);
         if self.square {
@@ -437,7 +436,6 @@ impl LegendDemo {
             ui.end_row();
         });
         let legend_plot = Plot::new("legend_demo")
-            .y_axis_width(2)
             .legend(config.clone())
             .data_aspect(1.0);
         legend_plot
@@ -530,7 +528,7 @@ impl CustomAxesDemo {
             100.0 * y
         }
 
-        let time_formatter = |mark: GridMark, _digits, _range: &RangeInclusive<f64>| {
+        let time_formatter = |mark: GridMark, _range: &RangeInclusive<f64>| {
             let minutes = mark.value;
             if minutes < 0.0 || 5.0 * MINS_PER_DAY <= minutes {
                 // No labels outside value bounds
@@ -544,7 +542,7 @@ impl CustomAxesDemo {
             }
         };
 
-        let percentage_formatter = |mark: GridMark, _digits, _range: &RangeInclusive<f64>| {
+        let percentage_formatter = |mark: GridMark, _range: &RangeInclusive<f64>| {
             let percent = 100.0 * mark.value;
             if is_approx_zero(percent) {
                 String::new() // skip zero
@@ -575,8 +573,7 @@ impl CustomAxesDemo {
         let y_axes = vec![
             AxisHints::new_y()
                 .label("Percent")
-                .formatter(percentage_formatter)
-                .max_digits(4),
+                .formatter(percentage_formatter),
             AxisHints::new_y()
                 .label("Absolute")
                 .placement(egui_plot::HPlacement::Right),
@@ -673,7 +670,6 @@ impl LinkedAxesDemo {
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
-                .y_axis_width(2)
                 .y_axis_label("y")
                 .y_axis_position(egui_plot::HPlacement::Right)
                 .link_axis(link_group_id, self.link_x, self.link_y)
@@ -962,7 +958,6 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
-            .y_axis_width(2)
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
             .allow_scroll(self.allow_scroll)

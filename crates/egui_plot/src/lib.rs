@@ -660,11 +660,10 @@ impl<'a> Plot<'a> {
     ///
     /// Arguments of `fmt`:
     /// * the grid mark to format
-    /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn x_axis_formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
+        fmt: impl Fn(GridMark, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -676,11 +675,10 @@ impl<'a> Plot<'a> {
     ///
     /// Arguments of `fmt`:
     /// * the grid mark to format
-    /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn y_axis_formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
+        fmt: impl Fn(GridMark, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -688,17 +686,22 @@ impl<'a> Plot<'a> {
         self
     }
 
-    /// Set the main Y-axis-width by number of digits
+    /// Set the minimum width of the main y-axis, in ui points.
     ///
-    /// The default is 5 digits.
-    ///
-    /// > Todo: This is experimental. Changing the font size might break this.
+    /// The width will automatically expand if any tickmark text is wider than this.
     #[inline]
-    pub fn y_axis_width(mut self, digits: usize) -> Self {
+    pub fn y_axis_min_width(mut self, min_width: f32) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
-            main.digits = digits;
+            main.min_thickness = min_width;
         }
         self
+    }
+
+    /// Set the main Y-axis-width by number of digits
+    #[inline]
+    #[deprecated = "Use `y_axis_min_width` instead"]
+    pub fn y_axis_width(self, digits: usize) -> Self {
+        self.y_axis_min_width(12.0 * digits as f32)
     }
 
     /// Set custom configuration for X-axis
@@ -1395,7 +1398,7 @@ pub struct GridInput {
 }
 
 /// One mark (horizontal or vertical line) in the background grid of a plot.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GridMark {
     /// X or Y value in the plot.
     pub value: f64,
@@ -1743,15 +1746,75 @@ fn generate_marks(step_sizes: [f64; 3], bounds: (f64, f64)) -> Vec<GridMark> {
     // step_size[1] =  100  =>  [     0,                                     100          ]
     // step_size[2] = 1000  =>  [     0                                                   ]
 
-    steps.sort_by(|a, b| match cmp_f64(a.value, b.value) {
-        // Keep the largest step size when we dedup later
-        Ordering::Equal => cmp_f64(b.step_size, a.step_size),
+    steps.sort_by(|a, b| cmp_f64(a.value, b.value));
 
-        ord => ord,
-    });
-    steps.dedup_by(|a, b| a.value == b.value);
+    let min_step = step_sizes.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+    let eps = 0.1 * min_step; // avoid putting two ticks too closely together
 
-    steps
+    let mut deduplicated: Vec<GridMark> = Vec::with_capacity(steps.len());
+    for step in steps {
+        if let Some(last) = deduplicated.last_mut() {
+            if (last.value - step.value).abs() < eps {
+                // Keep the one with the largest step size
+                if last.step_size < step.step_size {
+                    *last = step;
+                }
+                continue;
+            }
+        }
+        deduplicated.push(step);
+    }
+
+    deduplicated
+}
+
+#[test]
+fn test_generate_marks() {
+    fn approx_eq(a: &GridMark, b: &GridMark) -> bool {
+        (a.value - b.value).abs() < 1e-10 && a.step_size == b.step_size
+    }
+
+    let gm = |value, step_size| GridMark { value, step_size };
+
+    let marks = generate_marks([0.01, 0.1, 1.0], (2.855, 3.015));
+    let expected = vec![
+        gm(2.86, 0.01),
+        gm(2.87, 0.01),
+        gm(2.88, 0.01),
+        gm(2.89, 0.01),
+        gm(2.90, 0.1),
+        gm(2.91, 0.01),
+        gm(2.92, 0.01),
+        gm(2.93, 0.01),
+        gm(2.94, 0.01),
+        gm(2.95, 0.01),
+        gm(2.96, 0.01),
+        gm(2.97, 0.01),
+        gm(2.98, 0.01),
+        gm(2.99, 0.01),
+        gm(3.00, 1.),
+        gm(3.01, 0.01),
+    ];
+
+    let mut problem = None;
+    if marks.len() != expected.len() {
+        problem = Some(format!(
+            "Different lengths: got {}, expected {}",
+            marks.len(),
+            expected.len()
+        ));
+    }
+
+    for (i, (a, b)) in marks.iter().zip(&expected).enumerate() {
+        if !approx_eq(a, b) {
+            problem = Some(format!("Mismatch at index {i}: {a:?} != {b:?}"));
+            break;
+        }
+    }
+
+    if let Some(problem) = problem {
+        panic!("Test failed: {problem}. Got: {marks:#?}, expected: {expected:#?}");
+    }
 }
 
 fn cmp_f64(a: f64, b: f64) -> Ordering {
