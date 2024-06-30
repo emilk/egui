@@ -14,7 +14,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
+use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
 pub mod clipboard;
@@ -170,6 +170,10 @@ impl State {
             initial_tree_update_factory,
             event_loop_proxy,
         ));
+    }
+
+    pub fn init_system_theme(&mut self, window: &Window) {
+        self.egui_input.system_theme = window.theme().map(to_egui_theme);
     }
 
     /// Call this once a graphics context has been created to update the maximum texture dimensions
@@ -405,6 +409,13 @@ impl State {
                     consumed: false,
                 }
             }
+            WindowEvent::ThemeChanged(winit_theme) => {
+                self.egui_input.system_theme = Some(to_egui_theme(*winit_theme));
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
+            }
             WindowEvent::HoveredFile(path) => {
                 self.egui_input.hovered_files.push(egui::HoveredFile {
                     path: Some(path.clone()),
@@ -464,7 +475,6 @@ impl State {
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::Moved(_)
-            | WindowEvent::ThemeChanged(_)
             | WindowEvent::TouchpadPressure { .. }
             | WindowEvent::CloseRequested => EventResponse {
                 repaint: true,
@@ -888,6 +898,13 @@ impl State {
             // Remember to set the cursor again once the cursor returns to the screen:
             self.current_cursor_icon = None;
         }
+    }
+}
+
+fn to_egui_theme(theme: winit::window::Theme) -> Theme {
+    match theme {
+        winit::window::Theme::Dark => Theme::Dark,
+        winit::window::Theme::Light => Theme::Light,
     }
 }
 

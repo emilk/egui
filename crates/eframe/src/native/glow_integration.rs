@@ -222,6 +222,9 @@ impl GlowWinitApp {
         for viewport in glutin.viewports.values_mut() {
             if let Some(egui_winit) = viewport.egui_winit.as_mut() {
                 egui_winit.set_max_texture_side(max_texture_side);
+                if let Some(window) = viewport.window.as_deref() {
+                    egui_winit.init_system_theme(window);
+                }
             }
         }
 

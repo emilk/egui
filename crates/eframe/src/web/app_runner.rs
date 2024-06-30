@@ -132,6 +132,7 @@ impl AppRunner {
             .entry(egui::ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner.input.raw.system_theme = super::system_theme();
 
         Ok(runner)
     }

@@ -254,6 +254,8 @@ impl WgpuWinitApp {
             let event_loop_proxy = self.repaint_proxy.lock().clone();
             integration.init_accesskit(&mut egui_winit, &window, event_loop_proxy);
         }
+        egui_winit.init_system_theme(&window);
+
         let theme = system_theme.unwrap_or(self.native_options.default_theme);
         egui_ctx.set_visuals(Visuals::theme(theme));
 
