@@ -689,6 +689,7 @@ impl<'a> Plot<'a> {
     /// Set the minimum width of the main y-axis, in ui points.
     ///
     /// The width will automatically expand if any tickmark text is wider than this.
+    #[inline]
     pub fn y_axis_min_width(mut self, min_width: f32) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.min_thickness = min_width;
