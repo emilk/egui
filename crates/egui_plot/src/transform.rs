@@ -280,6 +280,11 @@ pub struct PlotTransform {
 
 impl PlotTransform {
     pub fn new(frame: Rect, bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
+        debug_assert!(
+            0.0 <= frame.width() && 0.0 <= frame.height(),
+            "Bad plot frame: {frame:?}"
+        );
+
         // Since the current Y bounds an affect the final X bounds and vice versa, we need to keep
         // the original version of the `bounds` before we start modifying it.
         let mut new_bounds = bounds;
@@ -291,7 +296,7 @@ impl PlotTransform {
         // axis, and default to +/- 1.0 otherwise.
         if !bounds.is_finite_x() {
             new_bounds.set_x(&PlotBounds::new_symmetrical(1.0));
-        } else if bounds.width() == 0.0 {
+        } else if bounds.width() <= 0.0 {
             new_bounds.set_x_center_width(
                 bounds.center().x,
                 if bounds.is_valid_y() {
@@ -304,7 +309,7 @@ impl PlotTransform {
 
         if !bounds.is_finite_y() {
             new_bounds.set_y(&PlotBounds::new_symmetrical(1.0));
-        } else if bounds.height() == 0.0 {
+        } else if bounds.height() <= 0.0 {
             new_bounds.set_y_center_height(
                 bounds.center().y,
                 if bounds.is_valid_x() {
@@ -322,6 +327,11 @@ impl PlotTransform {
         if y_centered {
             new_bounds.make_y_symmetrical();
         };
+
+        debug_assert!(
+            new_bounds.is_valid(),
+            "Bad final plot bounds: {new_bounds:?}"
+        );
 
         Self {
             frame,
