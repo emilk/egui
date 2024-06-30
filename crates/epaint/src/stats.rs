@@ -200,6 +200,7 @@ impl PaintStats {
                 }
             }
             Shape::Noop
+            | Shape::ArcPie { .. }
             | Shape::Circle { .. }
             | Shape::Ellipse { .. }
             | Shape::LineSegment { .. }
