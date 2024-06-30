@@ -1806,13 +1806,13 @@ fn test_generate_marks() {
 
     for (i, (a, b)) in marks.iter().zip(&expected).enumerate() {
         if !approx_eq(a, b) {
-            problem = Some(format!("Mismatch at index {}: {:?} != {:?}", i, a, b));
+            problem = Some(format!("Mismatch at index {i}: {a:?} != {b:?}"));
             break;
         }
     }
 
     if let Some(problem) = problem {
-        panic!("Nug in generate_marks: {problem}. Got: {marks:#?}, expected: {expected:#?}");
+        panic!("Test failed: {problem}. Got: {marks:#?}, expected: {expected:#?}");
     }
 }
 
