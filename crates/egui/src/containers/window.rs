@@ -38,6 +38,7 @@ pub struct Window<'open> {
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
+    closebutton: bool,
     default_open: bool,
     with_title_bar: bool,
     fade_out: bool,
@@ -61,6 +62,7 @@ impl<'open> Window<'open> {
                 .default_size([340.0, 420.0]), // Default inner size of a window
             scroll: ScrollArea::neither().auto_shrink(false),
             collapsible: true,
+            closebutton: true,
             default_open: true,
             with_title_bar: true,
             fade_out: true,
@@ -342,6 +344,13 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Show close button on title bar?
+    #[inline]
+    pub fn closebutton(mut self, closebutton: bool) -> Self {
+        self.closebutton = closebutton;
+        self
+    }
+
     /// Show title bar on top of the window?
     /// If `false`, the window will not be collapsible nor have a close-button.
     #[inline]
@@ -426,6 +435,7 @@ impl<'open> Window<'open> {
             resize,
             scroll,
             collapsible,
+            closebutton,
             default_open,
             with_title_bar,
             fade_out,
@@ -518,7 +528,7 @@ impl<'open> Window<'open> {
             let frame_stroke = window_frame.stroke;
             let mut frame = window_frame.begin(&mut area_content_ui);
 
-            let show_close_button = open.is_some();
+            let show_close_button = open.is_some() && closebutton;
 
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
@@ -531,9 +541,9 @@ impl<'open> Window<'open> {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
-                    show_close_button,
                     &mut collapsing,
                     collapsible,
+                    show_close_button,
                 );
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
@@ -609,7 +619,6 @@ impl<'open> Window<'open> {
                     &content_response,
                     open,
                     &mut collapsing,
-                    collapsible,
                 );
             }
 
@@ -1038,14 +1047,20 @@ struct TitleBar {
     /// Size of the title bar in an expanded state. This size become known only
     /// after expanding window and painting its content
     rect: Rect,
+
+    /// Can the window be collapsed by clicking on its title?
+    collapsible: bool,
+
+    /// Show close button on title bar?
+    closebutton: bool,
 }
 
 fn show_title_bar(
     ui: &mut Ui,
     title: WidgetText,
-    show_close_button: bool,
     collapsing: &mut CollapsingState,
     collapsible: bool,
+    show_close_button: bool,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = ui
@@ -1084,6 +1099,8 @@ fn show_title_bar(
             title_galley,
             min_rect,
             rect: Rect::NAN, // Will be filled in later
+            collapsible,
+            closebutton: show_close_button,
         }
     });
 
@@ -1115,17 +1132,18 @@ impl TitleBar {
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
-        collapsible: bool,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
-        if let Some(open) = open {
-            // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked() {
-                *open = false;
+        if self.closebutton {
+            if let Some(open) = open {
+                // Add close button now that we know our full width:
+                if self.close_button_ui(ui).clicked() {
+                    *open = false;
+                }
             }
         }
 
@@ -1157,7 +1175,7 @@ impl TitleBar {
         if ui
             .interact(double_click_rect, self.id, Sense::click())
             .double_clicked()
-            && collapsible
+            && self.collapsible
         {
             collapsing.toggle(ui);
         }
