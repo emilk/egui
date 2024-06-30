@@ -1,4 +1,7 @@
-use std::ops::{Bound, RangeBounds, RangeInclusive};
+use std::{
+    ops::{Bound, RangeBounds, RangeInclusive},
+    sync::Arc,
+};
 
 use egui::{Pos2, Shape, Stroke, Vec2};
 
@@ -154,43 +157,71 @@ impl Default for Orientation {
 ///
 /// These can be an owned `Vec` or generated with a function.
 pub enum PlotPoints {
-    Owned(Vec<PlotPoint>),
+    Owned(Arc<[PlotPoint]>),
     Generator(ExplicitGenerator),
     // Borrowed(&[PlotPoint]), // TODO(EmbersArc): Lifetimes are tricky in this case.
 }
 
 impl Default for PlotPoints {
     fn default() -> Self {
-        Self::Owned(Vec::new())
+        Self::Owned(Vec::new().into())
     }
 }
 
 impl From<[f64; 2]> for PlotPoints {
     fn from(coordinate: [f64; 2]) -> Self {
-        Self::new(vec![coordinate])
+        std::iter::once(coordinate).collect()
+    }
+}
+
+impl From<&[[f64; 2]]> for PlotPoints {
+    fn from(coordinates: &[[f64; 2]]) -> Self {
+        coordinates.iter().collect()
     }
 }
 
 impl From<Vec<[f64; 2]>> for PlotPoints {
     fn from(coordinates: Vec<[f64; 2]>) -> Self {
-        Self::new(coordinates)
+        coordinates.into_iter().collect()
+    }
+}
+
+impl From<Arc<[[f64; 2]]>> for PlotPoints {
+    fn from(coordinates: Arc<[[f64; 2]]>) -> Self {
+        coordinates.iter().collect()
+    }
+}
+
+impl<'a> FromIterator<&'a [f64; 2]> for PlotPoints {
+    fn from_iter<T: IntoIterator<Item = &'a [f64; 2]>>(iter: T) -> Self {
+        Self::Owned(
+            iter.into_iter()
+                .map(|point| (*point).into())
+                .collect::<Vec<_>>()
+                .into(),
+        )
     }
 }
 
 impl FromIterator<[f64; 2]> for PlotPoints {
     fn from_iter<T: IntoIterator<Item = [f64; 2]>>(iter: T) -> Self {
-        Self::Owned(iter.into_iter().map(|point| point.into()).collect())
+        Self::Owned(
+            iter.into_iter()
+                .map(|point| point.into())
+                .collect::<Vec<_>>()
+                .into(),
+        )
     }
 }
 
 impl PlotPoints {
-    pub fn new(points: Vec<[f64; 2]>) -> Self {
-        Self::from_iter(points)
+    pub fn new(points: Arc<[PlotPoint]>) -> Self {
+        Self::Owned(points)
     }
 
     pub fn points(&self) -> &[PlotPoint] {
         match self {
-            Self::Owned(points) => points.as_slice(),
+            Self::Owned(points) => points,
             Self::Generator(_) => &[],
         }
     }
@@ -247,7 +278,8 @@ impl PlotPoints {
                 let t = start + i as f64 * increment;
                 function(t).into()
             })
-            .collect()
+            .collect::<Vec<_>>()
+            .into()
     }
 
     /// From a series of y-values.
@@ -307,7 +339,7 @@ impl PlotPoints {
         match self {
             Self::Owned(points) => {
                 let mut bounds = PlotBounds::NOTHING;
-                for point in points {
+                for point in points.iter() {
                     bounds.extend_with(point);
                 }
                 bounds
