@@ -5,7 +5,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use egui::ViewportId;
+use egui::{Theme, ViewportId};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 
@@ -103,7 +103,7 @@ pub enum EventResult {
     Exit,
 }
 
-pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<crate::Theme> {
+pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<Theme> {
     if options.follow_system_theme {
         window
             .theme()

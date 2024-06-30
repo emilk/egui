@@ -19,6 +19,7 @@ use ahash::{HashMap, HashSet, HashSetExt};
 use egui::{
     DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportBuilder, ViewportClass,
     ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
+    Visuals,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -254,7 +255,7 @@ impl WgpuWinitApp {
             integration.init_accesskit(&mut egui_winit, &window, event_loop_proxy);
         }
         let theme = system_theme.unwrap_or(self.native_options.default_theme);
-        egui_ctx.set_visuals(theme.egui_visuals());
+        egui_ctx.set_visuals(Visuals::theme(theme));
 
         let app_creator = std::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");

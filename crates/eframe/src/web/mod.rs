@@ -45,7 +45,7 @@ use web_sys::MediaQueryList;
 
 use input::*;
 
-use crate::Theme;
+use egui::Theme;
 
 // ----------------------------------------------------------------------------
 

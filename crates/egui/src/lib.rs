@@ -464,7 +464,7 @@ pub use {
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Style, TextStyle, Visuals},
+    style::{FontSelection, Style, TextStyle, Theme, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     ui_stack::*,

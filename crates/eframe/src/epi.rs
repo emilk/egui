@@ -6,6 +6,8 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+use egui::Theme;
+
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
 
@@ -481,31 +483,6 @@ impl Default for WebOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Dark or Light theme.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum Theme {
-    /// Dark mode: light text on a dark background.
-    Dark,
-
-    /// Light mode: dark text on a light background.
-    Light,
-}
-
-impl Theme {
-    /// Get the egui visuals corresponding to this theme.
-    ///
-    /// Use with [`egui::Context::set_visuals`].
-    pub fn egui_visuals(self) -> egui::Visuals {
-        match self {
-            Self::Dark => egui::Visuals::dark(),
-            Self::Light => egui::Visuals::light(),
         }
     }
 }
