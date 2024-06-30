@@ -1826,7 +1826,7 @@ fn cmp_f64(a: f64, b: f64) -> Ordering {
 
 /// Fill in all values between [min, max] which are a multiple of `step_size`
 fn fill_marks_between(out: &mut Vec<GridMark>, step_size: f64, (min, max): (f64, f64)) {
-    debug_assert!(max > min);
+    debug_assert!(min <= max, "Bad plot bounds: min: {min}, max: {max}");
     let first = (min / step_size).ceil() as i64;
     let last = (max / step_size).ceil() as i64;
 
