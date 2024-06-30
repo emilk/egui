@@ -660,11 +660,10 @@ impl<'a> Plot<'a> {
     ///
     /// Arguments of `fmt`:
     /// * the grid mark to format
-    /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn x_axis_formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
+        fmt: impl Fn(GridMark, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -676,11 +675,10 @@ impl<'a> Plot<'a> {
     ///
     /// Arguments of `fmt`:
     /// * the grid mark to format
-    /// * maximum requested number of characters per tick label.
     /// * currently shown range on this axis.
     pub fn y_axis_formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
+        fmt: impl Fn(GridMark, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.formatter = Arc::new(fmt);
@@ -688,17 +686,21 @@ impl<'a> Plot<'a> {
         self
     }
 
-    /// Set the main Y-axis-width by number of digits
+    /// Set the minimum width of the main y-axis, in ui points.
     ///
-    /// The default is 5 digits.
-    ///
-    /// > Todo: This is experimental. Changing the font size might break this.
-    #[inline]
-    pub fn y_axis_width(mut self, digits: usize) -> Self {
+    /// The width will automatically expand if any tickmark text is wider than this.
+    pub fn y_axis_min_width(mut self, min_width: f32) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
-            main.digits = digits;
+            main.min_thickness = min_width;
         }
         self
+    }
+
+    /// Set the main Y-axis-width by number of digits
+    #[inline]
+    #[deprecated = "Use `y_axis_min_width` instead"]
+    pub fn y_axis_width(self, digits: usize) -> Self {
+        self.y_axis_min_width(12.0 * digits as f32)
     }
 
     /// Set custom configuration for X-axis
