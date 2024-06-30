@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use epaint::{Rounding, Shadow, Stroke};
 
@@ -10,6 +10,51 @@ use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
     RichText, WidgetText,
 };
+
+/// How to format numbers in e.g. a [`crate::DragValue`].
+#[derive(Clone)]
+pub struct NumberFormatter(
+    Arc<dyn 'static + Sync + Send + Fn(f64, RangeInclusive<usize>) -> String>,
+);
+
+impl NumberFormatter {
+    /// The first argument is the number to be formatted.
+    /// The second argument is the range of the number of decimals to show.
+    ///
+    /// See [`Self::format`] for the meaning of the `decimals` argument.
+    #[inline]
+    pub fn new(
+        formatter: impl 'static + Sync + Send + Fn(f64, RangeInclusive<usize>) -> String,
+    ) -> Self {
+        Self(Arc::new(formatter))
+    }
+
+    /// Format the given number with the given number of decimals.
+    ///
+    /// Decimals are counted after the decimal point.
+    ///
+    /// The minimum number of decimals is usually automatically calculated
+    /// from the sensitivity of the [`crate::DragValue`] and will usually be respected (e.g. include trailing zeroes),
+    /// but if the given value requires more decimals to represent accurately,
+    /// more decimals will be shown, up to the given max.
+    #[inline]
+    pub fn format(&self, value: f64, decimals: RangeInclusive<usize>) -> String {
+        (self.0)(value, decimals)
+    }
+}
+
+impl std::fmt::Debug for NumberFormatter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("NumberFormatter")
+    }
+}
+
+impl PartialEq for NumberFormatter {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -182,6 +227,12 @@ pub struct Style {
     /// The style to use for [`DragValue`] text.
     pub drag_value_text_style: TextStyle,
 
+    /// How to format numbers as strings, e.g. in a [`crate::DragValue`].
+    ///
+    /// You can override this to e.g. add thousands separators.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub number_formatter: NumberFormatter,
+
     /// If set, labels, buttons, etc. will use this to determine whether to wrap the text at the
     /// right edge of the [`Ui`] they are in. By default, this is `None`.
     ///
@@ -229,6 +280,12 @@ pub struct Style {
 
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
+}
+
+#[test]
+fn style_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Style>();
 }
 
 impl Style {
@@ -1060,6 +1117,7 @@ impl Default for Style {
             override_text_style: None,
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
+            number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
             wrap: None,
             wrap_mode: None,
             spacing: Spacing::default(),
@@ -1355,6 +1413,7 @@ impl Style {
             override_text_style,
             text_styles,
             drag_value_text_style,
+            number_formatter: _, // can't change callbacks in the UI
             wrap: _,
             wrap_mode: _,
             spacing,

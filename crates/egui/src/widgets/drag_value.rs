@@ -176,6 +176,8 @@ impl<'a> DragValue<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
+    /// The default formatter is [`Style::number_formatter`].
+    ///
     /// See also: [`DragValue::custom_parser`]
     ///
     /// ```
@@ -481,7 +483,10 @@ impl<'a> Widget for DragValue<'a> {
 
         let value_text = match custom_formatter {
             Some(custom_formatter) => custom_formatter(value, auto_decimals..=max_decimals),
-            None => emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals),
+            None => ui
+                .style()
+                .number_formatter
+                .format(value, auto_decimals..=max_decimals),
         };
 
         let text_style = ui.style().drag_value_text_style.clone();
@@ -676,8 +681,11 @@ fn parse(custom_parser: &Option<NumParser<'_>>, value_text: &str) -> Option<f64>
     }
 }
 
-fn default_parser(value_text: &str) -> Option<f64> {
-    let value_text: String = value_text
+/// The default egui parser of numbers.
+///
+/// It ignored whitespaces anywhere in the input, and treats the special minus character (U+2212) as a normal minus.
+fn default_parser(text: &str) -> Option<f64> {
+    let text: String = text
         .chars()
         // Ignore whitespace (trailing, leading, and thousands separators):
         .filter(|c| !c.is_whitespace())
@@ -685,7 +693,7 @@ fn default_parser(value_text: &str) -> Option<f64> {
         .map(|c| if c == '−' { '-' } else { c })
         .collect();
 
-    value_text.parse().ok()
+    text.parse().ok()
 }
 
 fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {

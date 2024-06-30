@@ -318,7 +318,9 @@ impl<'a> Slider<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
-    /// See also: [`DragValue::custom_parser`]
+    /// The default formatter is [`Style::number_formatter`].
+    ///
+    /// See also: [`Slider::custom_parser`]
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -361,7 +363,7 @@ impl<'a> Slider<'a> {
     /// A custom parser takes an `&str` to parse into a number and returns `Some` if it was successfully parsed
     /// or `None` otherwise.
     ///
-    /// See also: [`DragValue::custom_formatter`]
+    /// See also: [`Slider::custom_formatter`]
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
