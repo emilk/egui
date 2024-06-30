@@ -677,8 +677,14 @@ fn parse(custom_parser: &Option<NumParser<'_>>, value_text: &str) -> Option<f64>
 }
 
 fn default_parser(value_text: &str) -> Option<f64> {
-    // Ignore whitespace (trailing, leading, and thousands separators):
-    let value_text: String = value_text.chars().filter(|c| !c.is_whitespace()).collect();
+    let value_text: String = value_text
+        .chars()
+        // Ignore whitespace (trailing, leading, and thousands separators):
+        .filter(|c| !c.is_whitespace())
+        // Replace special minus character with normal minus (hyphen):
+        .map(|c| if c == '−' { '-' } else { c })
+        .collect();
+
     value_text.parse().ok()
 }
 
@@ -743,6 +749,17 @@ mod tests {
             super::default_parser("1 234 567"),
             Some(1_234_567.0),
             "We should handle thousands separators using half-space"
+        );
+
+        assert_eq!(
+            super::default_parser("-1.23"),
+            Some(-1.23),
+            "Should handle normal hyphen as minus character"
+        );
+        assert_eq!(
+            super::default_parser("−1.23"),
+            Some(-1.23),
+            "Should handle special minus character (https://www.compart.com/en/unicode/U+2212)"
         );
     }
 }
