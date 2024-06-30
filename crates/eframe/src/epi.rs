@@ -297,21 +297,6 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub renderer: Renderer,
 
-    /// Try to detect and follow the system preferred setting for dark vs light mode.
-    ///
-    /// The theme will automatically change when the dark vs light mode preference is changed.
-    ///
-    /// Does not work on Linux (see <https://github.com/rust-windowing/winit/issues/1549>).
-    ///
-    /// See also [`Self::default_theme`].
-    pub follow_system_theme: bool,
-
-    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
-    /// or eframe fails to detect the system theme.
-    ///
-    /// Default: [`egui::Theme::Dark`].
-    pub default_theme: egui::Theme,
-
     /// This controls what happens when you close the main eframe window.
     ///
     /// If `true`, execution will continue after the eframe window is closed.
@@ -417,8 +402,6 @@ impl Default for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             renderer: Renderer::default(),
 
-            follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
-            default_theme: egui::Theme::Dark,
             run_and_return: true,
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -449,19 +432,6 @@ impl Default for NativeOptions {
 /// Options when using `eframe` in a web page.
 #[cfg(target_arch = "wasm32")]
 pub struct WebOptions {
-    /// Try to detect and follow the system preferred setting for dark vs light mode.
-    ///
-    /// See also [`Self::default_theme`].
-    ///
-    /// Default: `true`.
-    pub follow_system_theme: bool,
-
-    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
-    /// or system theme detection fails.
-    ///
-    /// Default: `egui::Theme::Dark`.
-    pub default_theme: egui::Theme,
-
     /// Sets the number of bits in the depth buffer.
     ///
     /// `egui` doesn't need the depth buffer, so the default value is 0.
@@ -492,8 +462,6 @@ pub struct WebOptions {
 impl Default for WebOptions {
     fn default() -> Self {
         Self {
-            follow_system_theme: true,
-            default_theme: egui::Theme::Dark,
             depth_buffer: 0,
 
             #[cfg(feature = "glow")]
@@ -788,11 +756,6 @@ pub struct IntegrationInfo {
     /// Information about the surrounding web environment.
     #[cfg(target_arch = "wasm32")]
     pub web_info: WebInfo,
-
-    /// Does the OS use dark or light mode?
-    ///
-    /// `None` means "don't know".
-    pub system_theme: Option<egui::Theme>,
 
     /// Seconds of cpu usage (in seconds) on the previous frame.
     ///
