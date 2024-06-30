@@ -491,10 +491,7 @@ impl<'a> Widget for DragValue<'a> {
             if let Some(value_text) = value_text {
                 // We were editing the value as text last frame, but lost focus.
                 // Make sure we applied the last text value:
-                let parsed_value = match &custom_parser {
-                    Some(parser) => parser(&value_text),
-                    None => value_text.parse().ok(),
-                };
+                let parsed_value = parse(&custom_parser, &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     if clamp_to_range {
                         parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -530,10 +527,7 @@ impl<'a> Widget for DragValue<'a> {
                 response.lost_focus() && !ui.input(|i| i.key_pressed(Key::Escape))
             };
             if update {
-                let parsed_value = match &custom_parser {
-                    Some(parser) => parser(&value_text),
-                    None => value_text.parse().ok(),
-                };
+                let parsed_value = parse(&custom_parser, &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     if clamp_to_range {
                         parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -675,6 +669,19 @@ impl<'a> Widget for DragValue<'a> {
     }
 }
 
+fn parse(custom_parser: &Option<NumParser<'_>>, value_text: &str) -> Option<f64> {
+    match &custom_parser {
+        Some(parser) => parser(value_text),
+        None => default_parser(value_text),
+    }
+}
+
+fn default_parser(value_text: &str) -> Option<f64> {
+    // Ignore whitespace (trailing, leading, and thousands separators):
+    let value_text: String = value_text.chars().filter(|c| !c.is_whitespace()).collect();
+    value_text.parse().ok()
+}
+
 fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
     let (mut min, mut max) = (*range.start(), *range.end());
 
@@ -718,5 +725,24 @@ mod tests {
         total_assert_eq!(5.0_f64, clamp_value_to_range(5.0, 10.0..=1.0));
         total_assert_eq!(5.0_f64, clamp_value_to_range(15.0, 5.0..=1.0));
         total_assert_eq!(1.0_f64, clamp_value_to_range(-5.0, 5.0..=1.0));
+    }
+
+    #[test]
+    fn test_default_parser() {
+        assert_eq!(super::default_parser("123"), Some(123.0));
+
+        assert_eq!(super::default_parser("1.23"), Some(1.230));
+
+        assert_eq!(
+            super::default_parser(" 1.23 "),
+            Some(1.230),
+            "We should handle leading and trailing spaces"
+        );
+
+        assert_eq!(
+            super::default_parser("1 234 567"),
+            Some(1_234_567.0),
+            "We should handle thousands separators using half-space"
+        );
     }
 }
