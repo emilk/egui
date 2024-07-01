@@ -2594,7 +2594,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {
-            menu::submenu_button(self, menu_state, String::new(), add_contents)
+            menu::submenu_button(self, menu_state, title, add_contents)
         } else {
             menu::menu_text_image_button(self, Button::image_and_text(image, title), add_contents)
         }
