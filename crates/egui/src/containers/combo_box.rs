@@ -296,7 +296,12 @@ fn combo_box_dyn<'c, R>(
 
     let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 
-    let popup_height = ui.memory(|m| m.areas().get(popup_id).map_or(100.0, |state| state.size.y));
+    let popup_height = ui.memory(|m| {
+        m.areas()
+            .get(popup_id)
+            .and_then(|state| state.size)
+            .map_or(100.0, |size| size.y)
+    });
 
     let above_or_below =
         if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height

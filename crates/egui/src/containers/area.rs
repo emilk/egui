@@ -18,7 +18,13 @@ pub struct AreaState {
     pub pivot: Align2,
 
     /// Last known size.
-    pub size: Vec2,
+    ///
+    /// Area size is intentionally NOT persisted between sessions,
+    /// so that a bad tooltip or menu size won't be remembered forever.
+    /// A resizable [`Window`] remembers the size the user picked using
+    /// the state in the [`Resize`] container.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub size: Option<Vec2>,
 
     /// If false, clicks goes straight through to what is behind us. Useful for tooltips etc.
     pub interactable: bool,
@@ -26,7 +32,8 @@ pub struct AreaState {
     /// At what time was this area first shown?
     ///
     /// Used to fade in the area.
-    pub last_became_visible_at: f64,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub last_became_visible_at: Option<f64>,
 }
 
 impl AreaState {
@@ -38,23 +45,26 @@ impl AreaState {
 
     /// The left top positions of the area.
     pub fn left_top_pos(&self) -> Pos2 {
+        let size = self.size.unwrap_or_default();
         pos2(
-            self.pivot_pos.x - self.pivot.x().to_factor() * self.size.x,
-            self.pivot_pos.y - self.pivot.y().to_factor() * self.size.y,
+            self.pivot_pos.x - self.pivot.x().to_factor() * size.x,
+            self.pivot_pos.y - self.pivot.y().to_factor() * size.y,
         )
     }
 
     /// Move the left top positions of the area.
     pub fn set_left_top_pos(&mut self, pos: Pos2) {
+        let size = self.size.unwrap_or_default();
         self.pivot_pos = pos2(
-            pos.x + self.pivot.x().to_factor() * self.size.x,
-            pos.y + self.pivot.y().to_factor() * self.size.y,
+            pos.x + self.pivot.x().to_factor() * size.x,
+            pos.y + self.pivot.y().to_factor() * size.y,
         );
     }
 
     /// Where the area is on screen.
     pub fn rect(&self) -> Rect {
-        Rect::from_min_size(self.left_top_pos(), self.size)
+        let size = self.size.unwrap_or_default();
+        Rect::from_min_size(self.left_top_pos(), size)
     }
 }
 
@@ -372,11 +382,27 @@ impl Area {
             state.pivot = pivot;
             state
         });
-        let is_new = state.is_none();
-        if is_new {
-            ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
+        let mut sizing_pass = state.is_none();
+        let mut state = state.unwrap_or_else(|| AreaState {
+            pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+            pivot,
+            size: None,
+            interactable,
+            last_became_visible_at: None,
+        });
+        state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
+        state.interactable = interactable;
+
+        // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smoother fade-in
+        let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));
+
+        if !visible_last_frame || state.last_became_visible_at.is_none() {
+            state.last_became_visible_at = Some(ctx.input(|i| i.time));
         }
-        let mut state = state.unwrap_or_else(|| {
+
+        let size = *state.size.get_or_insert_with(|| {
+            sizing_pass = true;
+
             // during the sizing pass we will use this as the max size
             let mut size = default_size;
 
@@ -392,28 +418,13 @@ impl Area {
                 size = size.at_most(constrain_rect.size());
             }
 
-            AreaState {
-                pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
-                pivot,
-                size,
-                interactable,
-                last_became_visible_at: ctx.input(|i| i.time),
-            }
+            size
         });
-        state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
-        state.interactable = interactable;
-
-        // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smmother fade-in
-        let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));
-
-        if !visible_last_frame {
-            state.last_became_visible_at = ctx.input(|i| i.time);
-        }
 
         if let Some((anchor, offset)) = anchor {
             state.set_left_top_pos(
                 anchor
-                    .align_size_within_rect(state.size, constrain_rect)
+                    .align_size_within_rect(size, constrain_rect)
                     .left_top()
                     + offset,
             );
@@ -477,7 +488,7 @@ impl Area {
             enabled,
             constrain,
             constrain_rect,
-            sizing_pass: is_new,
+            sizing_pass,
             fade_in,
         }
     }
@@ -501,7 +512,7 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
-        let max_rect = Rect::from_min_size(self.state.left_top_pos(), self.state.size);
+        let max_rect = self.state.rect();
 
         let clip_rect = self.constrain_rect; // Don't paint outside our bounds
 
@@ -515,13 +526,14 @@ impl Prepared {
         );
 
         if self.fade_in {
-            let age =
-                ctx.input(|i| (i.time - self.state.last_became_visible_at) as f32 + i.predicted_dt);
-            let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
-            let opacity = emath::easing::cubic_out(opacity); // slow fade-out = quick fade-in
-            ui.multiply_opacity(opacity);
-            if opacity < 1.0 {
-                ctx.request_repaint();
+            if let Some(last_became_visible_at) = self.state.last_became_visible_at {
+                let age = ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt);
+                let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
+                let opacity = emath::easing::cubic_out(opacity); // slow fade-out = quick fade-in
+                ui.multiply_opacity(opacity);
+                if opacity < 1.0 {
+                    ctx.request_repaint();
+                }
             }
         }
 
@@ -541,10 +553,11 @@ impl Prepared {
             layer_id,
             mut state,
             move_response: mut response,
+            sizing_pass,
             ..
         } = self;
 
-        state.size = content_ui.min_size();
+        state.size = Some(content_ui.min_size());
 
         // Make sure we report back the correct size.
         // Very important after the initial sizing pass, when the initial estimate of the size is way off.
@@ -553,6 +566,11 @@ impl Prepared {
         response.interact_rect = final_rect;
 
         ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
+
+        if sizing_pass {
+            // If we didn't know the size, we were likely drawing the area in the wrong place.
+            ctx.request_repaint();
+        }
 
         response
     }
