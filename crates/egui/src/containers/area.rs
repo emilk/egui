@@ -8,12 +8,8 @@ use crate::*;
 ///
 /// Areas back [`crate::Window`]s and other floating containers,
 /// like tooltips and the popups of [`crate::ComboBox`].
-///
-/// Area state is intentionally NOT persisted between sessions,
-/// so that a bad tooltip or menu size won't be remembered forever.
-/// A resizable [`Window`] remembers the size the user picked using
-/// the state in the [`Resize`] container.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct AreaState {
     /// Last known position of the pivot.
     pub pivot_pos: Pos2,

@@ -934,9 +934,6 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    /// Area state is intentionally NOT persisted between sessions,
-    /// so that a bad tooltip or menu size won't be remembered forever.
-    #[cfg_attr(feature = "serde", serde(skip))]
     areas: IdMap<area::AreaState>,
 
     /// Back-to-front. Top is last.
