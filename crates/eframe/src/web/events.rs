@@ -103,17 +103,8 @@ fn install_blur_focus(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
     // so we also poll the focus state each frame in `AppRunner::logic`.
     for event_name in ["blur", "focus"] {
         let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
-            // log::debug!("{event_name:?}");
-
-            let has_focus = event_name == "focus";
-
-            if !has_focus {
-                // We lost focus - good idea to save
-                runner.save();
-            }
-
-            runner.input.set_focus(has_focus);
-            runner.egui_ctx().request_repaint();
+            // log::debug!("{} {event_name:?}", runner.canvas().id());
+            runner.update_focus();
         };
 
         runner_ref.add_event_listener(target, event_name, closure)?;

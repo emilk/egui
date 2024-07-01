@@ -142,20 +142,24 @@ impl TextAgent {
         super::has_focus(&self.input)
     }
 
-    fn focus(&self) {
+    pub fn focus(&self) {
         if self.has_focus() {
             return;
         }
+
+        // log::debug!("Focusing text agent");
 
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         };
     }
 
-    fn blur(&self) {
+    pub fn blur(&self) {
         if !self.has_focus() {
             return;
         }
+
+        // log::debug!("Blurring text agent");
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
