@@ -539,6 +539,9 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
+
+        response.fake_primary_click = false; // remove fake primary clicks to prevent sending OutputEvent::Clicked
+
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
