@@ -118,8 +118,9 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     });
 
     let tooltip_area_id = tooltip_id(widget_id, state.tooltip_count);
-    let expected_tooltip_size =
-        AreaState::load(ctx, tooltip_area_id).map_or(vec2(64.0, 32.0), |area| area.size);
+    let expected_tooltip_size = AreaState::load(ctx, tooltip_area_id)
+        .and_then(|area| area.size)
+        .unwrap_or(vec2(64.0, 32.0));
 
     let screen_rect = ctx.screen_rect();
 

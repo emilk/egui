@@ -495,11 +495,11 @@ impl ContextImpl {
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: screen_rect.left_top(),
+                pivot_pos: Some(screen_rect.left_top()),
                 pivot: Align2::LEFT_TOP,
-                size: screen_rect.size(),
+                size: Some(screen_rect.size()),
                 interactable: true,
-                last_became_visible_at: f64::NEG_INFINITY,
+                last_became_visible_at: None,
             },
         );
 
@@ -2209,7 +2209,7 @@ impl Context {
     pub fn used_rect(&self) -> Rect {
         self.write(|ctx| {
             let mut used = ctx.viewport().frame_state.used_by_panels;
-            for window in ctx.memory.areas().visible_windows() {
+            for (_id, window) in ctx.memory.areas().visible_windows() {
                 used = used.union(window.rect());
             }
             used
