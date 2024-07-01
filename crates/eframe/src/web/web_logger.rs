@@ -50,7 +50,9 @@ impl log::Log for WebLogger {
         };
 
         match record.level() {
-            log::Level::Trace => console::trace(&msg),
+            // NOTE: the `console::trace` includes a stack trace, which is super-noisy.
+            log::Level::Trace => console::debug(&msg),
+
             log::Level::Debug => console::debug(&msg),
             log::Level::Info => console::info(&msg),
             log::Level::Warn => console::warn(&msg),
