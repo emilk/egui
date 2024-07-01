@@ -148,7 +148,7 @@ impl TextAgent {
             return;
         }
 
-        // log::debug!("Focusing text agent");
+        log::trace!("Focusing text agent");
 
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
@@ -160,7 +160,7 @@ impl TextAgent {
             return;
         }
 
-        // log::debug!("Blurring text agent");
+        log::trace!("Blurring text agent");
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
