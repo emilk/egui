@@ -392,6 +392,7 @@ mod layout;
 pub mod load;
 mod memory;
 pub mod menu;
+pub mod new_menu;
 pub mod os;
 mod painter;
 pub(crate) mod placer;
