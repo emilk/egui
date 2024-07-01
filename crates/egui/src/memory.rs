@@ -1027,12 +1027,12 @@ impl Areas {
             .collect()
     }
 
-    pub(crate) fn visible_windows(&self) -> Vec<&area::AreaState> {
+    pub(crate) fn visible_windows(&self) -> impl Iterator<Item = (LayerId, &area::AreaState)> {
         self.visible_layer_ids()
-            .iter()
+            .into_iter()
             .filter(|layer| layer.order == crate::Order::Middle)
-            .filter_map(|layer| self.get(layer.id))
-            .collect()
+            .filter(|&layer| !self.is_sublayer(&layer))
+            .filter_map(|layer| Some((layer, self.get(layer.id)?)))
     }
 
     pub fn move_to_top(&mut self, layer_id: LayerId) {

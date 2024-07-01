@@ -12,7 +12,7 @@ use crate::*;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct AreaState {
     /// Last known position of the pivot.
-    pub pivot_pos: Pos2,
+    pub pivot_pos: Option<Pos2>,
 
     /// The anchor point of the area, i.e. where on the area the [`Self::pivot_pos`] refers to.
     pub pivot: Align2,
@@ -36,6 +36,18 @@ pub struct AreaState {
     pub last_became_visible_at: Option<f64>,
 }
 
+impl Default for AreaState {
+    fn default() -> Self {
+        Self {
+            pivot_pos: None,
+            pivot: Align2::LEFT_TOP,
+            size: None,
+            interactable: true,
+            last_became_visible_at: None,
+        }
+    }
+}
+
 impl AreaState {
     /// Load the state of an [`Area`] from memory.
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
@@ -45,20 +57,21 @@ impl AreaState {
 
     /// The left top positions of the area.
     pub fn left_top_pos(&self) -> Pos2 {
+        let pivot_pos = self.pivot_pos.unwrap_or_default();
         let size = self.size.unwrap_or_default();
         pos2(
-            self.pivot_pos.x - self.pivot.x().to_factor() * size.x,
-            self.pivot_pos.y - self.pivot.y().to_factor() * size.y,
+            pivot_pos.x - self.pivot.x().to_factor() * size.x,
+            pivot_pos.y - self.pivot.y().to_factor() * size.y,
         )
     }
 
     /// Move the left top positions of the area.
     pub fn set_left_top_pos(&mut self, pos: Pos2) {
         let size = self.size.unwrap_or_default();
-        self.pivot_pos = pos2(
+        self.pivot_pos = Some(pos2(
             pos.x + self.pivot.x().to_factor() * size.x,
             pos.y + self.pivot.y().to_factor() * size.y,
-        );
+        ));
     }
 
     /// Where the area is on screen.
@@ -377,28 +390,24 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = AreaState::load(ctx, id).map(|mut state| {
-            // override the saved state with the correct value
-            state.pivot = pivot;
-            state
-        });
+        let state = AreaState::load(ctx, id);
         let mut sizing_pass = state.is_none();
-        let mut state = state.unwrap_or_else(|| AreaState {
-            pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+        let mut state = state.unwrap_or(AreaState {
+            pivot_pos: None,
             pivot,
             size: None,
             interactable,
             last_became_visible_at: None,
         });
-        state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
+        state.pivot = pivot;
         state.interactable = interactable;
-
-        // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smoother fade-in
-        let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));
-
-        if !visible_last_frame || state.last_became_visible_at.is_none() {
-            state.last_became_visible_at = Some(ctx.input(|i| i.time));
+        if let Some(new_pos) = new_pos {
+            state.pivot_pos = Some(new_pos);
         }
+        state.pivot_pos.get_or_insert_with(|| {
+            default_pos.unwrap_or_else(|| automatic_area_position(ctx, layer_id))
+        });
+        state.interactable = interactable;
 
         let size = *state.size.get_or_insert_with(|| {
             sizing_pass = true;
@@ -420,6 +429,13 @@ impl Area {
 
             size
         });
+
+        // TODO(emilk): if last frame was sizing pass, it should be considered invisible for smoother fade-in
+        let visible_last_frame = ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id));
+
+        if !visible_last_frame || state.last_became_visible_at.is_none() {
+            state.last_became_visible_at = Some(ctx.input(|i| i.time));
+        }
 
         if let Some((anchor, offset)) = anchor {
             state.set_left_top_pos(
@@ -453,7 +469,9 @@ impl Area {
             });
 
             if movable && move_response.dragged() {
-                state.pivot_pos += move_response.drag_delta();
+                if let Some(pivot_pos) = &mut state.pivot_pos {
+                    *pivot_pos += move_response.drag_delta();
+                }
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -585,12 +603,13 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     }
 }
 
-fn automatic_area_position(ctx: &Context) -> Pos2 {
+fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {
     let mut existing: Vec<Rect> = ctx.memory(|mem| {
         mem.areas()
             .visible_windows()
-            .into_iter()
-            .map(AreaState::rect)
+            .filter(|(id, _)| id != &layer_id) // ignore ourselves
+            .filter(|(_, state)| state.pivot_pos.is_some() && state.size.is_some())
+            .map(|(_, state)| state.rect())
             .collect()
     });
     existing.sort_by_key(|r| r.left().round() as i32);
