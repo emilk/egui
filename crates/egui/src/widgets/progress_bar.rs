@@ -115,7 +115,7 @@ impl Widget for ProgressBar {
 
         response.widget_info(|| {
             let mut info = if let Some(ProgressBarText::Custom(text)) = &text {
-                WidgetInfo::labeled(WidgetType::ProgressIndicator, text.text())
+                WidgetInfo::labeled(WidgetType::ProgressIndicator, ui.is_enabled(), text.text())
             } else {
                 WidgetInfo::new(WidgetType::ProgressIndicator)
             };
