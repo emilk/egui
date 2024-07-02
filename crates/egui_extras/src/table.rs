@@ -423,13 +423,9 @@ impl<'a> TableBuilder<'a> {
 
         let state_id = ui.id().with("__table_state");
 
-        let initial_widths =
-            to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
-        let mut max_used_widths = vec![0.0; initial_widths.len()];
-        let (had_state, state) = TableState::load(ui, initial_widths, state_id);
-        let is_first_frame = !had_state;
-        let is_sizing_pass = is_first_frame && columns.iter().any(|c| c.is_auto());
+        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
 
+        let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
         ui.scope(|ui| {
@@ -493,13 +489,9 @@ impl<'a> TableBuilder<'a> {
 
         let state_id = ui.id().with("__table_state");
 
-        let initial_widths =
-            to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
-        let max_used_widths = vec![0.0; initial_widths.len()];
-        let (had_state, state) = TableState::load(ui, initial_widths, state_id);
-        let is_first_frame = !had_state;
-        let is_sizing_pass = is_first_frame && columns.iter().any(|c| c.is_auto());
+        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
 
+        let max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
         Table {
@@ -530,24 +522,30 @@ struct TableState {
 }
 
 impl TableState {
-    /// Returns `true` if it did load.
-    fn load(ui: &egui::Ui, default_widths: Vec<f32>, state_id: egui::Id) -> (bool, Self) {
+    /// Return true if we should do a sizing pass.
+    fn load(ui: &Ui, state_id: egui::Id, columns: &[Column], available_width: f32) -> (bool, Self) {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
-        if let Some(state) = ui.data_mut(|d| d.get_persisted::<Self>(state_id)) {
-            // make sure that the stored widths aren't out-dated
-            if state.column_widths.len() == default_widths.len() {
-                return (true, state);
-            }
-        }
+        let state = ui
+            .data_mut(|d| d.get_persisted::<Self>(state_id))
+            .filter(|state| {
+                // make sure that the stored widths aren't out-dated
+                state.column_widths.len() == columns.len()
+            });
 
-        (
-            false,
+        let is_sizing_pass =
+            ui.is_sizing_pass() || state.is_none() && columns.iter().any(|c| c.is_auto());
+
+        let state = state.unwrap_or_else(|| {
+            let initial_widths =
+                to_sizing(columns).to_lengths(available_width, ui.spacing().item_spacing.x);
             Self {
-                column_widths: default_widths,
-            },
-        )
+                column_widths: initial_widths,
+            }
+        });
+
+        (is_sizing_pass, state)
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
