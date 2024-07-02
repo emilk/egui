@@ -151,6 +151,7 @@ pub fn modifiers_from_kb_event(event: &web_sys::KeyboardEvent) -> egui::Modifier
         alt: event.alt_key(),
         ctrl: event.ctrl_key(),
         shift: event.shift_key(),
+        meta: event.meta_key(),
 
         // Ideally we should know if we are running or mac or not,
         // but this works good enough for now.
@@ -167,6 +168,7 @@ pub fn modifiers_from_mouse_event(event: &web_sys::MouseEvent) -> egui::Modifier
         alt: event.alt_key(),
         ctrl: event.ctrl_key(),
         shift: event.shift_key(),
+        meta: event.meta_key(),
 
         // Ideally we should know if we are running or mac or not,
         // but this works good enough for now.
