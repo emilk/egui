@@ -1,3 +1,4 @@
+use egui::Visuals;
 use web_sys::EventTarget;
 
 use super::*;
@@ -364,7 +365,8 @@ pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Resul
             |event, runner| {
                 let theme = theme_from_dark_mode(event.matches());
                 runner.frame.info.system_theme = Some(theme);
-                runner.egui_ctx().set_visuals(theme.egui_visuals());
+                runner.egui_ctx().set_visuals(Visuals::theme(theme));
+                runner.input.raw.system_theme = Some(theme);
                 runner.needs_repaint.repaint_asap();
             },
         )?;

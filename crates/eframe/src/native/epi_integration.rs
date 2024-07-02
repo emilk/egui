@@ -7,10 +7,10 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
-use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
+use egui::{DeferredViewportUiCallback, NumExt as _, Theme, ViewportBuilder, ViewportId, Visuals};
 use egui_winit::{EventResponse, WindowSettings};
 
-use crate::{epi, Theme};
+use crate::epi;
 
 pub fn viewport_builder<E>(
     egui_zoom_factor: f32,
@@ -280,7 +280,7 @@ impl EpiIntegration {
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);
-                self.egui_ctx.set_visuals(theme.egui_visuals());
+                self.egui_ctx.set_visuals(Visuals::theme(theme));
             }
             _ => {}
         }

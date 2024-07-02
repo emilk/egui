@@ -929,6 +929,17 @@ impl Visuals {
     }
 }
 
+/// Dark or Light theme.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum Theme {
+    /// Dark mode: light text on a dark background.
+    Dark,
+
+    /// Light mode: dark text on a light background.
+    Light,
+}
+
 /// Selected text, selected elements etc
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -1176,6 +1187,14 @@ impl Default for Interaction {
 }
 
 impl Visuals {
+    /// Default dark or light theme.
+    pub fn theme(theme: Theme) -> Self {
+        match theme {
+            Theme::Dark => Self::dark(),
+            Theme::Light => Self::light(),
+        }
+    }
+
     /// Default dark theme.
     pub fn dark() -> Self {
         Self {

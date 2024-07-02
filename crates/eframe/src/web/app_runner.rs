@@ -1,4 +1,4 @@
-use egui::TexturesDelta;
+use egui::{TexturesDelta, Visuals};
 
 use crate::{epi, App};
 
@@ -69,7 +69,7 @@ impl AppRunner {
         });
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
-        egui_ctx.set_visuals(theme.egui_visuals());
+        egui_ctx.set_visuals(Visuals::theme(theme));
 
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
@@ -132,6 +132,7 @@ impl AppRunner {
             .entry(egui::ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner.input.raw.system_theme = super::system_theme();
 
         Ok(runner)
     }

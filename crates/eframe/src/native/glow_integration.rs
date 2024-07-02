@@ -29,7 +29,7 @@ use winit::{
 use ahash::{HashMap, HashSet};
 use egui::{
     DeferredViewportUiCallback, ImmediateViewport, ViewportBuilder, ViewportClass, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportInfo, ViewportOutput,
+    ViewportIdMap, ViewportIdPair, ViewportInfo, ViewportOutput, Visuals,
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -222,6 +222,9 @@ impl GlowWinitApp {
         for viewport in glutin.viewports.values_mut() {
             if let Some(egui_winit) = viewport.egui_winit.as_mut() {
                 egui_winit.set_max_texture_side(max_texture_side);
+                if let Some(window) = viewport.window.as_deref() {
+                    egui_winit.init_system_theme(window);
+                }
             }
         }
 
@@ -279,7 +282,7 @@ impl GlowWinitApp {
         }
 
         let theme = system_theme.unwrap_or(self.native_options.default_theme);
-        integration.egui_ctx.set_visuals(theme.egui_visuals());
+        integration.egui_ctx.set_visuals(Visuals::theme(theme));
 
         if self
             .native_options
