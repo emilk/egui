@@ -553,10 +553,9 @@ impl TableState {
         let is_sizing_pass =
             ui.is_sizing_pass() || state.is_none() && columns.iter().any(|c| c.is_auto());
 
-        let sizing = to_sizing(columns);
-
         let mut state = state.unwrap_or_else(|| {
-            let initial_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
+            let initial_widths =
+                to_sizing(columns).to_lengths(available_width, ui.spacing().item_spacing.x);
             Self {
                 column_widths: initial_widths,
                 max_used_widths: Default::default(),
