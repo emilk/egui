@@ -29,7 +29,7 @@ impl eframe::App for MyApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
             }
 
-            let my_plot = Plot::new("My Plot").legend(Legend::default());
+            let my_plot = Plot::<()>::new("My Plot").legend(Legend::default());
 
             // let's create a dummy line in the plot
             let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];

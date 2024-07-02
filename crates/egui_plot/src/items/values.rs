@@ -9,28 +9,66 @@ use crate::transform::PlotBounds;
 /// Uses f64 for improved accuracy to enable plotting
 /// large values (e.g. unix time on x axis).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PlotPoint {
+pub struct PlotPoint<T = ()> {
     /// This is often something monotonically increasing, such as time, but doesn't have to be.
     /// Goes from left to right.
     pub x: f64,
 
     /// Goes from bottom to top (inverse of everything else in egui!).
     pub y: f64,
+
+    pub userdata: Option<T>,
 }
 
-impl From<[f64; 2]> for PlotPoint {
+impl<T> From<[f64; 2]> for PlotPoint<T> {
     #[inline]
     fn from([x, y]: [f64; 2]) -> Self {
-        Self { x, y }
+        Self {
+            x,
+            y,
+            userdata: None,
+        }
     }
 }
 
-impl PlotPoint {
+impl<T> From<([f64; 2], T)> for PlotPoint<T> {
+    #[inline]
+    fn from(([x, y], userdata): ([f64; 2], T)) -> Self {
+        Self {
+            x,
+            y,
+            userdata: Some(userdata),
+        }
+    }
+}
+
+impl<T> From<(f64, f64)> for PlotPoint<T> {
+    #[inline]
+    fn from((x, y): (f64, f64)) -> Self {
+        Self {
+            x,
+            y,
+            userdata: None,
+        }
+    }
+}
+
+impl<T> PlotPoint<T> {
     #[inline(always)]
     pub fn new(x: impl Into<f64>, y: impl Into<f64>) -> Self {
         Self {
             x: x.into(),
             y: y.into(),
+            userdata: None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn new_with_userdata(x: impl Into<f64>, y: impl Into<f64>, userdata: T) -> Self {
+        Self {
+            x: x.into(),
+            y: y.into(),
+            userdata: Some(userdata),
         }
     }
 
@@ -153,42 +191,64 @@ impl Default for Orientation {
 /// Represents many [`PlotPoint`]s.
 ///
 /// These can be an owned `Vec` or generated with a function.
-pub enum PlotPoints {
-    Owned(Vec<PlotPoint>),
+pub enum PlotPoints<T = ()> {
+    Owned(Vec<PlotPoint<T>>),
     Generator(ExplicitGenerator),
     // Borrowed(&[PlotPoint]), // TODO(EmbersArc): Lifetimes are tricky in this case.
 }
 
-impl Default for PlotPoints {
+impl<T> Default for PlotPoints<T> {
     fn default() -> Self {
         Self::Owned(Vec::new())
     }
 }
 
-impl From<[f64; 2]> for PlotPoints {
+impl<T> From<[f64; 2]> for PlotPoints<T> {
     fn from(coordinate: [f64; 2]) -> Self {
         Self::new(vec![coordinate])
     }
 }
 
-impl From<Vec<[f64; 2]>> for PlotPoints {
+impl<T> From<Vec<[f64; 2]>> for PlotPoints<T> {
     fn from(coordinates: Vec<[f64; 2]>) -> Self {
         Self::new(coordinates)
     }
 }
 
-impl FromIterator<[f64; 2]> for PlotPoints {
-    fn from_iter<T: IntoIterator<Item = [f64; 2]>>(iter: T) -> Self {
+impl<T> From<Vec<([f64; 2], T)>> for PlotPoints<T> {
+    fn from(coordinates: Vec<([f64; 2], T)>) -> Self {
+        coordinates.into_iter().collect::<Self>()
+    }
+}
+
+impl<T> FromIterator<[f64; 2]> for PlotPoints<T> {
+    fn from_iter<I: IntoIterator<Item = [f64; 2]>>(iter: I) -> Self {
         Self::Owned(iter.into_iter().map(|point| point.into()).collect())
     }
 }
 
-impl PlotPoints {
+impl<T> FromIterator<PlotPoint<T>> for PlotPoints<T> {
+    fn from_iter<I: IntoIterator<Item = PlotPoint<T>>>(iter: I) -> Self {
+        Self::Owned(iter.into_iter().collect())
+    }
+}
+
+impl<T> FromIterator<([f64; 2], T)> for PlotPoints<T> {
+    fn from_iter<I: IntoIterator<Item = ([f64; 2], T)>>(iter: I) -> Self {
+        Self::Owned(iter.into_iter().map(|point| point.into()).collect())
+    }
+}
+
+impl<T> PlotPoints<T> {
     pub fn new(points: Vec<[f64; 2]>) -> Self {
         Self::from_iter(points)
     }
 
-    pub fn points(&self) -> &[PlotPoint] {
+    pub fn new_with_userdata(points: Vec<([f64; 2], T)>) -> Self {
+        Self::from_iter(points)
+    }
+
+    pub fn points(&self) -> &[PlotPoint<T>] {
         match self {
             Self::Owned(points) => points.as_slice(),
             Self::Generator(_) => &[],
@@ -245,7 +305,7 @@ impl PlotPoints {
         (0..points)
             .map(|i| {
                 let t = start + i as f64 * increment;
-                function(t).into()
+                Into::<PlotPoint<T>>::into(function(t))
             })
             .collect()
     }
@@ -357,12 +417,12 @@ impl MarkerShape {
 // ----------------------------------------------------------------------------
 
 /// Query the points of the plot, for geometric relations like closest checks
-pub enum PlotGeometry<'a> {
+pub enum PlotGeometry<'a, T = ()> {
     /// No geometry based on single elements (examples: text, image, horizontal/vertical line)
     None,
 
     /// Point values (X-Y graphs)
-    Points(&'a [PlotPoint]),
+    Points(&'a [PlotPoint<T>]),
 
     /// Rectangles (examples: boxes or bars)
     // Has currently no data, as it would require copying rects or iterating a list of pointers.

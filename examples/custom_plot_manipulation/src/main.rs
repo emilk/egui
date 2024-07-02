@@ -121,7 +121,7 @@ impl eframe::App for PlotExample {
                         plot_ui.translate_bounds(pointer_translate);
                     }
 
-                    let sine_points = PlotPoints::from_explicit_callback(|x| x.sin(), .., 5000);
+                    let sine_points = PlotPoints::<()>::from_explicit_callback(|x| x.sin(), .., 5000);
                     plot_ui.line(Line::new(sine_points).name("Sine"));
                 });
         });

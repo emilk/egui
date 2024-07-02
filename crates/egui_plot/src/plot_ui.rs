@@ -2,17 +2,17 @@ use crate::*;
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
-pub struct PlotUi {
+pub struct PlotUi<T = ()> {
     pub(crate) ctx: Context,
-    pub(crate) items: Vec<Box<dyn PlotItem>>,
+    pub(crate) items: Vec<Box<dyn PlotItem<T>>>,
     pub(crate) next_auto_color_idx: usize,
     pub(crate) last_plot_transform: PlotTransform,
     pub(crate) last_auto_bounds: Vec2b,
     pub(crate) response: Response,
-    pub(crate) bounds_modifications: Vec<BoundsModification>,
+    pub(crate) bounds_modifications: Vec<BoundsModification<T>>,
 }
 
-impl PlotUi {
+impl<T: 'static> PlotUi<T> {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
@@ -68,7 +68,7 @@ impl PlotUi {
     /// The plot bounds are divided by `zoom_factor`, therefore:
     /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
     /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
-    pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+    pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint<T>) {
         self.bounds_modifications
             .push(BoundsModification::Zoom(zoom_factor, center));
     }
@@ -87,7 +87,7 @@ impl PlotUi {
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
-    pub fn pointer_coordinate(&self) -> Option<PlotPoint> {
+    pub fn pointer_coordinate(&self) -> Option<PlotPoint<T>> {
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
         let last_pos = self.ctx().input(|i| i.pointer.latest_pos())? - self.response.drag_delta();
         let value = self.plot_from_screen(last_pos);
@@ -107,22 +107,22 @@ impl PlotUi {
     }
 
     /// Transform the plot coordinates to screen coordinates.
-    pub fn screen_from_plot(&self, position: PlotPoint) -> Pos2 {
+    pub fn screen_from_plot(&self, position: PlotPoint<T>) -> Pos2 {
         self.last_plot_transform.position_from_point(&position)
     }
 
     /// Transform the screen coordinates to plot coordinates.
-    pub fn plot_from_screen(&self, position: Pos2) -> PlotPoint {
+    pub fn plot_from_screen(&self, position: Pos2) -> PlotPoint<T> {
         self.last_plot_transform.value_from_position(position)
     }
 
     /// Add an arbitrary item.
-    pub fn add(&mut self, item: impl PlotItem + 'static) {
+    pub fn add(&mut self, item: impl PlotItem<T> + 'static) {
         self.items.push(Box::new(item));
     }
 
     /// Add a data line.
-    pub fn line(&mut self, mut line: Line) {
+    pub fn line(&mut self, mut line: Line<T>) {
         if line.series.is_empty() {
             return;
         };
@@ -135,7 +135,7 @@ impl PlotUi {
     }
 
     /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(&mut self, mut polygon: Polygon) {
+    pub fn polygon(&mut self, mut polygon: Polygon<T>) {
         if polygon.series.is_empty() {
             return;
         };
@@ -148,7 +148,7 @@ impl PlotUi {
     }
 
     /// Add a text.
-    pub fn text(&mut self, text: Text) {
+    pub fn text(&mut self, text: Text<T>) {
         if text.text.is_empty() {
             return;
         };
@@ -157,7 +157,7 @@ impl PlotUi {
     }
 
     /// Add data points.
-    pub fn points(&mut self, mut points: Points) {
+    pub fn points(&mut self, mut points: Points<T>) {
         if points.series.is_empty() {
             return;
         };
@@ -170,7 +170,7 @@ impl PlotUi {
     }
 
     /// Add arrows.
-    pub fn arrows(&mut self, mut arrows: Arrows) {
+    pub fn arrows(&mut self, mut arrows: Arrows<T>) {
         if arrows.origins.is_empty() || arrows.tips.is_empty() {
             return;
         };
@@ -183,7 +183,7 @@ impl PlotUi {
     }
 
     /// Add an image.
-    pub fn image(&mut self, image: PlotImage) {
+    pub fn image(&mut self, image: PlotImage<T>) {
         self.items.push(Box::new(image));
     }
 
@@ -208,7 +208,7 @@ impl PlotUi {
     }
 
     /// Add a box plot diagram.
-    pub fn box_plot(&mut self, mut box_plot: BoxPlot) {
+    pub fn box_plot(&mut self, mut box_plot: BoxPlot<T>) {
         if box_plot.boxes.is_empty() {
             return;
         }
@@ -221,7 +221,7 @@ impl PlotUi {
     }
 
     /// Add a bar chart.
-    pub fn bar_chart(&mut self, mut chart: BarChart) {
+    pub fn bar_chart(&mut self, mut chart: BarChart<T>) {
         if chart.bars.is_empty() {
             return;
         }

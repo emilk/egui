@@ -39,22 +39,22 @@ use axis::AxisWidget;
 use items::{horizontal_line, rulers_color, vertical_line};
 use legend::LegendWidget;
 
-type LabelFormatterFn<'a> = dyn Fn(&str, &PlotPoint) -> String + 'a;
-pub type LabelFormatter<'a> = Option<Box<LabelFormatterFn<'a>>>;
+type LabelFormatterFn<'a, T> = dyn Fn(&str, &PlotPoint<T>) -> String + 'a;
+pub type LabelFormatter<'a, T> = Option<Box<LabelFormatterFn<'a, T>>>;
 
 type GridSpacerFn<'a> = dyn Fn(GridInput) -> Vec<GridMark> + 'a;
 type GridSpacer<'a> = Box<GridSpacerFn<'a>>;
 
-type CoordinatesFormatterFn<'a> = dyn Fn(&PlotPoint, &PlotBounds) -> String + 'a;
+type CoordinatesFormatterFn<'a, T> = dyn Fn(&PlotPoint<T>, &PlotBounds) -> String + 'a;
 
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
-pub struct CoordinatesFormatter<'a> {
-    function: Box<CoordinatesFormatterFn<'a>>,
+pub struct CoordinatesFormatter<'a, T> {
+    function: Box<CoordinatesFormatterFn<'a, T>>,
 }
 
-impl<'a> CoordinatesFormatter<'a> {
+impl<'a, T> CoordinatesFormatter<'a, T> {
     /// Create a new formatter based on the pointer coordinate and the plot bounds.
-    pub fn new(function: impl Fn(&PlotPoint, &PlotBounds) -> String + 'a) -> Self {
+    pub fn new(function: impl Fn(&PlotPoint<T>, &PlotBounds) -> String + 'a) -> Self {
         Self {
             function: Box::new(function),
         }
@@ -69,12 +69,12 @@ impl<'a> CoordinatesFormatter<'a> {
         }
     }
 
-    fn format(&self, value: &PlotPoint, bounds: &PlotBounds) -> String {
+    fn format(&self, value: &PlotPoint<T>, bounds: &PlotBounds) -> String {
         (self.function)(value, bounds)
     }
 }
 
-impl Default for CoordinatesFormatter<'_> {
+impl<T> Default for CoordinatesFormatter<'_, T> {
     fn default() -> Self {
         Self::with_decimals(3)
     }
@@ -145,7 +145,7 @@ pub struct PlotResponse<R> {
 /// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
 /// # });
 /// ```
-pub struct Plot<'a> {
+pub struct Plot<'a, T = ()> {
     id_source: Id,
     id: Option<Id>,
 
@@ -172,8 +172,8 @@ pub struct Plot<'a> {
 
     show_x: bool,
     show_y: bool,
-    label_formatter: LabelFormatter<'a>,
-    coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a>)>,
+    label_formatter: LabelFormatter<'a, T>,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a, T>)>,
     x_axes: Vec<AxisHints<'a>>, // default x axes
     y_axes: Vec<AxisHints<'a>>, // default y axes
     legend_config: Option<Legend>,
@@ -189,7 +189,7 @@ pub struct Plot<'a> {
     sense: Sense,
 }
 
-impl<'a> Plot<'a> {
+impl<'a, T> Plot<'a, T> {
     /// Give a unique id for each plot within the same [`Ui`].
     pub fn new(id_source: impl std::hash::Hash) -> Self {
         Self {
@@ -323,9 +323,9 @@ impl<'a> Plot<'a> {
     ///
     /// Note: Allowing zoom in one axis but not the other may lead to unexpected results if used in combination with `data_aspect`.
     #[inline]
-    pub fn allow_zoom<T>(mut self, on: T) -> Self
+    pub fn allow_zoom<T2>(mut self, on: T2) -> Self
     where
-        T: Into<Vec2b>,
+        T2: Into<Vec2b>,
     {
         self.allow_zoom = on.into();
         self
@@ -333,9 +333,9 @@ impl<'a> Plot<'a> {
 
     /// Whether to allow scrolling in the plot. Default: `true`.
     #[inline]
-    pub fn allow_scroll<T>(mut self, on: T) -> Self
+    pub fn allow_scroll<T2>(mut self, on: T2) -> Self
     where
-        T: Into<Vec2b>,
+        T2: Into<Vec2b>,
     {
         self.allow_scroll = on.into();
         self
@@ -376,9 +376,9 @@ impl<'a> Plot<'a> {
 
     /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
     #[inline]
-    pub fn allow_drag<T>(mut self, on: T) -> Self
+    pub fn allow_drag<T2>(mut self, on: T2) -> Self
     where
-        T: Into<Vec2b>,
+        T2: Into<Vec2b>,
     {
         self.allow_drag = on.into();
         self
@@ -407,7 +407,7 @@ impl<'a> Plot<'a> {
     /// ```
     pub fn label_formatter(
         mut self,
-        label_formatter: impl Fn(&str, &PlotPoint) -> String + 'a,
+        label_formatter: impl Fn(&str, &PlotPoint<T>) -> String + 'a,
     ) -> Self {
         self.label_formatter = Some(Box::new(label_formatter));
         self
@@ -417,7 +417,7 @@ impl<'a> Plot<'a> {
     pub fn coordinates_formatter(
         mut self,
         position: Corner,
-        formatter: CoordinatesFormatter<'a>,
+        formatter: CoordinatesFormatter<'a, T>,
     ) -> Self {
         self.coordinates_formatter = Some((position, formatter));
         self
@@ -726,7 +726,7 @@ impl<'a> Plot<'a> {
     pub fn show<R>(
         self,
         ui: &mut Ui,
-        build_fn: impl FnOnce(&mut PlotUi) -> R + 'a,
+        build_fn: impl FnOnce(&mut PlotUi<T>) -> R + 'a,
     ) -> PlotResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
     }
@@ -734,7 +734,7 @@ impl<'a> Plot<'a> {
     fn show_dyn<R>(
         self,
         ui: &mut Ui,
-        build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
+        build_fn: Box<dyn FnOnce(&mut PlotUi<T>) -> R + 'a>,
     ) -> PlotResponse<R> {
         let Self {
             id_source,
@@ -1075,8 +1075,9 @@ impl<'a> Plot<'a> {
                 }
                 // when the click is release perform the zoom
                 if response.drag_stopped() {
-                    let box_start_pos = mem.transform.value_from_position(box_start_pos);
-                    let box_end_pos = mem.transform.value_from_position(box_end_pos);
+                    let box_start_pos: PlotPoint<T> =
+                        mem.transform.value_from_position(box_start_pos);
+                    let box_end_pos: PlotPoint<T> = mem.transform.value_from_position(box_end_pos);
                     let new_bounds = PlotBounds {
                         min: [
                             box_start_pos.x.min(box_end_pos.x),
@@ -1117,7 +1118,7 @@ impl<'a> Plot<'a> {
                     zoom_factor.y = 1.0;
                 }
                 if zoom_factor != Vec2::splat(1.0) {
-                    mem.transform.zoom(zoom_factor, hover_pos);
+                    mem.transform.zoom::<T>(zoom_factor, hover_pos);
                     mem.auto_bounds = mem.auto_bounds.and(!allow_zoom);
                 }
             }
@@ -1161,14 +1162,14 @@ impl<'a> Plot<'a> {
             widget.range = x_axis_range.clone();
             widget.transform = Some(mem.transform);
             widget.steps = x_steps.clone();
-            let (_response, thickness) = widget.ui(ui, Axis::X);
+            let (_response, thickness) = widget.ui::<T>(ui, Axis::X);
             mem.x_axis_thickness.insert(i, thickness);
         }
         for (i, mut widget) in y_axis_widgets.into_iter().enumerate() {
             widget.range = y_axis_range.clone();
             widget.transform = Some(mem.transform);
             widget.steps = y_steps.clone();
-            let (_response, thickness) = widget.ui(ui, Axis::Y);
+            let (_response, thickness) = widget.ui::<T>(ui, Axis::Y);
             mem.y_axis_thickness.insert(i, thickness);
         }
 
@@ -1370,11 +1371,11 @@ fn axis_widgets<'a>(
 
 /// User-requested modifications to the plot bounds. We collect them in the plot build function to later apply
 /// them at the right time, as other modifications need to happen first.
-enum BoundsModification {
+enum BoundsModification<T> {
     Set(PlotBounds),
     Translate(Vec2),
     AutoBounds(Vec2b),
-    Zoom(Vec2, PlotPoint),
+    Zoom(Vec2, PlotPoint<T>),
 }
 
 // ----------------------------------------------------------------------------
@@ -1459,12 +1460,12 @@ pub fn uniform_grid_spacer<'a>(spacer: impl Fn(GridInput) -> [f64; 3] + 'a) -> G
 
 // ----------------------------------------------------------------------------
 
-struct PreparedPlot<'a> {
-    items: Vec<Box<dyn PlotItem>>,
+struct PreparedPlot<'a, T> {
+    items: Vec<Box<dyn PlotItem<T>>>,
     show_x: bool,
     show_y: bool,
-    label_formatter: LabelFormatter<'a>,
-    coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a>)>,
+    label_formatter: LabelFormatter<'a, T>,
+    coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a, T>)>,
     // axis_formatters: [AxisFormatter; 2],
     transform: PlotTransform,
     show_grid: Vec2b,
@@ -1478,7 +1479,7 @@ struct PreparedPlot<'a> {
     clamp_grid: bool,
 }
 
-impl<'a> PreparedPlot<'a> {
+impl<'a, T> PreparedPlot<'a, T> {
     fn ui(self, ui: &mut Ui, response: &Response) -> (Vec<Cursor>, Option<Id>) {
         let mut axes_shapes = Vec::new();
 
@@ -1518,7 +1519,7 @@ impl<'a> PreparedPlot<'a> {
                     Cursor::Horizontal { y } => {
                         if self.draw_cursor_y || always {
                             shapes.push(horizontal_line(
-                                transform.position_from_point(&PlotPoint::new(0.0, y)),
+                                transform.position_from_point(&PlotPoint::<T>::new(0.0, y)),
                                 &self.transform,
                                 line_color,
                             ));
@@ -1527,7 +1528,7 @@ impl<'a> PreparedPlot<'a> {
                     Cursor::Vertical { x } => {
                         if self.draw_cursor_x || always {
                             shapes.push(vertical_line(
-                                transform.position_from_point(&PlotPoint::new(x, 0.0)),
+                                transform.position_from_point(&PlotPoint::<T>::new(x, 0.0)),
                                 &self.transform,
                                 line_color,
                             ));
@@ -1614,8 +1615,8 @@ impl<'a> PreparedPlot<'a> {
             }
 
             let value = match axis {
-                Axis::X => PlotPoint::new(value_main, value_cross),
-                Axis::Y => PlotPoint::new(value_cross, value_main),
+                Axis::X => PlotPoint::<T>::new(value_main, value_cross),
+                Axis::Y => PlotPoint::<T>::new(value_cross, value_main),
             };
 
             let pos_in_gui = transform.position_from_point(&value);
@@ -1706,7 +1707,7 @@ impl<'a> PreparedPlot<'a> {
             let value = transform.value_from_position(pointer);
             items::rulers_at_value(
                 pointer,
-                value,
+                &value,
                 "",
                 &plot,
                 shapes,

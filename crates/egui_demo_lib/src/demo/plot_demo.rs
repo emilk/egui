@@ -21,6 +21,7 @@ enum Panel {
     Interaction,
     CustomAxes,
     LinkedAxes,
+    Userdata,
 }
 
 impl Default for Panel {
@@ -41,6 +42,7 @@ pub struct PlotDemo {
     interaction_demo: InteractionDemo,
     custom_axes_demo: CustomAxesDemo,
     linked_axes_demo: LinkedAxesDemo,
+    userdata_demo: UserdataDemo,
     open_panel: Panel,
 }
 
@@ -87,6 +89,7 @@ impl crate::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
             ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut self.open_panel, Panel::Userdata, "Userdata");
         });
         ui.separator();
 
@@ -114,6 +117,9 @@ impl crate::View for PlotDemo {
             }
             Panel::LinkedAxes => {
                 self.linked_axes_demo.ui(ui);
+            }
+            Panel::Userdata => {
+                self.userdata_demo.ui(ui);
             }
         }
     }
@@ -737,7 +743,7 @@ impl ItemsDemo {
             5.0 * vec2(texture.aspect_ratio(), 1.0),
         );
 
-        let plot = Plot::new("items_demo")
+        let plot = <Plot<'_>>::new("items_demo")
             .legend(Legend::default().position(Corner::RightBottom))
             .show_x(false)
             .show_y(false)
@@ -782,7 +788,7 @@ impl InteractionDemo {
             ));
         }
 
-        let plot = Plot::new("interaction_demo").id(id).height(300.0);
+        let plot = <Plot<'_>>::new("interaction_demo").id(id).height(300.0);
 
         let PlotResponse {
             response,
@@ -955,7 +961,7 @@ impl ChartsDemo {
             chart = chart.horizontal();
         }
 
-        Plot::new("Normal Distribution Demo")
+        <Plot<'_>>::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
             .allow_zoom(self.allow_zoom)
@@ -1016,7 +1022,7 @@ impl ChartsDemo {
             chart4 = chart4.horizontal();
         }
 
-        Plot::new("Stacked Bar Chart Demo")
+        <Plot<'_>>::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
             .data_aspect(1.0)
             .allow_drag(self.allow_drag)
@@ -1061,7 +1067,7 @@ impl ChartsDemo {
             box3 = box3.horizontal();
         }
 
-        Plot::new("Box Plot Demo")
+        <Plot<'_>>::new("Box Plot Demo")
             .legend(Legend::default())
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
@@ -1071,6 +1077,99 @@ impl ChartsDemo {
                 plot_ui.box_plot(box3);
             })
             .response
+    }
+}
+
+#[derive(Default, PartialEq)]
+struct UserdataDemo {}
+
+#[derive(Debug)]
+struct Userdata {
+    #[allow(dead_code)]
+    boolean: bool,
+}
+
+impl UserdataDemo {
+    #[allow(clippy::unused_self)]
+    fn ui(&mut self, ui: &mut Ui) -> Response {
+        let id = ui.make_persistent_id("userdata_demo");
+
+        // This demonstrates how to supply custom data to plot points
+        let plot = Plot::<Userdata>::new("interaction_demo")
+            .id(id)
+            .height(300.0)
+            .label_formatter(|_, plot_point| {
+                format!(
+                    "x:{:.3}\ny:{:.3}\nUserdata: {:?}",
+                    plot_point.x, plot_point.y, plot_point.userdata
+                )
+            });
+
+        let PlotResponse {
+            response,
+            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            hovered_plot_item,
+            ..
+        } = plot.show(ui, |plot_ui| {
+            plot_ui.line(
+                Line::new(
+                    (0..10)
+                        .map(|x| {
+                            (
+                                [
+                                    (x as f64 / 10.0) * std::f64::consts::PI * 2.0,
+                                    ((x as f64 / 10.0) * std::f64::consts::PI * 2.0).sin(),
+                                ],
+                                Userdata { boolean: x < 5 },
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                )
+                .color(Color32::RED)
+                .id(egui::Id::new("sin")),
+            );
+
+            (
+                plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
+                plot_ui.pointer_coordinate(),
+                plot_ui.pointer_coordinate_drag_delta(),
+                plot_ui.plot_bounds(),
+                plot_ui.response().hovered(),
+            )
+        });
+
+        ui.label(format!(
+            "plot bounds: min: {:.02?}, max: {:.02?}",
+            bounds.min(),
+            bounds.max()
+        ));
+        ui.label(format!(
+            "origin in screen coordinates: x: {:.02}, y: {:.02}",
+            screen_pos.x, screen_pos.y
+        ));
+        ui.label(format!("plot hovered: {hovered}"));
+        let coordinate_text = if let Some(coordinate) = pointer_coordinate {
+            format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
+        } else {
+            "None".to_owned()
+        };
+        ui.label(format!("pointer coordinate: {coordinate_text}"));
+        let coordinate_text = format!(
+            "x: {:.02}, y: {:.02}",
+            pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
+        );
+        ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
+
+        let hovered_item = if hovered_plot_item == Some(egui::Id::new("sin")) {
+            "red sin"
+        } else if hovered_plot_item == Some(egui::Id::new("cos")) {
+            "blue cos"
+        } else {
+            "none"
+        };
+        ui.label(format!("hovered plot item: {hovered_item}"));
+
+        response
     }
 }
 
