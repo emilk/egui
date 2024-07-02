@@ -49,31 +49,27 @@ impl Size {
     /// Won't shrink below this size (in points).
     #[inline]
     pub fn at_least(mut self, minimum: f32) -> Self {
-        match &mut self {
-            Self::Absolute { range, .. }
-            | Self::Relative { range, .. }
-            | Self::Remainder { range, .. } => {
-                range.min = minimum;
-            }
-        }
+        self.range_mut().min = minimum;
         self
     }
 
     /// Won't grow above this size (in points).
     #[inline]
     pub fn at_most(mut self, maximum: f32) -> Self {
-        match &mut self {
-            Self::Absolute { range, .. }
-            | Self::Relative { range, .. }
-            | Self::Remainder { range, .. } => {
-                range.max = maximum;
-            }
-        }
+        self.range_mut().max = maximum;
         self
     }
 
     /// Allowed range of movement (in points), if in a resizable [`Table`](crate::table::Table).
     pub fn range(self) -> Rangef {
+        match self {
+            Self::Absolute { range, .. }
+            | Self::Relative { range, .. }
+            | Self::Remainder { range, .. } => range,
+        }
+    }
+
+    pub fn range_mut(&mut self) -> &mut Rangef {
         match self {
             Self::Absolute { range, .. }
             | Self::Relative { range, .. }
