@@ -283,6 +283,18 @@ impl<'a> Image<'a> {
         }
     }
 
+    /// Get the `uri` that this image.
+    #[inline]
+    pub fn uri(&self) -> Option<&str> {
+        let uri = self.source.uri()?;
+
+        if let Ok((gif_uri, _index)) = decode_gif_uri(uri) {
+            Some(gif_uri)
+        } else {
+            Some(uri)
+        }
+    }
+
     #[inline]
     pub fn image_options(&self) -> &ImageOptions {
         &self.image_options
