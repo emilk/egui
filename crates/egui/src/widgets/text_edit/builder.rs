@@ -425,7 +425,7 @@ impl<'t> TextEdit<'t> {
                         frame_rect,
                         visuals.rounding,
                         ui.visuals().extreme_bg_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        ui.visuals().widgets.noninteractive.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
             } else {
@@ -753,7 +753,7 @@ impl<'t> TextEdit<'t> {
                 )
             });
         } else if selection_changed {
-            let cursor_range = cursor_range.unwrap();
+            let cursor_range = cursor_range.unwrap_or_default();
             let char_range =
                 cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
             let info = WidgetInfo::text_selection_changed(
