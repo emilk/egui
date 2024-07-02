@@ -2564,7 +2564,7 @@ impl Ui {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::menu_image_button(self, ImageButton::new(image), add_contents)
+            menu::menu_custom_button(self, Button::image(image), add_contents)
         }
     }
 
@@ -2596,7 +2596,7 @@ impl Ui {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, title, add_contents)
         } else {
-            menu::menu_text_image_button(self, Button::image_and_text(image, title), add_contents)
+            menu::menu_custom_button(self, Button::image_and_text(image, title), add_contents)
         }
     }
 }
