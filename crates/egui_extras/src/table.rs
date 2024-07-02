@@ -156,8 +156,7 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
             InitialColumnSize::Automatic(suggested_width) => Size::initial(suggested_width),
             InitialColumnSize::Remainder => Size::remainder(),
         }
-        .at_least(column.width_range.min)
-        .at_most(column.width_range.max);
+        .with_range(column.width_range);
         sizing.add(size);
     }
     sizing
@@ -405,6 +404,12 @@ impl<'a> TableBuilder<'a> {
                 * self.ui.spacing().scroll.allocated_width()
     }
 
+    /// Reset all column widths.
+    pub fn reset(&mut self) {
+        let state_id = self.ui.id().with("__table_state");
+        TableState::reset(self.ui, state_id);
+    }
+
     /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, add_header_row: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let available_width = self.available_width();
@@ -423,14 +428,14 @@ impl<'a> TableBuilder<'a> {
 
         let state_id = ui.id().with("__table_state");
 
-        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
+        let (is_sizing_pass, state) =
+            TableState::load(ui, state_id, resizable, &columns, available_width);
 
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
         ui.scope(|ui| {
             if is_sizing_pass {
-                // Hide first-frame-jitters when auto-sizing.
                 ui.set_sizing_pass();
             }
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
@@ -489,7 +494,8 @@ impl<'a> TableBuilder<'a> {
 
         let state_id = ui.id().with("__table_state");
 
-        let (is_sizing_pass, state) = TableState::load(ui, state_id, &columns, available_width);
+        let (is_sizing_pass, state) =
+            TableState::load(ui, state_id, resizable, &columns, available_width);
 
         let max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
@@ -519,11 +525,21 @@ impl<'a> TableBuilder<'a> {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct TableState {
     column_widths: Vec<f32>,
+
+    /// If known from previous frame
+    #[cfg_attr(feature = "serde", serde(skip))]
+    max_used_widths: Vec<f32>,
 }
 
 impl TableState {
     /// Return true if we should do a sizing pass.
-    fn load(ui: &Ui, state_id: egui::Id, columns: &[Column], available_width: f32) -> (bool, Self) {
+    fn load(
+        ui: &Ui,
+        state_id: egui::Id,
+        resizable: bool,
+        columns: &[Column],
+        available_width: f32,
+    ) -> (bool, Self) {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
@@ -537,19 +553,55 @@ impl TableState {
         let is_sizing_pass =
             ui.is_sizing_pass() || state.is_none() && columns.iter().any(|c| c.is_auto());
 
-        let state = state.unwrap_or_else(|| {
+        let mut state = state.unwrap_or_else(|| {
             let initial_widths =
                 to_sizing(columns).to_lengths(available_width, ui.spacing().item_spacing.x);
             Self {
                 column_widths: initial_widths,
+                max_used_widths: Default::default(),
             }
         });
+
+        if !is_sizing_pass && state.max_used_widths.len() == columns.len() {
+            // Make sure any non-resizable `remainder` columns are updated
+            // to take up the remainder of the current available width.
+            // Also handles changing item spacing.
+            let mut sizing = crate::sizing::Sizing::default();
+            for ((prev_width, max_used), column) in state
+                .column_widths
+                .iter()
+                .zip(&state.max_used_widths)
+                .zip(columns)
+            {
+                use crate::Size;
+
+                let column_resizable = column.resizable.unwrap_or(resizable);
+                let size = if column_resizable {
+                    // Resiable columns keep their width:
+                    Size::exact(*prev_width)
+                } else {
+                    match column.initial_width {
+                        InitialColumnSize::Absolute(width) => Size::exact(width),
+                        InitialColumnSize::Automatic(_) => Size::exact(*prev_width),
+                        InitialColumnSize::Remainder => Size::remainder(),
+                    }
+                    .at_least(column.width_range.min.max(*max_used))
+                    .at_most(column.width_range.max)
+                };
+                sizing.add(size);
+            }
+            state.column_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
+        }
 
         (is_sizing_pass, state)
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
         ui.data_mut(|d| d.insert_persisted(state_id, self));
+    }
+
+    fn reset(ui: &egui::Ui, state_id: egui::Id) {
+        ui.data_mut(|d| d.remove::<Self>(state_id));
     }
 }
 
@@ -645,7 +697,6 @@ impl<'a> Table<'a> {
 
             let clip_rect = ui.clip_rect();
 
-            // Hide first-frame-jitters when auto-sizing.
             ui.scope(|ui| {
                 if is_sizing_pass {
                     ui.set_sizing_pass();
@@ -695,16 +746,11 @@ impl<'a> Table<'a> {
             let column_is_resizable = column.resizable.unwrap_or(resizable);
             let width_range = column.width_range;
 
-            if !column.clip {
-                // Unless we clip we don't want to shrink below the
-                // size that was actually used:
-                *column_width = column_width.at_least(max_used_widths[i]);
-            }
-            *column_width = width_range.clamp(*column_width);
-
             let is_last_column = i + 1 == columns.len();
-
-            if is_last_column && column.initial_width == InitialColumnSize::Remainder {
+            if is_last_column
+                && column.initial_width == InitialColumnSize::Remainder
+                && !ui.is_sizing_pass()
+            {
                 // If the last column is 'remainder', then let it fill the remainder!
                 let eps = 0.1; // just to avoid some rounding errors.
                 *column_width = available_width - eps;
@@ -714,6 +760,20 @@ impl<'a> Table<'a> {
                 *column_width = width_range.clamp(*column_width);
                 break;
             }
+
+            if ui.is_sizing_pass() {
+                if column.clip {
+                    // If we clip, we don't need to be as wide as the max used width
+                    *column_width = column_width.min(max_used_widths[i]);
+                } else {
+                    *column_width = max_used_widths[i];
+                }
+            } else if !column.clip {
+                // Unless we clip we don't want to shrink below the
+                // size that was actually used:
+                *column_width = column_width.at_least(max_used_widths[i]);
+            }
+            *column_width = width_range.clamp(*column_width);
 
             x += *column_width + spacing_x;
 
@@ -775,10 +835,12 @@ impl<'a> Table<'a> {
                 };
 
                 ui.painter().line_segment([p0, p1], stroke);
-            };
+            }
 
             available_width -= *column_width + spacing_x;
         }
+
+        state.max_used_widths = max_used_widths;
 
         state.store(ui, state_id);
     }

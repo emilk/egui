@@ -150,13 +150,15 @@ impl<'l> StripLayout<'l> {
 
         let used_rect = child_ui.min_rect();
 
-        self.set_pos(max_rect);
-
-        let allocation_rect = if flags.clip {
+        let allocation_rect = if self.ui.is_sizing_pass() {
+            used_rect
+        } else if flags.clip {
             max_rect
         } else {
             max_rect.union(used_rect)
         };
+
+        self.set_pos(allocation_rect);
 
         self.ui.advance_cursor_after_rect(allocation_rect);
 
