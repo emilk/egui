@@ -161,7 +161,7 @@ fn main() {
     let (gl_window, gl) = create_display(&event_loop);
     let gl = std::sync::Arc::new(gl);
 
-    let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None);
+    let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None, true);
 
     let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
     egui_glow

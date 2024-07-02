@@ -16,6 +16,27 @@ uniform sampler2D u_sampler;
     varying vec2 v_tc;
 #endif
 
+// -----------------------------------------------
+// Adapted from
+// https://www.shadertoy.com/view/llVGzG
+// Originally presented in:
+// Jimenez 2014, "Next Generation Post-Processing in Call of Duty"
+//
+// A good overview can be found in
+// https://blog.demofox.org/2022/01/01/interleaved-gradient-noise-a-different-kind-of-low-discrepancy-sequence/
+// via https://github.com/rerun-io/rerun/
+float interleaved_gradient_noise(vec2 n) {
+    float f = 0.06711056 * n.x + 0.00583715 * n.y;
+    return fract(52.9829189 * fract(f));
+}
+
+vec3 dither_interleaved(vec3 rgb, float levels) {
+    float noise = interleaved_gradient_noise(gl_FragCoord.xy);
+    // scale down the noise slightly to ensure flat colors aren't getting dithered
+    noise = (noise - 0.5) * 0.95;
+    return rgb + noise / (levels - 1.0);
+}
+
 // 0-1 sRGB gamma  from  0-1 linear
 vec3 srgb_gamma_from_linear(vec3 rgb) {
     bvec3 cutoff = lessThan(rgb, vec3(0.0031308));
@@ -37,5 +58,12 @@ void main() {
 #endif
 
     // We multiply the colors in gamma space, because that's the only way to get text to look right.
-    gl_FragColor = v_rgba_in_gamma * texture_in_gamma;
+    vec4 frag_color_gamma = v_rgba_in_gamma * texture_in_gamma;
+
+    // Dither the float color down to eight bits to reduce banding.
+    // This step is optional for egui backends.
+#if DITHERING
+    frag_color_gamma.rgb = dither_interleaved(frag_color_gamma.rgb, 256.);
+#endif
+    gl_FragColor = frag_color_gamma;
 }

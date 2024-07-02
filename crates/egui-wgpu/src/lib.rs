@@ -90,6 +90,7 @@ impl RenderState {
         surface: &wgpu::Surface<'static>,
         depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
+        dithering: bool,
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
@@ -164,7 +165,13 @@ impl RenderState {
                 .await?
         };
 
-        let renderer = Renderer::new(&device, target_format, depth_format, msaa_samples);
+        let renderer = Renderer::new(
+            &device,
+            target_format,
+            depth_format,
+            msaa_samples,
+            dithering,
+        );
 
         Ok(Self {
             adapter: Arc::new(adapter),

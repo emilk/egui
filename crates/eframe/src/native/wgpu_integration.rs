@@ -194,6 +194,7 @@ impl WgpuWinitApp {
                 self.native_options.stencil_buffer,
             ),
             self.native_options.viewport.transparent.unwrap_or(false),
+            self.native_options.dithering,
         );
 
         let window = Arc::new(window);

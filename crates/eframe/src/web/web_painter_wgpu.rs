@@ -169,10 +169,16 @@ impl WebPainterWgpu {
 
         let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
 
-        let render_state =
-            RenderState::create(&options.wgpu_options, &instance, &surface, depth_format, 1)
-                .await
-                .map_err(|err| err.to_string())?;
+        let render_state = RenderState::create(
+            &options.wgpu_options,
+            &instance,
+            &surface,
+            depth_format,
+            1,
+            options.dithering,
+        )
+        .await
+        .map_err(|err| err.to_string())?;
 
         let surface_configuration = wgpu::SurfaceConfiguration {
             format: render_state.target_format,

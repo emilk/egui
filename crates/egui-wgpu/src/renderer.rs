@@ -133,14 +133,16 @@ impl ScreenDescriptor {
 #[repr(C)]
 struct UniformBuffer {
     screen_size_in_points: [f32; 2],
+    dithering: u32,
     // Uniform buffers need to be at least 16 bytes in WebGL.
     // See https://github.com/gfx-rs/wgpu/issues/2072
-    _padding: [u32; 2],
+    _padding: u32,
 }
 
 impl PartialEq for UniformBuffer {
     fn eq(&self, other: &Self) -> bool {
         self.screen_size_in_points == other.screen_size_in_points
+            && self.dithering == other.dithering
     }
 }
 
@@ -169,6 +171,8 @@ pub struct Renderer {
     next_user_texture_id: u64,
     samplers: HashMap<epaint::textures::TextureOptions, wgpu::Sampler>,
 
+    dithering: bool,
+
     /// Storage for resources shared with all invocations of [`CallbackTrait`]'s methods.
     ///
     /// See also [`CallbackTrait`].
@@ -185,6 +189,7 @@ impl Renderer {
         output_color_format: wgpu::TextureFormat,
         output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
+        dithering: bool,
     ) -> Self {
         crate::profile_function!();
 
@@ -201,6 +206,7 @@ impl Renderer {
             label: Some("egui_uniform_buffer"),
             contents: bytemuck::cast_slice(&[UniformBuffer {
                 screen_size_in_points: [0.0, 0.0],
+                dithering: u32::from(dithering),
                 _padding: Default::default(),
             }]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -212,7 +218,7 @@ impl Renderer {
                 label: Some("egui_uniform_bind_group_layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         has_dynamic_offset: false,
                         min_binding_size: NonZeroU64::new(std::mem::size_of::<UniformBuffer>() as _),
@@ -364,13 +370,15 @@ impl Renderer {
             // Buffers on wgpu are zero initialized, so this is indeed its current state!
             previous_uniform_buffer_content: UniformBuffer {
                 screen_size_in_points: [0.0, 0.0],
-                _padding: [0, 0],
+                dithering: 0,
+                _padding: 0,
             },
             uniform_bind_group,
             texture_bind_group_layout,
             textures: HashMap::default(),
             next_user_texture_id: 0,
             samplers: HashMap::default(),
+            dithering,
             callback_resources: CallbackResources::default(),
         }
     }
@@ -781,6 +789,7 @@ impl Renderer {
 
         let uniform_buffer_content = UniformBuffer {
             screen_size_in_points,
+            dithering: u32::from(self.dithering),
             _padding: Default::default(),
         };
         if uniform_buffer_content != self.previous_uniform_buffer_content {
