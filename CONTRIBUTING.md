@@ -66,7 +66,7 @@ Make a PR to add it as a link to [`README.md`](README.md#integrations) so others
 ## Testing the web viewer
 * Build with `scripts/build_demo_web.sh`
 * Host with `scripts/start_server.sh`
-* Open <http://localhost:8888/index.html>
+* Open <http://localhost:8765/index.html>
 
 
 ## Code Style

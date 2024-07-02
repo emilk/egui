@@ -1088,7 +1088,7 @@ impl GlutinWindowContext {
         &mut self,
         viewport_id: ViewportId,
         event_loop: &EventLoopWindowTarget<UserEvent>,
-    ) -> Result<()> {
+    ) -> Result {
         crate::profile_function!();
 
         let viewport = self
@@ -1188,7 +1188,7 @@ impl GlutinWindowContext {
     }
 
     /// only applies for android. but we basically drop surface + window and make context not current
-    fn on_suspend(&mut self) -> Result<()> {
+    fn on_suspend(&mut self) -> Result {
         log::debug!("received suspend event. dropping window and surface");
         for viewport in self.viewports.values_mut() {
             viewport.gl_surface = None;
@@ -1284,7 +1284,6 @@ impl GlutinWindowContext {
             if let Some(window) = &viewport.window {
                 let old_inner_size = window.inner_size();
 
-                let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                 viewport.deferred_commands.append(&mut commands);
 
                 egui_winit::process_viewport_commands(
@@ -1292,7 +1291,6 @@ impl GlutinWindowContext {
                     &mut viewport.info,
                     std::mem::take(&mut viewport.deferred_commands),
                     window,
-                    is_viewport_focused,
                     &mut viewport.actions_requested,
                 );
 

@@ -21,13 +21,13 @@ fn main() {\n\
     }
 }
 
-impl super::Demo for CodeEditor {
+impl crate::Demo for CodeEditor {
     fn name(&self) -> &'static str {
         "🖮 Code Editor"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         egui::Window::new(self.name())
             .open(open)
             .default_height(500.0)
@@ -35,7 +35,7 @@ impl super::Demo for CodeEditor {
     }
 }
 
-impl super::View for CodeEditor {
+impl crate::View for CodeEditor {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self { language, code } = self;
 

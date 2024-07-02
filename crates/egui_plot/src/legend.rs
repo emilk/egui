@@ -117,8 +117,14 @@ impl LegendEntry {
         let desired_size = total_extra + galley.size();
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
-        response
-            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, galley.text()));
+        response.widget_info(|| {
+            WidgetInfo::selected(
+                WidgetType::Checkbox,
+                ui.is_enabled(),
+                *checked,
+                galley.text(),
+            )
+        });
 
         let visuals = ui.style().interact(&response);
         let label_on_the_left = ui.layout().horizontal_placement() == Align::RIGHT;
@@ -250,7 +256,7 @@ impl Widget for &mut LegendWidget {
         let layout = Layout::from_main_dir_and_cross_align(main_dir, cross_align);
         let legend_pad = 4.0;
         let legend_rect = rect.shrink(legend_pad);
-        let mut legend_ui = ui.child_ui(legend_rect, layout);
+        let mut legend_ui = ui.child_ui(legend_rect, layout, None);
         legend_ui
             .scope(|ui| {
                 let background_frame = Frame {

@@ -43,15 +43,11 @@ impl CodeExample {
             r#"
             ui.add(
                 egui::DragValue::new(age)
-                    .clamp_range(0..=120)
+                    .range(0..=120)
                     .suffix(" years"),
             );"#,
         );
-        ui.add(
-            egui::DragValue::new(age)
-                .clamp_range(0..=120)
-                .suffix(" years"),
-        );
+        ui.add(egui::DragValue::new(age).range(0..=120).suffix(" years"));
         ui.end_row();
 
         show_code(
@@ -104,13 +100,13 @@ impl CodeExample {
     }
 }
 
-impl super::Demo for CodeExample {
+impl crate::Demo for CodeExample {
     fn name(&self) -> &'static str {
         "🖮 Code Example"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use super::View;
+        use crate::View;
         egui::Window::new(self.name())
             .open(open)
             .min_width(375.0)
@@ -121,7 +117,7 @@ impl super::Demo for CodeExample {
     }
 }
 
-impl super::View for CodeExample {
+impl crate::View for CodeExample {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.scope(|ui| {
             ui.spacing_mut().item_spacing = egui::vec2(8.0, 8.0);

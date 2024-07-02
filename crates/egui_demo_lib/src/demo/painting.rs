@@ -72,13 +72,13 @@ impl Painting {
     }
 }
 
-impl super::Demo for Painting {
+impl crate::Demo for Painting {
     fn name(&self) -> &'static str {
         "🖊 Painting"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
@@ -87,7 +87,7 @@ impl super::Demo for Painting {
     }
 }
 
-impl super::View for Painting {
+impl crate::View for Painting {
     fn ui(&mut self, ui: &mut Ui) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());

@@ -14,7 +14,7 @@ impl Default for TextEditDemo {
     }
 }
 
-impl super::Demo for TextEditDemo {
+impl crate::Demo for TextEditDemo {
     fn name(&self) -> &'static str {
         "🖹 TextEdit"
     }
@@ -24,13 +24,13 @@ impl super::Demo for TextEditDemo {
             .open(open)
             .resizable(false)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for TextEditDemo {
+impl crate::View for TextEditDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());

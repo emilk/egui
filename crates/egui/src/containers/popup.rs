@@ -25,10 +25,10 @@ use crate::*;
 /// ```
 pub fn show_tooltip<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    show_tooltip_at_pointer(ctx, id, add_contents)
+    show_tooltip_at_pointer(ctx, widget_id, add_contents)
 }
 
 /// Show a tooltip at the current pointer position (if any).
@@ -50,11 +50,12 @@ pub fn show_tooltip<R>(
 /// ```
 pub fn show_tooltip_at_pointer<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    ctx.input(|i| i.pointer.hover_pos())
-        .map(|pointer_pos| show_tooltip_at(ctx, id, pointer_pos + vec2(16.0, 16.0), add_contents))
+    ctx.input(|i| i.pointer.hover_pos()).map(|pointer_pos| {
+        show_tooltip_at(ctx, widget_id, pointer_pos + vec2(16.0, 16.0), add_contents)
+    })
 }
 
 /// Show a tooltip under the given area.
@@ -62,7 +63,7 @@ pub fn show_tooltip_at_pointer<R>(
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
 pub fn show_tooltip_for<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     widget_rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
@@ -70,7 +71,7 @@ pub fn show_tooltip_for<R>(
     let allow_placing_below = !is_touch_screen; // There is a finger below.
     show_tooltip_at_avoid_dyn(
         ctx,
-        id,
+        widget_id,
         allow_placing_below,
         widget_rect,
         Box::new(add_contents),
@@ -82,13 +83,19 @@ pub fn show_tooltip_for<R>(
 /// Returns `None` if the tooltip could not be placed.
 pub fn show_tooltip_at<R>(
     ctx: &Context,
-    id: Id,
+    widget_id: Id,
     suggested_position: Pos2,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let allow_placing_below = true;
     let rect = Rect::from_center_size(suggested_position, Vec2::ZERO);
-    show_tooltip_at_avoid_dyn(ctx, id, allow_placing_below, &rect, Box::new(add_contents))
+    show_tooltip_at_avoid_dyn(
+        ctx,
+        widget_id,
+        allow_placing_below,
+        &rect,
+        Box::new(add_contents),
+    )
 }
 
 fn show_tooltip_at_avoid_dyn<'c, R>(
@@ -111,8 +118,9 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     });
 
     let tooltip_area_id = tooltip_id(widget_id, state.tooltip_count);
-    let expected_tooltip_size =
-        AreaState::load(ctx, tooltip_area_id).map_or(vec2(64.0, 32.0), |area| area.size);
+    let expected_tooltip_size = AreaState::load(ctx, tooltip_area_id)
+        .and_then(|area| area.size)
+        .unwrap_or(vec2(64.0, 32.0));
 
     let screen_rect = ctx.screen_rect();
 
@@ -124,13 +132,20 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     );
 
     let InnerResponse { inner, response } = Area::new(tooltip_area_id)
+        .kind(UiKind::Popup)
         .order(Order::Tooltip)
         .pivot(pivot)
         .fixed_pos(anchor)
         .default_width(ctx.style().spacing.tooltip_width)
-        .constrain_to(screen_rect)
-        .interactable(false)
+        .sense(Sense::hover()) // don't click to bring to front
         .show(ctx, |ui| {
+            // By default the text in tooltips aren't selectable.
+            // This means that most tooltips aren't interactable,
+            // which also mean they won't stick around so you can click them.
+            // Only tooltips that have actual interactive stuff (buttons, links, …)
+            // will stick around when you try to click them.
+            ui.style_mut().interaction.selectable_labels = false;
+
             Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
         });
 
@@ -141,7 +156,18 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     inner
 }
 
-fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
+/// What is the id of the next tooltip for this widget?
+pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
+    let tooltip_count = ctx.frame_state(|fs| {
+        fs.tooltip_state
+            .widget_tooltips
+            .get(&widget_id)
+            .map_or(0, |state| state.tooltip_count)
+    });
+    tooltip_id(widget_id, tooltip_count)
+}
+
+pub fn tooltip_id(widget_id: Id, tooltip_count: usize) -> Id {
     widget_id.with(tooltip_count)
 }
 
@@ -213,8 +239,8 @@ fn find_tooltip_position(
 /// }
 /// # });
 /// ```
-pub fn show_tooltip_text(ctx: &Context, id: Id, text: impl Into<WidgetText>) -> Option<()> {
-    show_tooltip(ctx, id, |ui| {
+pub fn show_tooltip_text(ctx: &Context, widget_id: Id, text: impl Into<WidgetText>) -> Option<()> {
+    show_tooltip(ctx, widget_id, |ui| {
         crate::widgets::Label::new(text).ui(ui);
     })
 }
@@ -228,11 +254,29 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
     })
 }
 
+/// Determines popup's close behavior
+#[derive(Clone, Copy)]
+pub enum PopupCloseBehavior {
+    /// Popup will be closed on click anywhere, inside or outside the popup.
+    ///
+    /// It is used in [`ComboBox`].
+    CloseOnClick,
+
+    /// Popup will be closed if the click happened somewhere else
+    /// but in the popup's body
+    CloseOnClickOutside,
+
+    /// Clicks will be ignored. Popup might be closed manually by calling [`Memory::close_popup`]
+    /// or by pressing the escape button
+    IgnoreClicks,
+}
+
 /// Helper for [`popup_above_or_below_widget`].
 pub fn popup_below_widget<R>(
     ui: &Ui,
     popup_id: Id,
     widget_response: &Response,
+    close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     popup_above_or_below_widget(
@@ -240,6 +284,7 @@ pub fn popup_below_widget<R>(
         popup_id,
         widget_response,
         AboveOrBelow::Below,
+        close_behavior,
         add_contents,
     )
 }
@@ -262,7 +307,8 @@ pub fn popup_below_widget<R>(
 ///     ui.memory_mut(|mem| mem.toggle_popup(popup_id));
 /// }
 /// let below = egui::AboveOrBelow::Below;
-/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, |ui| {
+/// let close_on_click_outside = egui::popup::PopupCloseBehavior::CloseOnClickOutside;
+/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, close_on_click_outside, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
@@ -274,21 +320,28 @@ pub fn popup_above_or_below_widget<R>(
     popup_id: Id,
     widget_response: &Response,
     above_or_below: AboveOrBelow,
+    close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     if parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
-        let (pos, pivot) = match above_or_below {
+        let (mut pos, pivot) = match above_or_below {
             AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
             AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
         };
+        if let Some(transform) = parent_ui
+            .ctx()
+            .memory(|m| m.layer_transforms.get(&parent_ui.layer_id()).copied())
+        {
+            pos = transform * pos;
+        }
 
         let frame = Frame::popup(parent_ui.style());
         let frame_margin = frame.total_margin();
         let inner_width = widget_response.rect.width() - frame_margin.sum().x;
 
-        let inner = Area::new(popup_id)
+        let response = Area::new(popup_id)
+            .kind(UiKind::Popup)
             .order(Order::Foreground)
-            .constrain(true)
             .fixed_pos(pos)
             .default_width(inner_width)
             .pivot(pivot)
@@ -302,13 +355,20 @@ pub fn popup_above_or_below_widget<R>(
                         .inner
                     })
                     .inner
-            })
-            .inner;
+            });
 
-        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || widget_response.clicked_elsewhere() {
+        let should_close = match close_behavior {
+            PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
+            PopupCloseBehavior::CloseOnClickOutside => {
+                widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
+            }
+            PopupCloseBehavior::IgnoreClicks => false,
+        };
+
+        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
             parent_ui.memory_mut(|mem| mem.close_popup());
         }
-        Some(inner)
+        Some(response.inner)
     } else {
         None
     }

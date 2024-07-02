@@ -197,7 +197,7 @@ pub mod icon_data;
 /// ``` no_run
 /// use eframe::egui;
 ///
-/// fn main() -> eframe::Result<()> {
+/// fn main() -> eframe::Result {
 ///     let native_options = eframe::NativeOptions::default();
 ///     eframe::run_native("MyApp", native_options, Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))))
 /// }
@@ -233,7 +233,7 @@ pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,
     app_creator: AppCreator,
-) -> Result<()> {
+) -> Result {
     #[cfg(not(feature = "__screenshot"))]
     assert!(
         std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
@@ -278,7 +278,7 @@ pub fn run_native(
 ///
 /// # Example
 /// ``` no_run
-/// fn main() -> eframe::Result<()> {
+/// fn main() -> eframe::Result {
 ///     // Our application state:
 ///     let mut name = "Arthur".to_owned();
 ///     let mut age = 42;
@@ -310,7 +310,7 @@ pub fn run_simple_native(
     app_name: &str,
     native_options: NativeOptions,
     update_fun: impl FnMut(&egui::Context, &mut Frame) + 'static,
-) -> Result<()> {
+) -> Result {
     struct SimpleApp<U> {
         update_fun: U,
     }
@@ -445,7 +445,7 @@ impl std::fmt::Display for Error {
 }
 
 /// Short for `Result<T, eframe::Error>`.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
 // ---------------------------------------------------------------------------
 

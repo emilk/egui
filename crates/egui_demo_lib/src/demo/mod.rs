@@ -15,7 +15,6 @@ pub mod extra_viewport;
 pub mod font_book;
 pub mod frame_demo;
 pub mod highlighting;
-pub mod layout_test;
 pub mod misc_demo_window;
 pub mod multi_touch;
 pub mod paint_bezier;
@@ -32,6 +31,7 @@ pub mod tests;
 pub mod text_edit;
 pub mod text_layout;
 pub mod toggle_switch;
+pub mod tooltips;
 pub mod widget_gallery;
 pub mod window_options;
 

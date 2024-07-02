@@ -88,6 +88,11 @@ impl TextAgent {
         runner_ref.add_event_listener(&input, "compositionupdate", on_composition_update)?;
         runner_ref.add_event_listener(&input, "compositionend", on_composition_end)?;
 
+        // The canvas doesn't get keydown/keyup events when the text agent is focused,
+        // so we need to forward them to the runner:
+        runner_ref.add_event_listener(&input, "keydown", super::events::on_keydown)?;
+        runner_ref.add_event_listener(&input, "keyup", super::events::on_keyup)?;
+
         Ok(Self {
             input,
             prev_ime_output: Default::default(),
@@ -114,13 +119,14 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        let ime_pos = ime.cursor_rect.left_top();
-        let canvas_rect = canvas.get_bounding_client_rect();
-        let new_pos = ime_pos + egui::vec2(canvas_rect.left() as f32, canvas_rect.top() as f32);
+        let canvas_rect = super::canvas_content_rect(canvas);
+        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
-        style.set_property("top", &format!("{}px", new_pos.y))?;
-        style.set_property("left", &format!("{}px", new_pos.x))?;
+
+        // This is where the IME input will point to:
+        style.set_property("left", &format!("{}px", cursor_rect.center().x))?;
+        style.set_property("top", &format!("{}px", cursor_rect.center().y))?;
 
         Ok(())
     }
@@ -137,20 +143,24 @@ impl TextAgent {
         super::has_focus(&self.input)
     }
 
-    fn focus(&self) {
+    pub fn focus(&self) {
         if self.has_focus() {
             return;
         }
+
+        log::trace!("Focusing text agent");
 
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         };
     }
 
-    fn blur(&self) {
+    pub fn blur(&self) {
         if !self.has_focus() {
             return;
         }
+
+        log::trace!("Blurring text agent");
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));

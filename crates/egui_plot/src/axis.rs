@@ -1,14 +1,14 @@
 use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 
 use egui::{
-    emath::{remap_clamp, round_to_decimals, Rot2},
+    emath::{remap_clamp, Rot2},
     epaint::TextShape,
     Pos2, Rangef, Rect, Response, Sense, TextStyle, TextWrapMode, Ui, Vec2, WidgetText,
 };
 
 use super::{transform::PlotTransform, GridMark};
 
-pub(super) type AxisFormatterFn<'a> = dyn Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a;
+pub(super) type AxisFormatterFn<'a> = dyn Fn(GridMark, &RangeInclusive<f64>) -> String + 'a;
 
 /// X or Y axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,7 +101,7 @@ impl From<Placement> for VPlacement {
 pub struct AxisHints<'a> {
     pub(super) label: WidgetText,
     pub(super) formatter: Arc<AxisFormatterFn<'a>>,
-    pub(super) digits: usize,
+    pub(super) min_thickness: f32,
     pub(super) placement: Placement,
     pub(super) label_spacing: Rangef,
 }
@@ -124,12 +124,11 @@ impl<'a> AxisHints<'a> {
     ///
     /// `label` is empty.
     /// `formatter` is default float to string formatter.
-    /// maximum `digits` on tick label is 5.
     pub fn new(axis: Axis) -> Self {
         Self {
             label: Default::default(),
             formatter: Arc::new(Self::default_formatter),
-            digits: 5,
+            min_thickness: 14.0,
             placement: Placement::LeftBottom,
             label_spacing: match axis {
                 Axis::X => Rangef::new(60.0, 80.0), // labels can get pretty wide
@@ -141,32 +140,20 @@ impl<'a> AxisHints<'a> {
     /// Specify custom formatter for ticks.
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
-    /// The second parameter is the maximum number of characters that fit into y-labels.
     /// The second parameter of `formatter` is the currently shown range on this axis.
     pub fn formatter(
         mut self,
-        fmt: impl Fn(GridMark, usize, &RangeInclusive<f64>) -> String + 'a,
+        fmt: impl Fn(GridMark, &RangeInclusive<f64>) -> String + 'a,
     ) -> Self {
         self.formatter = Arc::new(fmt);
         self
     }
 
-    fn default_formatter(
-        mark: GridMark,
-        max_digits: usize,
-        _range: &RangeInclusive<f64>,
-    ) -> String {
-        let tick = mark.value;
+    fn default_formatter(mark: GridMark, _range: &RangeInclusive<f64>) -> String {
+        // Example: If the step to the next tick is `0.01`, we should use 2 decimals of precision:
+        let num_decimals = -mark.step_size.log10().round() as usize;
 
-        if tick.abs() > 10.0_f64.powf(max_digits as f64) {
-            let tick_rounded = tick as isize;
-            return format!("{tick_rounded:+e}");
-        }
-        let tick_rounded = round_to_decimals(tick, max_digits);
-        if tick.abs() < 10.0_f64.powf(-(max_digits as f64)) && tick != 0.0 {
-            return format!("{tick_rounded:+e}");
-        }
-        tick_rounded.to_string()
+        emath::format_with_decimals_in_range(mark.value, num_decimals..=num_decimals)
     }
 
     /// Specify axis label.
@@ -178,13 +165,18 @@ impl<'a> AxisHints<'a> {
         self
     }
 
-    /// Specify maximum number of digits for ticks.
-    ///
-    /// This is considered by the default tick formatter and affects the width of the y-axis
+    /// Specify minimum thickness of the axis
     #[inline]
-    pub fn max_digits(mut self, digits: usize) -> Self {
-        self.digits = digits;
+    pub fn min_thickness(mut self, min_thickness: f32) -> Self {
+        self.min_thickness = min_thickness;
         self
+    }
+
+    /// Specify maximum number of digits for ticks.
+    #[inline]
+    #[deprecated = "Use `min_thickness` instead"]
+    pub fn max_digits(self, digits: usize) -> Self {
+        self.min_thickness(12.0 * digits as f32)
     }
 
     /// Specify the placement of the axis.
@@ -211,19 +203,18 @@ impl<'a> AxisHints<'a> {
 
     pub(super) fn thickness(&self, axis: Axis) -> f32 {
         match axis {
-            Axis::X => {
-                if self.label.is_empty() {
-                    1.0 * LINE_HEIGHT
-                } else {
-                    3.0 * LINE_HEIGHT
-                }
-            }
+            Axis::X => self.min_thickness.max(if self.label.is_empty() {
+                1.0 * LINE_HEIGHT
+            } else {
+                3.0 * LINE_HEIGHT
+            }),
             Axis::Y => {
-                if self.label.is_empty() {
-                    (self.digits as f32) * LINE_HEIGHT
-                } else {
-                    (self.digits as f32 + 1.0) * LINE_HEIGHT
-                }
+                self.min_thickness
+                    + if self.label.is_empty() {
+                        0.0
+                    } else {
+                        LINE_HEIGHT
+                    }
             }
         }
     }
@@ -328,7 +319,7 @@ impl<'a> AxisWidget<'a> {
 
         // Add tick labels:
         for step in self.steps.iter() {
-            let text = (self.hints.formatter)(*step, self.hints.digits, &self.range);
+            let text = (self.hints.formatter)(*step, &self.range);
             if !text.is_empty() {
                 let spacing_in_points =
                     (transform.dpos_dvalue()[usize::from(axis)] * step.step_size).abs() as f32;

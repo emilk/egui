@@ -27,7 +27,7 @@ pub struct Scrolling {
     scroll_stick_to: ScrollStickTo,
 }
 
-impl super::Demo for Scrolling {
+impl crate::Demo for Scrolling {
     fn name(&self) -> &'static str {
         "↕ Scrolling"
     }
@@ -39,13 +39,13 @@ impl super::Demo for Scrolling {
             .hscroll(false)
             .vscroll(false)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for Scrolling {
+impl crate::View for Scrolling {
     fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.demo, ScrollDemo::ScrollAppearance, "Appearance");
@@ -250,7 +250,7 @@ impl Default for ScrollTo {
     }
 }
 
-impl super::View for ScrollTo {
+impl crate::View for ScrollTo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("This shows how you can scroll to a specific item or pixel offset");
 
@@ -370,7 +370,7 @@ struct ScrollStickTo {
     n_items: usize,
 }
 
-impl super::View for ScrollStickTo {
+impl crate::View for ScrollStickTo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved");
 

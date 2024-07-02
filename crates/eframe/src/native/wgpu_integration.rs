@@ -635,7 +635,7 @@ impl WgpuWinitRunning {
             viewports,
             painter,
             viewport_from_window,
-            focused_viewport,
+            ..
         } = &mut *shared_mut;
 
         let FullOutput {
@@ -724,7 +724,6 @@ impl WgpuWinitRunning {
             viewports,
             painter,
             viewport_from_window,
-            *focused_viewport,
         );
 
         // Prune dead viewports:
@@ -996,7 +995,6 @@ fn render_immediate_viewport(
         viewports,
         painter,
         viewport_from_window,
-        focused_viewport,
         ..
     } = &mut *shared_mut;
 
@@ -1036,7 +1034,6 @@ fn render_immediate_viewport(
         viewports,
         painter,
         viewport_from_window,
-        *focused_viewport,
     );
 }
 
@@ -1061,7 +1058,6 @@ fn handle_viewport_output(
     viewports: &mut ViewportIdMap<Viewport>,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,
-    focused_viewport: Option<ViewportId>,
 ) {
     for (
         viewport_id,
@@ -1083,7 +1079,6 @@ fn handle_viewport_output(
         if let Some(window) = viewport.window.as_ref() {
             let old_inner_size = window.inner_size();
 
-            let is_viewport_focused = focused_viewport == Some(viewport_id);
             viewport.deferred_commands.append(&mut commands);
 
             egui_winit::process_viewport_commands(
@@ -1091,7 +1086,6 @@ fn handle_viewport_output(
                 &mut viewport.info,
                 std::mem::take(&mut viewport.deferred_commands),
                 window,
-                is_viewport_focused,
                 &mut viewport.actions_requested,
             );
 

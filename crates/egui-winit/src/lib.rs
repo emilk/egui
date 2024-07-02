@@ -1137,6 +1137,7 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::BracketLeft => Key::OpenBracket,
         KeyCode::BracketRight => Key::CloseBracket,
         KeyCode::Backquote => Key::Backtick,
+        KeyCode::Quote => Key::Quote,
 
         KeyCode::Cut => Key::Cut,
         KeyCode::Copy => Key::Copy,
@@ -1284,18 +1285,10 @@ pub fn process_viewport_commands(
     info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &Window,
-    is_viewport_focused: bool,
     actions_requested: &mut HashSet<ActionRequested>,
 ) {
     for command in commands {
-        process_viewport_command(
-            egui_ctx,
-            window,
-            command,
-            info,
-            is_viewport_focused,
-            actions_requested,
-        );
+        process_viewport_command(egui_ctx, window, command, info, actions_requested);
     }
 }
 
@@ -1304,7 +1297,6 @@ fn process_viewport_command(
     window: &Window,
     command: ViewportCommand,
     info: &mut ViewportInfo,
-    is_viewport_focused: bool,
     actions_requested: &mut HashSet<ActionRequested>,
 ) {
     crate::profile_function!();
@@ -1323,12 +1315,8 @@ fn process_viewport_command(
             // Need to be handled elsewhere
         }
         ViewportCommand::StartDrag => {
-            // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
-
-            // TODO(emilk): check that the left mouse-button was pressed down recently,
-            // or we will have bugs on Windows.
-            // See https://github.com/emilk/egui/pull/1108
-            if is_viewport_focused {
+            // If `.has_focus()` is not checked on x11 the input will be permanently taken until the app is killed!
+            if window.has_focus() {
                 if let Err(err) = window.drag_window() {
                     log::warn!("{command:?}: {err}");
                 }

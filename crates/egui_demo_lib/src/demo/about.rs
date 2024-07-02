@@ -3,7 +3,7 @@
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct About {}
 
-impl super::Demo for About {
+impl crate::Demo for About {
     fn name(&self) -> &'static str {
         "About egui"
     }
@@ -15,13 +15,13 @@ impl super::Demo for About {
             .open(open)
             .resizable([true, false])
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for About {
+impl crate::View for About {
     fn ui(&mut self, ui: &mut egui::Ui) {
         use egui::special_emojis::{OS_APPLE, OS_LINUX, OS_WINDOWS};
 

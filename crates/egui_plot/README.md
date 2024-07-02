@@ -7,3 +7,5 @@
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
 Immediate mode plotting for [`egui`](https://github.com/emilk/egui).
+
+[**Looking for a maintainer!**](https://github.com/emilk/egui/issues/4705)

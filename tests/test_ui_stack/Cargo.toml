@@ -1,0 +1,27 @@
+[package]
+name = "test_ui_stack"
+version = "0.1.0"
+authors = ["Antoine Beyeler <abeyeler@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.76"
+publish = false
+
+[lints]
+workspace = true
+
+
+[dependencies]
+eframe = { workspace = true, features = [
+  "default",
+  "persistence",
+  "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+] }
+
+# For image support:
+egui_extras = { workspace = true, features = ["default", "image", "serde"] }
+
+env_logger = { version = "0.10", default-features = false, features = [
+  "auto-color",
+  "humantime",
+] }

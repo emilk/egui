@@ -2,13 +2,13 @@
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Panels {}
 
-impl super::Demo for Panels {
+impl crate::Demo for Panels {
     fn name(&self) -> &'static str {
         "🗖 Panels"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         let window = egui::Window::new("Panels")
             .default_width(600.0)
             .default_height(400.0)
@@ -18,7 +18,7 @@ impl super::Demo for Panels {
     }
 }
 
-impl super::View for Panels {
+impl crate::View for Panels {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Note that the order we add the panels is very important!
 
