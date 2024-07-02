@@ -428,12 +428,12 @@ impl<'a> TableBuilder<'a> {
         let mut max_used_widths = vec![0.0; initial_widths.len()];
         let (had_state, state) = TableState::load(ui, initial_widths, state_id);
         let is_first_frame = !had_state;
-        let first_frame_auto_size_columns = is_first_frame && columns.iter().any(|c| c.is_auto());
+        let is_sizing_pass = is_first_frame && columns.iter().any(|c| c.is_auto());
 
         let table_top = ui.cursor().top();
 
         ui.scope(|ui| {
-            if first_frame_auto_size_columns {
+            if is_sizing_pass {
                 // Hide first-frame-jitters when auto-sizing.
                 ui.set_sizing_pass();
             }
@@ -463,7 +463,7 @@ impl<'a> TableBuilder<'a> {
             available_width,
             state,
             max_used_widths,
-            first_frame_auto_size_columns,
+            is_sizing_pass,
             resizable,
             striped,
             cell_layout,
@@ -498,7 +498,7 @@ impl<'a> TableBuilder<'a> {
         let max_used_widths = vec![0.0; initial_widths.len()];
         let (had_state, state) = TableState::load(ui, initial_widths, state_id);
         let is_first_frame = !had_state;
-        let first_frame_auto_size_columns = is_first_frame && columns.iter().any(|c| c.is_auto());
+        let is_sizing_pass = is_first_frame && columns.iter().any(|c| c.is_auto());
 
         let table_top = ui.cursor().top();
 
@@ -510,7 +510,7 @@ impl<'a> TableBuilder<'a> {
             available_width,
             state,
             max_used_widths,
-            first_frame_auto_size_columns,
+            is_sizing_pass,
             resizable,
             striped,
             cell_layout,
@@ -571,7 +571,8 @@ pub struct Table<'a> {
     /// Accumulated maximum used widths for each column.
     max_used_widths: Vec<f32>,
 
-    first_frame_auto_size_columns: bool,
+    /// During the sizing pass we calculate the width of columns with [`Column::auto`].
+    is_sizing_pass: bool,
     resizable: bool,
     striped: bool,
     cell_layout: egui::Layout,
@@ -603,7 +604,7 @@ impl<'a> Table<'a> {
             mut available_width,
             mut state,
             mut max_used_widths,
-            first_frame_auto_size_columns,
+            is_sizing_pass,
             striped,
             cell_layout,
             scroll_options,
@@ -648,7 +649,7 @@ impl<'a> Table<'a> {
 
             // Hide first-frame-jitters when auto-sizing.
             ui.scope(|ui| {
-                if first_frame_auto_size_columns {
+                if is_sizing_pass {
                     ui.set_sizing_pass();
                 }
 
@@ -718,7 +719,7 @@ impl<'a> Table<'a> {
 
             x += *column_width + spacing_x;
 
-            if column.is_auto() && (first_frame_auto_size_columns || !column_is_resizable) {
+            if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
                 *column_width = width_range.clamp(max_used_widths[i]);
             } else if column_is_resizable {
                 let column_resize_id = ui.id().with("resize_column").with(i);
