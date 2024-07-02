@@ -753,7 +753,7 @@ impl<'t> TextEdit<'t> {
                 )
             });
         } else if selection_changed {
-            let cursor_range = cursor_range.unwrap();
+            let cursor_range = cursor_range.unwrap_or_default();
             let char_range =
                 cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
             let info = WidgetInfo::text_selection_changed(
@@ -855,7 +855,14 @@ fn events(
 
     let mut any_change = false;
 
-    let events = ui.input(|i| i.filtered_events(&event_filter));
+    let mut events = ui.input(|i| i.filtered_events(&event_filter));
+
+    if state.ime_enabled {
+        ime_enabled_filter_events(&mut events);
+        // Process IME events first:
+        events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
+    }
+
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
@@ -1051,6 +1058,23 @@ fn events(
     );
 
     (any_change, cursor_range)
+}
+
+// ----------------------------------------------------------------------------
+
+fn ime_enabled_filter_events(events: &mut Vec<Event>) {
+    // Remove key events which cause problems while 'IME' is being used.
+    // See https://github.com/emilk/egui/pull/4509
+    events.retain(|event| {
+        !matches!(
+            event,
+            Event::Key { repeat: true, .. }
+                | Event::Key {
+                    key: Key::Backspace,
+                    ..
+                }
+        )
+    });
 }
 
 // ----------------------------------------------------------------------------
