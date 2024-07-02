@@ -594,9 +594,9 @@ impl Response {
         let is_tooltip_open = self.is_tooltip_open();
 
         if is_tooltip_open {
-            let (pointer_pos, pointer_vel) = self
+            let (pointer_pos, pointer_dir) = self
                 .ctx
-                .input(|i| (i.pointer.hover_pos(), i.pointer.velocity()));
+                .input(|i| (i.pointer.hover_pos(), i.pointer.direction()));
 
             if let Some(pointer_pos) = pointer_pos {
                 if self.rect.contains(pointer_pos) {
@@ -624,7 +624,7 @@ impl Response {
 
                     if let Some(pos) = pointer_pos {
                         let pointer_in_area_or_on_the_way_there = rect.contains(pos)
-                            || rect.intersects_ray(pos, pointer_vel.normalized());
+                            || rect.intersects_ray(pos, pointer_dir.normalized());
 
                         if pointer_in_area_or_on_the_way_there {
                             return true;

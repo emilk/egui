@@ -726,6 +726,9 @@ pub struct PointerState {
     /// Current velocity of pointer.
     velocity: Vec2,
 
+    /// Current direction of pointer.
+    direction: Vec2,
+
     /// Recent movement of the pointer.
     /// Used for calculating velocity of pointer.
     pos_history: History<Pos2>,
@@ -774,7 +777,8 @@ impl Default for PointerState {
             delta: Vec2::ZERO,
             motion: None,
             velocity: Vec2::ZERO,
-            pos_history: History::new(0..1000, 0.1),
+            direction: Vec2::ZERO,
+            pos_history: History::new(2..1000, 0.1),
             down: Default::default(),
             press_origin: None,
             press_start_time: None,
@@ -889,6 +893,7 @@ impl PointerState {
                     // When dragging a slider and the mouse leaves the viewport, we still want the drag to work,
                     // so we don't treat this as a `PointerEvent::Released`.
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
+                    self.pos_history.clear();
                 }
                 Event::MouseMoved(delta) => *self.motion.get_or_insert(Vec2::ZERO) += *delta,
                 _ => {}
@@ -920,6 +925,8 @@ impl PointerState {
             self.last_move_time = time;
         }
 
+        self.direction = self.pos_history.velocity().unwrap_or_default().normalized();
+
         self.started_decidedly_dragging = self.is_decidedly_dragging() && !was_decidedly_dragging;
 
         self
@@ -944,9 +951,20 @@ impl PointerState {
     }
 
     /// Current velocity of pointer.
+    ///
+    /// This is smoothed over a few frames,
+    /// but can be ZERO when frame-rate is bad.
     #[inline(always)]
     pub fn velocity(&self) -> Vec2 {
         self.velocity
+    }
+
+    /// Current direction of the pointer.
+    ///
+    /// This is less sensitive to bad framerate than [`Self::velocity`].
+    #[inline(always)]
+    pub fn direction(&self) -> Vec2 {
+        self.direction
     }
 
     /// Where did the current click/drag originate?
@@ -1284,6 +1302,7 @@ impl PointerState {
             delta,
             motion,
             velocity,
+            direction,
             pos_history: _,
             down,
             press_origin,
@@ -1304,6 +1323,7 @@ impl PointerState {
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y
         ));
+        ui.label(format!("direction: {direction:?}"));
         ui.label(format!("down: {down:#?}"));
         ui.label(format!("press_origin: {press_origin:?}"));
         ui.label(format!("press_start_time: {press_start_time:?} s"));
