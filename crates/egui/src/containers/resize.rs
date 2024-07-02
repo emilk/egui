@@ -61,8 +61,8 @@ impl Default for Resize {
 impl Resize {
     /// Assign an explicit and globally unique id.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 
