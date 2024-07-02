@@ -9,6 +9,8 @@ All crates under the [`crates/`](crates/) folder are published in lock-step, wit
 
 The only exception to this are patch releases, where we sometimes only patch a single crate.
 
+The egui version in egui `master` is always the version of the last published crates. This is so that users can easily patch their egui crates to egui `master` if they want to.
+
 ## Governance
 Releases are generally done by [emilk](https://github.com/emilk/), but the [rerun-io](https://github.com/rerun-io/) organization (where emilk is CTO) also has publish rights to all the crates.
 
