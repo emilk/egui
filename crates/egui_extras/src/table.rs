@@ -401,13 +401,8 @@ impl<'a> TableBuilder<'a> {
 
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
-            - if self.scroll_options.vscroll {
-                self.ui.spacing().scroll.bar_inner_margin
-                    + self.ui.spacing().scroll.bar_width
-                    + self.ui.spacing().scroll.bar_outer_margin
-            } else {
-                0.0
-            }
+            - (self.scroll_options.vscroll as i32 as f32)
+                * self.ui.spacing().scroll.allocated_width()
     }
 
     /// Create a header row which always stays visible and at the top
