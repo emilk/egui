@@ -50,10 +50,10 @@ impl WindowSettings {
         self.inner_size_points
     }
 
-    pub fn initialize_viewport_builder<E>(
+    pub fn initialize_viewport_builder(
         &self,
         egui_zoom_factor: f32,
-        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+        event_loop: &winit::event_loop::ActiveEventLoop,
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
         crate::profile_function!();
@@ -110,10 +110,10 @@ impl WindowSettings {
         }
     }
 
-    pub fn clamp_position_to_monitors<E>(
+    pub fn clamp_position_to_monitors(
         &mut self,
         egui_zoom_factor: f32,
-        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+        event_loop: &winit::event_loop::ActiveEventLoop,
     ) {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
@@ -137,9 +137,9 @@ impl WindowSettings {
     }
 }
 
-fn find_active_monitor<E>(
+fn find_active_monitor(
     egui_zoom_factor: f32,
-    event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    event_loop: &winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
     position_px: &egui::Pos2,
 ) -> Option<winit::monitor::MonitorHandle> {
@@ -172,9 +172,9 @@ fn find_active_monitor<E>(
     Some(active_monitor)
 }
 
-fn clamp_pos_to_monitors<E>(
+fn clamp_pos_to_monitors(
     egui_zoom_factor: f32,
-    event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    event_loop: &winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
     position_px: &mut egui::Pos2,
 ) {

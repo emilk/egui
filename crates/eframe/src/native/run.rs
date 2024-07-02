@@ -18,7 +18,7 @@ fn create_event_loop_builder(
     native_options: &mut epi::NativeOptions,
 ) -> EventLoopBuilder<UserEvent> {
     crate::profile_function!();
-    let mut event_loop_builder = winit::event_loop::EventLoopBuilder::with_user_event();
+    let mut event_loop_builder = winit::event_loop::EventLoopBuilder::default();
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
         hook(&mut event_loop_builder);

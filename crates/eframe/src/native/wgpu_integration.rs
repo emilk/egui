@@ -11,7 +11,7 @@ use egui_winit::ActionRequested;
 use parking_lot::Mutex;
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 use winit::{
-    event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
 };
 
@@ -119,7 +119,7 @@ impl WgpuWinitApp {
     }
 
     /// Create a window for all viewports lacking one.
-    fn initialized_all_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
+    fn initialized_all_windows(&mut self, event_loop: &ActiveEventLoop) {
         let Some(running) = &mut self.running else {
             return;
         };
@@ -178,7 +178,7 @@ impl WgpuWinitApp {
     fn init_run_state(
         &mut self,
         egui_ctx: egui::Context,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         storage: Option<Box<dyn Storage>>,
         window: Window,
         builder: ViewportBuilder,
@@ -310,7 +310,7 @@ impl WgpuWinitApp {
             let shared = Rc::downgrade(&shared);
             let beginning = integration.beginning;
 
-            let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
+            let event_loop: *const ActiveEventLoop = event_loop;
 
             egui::Context::set_immediate_viewport_renderer(move |_egui_ctx, immediate_viewport| {
                 if let Some(shared) = shared.upgrade() {
@@ -376,7 +376,7 @@ impl WinitApp for WgpuWinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
     ) -> EventResult {
         self.initialized_all_windows(event_loop);
@@ -390,7 +390,7 @@ impl WinitApp for WgpuWinitApp {
 
     fn on_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         event: &winit::event::Event<UserEvent>,
     ) -> Result<EventResult> {
         crate::profile_function!(winit_integration::short_event_description(event));
@@ -478,7 +478,10 @@ impl WinitApp for WgpuWinitApp {
 
             #[cfg(feature = "accesskit")]
             winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
-                accesskit_winit::ActionRequestEvent { request, window_id },
+                accesskit_winit::Event {
+                    window_id,
+                    window_event: accesskit_winit::WindowEvent::ActionRequested(request),
+                },
             )) => {
                 if let Some(running) = &mut self.running {
                     let mut shared_lock = running.shared.borrow_mut();
@@ -864,7 +867,7 @@ impl Viewport {
     /// Create winit window, if needed.
     fn initialize_window(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         egui_ctx: &egui::Context,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
@@ -909,7 +912,7 @@ impl Viewport {
 
 fn create_window(
     egui_ctx: &egui::Context,
-    event_loop: &EventLoopWindowTarget<UserEvent>,
+    event_loop: &ActiveEventLoop,
     storage: Option<&dyn Storage>,
     native_options: &mut NativeOptions,
 ) -> Result<(Window, ViewportBuilder), winit::error::OsError> {
@@ -930,7 +933,7 @@ fn create_window(
 }
 
 fn render_immediate_viewport(
-    event_loop: &EventLoopWindowTarget<UserEvent>,
+    event_loop: &ActiveEventLoop,
     beginning: Instant,
     shared: &RefCell<SharedState>,
     immediate_viewport: ImmediateViewport<'_>,

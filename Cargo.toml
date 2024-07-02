@@ -75,8 +75,8 @@ bytemuck = "1.7.2"
 criterion = { version = "0.5.1", default-features = false }
 document-features = " 0.2.8"
 glow = "0.13"
-glutin = "0.31"
-glutin-winit = "0.4"
+glutin = "0.32.0"
+glutin-winit = "0.5.0"
 image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
@@ -84,18 +84,18 @@ parking_lot = "0.12"
 puffin = "0.19"
 puffin_http = "0.16"
 ron = "0.8"
-raw-window-handle = "0.6.0"
+raw-window-handle = "0.6.2"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1.0.37"
 web-time = "0.2" # Timekeeping for native and web
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.58"
-wgpu = { version = "0.20.0", default-features = false, features = [
+wgpu = { version = "0.20.1", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
 ] }
-winit = { version = "0.29.4", default-features = false }
+winit = { version = "0.30.3", default-features = false }
 
 
 [workspace.lints.rust]

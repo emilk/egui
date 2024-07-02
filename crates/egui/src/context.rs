@@ -392,8 +392,6 @@ struct ContextImpl {
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
-    #[cfg(feature = "accesskit")]
-    accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
 }
@@ -1985,12 +1983,7 @@ impl ContextImpl {
                     state
                         .node_builders
                         .into_iter()
-                        .map(|(id, builder)| {
-                            (
-                                id.accesskit_id(),
-                                builder.build(&mut self.accesskit_node_classes),
-                            )
-                        })
+                        .map(|(id, builder)| (id.accesskit_id(), builder.build()))
                         .collect()
                 };
                 let focus_id = self
@@ -2908,10 +2901,7 @@ impl Context {
 
         let root_id = crate::accesskit_root_id().accesskit_id();
         self.write(|ctx| TreeUpdate {
-            nodes: vec![(
-                root_id,
-                NodeBuilder::new(Role::Window).build(&mut ctx.accesskit_node_classes),
-            )],
+            nodes: vec![(root_id, NodeBuilder::new(Role::Window).build())],
             tree: Some(Tree::new(root_id)),
             focus: root_id,
         })

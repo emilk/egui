@@ -3,7 +3,7 @@
 use web_time::Instant;
 
 use std::path::PathBuf;
-use winit::event_loop::EventLoopWindowTarget;
+use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
@@ -12,9 +12,9 @@ use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
 
-pub fn viewport_builder<E>(
+pub fn viewport_builder(
     egui_zoom_factor: f32,
-    event_loop: &EventLoopWindowTarget<E>,
+    event_loop: &ActiveEventLoop,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) -> ViewportBuilder {
@@ -95,10 +95,7 @@ pub fn apply_window_settings(
     }
 }
 
-fn largest_monitor_point_size<E>(
-    egui_zoom_factor: f32,
-    event_loop: &EventLoopWindowTarget<E>,
-) -> egui::Vec2 {
+fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
     crate::profile_function!();
 
     let mut max_size = egui::Vec2::ZERO;
@@ -232,7 +229,7 @@ impl EpiIntegration {
     }
 
     #[cfg(feature = "accesskit")]
-    pub fn init_accesskit<E: From<egui_winit::accesskit_winit::ActionRequestEvent> + Send>(
+    pub fn init_accesskit<E: From<egui_winit::accesskit_winit::Event> + Send>(
         &self,
         egui_winit: &mut egui_winit::State,
         window: &winit::window::Window,
