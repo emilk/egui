@@ -44,6 +44,10 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) ime_enabled: bool,
 
+    // target TextEdit ID for IME candidate.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) ime_target_id: Id,
+
     // cursor range for IME candidate.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) ime_cursor_range: CursorRange,

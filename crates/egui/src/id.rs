@@ -33,6 +33,12 @@ use std::num::NonZeroU64;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Id(NonZeroU64);
 
+impl Default for Id {
+    fn default() -> Self {
+        Self::NULL
+    }
+}
+
 impl Id {
     /// A special [`Id`], in particular as a key to [`crate::Memory::data`]
     /// for when there is no particular widget to attach the data.
