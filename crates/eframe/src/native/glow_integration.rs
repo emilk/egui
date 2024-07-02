@@ -508,7 +508,7 @@ impl GlowWinitRunning {
     ) -> EventResult {
         crate::profile_function!();
 
-        let Some(viewport_id) = self
+        let Some(mut viewport_id) = self
             .glutin
             .borrow()
             .viewport_from_window
@@ -524,24 +524,25 @@ impl GlowWinitRunning {
         let mut frame_timer = crate::stopwatch::Stopwatch::new();
         frame_timer.start();
 
-        {
-            let glutin = self.glutin.borrow();
-            let viewport = &glutin.viewports[&viewport_id];
-            let is_immediate = viewport.viewport_ui_cb.is_none();
-            if is_immediate && viewport_id != ViewportId::ROOT {
-                // This will only happen if this is an immediate viewport.
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
-                    if let Some(window) = parent_viewport.window.as_ref() {
-                        return EventResult::RepaintNext(window.id());
-                    }
-                }
-                return EventResult::Wait;
-            }
-        }
-
         let (raw_input, viewport_ui_cb) = {
+            crate::profile_scope!("Prepare");
+
             let mut glutin = self.glutin.borrow_mut();
+            let original_viewport = &glutin.viewports[&viewport_id];
+
+            if original_viewport.class == ViewportClass::Immediate {
+                let Some(parent_viewport) = glutin.viewports.get(&original_viewport.ids.parent)
+                else {
+                    return EventResult::Wait;
+                };
+
+                if parent_viewport.class == ViewportClass::Deferred {
+                    viewport_id = parent_viewport.ids.this;
+                } else {
+                    viewport_id = ViewportId::ROOT;
+                }
+            }
+
             let egui_ctx = glutin.egui_ctx.clone();
             let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
                 return EventResult::Wait;
@@ -586,20 +587,20 @@ impl GlowWinitRunning {
                 ..
             } = &mut *glutin;
             let viewport = &viewports[&viewport_id];
-            let Some(window) = viewport.window.as_ref() else {
-                return EventResult::Wait;
-            };
             let Some(gl_surface) = viewport.gl_surface.as_ref() else {
                 return EventResult::Wait;
             };
-
-            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             {
                 frame_timer.pause();
                 change_gl_context(current_gl_context, gl_surface);
                 frame_timer.resume();
             }
+
+            let Some(window) = viewport.window.as_ref() else {
+                return EventResult::Wait;
+            };
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             self.painter
                 .borrow()
@@ -646,13 +647,17 @@ impl GlowWinitRunning {
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
             return EventResult::Wait;
         };
-
         viewport.info.events.clear(); // they should have been processed
-        let window = viewport.window.clone().unwrap();
-        let gl_surface = viewport.gl_surface.as_ref().unwrap();
-        let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-        egui_winit.handle_platform_output(&window, platform_output);
+        let (Some(egui_winit), Some(window), Some(gl_surface)) = (
+            &mut viewport.egui_winit,
+            &viewport.window.clone(),
+            &viewport.gl_surface,
+        ) else {
+            return EventResult::Wait;
+        };
+
+        egui_winit.handle_platform_output(window, platform_output);
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -709,7 +714,7 @@ impl GlowWinitRunning {
                 }
             }
 
-            integration.post_rendering(&window);
+            integration.post_rendering(window);
         }
 
         {
@@ -738,7 +743,7 @@ impl GlowWinitRunning {
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), Some(&window));
+        integration.maybe_autosave(app.as_mut(), Some(window));
 
         if window.is_minimized() == Some(true) {
             // On Mac, a minimized Window uses up all CPU:
@@ -879,17 +884,19 @@ fn change_gl_context(
         }
     }
 
-    let not_current = {
-        crate::profile_scope!("make_not_current");
-        current_gl_context
-            .take()
-            .unwrap()
-            .make_not_current()
-            .unwrap()
+    let Some(p_current_gl_context) = current_gl_context.take() else {
+        return;
+    };
+
+    crate::profile_scope!("make_not_current");
+    let Ok(not_current) = p_current_gl_context.make_not_current() else {
+        return;
     };
 
     crate::profile_scope!("make_current");
-    *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
+    if let Ok(current) = not_current.make_current(gl_surface) {
+        *current_gl_context = Some(current);
+    }
 }
 
 impl GlutinWindowContext {
