@@ -719,8 +719,7 @@ impl<'a> Table<'a> {
             x += *column_width + spacing_x;
 
             if column.is_auto() && (first_frame_auto_size_columns || !column_is_resizable) {
-                *column_width = max_used_widths[i];
-                *column_width = width_range.clamp(*column_width);
+                *column_width = width_range.clamp(max_used_widths[i]);
             } else if column_is_resizable {
                 let column_resize_id = ui.id().with("resize_column").with(i);
 
