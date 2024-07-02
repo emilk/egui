@@ -42,6 +42,9 @@ use legend::LegendWidget;
 type LabelFormatterFn<'a> = dyn Fn(&str, &PlotPoint) -> String + 'a;
 pub type LabelFormatter<'a> = Option<Box<LabelFormatterFn<'a>>>;
 
+type LegendFormatterFn = dyn Fn(&str) -> &str;
+type LegendFormatter = Option<Box<LegendFormatterFn>>;
+
 type GridSpacerFn<'a> = dyn Fn(GridInput) -> Vec<GridMark> + 'a;
 type GridSpacer<'a> = Box<GridSpacerFn<'a>>;
 
@@ -173,6 +176,7 @@ pub struct Plot<'a> {
     show_x: bool,
     show_y: bool,
     label_formatter: LabelFormatter<'a>,
+    legend_formatter: LegendFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter<'a>)>,
     x_axes: Vec<AxisHints<'a>>, // default x axes
     y_axes: Vec<AxisHints<'a>>, // default y axes
@@ -220,6 +224,7 @@ impl<'a> Plot<'a> {
             show_x: true,
             show_y: true,
             label_formatter: None,
+            legend_formatter: None,
             coordinates_formatter: None,
             x_axes: vec![AxisHints::new(Axis::X)],
             y_axes: vec![AxisHints::new(Axis::Y)],
@@ -410,6 +415,15 @@ impl<'a> Plot<'a> {
         label_formatter: impl Fn(&str, &PlotPoint) -> String + 'a,
     ) -> Self {
         self.label_formatter = Some(Box::new(label_formatter));
+        self
+    }
+
+    /// Provide a function to customize the legend labels
+    ///
+    /// All items with the same name will be shown with (and have their visibility controlled by) a single label
+    #[inline]
+    pub fn legend_formatter(mut self, legend_formatter: impl Fn(&str) -> &str + 'static) -> Self {
+        self.legend_formatter = Some(Box::new(legend_formatter));
         self
     }
 
@@ -757,6 +771,7 @@ impl<'a> Plot<'a> {
             mut show_x,
             mut show_y,
             label_formatter,
+            legend_formatter,
             coordinates_formatter,
             x_axes,
             y_axes,
@@ -886,20 +901,40 @@ impl<'a> Plot<'a> {
         }
 
         // --- Legend ---
-        let legend = legend_config
-            .and_then(|config| LegendWidget::try_new(plot_rect, config, &items, &mem.hidden_items));
+        let legend = legend_config.and_then(|config| {
+            LegendWidget::try_new(
+                plot_rect,
+                config,
+                &items,
+                &mem.hidden_items,
+                legend_formatter
+                    .as_ref()
+                    .map(|formatter| formatter.as_ref()),
+            )
+        });
         // Don't show hover cursor when hovering over legend.
         if mem.hovered_legend_item.is_some() {
             show_x = false;
             show_y = false;
         }
         // Remove the deselected items.
-        items.retain(|item| !mem.hidden_items.contains(item.name()));
+        items.retain(|item| {
+            !mem.hidden_items.contains(
+                legend_formatter
+                    .as_ref()
+                    .map_or_else(|| item.name(), |formatter| formatter(item.name())),
+            )
+        });
         // Highlight the hovered items.
         if let Some(hovered_name) = &mem.hovered_legend_item {
             items
                 .iter_mut()
-                .filter(|entry| entry.name() == hovered_name)
+                .filter(|entry| {
+                    legend_formatter
+                        .as_ref()
+                        .map_or_else(|| entry.name(), |formatter| formatter(entry.name()))
+                        == hovered_name
+                })
                 .for_each(|entry| entry.highlight());
         }
         // Move highlighted items to front.
