@@ -70,6 +70,15 @@ impl FullOutput {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct IMEOutput {
+    /// is visible IME?
+    pub visible: bool,
+
+    /// is allowed IME?
+    pub allowed_ime: bool,
+
+    /// Indicates whether the IME is currently active.
+    pub ime_enabled: bool,
+
     /// Where the [`crate::TextEdit`] is located on screen.
     pub rect: crate::Rect,
 
