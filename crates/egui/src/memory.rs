@@ -197,6 +197,10 @@ pub struct Options {
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
+    /// If `true`, This will call `egui::Context::request_repaint()` at the end of each frame
+    /// If `false` (default), egui is only updated if are input events (like mouse movements) or there are some animations in the GUI.
+    pub continuous_mode: bool,
+
     /// If any widget moves or changes id, repaint everything.
     ///
     /// It is recommended you keep this OFF, because
@@ -265,6 +269,7 @@ impl Default for Options {
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
+            continuous_mode: false,
             repaint_on_widget_change: false,
             screen_reader: false,
             preload_font_glyphs: true,
@@ -286,6 +291,7 @@ impl Options {
             zoom_factor: _, // TODO(emilk)
             zoom_with_keyboard,
             tessellation_options,
+            continuous_mode,
             repaint_on_widget_change,
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
@@ -301,6 +307,8 @@ impl Options {
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
             .show(ui, |ui| {
+                ui.checkbox(continuous_mode, "Repaint at the end of each frame");
+
                 ui.checkbox(
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",

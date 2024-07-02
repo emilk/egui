@@ -65,10 +65,11 @@ impl BackendPanel {
         match self.run_mode {
             RunMode::Continuous => {
                 // Tell the backend to repaint as soon as possible
-                ctx.request_repaint();
+                ctx.options_mut(|options| options.continuous_mode = true);
             }
             RunMode::Reactive => {
                 // let the computer rest for a bit
+                ctx.options_mut(|options| options.continuous_mode = false);
             }
         }
     }
