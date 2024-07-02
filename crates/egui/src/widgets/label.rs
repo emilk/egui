@@ -68,6 +68,14 @@ impl Label {
         self
     }
 
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Extend`],
+    /// disabling wrapping and truncating, and instead expanding the parent [`Ui`].
+    #[inline]
+    pub fn extend(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Extend);
+        self
+    }
+
     /// Can the user select the text with the mouse?
     ///
     /// Overrides [`crate::style::Interaction::selectable_labels`].
