@@ -35,6 +35,7 @@ default = [
   "accesskit",
   "default_fonts",
   "glow",
+  "links",
   "wayland",
   "web_screen_reader",
   "winit/default",
@@ -67,6 +68,8 @@ glow = [
   "dep:rwh_05",
   "winit/rwh_05",
 ]
+
+links = ["egui-winit/links"]
 
 ## Enable saving app state to disk.
 persistence = [
@@ -153,7 +156,6 @@ serde = { workspace = true, optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { workspace = true, default-features = false, features = [
   "clipboard",
-  "links",
 ] }
 image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
