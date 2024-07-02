@@ -58,6 +58,9 @@ impl<'a> DatePickerPopup<'a> {
         let height = 20.0;
         let spacing = 2.0;
         ui.spacing_mut().item_spacing = Vec2::splat(spacing);
+
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend); // Don't wrap any text
+
         StripBuilder::new(ui)
             .clip(false)
             .sizes(

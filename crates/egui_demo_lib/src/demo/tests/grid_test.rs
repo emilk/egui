@@ -1,5 +1,5 @@
 #[derive(PartialEq)]
-pub struct TableTest {
+pub struct GridTest {
     num_cols: usize,
     num_rows: usize,
     min_col_width: f32,
@@ -7,7 +7,7 @@ pub struct TableTest {
     text_length: usize,
 }
 
-impl Default for TableTest {
+impl Default for GridTest {
     fn default() -> Self {
         Self {
             num_cols: 4,
@@ -19,9 +19,9 @@ impl Default for TableTest {
     }
 }
 
-impl crate::Demo for TableTest {
+impl crate::Demo for GridTest {
     fn name(&self) -> &'static str {
-        "Table Test"
+        "Grid Test"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
@@ -32,7 +32,7 @@ impl crate::Demo for TableTest {
     }
 }
 
-impl crate::View for TableTest {
+impl crate::View for GridTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add(
             egui::Slider::new(&mut self.min_col_width, 0.0..=400.0).text("Minimum column width"),
