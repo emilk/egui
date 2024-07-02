@@ -110,6 +110,15 @@ impl Rect {
         }
     }
 
+    /// A zero-sized rect at a specific point.
+    #[inline]
+    pub fn from_pos(point: Pos2) -> Self {
+        Self {
+            min: point,
+            max: point,
+        }
+    }
+
     /// Bounding-box around the points.
     pub fn from_points(points: &[Pos2]) -> Self {
         let mut rect = Self::NOTHING;
@@ -361,6 +370,8 @@ impl Rect {
     /// The distance from the rect to the position.
     ///
     /// The distance is zero when the position is in the interior of the rectangle.
+    ///
+    /// [Negative rectangles](Self::is_negative) always return [`f32::INFINITY`].
     #[inline]
     pub fn distance_to_pos(&self, pos: Pos2) -> f32 {
         self.distance_sq_to_pos(pos).sqrt()
@@ -369,8 +380,14 @@ impl Rect {
     /// The distance from the rect to the position, squared.
     ///
     /// The distance is zero when the position is in the interior of the rectangle.
+    ///
+    /// [Negative rectangles](Self::is_negative) always return [`f32::INFINITY`].
     #[inline]
     pub fn distance_sq_to_pos(&self, pos: Pos2) -> f32 {
+        if self.is_negative() {
+            return f32::INFINITY;
+        }
+
         let dx = if self.min.x > pos.x {
             self.min.x - pos.x
         } else if pos.x > self.max.x {
@@ -394,6 +411,8 @@ impl Rect {
     ///
     /// Negative inside the box.
     ///
+    /// [Negative rectangles](Self::is_negative) always return [`f32::INFINITY`].
+    ///
     /// ```
     /// # use emath::{pos2, Rect};
     /// let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
@@ -402,6 +421,10 @@ impl Rect {
     /// assert_eq!(rect.signed_distance_to_pos(pos2(1.50, 0.50)), 0.50);
     /// ```
     pub fn signed_distance_to_pos(&self, pos: Pos2) -> f32 {
+        if self.is_negative() {
+            return f32::INFINITY;
+        }
+
         let edge_distances = (pos - self.center()).abs() - self.size() * 0.5;
         let inside_dist = edge_distances.max_elem().min(0.0);
         let outside_dist = edge_distances.max(Vec2::ZERO).length();
@@ -542,6 +565,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "top_left")]
     pub fn left_top(&self) -> Pos2 {
         pos2(self.left(), self.top())
     }
@@ -552,6 +576,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "top_right")]
     pub fn right_top(&self) -> Pos2 {
         pos2(self.right(), self.top())
     }
@@ -567,6 +592,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "bottom_left")]
     pub fn left_bottom(&self) -> Pos2 {
         pos2(self.left(), self.bottom())
     }
@@ -577,6 +603,7 @@ impl Rect {
     }
 
     #[inline(always)]
+    #[doc(alias = "bottom_right")]
     pub fn right_bottom(&self) -> Pos2 {
         pos2(self.right(), self.bottom())
     }

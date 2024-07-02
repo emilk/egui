@@ -265,7 +265,7 @@ impl Widget for Button<'_> {
         let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
             if let Some(galley) = &galley {
-                WidgetInfo::labeled(WidgetType::Button, galley.text())
+                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())
             } else {
                 WidgetInfo::new(WidgetType::Button)
             }
@@ -319,8 +319,11 @@ impl Widget for Button<'_> {
                     image.show_loading_spinner,
                     image.image_options(),
                 );
-                response =
-                    widgets::image::texture_load_result_response(image.source(), &tlr, response);
+                response = widgets::image::texture_load_result_response(
+                    &image.source(ui.ctx()),
+                    &tlr,
+                    response,
+                );
             }
 
             if image.is_some() && galley.is_some() {

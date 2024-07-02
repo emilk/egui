@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
 use epaint::{Rounding, Shadow, Stroke};
 
@@ -10,6 +10,51 @@ use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
     RichText, WidgetText,
 };
+
+/// How to format numbers in e.g. a [`crate::DragValue`].
+#[derive(Clone)]
+pub struct NumberFormatter(
+    Arc<dyn 'static + Sync + Send + Fn(f64, RangeInclusive<usize>) -> String>,
+);
+
+impl NumberFormatter {
+    /// The first argument is the number to be formatted.
+    /// The second argument is the range of the number of decimals to show.
+    ///
+    /// See [`Self::format`] for the meaning of the `decimals` argument.
+    #[inline]
+    pub fn new(
+        formatter: impl 'static + Sync + Send + Fn(f64, RangeInclusive<usize>) -> String,
+    ) -> Self {
+        Self(Arc::new(formatter))
+    }
+
+    /// Format the given number with the given number of decimals.
+    ///
+    /// Decimals are counted after the decimal point.
+    ///
+    /// The minimum number of decimals is usually automatically calculated
+    /// from the sensitivity of the [`crate::DragValue`] and will usually be respected (e.g. include trailing zeroes),
+    /// but if the given value requires more decimals to represent accurately,
+    /// more decimals will be shown, up to the given max.
+    #[inline]
+    pub fn format(&self, value: f64, decimals: RangeInclusive<usize>) -> String {
+        (self.0)(value, decimals)
+    }
+}
+
+impl std::fmt::Debug for NumberFormatter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("NumberFormatter")
+    }
+}
+
+impl PartialEq for NumberFormatter {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -182,6 +227,12 @@ pub struct Style {
     /// The style to use for [`DragValue`] text.
     pub drag_value_text_style: TextStyle,
 
+    /// How to format numbers as strings, e.g. in a [`crate::DragValue`].
+    ///
+    /// You can override this to e.g. add thousands separators.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub number_formatter: NumberFormatter,
+
     /// If set, labels, buttons, etc. will use this to determine whether to wrap the text at the
     /// right edge of the [`Ui`] they are in. By default, this is `None`.
     ///
@@ -229,6 +280,12 @@ pub struct Style {
 
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
+}
+
+#[test]
+fn style_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Style>();
 }
 
 impl Style {
@@ -401,7 +458,7 @@ pub struct ScrollStyle {
     /// When the user hovers the scroll bars they expand to [`Self::bar_width`].
     pub floating_width: f32,
 
-    /// How much space i allocated for a floating scroll bar?
+    /// How much space is allocated for a floating scroll bar?
     ///
     /// Normally this is zero, but you could set this to something small
     /// like 4.0 and set [`Self::dormant_handle_opacity`] and
@@ -499,7 +556,7 @@ impl ScrollStyle {
             active_background_opacity: 1.0,
             active_handle_opacity: 1.0,
 
-            // Be tranlucent when expanded so we can see the content
+            // Be translucent when expanded so we can see the content
             interact_background_opacity: 0.6,
             interact_handle_opacity: 0.6,
 
@@ -571,26 +628,26 @@ impl ScrollStyle {
         });
 
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(bar_width).clamp_range(0.0..=32.0));
+            ui.add(DragValue::new(bar_width).range(0.0..=32.0));
             ui.label("Full bar width");
         });
         if *floating {
             ui.horizontal(|ui| {
-                ui.add(DragValue::new(floating_width).clamp_range(0.0..=32.0));
+                ui.add(DragValue::new(floating_width).range(0.0..=32.0));
                 ui.label("Thin bar width");
             });
             ui.horizontal(|ui| {
-                ui.add(DragValue::new(floating_allocated_width).clamp_range(0.0..=32.0));
+                ui.add(DragValue::new(floating_allocated_width).range(0.0..=32.0));
                 ui.label("Allocated width");
             });
         }
 
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(handle_min_length).clamp_range(0.0..=32.0));
+            ui.add(DragValue::new(handle_min_length).range(0.0..=32.0));
             ui.label("Minimum handle length");
         });
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
+            ui.add(DragValue::new(bar_outer_margin).range(0.0..=32.0));
             ui.label("Outer margin");
         });
 
@@ -603,7 +660,7 @@ impl ScrollStyle {
         if *floating {
             crate::Grid::new("opacity").show(ui, |ui| {
                 fn opacity_ui(ui: &mut Ui, opacity: &mut f32) {
-                    ui.add(DragValue::new(opacity).speed(0.01).clamp_range(0.0..=1.0));
+                    ui.add(DragValue::new(opacity).speed(0.01).range(0.0..=1.0));
                 }
 
                 ui.label("Opacity");
@@ -626,7 +683,7 @@ impl ScrollStyle {
             });
         } else {
             ui.horizontal(|ui| {
-                ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+                ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
                 ui.label("Inner margin");
             });
         }
@@ -652,7 +709,7 @@ pub struct Interaction {
     /// Radius of the interactive area of the corner of a window during drag-to-resize.
     pub resize_grab_radius_corner: f32,
 
-    /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
+    /// If `false`, tooltips will show up anytime you hover anything, even if mouse is still moving
     pub show_tooltips_only_when_still: bool,
 
     /// Delay in seconds before showing tooltips after the mouse stops moving
@@ -1068,6 +1125,7 @@ impl Default for Style {
             override_text_style: None,
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
+            number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
             wrap: None,
             wrap_mode: None,
             spacing: Spacing::default(),
@@ -1113,9 +1171,9 @@ impl Default for Spacing {
 impl Default for Interaction {
     fn default() -> Self {
         Self {
+            interact_radius: 5.0,
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
-            interact_radius: 5.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
             tooltip_grace_time: 0.2,
@@ -1363,6 +1421,7 @@ impl Style {
             override_text_style,
             text_styles,
             drag_value_text_style,
+            number_formatter: _, // can't change callbacks in the UI
             wrap: _,
             wrap_mode: _,
             spacing,
@@ -1426,7 +1485,7 @@ impl Style {
             ui.label("Animation duration");
             ui.add(
                 DragValue::new(animation_time)
-                    .clamp_range(0.0..=1.0)
+                    .range(0.0..=1.0)
                     .speed(0.02)
                     .suffix(" s"),
             );
@@ -1523,19 +1582,19 @@ impl Spacing {
                 ui.end_row();
 
                 ui.label("Indent");
-                ui.add(DragValue::new(indent).clamp_range(0.0..=100.0));
+                ui.add(DragValue::new(indent).range(0.0..=100.0));
                 ui.end_row();
 
                 ui.label("Slider width");
-                ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(slider_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Slider rail height");
-                ui.add(DragValue::new(slider_rail_height).clamp_range(0.0..=50.0));
+                ui.add(DragValue::new(slider_rail_height).range(0.0..=50.0));
                 ui.end_row();
 
                 ui.label("ComboBox width");
-                ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(combo_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Default area size");
@@ -1543,20 +1602,20 @@ impl Spacing {
                 ui.end_row();
 
                 ui.label("TextEdit width");
-                ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(text_edit_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Tooltip wrap width");
-                ui.add(DragValue::new(tooltip_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(tooltip_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Default menu width");
-                ui.add(DragValue::new(menu_width).clamp_range(0.0..=1000.0));
+                ui.add(DragValue::new(menu_width).range(0.0..=1000.0));
                 ui.end_row();
 
                 ui.label("Menu spacing")
                     .on_hover_text("Horizontal spacing between menus");
-                ui.add(DragValue::new(menu_spacing).clamp_range(0.0..=10.0));
+                ui.add(DragValue::new(menu_spacing).range(0.0..=10.0));
                 ui.end_row();
 
                 ui.label("Checkboxes etc");
@@ -1564,17 +1623,17 @@ impl Spacing {
                     ui.add(
                         DragValue::new(icon_width)
                             .prefix("outer icon width:")
-                            .clamp_range(0.0..=60.0),
+                            .range(0.0..=60.0),
                     );
                     ui.add(
                         DragValue::new(icon_width_inner)
                             .prefix("inner icon width:")
-                            .clamp_range(0.0..=60.0),
+                            .range(0.0..=60.0),
                     );
                     ui.add(
                         DragValue::new(icon_spacing)
                             .prefix("spacing:")
-                            .clamp_range(0.0..=10.0),
+                            .range(0.0..=10.0),
                     );
                 });
                 ui.end_row();
@@ -1587,7 +1646,7 @@ impl Spacing {
 
         ui.horizontal(|ui| {
             ui.label("Max height of a combo box");
-            ui.add(DragValue::new(combo_height).clamp_range(0.0..=1000.0));
+            ui.add(DragValue::new(combo_height).range(0.0..=1000.0));
         });
 
         ui.collapsing("Scroll Area", |ui| {
@@ -1619,15 +1678,15 @@ impl Interaction {
             .show(ui, |ui| {
                 ui.label("interact_radius")
                     .on_hover_text("Interact with the closest widget within this radius.");
-                ui.add(DragValue::new(interact_radius).clamp_range(0.0..=20.0));
+                ui.add(DragValue::new(interact_radius).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("resize_grab_radius_side").on_hover_text("Radius of the interactive area of the side of a window during drag-to-resize");
-                ui.add(DragValue::new(resize_grab_radius_side).clamp_range(0.0..=20.0));
+                ui.add(DragValue::new(resize_grab_radius_side).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("resize_grab_radius_corner").on_hover_text("Radius of the interactive area of the corner of a window during drag-to-resize.");
-                ui.add(DragValue::new(resize_grab_radius_corner).clamp_range(0.0..=20.0));
+                ui.add(DragValue::new(resize_grab_radius_corner).range(0.0..=20.0));
                 ui.end_row();
 
                 ui.label("Tooltip delay").on_hover_text(
@@ -1635,7 +1694,7 @@ impl Interaction {
                 );
                 ui.add(
                     DragValue::new(tooltip_delay)
-                        .clamp_range(0.0..=1.0)
+                        .range(0.0..=1.0)
                         .speed(0.05)
                         .suffix(" s"),
                 );
@@ -1646,7 +1705,7 @@ impl Interaction {
                 );
                 ui.add(
                     DragValue::new(tooltip_grace_time)
-                        .clamp_range(0.0..=1.0)
+                        .range(0.0..=1.0)
                         .speed(0.05)
                         .suffix(" s"),
                 );
@@ -2006,7 +2065,7 @@ impl TextCursorStyle {
                 ui.add(
                     DragValue::new(on_duration)
                         .speed(0.1)
-                        .clamp_range(0.0..=2.0)
+                        .range(0.0..=2.0)
                         .suffix(" s"),
                 );
                 ui.end_row();
@@ -2015,7 +2074,7 @@ impl TextCursorStyle {
                 ui.add(
                     DragValue::new(off_duration)
                         .speed(0.1)
-                        .clamp_range(0.0..=2.0)
+                        .range(0.0..=2.0)
                         .suffix(" s"),
                 );
                 ui.end_row();
@@ -2079,12 +2138,12 @@ fn two_drag_values(value: &mut Vec2, range: std::ops::RangeInclusive<f32>) -> im
         ui.horizontal(|ui| {
             ui.add(
                 DragValue::new(&mut value.x)
-                    .clamp_range(range.clone())
+                    .range(range.clone())
                     .prefix("x: "),
             );
             ui.add(
                 DragValue::new(&mut value.y)
-                    .clamp_range(range.clone())
+                    .range(range.clone())
                     .prefix("y: "),
             );
         })
@@ -2132,7 +2191,7 @@ impl HandleShape {
 pub enum NumericColorSpace {
     /// RGB is 0-255 in gamma space.
     ///
-    /// Alpha is 0-255 in linear space .
+    /// Alpha is 0-255 in linear space.
     GammaByte,
 
     /// 0-1 in linear space.
@@ -2226,7 +2285,7 @@ impl Widget for &mut Rounding {
                 ui.checkbox(&mut same, "same");
 
                 let mut cr = self.nw;
-                ui.add(DragValue::new(&mut cr).clamp_range(0.0..=f32::INFINITY));
+                ui.add(DragValue::new(&mut cr).range(0.0..=f32::INFINITY));
                 *self = Rounding::same(cr);
             })
             .response
@@ -2236,19 +2295,19 @@ impl Widget for &mut Rounding {
 
                 crate::Grid::new("rounding").num_columns(2).show(ui, |ui| {
                     ui.label("NW");
-                    ui.add(DragValue::new(&mut self.nw).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.nw).range(0.0..=f32::INFINITY));
                     ui.end_row();
 
                     ui.label("NE");
-                    ui.add(DragValue::new(&mut self.ne).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.ne).range(0.0..=f32::INFINITY));
                     ui.end_row();
 
                     ui.label("SW");
-                    ui.add(DragValue::new(&mut self.sw).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.sw).range(0.0..=f32::INFINITY));
                     ui.end_row();
 
                     ui.label("SE");
-                    ui.add(DragValue::new(&mut self.se).clamp_range(0.0..=f32::INFINITY));
+                    ui.add(DragValue::new(&mut self.se).range(0.0..=f32::INFINITY));
                     ui.end_row();
                 });
             })
@@ -2280,13 +2339,13 @@ impl Widget for &mut Shadow {
                 ui.add(
                     DragValue::new(&mut offset.x)
                         .speed(1.0)
-                        .clamp_range(-100.0..=100.0)
+                        .range(-100.0..=100.0)
                         .prefix("x: "),
                 );
                 ui.add(
                     DragValue::new(&mut offset.y)
                         .speed(1.0)
-                        .clamp_range(-100.0..=100.0)
+                        .range(-100.0..=100.0)
                         .prefix("y: "),
                 );
                 ui.end_row();
@@ -2294,14 +2353,14 @@ impl Widget for &mut Shadow {
                 ui.add(
                     DragValue::new(blur)
                         .speed(1.0)
-                        .clamp_range(0.0..=100.0)
+                        .range(0.0..=100.0)
                         .prefix("blur: "),
                 );
 
                 ui.add(
                     DragValue::new(spread)
                         .speed(1.0)
-                        .clamp_range(0.0..=100.0)
+                        .range(0.0..=100.0)
                         .prefix("spread: "),
                 );
             });
@@ -2316,12 +2375,8 @@ impl Widget for &mut Stroke {
         let Stroke { width, color } = self;
 
         ui.horizontal(|ui| {
-            ui.add(
-                DragValue::new(width)
-                    .speed(0.1)
-                    .clamp_range(0.0..=f32::INFINITY),
-            )
-            .on_hover_text("Width");
+            ui.add(DragValue::new(width).speed(0.1).range(0.0..=f32::INFINITY))
+                .on_hover_text("Width");
             ui.color_edit_button_srgba(color);
 
             // stroke preview:

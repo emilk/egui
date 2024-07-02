@@ -168,15 +168,17 @@ fn menu_popup<'c, R>(
             .inner
     });
 
+    let area_rect = area_response.response.rect;
+
     menu_state_arc.write().rect = if sizing_pass {
         // During the sizing pass we didn't know the size yet,
         // so we might have just constrained the position unnecessarily.
         // Therefore keep the original=desired position until the next frame.
-        Rect::from_min_size(pos, area_response.response.rect.size())
+        Rect::from_min_size(pos, area_rect.size())
     } else {
         // We knew the size, and this is where it ended up (potentially constrained to screen).
         // Remember it for the future:
-        area_response.response.rect
+        area_rect
     };
 
     area_response
@@ -269,7 +271,7 @@ impl MenuRootManager {
     ) -> Option<InnerResponse<R>> {
         if let Some(root) = self.inner.as_mut() {
             let (menu_response, inner_response) = root.show(button, add_contents);
-            if MenuResponse::Close == menu_response {
+            if menu_response.is_close() {
                 self.inner = None;
             }
             inner_response
@@ -321,7 +323,8 @@ impl MenuRoot {
             let inner_response = menu_popup(&button.ctx, &self.menu_state, self.id, add_contents);
             let menu_state = self.menu_state.read();
 
-            if menu_state.response.is_close() {
+            let escape_pressed = button.ctx.input(|i| i.key_pressed(Key::Escape));
+            if menu_state.response.is_close() || escape_pressed {
                 return (MenuResponse::Close, Some(inner_response));
             }
         }
@@ -361,6 +364,13 @@ impl MenuRoot {
                 if pos.x + menu_rect.width() > screen_rect.max.x {
                     pos.x = screen_rect.max.x - menu_rect.width();
                 }
+            }
+
+            if let Some(transform) = button
+                .ctx
+                .memory(|m| m.layer_transforms.get(&button.layer_id).copied())
+            {
+                pos = transform * pos;
             }
 
             return MenuResponse::Create(pos, id);
@@ -514,7 +524,11 @@ impl SubMenuButton {
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            crate::WidgetInfo::labeled(crate::WidgetType::Button, text_galley.text())
+            crate::WidgetInfo::labeled(
+                crate::WidgetType::Button,
+                ui.is_enabled(),
+                text_galley.text(),
+            )
         });
 
         if ui.is_rect_visible(rect) {

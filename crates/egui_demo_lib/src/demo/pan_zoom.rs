@@ -10,13 +10,13 @@ pub struct PanZoom {
 
 impl Eq for PanZoom {}
 
-impl super::Demo for PanZoom {
+impl crate::Demo for PanZoom {
     fn name(&self) -> &'static str {
         "🔍 Pan Zoom"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         let window = egui::Window::new("Pan Zoom")
             .default_width(300.0)
             .default_height(300.0)
@@ -26,7 +26,7 @@ impl super::Demo for PanZoom {
     }
 }
 
-impl super::View for PanZoom {
+impl crate::View for PanZoom {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label(
             "Pan, zoom in, and zoom out with scrolling (see the plot demo for more instructions). \
@@ -110,11 +110,10 @@ impl super::View for PanZoom {
         .into_iter()
         .enumerate()
         {
+            let window_layer = ui.layer_id();
             let id = egui::Area::new(id.with(("subarea", i)))
                 .default_pos(pos)
-                // Need to cover up the pan_zoom demo window,
-                // but may also cover over other windows.
-                .order(egui::Order::Foreground)
+                .order(egui::Order::Middle)
                 .show(ui.ctx(), |ui| {
                     ui.set_clip_rect(transform.inverse() * rect);
                     egui::Frame::default()
@@ -130,6 +129,7 @@ impl super::View for PanZoom {
                 .response
                 .layer_id;
             ui.ctx().set_transform_layer(id, transform);
+            ui.ctx().set_sublayer(window_layer, id);
         }
     }
 }

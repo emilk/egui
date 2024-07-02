@@ -125,6 +125,6 @@ impl<'a> Widget for ImageButton<'a> {
                 .rect_stroke(rect.expand2(expansion), rounding, stroke);
         }
 
-        widgets::image::texture_load_result_response(self.image.source(), &tlr, response)
+        widgets::image::texture_load_result_response(&self.image.source(ui.ctx()), &tlr, response)
     }
 }

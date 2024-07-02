@@ -8,9 +8,9 @@ use super::Vec2;
 // `vec2(c,s)` represents where the X axis will end up after rotation.
 //
 /// Represents a rotation in the 2D plane.
-//
+///
 /// A rotation of 𝞃/4 = 90° rotates the X axis to the Y axis.
-//
+///
 /// Normally a [`Rot2`] is normalized (unit-length).
 /// If not, it will also scale vectors.
 #[repr(C)]
@@ -91,12 +91,22 @@ impl Rot2 {
 
 impl std::fmt::Debug for Rot2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Rot2 {{ angle: {:.1}°, length: {} }}",
-            self.angle().to_degrees(),
-            self.length()
-        )
+        if let Some(precision) = f.precision() {
+            write!(
+                f,
+                "Rot2 {{ angle: {:.2$}°, length: {} }}",
+                self.angle().to_degrees(),
+                self.length(),
+                precision
+            )
+        } else {
+            write!(
+                f,
+                "Rot2 {{ angle: {:.1}°, length: {} }}",
+                self.angle().to_degrees(),
+                self.length(),
+            )
+        }
     }
 }
 

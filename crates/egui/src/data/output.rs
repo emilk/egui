@@ -556,8 +556,9 @@ impl WidgetInfo {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn labeled(typ: WidgetType, label: impl ToString) -> Self {
+    pub fn labeled(typ: WidgetType, enabled: bool, label: impl ToString) -> Self {
         Self {
+            enabled,
             label: Some(label.to_string()),
             ..Self::new(typ)
         }
@@ -565,25 +566,28 @@ impl WidgetInfo {
 
     /// checkboxes, radio-buttons etc
     #[allow(clippy::needless_pass_by_value)]
-    pub fn selected(typ: WidgetType, selected: bool, label: impl ToString) -> Self {
+    pub fn selected(typ: WidgetType, enabled: bool, selected: bool, label: impl ToString) -> Self {
         Self {
+            enabled,
             label: Some(label.to_string()),
             selected: Some(selected),
             ..Self::new(typ)
         }
     }
 
-    pub fn drag_value(value: f64) -> Self {
+    pub fn drag_value(enabled: bool, value: f64) -> Self {
         Self {
+            enabled,
             value: Some(value),
             ..Self::new(WidgetType::DragValue)
         }
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn slider(value: f64, label: impl ToString) -> Self {
+    pub fn slider(enabled: bool, value: f64, label: impl ToString) -> Self {
         let label = label.to_string();
         Self {
+            enabled,
             label: if label.is_empty() { None } else { Some(label) },
             value: Some(value),
             ..Self::new(WidgetType::Slider)
@@ -591,7 +595,11 @@ impl WidgetInfo {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    pub fn text_edit(prev_text_value: impl ToString, text_value: impl ToString) -> Self {
+    pub fn text_edit(
+        enabled: bool,
+        prev_text_value: impl ToString,
+        text_value: impl ToString,
+    ) -> Self {
         let text_value = text_value.to_string();
         let prev_text_value = prev_text_value.to_string();
         let prev_text_value = if text_value == prev_text_value {
@@ -600,6 +608,7 @@ impl WidgetInfo {
             Some(prev_text_value)
         };
         Self {
+            enabled,
             current_text_value: Some(text_value),
             prev_text_value,
             ..Self::new(WidgetType::TextEdit)
@@ -608,10 +617,12 @@ impl WidgetInfo {
 
     #[allow(clippy::needless_pass_by_value)]
     pub fn text_selection_changed(
+        enabled: bool,
         text_selection: std::ops::RangeInclusive<usize>,
         current_text_value: impl ToString,
     ) -> Self {
         Self {
+            enabled,
             text_selection: Some(text_selection),
             current_text_value: Some(current_text_value.to_string()),
             ..Self::new(WidgetType::TextEdit)

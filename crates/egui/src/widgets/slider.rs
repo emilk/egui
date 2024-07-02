@@ -48,9 +48,8 @@ pub enum SliderOrientation {
 /// Control a number with a slider.
 ///
 /// The slider range defines the values you get when pulling the slider to the far edges.
-/// By default, the slider can still show values outside this range,
-/// and still allows users to enter values outside the range by clicking the slider value and editing it.
-/// If you want to clamp incoming and outgoing values, use [`Slider::clamp_to_range`].
+/// By default all values are clamped to this range, even when not interacted with.
+/// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
 ///
 /// The range can include any numbers, and go from low-to-high or from high-to-low.
 ///
@@ -319,7 +318,9 @@ impl<'a> Slider<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
-    /// See also: [`DragValue::custom_parser`]
+    /// The default formatter is [`Style::number_formatter`].
+    ///
+    /// See also: [`Slider::custom_parser`]
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -362,7 +363,7 @@ impl<'a> Slider<'a> {
     /// A custom parser takes an `&str` to parse into a number and returns `Some` if it was successfully parsed
     /// or `None` otherwise.
     ///
-    /// See also: [`DragValue::custom_formatter`]
+    /// See also: [`Slider::custom_formatter`]
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -543,14 +544,6 @@ impl<'a> Slider<'a> {
             value = start + ((value - start) / step).round() * step;
         }
         set(&mut self.get_set_value, value);
-    }
-
-    fn clamp_range(&self) -> RangeInclusive<f64> {
-        if self.clamp_to_range {
-            self.range()
-        } else {
-            f64::NEG_INFINITY..=f64::INFINITY
-        }
     }
 
     fn range(&self) -> RangeInclusive<f64> {
@@ -818,7 +811,8 @@ impl<'a> Slider<'a> {
         let response = ui.add({
             let mut dv = DragValue::new(&mut value)
                 .speed(speed)
-                .clamp_range(self.clamp_range())
+                .range(self.range.clone())
+                .clamp_to_range(self.clamp_to_range)
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
@@ -859,7 +853,7 @@ impl<'a> Slider<'a> {
 
         let value = self.get_value();
         response.changed = value != old_value;
-        response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
+        response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {
@@ -870,7 +864,12 @@ impl<'a> Slider<'a> {
                 builder.set_numeric_value_step(step);
             }
             builder.add_action(Action::SetValue);
-            let clamp_range = self.clamp_range();
+
+            let clamp_range = if self.clamp_to_range {
+                self.range()
+            } else {
+                f64::NEG_INFINITY..=f64::INFINITY
+            };
             if value < *clamp_range.end() {
                 builder.add_action(Action::Increment);
             }

@@ -410,7 +410,7 @@ fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool 
         DragValue::new(value)
             .speed(0.003)
             .prefix(prefix)
-            .clamp_range(0.0..=1.0)
+            .range(0.0..=1.0)
             .custom_formatter(|n, _| format!("{n:.03}"))
             .ui(ui)
     }

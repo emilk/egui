@@ -35,7 +35,7 @@ impl Default for WindowOptions {
     }
 }
 
-impl super::Demo for WindowOptions {
+impl crate::Demo for WindowOptions {
     fn name(&self) -> &'static str {
         "🗖 Window Options"
     }
@@ -60,7 +60,7 @@ impl super::Demo for WindowOptions {
             ctx.request_repaint();
         }
 
-        use super::View as _;
+        use crate::View as _;
         let mut window = egui::Window::new(title)
             .id(egui::Id::new("demo_window_options")) // required since we change the title
             .resizable(resizable)
@@ -79,7 +79,7 @@ impl super::Demo for WindowOptions {
     }
 }
 
-impl super::View for WindowOptions {
+impl crate::View for WindowOptions {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self {
             title,

@@ -36,6 +36,7 @@ serde = ["dep:serde", "egui/serde"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }
+emath = { workspace = true, default-features = false }
 
 ahash.workspace = true
 

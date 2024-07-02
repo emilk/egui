@@ -540,8 +540,9 @@ impl CollapsingHeader {
             header_response.mark_changed();
         }
 
-        header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
+        header_response.widget_info(|| {
+            WidgetInfo::labeled(WidgetType::CollapsingHeader, ui.is_enabled(), galley.text())
+        });
 
         let openness = state.openness(ui.ctx());
 

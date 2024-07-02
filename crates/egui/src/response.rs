@@ -468,7 +468,7 @@ impl Response {
                 .ctx
                 .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
             {
-                pos = transform * pos;
+                pos = transform.inverse() * pos;
             }
             Some(pos)
         } else {
@@ -562,7 +562,14 @@ impl Response {
     ///
     /// This can be used to give attention to a widget during a tutorial.
     pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
-        crate::containers::show_tooltip_for(&self.ctx, self.id, &self.rect, add_contents);
+        let mut rect = self.rect;
+        if let Some(transform) = self
+            .ctx
+            .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
+        {
+            rect = transform * rect;
+        }
+        crate::containers::show_tooltip_for(&self.ctx, self.id, &rect, add_contents);
     }
 
     /// Always show this tooltip, even if disabled and the user isn't hovering it.
@@ -873,6 +880,9 @@ impl Response {
 
     #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::NodeBuilder) {
+        if !self.enabled {
+            builder.set_disabled();
+        }
         builder.set_bounds(accesskit::Rect {
             x0: self.rect.min.x.into(),
             y0: self.rect.min.y.into(),
@@ -914,6 +924,9 @@ impl Response {
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Other => Role::Unknown,
         });
+        if !info.enabled {
+            builder.set_disabled();
+        }
         if let Some(label) = info.label {
             builder.set_name(label);
         }

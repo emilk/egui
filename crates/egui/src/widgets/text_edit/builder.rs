@@ -539,6 +539,9 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
+
+        response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
+
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
@@ -749,6 +752,7 @@ impl<'t> TextEdit<'t> {
         if response.changed {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
+                    ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
                 )
@@ -758,6 +762,7 @@ impl<'t> TextEdit<'t> {
             let char_range =
                 cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
             let info = WidgetInfo::text_selection_changed(
+                ui.is_enabled(),
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
@@ -765,6 +770,7 @@ impl<'t> TextEdit<'t> {
         } else {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
+                    ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
                 )

@@ -15,7 +15,6 @@ pub struct AppRunner {
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
     pub(crate) text_agent: TextAgent,
-    pub(crate) mutable_text_under_cursor: bool,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -121,7 +120,6 @@ impl AppRunner {
             needs_repaint,
             last_save_time: now_sec(),
             text_agent,
-            mutable_text_under_cursor: false,
             textures_delta: Default::default(),
             clipped_primitives: None,
         };
@@ -183,12 +181,38 @@ impl AppRunner {
         self.clipped_primitives.is_some()
     }
 
+    /// Does the eframe app have focus?
+    ///
+    /// Technically: does either the canvas or the [`TextAgent`] have focus?
+    pub fn has_focus(&self) -> bool {
+        super::has_focus(self.canvas()) || self.text_agent.has_focus()
+    }
+
+    pub fn update_focus(&mut self) {
+        let has_focus = self.has_focus();
+        if self.input.raw.focused != has_focus {
+            log::trace!("{} Focus changed to {has_focus}", self.canvas().id());
+            self.input.set_focus(has_focus);
+
+            if !has_focus {
+                // We lost focus - good idea to save
+                self.save();
+            }
+            self.egui_ctx().request_repaint();
+        }
+    }
+
     /// Runs the logic, but doesn't paint the result.
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
+        // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
+        self.update_focus();
+
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
-        let raw_input = self.input.new_frame(canvas_size);
+        let mut raw_input = self.input.new_frame(canvas_size);
+
+        self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             self.app.update(egui_ctx, &mut self.frame);
@@ -249,8 +273,8 @@ impl AppRunner {
             cursor_icon,
             open_url,
             copied_text,
-            events: _, // already handled
-            mutable_text_under_cursor,
+            events: _,                    // already handled
+            mutable_text_under_cursor: _, // TODO(#4569): https://github.com/emilk/egui/issues/4569
             ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
@@ -269,7 +293,17 @@ impl AppRunner {
         #[cfg(not(web_sys_unstable_apis))]
         let _ = copied_text;
 
-        self.mutable_text_under_cursor = mutable_text_under_cursor;
+        if self.has_focus() {
+            // The eframe app has focus.
+            if ime.is_some() {
+                // We are editing text: give the focus to the text agent.
+                self.text_agent.focus();
+            } else {
+                // We are not editing text - give the focus to the canvas.
+                self.text_agent.blur();
+                self.canvas().focus().ok();
+            }
+        }
 
         if let Err(err) = self.text_agent.move_to(ime, self.canvas()) {
             log::error!(

@@ -10,12 +10,12 @@ use std::{
 /// [`egui::ViewportBuilder::app_id`] of [`crate::NativeOptions::viewport`]
 /// or the title argument to [`crate::run_native`].
 ///
-/// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
+/// On native the path is picked using [`directories::ProjectDirs::data_dir`](https://docs.rs/directories/5.0.1/directories/struct.ProjectDirs.html#method.data_dir) which is:
 /// * Linux:   `/home/UserName/.local/share/APP_ID`
 /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
 /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
 pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
-    directories_next::ProjectDirs::from("", "", app_id)
+    directories::ProjectDirs::from("", "", app_id)
         .map(|proj_dirs| proj_dirs.data_dir().to_path_buf())
 }
 

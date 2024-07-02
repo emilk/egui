@@ -1,6 +1,6 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use ahash::HashMap;
+use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
 use crate::{
@@ -337,16 +337,16 @@ impl Options {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Line scroll speed");
-                    ui.add(
-                        crate::DragValue::new(line_scroll_speed).clamp_range(0.0..=f32::INFINITY),
-                    )
-                    .on_hover_text("How many lines to scroll with each tick of the mouse wheel");
+                    ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
+                        .on_hover_text(
+                            "How many lines to scroll with each tick of the mouse wheel",
+                        );
                 });
                 ui.horizontal(|ui| {
                     ui.label("Scroll zoom speed");
                     ui.add(
                         crate::DragValue::new(scroll_zoom_speed)
-                            .clamp_range(0.0..=f32::INFINITY)
+                            .range(0.0..=f32::INFINITY)
                             .speed(0.001),
                     )
                     .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
@@ -934,9 +934,6 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    /// Area state is intentionally NOT persisted between sessions,
-    /// so that a bad tooltip or menu size won't be remembered forever.
-    #[cfg_attr(feature = "serde", serde(skip))]
     areas: IdMap<area::AreaState>,
 
     /// Back-to-front. Top is last.
@@ -951,6 +948,11 @@ pub struct Areas {
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
     wants_to_be_on_top: ahash::HashSet<LayerId>,
+
+    /// List of sublayers for each layer
+    ///
+    /// When a layer has sublayers, they are moved directly above it in the ordering.
+    sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
 }
 
 impl Areas {
@@ -1025,12 +1027,12 @@ impl Areas {
             .collect()
     }
 
-    pub(crate) fn visible_windows(&self) -> Vec<&area::AreaState> {
+    pub(crate) fn visible_windows(&self) -> impl Iterator<Item = (LayerId, &area::AreaState)> {
         self.visible_layer_ids()
-            .iter()
+            .into_iter()
             .filter(|layer| layer.order == crate::Order::Middle)
-            .filter_map(|layer| self.get(layer.id))
-            .collect()
+            .filter(|&layer| !self.is_sublayer(&layer))
+            .filter_map(|layer| Some((layer, self.get(layer.id)?)))
     }
 
     pub fn move_to_top(&mut self, layer_id: LayerId) {
@@ -1042,12 +1044,29 @@ impl Areas {
         }
     }
 
+    /// Mark the `child` layer as a sublayer of `parent`.
+    ///
+    /// Sublayers are moved directly above the parent layer at the end of the frame. This is mainly
+    /// intended for adding a new [Area](crate::Area) inside a [Window](crate::Window).
+    ///
+    /// This currently only supports one level of nesting. If `parent` is a sublayer of another
+    /// layer, the behavior is unspecified.
+    pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
+        self.sublayers.entry(parent).or_default().insert(child);
+    }
+
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()
-            .filter(|layer| layer.order == order)
+            .filter(|layer| layer.order == order && !self.is_sublayer(layer))
             .last()
             .copied()
+    }
+
+    pub(crate) fn is_sublayer(&self, layer: &LayerId) -> bool {
+        self.sublayers
+            .iter()
+            .any(|(_, children)| children.contains(layer))
     }
 
     pub(crate) fn end_frame(&mut self) {
@@ -1056,6 +1075,7 @@ impl Areas {
             visible_current_frame,
             order,
             wants_to_be_on_top,
+            sublayers,
             ..
         } = self;
 
@@ -1063,6 +1083,23 @@ impl Areas {
         visible_current_frame.clear();
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
+        // For all layers with sublayers, put the sublayers directly after the parent layer:
+        let sublayers = std::mem::take(sublayers);
+        for (parent, children) in sublayers {
+            let mut moved_layers = vec![parent];
+            order.retain(|l| {
+                if children.contains(l) {
+                    moved_layers.push(*l);
+                    false
+                } else {
+                    true
+                }
+            });
+            let Some(parent_pos) = order.iter().position(|l| l == &parent) else {
+                continue;
+            };
+            order.splice(parent_pos..=parent_pos, moved_layers);
+        }
     }
 }
 

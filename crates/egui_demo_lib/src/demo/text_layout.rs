@@ -23,7 +23,7 @@ impl Default for TextLayoutDemo {
     }
 }
 
-impl super::Demo for TextLayoutDemo {
+impl crate::Demo for TextLayoutDemo {
     fn name(&self) -> &'static str {
         "🖹 Text Layout"
     }
@@ -33,13 +33,13 @@ impl super::Demo for TextLayoutDemo {
             .open(open)
             .resizable(true)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for TextLayoutDemo {
+impl crate::View for TextLayoutDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self {
             break_anywhere,

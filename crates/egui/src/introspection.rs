@@ -155,7 +155,7 @@ impl Widget for &mut epaint::TessellationOptions {
                     .on_hover_text("Apply feathering to smooth out the edges of shapes. Turn off for small performance gain.");
 
                 if *feathering {
-                    ui.add(crate::DragValue::new(feathering_size_in_pixels).clamp_range(0.0..=10.0).speed(0.1).suffix(" px"));
+                    ui.add(crate::DragValue::new(feathering_size_in_pixels).range(0.0..=10.0).speed(0.1).suffix(" px"));
                 }
             });
 
@@ -165,7 +165,7 @@ impl Widget for &mut epaint::TessellationOptions {
                 ui.label("Spline tolerance");
                 let speed = 0.01 * *bezier_tolerance;
                 ui.add(
-                    crate::DragValue::new(bezier_tolerance).clamp_range(0.0001..=10.0)
+                    crate::DragValue::new(bezier_tolerance).range(0.0001..=10.0)
                         .speed(speed)
                 );
             });

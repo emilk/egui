@@ -495,11 +495,11 @@ impl ContextImpl {
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: screen_rect.left_top(),
+                pivot_pos: Some(screen_rect.left_top()),
                 pivot: Align2::LEFT_TOP,
-                size: screen_rect.size(),
+                size: Some(screen_rect.size()),
                 interactable: true,
-                last_became_visible_at: f64::NEG_INFINITY,
+                last_became_visible_at: None,
             },
         );
 
@@ -2026,8 +2026,10 @@ impl ContextImpl {
             viewport.widgets_this_frame.clear();
         }
 
-        if repaint_needed || viewport.input.wants_repaint() {
+        if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
+        } else if let Some(delay) = viewport.input.wants_repaint_after() {
+            self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
         }
 
         //  -------------------
@@ -2207,7 +2209,7 @@ impl Context {
     pub fn used_rect(&self) -> Rect {
         self.write(|ctx| {
             let mut used = ctx.viewport().frame_state.used_by_panels;
-            for window in ctx.memory.areas().visible_windows() {
+            for (_id, window) in ctx.memory.areas().visible_windows() {
                 used = used.union(window.rect());
             }
             used
@@ -2372,6 +2374,17 @@ impl Context {
     /// [`Area`]:s and [`Window`]:s also do this automatically when being clicked on or interacted with.
     pub fn move_to_top(&self, layer_id: LayerId) {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
+    }
+
+    /// Mark the `child` layer as a sublayer of `parent`.
+    ///
+    /// Sublayers are moved directly above the parent layer at the end of the frame. This is mainly
+    /// intended for adding a new [`Area`] inside a [`Window`].
+    ///
+    /// This currently only supports one level of nesting. If `parent` is a sublayer of another
+    /// layer, the behavior is unspecified.
+    pub fn set_sublayer(&self, parent: LayerId, child: LayerId) {
+        self.memory_mut(|mem| mem.areas_mut().set_sublayer(parent, child));
     }
 
     /// Retrieve the [`LayerId`] of the top level windows.

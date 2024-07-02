@@ -116,15 +116,36 @@ impl PlotBounds {
     }
 
     #[inline]
+    fn clamp_to_finite(&mut self) {
+        for d in 0..2 {
+            self.min[d] = self.min[d].clamp(f64::MIN, f64::MAX);
+            if self.min[d].is_nan() {
+                self.min[d] = 0.0;
+            }
+
+            self.max[d] = self.max[d].clamp(f64::MIN, f64::MAX);
+            if self.max[d].is_nan() {
+                self.max[d] = 0.0;
+            }
+        }
+    }
+
+    #[inline]
     pub fn expand_x(&mut self, pad: f64) {
-        self.min[0] -= pad;
-        self.max[0] += pad;
+        if pad.is_finite() {
+            self.min[0] -= pad;
+            self.max[0] += pad;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
     pub fn expand_y(&mut self, pad: f64) {
-        self.min[1] -= pad;
-        self.max[1] += pad;
+        if pad.is_finite() {
+            self.min[1] -= pad;
+            self.max[1] += pad;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
@@ -173,20 +194,26 @@ impl PlotBounds {
 
     #[inline]
     pub fn translate_x(&mut self, delta: f64) {
-        self.min[0] += delta;
-        self.max[0] += delta;
+        if delta.is_finite() {
+            self.min[0] += delta;
+            self.max[0] += delta;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
     pub fn translate_y(&mut self, delta: f64) {
-        self.min[1] += delta;
-        self.max[1] += delta;
+        if delta.is_finite() {
+            self.min[1] += delta;
+            self.max[1] += delta;
+            self.clamp_to_finite();
+        }
     }
 
     #[inline]
-    pub fn translate(&mut self, delta: Vec2) {
-        self.translate_x(delta.x as f64);
-        self.translate_y(delta.y as f64);
+    pub fn translate(&mut self, delta: (f64, f64)) {
+        self.translate_x(delta.0);
+        self.translate_y(delta.1);
     }
 
     #[inline]
@@ -253,6 +280,11 @@ pub struct PlotTransform {
 
 impl PlotTransform {
     pub fn new(frame: Rect, bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
+        debug_assert!(
+            0.0 <= frame.width() && 0.0 <= frame.height(),
+            "Bad plot frame: {frame:?}"
+        );
+
         // Since the current Y bounds an affect the final X bounds and vice versa, we need to keep
         // the original version of the `bounds` before we start modifying it.
         let mut new_bounds = bounds;
@@ -264,7 +296,7 @@ impl PlotTransform {
         // axis, and default to +/- 1.0 otherwise.
         if !bounds.is_finite_x() {
             new_bounds.set_x(&PlotBounds::new_symmetrical(1.0));
-        } else if bounds.width() == 0.0 {
+        } else if bounds.width() <= 0.0 {
             new_bounds.set_x_center_width(
                 bounds.center().x,
                 if bounds.is_valid_y() {
@@ -277,7 +309,7 @@ impl PlotTransform {
 
         if !bounds.is_finite_y() {
             new_bounds.set_y(&PlotBounds::new_symmetrical(1.0));
-        } else if bounds.height() == 0.0 {
+        } else if bounds.height() <= 0.0 {
             new_bounds.set_y_center_height(
                 bounds.center().y,
                 if bounds.is_valid_x() {
@@ -295,6 +327,11 @@ impl PlotTransform {
         if y_centered {
             new_bounds.make_y_symmetrical();
         };
+
+        debug_assert!(
+            new_bounds.is_valid(),
+            "Bad final plot bounds: {new_bounds:?}"
+        );
 
         Self {
             frame,
@@ -321,16 +358,16 @@ impl PlotTransform {
         self.bounds = bounds;
     }
 
-    pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
+    pub fn translate_bounds(&mut self, mut delta_pos: (f64, f64)) {
         if self.x_centered {
-            delta_pos.x = 0.;
+            delta_pos.0 = 0.;
         }
         if self.y_centered {
-            delta_pos.y = 0.;
+            delta_pos.1 = 0.;
         }
-        delta_pos.x *= self.dvalue_dpos()[0] as f32;
-        delta_pos.y *= self.dvalue_dpos()[1] as f32;
-        self.bounds.translate(delta_pos);
+        delta_pos.0 *= self.dvalue_dpos()[0];
+        delta_pos.1 *= self.dvalue_dpos()[1];
+        self.bounds.translate((delta_pos.0, delta_pos.1));
     }
 
     /// Zoom by a relative factor with the given screen position as center.
@@ -374,12 +411,12 @@ impl PlotTransform {
         let x = remap(
             pos.x as f64,
             (self.frame.left() as f64)..=(self.frame.right() as f64),
-            self.bounds.min[0]..=self.bounds.max[0],
+            self.bounds.range_x(),
         );
         let y = remap(
             pos.y as f64,
             (self.frame.bottom() as f64)..=(self.frame.top() as f64), // negated y axis!
-            self.bounds.min[1]..=self.bounds.max[1],
+            self.bounds.range_y(),
         );
         PlotPoint::new(x, y)
     }
