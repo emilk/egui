@@ -961,7 +961,7 @@ impl PointerState {
 
     /// Current direction of the pointer.
     ///
-    /// This is less sensitive to bad framerate than [`velocity`].
+    /// This is less sensitive to bad framerate than [`Self::velocity`].
     #[inline(always)]
     pub fn direction(&self) -> Vec2 {
         self.direction
