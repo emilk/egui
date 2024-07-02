@@ -405,6 +405,12 @@ impl<'a> TableBuilder<'a> {
                 * self.ui.spacing().scroll.allocated_width()
     }
 
+    /// Reset all column widths.
+    pub fn reset(&mut self) {
+        let state_id = self.ui.id().with("__table_state");
+        TableState::reset(self.ui, state_id);
+    }
+
     /// Create a header row which always stays visible and at the top
     pub fn header(self, height: f32, add_header_row: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let available_width = self.available_width();
