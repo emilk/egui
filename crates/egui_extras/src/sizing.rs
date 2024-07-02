@@ -93,7 +93,7 @@ impl Sizing {
             return vec![];
         }
 
-        let mut remainders = 0;
+        let mut num_remainders = 0;
         let sum_non_remainder = self
             .sizes
             .iter()
@@ -104,28 +104,28 @@ impl Sizing {
                     range.clamp(length * fraction)
                 }
                 Size::Remainder { .. } => {
-                    remainders += 1;
+                    num_remainders += 1;
                     0.0
                 }
             })
             .sum::<f32>()
             + spacing * (self.sizes.len() - 1) as f32;
 
-        let avg_remainder_length = if remainders == 0 {
+        let avg_remainder_length = if num_remainders == 0 {
             0.0
         } else {
             let mut remainder_length = length - sum_non_remainder;
-            let avg_remainder_length = 0.0f32.max(remainder_length / remainders as f32).floor();
-            self.sizes.iter().for_each(|&size| {
+            let avg_remainder_length = 0.0f32.max(remainder_length / num_remainders as f32).floor();
+            for &size in &self.sizes {
                 if let Size::Remainder { range } = size {
                     if avg_remainder_length < range.min {
                         remainder_length -= range.min;
-                        remainders -= 1;
+                        num_remainders -= 1;
                     }
                 }
-            });
-            if remainders > 0 {
-                0.0f32.max(remainder_length / remainders as f32)
+            }
+            if num_remainders > 0 {
+                0.0f32.max(remainder_length / num_remainders as f32)
             } else {
                 0.0
             }
