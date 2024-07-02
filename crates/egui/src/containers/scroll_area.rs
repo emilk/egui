@@ -793,14 +793,7 @@ impl Prepared {
 
         let content_size = content_ui.min_size();
 
-        let scroll_delta = content_ui
-            .ctx()
-            .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta));
-
         for d in 0..2 {
-            // FrameState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-            let mut delta = -scroll_delta[d];
-
             // We always take both scroll targets regardless of which scroll axes are enabled. This
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
@@ -808,6 +801,13 @@ impl Prepared {
                 .frame_state_mut(|state| state.scroll_target[d].take());
 
             if scroll_enabled[d] {
+                let scroll_delta = content_ui
+                    .ctx()
+                    .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta[d]));
+
+                // FrameState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+                let mut delta = -scroll_delta;
+
                 delta += if let Some((target_range, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
