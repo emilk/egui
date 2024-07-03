@@ -632,7 +632,7 @@ impl Response {
                 vp.prev_frame
                     .widgets
                     .get_layer(layer_id)
-                    .any(|w| w.sense.interactive())
+                    .any(|w| w.enabled && w.sense.interactive())
             });
 
             if tooltip_has_interactive_widget {
