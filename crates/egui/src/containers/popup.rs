@@ -17,7 +17,7 @@ use crate::*;
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
@@ -25,10 +25,11 @@ use crate::*;
 /// ```
 pub fn show_tooltip<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    show_tooltip_at_pointer(ctx, widget_id, add_contents)
+    show_tooltip_at_pointer(ctx, parent_layer, widget_id, add_contents)
 }
 
 /// Show a tooltip at the current pointer position (if any).
@@ -42,7 +43,7 @@ pub fn show_tooltip<R>(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_at_pointer(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip_at_pointer(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
@@ -50,11 +51,18 @@ pub fn show_tooltip<R>(
 /// ```
 pub fn show_tooltip_at_pointer<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     ctx.input(|i| i.pointer.hover_pos()).map(|pointer_pos| {
-        show_tooltip_at(ctx, widget_id, pointer_pos + vec2(16.0, 16.0), add_contents)
+        show_tooltip_at(
+            ctx,
+            parent_layer,
+            widget_id,
+            pointer_pos + vec2(16.0, 16.0),
+            add_contents,
+        )
     })
 }
 
@@ -63,6 +71,7 @@ pub fn show_tooltip_at_pointer<R>(
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
 pub fn show_tooltip_for<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     widget_rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
@@ -71,6 +80,7 @@ pub fn show_tooltip_for<R>(
     let allow_placing_below = !is_touch_screen; // There is a finger below.
     show_tooltip_at_avoid_dyn(
         ctx,
+        parent_layer,
         widget_id,
         allow_placing_below,
         widget_rect,
@@ -83,6 +93,7 @@ pub fn show_tooltip_for<R>(
 /// Returns `None` if the tooltip could not be placed.
 pub fn show_tooltip_at<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     suggested_position: Pos2,
     add_contents: impl FnOnce(&mut Ui) -> R,
@@ -91,6 +102,7 @@ pub fn show_tooltip_at<R>(
     let rect = Rect::from_center_size(suggested_position, Vec2::ZERO);
     show_tooltip_at_avoid_dyn(
         ctx,
+        parent_layer,
         widget_id,
         allow_placing_below,
         &rect,
@@ -100,11 +112,17 @@ pub fn show_tooltip_at<R>(
 
 fn show_tooltip_at_avoid_dyn<'c, R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     allow_placing_below: bool,
     widget_rect: &Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> R {
+    let mut widget_rect = *widget_rect;
+    if let Some(transform) = ctx.memory(|m| m.layer_transforms.get(&parent_layer).copied()) {
+        widget_rect = transform * widget_rect;
+    }
+
     // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
     let mut state = ctx.frame_state(|fs| {
         fs.tooltip_state
@@ -112,7 +130,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
             .get(&widget_id)
             .copied()
             .unwrap_or(PerWidgetTooltipState {
-                bounding_rect: *widget_rect,
+                bounding_rect: widget_rect,
                 tooltip_count: 0,
             })
     });
@@ -235,12 +253,17 @@ fn find_tooltip_position(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_text(ui.ctx(), egui::Id::new("my_tooltip"), "Helpful text");
+///     egui::show_tooltip_text(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), "Helpful text");
 /// }
 /// # });
 /// ```
-pub fn show_tooltip_text(ctx: &Context, widget_id: Id, text: impl Into<WidgetText>) -> Option<()> {
-    show_tooltip(ctx, widget_id, |ui| {
+pub fn show_tooltip_text(
+    ctx: &Context,
+    parent_layer: LayerId,
+    widget_id: Id,
+    text: impl Into<WidgetText>,
+) -> Option<()> {
+    show_tooltip(ctx, parent_layer, widget_id, |ui| {
         crate::widgets::Label::new(text).ui(ui);
     })
 }
