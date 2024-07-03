@@ -21,6 +21,7 @@ enum Panel {
     Interaction,
     CustomAxes,
     LinkedAxes,
+    Userdata,
 }
 
 impl Default for Panel {
@@ -41,6 +42,7 @@ pub struct PlotDemo {
     interaction_demo: InteractionDemo,
     custom_axes_demo: CustomAxesDemo,
     linked_axes_demo: LinkedAxesDemo,
+    userdata_demo: UserdataDemo,
     open_panel: Panel,
 }
 
@@ -87,6 +89,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
             ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut self.open_panel, Panel::Userdata, "Userdata");
         });
         ui.separator();
 
@@ -114,6 +117,9 @@ impl super::View for PlotDemo {
             }
             Panel::LinkedAxes => {
                 self.linked_axes_demo.ui(ui);
+            }
+            Panel::Userdata => {
+                self.userdata_demo.ui(ui);
             }
         }
     }
@@ -556,7 +562,7 @@ impl CustomAxesDemo {
             }
         };
 
-        let label_fmt = |_s: &str, val: &PlotPoint| {
+        let label_fmt = |_s: &str, val: &PlotPoint, _| {
             format!(
                 "Day {d}, {h}:{m:02}\n{p:.2}%",
                 d = day(val.x),
@@ -1074,6 +1080,66 @@ impl ChartsDemo {
                 plot_ui.box_plot(box1);
                 plot_ui.box_plot(box2);
                 plot_ui.box_plot(box3);
+            })
+            .response
+    }
+}
+
+#[derive(PartialEq)]
+struct UserdataDemo {}
+
+impl Default for UserdataDemo {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+struct DemoPoint {
+    x: f64,
+    y: f64,
+    custom_thing: bool,
+}
+
+impl UserdataDemo {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
+        let points = (1..=1000)
+            .map(|i| DemoPoint {
+                x: i as f64 / 1000.0,
+                y: ((i as f64) / 1000.0 * std::f64::consts::PI * 2.0).sin(),
+                custom_thing: i % 2 == 0,
+            })
+            .collect::<Vec<_>>();
+
+        let custom_things =
+            std::sync::Arc::new(egui::mutex::Mutex::new(std::collections::HashMap::<
+                Id,
+                Vec<bool>,
+            >::new()));
+
+        let custom_things_ = custom_things.clone();
+        Plot::new("Userdata Plot Demo")
+            .legend(Legend::default())
+            .label_formatter(|_, _, item| {
+                format!(
+                    "item: {:?}\ncustom_thing: {:?}",
+                    item,
+                    item.and_then(|(id, index)| custom_things_
+                        .lock()
+                        .get(&id)
+                        .and_then(|vec| vec.get(index).copied()))
+                )
+            })
+            .show(ui, |plot_ui| {
+                let id = Id::new(1234);
+                let mut lock = custom_things.lock();
+                let entry = lock.entry(id).or_default();
+
+                for p in &points {
+                    entry.push(p.custom_thing);
+                }
+
+                plot_ui
+                    .line(Line::new(points.iter().map(|p| [p.x, p.y]).collect::<Vec<_>>()).id(id));
             })
             .response
     }

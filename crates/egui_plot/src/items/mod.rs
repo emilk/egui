@@ -59,7 +59,7 @@ pub trait PlotItem {
         match self.geometry() {
             PlotGeometry::None => None,
 
-            PlotGeometry::Points(points) => points
+            PlotGeometry::Points(points, _) => points
                 .iter()
                 .enumerate()
                 .map(|(index, value)| {
@@ -83,8 +83,8 @@ pub trait PlotItem {
         plot: &PlotConfig<'_>,
         label_formatter: &LabelFormatter<'_>,
     ) {
-        let points = match self.geometry() {
-            PlotGeometry::Points(points) => points,
+        let (points, id) = match self.geometry() {
+            PlotGeometry::Points(points, id) => (points, id),
             PlotGeometry::None => {
                 panic!("If the PlotItem has no geometry, on_hover() must not be called")
             }
@@ -107,6 +107,7 @@ pub trait PlotItem {
         rulers_at_value(
             pointer,
             value,
+            id.map(|id| (id, elem.index)),
             self.name(),
             plot,
             shapes,
@@ -602,7 +603,7 @@ impl PlotItem for Line {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(self.series.points())
+        PlotGeometry::Points(self.series.points(), self.id())
     }
 
     fn bounds(&self) -> PlotBounds {
@@ -754,7 +755,7 @@ impl PlotItem for Polygon {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(self.series.points())
+        PlotGeometry::Points(self.series.points(), self.id())
     }
 
     fn bounds(&self) -> PlotBounds {
@@ -1171,7 +1172,7 @@ impl PlotItem for Points {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(self.series.points())
+        PlotGeometry::Points(self.series.points(), self.id())
     }
 
     fn bounds(&self) -> PlotBounds {
@@ -1329,7 +1330,7 @@ impl PlotItem for Arrows {
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
-        PlotGeometry::Points(self.origins.points())
+        PlotGeometry::Points(self.origins.points(), self.id())
     }
 
     fn bounds(&self) -> PlotBounds {
@@ -2029,6 +2030,7 @@ fn add_rulers_and_text(
 pub(super) fn rulers_at_value(
     pointer: Pos2,
     value: PlotPoint,
+    item: Option<(Id, usize)>,
     name: &str,
     plot: &PlotConfig<'_>,
     shapes: &mut Vec<Shape>,
@@ -2053,7 +2055,7 @@ pub(super) fn rulers_at_value(
         let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
         let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
         if let Some(custom_label) = label_formatter {
-            custom_label(name, &value)
+            custom_label(name, &value, item)
         } else if plot.show_x && plot.show_y {
             format!(
                 "{}x = {:.*}\ny = {:.*}",
