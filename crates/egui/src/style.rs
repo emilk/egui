@@ -547,6 +547,7 @@ impl ScrollStyle {
         Self {
             floating: true,
             bar_width: 10.0,
+            bar_inner_margin: 0.0,
             floating_allocated_width: 6.0,
             foreground_color: false,
 
