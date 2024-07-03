@@ -774,8 +774,11 @@ impl Context {
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
-        self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
+
         self.write(|ctx| ctx.begin_frame_mut(new_input));
+
+        // Plugs run just after the frame has started:
+        self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
     }
 }
 
@@ -1807,6 +1810,7 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        // Plugins run just before the frame ends.
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
         #[cfg(debug_assertions)]
