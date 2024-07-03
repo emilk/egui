@@ -220,8 +220,13 @@ pub struct ViewportState {
 
     pub input: InputState,
 
-    /// State that is collected during a frame and then cleared
+    /// State that is collected during a frame and then cleared.
     pub frame_state: FrameState,
+
+    /// The final [`FrameState`] from last frame.
+    ///
+    /// Only read from.
+    pub prev_frame_state: FrameState,
 
     /// Has this viewport been updated this frame?
     pub used: bool,
@@ -451,6 +456,7 @@ impl ContextImpl {
 
         let screen_rect = viewport.input.screen_rect;
 
+        std::mem::swap(&mut viewport.prev_frame_state, &mut viewport.frame_state);
         viewport.frame_state.begin_frame(screen_rect);
 
         {

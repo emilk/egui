@@ -27,8 +27,10 @@ pub struct AccessKitFrameState {
     pub parent_stack: Vec<Id>,
 }
 
-/// State that is collected during a frame and then cleared.
-/// Short-term (single frame) memory.
+/// State that is collected during a frame, then saved for the next frame,
+/// and then cleared.
+///
+/// One per viewport.
 #[derive(Clone)]
 pub struct FrameState {
     /// All [`Id`]s that were used this frame.
