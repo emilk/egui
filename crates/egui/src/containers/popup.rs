@@ -123,14 +123,13 @@ fn show_tooltip_at_dyn<'c, R>(
         widget_rect = transform * widget_rect;
     }
 
-    // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
     let mut state = ctx.frame_state_mut(|fs| {
         // Remember that this is the widget showing the tooltip:
-        fs.tooltip_state
+        fs.tooltips
             .per_layer_tooltip_widget
             .insert(parent_layer, widget_id);
 
-        fs.tooltip_state
+        fs.tooltips
             .widget_tooltips
             .get(&widget_id)
             .copied()
@@ -174,7 +173,7 @@ fn show_tooltip_at_dyn<'c, R>(
 
     state.tooltip_count += 1;
     state.bounding_rect = state.bounding_rect.union(response.rect);
-    ctx.frame_state_mut(|fs| fs.tooltip_state.widget_tooltips.insert(widget_id, state));
+    ctx.frame_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
 
     inner
 }
@@ -182,7 +181,7 @@ fn show_tooltip_at_dyn<'c, R>(
 /// What is the id of the next tooltip for this widget?
 pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
     let tooltip_count = ctx.frame_state(|fs| {
-        fs.tooltip_state
+        fs.tooltips
             .widget_tooltips
             .get(&widget_id)
             .map_or(0, |state| state.tooltip_count)
@@ -351,53 +350,61 @@ pub fn popup_above_or_below_widget<R>(
     close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    if parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
-        let (mut pos, pivot) = match above_or_below {
-            AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
-            AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
-        };
-        if let Some(transform) = parent_ui
-            .ctx()
-            .memory(|m| m.layer_transforms.get(&parent_ui.layer_id()).copied())
-        {
-            pos = transform * pos;
-        }
+    if !parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
+        return None;
+    }
 
-        let frame = Frame::popup(parent_ui.style());
-        let frame_margin = frame.total_margin();
-        let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+    let (mut pos, pivot) = match above_or_below {
+        AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
+        AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
+    };
+    if let Some(transform) = parent_ui
+        .ctx()
+        .memory(|m| m.layer_transforms.get(&parent_ui.layer_id()).copied())
+    {
+        pos = transform * pos;
+    }
 
-        let response = Area::new(popup_id)
-            .kind(UiKind::Popup)
-            .order(Order::Foreground)
-            .fixed_pos(pos)
-            .default_width(inner_width)
-            .pivot(pivot)
-            .show(parent_ui.ctx(), |ui| {
-                frame
-                    .show(ui, |ui| {
-                        ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                            ui.set_min_width(inner_width);
-                            add_contents(ui)
-                        })
-                        .inner
+    let frame = Frame::popup(parent_ui.style());
+    let frame_margin = frame.total_margin();
+    let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+
+    parent_ui.ctx().frame_state_mut(|fs| {
+        fs.layers
+            .entry(parent_ui.layer_id())
+            .or_default()
+            .open_popups
+            .insert(popup_id)
+    });
+
+    let response = Area::new(popup_id)
+        .kind(UiKind::Popup)
+        .order(Order::Foreground)
+        .fixed_pos(pos)
+        .default_width(inner_width)
+        .pivot(pivot)
+        .show(parent_ui.ctx(), |ui| {
+            frame
+                .show(ui, |ui| {
+                    ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
+                        ui.set_min_width(inner_width);
+                        add_contents(ui)
                     })
                     .inner
-            });
+                })
+                .inner
+        });
 
-        let should_close = match close_behavior {
-            PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
-            PopupCloseBehavior::CloseOnClickOutside => {
-                widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
-            }
-            PopupCloseBehavior::IgnoreClicks => false,
-        };
-
-        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
-            parent_ui.memory_mut(|mem| mem.close_popup());
+    let should_close = match close_behavior {
+        PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
+        PopupCloseBehavior::CloseOnClickOutside => {
+            widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
         }
-        Some(response.inner)
-    } else {
-        None
+        PopupCloseBehavior::IgnoreClicks => false,
+    };
+
+    if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
+        parent_ui.memory_mut(|mem| mem.close_popup());
     }
+    Some(response.inner)
 }

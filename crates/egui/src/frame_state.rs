@@ -1,3 +1,5 @@
+use ahash::{HashMap, HashSet};
+
 use crate::{id::IdSet, *};
 
 /// Reset at the start of each frame.
@@ -34,6 +36,14 @@ pub struct PerWidgetTooltipState {
     pub tooltip_count: usize,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct PerLayerState {
+    /// Is there any open popup (menus, combo-boxes, etc)?
+    ///
+    /// Does NOT include tooltips.
+    pub open_popups: HashSet<Id>,
+}
+
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitFrameState {
@@ -53,6 +63,13 @@ pub struct FrameState {
     /// All widgets produced this frame.
     pub widgets: WidgetRects,
 
+    /// Per-layer state.
+    ///
+    /// Not all layers registers themselves there though.
+    pub layers: HashMap<LayerId, PerLayerState>,
+
+    pub tooltips: TooltipFrameState,
+
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
@@ -64,8 +81,6 @@ pub struct FrameState {
 
     /// How much space is used by panels.
     pub used_by_panels: Rect,
-
-    pub tooltip_state: TooltipFrameState,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
     pub scroll_target: [Option<(Rangef, Option<Align>)>; 2],
@@ -96,10 +111,11 @@ impl Default for FrameState {
         Self {
             used_ids: Default::default(),
             widgets: Default::default(),
+            layers: Default::default(),
+            tooltips: Default::default(),
             available_rect: Rect::NAN,
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
-            tooltip_state: Default::default(),
             scroll_target: [None, None],
             scroll_delta: Vec2::default(),
             #[cfg(feature = "accesskit")]
@@ -118,10 +134,11 @@ impl FrameState {
         let Self {
             used_ids,
             widgets,
+            tooltips,
+            layers,
             available_rect,
             unused_rect,
             used_by_panels,
-            tooltip_state,
             scroll_target,
             scroll_delta,
             #[cfg(feature = "accesskit")]
@@ -134,10 +151,11 @@ impl FrameState {
 
         used_ids.clear();
         widgets.clear();
+        tooltips.clear();
+        layers.clear();
         *available_rect = screen_rect;
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
-        tooltip_state.clear();
         *scroll_target = [None, None];
         *scroll_delta = Vec2::default();
 

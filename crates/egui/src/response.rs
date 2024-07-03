@@ -2,8 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, AreaState, ComboBox, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui,
-    WidgetRect, WidgetText,
+    menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui, WidgetRect,
+    WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -601,6 +601,16 @@ impl Response {
             return true;
         }
 
+        let any_open_popups = self.ctx.prev_frame_state(|fs| {
+            fs.layers
+                .get(&self.layer_id)
+                .map_or(false, |layer| !layer.open_popups.is_empty())
+        });
+        if any_open_popups {
+            // Hide tooltips if the user opens a popup (menu, combo-box, etc) in the same layer.
+            return false;
+        }
+
         let is_tooltip_open = self.is_tooltip_open();
 
         if is_tooltip_open {
@@ -646,10 +656,8 @@ impl Response {
         }
 
         let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
-            if let Some(already_open_tooltip) = fs
-                .tooltip_state
-                .per_layer_tooltip_widget
-                .get(&self.layer_id)
+            if let Some(already_open_tooltip) =
+                fs.tooltips.per_layer_tooltip_widget.get(&self.layer_id)
             {
                 already_open_tooltip != &self.id
             } else {
@@ -668,14 +676,6 @@ impl Response {
             }
         } else if !self.ctx.rect_contains_pointer(self.layer_id, self.rect) {
             return false;
-        }
-
-        if self.context_menu_opened() {
-            return false;
-        }
-
-        if ComboBox::is_open(&self.ctx, self.id) {
-            return false; // Don't cover the open ComboBox with a tooltip
         }
 
         let when_was_a_toolip_last_shown_id = Id::new("when_was_a_toolip_last_shown");
