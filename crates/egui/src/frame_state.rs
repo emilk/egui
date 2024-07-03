@@ -1,3 +1,5 @@
+use ahash::{HashMap, HashSet};
+
 use crate::{id::IdSet, *};
 
 /// Reset at the start of each frame.
@@ -6,22 +8,12 @@ pub struct TooltipFrameState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
     pub widget_tooltips: IdMap<PerWidgetTooltipState>,
-
-    /// For each layer, which widget is showing a tooltip (if any)?
-    ///
-    /// Only one widget per layer may show a tooltip.
-    /// But if a tooltip contains a tooltip, you can show a tooltip on top of a tooltip.
-    pub per_layer_tooltip_widget: ahash::HashMap<LayerId, Id>,
 }
 
 impl TooltipFrameState {
     pub fn clear(&mut self) {
-        let Self {
-            widget_tooltips,
-            per_layer_tooltip_widget,
-        } = self;
+        let Self { widget_tooltips } = self;
         widget_tooltips.clear();
-        per_layer_tooltip_widget.clear();
     }
 }
 
@@ -32,6 +24,20 @@ pub struct PerWidgetTooltipState {
 
     /// How many tooltips have been shown for this widget this frame?
     pub tooltip_count: usize,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct PerLayerState {
+    /// Is there any open popup (menus, combo-boxes, etc)?
+    ///
+    /// Does NOT include tooltips.
+    pub open_popups: HashSet<Id>,
+
+    /// Which widget is showing a tooltip (if any)?
+    ///
+    /// Only one widget per layer may show a tooltip.
+    /// But if a tooltip contains a tooltip, you can show a tooltip on top of a tooltip.
+    pub widget_with_tooltip: Option<Id>,
 }
 
 #[cfg(feature = "accesskit")]
@@ -53,6 +59,13 @@ pub struct FrameState {
     /// All widgets produced this frame.
     pub widgets: WidgetRects,
 
+    /// Per-layer state.
+    ///
+    /// Not all layers registers themselves there though.
+    pub layers: HashMap<LayerId, PerLayerState>,
+
+    pub tooltips: TooltipFrameState,
+
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
@@ -64,8 +77,6 @@ pub struct FrameState {
 
     /// How much space is used by panels.
     pub used_by_panels: Rect,
-
-    pub tooltip_state: TooltipFrameState,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
     pub scroll_target: [Option<(Rangef, Option<Align>)>; 2],
@@ -96,10 +107,11 @@ impl Default for FrameState {
         Self {
             used_ids: Default::default(),
             widgets: Default::default(),
+            layers: Default::default(),
+            tooltips: Default::default(),
             available_rect: Rect::NAN,
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
-            tooltip_state: Default::default(),
             scroll_target: [None, None],
             scroll_delta: Vec2::default(),
             #[cfg(feature = "accesskit")]
@@ -118,10 +130,11 @@ impl FrameState {
         let Self {
             used_ids,
             widgets,
+            tooltips,
+            layers,
             available_rect,
             unused_rect,
             used_by_panels,
-            tooltip_state,
             scroll_target,
             scroll_delta,
             #[cfg(feature = "accesskit")]
@@ -134,10 +147,11 @@ impl FrameState {
 
         used_ids.clear();
         widgets.clear();
+        tooltips.clear();
+        layers.clear();
         *available_rect = screen_rect;
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
-        tooltip_state.clear();
         *scroll_target = [None, None];
         *scroll_delta = Vec2::default();
 
