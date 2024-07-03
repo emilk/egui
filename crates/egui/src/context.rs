@@ -456,7 +456,6 @@ impl ContextImpl {
 
         let screen_rect = viewport.input.screen_rect;
 
-        std::mem::swap(&mut viewport.prev_frame_state, &mut viewport.frame_state);
         viewport.frame_state.begin_frame(screen_rect);
 
         {
@@ -885,12 +884,16 @@ impl Context {
     }
 
     /// Read-only access to [`FrameState`].
+    ///
+    /// This is only valid between [`Context::begin_frame`] and [`Context::end_frame`].
     #[inline]
     pub(crate) fn frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
         self.write(move |ctx| reader(&ctx.viewport().frame_state))
     }
 
     /// Read-write access to [`FrameState`].
+    ///
+    /// This is only valid between [`Context::begin_frame`] and [`Context::end_frame`].
     #[inline]
     pub(crate) fn frame_state_mut<R>(&self, writer: impl FnOnce(&mut FrameState) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().frame_state))
@@ -2035,6 +2038,8 @@ impl ContextImpl {
             );
             viewport.widgets_this_frame.clear();
         }
+
+        std::mem::swap(&mut viewport.prev_frame_state, &mut viewport.frame_state);
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
