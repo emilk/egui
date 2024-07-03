@@ -2391,7 +2391,7 @@ impl Ui {
 
     /// Temporarily split a [`Ui`] into several columns.
     ///
-    /// The same as [Self::columns()], but uses a constant for the column count.
+    /// The same as [`Self::columns()`], but uses a constant for the column count.
     /// This allows for compile-time bounds checking, and makes the compiler happy.
     ///
     /// ```
