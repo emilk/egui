@@ -899,6 +899,14 @@ impl Context {
         self.write(move |ctx| writer(&mut ctx.viewport().frame_state))
     }
 
+    /// Read-only access to the [`FrameState`] from the previous frame.
+    ///
+    /// This is swapped at the end of each frame.
+    #[inline]
+    pub(crate) fn prev_frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
+        self.write(move |ctx| reader(&ctx.viewport().prev_frame_state))
+    }
+
     /// Read-only access to [`Fonts`].
     ///
     /// Not valid until first call to [`Context::run()`].
@@ -1107,7 +1115,8 @@ impl Context {
             enabled,
         } = widget_rect;
 
-        let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
+        // previous frame + "highlight next frame" == "highlight this frame"
+        let highlighted = self.prev_frame_state(|fs| fs.highlight_next_frame.contains(&id));
 
         let mut res = Response {
             ctx: self.clone(),

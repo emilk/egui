@@ -70,10 +70,7 @@ pub struct FrameState {
     #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitFrameState>,
 
-    /// Highlight these widgets this next frame. Read from this.
-    pub highlight_this_frame: IdSet,
-
-    /// Highlight these widgets the next frame. Write to this.
+    /// Highlight these widgets the next frame.
     pub highlight_next_frame: IdSet,
 
     #[cfg(debug_assertions)]
@@ -92,7 +89,6 @@ impl Default for FrameState {
             scroll_delta: Vec2::default(),
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
-            highlight_this_frame: Default::default(),
             highlight_next_frame: Default::default(),
 
             #[cfg(debug_assertions)]
@@ -114,7 +110,6 @@ impl FrameState {
             scroll_delta,
             #[cfg(feature = "accesskit")]
             accesskit_state,
-            highlight_this_frame,
             highlight_next_frame,
 
             #[cfg(debug_assertions)]
@@ -139,7 +134,7 @@ impl FrameState {
             *accesskit_state = None;
         }
 
-        *highlight_this_frame = std::mem::take(highlight_next_frame);
+        highlight_next_frame.clear();
     }
 
     /// How much space is still available after panels has been added.
