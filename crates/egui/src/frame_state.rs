@@ -36,6 +36,9 @@ pub struct FrameState {
     /// All [`Id`]s that were used this frame.
     pub used_ids: IdMap<Rect>,
 
+    /// All widgets produced this frame.
+    pub widgets: WidgetRects,
+
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`CentralPanel`] does not change this.
     /// This is the area available to Window's.
@@ -81,6 +84,7 @@ impl Default for FrameState {
     fn default() -> Self {
         Self {
             used_ids: Default::default(),
+            widgets: Default::default(),
             available_rect: Rect::NAN,
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
@@ -102,6 +106,7 @@ impl FrameState {
         crate::profile_function!();
         let Self {
             used_ids,
+            widgets,
             available_rect,
             unused_rect,
             used_by_panels,
@@ -117,6 +122,7 @@ impl FrameState {
         } = self;
 
         used_ids.clear();
+        widgets.clear();
         *available_rect = screen_rect;
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;

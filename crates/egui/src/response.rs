@@ -609,7 +609,8 @@ impl Response {
             let layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
-                vp.widgets_prev_frame
+                vp.prev_frame_state
+                    .widgets
                     .get_layer(layer_id)
                     .any(|w| w.sense.interactive())
             });

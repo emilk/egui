@@ -231,12 +231,6 @@ pub struct ViewportState {
     /// Has this viewport been updated this frame?
     pub used: bool,
 
-    /// Written to during the frame.
-    pub widgets_this_frame: WidgetRects,
-
-    /// Read
-    pub widgets_prev_frame: WidgetRects,
-
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
 
@@ -461,7 +455,7 @@ impl ContextImpl {
         {
             let area_order = self.memory.areas().order_map();
 
-            let mut layers: Vec<LayerId> = viewport.widgets_prev_frame.layer_ids().collect();
+            let mut layers: Vec<LayerId> = viewport.prev_frame_state.widgets.layer_ids().collect();
 
             layers.sort_by(|a, b| {
                 if a.order == b.order {
@@ -477,7 +471,7 @@ impl ContextImpl {
                 let interact_radius = self.memory.options.style.interaction.interact_radius;
 
                 crate::hit_test::hit_test(
-                    &viewport.widgets_prev_frame,
+                    &viewport.prev_frame_state.widgets,
                     &layers,
                     &self.memory.layer_transforms,
                     pos,
@@ -489,7 +483,7 @@ impl ContextImpl {
 
             viewport.interact_widgets = crate::interaction::interact(
                 &viewport.interact_widgets,
-                &viewport.widgets_prev_frame,
+                &viewport.prev_frame_state.widgets,
                 &viewport.hits,
                 &viewport.input,
                 self.memory.interaction_mut(),
@@ -1050,7 +1044,7 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport.widgets_this_frame.insert(w.layer_id, w);
+            viewport.frame_state.widgets.insert(w.layer_id, w);
 
             if w.sense.focusable {
                 ctx.memory.interested_in_focus(w.id);
@@ -1089,9 +1083,10 @@ impl Context {
         self.write(|ctx| {
             let viewport = ctx.viewport();
             viewport
-                .widgets_this_frame
+                .frame_state
+                .widgets
                 .get(id)
-                .or_else(|| viewport.widgets_prev_frame.get(id))
+                .or_else(|| viewport.prev_frame_state.widgets.get(id))
                 .copied()
         })
         .map(|widget_rect| self.get_response(widget_rect))
@@ -1237,7 +1232,7 @@ impl Context {
         #[cfg(debug_assertions)]
         self.write(|ctx| {
             if ctx.memory.options.style.debug.show_interactive_widgets {
-                ctx.viewport().widgets_this_frame.set_info(id, make_info());
+                ctx.viewport().frame_state.widgets.set_info(id, make_info());
             }
         });
 
@@ -1850,7 +1845,7 @@ impl Context {
 
         let paint_widget_id = |id: Id, text: &str, color: Color32| {
             if let Some(widget) =
-                self.write(|ctx| ctx.viewport().widgets_this_frame.get(id).copied())
+                self.write(|ctx| ctx.viewport().frame_state.widgets.get(id).copied())
             {
                 paint_widget(&widget, text, color);
             }
@@ -1858,7 +1853,7 @@ impl Context {
 
         if self.style().debug.show_interactive_widgets {
             // Show all interactive widgets:
-            let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
+            let rects = self.write(|ctx| ctx.viewport().frame_state.widgets.clone());
             for (layer_id, rects) in rects.layers() {
                 let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
@@ -1896,7 +1891,7 @@ impl Context {
                         paint_widget_id(id, "contains_pointer", Color32::BLUE);
                     }
 
-                    let widget_rects = self.write(|w| w.viewport().widgets_this_frame.clone());
+                    let widget_rects = self.write(|w| w.viewport().frame_state.widgets.clone());
 
                     let mut contains_pointer: Vec<Id> = contains_pointer.iter().copied().collect();
                     contains_pointer.sort_by_key(|&id| {
@@ -2033,19 +2028,11 @@ impl ContextImpl {
 
         let mut repaint_needed = false;
 
-        {
-            if self.memory.options.repaint_on_widget_change {
-                crate::profile_function!("compare-widget-rects");
-                if viewport.widgets_prev_frame != viewport.widgets_this_frame {
-                    repaint_needed = true; // Some widget has moved
-                }
+        if self.memory.options.repaint_on_widget_change {
+            crate::profile_function!("compare-widget-rects");
+            if viewport.prev_frame_state.widgets != viewport.frame_state.widgets {
+                repaint_needed = true; // Some widget has moved
             }
-
-            std::mem::swap(
-                &mut viewport.widgets_prev_frame,
-                &mut viewport.widgets_this_frame,
-            );
-            viewport.widgets_this_frame.clear();
         }
 
         std::mem::swap(&mut viewport.prev_frame_state, &mut viewport.frame_state);
