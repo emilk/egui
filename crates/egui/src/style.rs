@@ -648,7 +648,7 @@ impl ScrollStyle {
             ui.label("Minimum handle length");
         });
         ui.horizontal(|ui| {
-            ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+            ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
             ui.label("Inner margin");
         });
         ui.horizontal(|ui| {
