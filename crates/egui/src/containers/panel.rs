@@ -310,11 +310,17 @@ impl SidePanel {
 
         if resize_hover || is_resizing {
             let cursor_icon = if width <= width_range.min {
-                CursorIcon::ResizeEast
+                match self.side {
+                    Side::Left => CursorIcon::ResizeEast,
+                    Side::Right => CursorIcon::ResizeWest,
+                }
             } else if width < width_range.max {
                 CursorIcon::ResizeHorizontal
             } else {
-                CursorIcon::ResizeWest
+                match self.side {
+                    Side::Left => CursorIcon::ResizeWest,
+                    Side::Right => CursorIcon::ResizeEast,
+                }
             };
             ui.ctx().set_cursor_icon(cursor_icon);
         }
@@ -791,11 +797,17 @@ impl TopBottomPanel {
 
         if resize_hover || is_resizing {
             let cursor_icon = if height <= height_range.min {
-                CursorIcon::ResizeSouth
+                match self.side {
+                    TopBottomSide::Top => CursorIcon::ResizeSouth,
+                    TopBottomSide::Bottom => CursorIcon::ResizeNorth,
+                }
             } else if height < height_range.max {
                 CursorIcon::ResizeVertical
             } else {
-                CursorIcon::ResizeNorth
+                match self.side {
+                    TopBottomSide::Top => CursorIcon::ResizeNorth,
+                    TopBottomSide::Bottom => CursorIcon::ResizeSouth,
+                }
             };
             ui.ctx().set_cursor_icon(cursor_icon);
         }

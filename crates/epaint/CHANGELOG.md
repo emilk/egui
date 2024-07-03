@@ -5,6 +5,25 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.0 - 2024-07-03
+### ⭐ Added
+* Add `RectShape::blur_width` to implement shadows [#4267](https://github.com/emilk/egui/pull/4267) by [@emilk](https://github.com/emilk)
+* Overload operators for `Rect + Margin`, `Rect - Margin` etc [#4277](https://github.com/emilk/egui/pull/4277) by [@emilk](https://github.com/emilk)
+* Added ability to define colors at UV coordinates along a path [#4353](https://github.com/emilk/egui/pull/4353) by [@murl-digital](https://github.com/murl-digital)
+* Add a `Display` impl for `Vec2`, `Pos2`, and `Rect` [#4428](https://github.com/emilk/egui/pull/4428) by [@tgross35](https://github.com/tgross35)
+
+### 🔧 Changed
+* Move `epaint::util::OrderedFloat` to `emath::OrderedFloat` [#4389](https://github.com/emilk/egui/pull/4389) by [@emilk](https://github.com/emilk)
+* Remove `extra_asserts` and `extra_debug_asserts` feature flags [#4478](https://github.com/emilk/egui/pull/4478) by [@emilk](https://github.com/emilk)
+* Make `epaint::mutex::RwLock` allow `?Sized` types [#4485](https://github.com/emilk/egui/pull/4485) by [@crumblingstatue](https://github.com/crumblingstatue)
+* Round text galley sizes to nearest UI point size [#4578](https://github.com/emilk/egui/pull/4578) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix incorrect line breaks [#4377](https://github.com/emilk/egui/pull/4377) by [@juancampa](https://github.com/juancampa)
+* Fix `hex_color!` macro by re-exporting `color_hex` crate from `ecolor` [#4372](https://github.com/emilk/egui/pull/4372) by [@dataphract](https://github.com/dataphract)
+* Don't panic when replacement glyph is not found [#4542](https://github.com/emilk/egui/pull/4542) by [@RyanBluth](https://github.com/RyanBluth)
+
+
 ## 0.27.2 - 2024-04-02
 * Nothing new
 
