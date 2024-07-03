@@ -1,13 +1,27 @@
 use crate::{id::IdSet, *};
 
+/// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
 pub struct TooltipFrameState {
+    /// If a tooltip has been shown this frame, where was it?
+    /// This is used to prevent multiple tooltips to cover each other.
     pub widget_tooltips: IdMap<PerWidgetTooltipState>,
+
+    /// For each layer, which widget is showing a tooltip (if any)?
+    ///
+    /// Only one widget per layer may show a tooltip.
+    /// But if a tooltip contains a tooltip, you can show a tooltip on top of a tooltip.
+    pub per_layer_tooltip_widget: ahash::HashMap<LayerId, Id>,
 }
 
 impl TooltipFrameState {
     pub fn clear(&mut self) {
-        self.widget_tooltips.clear();
+        let Self {
+            widget_tooltips,
+            per_layer_tooltip_widget,
+        } = self;
+        widget_tooltips.clear();
+        per_layer_tooltip_widget.clear();
     }
 }
 
@@ -51,9 +65,6 @@ pub struct FrameState {
     /// How much space is used by panels.
     pub used_by_panels: Rect,
 
-    /// If a tooltip has been shown this frame, where was it?
-    /// This is used to prevent multiple tooltips to cover each other.
-    /// Reset at the start of each frame.
     pub tooltip_state: TooltipFrameState,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).

@@ -545,7 +545,13 @@ impl Response {
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if !self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_for(&self.ctx, self.id, &self.rect, add_contents);
+            crate::containers::show_tooltip_for(
+                &self.ctx,
+                self.layer_id,
+                self.id,
+                &self.rect,
+                add_contents,
+            );
         }
         self
     }
@@ -553,7 +559,12 @@ impl Response {
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_at_pointer(&self.ctx, self.id, add_contents);
+            crate::containers::show_tooltip_at_pointer(
+                &self.ctx,
+                self.layer_id,
+                self.id,
+                add_contents,
+            );
         }
         self
     }
@@ -562,14 +573,13 @@ impl Response {
     ///
     /// This can be used to give attention to a widget during a tutorial.
     pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
-        let mut rect = self.rect;
-        if let Some(transform) = self
-            .ctx
-            .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
-        {
-            rect = transform * rect;
-        }
-        crate::containers::show_tooltip_for(&self.ctx, self.id, &rect, add_contents);
+        crate::containers::show_tooltip_for(
+            &self.ctx,
+            self.layer_id,
+            self.id,
+            &self.rect,
+            add_contents,
+        );
     }
 
     /// Always show this tooltip, even if disabled and the user isn't hovering it.
@@ -633,6 +643,22 @@ impl Response {
                     }
                 }
             }
+        }
+
+        let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
+            if let Some(already_open_tooltip) = fs
+                .tooltip_state
+                .per_layer_tooltip_widget
+                .get(&self.layer_id)
+            {
+                already_open_tooltip != &self.id
+            } else {
+                false
+            }
+        });
+        if is_other_tooltip_open {
+            // We only allow one tooltip per layer. First one wins. It is up to that tooltip to close itself.
+            return false;
         }
 
         // Fast early-outs:
