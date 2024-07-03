@@ -6,6 +6,29 @@ use crate::*;
 
 // ----------------------------------------------------------------------------
 
+fn when_was_a_toolip_last_shown_id() -> Id {
+    Id::new("when_was_a_toolip_last_shown")
+}
+
+pub fn seconds_since_last_tooltip(ctx: &Context) -> f32 {
+    let when_was_a_toolip_last_shown =
+        ctx.data(|d| d.get_temp::<f64>(when_was_a_toolip_last_shown_id()));
+
+    if let Some(when_was_a_toolip_last_shown) = when_was_a_toolip_last_shown {
+        let now = ctx.input(|i| i.time);
+        (now - when_was_a_toolip_last_shown) as f32
+    } else {
+        f32::INFINITY
+    }
+}
+
+fn remember_that_tooltip_was_shown(ctx: &Context) {
+    let now = ctx.input(|i| i.time);
+    ctx.data_mut(|data| data.insert_temp::<f64>(when_was_a_toolip_last_shown_id(), now));
+}
+
+// ----------------------------------------------------------------------------
+
 /// Show a tooltip at the current pointer position (if any).
 ///
 /// Most of the time it is easier to use [`Response::on_hover_ui`].
@@ -122,6 +145,8 @@ fn show_tooltip_at_dyn<'c, R>(
     if let Some(transform) = ctx.memory(|m| m.layer_transforms.get(&parent_layer).copied()) {
         widget_rect = transform * widget_rect;
     }
+
+    remember_that_tooltip_was_shown(ctx);
 
     let mut state = ctx.frame_state_mut(|fs| {
         // Remember that this is the widget showing the tooltip:

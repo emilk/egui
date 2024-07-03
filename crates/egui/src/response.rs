@@ -611,9 +611,9 @@ impl Response {
             return false;
         }
 
-        let is_tooltip_open = self.is_tooltip_open();
+        let is_our_tooltip_open = self.is_tooltip_open();
 
-        if is_tooltip_open {
+        if is_our_tooltip_open {
             let (pointer_pos, pointer_dir) = self
                 .ctx
                 .input(|i| (i.pointer.hover_pos(), i.pointer.direction()));
@@ -680,13 +680,6 @@ impl Response {
             return false;
         }
 
-        let when_was_a_toolip_last_shown_id = Id::new("when_was_a_toolip_last_shown");
-        let now = self.ctx.input(|i| i.time);
-
-        let when_was_a_toolip_last_shown = self
-            .ctx
-            .data(|d| d.get_temp::<f64>(when_was_a_toolip_last_shown_id));
-
         let tooltip_delay = self.ctx.style().interaction.tooltip_delay;
         let tooltip_grace_time = self.ctx.style().interaction.tooltip_grace_time;
 
@@ -695,10 +688,10 @@ impl Response {
         // another widget should show the tooltip for that widget right away.
 
         // Let the user quickly move over some dead space to hover the next thing
-        let tooltip_was_recently_shown = when_was_a_toolip_last_shown
-            .map_or(false, |time| ((now - time) as f32) < tooltip_grace_time);
+        let tooltip_was_recently_shown =
+            crate::popup::seconds_since_last_tooltip(&self.ctx) < tooltip_grace_time;
 
-        if !tooltip_was_recently_shown && !is_tooltip_open {
+        if !tooltip_was_recently_shown && !is_our_tooltip_open {
             if self.ctx.style().interaction.show_tooltips_only_when_still {
                 // We only show the tooltip when the mouse pointer is still.
                 if !self.ctx.input(|i| i.pointer.is_still()) {
@@ -730,10 +723,6 @@ impl Response {
         }
 
         // All checks passed: show the tooltip!
-
-        // Remember that we're showing a tooltip
-        self.ctx
-            .data_mut(|data| data.insert_temp::<f64>(when_was_a_toolip_last_shown_id, now));
 
         true
     }
