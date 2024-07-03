@@ -290,11 +290,14 @@ impl Painter {
         let galley = self.layout_no_wrap(text.to_string(), FontId::monospace(12.0), color);
         let rect = anchor.anchor_size(pos, galley.size());
         let frame_rect = rect.expand(2.0);
-        self.add(Shape::rect_filled(
-            frame_rect,
-            0.0,
-            Color32::from_black_alpha(150),
-        ));
+
+        let is_text_bright = color.is_additive() || epaint::Rgba::from(color).intensity() > 0.5;
+        let bg_color = if is_text_bright {
+            Color32::from_black_alpha(150)
+        } else {
+            Color32::from_white_alpha(150)
+        };
+        self.add(Shape::rect_filled(frame_rect, 0.0, bg_color));
         self.galley(rect.min, galley, color);
         frame_rect
     }
