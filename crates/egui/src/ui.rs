@@ -2621,32 +2621,33 @@ fn register_rect(ui: &Ui, rect: Rect) {
 
     // Paint rectangle around widget:
     {
+        // Print width and height:
+        let text_color = if ui.visuals().dark_mode {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        };
+        painter.debug_text(
+            rect.left_center() + 2.0 * Vec2::LEFT,
+            Align2::RIGHT_CENTER,
+            text_color,
+            format!("H: {:.1}", rect.height()),
+        );
+        painter.debug_text(
+            rect.center_top(),
+            Align2::CENTER_BOTTOM,
+            text_color,
+            format!("W: {:.1}", rect.width()),
+        );
+
+        // Paint rect:
         let rect_fg_color = if is_clicking {
             Color32::WHITE
         } else {
             Color32::LIGHT_BLUE
         };
         let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
-
         painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
-
-        // Print width and height:
-        let font_id = TextStyle::Monospace.resolve(ui.style());
-        let text_color = Color32::WHITE;
-        painter.text(
-            rect.left_center() + 2.0 * Vec2::LEFT,
-            Align2::RIGHT_CENTER,
-            format!("H: {:.1}", rect.height()),
-            font_id.clone(),
-            text_color,
-        );
-        painter.text(
-            rect.center_top(),
-            Align2::CENTER_BOTTOM,
-            format!("W: {:.1}", rect.width()),
-            font_id,
-            text_color,
-        );
     }
 
     // ----------------------------------------------
