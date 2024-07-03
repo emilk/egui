@@ -125,9 +125,10 @@ fn show_tooltip_at_dyn<'c, R>(
 
     let mut state = ctx.frame_state_mut(|fs| {
         // Remember that this is the widget showing the tooltip:
-        fs.tooltips
-            .per_layer_tooltip_widget
-            .insert(parent_layer, widget_id);
+        fs.layers
+            .entry(parent_layer)
+            .or_default()
+            .widget_with_tooltip = Some(widget_id);
 
         fs.tooltips
             .widget_tooltips

@@ -8,22 +8,12 @@ pub struct TooltipFrameState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
     pub widget_tooltips: IdMap<PerWidgetTooltipState>,
-
-    /// For each layer, which widget is showing a tooltip (if any)?
-    ///
-    /// Only one widget per layer may show a tooltip.
-    /// But if a tooltip contains a tooltip, you can show a tooltip on top of a tooltip.
-    pub per_layer_tooltip_widget: ahash::HashMap<LayerId, Id>,
 }
 
 impl TooltipFrameState {
     pub fn clear(&mut self) {
-        let Self {
-            widget_tooltips,
-            per_layer_tooltip_widget,
-        } = self;
+        let Self { widget_tooltips } = self;
         widget_tooltips.clear();
-        per_layer_tooltip_widget.clear();
     }
 }
 
@@ -42,6 +32,12 @@ pub struct PerLayerState {
     ///
     /// Does NOT include tooltips.
     pub open_popups: HashSet<Id>,
+
+    /// Which widget is showing a tooltip (if any)?
+    ///
+    /// Only one widget per layer may show a tooltip.
+    /// But if a tooltip contains a tooltip, you can show a tooltip on top of a tooltip.
+    pub widget_with_tooltip: Option<Id>,
 }
 
 #[cfg(feature = "accesskit")]

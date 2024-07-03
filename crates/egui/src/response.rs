@@ -656,10 +656,12 @@ impl Response {
         }
 
         let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
-            if let Some(already_open_tooltip) =
-                fs.tooltips.per_layer_tooltip_widget.get(&self.layer_id)
+            if let Some(already_open_tooltip) = fs
+                .layers
+                .get(&self.layer_id)
+                .and_then(|layer| layer.widget_with_tooltip)
             {
-                already_open_tooltip != &self.id
+                already_open_tooltip != self.id
             } else {
                 false
             }
