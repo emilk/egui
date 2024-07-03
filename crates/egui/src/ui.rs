@@ -2629,6 +2629,24 @@ fn register_rect(ui: &Ui, rect: Rect) {
         let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
 
         painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
+
+        // Print width and height:
+        let font_id = TextStyle::Monospace.resolve(ui.style());
+        let text_color = Color32::WHITE;
+        painter.text(
+            rect.left_center() + 2.0 * Vec2::LEFT,
+            Align2::RIGHT_CENTER,
+            format!("H: {:.1}", rect.height()),
+            font_id.clone(),
+            text_color,
+        );
+        painter.text(
+            rect.center_top(),
+            Align2::CENTER_BOTTOM,
+            format!("W: {:.1}", rect.width()),
+            font_id,
+            text_color,
+        );
     }
 
     // ----------------------------------------------
@@ -2655,7 +2673,7 @@ fn register_rect(ui: &Ui, rect: Rect) {
         let screen_rect = ui.ctx().screen_rect();
         let y = if galley.size().y <= rect.top() {
             // Above
-            rect.top() - galley.size().y
+            rect.top() - galley.size().y - 16.0
         } else {
             // Below
             rect.bottom()
