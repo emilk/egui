@@ -988,9 +988,11 @@ impl Prepared {
                 let is_hovering_bar_area = (is_hovering_outer_rect
                     && ui.rect_contains_pointer(max_bar_rect))
                     || state.scroll_bar_interaction[d];
+
                 let is_hovering_bar_area_t = ui
                     .ctx()
                     .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
+
                 let width = show_factor
                     * lerp(
                         scroll_style.floating_width..=scroll_style.bar_width,
