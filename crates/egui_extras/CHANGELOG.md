@@ -5,6 +5,15 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.0 - 2024-07-03
+* Update `image` crate to 0.25 [#4160](https://github.com/emilk/egui/pull/4160) by [@emilk](https://github.com/emilk)
+* Set the `sizing_pass` flag in first frame of `egui_extras::Table` [#4613](https://github.com/emilk/egui/pull/4613) by [@emilk](https://github.com/emilk)
+* Make `serde` an opt-in feature [#4641](https://github.com/emilk/egui/pull/4641) by [@Dinnerbone](https://github.com/Dinnerbone)
+* GIF support [#4620](https://github.com/emilk/egui/pull/4620) by [@JustFrederik](https://github.com/JustFrederik)
+* Improve `egui_extras::Table` layout [#4755](https://github.com/emilk/egui/pull/4755) by [@emilk](https://github.com/emilk)
+* Improve the auto-sizing of `Table` [#4756](https://github.com/emilk/egui/pull/4756) by [@emilk](https://github.com/emilk)
+
+
 ## 0.27.2 - 2024-04-02
 * Nothing new
 

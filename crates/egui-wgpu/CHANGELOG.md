@@ -6,6 +6,11 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.0 - 2024-07-03
+* Update to wgpu 0.20 [#4433](https://github.com/emilk/egui/pull/4433) by [@KeKsBoTer](https://github.com/KeKsBoTer)
+* Fix doclinks in egui-wgpu docs [#4677](https://github.com/emilk/egui/pull/4677) by [@emilk](https://github.com/emilk)
+
+
 ## 0.27.2 - 2024-04-02
 * Nothing new
 

@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.28.0 - 2024-07-03
+* Enable `egui_glow`'s `winit` feature on Wasm (#4420) [#4421](https://github.com/emilk/egui/pull/4421) by [@simon-frankau](https://github.com/simon-frankau)
+
+
 ## 0.27.2 - 2024-04-02
 * Nothing new
 

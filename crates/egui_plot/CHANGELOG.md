@@ -5,6 +5,26 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.0 - 2024-07-03
+### ⭐ Added
+* Hide all other series when alt-clicking in the legend [#4549](https://github.com/emilk/egui/pull/4549) by [@abey79](https://github.com/abey79)
+
+### 🔧 Changed
+* `Plot::Items:allow_hover` give possibility to masked the interaction on hovered item [#2558](https://github.com/emilk/egui/pull/2558) by [@haricot](https://github.com/haricot)
+* Expose `ClosestElem` and `PlotConfig` [#4380](https://github.com/emilk/egui/pull/4380) by [@Narcha](https://github.com/Narcha)
+* Introduce lifetime to `egui_plot::Plot` to replace `'static` fields [#4435](https://github.com/emilk/egui/pull/4435) by [@Fabus1184](https://github.com/Fabus1184)
+* Plot now respects the `interact_radius` set in the UI's style [#4520](https://github.com/emilk/egui/pull/4520) by [@YgorSouza](https://github.com/YgorSouza)
+* Improve behavior of plot auto-bounds with reduced data [#4632](https://github.com/emilk/egui/pull/4632) by [@abey79](https://github.com/abey79)
+* Improve default formatter of tick-marks [#4738](https://github.com/emilk/egui/pull/4738) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Disable interaction for `ScrollArea` and `Plot` when UI is disabled [#4457](https://github.com/emilk/egui/pull/4457) by [@varphone](https://github.com/varphone)
+* Make sure plot size is positive [#4429](https://github.com/emilk/egui/pull/4429) by [@rustbasic](https://github.com/rustbasic)
+* Use `f64` for translate [#4637](https://github.com/emilk/egui/pull/4637) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+* Clamp plot zoom values to valid range [#4695](https://github.com/emilk/egui/pull/4695) by [@Its-Just-Nans](https://github.com/Its-Just-Nans)
+* Fix plot bounds of empty plots [#4741](https://github.com/emilk/egui/pull/4741) by [@emilk](https://github.com/emilk)
+
+
 ## 0.27.2 - 2024-04-02
 * Allow zoom/pan a plot as long as it contains the mouse cursor [#4292](https://github.com/emilk/egui/pull/4292)
 * Prevent plot from resetting one axis while zooming/dragging the other [#4252](https://github.com/emilk/egui/pull/4252) (thanks [@YgorSouza](https://github.com/YgorSouza)!)

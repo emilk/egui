@@ -7,6 +7,79 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.0 - 2024-07-03 - Better integration of a eframe in a bigger website
+### ✨ Highlights
+The eframe web canvas now works properly when its a small part of a larger web page.
+Previously this caused a lot of weird bugs, such as the eframe canvas stealing focus, and resizing the canvas in annoying ways.
+Now it should all work seamlessly to have an eframe canvas as part of a web page, including having multiple different eframe apps next to each other.
+As part of that the eframe canvas can now be focused (or not), just like an `<input>` HTML element.
+
+We've also implemented a better method for sizing and positioning the canvas so that it yields pixel-perfect rendering on all known browsers except for Desktop Safari.
+What this means is that text is much less likely to be blurry on web for users ([#4536](https://github.com/emilk/egui/pull/4536) by [@jprochazk](https://github.com/jprochazk)).
+
+### ⭐ Added
+* Add `register_native_texture` in `eframe::Frame` [#4246](https://github.com/emilk/egui/pull/4246) by [@Chaojimengnan](https://github.com/Chaojimengnan)
+* Add `NativeOptions::persistence_path` [#4423](https://github.com/emilk/egui/pull/4423) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Make sure to call `raw_input_hook` on web [#4646](https://github.com/emilk/egui/pull/4646) by [@owen-d](https://github.com/owen-d)
+
+### 🔧 Changed
+* Early-out from context switching the `glow` backend [#4284](https://github.com/emilk/egui/pull/4284), [#4296](https://github.com/emilk/egui/pull/4296) by [@emilk](https://github.com/emilk)
+* Allow users to create viewports larger than monitor on Windows & macOS [#4337](https://github.com/emilk/egui/pull/4337) by [@lopo12123](https://github.com/lopo12123)
+* Use `objc2` and its framework crates [#4395](https://github.com/emilk/egui/pull/4395) by [@madsmtm](https://github.com/madsmtm)
+* Emit physical key presses when a non-Latin layout is active [#4461](https://github.com/emilk/egui/pull/4461) by [@TicClick](https://github.com/TicClick)
+* Clamp window size to monitor size by default on all platforms [#4410](https://github.com/emilk/egui/pull/4410) by [@rustbasic](https://github.com/rustbasic)
+* Ignore synthetic key presses [#4514](https://github.com/emilk/egui/pull/4514) by [@hut](https://github.com/hut)
+* Use `ResizeObserver` instead of `resize` event [#4536](https://github.com/emilk/egui/pull/4536) by [@jprochazk](https://github.com/jprochazk)
+* Make pinch-to-zoom more responsive on web [#4621](https://github.com/emilk/egui/pull/4621) by [@emilk](https://github.com/emilk)
+* Move first `request_animation_frame` into resize observer [#4628](https://github.com/emilk/egui/pull/4628) by [@jprochazk](https://github.com/jprochazk)
+* Replace `directories-next` dependency with `directories` [#4661](https://github.com/emilk/egui/pull/4661) by [@crumblingstatue](https://github.com/crumblingstatue)
+* `eframe::Result` is now short for `eframe::Result<()>` [#4706](https://github.com/emilk/egui/pull/4706) by [@emilk](https://github.com/emilk)
+* Ignore keyboard events unless canvas has focus [#4718](https://github.com/emilk/egui/pull/4718) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix `ViewportCommand::InnerSize` not resizing viewport on Wayland (#4211) [#4211](https://github.com/emilk/egui/pull/4211) by [@rustbasic](https://github.com/rustbasic)
+* Improve IME support with new `Event::Ime` [#4358](https://github.com/emilk/egui/pull/4358) by [@rustbasic](https://github.com/rustbasic)
+* IME for chinese [#4436](https://github.com/emilk/egui/pull/4436) by [@rustbasic](https://github.com/rustbasic)
+* Fix: Window position creeps between executions on scaled monitors [#4443](https://github.com/emilk/egui/pull/4443) by [@avery-radmacher](https://github.com/avery-radmacher)
+* Fix: still track mouse when dragging outside web canvas [#4522](https://github.com/emilk/egui/pull/4522) by [@emilk](https://github.com/emilk)
+* Fix: Don't `.forget()` RAF closure [#4551](https://github.com/emilk/egui/pull/4551) by [@jprochazk](https://github.com/jprochazk)
+* Improve web text agent [#4561](https://github.com/emilk/egui/pull/4561) by [@jprochazk](https://github.com/jprochazk)
+* Fix broken mouse coordinates when there's padding on the canvas element [#4729](https://github.com/emilk/egui/pull/4729) by [@emilk](https://github.com/emilk)
+* Only repaint on cursor movements of area, or if dragging outside [#4730](https://github.com/emilk/egui/pull/4730) by [@emilk](https://github.com/emilk)
+* Fix drag-and-drop file preview/hover [#4732](https://github.com/emilk/egui/pull/4732) by [@emilk](https://github.com/emilk)
+* Fix stuck keys after pressing ctrl+C, cmd+A, etc [#4731](https://github.com/emilk/egui/pull/4731) by [@emilk](https://github.com/emilk)
+
+### 🧳 Migration
+* Update MSRV to 1.76 [#4411](https://github.com/emilk/egui/pull/4411) by [@emilk](https://github.com/emilk)
+
+#### Wrap app creator in a `Result`
+Applications can now return an error during the app creation ([#4565](https://github.com/emilk/egui/pull/4565) by [@emilk](https://github.com/emilk)), so you now need to wrap your `Box<dyn App>` in a `Result` like so:
+
+
+``` diff
+- eframe::run_native("My App", options, Box::new(|cc| Box::new(MyApp::new(cc))));
++ eframe::run_native("My App", options, Box::new(|cc| Ok(Box::new(MyApp::new(cc)))));
+```
+
+#### Change web CSS
+To make the eframe canvas fill the entire web browser, set its CSS to:
+
+``` css
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+```
+
+See [`index.html`](https://github.com/emilk/egui/blob/a489374ca63f0d1ae983bb21d8bb766b2d68737b/web_demo/index.html#L30-L50) and [#4536](https://github.com/emilk/egui/pull/4536) for details.
+
+#### Web canvas focus
+If you are using eframe for a fullscreen app, you should call `.focus()` on your canvas during startup:
+```js
+document.getElementById("the_canvas_id").focus();
+```
+
+
 ## 0.27.2 - 2024-04-02
 #### Desktop/Native
 * Fix continuous repaint on Wayland when TextEdit is focused or IME output is set [#4269](https://github.com/emilk/egui/pull/4269) (thanks [@white-axe](https://github.com/white-axe)!)
