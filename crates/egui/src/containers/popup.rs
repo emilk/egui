@@ -78,7 +78,7 @@ pub fn show_tooltip_for<R>(
 ) -> R {
     let is_touch_screen = ctx.input(|i| i.any_touches());
     let allow_placing_below = !is_touch_screen; // There is a finger below.
-    show_tooltip_at_avoid_dyn(
+    show_tooltip_at_dyn(
         ctx,
         parent_layer,
         widget_id,
@@ -100,7 +100,7 @@ pub fn show_tooltip_at<R>(
 ) -> R {
     let allow_placing_below = true;
     let rect = Rect::from_center_size(suggested_position, Vec2::ZERO);
-    show_tooltip_at_avoid_dyn(
+    show_tooltip_at_dyn(
         ctx,
         parent_layer,
         widget_id,
@@ -110,7 +110,7 @@ pub fn show_tooltip_at<R>(
     )
 }
 
-fn show_tooltip_at_avoid_dyn<'c, R>(
+fn show_tooltip_at_dyn<'c, R>(
     ctx: &Context,
     parent_layer: LayerId,
     widget_id: Id,
