@@ -963,41 +963,8 @@ impl Prepared {
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
 
-            // top/bottom of a horizontal scroll (d==0).
-            // left/rigth of a vertical scroll (d==1).
-            let mut cross = if scroll_style.floating {
-                // The bounding rect of a fully visible bar.
-                // When we hover this area, we should show the full bar:
-                let max_bar_rect = if d == 0 {
-                    outer_rect.with_min_y(outer_rect.max.y - outer_margin - scroll_style.bar_width)
-                } else {
-                    outer_rect.with_min_x(outer_rect.max.x - outer_margin - scroll_style.bar_width)
-                };
-
-                let is_hovering_bar_area = is_hovering_outer_rect
-                    && ui.rect_contains_pointer(max_bar_rect)
-                    || state.scroll_bar_interaction[d];
-
-                let is_hovering_bar_area_t = ui
-                    .ctx()
-                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
-
-                let width = show_factor
-                    * lerp(
-                        scroll_style.floating_width..=scroll_style.bar_width,
-                        is_hovering_bar_area_t,
-                    );
-
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
-                let min_cross = max_cross - width;
-                Rangef::new(min_cross, max_cross)
-            } else {
-                let min_cross = inner_rect.max[1 - d] + inner_margin;
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
-                Rangef::new(min_cross, max_cross)
-            };
-
-            if ui.clip_rect().max[1 - d] < cross.max + outer_margin {
+            let mut max_cross = outer_rect.max[1 - d] - outer_margin;
+            if ui.clip_rect().max[1 - d] < max_cross + outer_margin {
                 // Move the scrollbar so it is visible. This is needed in some cases.
                 // For instance:
                 // * When we have a vertical-only scroll area in a top level panel,
@@ -1007,20 +974,45 @@ impl Prepared {
                 //   is outside the clip rectangle.
                 // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
                 // clip_rect_margin is quite a hack. It would be nice to get rid of it.
-                let width = cross.max - cross.min;
-                cross.max = ui.clip_rect().max[1 - d] - outer_margin;
-                cross.min = cross.max - width;
+                max_cross = ui.clip_rect().max[1 - d] - outer_margin;
             }
+
+            // top/bottom of a horizontal scroll (d==0).
+            // left/rigth of a vertical scroll (d==1).
+            let cross = if scroll_style.floating {
+                let max_bar_rect = if d == 0 {
+                    outer_rect.with_min_y(max_cross - scroll_style.bar_width)
+                } else {
+                    outer_rect.with_min_x(max_cross - scroll_style.bar_width)
+                };
+                let is_hovering_bar_area = (is_hovering_outer_rect
+                    && ui.rect_contains_pointer(max_bar_rect))
+                    || state.scroll_bar_interaction[d];
+                let is_hovering_bar_area_t = ui
+                    .ctx()
+                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
+                let width = show_factor
+                    * lerp(
+                        scroll_style.floating_width..=scroll_style.bar_width,
+                        is_hovering_bar_area_t,
+                    );
+
+                let min_cross = max_cross - width;
+                Rangef::new(min_cross, max_cross)
+            } else {
+                let min_cross = max_cross - scroll_style.bar_width;
+                Rangef::new(min_cross, max_cross)
+            };
 
             let outer_scroll_rect = if d == 0 {
                 Rect::from_min_max(
-                    pos2(inner_rect.left(), cross.min),
-                    pos2(inner_rect.right(), cross.max),
+                    pos2(inner_rect.left(), cross.min - inner_margin),
+                    pos2(inner_rect.right(), cross.max + outer_margin),
                 )
             } else {
                 Rect::from_min_max(
-                    pos2(cross.min, inner_rect.top()),
-                    pos2(cross.max, inner_rect.bottom()),
+                    pos2(cross.min - inner_margin, inner_rect.top()),
+                    pos2(cross.max + outer_margin, inner_rect.bottom()),
                 )
             };
 
