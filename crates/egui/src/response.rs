@@ -645,6 +645,22 @@ impl Response {
             }
         }
 
+        let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
+            if let Some(already_open_tooltip) = fs
+                .tooltip_state
+                .per_layer_tooltip_widget
+                .get(&self.layer_id)
+            {
+                already_open_tooltip != &self.id
+            } else {
+                false
+            }
+        });
+        if is_other_tooltip_open {
+            // We only allow one tooltip per layer. First one wins. It is up to that tooltip to close itself.
+            return false;
+        }
+
         // Fast early-outs:
         if self.enabled {
             if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {

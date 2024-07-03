@@ -124,7 +124,12 @@ fn show_tooltip_at_dyn<'c, R>(
     }
 
     // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
-    let mut state = ctx.frame_state(|fs| {
+    let mut state = ctx.frame_state_mut(|fs| {
+        // Remember that this is the widget showing the tooltip:
+        fs.tooltip_state
+            .per_layer_tooltip_widget
+            .insert(parent_layer, widget_id);
+
         fs.tooltip_state
             .widget_tooltips
             .get(&widget_id)
