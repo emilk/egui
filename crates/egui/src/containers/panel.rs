@@ -634,7 +634,7 @@ impl TopBottomPanel {
     }
 
     /// The initial height of the [`TopBottomPanel`], including margins.
-    /// Defaults to [`style::Spacing::interact_size`].y.
+    /// Defaults to [`style::Spacing::interact_size`].y, plus frame margins.
     #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
@@ -712,13 +712,16 @@ impl TopBottomPanel {
             height_range,
         } = self;
 
+        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+
         let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
 
         let mut height = if let Some(state) = PanelState::load(ui.ctx(), id) {
             state.rect.height()
         } else {
-            default_height.unwrap_or_else(|| ui.style().spacing.interact_size.y)
+            default_height
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y + frame.inner_margin.sum().y)
         };
         {
             height = clamp_to_range(height, height_range).at_most(available_rect.height());
@@ -759,7 +762,6 @@ impl TopBottomPanel {
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
-        let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
             ui.set_min_height((height_range.min - frame.inner_margin.sum().y).at_least(0.0));
