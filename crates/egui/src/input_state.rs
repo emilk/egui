@@ -27,6 +27,8 @@ const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
 
 /// Input state that egui updates each frame.
 ///
+/// You can access this with [`crate::Context::input`].
+///
 /// You can check if `egui` is using the inputs using
 /// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
 #[derive(Clone, Debug)]
