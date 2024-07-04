@@ -83,7 +83,10 @@ impl WebPainterWgpu {
     }
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
-    pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
+    pub async fn new(
+        canvas: web_sys::HtmlCanvasElement,
+        options: &WebOptions,
+    ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
         let mut backends = options.wgpu_options.supported_backends;
@@ -162,7 +165,6 @@ impl WebPainterWgpu {
             }
         }
 
-        let canvas = super::get_canvas_element_by_id_or_die(canvas_id);
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;

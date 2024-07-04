@@ -166,7 +166,7 @@
 
             check_for_panic();
 
-            handle.start("the_canvas_id").then(on_app_started).catch(on_error);
+            handle.start(document.getElementById("the_canvas_id")).then(on_app_started).catch(on_error);
         }
 
         function on_app_started(handle) {
