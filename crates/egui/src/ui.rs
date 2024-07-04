@@ -2599,64 +2599,11 @@ fn register_rect(ui: &Ui, rect: Rect) {
         return;
     }
 
-    if ui.ctx().frame_state(|o| o.has_debug_viewed_this_frame) {
-        return;
-    }
-
     if !ui.rect_contains_pointer(rect) {
         return;
     }
 
-    // We only show one debug rectangle, or things get confusing:
-    ui.ctx()
-        .frame_state_mut(|o| o.has_debug_viewed_this_frame = true);
-
-    // ----------------------------------------------
-
     let is_clicking = ui.input(|i| i.pointer.could_any_button_be_click());
-
-    // Use the debug-painter to avoid clip rect,
-    // otherwise the content of the widget may cover what we paint here!
-    let painter = ui.ctx().debug_painter();
-
-    // Paint rectangle around widget:
-    {
-        // Print width and height:
-        let text_color = if ui.visuals().dark_mode {
-            Color32::WHITE
-        } else {
-            Color32::BLACK
-        };
-        painter.debug_text(
-            rect.left_center() + 2.0 * Vec2::LEFT,
-            Align2::RIGHT_CENTER,
-            text_color,
-            format!("H: {:.1}", rect.height()),
-        );
-        painter.debug_text(
-            rect.center_top(),
-            Align2::CENTER_BOTTOM,
-            text_color,
-            format!("W: {:.1}", rect.width()),
-        );
-
-        // Paint rect:
-        let rect_fg_color = if is_clicking {
-            Color32::WHITE
-        } else {
-            Color32::LIGHT_BLUE
-        };
-        let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
-        painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
-    }
-
-    // ----------------------------------------------
-
-    if debug.hover_shows_next {
-        ui.placer.debug_paint_cursor(&painter, "next");
-    }
-
-    // ----------------------------------------------
 
     #[cfg(feature = "callstack")]
     let callstack = crate::callstack::capture();
@@ -2664,45 +2611,38 @@ fn register_rect(ui: &Ui, rect: Rect) {
     #[cfg(not(feature = "callstack"))]
     let callstack = String::default();
 
-    if !callstack.is_empty() {
-        let font_id = FontId::monospace(12.0);
-        let text = format!("{callstack}\n\n(click to copy)");
-        let text_color = Color32::WHITE;
-        let galley = painter.layout_no_wrap(text, font_id, text_color);
+    // We only show one debug rectangle, or things get confusing:
+    let debug_rect = frame_state::DebugRect {
+        rect,
+        callstack,
+        is_clicking,
+    };
 
-        // Position the text either under or above:
-        let screen_rect = ui.ctx().screen_rect();
-        let y = if galley.size().y <= rect.top() {
-            // Above
-            rect.top() - galley.size().y - 16.0
+    let mut kept = false;
+    ui.ctx().frame_state_mut(|fs| {
+        if let Some(final_debug_rect) = &mut fs.debug_rect {
+            // or maybe pick the one with deepest callstack?
+            if final_debug_rect.rect.contains_rect(rect) {
+                *final_debug_rect = debug_rect;
+                kept = true;
+            }
         } else {
-            // Below
-            rect.bottom()
-        };
-
-        let y = y
-            .at_most(screen_rect.bottom() - galley.size().y)
-            .at_least(0.0);
-
-        let x = rect
-            .left()
-            .at_most(screen_rect.right() - galley.size().x)
-            .at_least(0.0);
-        let text_pos = pos2(x, y);
-
-        let text_bg_color = Color32::from_black_alpha(180);
-        let text_rect_stroke_color = if is_clicking {
-            Color32::WHITE
-        } else {
-            text_bg_color
-        };
-        let text_rect = Rect::from_min_size(text_pos, galley.size());
-        painter.rect(text_rect, 0.0, text_bg_color, (1.0, text_rect_stroke_color));
-        painter.galley(text_pos, galley, text_color);
-
-        if ui.input(|i| i.pointer.any_click()) {
-            ui.ctx().copy_text(callstack);
+            fs.debug_rect = Some(debug_rect);
+            kept = true;
         }
+    });
+    if !kept {
+        return;
+    }
+
+    // ----------------------------------------------
+
+    // Use the debug-painter to avoid clip rect,
+    // otherwise the content of the widget may cover what we paint here!
+    let painter = ui.ctx().debug_painter();
+
+    if debug.hover_shows_next {
+        ui.placer.debug_paint_cursor(&painter, "next");
     }
 }
 

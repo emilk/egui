@@ -1942,6 +1942,10 @@ impl Context {
                 paint_widget(widget, "drag", Color32::GREEN);
             }
         }
+
+        if let Some(debug_rect) = self.frame_state_mut(|fs| fs.debug_rect.take()) {
+            debug_rect.paint(&self.debug_painter());
+        }
     }
 }
 
