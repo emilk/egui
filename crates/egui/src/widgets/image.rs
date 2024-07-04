@@ -283,7 +283,9 @@ impl<'a> Image<'a> {
         }
     }
 
-    /// Get the `uri` that this image.
+    /// Returns the URI of the image.
+    ///
+    /// For GIFs, returns the URI without the frame number.
     #[inline]
     pub fn uri(&self) -> Option<&str> {
         let uri = self.source.uri()?;
