@@ -9,7 +9,6 @@ use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     util::IdTypeMap, widgets::*, *,
 };
-
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -1227,8 +1226,10 @@ impl Ui {
     ) {
         for d in 0..2 {
             let range = Rangef::new(rect.min[d], rect.max[d]);
-            self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((range, align, animation)));
+            self.ctx().frame_state_mut(|state| {
+                state.scroll_target[d] =
+                    Some(frame_state::ScrollTarget::new(range, align, animation));
+            });
         }
     }
 
@@ -1267,8 +1268,10 @@ impl Ui {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = Rangef::point(target[d]);
-            self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((target, align, animation)));
+            self.ctx().frame_state_mut(|state| {
+                state.scroll_target[d] =
+                    Some(frame_state::ScrollTarget::new(target, align, animation));
+            });
         }
     }
 

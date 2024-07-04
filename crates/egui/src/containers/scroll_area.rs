@@ -809,20 +809,20 @@ impl Prepared {
                 .frame_state_mut(|state| state.scroll_target[d].take());
 
             if scroll_enabled[d] {
-                let update = if let Some((target_range, align, animation)) = scroll_target {
+                let update = if let Some(target) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
-                    let (start, end) = (target_range.min, target_range.max);
+                    let (start, end) = (target.range.min, target.range.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
                     let mut spacing = ui.spacing().item_spacing[d];
 
-                    let delta = if let Some(align) = align {
+                    let delta = if let Some(align) = target.align {
                         let center_factor = align.to_factor();
 
                         let offset =
-                            lerp(target_range, center_factor) - lerp(visible_range, center_factor);
+                            lerp(target.range, center_factor) - lerp(visible_range, center_factor);
 
                         // Depending on the alignment we need to add or subtract the spacing
                         spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
@@ -859,7 +859,7 @@ impl Prepared {
                         // The further we scroll, the more time we take.
                         let now = ui.input(|i| i.time);
                         let animation_duration = (delta.abs() / animation.points_per_second)
-                            .clamp(animation.min_duration, animation.max_duration);
+                            .clamp(animation.duration.min, animation.duration.max);
                         state.offset_target[d] = Some(ScrollTarget {
                             animation_time_span: (now, now + animation_duration as f64),
                             target_offset,

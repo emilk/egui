@@ -695,39 +695,51 @@ impl ScrollStyle {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
+/// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct ScrollAnimation {
+    /// With what speed should we scroll? (Default: 1000.0)
     pub points_per_second: f32,
-    pub min_duration: f32,
-    pub max_duration: f32,
+
+    /// The min / max scroll duration.
+    pub duration: Rangef,
 }
 
 impl Default for ScrollAnimation {
     fn default() -> Self {
         Self {
             points_per_second: 1000.0,
-            min_duration: 0.1,
-            max_duration: 0.3,
+            duration: Rangef::new(0.1, 0.3),
         }
     }
 }
 
 impl ScrollAnimation {
-    pub fn none() -> Self {
+    /// New scroll animation
+    pub fn new(points_per_second: f32, duration: Rangef) -> Self {
         Self {
-            points_per_second: 0.0,
-            min_duration: 0.0,
-            max_duration: 0.0,
+            points_per_second,
+            duration,
         }
     }
 
+    /// No animation, scroll instantly.
+    pub fn none() -> Self {
+        Self {
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(0.0, 0.0),
+        }
+    }
+
+    /// Scroll with a fixed duration, regardless of distance.
     pub fn duration(t: f32) -> Self {
         Self {
-            points_per_second: 0.0,
-            min_duration: t,
-            max_duration: t,
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(t, t),
         }
     }
 
@@ -744,16 +756,16 @@ impl ScrollAnimation {
 
             ui.label("Min duration:");
             ui.add(
-                DragValue::new(&mut self.min_duration)
+                DragValue::new(&mut self.duration.min)
                     .speed(0.01)
-                    .range(0.0..=self.max_duration),
+                    .range(0.0..=self.duration.max),
             );
             ui.label("seconds");
             ui.end_row();
 
             ui.label("Max duration:");
             ui.add(
-                DragValue::new(&mut self.max_duration)
+                DragValue::new(&mut self.duration.max)
                     .speed(0.01)
                     .range(0.0..=1.0),
             );

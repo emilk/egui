@@ -2,10 +2,9 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui, WidgetRect,
-    WidgetText,
+    frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
+    Ui, WidgetRect, WidgetText,
 };
-
 // ----------------------------------------------------------------------------
 
 /// The result of adding a widget to a [`Ui`].
@@ -855,8 +854,16 @@ impl Response {
         animation: crate::style::ScrollAnimation,
     ) {
         self.ctx.frame_state_mut(|state| {
-            state.scroll_target[0] = Some((self.rect.x_range(), align, animation));
-            state.scroll_target[1] = Some((self.rect.y_range(), align, animation));
+            state.scroll_target[0] = Some(frame_state::ScrollTarget::new(
+                self.rect.x_range(),
+                align,
+                animation,
+            ));
+            state.scroll_target[1] = Some(frame_state::ScrollTarget::new(
+                self.rect.y_range(),
+                align,
+                animation,
+            ));
         });
     }
 

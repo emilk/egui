@@ -40,6 +40,23 @@ pub struct PerLayerState {
     pub widget_with_tooltip: Option<Id>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ScrollTarget {
+    pub range: Rangef,
+    pub align: Option<Align>,
+    pub animation: style::ScrollAnimation,
+}
+
+impl ScrollTarget {
+    pub fn new(range: Rangef, align: Option<Align>, animation: style::ScrollAnimation) -> Self {
+        Self {
+            range,
+            align,
+            animation,
+        }
+    }
+}
+
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitFrameState {
@@ -79,7 +96,7 @@ pub struct FrameState {
     pub used_by_panels: Rect,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
-    pub scroll_target: [Option<(Rangef, Option<Align>, style::ScrollAnimation)>; 2],
+    pub scroll_target: [Option<ScrollTarget>; 2],
 
     /// The current scroll area should scroll by this much.
     ///
@@ -153,7 +170,7 @@ impl FrameState {
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
         *scroll_target = [None, None];
-        *scroll_delta = (Vec2::default(), style::ScrollAnimation::none());
+        *scroll_delta = Default::default();
 
         #[cfg(debug_assertions)]
         {
