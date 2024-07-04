@@ -1,5 +1,5 @@
 use super::*;
-use web_sys::{window, EventTarget};
+use web_sys::EventTarget;
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagaton`
 // than what is probably needed.
@@ -423,15 +423,15 @@ fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 /// Returns true if the cursor is above the canvas, or if we're dragging something.
 /// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
 fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
-    window()
-        .unwrap()
-        .document()
-        .unwrap()
+    let document = web_sys::window().unwrap().document().unwrap();
+    let is_hovering_canvas = document
         .element_from_point(pos.x, pos.y)
-        .is_some_and(|element| element.eq(runner.canvas()))
-        || runner
-            .egui_ctx()
-            .input(|i| i.pointer.any_down() || i.any_touches())
+        .is_some_and(|element| element.eq(runner.canvas()));
+    let is_pointer_down = runner
+        .egui_ctx()
+        .input(|i| i.pointer.any_down() || i.any_touches());
+
+    is_hovering_canvas || is_pointer_down
 }
 
 fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
