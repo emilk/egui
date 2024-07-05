@@ -42,7 +42,7 @@ disallowed-types = [
   # { path = "std::path::PathBuf", reason = "Can't read/write files on web" }, // TODO(emilk): consider banning Path on wasm
 ]
 
-# Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
+# Allow-list of words for markdown in docstrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
 doc-valid-idents = [
   # You must also update the same list in the root `clippy.toml`!
   "AccessKit",
