@@ -1060,6 +1060,12 @@ impl PointerState {
         (self.time - self.last_move_time) as f32
     }
 
+    /// How long has it been (in seconds) since the pointer was clicked?
+    #[inline(always)]
+    pub fn time_since_last_click(&self) -> f32 {
+        (self.time - self.last_click_time) as f32
+    }
+
     /// Was any pointer button pressed (`!down -> down`) this frame?
     ///
     /// This can sometimes return `true` even if `any_down() == false`

@@ -616,7 +616,21 @@ impl Response {
         let tooltip_delay = style.interaction.tooltip_delay;
         let tooltip_grace_time = style.interaction.tooltip_grace_time;
 
-        let time_since_last_scroll = self.ctx.input(|i| i.time_since_last_scroll());
+        let (
+            time_since_last_scroll,
+            time_since_last_click,
+            time_since_last_pointer_movement,
+            pointer_pos,
+            pointer_dir,
+        ) = self.ctx.input(|i| {
+            (
+                i.time_since_last_scroll(),
+                i.pointer.time_since_last_click(),
+                i.pointer.time_since_last_movement(),
+                i.pointer.hover_pos(),
+                i.pointer.direction(),
+            )
+        });
 
         if time_since_last_scroll < tooltip_delay {
             // See https://github.com/emilk/egui/issues/4781
@@ -629,24 +643,15 @@ impl Response {
         let is_our_tooltip_open = self.is_tooltip_open();
 
         if is_our_tooltip_open {
-            let (pointer_pos, pointer_dir) = self
-                .ctx
-                .input(|i| (i.pointer.hover_pos(), i.pointer.direction()));
-
-            if let Some(pointer_pos) = pointer_pos {
-                if self.rect.contains(pointer_pos) {
-                    // Handle the case of a big tooltip that covers the widget:
-                    return true;
-                }
-            }
+            // Check if we should automatically stay open:
 
             let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
-            let layer_id = LayerId::new(Order::Tooltip, tooltip_id);
+            let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
                 vp.prev_frame
                     .widgets
-                    .get_layer(layer_id)
+                    .get_layer(tooltip_layer_id)
                     .any(|w| w.enabled && w.sense.interactive())
             });
 
@@ -659,14 +664,36 @@ impl Response {
                     let rect = area.rect();
 
                     if let Some(pos) = pointer_pos {
-                        let pointer_in_area_or_on_the_way_there = rect.contains(pos)
-                            || rect.intersects_ray(pos, pointer_dir.normalized());
-
-                        if pointer_in_area_or_on_the_way_there {
-                            return true;
+                        if rect.contains(pos) {
+                            return true; // hovering interactive tooltip
+                        }
+                        if pointer_dir != Vec2::ZERO
+                            && rect.intersects_ray(pos, pointer_dir.normalized())
+                        {
+                            return true; // on the way to interactive tooltip
                         }
                     }
                 }
+            }
+        }
+
+        let clicked_more_recently_than_moved =
+            time_since_last_click < time_since_last_pointer_movement + 0.1;
+        if clicked_more_recently_than_moved {
+            // It is common to click a widget and then rest the mouse there.
+            // It would be annoying to then see a tooltip for it immediately.
+            // Similarly, clicking should hide the existing tooltip.
+            // Only hovering should lead to a tooltip, not clicking.
+            // The offset is only to allow small movement just right after the click.
+            return false;
+        }
+
+        if is_our_tooltip_open {
+            // Check if we should automatically stay open:
+
+            if pointer_pos.is_some_and(|pointer_pos| self.rect.contains(pointer_pos)) {
+                // Handle the case of a big tooltip that covers the widget:
+                return true;
             }
         }
 
@@ -716,10 +743,9 @@ impl Response {
                 }
             }
 
-            let time_since_last_interaction = self.ctx.input(|i| {
-                i.time_since_last_scroll()
-                    .min(i.pointer.time_since_last_movement())
-            });
+            let time_since_last_interaction = time_since_last_scroll
+                .min(time_since_last_pointer_movement)
+                .min(time_since_last_click);
             let time_til_tooltip = tooltip_delay - time_since_last_interaction;
 
             if 0.0 < time_til_tooltip {
