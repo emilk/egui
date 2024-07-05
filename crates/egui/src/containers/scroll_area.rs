@@ -809,20 +809,25 @@ impl Prepared {
                 .frame_state_mut(|state| state.scroll_target[d].take());
 
             if scroll_enabled[d] {
-                let update = if let Some(target) = scroll_target {
+                if let Some(target) = scroll_target {
+                    let frame_state::ScrollTarget {
+                        range,
+                        align,
+                        animation: animation_update,
+                    } = target;
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
-                    let (start, end) = (target.range.min, target.range.max);
+                    let (start, end) = (range.min, range.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
                     let mut spacing = ui.spacing().item_spacing[d];
 
-                    let delta = if let Some(align) = target.align {
+                    let delta_update = if let Some(align) = align {
                         let center_factor = align.to_factor();
 
                         let offset =
-                            lerp(target.range, center_factor) - lerp(visible_range, center_factor);
+                            lerp(range, center_factor) - lerp(visible_range, center_factor);
 
                         // Depending on the alignment we need to add or subtract the spacing
                         spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
@@ -836,15 +841,10 @@ impl Prepared {
                         // Ui is already in view, no need to adjust scroll.
                         0.0
                     };
-                    Some((delta, animation))
-                } else {
-                    None
-                };
 
-                if let Some((delta_update, animation_update)) = update {
                     delta += delta_update;
                     animation = animation_update;
-                }
+                };
 
                 if delta != 0.0 {
                     let target_offset = state.offset[d] + delta;
