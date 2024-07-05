@@ -47,6 +47,7 @@ pub struct AccessKitFrameState {
     pub parent_stack: Vec<Id>,
 }
 
+#[cfg(debug_assertions)]
 #[derive(Clone)]
 pub struct DebugRect {
     pub rect: Rect,
@@ -54,6 +55,7 @@ pub struct DebugRect {
     pub is_clicking: bool,
 }
 
+#[cfg(debug_assertions)]
 impl DebugRect {
     pub fn paint(self, painter: &Painter) {
         let Self {
