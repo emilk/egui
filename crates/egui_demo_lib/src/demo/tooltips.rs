@@ -19,7 +19,8 @@ impl crate::Demo for Tooltips {
         use crate::View as _;
         let window = egui::Window::new("Tooltips")
             .constrain(false) // So we can test how tooltips behave close to the screen edge
-            .resizable(false)
+            .resizable(true)
+            .default_size([450.0, 300.0])
             .scroll(false)
             .open(open);
         window.show(ctx, |ui| self.ui(ui));
@@ -34,6 +35,34 @@ impl crate::View for Tooltips {
             ui.add(crate::egui_github_link_file_line!());
         });
 
+        egui::SidePanel::right("scroll_test").show_inside(ui, |ui| {
+            ui.label(
+                "The scroll area below has many labels with interactive tooltips. \
+                 The purpose is to test that the tooltips close when you scroll.",
+            )
+            .on_hover_text("Try hovering a label below, then scroll!");
+            egui::ScrollArea::vertical()
+                .auto_shrink(false)
+                .show(ui, |ui| {
+                    for i in 0..1000 {
+                        ui.label(format!("This is line {i}")).on_hover_ui(|ui| {
+                            ui.style_mut().interaction.selectable_labels = true;
+                            ui.label(
+                            "This tooltip is interactive, because the text in it is selectable.",
+                        );
+                        });
+                    }
+                });
+        });
+
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            self.misc_tests(ui);
+        });
+    }
+}
+
+impl Tooltips {
+    fn misc_tests(&mut self, ui: &mut egui::Ui) {
         ui.label("All labels in this demo have tooltips.")
             .on_hover_text("Yes, even this one.");
 
