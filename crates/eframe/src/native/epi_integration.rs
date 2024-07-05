@@ -154,6 +154,7 @@ pub struct EpiIntegration {
     last_auto_save: Instant,
     pub beginning: Instant,
     is_first_frame: bool,
+    #[allow(dead_code)]
     pub frame_start: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
