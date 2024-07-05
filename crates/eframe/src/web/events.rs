@@ -1,6 +1,5 @@
-use web_sys::EventTarget;
-
 use super::*;
+use web_sys::EventTarget;
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagaton`
 // than what is probably needed.
@@ -422,8 +421,17 @@ fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 }
 
 /// Returns true if the cursor is above the canvas, or if we're dragging something.
-fn is_interested_in_pointer_event(egui_ctx: &egui::Context, pos: egui::Pos2) -> bool {
-    egui_ctx.input(|i| i.screen_rect().contains(pos) || i.pointer.any_down() || i.any_touches())
+/// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
+fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
+    let document = web_sys::window().unwrap().document().unwrap();
+    let is_hovering_canvas = document
+        .element_from_point(pos.x, pos.y)
+        .is_some_and(|element| element.eq(runner.canvas()));
+    let is_pointer_down = runner
+        .egui_ctx()
+        .input(|i| i.pointer.any_down() || i.any_touches());
+
+    is_hovering_canvas || is_pointer_down
 }
 
 fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
@@ -433,7 +441,10 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 
         let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
 
-        if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+        if is_interested_in_pointer_event(
+            runner,
+            egui::pos2(event.client_x() as f32, event.client_y() as f32),
+        ) {
             runner.input.raw.events.push(egui::Event::PointerMoved(pos));
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
@@ -449,7 +460,10 @@ fn install_mouseup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
 
         let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
 
-        if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+        if is_interested_in_pointer_event(
+            runner,
+            egui::pos2(event.client_x() as f32, event.client_y() as f32),
+        ) {
             if let Some(button) = button_from_mouse_event(&event) {
                 let modifiers = runner.input.raw.modifiers;
                 runner.input.raw.events.push(egui::Event::PointerButton {
@@ -493,7 +507,7 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
         target,
         "touchstart",
         |event: web_sys::TouchEvent, runner| {
-            if let Some(pos) = primary_touch_pos(runner, &event) {
+            if let Some((pos, _)) = primary_touch_pos(runner, &event) {
                 runner.input.raw.events.push(egui::Event::PointerButton {
                     pos,
                     button: egui::PointerButton::Primary,
@@ -512,8 +526,11 @@ fn install_touchstart(runner_ref: &WebRunner, target: &EventTarget) -> Result<()
 
 fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "touchmove", |event: web_sys::TouchEvent, runner| {
-        if let Some(pos) = primary_touch_pos(runner, &event) {
-            if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+        if let Some((pos, touch)) = primary_touch_pos(runner, &event) {
+            if is_interested_in_pointer_event(
+                runner,
+                egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
+            ) {
                 runner.input.raw.events.push(egui::Event::PointerMoved(pos));
 
                 push_touches(runner, egui::TouchPhase::Move, &event);
@@ -527,8 +544,11 @@ fn install_touchmove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 
 fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(target, "touchend", |event: web_sys::TouchEvent, runner| {
-        if let Some(pos) = primary_touch_pos(runner, &event) {
-            if is_interested_in_pointer_event(runner.egui_ctx(), pos) {
+        if let Some((pos, touch)) = primary_touch_pos(runner, &event) {
+            if is_interested_in_pointer_event(
+                runner,
+                egui::pos2(touch.client_x() as f32, touch.client_y() as f32),
+            ) {
                 // First release mouse to click:
                 runner.input.raw.events.push(egui::Event::PointerButton {
                     pos,
