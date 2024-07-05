@@ -718,7 +718,7 @@ impl Response {
 
             let time_since_last_interaction = self.ctx.input(|i| {
                 i.time_since_last_scroll()
-                    .max(i.pointer.time_since_last_movement())
+                    .min(i.pointer.time_since_last_movement())
             });
             let time_til_tooltip = tooltip_delay - time_since_last_interaction;
 
