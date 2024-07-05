@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.1 - 2024-07-05
+* Make `serde` a default (opt-out) feature of `egui_extras` [#4786](https://github.com/emilk/egui/pull/4786) by [@emilk](https://github.com/emilk)
+
+
 ## 0.28.0 - 2024-07-03
 * Update `image` crate to 0.25 [#4160](https://github.com/emilk/egui/pull/4160) by [@emilk](https://github.com/emilk)
 * Set the `sizing_pass` flag in first frame of `egui_extras::Table` [#4613](https://github.com/emilk/egui/pull/4613) by [@emilk](https://github.com/emilk)

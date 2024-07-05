@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
 ## 0.28.0 - 2024-07-03
 ### ⭐ Added
 * Hide all other series when alt-clicking in the legend [#4549](https://github.com/emilk/egui/pull/4549) by [@abey79](https://github.com/abey79)
