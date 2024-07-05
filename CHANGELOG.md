@@ -7,7 +7,7 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
-## 0.28.1 - 2024-07-05
+## 0.28.1 - 2024-07-05 - Tooltip tweaks
 ### ⭐ Added
 * Add `Image::uri()` [#4720](https://github.com/emilk/egui/pull/4720) by [@rustbasic](https://github.com/rustbasic)
 
