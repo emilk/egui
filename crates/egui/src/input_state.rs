@@ -44,6 +44,12 @@ pub struct InputState {
     /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
 
+    // ----------------------------------------------
+    // Scrolling:
+    //
+    /// Time of the last scroll event.
+    last_scroll_time: f64,
+
     /// Used for smoothing the scroll delta.
     unprocessed_scroll_delta: Vec2,
 
@@ -87,6 +93,7 @@ pub struct InputState {
     /// * `zoom > 1`: pinch spread
     zoom_factor_delta: f32,
 
+    // ----------------------------------------------
     /// Position and size of the egui area.
     pub screen_rect: Rect,
 
@@ -161,11 +168,14 @@ impl Default for InputState {
             raw: Default::default(),
             pointer: Default::default(),
             touch_states: Default::default(),
+
+            last_scroll_time: f64::NEG_INFINITY,
             unprocessed_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta_for_zoom: 0.0,
             raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
             zoom_factor_delta: 1.0,
+
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
             max_texture_side: 2048,
@@ -320,14 +330,24 @@ impl InputState {
             }
         }
 
+        let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
+        let last_scroll_time = if is_scrolling {
+            time
+        } else {
+            self.last_scroll_time
+        };
+
         Self {
             pointer,
             touch_states: self.touch_states,
+
+            last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
             smooth_scroll_delta,
             zoom_factor_delta,
+
             screen_rect,
             pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
@@ -391,6 +411,12 @@ impl InputState {
             || Vec2::splat(self.zoom_factor_delta),
             |touch| touch.zoom_delta_2d,
         )
+    }
+
+    /// How long has it been (in seconds) since the use last scrolled?
+    #[inline(always)]
+    pub fn time_since_last_scroll(&self) -> f32 {
+        (self.time - self.last_scroll_time) as f32
     }
 
     /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
@@ -1218,6 +1244,7 @@ impl InputState {
             pointer,
             touch_states,
 
+            last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
@@ -1257,6 +1284,10 @@ impl InputState {
             });
         }
 
+        ui.label(format!(
+            "Time since last scroll: {:.1} s",
+            time - last_scroll_time
+        ));
         if cfg!(debug_assertions) {
             ui.label(format!(
                 "unprocessed_scroll_delta: {unprocessed_scroll_delta:?} points"
@@ -1270,6 +1301,7 @@ impl InputState {
             "smooth_scroll_delta: {smooth_scroll_delta:?} points"
         ));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
+
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!(
             "{pixels_per_point} physical pixels for each logical point"

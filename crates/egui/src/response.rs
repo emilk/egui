@@ -611,6 +611,21 @@ impl Response {
             return false;
         }
 
+        let style = self.ctx.style();
+
+        let tooltip_delay = style.interaction.tooltip_delay;
+        let tooltip_grace_time = style.interaction.tooltip_grace_time;
+
+        let time_since_last_scroll = self.ctx.input(|i| i.time_since_last_scroll());
+
+        if time_since_last_scroll < tooltip_delay {
+            // See https://github.com/emilk/egui/issues/4781
+            // Note that this means we cannot have `ScrollArea`s in a tooltip.
+            self.ctx
+                .request_repaint_after_secs(tooltip_delay - time_since_last_scroll);
+            return false;
+        }
+
         let is_our_tooltip_open = self.is_tooltip_open();
 
         if is_our_tooltip_open {
@@ -680,9 +695,6 @@ impl Response {
             return false;
         }
 
-        let tooltip_delay = self.ctx.style().interaction.tooltip_delay;
-        let tooltip_grace_time = self.ctx.style().interaction.tooltip_grace_time;
-
         // There is a tooltip_delay before showing the first tooltip,
         // but once one tooltips is show, moving the mouse cursor to
         // another widget should show the tooltip for that widget right away.
@@ -692,23 +704,27 @@ impl Response {
             crate::popup::seconds_since_last_tooltip(&self.ctx) < tooltip_grace_time;
 
         if !tooltip_was_recently_shown && !is_our_tooltip_open {
-            if self.ctx.style().interaction.show_tooltips_only_when_still {
+            if style.interaction.show_tooltips_only_when_still {
                 // We only show the tooltip when the mouse pointer is still.
-                if !self.ctx.input(|i| i.pointer.is_still()) {
+                if !self
+                    .ctx
+                    .input(|i| i.pointer.is_still() && i.smooth_scroll_delta == Vec2::ZERO)
+                {
                     // wait for mouse to stop
                     self.ctx.request_repaint();
                     return false;
                 }
             }
 
-            let time_til_tooltip =
-                tooltip_delay - self.ctx.input(|i| i.pointer.time_since_last_movement());
+            let time_since_last_interaction = self.ctx.input(|i| {
+                i.time_since_last_scroll()
+                    .max(i.pointer.time_since_last_movement())
+            });
+            let time_til_tooltip = tooltip_delay - time_since_last_interaction;
 
             if 0.0 < time_til_tooltip {
                 // Wait until the mouse has been still for a while
-                if let Ok(duration) = std::time::Duration::try_from_secs_f32(time_til_tooltip) {
-                    self.ctx.request_repaint_after(duration);
-                }
+                self.ctx.request_repaint_after_secs(time_til_tooltip);
                 return false;
             }
         }

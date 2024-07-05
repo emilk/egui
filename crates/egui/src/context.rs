@@ -1442,6 +1442,16 @@ impl Context {
         self.request_repaint_after_for(duration, self.viewport_id());
     }
 
+    /// Repaint after this many seconds.
+    ///
+    /// See [`Self::request_repaint_after`] for details.
+    #[track_caller]
+    pub fn request_repaint_after_secs(&self, seconds: f32) {
+        if let Ok(duration) = std::time::Duration::try_from_secs_f32(seconds) {
+            self.request_repaint_after(duration);
+        }
+    }
+
     /// Request repaint after at most the specified duration elapses.
     ///
     /// The backend can chose to repaint sooner, for instance if some other code called
