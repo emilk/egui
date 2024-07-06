@@ -60,6 +60,7 @@ use super::{TextEditOutput, TextEditState};
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
     hint_text: WidgetText,
+    hint_text_font: Option<FontSelection>,
     id: Option<Id>,
     id_source: Option<Id>,
     font_selection: FontSelection,
@@ -78,7 +79,7 @@ pub struct TextEdit<'t> {
     align: Align2,
     clip_text: bool,
     char_limit: usize,
-    return_key: KeyboardShortcut,
+    return_key: Option<KeyboardShortcut>,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -111,6 +112,7 @@ impl<'t> TextEdit<'t> {
         Self {
             text,
             hint_text: Default::default(),
+            hint_text_font: None,
             id: None,
             id_source: None,
             font_selection: Default::default(),
@@ -135,7 +137,7 @@ impl<'t> TextEdit<'t> {
             align: Align2::LEFT_TOP,
             clip_text: false,
             char_limit: usize::MAX,
-            return_key: KeyboardShortcut::new(Modifiers::NONE, Key::Enter),
+            return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
         }
     }
 
@@ -186,6 +188,13 @@ impl<'t> TextEdit<'t> {
     #[inline]
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
+        self
+    }
+
+    /// Set a specific style for the hint text.
+    #[inline]
+    pub fn hint_text_font(mut self, hint_text_font: impl Into<FontSelection>) -> Self {
+        self.hint_text_font = Some(hint_text_font.into());
         self
     }
 
@@ -353,9 +362,11 @@ impl<'t> TextEdit<'t> {
     ///
     /// This combination will cause a newline on multiline,
     /// whereas on singleline it will cause the widget to lose focus.
+    ///
+    /// This combination is optional and can be disabled by passing [`None`] into this function.
     #[inline]
-    pub fn return_key(mut self, return_key: KeyboardShortcut) -> Self {
-        self.return_key = return_key;
+    pub fn return_key(mut self, return_key: impl Into<Option<KeyboardShortcut>>) -> Self {
+        self.return_key = return_key.into();
         self
     }
 }
@@ -414,7 +425,7 @@ impl<'t> TextEdit<'t> {
                         frame_rect,
                         visuals.rounding,
                         ui.visuals().extreme_bg_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        ui.visuals().widgets.noninteractive.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
             } else {
@@ -436,6 +447,7 @@ impl<'t> TextEdit<'t> {
         let TextEdit {
             text,
             hint_text,
+            hint_text_font,
             id,
             id_source,
             font_selection,
@@ -527,6 +539,9 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
+
+        response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
+
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
@@ -651,10 +666,21 @@ impl<'t> TextEdit<'t> {
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
+                let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
-                    hint_text.into_galley(ui, Some(true), desired_inner_size.x, font_id)
+                    hint_text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Wrap),
+                        desired_inner_size.x,
+                        hint_text_font_id,
+                    )
                 } else {
-                    hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
+                    hint_text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Extend),
+                        f32::INFINITY,
+                        hint_text_font_id,
+                    )
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }
@@ -721,15 +747,17 @@ impl<'t> TextEdit<'t> {
         if response.changed {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
+                    ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
                 )
             });
         } else if selection_changed {
-            let cursor_range = cursor_range.unwrap_or_default();
+            let cursor_range = cursor_range.unwrap();
             let char_range =
                 cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
             let info = WidgetInfo::text_selection_changed(
+                ui.is_enabled(),
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
@@ -737,6 +765,7 @@ impl<'t> TextEdit<'t> {
         } else {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
+                    ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
                 )
@@ -805,7 +834,7 @@ fn events(
     default_cursor_range: CursorRange,
     char_limit: usize,
     event_filter: EventFilter,
-    return_key: KeyboardShortcut,
+    return_key: Option<KeyboardShortcut>,
 ) -> (bool, CursorRange) {
     let os = ui.ctx().os();
 
@@ -899,8 +928,9 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if *key == return_key.logical_key
-                && modifiers.matches_logically(return_key.modifiers) =>
+            } if return_key.is_some_and(|return_key| {
+                *key == return_key.logical_key && modifiers.matches_logically(return_key.modifiers)
+            }) =>
             {
                 if multiline {
                     let mut ccursor = text.delete_selected(&cursor_range);
@@ -1040,23 +1070,11 @@ fn ime_enabled_filter_events(events: &mut Vec<Event>) {
             event,
             Event::Key { repeat: true, .. }
                 | Event::Key {
-                    key: Key::Backspace,
-                    ..
-                }
-                | Event::Key {
-                    key: Key::ArrowUp,
-                    ..
-                }
-                | Event::Key {
-                    key: Key::ArrowDown,
-                    ..
-                }
-                | Event::Key {
-                    key: Key::ArrowLeft,
-                    ..
-                }
-                | Event::Key {
-                    key: Key::ArrowRight,
+                    key: Key::Backspace
+                        | Key::ArrowUp
+                        | Key::ArrowDown
+                        | Key::ArrowLeft
+                        | Key::ArrowRight,
                     ..
                 }
         )
