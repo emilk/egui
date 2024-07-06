@@ -776,7 +776,7 @@ impl Context {
 
         self.write(|ctx| ctx.begin_frame_mut(new_input));
 
-        // Plugs run just after the frame has started:
+        // Plugins run just after the frame has started:
         self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
     }
 }

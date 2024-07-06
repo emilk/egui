@@ -186,7 +186,7 @@ impl LegendWidget {
         rect: Rect,
         config: Legend,
         items: &[Box<dyn PlotItem>],
-        hidden_items: &ahash::HashSet<String>, // Existing hiddent items in the plot memory.
+        hidden_items: &ahash::HashSet<String>, // Existing hidden items in the plot memory.
     ) -> Option<Self> {
         // If `config.hidden_items` is not `None`, it is used.
         let hidden_items = config.hidden_items.as_ref().unwrap_or(hidden_items);
