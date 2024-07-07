@@ -370,7 +370,12 @@ pub struct NativeOptions {
     /// from [directories].
     pub persistence_path: Option<std::path::PathBuf>,
 
-    /// Controls whether colors should be dithered to minimize banding.
+    /// Controls whether to apply dithering to minimize banding artifacts.
+    ///
+    /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
+    /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
+    /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
+    ///
     /// Defaults to true.
     pub dithering: bool,
 }
@@ -473,7 +478,12 @@ pub struct WebOptions {
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
 
-    /// Controls whether colors should be dithered to minimize banding.
+    /// Controls whether to apply dithering to minimize banding artifacts.
+    ///
+    /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
+    /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
+    /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
+    ///
     /// Defaults to true.
     pub dithering: bool,
 }
