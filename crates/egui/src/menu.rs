@@ -135,6 +135,7 @@ pub(crate) fn submenu_button<R>(
 /// wrapper for the contents of every menu.
 fn menu_popup<'c, R>(
     ctx: &Context,
+    parent_layer: LayerId,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     menu_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
@@ -145,7 +146,17 @@ fn menu_popup<'c, R>(
         menu_state.rect.min
     };
 
-    let area = Area::new(menu_id.with("__menu"))
+    let area_id = menu_id.with("__menu");
+
+    ctx.frame_state_mut(|fs| {
+        fs.layers
+            .entry(parent_layer)
+            .or_default()
+            .open_popups
+            .insert(area_id)
+    });
+
+    let area = Area::new(area_id)
         .kind(UiKind::Menu)
         .order(Order::Foreground)
         .fixed_pos(pos)
@@ -320,7 +331,13 @@ impl MenuRoot {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
         if self.id == button.id {
-            let inner_response = menu_popup(&button.ctx, &self.menu_state, self.id, add_contents);
+            let inner_response = menu_popup(
+                &button.ctx,
+                button.layer_id,
+                &self.menu_state,
+                self.id,
+                add_contents,
+            );
             let menu_state = self.menu_state.read();
 
             let escape_pressed = button.ctx.input(|i| i.key_pressed(Key::Escape));
@@ -580,10 +597,10 @@ impl SubMenu {
         self.parent_state
             .write()
             .submenu_button_interaction(ui, sub_id, &response);
-        let inner = self
-            .parent_state
-            .write()
-            .show_submenu(ui.ctx(), sub_id, add_contents);
+        let inner =
+            self.parent_state
+                .write()
+                .show_submenu(ui.ctx(), ui.layer_id(), sub_id, add_contents);
         InnerResponse::new(inner, response)
     }
 }
@@ -624,11 +641,12 @@ impl MenuState {
     fn show_submenu<R>(
         &mut self,
         ctx: &Context,
+        parent_layer: LayerId,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
         let (sub_response, response) = self.submenu(id).map(|sub| {
-            let inner_response = menu_popup(ctx, sub, id, add_contents);
+            let inner_response = menu_popup(ctx, parent_layer, sub, id, add_contents);
             (sub.read().response, inner_response.inner)
         })?;
         self.cascade_close_response(sub_response);
@@ -683,7 +701,7 @@ impl MenuState {
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 let rect = sub_menu.read().rect;
-                return rect.intersects_ray(pos, pointer.velocity().normalized());
+                return rect.intersects_ray(pos, pointer.direction().normalized());
             }
         }
         false

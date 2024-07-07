@@ -6,6 +6,29 @@ use crate::*;
 
 // ----------------------------------------------------------------------------
 
+fn when_was_a_toolip_last_shown_id() -> Id {
+    Id::new("when_was_a_toolip_last_shown")
+}
+
+pub fn seconds_since_last_tooltip(ctx: &Context) -> f32 {
+    let when_was_a_toolip_last_shown =
+        ctx.data(|d| d.get_temp::<f64>(when_was_a_toolip_last_shown_id()));
+
+    if let Some(when_was_a_toolip_last_shown) = when_was_a_toolip_last_shown {
+        let now = ctx.input(|i| i.time);
+        (now - when_was_a_toolip_last_shown) as f32
+    } else {
+        f32::INFINITY
+    }
+}
+
+fn remember_that_tooltip_was_shown(ctx: &Context) {
+    let now = ctx.input(|i| i.time);
+    ctx.data_mut(|data| data.insert_temp::<f64>(when_was_a_toolip_last_shown_id(), now));
+}
+
+// ----------------------------------------------------------------------------
+
 /// Show a tooltip at the current pointer position (if any).
 ///
 /// Most of the time it is easier to use [`Response::on_hover_ui`].
@@ -17,7 +40,7 @@ use crate::*;
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
@@ -25,10 +48,11 @@ use crate::*;
 /// ```
 pub fn show_tooltip<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    show_tooltip_at_pointer(ctx, widget_id, add_contents)
+    show_tooltip_at_pointer(ctx, parent_layer, widget_id, add_contents)
 }
 
 /// Show a tooltip at the current pointer position (if any).
@@ -42,7 +66,7 @@ pub fn show_tooltip<R>(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_at_pointer(ui.ctx(), egui::Id::new("my_tooltip"), |ui| {
+///     egui::show_tooltip_at_pointer(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), |ui| {
 ///         ui.label("Helpful text");
 ///     });
 /// }
@@ -50,11 +74,28 @@ pub fn show_tooltip<R>(
 /// ```
 pub fn show_tooltip_at_pointer<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     ctx.input(|i| i.pointer.hover_pos()).map(|pointer_pos| {
-        show_tooltip_at(ctx, widget_id, pointer_pos + vec2(16.0, 16.0), add_contents)
+        let allow_placing_below = true;
+
+        // Add a small exclusion zone around the pointer to avoid tooltips
+        // covering what we're hovering over.
+        let mut exclusion_rect = Rect::from_center_size(pointer_pos, Vec2::splat(24.0));
+
+        // Keep the left edge of the tooltip in line with the cursor:
+        exclusion_rect.min.x = pointer_pos.x;
+
+        show_tooltip_at_dyn(
+            ctx,
+            parent_layer,
+            widget_id,
+            allow_placing_below,
+            &exclusion_rect,
+            Box::new(add_contents),
+        )
     })
 }
 
@@ -63,14 +104,16 @@ pub fn show_tooltip_at_pointer<R>(
 /// If the tooltip does not fit under the area, it tries to place it above it instead.
 pub fn show_tooltip_for<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     widget_rect: &Rect,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let is_touch_screen = ctx.input(|i| i.any_touches());
     let allow_placing_below = !is_touch_screen; // There is a finger below.
-    show_tooltip_at_avoid_dyn(
+    show_tooltip_at_dyn(
         ctx,
+        parent_layer,
         widget_id,
         allow_placing_below,
         widget_rect,
@@ -83,14 +126,16 @@ pub fn show_tooltip_for<R>(
 /// Returns `None` if the tooltip could not be placed.
 pub fn show_tooltip_at<R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     suggested_position: Pos2,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let allow_placing_below = true;
     let rect = Rect::from_center_size(suggested_position, Vec2::ZERO);
-    show_tooltip_at_avoid_dyn(
+    show_tooltip_at_dyn(
         ctx,
+        parent_layer,
         widget_id,
         allow_placing_below,
         &rect,
@@ -98,21 +143,34 @@ pub fn show_tooltip_at<R>(
     )
 }
 
-fn show_tooltip_at_avoid_dyn<'c, R>(
+fn show_tooltip_at_dyn<'c, R>(
     ctx: &Context,
+    parent_layer: LayerId,
     widget_id: Id,
     allow_placing_below: bool,
     widget_rect: &Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> R {
-    // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
-    let mut state = ctx.frame_state(|fs| {
-        fs.tooltip_state
+    let mut widget_rect = *widget_rect;
+    if let Some(transform) = ctx.memory(|m| m.layer_transforms.get(&parent_layer).copied()) {
+        widget_rect = transform * widget_rect;
+    }
+
+    remember_that_tooltip_was_shown(ctx);
+
+    let mut state = ctx.frame_state_mut(|fs| {
+        // Remember that this is the widget showing the tooltip:
+        fs.layers
+            .entry(parent_layer)
+            .or_default()
+            .widget_with_tooltip = Some(widget_id);
+
+        fs.tooltips
             .widget_tooltips
             .get(&widget_id)
             .copied()
             .unwrap_or(PerWidgetTooltipState {
-                bounding_rect: *widget_rect,
+                bounding_rect: widget_rect,
                 tooltip_count: 0,
             })
     });
@@ -151,7 +209,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 
     state.tooltip_count += 1;
     state.bounding_rect = state.bounding_rect.union(response.rect);
-    ctx.frame_state_mut(|fs| fs.tooltip_state.widget_tooltips.insert(widget_id, state));
+    ctx.frame_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
 
     inner
 }
@@ -159,7 +217,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 /// What is the id of the next tooltip for this widget?
 pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
     let tooltip_count = ctx.frame_state(|fs| {
-        fs.tooltip_state
+        fs.tooltips
             .widget_tooltips
             .get(&widget_id)
             .map_or(0, |state| state.tooltip_count)
@@ -235,12 +293,17 @@ fn find_tooltip_position(
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// if ui.ui_contains_pointer() {
-///     egui::show_tooltip_text(ui.ctx(), egui::Id::new("my_tooltip"), "Helpful text");
+///     egui::show_tooltip_text(ui.ctx(), ui.layer_id(), egui::Id::new("my_tooltip"), "Helpful text");
 /// }
 /// # });
 /// ```
-pub fn show_tooltip_text(ctx: &Context, widget_id: Id, text: impl Into<WidgetText>) -> Option<()> {
-    show_tooltip(ctx, widget_id, |ui| {
+pub fn show_tooltip_text(
+    ctx: &Context,
+    parent_layer: LayerId,
+    widget_id: Id,
+    text: impl Into<WidgetText>,
+) -> Option<()> {
+    show_tooltip(ctx, parent_layer, widget_id, |ui| {
         crate::widgets::Label::new(text).ui(ui);
     })
 }
@@ -323,53 +386,61 @@ pub fn popup_above_or_below_widget<R>(
     close_behavior: PopupCloseBehavior,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    if parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
-        let (mut pos, pivot) = match above_or_below {
-            AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
-            AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
-        };
-        if let Some(transform) = parent_ui
-            .ctx()
-            .memory(|m| m.layer_transforms.get(&parent_ui.layer_id()).copied())
-        {
-            pos = transform * pos;
-        }
+    if !parent_ui.memory(|mem| mem.is_popup_open(popup_id)) {
+        return None;
+    }
 
-        let frame = Frame::popup(parent_ui.style());
-        let frame_margin = frame.total_margin();
-        let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+    let (mut pos, pivot) = match above_or_below {
+        AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
+        AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
+    };
+    if let Some(transform) = parent_ui
+        .ctx()
+        .memory(|m| m.layer_transforms.get(&parent_ui.layer_id()).copied())
+    {
+        pos = transform * pos;
+    }
 
-        let response = Area::new(popup_id)
-            .kind(UiKind::Popup)
-            .order(Order::Foreground)
-            .fixed_pos(pos)
-            .default_width(inner_width)
-            .pivot(pivot)
-            .show(parent_ui.ctx(), |ui| {
-                frame
-                    .show(ui, |ui| {
-                        ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                            ui.set_min_width(inner_width);
-                            add_contents(ui)
-                        })
-                        .inner
+    let frame = Frame::popup(parent_ui.style());
+    let frame_margin = frame.total_margin();
+    let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+
+    parent_ui.ctx().frame_state_mut(|fs| {
+        fs.layers
+            .entry(parent_ui.layer_id())
+            .or_default()
+            .open_popups
+            .insert(popup_id)
+    });
+
+    let response = Area::new(popup_id)
+        .kind(UiKind::Popup)
+        .order(Order::Foreground)
+        .fixed_pos(pos)
+        .default_width(inner_width)
+        .pivot(pivot)
+        .show(parent_ui.ctx(), |ui| {
+            frame
+                .show(ui, |ui| {
+                    ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
+                        ui.set_min_width(inner_width);
+                        add_contents(ui)
                     })
                     .inner
-            });
+                })
+                .inner
+        });
 
-        let should_close = match close_behavior {
-            PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
-            PopupCloseBehavior::CloseOnClickOutside => {
-                widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
-            }
-            PopupCloseBehavior::IgnoreClicks => false,
-        };
-
-        if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
-            parent_ui.memory_mut(|mem| mem.close_popup());
+    let should_close = match close_behavior {
+        PopupCloseBehavior::CloseOnClick => widget_response.clicked_elsewhere(),
+        PopupCloseBehavior::CloseOnClickOutside => {
+            widget_response.clicked_elsewhere() && response.response.clicked_elsewhere()
         }
-        Some(response.inner)
-    } else {
-        None
+        PopupCloseBehavior::IgnoreClicks => false,
+    };
+
+    if parent_ui.input(|i| i.key_pressed(Key::Escape)) || should_close {
+        parent_ui.memory_mut(|mem| mem.close_popup());
     }
+    Some(response.inner)
 }

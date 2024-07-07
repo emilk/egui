@@ -150,13 +150,15 @@ impl<'l> StripLayout<'l> {
 
         let used_rect = child_ui.min_rect();
 
-        self.set_pos(max_rect);
-
-        let allocation_rect = if flags.clip {
+        let allocation_rect = if self.ui.is_sizing_pass() {
+            used_rect
+        } else if flags.clip {
             max_rect
         } else {
             max_rect.union(used_rect)
         };
+
+        self.set_pos(allocation_rect);
 
         self.ui.advance_cursor_after_rect(allocation_rect);
 
@@ -191,12 +193,12 @@ impl<'l> StripLayout<'l> {
     fn cell(
         &mut self,
         flags: StripLayoutFlags,
-        rect: Rect,
+        max_rect: Rect,
         child_ui_id_source: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
         let mut child_ui = self.ui.child_ui_with_id_source(
-            rect,
+            max_rect,
             self.cell_layout,
             child_ui_id_source,
             Some(egui::UiStackInfo::new(egui::UiKind::TableCell)),
@@ -205,7 +207,7 @@ impl<'l> StripLayout<'l> {
         if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
-            let clip_rect = rect.expand2(margin);
+            let clip_rect = max_rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
         }
 

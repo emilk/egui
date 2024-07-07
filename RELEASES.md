@@ -37,11 +37,11 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
-* [ ] `./scripts/build_demo_web.sh --release`
+* [ ] `./scripts/build_demo_web.sh --release -g`
   - check frame-rate and wasm size
   - test on mobile
   - test on chromium
-  - check the in-browser profiler (build without `--release` to get profile data)
+  - check the in-browser profiler
 * [ ] check the color test
 * [ ] update `eframe_template` and test
 * [ ] update `egui_tiles` and test

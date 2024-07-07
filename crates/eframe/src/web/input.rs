@@ -30,7 +30,7 @@ pub fn button_from_mouse_event(event: &web_sys::MouseEvent) -> Option<egui::Poin
 pub fn primary_touch_pos(
     runner: &mut AppRunner,
     event: &web_sys::TouchEvent,
-) -> Option<egui::Pos2> {
+) -> Option<(egui::Pos2, web_sys::Touch)> {
     let all_touches: Vec<_> = (0..event.touches().length())
         .filter_map(|i| event.touches().get(i))
         // On touchend we don't get anything in `touches`, but we still get `changed_touches`, so include those:
@@ -59,7 +59,10 @@ pub fn primary_touch_pos(
         for touch in all_touches {
             if primary_touch == egui::TouchId::from(touch.identifier()) {
                 let canvas_rect = canvas_content_rect(runner.canvas());
-                return Some(pos_from_touch(canvas_rect, &touch, runner.egui_ctx()));
+                return Some((
+                    pos_from_touch(canvas_rect, &touch, runner.egui_ctx()),
+                    touch,
+                ));
             }
         }
     }
