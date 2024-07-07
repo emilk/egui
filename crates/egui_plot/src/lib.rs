@@ -1359,7 +1359,7 @@ fn axis_widgets<'a>(
         plot_rect = complete_rect;
     }
 
-    // Bow that we know the final x_range of the plot_rect,
+    // Now that we know the final x_range of the plot_rect,
     // assign it to the x_axis_widgets (they are currently too wide):
     for widget in &mut x_axis_widgets {
         widget.rect = Rect::from_x_y_ranges(plot_rect.x_range(), widget.rect.y_range());
