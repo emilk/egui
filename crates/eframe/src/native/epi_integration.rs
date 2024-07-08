@@ -154,7 +154,6 @@ pub struct EpiIntegration {
     last_auto_save: Instant,
     pub beginning: Instant,
     is_first_frame: bool,
-    pub frame_start: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
 
@@ -227,7 +226,6 @@ impl EpiIntegration {
             app_icon_setter,
             beginning: Instant::now(),
             is_first_frame: true,
-            frame_start: Instant::now(),
         }
     }
 

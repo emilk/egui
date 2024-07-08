@@ -61,7 +61,7 @@ impl PlotUi {
         &self.response
     }
 
-    /// Scale the plot bounds around a position in screen coordinates.
+    /// Scale the plot bounds around a position in plot coordinates.
     ///
     /// Can be useful for implementing alternative plot navigation methods.
     ///

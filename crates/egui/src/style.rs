@@ -727,7 +727,7 @@ pub struct Interaction {
 
     /// Can the user select text that span multiple labels?
     ///
-    /// The default is `true`, but text seelction can be slightly glitchy,
+    /// The default is `true`, but text selection can be slightly glitchy,
     /// so you may want to disable it.
     pub multi_widget_text_select: bool,
 }
@@ -1163,9 +1163,9 @@ impl Default for Spacing {
 impl Default for Interaction {
     fn default() -> Self {
         Self {
+            interact_radius: 5.0,
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
-            interact_radius: 5.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.5,
             tooltip_grace_time: 0.2,

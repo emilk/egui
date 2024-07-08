@@ -146,7 +146,7 @@ impl ContextImpl {
 
     fn request_repaint_after(
         &mut self,
-        delay: Duration,
+        mut delay: Duration,
         viewport_id: ViewportId,
         cause: RepaintCause,
     ) {
@@ -161,6 +161,11 @@ impl ContextImpl {
             // otherwise we would just schedule an immediate repaint _now_,
             // which would then clear the delay and repaint again.
             // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
+        }
+
+        if let Ok(predicted_frame_time) = Duration::try_from_secs_f32(viewport.input.predicted_dt) {
+            // Make it less likely we over-shoot the target:
+            delay = delay.saturating_sub(predicted_frame_time);
         }
 
         viewport.repaint.causes.push(cause);
@@ -220,17 +225,16 @@ pub struct ViewportState {
 
     pub input: InputState,
 
-    /// State that is collected during a frame and then cleared
-    pub frame_state: FrameState,
+    /// State that is collected during a frame and then cleared.
+    pub this_frame: FrameState,
+
+    /// The final [`FrameState`] from last frame.
+    ///
+    /// Only read from.
+    pub prev_frame: FrameState,
 
     /// Has this viewport been updated this frame?
     pub used: bool,
-
-    /// Written to during the frame.
-    pub widgets_this_frame: WidgetRects,
-
-    /// Read
-    pub widgets_prev_frame: WidgetRects,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -451,12 +455,12 @@ impl ContextImpl {
 
         let screen_rect = viewport.input.screen_rect;
 
-        viewport.frame_state.begin_frame(screen_rect);
+        viewport.this_frame.begin_frame(screen_rect);
 
         {
             let area_order = self.memory.areas().order_map();
 
-            let mut layers: Vec<LayerId> = viewport.widgets_prev_frame.layer_ids().collect();
+            let mut layers: Vec<LayerId> = viewport.prev_frame.widgets.layer_ids().collect();
 
             layers.sort_by(|a, b| {
                 if a.order == b.order {
@@ -472,7 +476,7 @@ impl ContextImpl {
                 let interact_radius = self.memory.options.style.interaction.interact_radius;
 
                 crate::hit_test::hit_test(
-                    &viewport.widgets_prev_frame,
+                    &viewport.prev_frame.widgets,
                     &layers,
                     &self.memory.layer_transforms,
                     pos,
@@ -484,7 +488,7 @@ impl ContextImpl {
 
             viewport.interact_widgets = crate::interaction::interact(
                 &viewport.interact_widgets,
-                &viewport.widgets_prev_frame,
+                &viewport.prev_frame.widgets,
                 &viewport.hits,
                 &viewport.input,
                 self.memory.interaction_mut(),
@@ -495,11 +499,11 @@ impl ContextImpl {
         self.memory.areas_mut().set_state(
             LayerId::background(),
             AreaState {
-                pivot_pos: screen_rect.left_top(),
+                pivot_pos: Some(screen_rect.left_top()),
                 pivot: Align2::LEFT_TOP,
-                size: screen_rect.size(),
+                size: Some(screen_rect.size()),
                 interactable: true,
-                last_became_visible_at: f64::NEG_INFINITY,
+                last_became_visible_at: None,
             },
         );
 
@@ -513,7 +517,7 @@ impl ContextImpl {
             builder.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
             let mut node_builders = IdMap::default();
             node_builders.insert(id, builder);
-            viewport.frame_state.accesskit_state = Some(AccessKitFrameState {
+            viewport.this_frame.accesskit_state = Some(AccessKitFrameState {
                 node_builders,
                 parent_stack: vec![id],
             });
@@ -573,12 +577,7 @@ impl ContextImpl {
 
     #[cfg(feature = "accesskit")]
     fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::NodeBuilder {
-        let state = self
-            .viewport()
-            .frame_state
-            .accesskit_state
-            .as_mut()
-            .unwrap();
+        let state = self.viewport().this_frame.accesskit_state.as_mut().unwrap();
         let builders = &mut state.node_builders;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
@@ -774,8 +773,11 @@ impl Context {
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
-        self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
+
         self.write(|ctx| ctx.begin_frame_mut(new_input));
+
+        // Plugins run just after the frame has started:
+        self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
     }
 }
 
@@ -876,15 +878,27 @@ impl Context {
     }
 
     /// Read-only access to [`FrameState`].
+    ///
+    /// This is only valid between [`Context::begin_frame`] and [`Context::end_frame`].
     #[inline]
     pub(crate) fn frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
-        self.write(move |ctx| reader(&ctx.viewport().frame_state))
+        self.write(move |ctx| reader(&ctx.viewport().this_frame))
     }
 
     /// Read-write access to [`FrameState`].
+    ///
+    /// This is only valid between [`Context::begin_frame`] and [`Context::end_frame`].
     #[inline]
     pub(crate) fn frame_state_mut<R>(&self, writer: impl FnOnce(&mut FrameState) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.viewport().frame_state))
+        self.write(move |ctx| writer(&mut ctx.viewport().this_frame))
+    }
+
+    /// Read-only access to the [`FrameState`] from the previous frame.
+    ///
+    /// This is swapped at the end of each frame.
+    #[inline]
+    pub(crate) fn prev_frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
+        self.write(move |ctx| reader(&ctx.viewport().prev_frame))
     }
 
     /// Read-only access to [`Fonts`].
@@ -1030,7 +1044,7 @@ impl Context {
             // We add all widgets here, even non-interactive ones,
             // because we need this list not only for checking for blocking widgets,
             // but also to know when we have reached the widget we are checking for cover.
-            viewport.widgets_this_frame.insert(w.layer_id, w);
+            viewport.this_frame.widgets.insert(w.layer_id, w);
 
             if w.sense.focusable {
                 ctx.memory.interested_in_focus(w.id);
@@ -1069,9 +1083,10 @@ impl Context {
         self.write(|ctx| {
             let viewport = ctx.viewport();
             viewport
-                .widgets_this_frame
+                .this_frame
+                .widgets
                 .get(id)
-                .or_else(|| viewport.widgets_prev_frame.get(id))
+                .or_else(|| viewport.prev_frame.widgets.get(id))
                 .copied()
         })
         .map(|widget_rect| self.get_response(widget_rect))
@@ -1095,7 +1110,8 @@ impl Context {
             enabled,
         } = widget_rect;
 
-        let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
+        // previous frame + "highlight next frame" == "highlight this frame"
+        let highlighted = self.prev_frame_state(|fs| fs.highlight_next_frame.contains(&id));
 
         let mut res = Response {
             ctx: self.clone(),
@@ -1216,7 +1232,7 @@ impl Context {
         #[cfg(debug_assertions)]
         self.write(|ctx| {
             if ctx.memory.options.style.debug.show_interactive_widgets {
-                ctx.viewport().widgets_this_frame.set_info(id, make_info());
+                ctx.viewport().this_frame.widgets.set_info(id, make_info());
             }
         });
 
@@ -1429,6 +1445,16 @@ impl Context {
     #[track_caller]
     pub fn request_repaint_after(&self, duration: Duration) {
         self.request_repaint_after_for(duration, self.viewport_id());
+    }
+
+    /// Repaint after this many seconds.
+    ///
+    /// See [`Self::request_repaint_after`] for details.
+    #[track_caller]
+    pub fn request_repaint_after_secs(&self, seconds: f32) {
+        if let Ok(duration) = std::time::Duration::try_from_secs_f32(seconds) {
+            self.request_repaint_after(duration);
+        }
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1807,6 +1833,7 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        // Plugins run just before the frame ends.
         self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
 
         #[cfg(debug_assertions)]
@@ -1828,7 +1855,7 @@ impl Context {
 
         let paint_widget_id = |id: Id, text: &str, color: Color32| {
             if let Some(widget) =
-                self.write(|ctx| ctx.viewport().widgets_this_frame.get(id).copied())
+                self.write(|ctx| ctx.viewport().this_frame.widgets.get(id).copied())
             {
                 paint_widget(&widget, text, color);
             }
@@ -1836,7 +1863,7 @@ impl Context {
 
         if self.style().debug.show_interactive_widgets {
             // Show all interactive widgets:
-            let rects = self.write(|ctx| ctx.viewport().widgets_this_frame.clone());
+            let rects = self.write(|ctx| ctx.viewport().this_frame.widgets.clone());
             for (layer_id, rects) in rects.layers() {
                 let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
@@ -1874,7 +1901,7 @@ impl Context {
                         paint_widget_id(id, "contains_pointer", Color32::BLUE);
                     }
 
-                    let widget_rects = self.write(|w| w.viewport().widgets_this_frame.clone());
+                    let widget_rects = self.write(|w| w.viewport().this_frame.widgets.clone());
 
                     let mut contains_pointer: Vec<Id> = contains_pointer.iter().copied().collect();
                     contains_pointer.sort_by_key(|&id| {
@@ -1930,6 +1957,10 @@ impl Context {
                 paint_widget(widget, "drag", Color32::GREEN);
             }
         }
+
+        if let Some(debug_rect) = self.frame_state_mut(|fs| fs.debug_rect.take()) {
+            debug_rect.paint(&self.debug_painter());
+        }
     }
 }
 
@@ -1941,7 +1972,7 @@ impl ContextImpl {
 
         viewport.repaint.frame_nr += 1;
 
-        self.memory.end_frame(&viewport.frame_state.used_ids);
+        self.memory.end_frame(&viewport.this_frame.used_ids);
 
         if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
             let tex_mngr = &mut self.tex_manager.0.write();
@@ -1978,7 +2009,7 @@ impl ContextImpl {
         #[cfg(feature = "accesskit")]
         {
             crate::profile_scope!("accesskit");
-            let state = viewport.frame_state.accesskit_state.take();
+            let state = viewport.this_frame.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = {
@@ -2011,20 +2042,14 @@ impl ContextImpl {
 
         let mut repaint_needed = false;
 
-        {
-            if self.memory.options.repaint_on_widget_change {
-                crate::profile_function!("compare-widget-rects");
-                if viewport.widgets_prev_frame != viewport.widgets_this_frame {
-                    repaint_needed = true; // Some widget has moved
-                }
+        if self.memory.options.repaint_on_widget_change {
+            crate::profile_function!("compare-widget-rects");
+            if viewport.prev_frame.widgets != viewport.this_frame.widgets {
+                repaint_needed = true; // Some widget has moved
             }
-
-            std::mem::swap(
-                &mut viewport.widgets_prev_frame,
-                &mut viewport.widgets_this_frame,
-            );
-            viewport.widgets_this_frame.clear();
         }
+
+        std::mem::swap(&mut viewport.prev_frame, &mut viewport.this_frame);
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
@@ -2208,8 +2233,8 @@ impl Context {
     /// How much space is used by panels and windows.
     pub fn used_rect(&self) -> Rect {
         self.write(|ctx| {
-            let mut used = ctx.viewport().frame_state.used_by_panels;
-            for window in ctx.memory.areas().visible_windows() {
+            let mut used = ctx.viewport().this_frame.used_by_panels;
+            for (_id, window) in ctx.memory.areas().visible_windows() {
                 used = used.union(window.rect());
             }
             used
@@ -2875,7 +2900,7 @@ impl Context {
     ) -> Option<R> {
         self.write(|ctx| {
             ctx.viewport()
-                .frame_state
+                .this_frame
                 .accesskit_state
                 .is_some()
                 .then(|| ctx.accesskit_node_builder(id))

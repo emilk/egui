@@ -99,8 +99,7 @@ pub fn paint_text_cursor(
             total_duration - time_in_cycle
         };
 
-        ui.ctx()
-            .request_repaint_after(std::time::Duration::from_secs_f32(wake_in));
+        ui.ctx().request_repaint_after_secs(wake_in);
     } else {
         paint_cursor_end(painter, ui.visuals(), primary_cursor_rect);
     }

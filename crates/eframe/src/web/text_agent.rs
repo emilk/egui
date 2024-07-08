@@ -119,13 +119,14 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        let ime_pos = ime.cursor_rect.left_top();
         let canvas_rect = super::canvas_content_rect(canvas);
-        let new_pos = canvas_rect.min + ime_pos.to_vec2();
+        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
-        style.set_property("top", &format!("{}px", new_pos.y))?;
-        style.set_property("left", &format!("{}px", new_pos.x))?;
+
+        // This is where the IME input will point to:
+        style.set_property("left", &format!("{}px", cursor_rect.center().x))?;
+        style.set_property("top", &format!("{}px", cursor_rect.center().y))?;
 
         Ok(())
     }
@@ -147,7 +148,7 @@ impl TextAgent {
             return;
         }
 
-        // log::debug!("Focusing text agent");
+        log::trace!("Focusing text agent");
 
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
@@ -159,7 +160,7 @@ impl TextAgent {
             return;
         }
 
-        // log::debug!("Blurring text agent");
+        log::trace!("Blurring text agent");
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));

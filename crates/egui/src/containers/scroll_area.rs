@@ -966,17 +966,22 @@ impl Prepared {
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
             let mut cross = if scroll_style.floating {
+                // The bounding rect of a fully visible bar.
+                // When we hover this area, we should show the full bar:
                 let max_bar_rect = if d == 0 {
-                    outer_rect.with_min_y(outer_rect.max.y - scroll_style.allocated_width())
+                    outer_rect.with_min_y(outer_rect.max.y - outer_margin - scroll_style.bar_width)
                 } else {
-                    outer_rect.with_min_x(outer_rect.max.x - scroll_style.allocated_width())
+                    outer_rect.with_min_x(outer_rect.max.x - outer_margin - scroll_style.bar_width)
                 };
+
                 let is_hovering_bar_area = is_hovering_outer_rect
                     && ui.rect_contains_pointer(max_bar_rect)
                     || state.scroll_bar_interaction[d];
+
                 let is_hovering_bar_area_t = ui
                     .ctx()
                     .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
+
                 let width = show_factor
                     * lerp(
                         scroll_style.floating_width..=scroll_style.bar_width,

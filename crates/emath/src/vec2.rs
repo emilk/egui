@@ -121,12 +121,22 @@ impl From<Vec2> for mint::Vector2<f32> {
 // ----------------------------------------------------------------------------
 
 impl Vec2 {
+    /// Right
     pub const X: Self = Self { x: 1.0, y: 0.0 };
+
+    /// Down
     pub const Y: Self = Self { x: 0.0, y: 1.0 };
 
+    /// +X
     pub const RIGHT: Self = Self { x: 1.0, y: 0.0 };
+
+    /// -X
     pub const LEFT: Self = Self { x: -1.0, y: 0.0 };
+
+    /// -Y
     pub const UP: Self = Self { x: 0.0, y: -1.0 };
+
+    /// +Y
     pub const DOWN: Self = Self { x: 0.0, y: 1.0 };
 
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };

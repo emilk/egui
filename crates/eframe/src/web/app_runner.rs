@@ -191,7 +191,7 @@ impl AppRunner {
     pub fn update_focus(&mut self) {
         let has_focus = self.has_focus();
         if self.input.raw.focused != has_focus {
-            // log::debug!("{} Focus changed to {has_focus}", self.canvas().id());
+            log::trace!("{} Focus changed to {has_focus}", self.canvas().id());
             self.input.set_focus(has_focus);
 
             if !has_focus {

@@ -58,6 +58,8 @@ const NUM_MANUAL_ROWS: usize = 20;
 
 impl crate::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        let mut reset = false;
+
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.striped, "Striped");
@@ -102,6 +104,8 @@ impl crate::View for TableDemo {
                     self.scroll_to_row = Some(self.scroll_to_row_slider);
                 }
             }
+
+            reset = ui.button("Reset").clicked();
         });
 
         ui.separator();
@@ -115,7 +119,7 @@ impl crate::View for TableDemo {
             .vertical(|mut strip| {
                 strip.cell(|ui| {
                     egui::ScrollArea::horizontal().show(ui, |ui| {
-                        self.table_ui(ui);
+                        self.table_ui(ui, reset);
                     });
                 });
                 strip.cell(|ui| {
@@ -128,7 +132,7 @@ impl crate::View for TableDemo {
 }
 
 impl TableDemo {
-    fn table_ui(&mut self, ui: &mut egui::Ui) {
+    fn table_ui(&mut self, ui: &mut egui::Ui, reset: bool) {
         use egui_extras::{Column, TableBuilder};
 
         let text_height = egui::TextStyle::Body
@@ -142,9 +146,14 @@ impl TableDemo {
             .resizable(self.resizable)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
+            .column(
+                Column::remainder()
+                    .at_least(40.0)
+                    .clip(true)
+                    .resizable(true),
+            )
             .column(Column::auto())
-            .column(Column::initial(100.0).range(40.0..=300.0))
-            .column(Column::initial(100.0).at_least(40.0).clip(true))
+            .column(Column::remainder())
             .column(Column::remainder())
             .min_scrolled_height(0.0)
             .max_scroll_height(available_height);
@@ -157,19 +166,23 @@ impl TableDemo {
             table = table.scroll_to_row(row_index, None);
         }
 
+        if reset {
+            table.reset();
+        }
+
         table
             .header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.strong("Row");
                 });
                 header.col(|ui| {
-                    ui.strong("Interaction");
+                    ui.strong("Clipped text");
                 });
                 header.col(|ui| {
                     ui.strong("Expanding content");
                 });
                 header.col(|ui| {
-                    ui.strong("Clipped text");
+                    ui.strong("Interaction");
                 });
                 header.col(|ui| {
                     ui.strong("Content");
@@ -187,13 +200,13 @@ impl TableDemo {
                                 ui.label(row_index.to_string());
                             });
                             row.col(|ui| {
-                                ui.checkbox(&mut self.checked, "Click me");
+                                ui.label(long_text(row_index));
                             });
                             row.col(|ui| {
                                 expanding_content(ui);
                             });
                             row.col(|ui| {
-                                ui.label(long_text(row_index));
+                                ui.checkbox(&mut self.checked, "Click me");
                             });
                             row.col(|ui| {
                                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
@@ -217,13 +230,13 @@ impl TableDemo {
                             ui.label(row_index.to_string());
                         });
                         row.col(|ui| {
-                            ui.checkbox(&mut self.checked, "Click me");
+                            ui.label(long_text(row_index));
                         });
                         row.col(|ui| {
                             expanding_content(ui);
                         });
                         row.col(|ui| {
-                            ui.label(long_text(row_index));
+                            ui.checkbox(&mut self.checked, "Click me");
                         });
                         row.col(|ui| {
                             ui.add(
@@ -245,13 +258,13 @@ impl TableDemo {
                             ui.label(row_index.to_string());
                         });
                         row.col(|ui| {
-                            ui.checkbox(&mut self.checked, "Click me");
+                            ui.label(long_text(row_index));
                         });
                         row.col(|ui| {
                             expanding_content(ui);
                         });
                         row.col(|ui| {
-                            ui.label(long_text(row_index));
+                            ui.checkbox(&mut self.checked, "Click me");
                         });
                         row.col(|ui| {
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
@@ -280,14 +293,7 @@ impl TableDemo {
 }
 
 fn expanding_content(ui: &mut egui::Ui) {
-    let width = ui.available_width().clamp(20.0, 200.0);
-    let height = ui.available_height();
-    let (rect, _response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
-    ui.painter().hline(
-        rect.x_range(),
-        rect.center().y,
-        (1.0, ui.visuals().text_color()),
-    );
+    ui.add(egui::Separator::default().horizontal());
 }
 
 fn long_text(row_index: usize) -> String {

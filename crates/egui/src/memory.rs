@@ -934,9 +934,6 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    /// Area state is intentionally NOT persisted between sessions,
-    /// so that a bad tooltip or menu size won't be remembered forever.
-    #[cfg_attr(feature = "serde", serde(skip))]
     areas: IdMap<area::AreaState>,
 
     /// Back-to-front. Top is last.
@@ -1030,12 +1027,12 @@ impl Areas {
             .collect()
     }
 
-    pub(crate) fn visible_windows(&self) -> Vec<&area::AreaState> {
+    pub(crate) fn visible_windows(&self) -> impl Iterator<Item = (LayerId, &area::AreaState)> {
         self.visible_layer_ids()
-            .iter()
+            .into_iter()
             .filter(|layer| layer.order == crate::Order::Middle)
-            .filter_map(|layer| self.get(layer.id))
-            .collect()
+            .filter(|&layer| !self.is_sublayer(&layer))
+            .filter_map(|layer| Some((layer, self.get(layer.id)?)))
     }
 
     pub fn move_to_top(&mut self, layer_id: LayerId) {

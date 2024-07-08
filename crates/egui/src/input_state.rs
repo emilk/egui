@@ -27,6 +27,8 @@ const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
 
 /// Input state that egui updates each frame.
 ///
+/// You can access this with [`crate::Context::input`].
+///
 /// You can check if `egui` is using the inputs using
 /// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
 #[derive(Clone, Debug)]
@@ -41,6 +43,12 @@ pub struct InputState {
     /// State of touches, except those covered by `PointerState` (like clicks and drags).
     /// (We keep a separate [`TouchState`] for each encountered touch device.)
     touch_states: BTreeMap<TouchDeviceId, TouchState>,
+
+    // ----------------------------------------------
+    // Scrolling:
+    //
+    /// Time of the last scroll event.
+    last_scroll_time: f64,
 
     /// Used for smoothing the scroll delta.
     unprocessed_scroll_delta: Vec2,
@@ -85,6 +93,7 @@ pub struct InputState {
     /// * `zoom > 1`: pinch spread
     zoom_factor_delta: f32,
 
+    // ----------------------------------------------
     /// Position and size of the egui area.
     pub screen_rect: Rect,
 
@@ -159,11 +168,14 @@ impl Default for InputState {
             raw: Default::default(),
             pointer: Default::default(),
             touch_states: Default::default(),
+
+            last_scroll_time: f64::NEG_INFINITY,
             unprocessed_scroll_delta: Vec2::ZERO,
             unprocessed_scroll_delta_for_zoom: 0.0,
             raw_scroll_delta: Vec2::ZERO,
             smooth_scroll_delta: Vec2::ZERO,
             zoom_factor_delta: 1.0,
+
             screen_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0)),
             pixels_per_point: 1.0,
             max_texture_side: 2048,
@@ -318,14 +330,24 @@ impl InputState {
             }
         }
 
+        let is_scrolling = raw_scroll_delta != Vec2::ZERO || smooth_scroll_delta != Vec2::ZERO;
+        let last_scroll_time = if is_scrolling {
+            time
+        } else {
+            self.last_scroll_time
+        };
+
         Self {
             pointer,
             touch_states: self.touch_states,
+
+            last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
             smooth_scroll_delta,
             zoom_factor_delta,
+
             screen_rect,
             pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
@@ -389,6 +411,12 @@ impl InputState {
             || Vec2::splat(self.zoom_factor_delta),
             |touch| touch.zoom_delta_2d,
         )
+    }
+
+    /// How long has it been (in seconds) since the use last scrolled?
+    #[inline(always)]
+    pub fn time_since_last_scroll(&self) -> f32 {
+        (self.time - self.last_scroll_time) as f32
     }
 
     /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
@@ -726,6 +754,9 @@ pub struct PointerState {
     /// Current velocity of pointer.
     velocity: Vec2,
 
+    /// Current direction of pointer.
+    direction: Vec2,
+
     /// Recent movement of the pointer.
     /// Used for calculating velocity of pointer.
     pos_history: History<Pos2>,
@@ -774,7 +805,8 @@ impl Default for PointerState {
             delta: Vec2::ZERO,
             motion: None,
             velocity: Vec2::ZERO,
-            pos_history: History::new(0..1000, 0.1),
+            direction: Vec2::ZERO,
+            pos_history: History::new(2..1000, 0.1),
             down: Default::default(),
             press_origin: None,
             press_start_time: None,
@@ -889,6 +921,7 @@ impl PointerState {
                     // When dragging a slider and the mouse leaves the viewport, we still want the drag to work,
                     // so we don't treat this as a `PointerEvent::Released`.
                     // NOTE: we do NOT clear `self.interact_pos` here. It will be cleared next frame.
+                    self.pos_history.clear();
                 }
                 Event::MouseMoved(delta) => *self.motion.get_or_insert(Vec2::ZERO) += *delta,
                 _ => {}
@@ -920,6 +953,8 @@ impl PointerState {
             self.last_move_time = time;
         }
 
+        self.direction = self.pos_history.velocity().unwrap_or_default().normalized();
+
         self.started_decidedly_dragging = self.is_decidedly_dragging() && !was_decidedly_dragging;
 
         self
@@ -944,9 +979,20 @@ impl PointerState {
     }
 
     /// Current velocity of pointer.
+    ///
+    /// This is smoothed over a few frames,
+    /// but can be ZERO when frame-rate is bad.
     #[inline(always)]
     pub fn velocity(&self) -> Vec2 {
         self.velocity
+    }
+
+    /// Current direction of the pointer.
+    ///
+    /// This is less sensitive to bad framerate than [`Self::velocity`].
+    #[inline(always)]
+    pub fn direction(&self) -> Vec2 {
+        self.direction
     }
 
     /// Where did the current click/drag originate?
@@ -1012,6 +1058,12 @@ impl PointerState {
     #[inline(always)]
     pub fn time_since_last_movement(&self) -> f32 {
         (self.time - self.last_move_time) as f32
+    }
+
+    /// How long has it been (in seconds) since the pointer was clicked?
+    #[inline(always)]
+    pub fn time_since_last_click(&self) -> f32 {
+        (self.time - self.last_click_time) as f32
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?
@@ -1198,6 +1250,7 @@ impl InputState {
             pointer,
             touch_states,
 
+            last_scroll_time,
             unprocessed_scroll_delta,
             unprocessed_scroll_delta_for_zoom,
             raw_scroll_delta,
@@ -1237,6 +1290,10 @@ impl InputState {
             });
         }
 
+        ui.label(format!(
+            "Time since last scroll: {:.1} s",
+            time - last_scroll_time
+        ));
         if cfg!(debug_assertions) {
             ui.label(format!(
                 "unprocessed_scroll_delta: {unprocessed_scroll_delta:?} points"
@@ -1250,6 +1307,7 @@ impl InputState {
             "smooth_scroll_delta: {smooth_scroll_delta:?} points"
         ));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
+
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!(
             "{pixels_per_point} physical pixels for each logical point"
@@ -1284,6 +1342,7 @@ impl PointerState {
             delta,
             motion,
             velocity,
+            direction,
             pos_history: _,
             down,
             press_origin,
@@ -1304,6 +1363,7 @@ impl PointerState {
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y
         ));
+        ui.label(format!("direction: {direction:?}"));
         ui.label(format!("down: {down:#?}"));
         ui.label(format!("press_origin: {press_origin:?}"));
         ui.label(format!("press_start_time: {press_start_time:?} s"));

@@ -154,13 +154,15 @@ impl LabelSelectionState {
     }
 
     pub fn load(ctx: &Context) -> Self {
-        ctx.data(|data| data.get_temp::<Self>(Id::NULL))
+        let id = Id::new(ctx.viewport_id());
+        ctx.data(|data| data.get_temp::<Self>(id))
             .unwrap_or_default()
     }
 
     pub fn store(self, ctx: &Context) {
+        let id = Id::new(ctx.viewport_id());
         ctx.data_mut(|data| {
-            data.insert_temp(Id::NULL, self);
+            data.insert_temp(id, self);
         });
     }
 

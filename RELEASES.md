@@ -9,6 +9,8 @@ All crates under the [`crates/`](crates/) folder are published in lock-step, wit
 
 The only exception to this are patch releases, where we sometimes only patch a single crate.
 
+The egui version in egui `master` is always the version of the last published crates. This is so that users can easily patch their egui crates to egui `master` if they want to.
+
 ## Governance
 Releases are generally done by [emilk](https://github.com/emilk/), but the [rerun-io](https://github.com/rerun-io/) organization (where emilk is CTO) also has publish rights to all the crates.
 
@@ -35,11 +37,11 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
-* [ ] `./scripts/build_demo_web.sh --release`
+* [ ] `./scripts/build_demo_web.sh --release -g`
   - check frame-rate and wasm size
   - test on mobile
   - test on chromium
-  - check the in-browser profiler (build without `--release` to get profile data)
+  - check the in-browser profiler
 * [ ] check the color test
 * [ ] update `eframe_template` and test
 * [ ] update `egui_tiles` and test
