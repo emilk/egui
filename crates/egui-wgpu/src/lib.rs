@@ -252,6 +252,12 @@ pub struct WgpuConfiguration {
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
 }
 
+#[test]
+fn wgpu_config_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<WgpuConfiguration>();
+}
+
 impl std::fmt::Debug for WgpuConfiguration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
