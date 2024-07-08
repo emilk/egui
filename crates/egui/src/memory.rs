@@ -5,7 +5,7 @@ use epaint::emath::TSTransform;
 
 use crate::{
     area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
-    ViewportId, ViewportIdMap, ViewportIdSet,
+    ViewportId, ViewportIdMap, ViewportIdSet, Visuals,
 };
 
 // ----------------------------------------------------------------------------
@@ -1106,7 +1106,7 @@ impl Areas {
 /// Which theme should egui use?
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum ThemePreference {
+pub(crate) enum ThemePreference {
     /// Dark mode: light text on a dark background.
     Dark,
 
@@ -1115,6 +1115,23 @@ pub enum ThemePreference {
 
     /// Follow the system's theme preference.
     System,
+}
+
+impl ThemePreference {
+    pub(crate) fn from_dark_mode(dark_mode: bool) -> Self {
+        if dark_mode {
+            Self::Dark
+        } else {
+            Self::Light
+        }
+    }
+
+    pub(crate) fn into_visuals(self) -> Visuals {
+        match self {
+            Self::Dark | Self::System => Visuals::dark(),
+            Self::Light => Visuals::light(),
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

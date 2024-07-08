@@ -41,7 +41,6 @@ pub use self::{
     slider::{Slider, SliderOrientation},
     spinner::Spinner,
     text_edit::{TextBuffer, TextEdit},
-    theme_switch::ThemeSwitch,
 };
 
 // ----------------------------------------------------------------------------
@@ -136,18 +135,10 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
 
 /// Show a small button to switch to/from dark/light mode (globally).
 pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    let mut theme = if ui.ctx().style().visuals.dark_mode {
-        ThemePreference::Dark
-    } else {
-        ThemePreference::Light
-    };
-    let response = ui.add(ThemeSwitch::new(&mut theme).show_follow_system(false));
+    let mut theme = memory::ThemePreference::from_dark_mode(ui.ctx().style().visuals.dark_mode);
+    let response = ui.add(theme_switch::ThemeSwitch::new(&mut theme).show_follow_system(false));
     if response.changed {
-        let visuals = match theme {
-            ThemePreference::Dark | ThemePreference::System => Visuals::dark(),
-            ThemePreference::Light => Visuals::light(),
-        };
-        ui.ctx().set_visuals(visuals);
+        ui.ctx().set_visuals(theme.into_visuals());
     }
 }
 

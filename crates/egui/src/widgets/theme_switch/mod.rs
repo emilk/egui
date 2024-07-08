@@ -1,4 +1,5 @@
-use crate::{Painter, Response, ThemePreference, Ui, Widget};
+use crate::memory::ThemePreference;
+use crate::{Painter, Response, Ui, Widget};
 use emath::{Pos2, Rect};
 use epaint::Color32;
 
@@ -12,13 +13,13 @@ mod sun;
 /// preference (dark, light or follow system).
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug)]
-pub struct ThemeSwitch<'a> {
+pub(crate) struct ThemeSwitch<'a> {
     value: &'a mut ThemePreference,
     show_follow_system: bool,
 }
 
 impl<'a> ThemeSwitch<'a> {
-    pub fn new(value: &'a mut ThemePreference) -> Self {
+    pub(crate) fn new(value: &'a mut ThemePreference) -> Self {
         Self {
             value,
             show_follow_system: true,

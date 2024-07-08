@@ -460,7 +460,7 @@ pub use {
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options, ThemePreference},
+    memory::{Memory, Options},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
