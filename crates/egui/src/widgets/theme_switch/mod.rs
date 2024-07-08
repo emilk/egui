@@ -304,14 +304,17 @@ mod painting {
             .find(|button| &button.option.value == value)
             .map(|button| button.center)
         {
-            let pos = animate_active_indicator_position(ui, space.response.id, pos);
+            let pos = animate_active_indicator_position(ui, space.response.id, space.rect.min, pos);
             ui.painter().circle(pos, space.radius, fill, Stroke::NONE);
         }
     }
 
-    fn animate_active_indicator_position(ui: &mut Ui, id: Id, pos: Pos2) -> Pos2 {
+    fn animate_active_indicator_position(ui: &mut Ui, id: Id, anchor: Pos2, pos: Pos2) -> Pos2 {
         let animation_time = ui.style().animation_time;
-        let x = ui.ctx().animate_value_with_time(id, pos.x, animation_time);
+        // Animate the relative position to prevent
+        // animating the active indicator when the switch itself is moved around.
+        let x = pos.x - anchor.x;
+        let x = anchor.x + ui.ctx().animate_value_with_time(id, x, animation_time);
         pos2(x, pos.y)
     }
 
