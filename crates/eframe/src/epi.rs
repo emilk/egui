@@ -369,6 +369,15 @@ pub struct NativeOptions {
     /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
     /// from [directories].
     pub persistence_path: Option<std::path::PathBuf>,
+
+    /// Controls whether to apply dithering to minimize banding artifacts.
+    ///
+    /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
+    /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
+    /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
+    ///
+    /// Defaults to true.
+    pub dithering: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -429,6 +438,8 @@ impl Default for NativeOptions {
             persist_window: true,
 
             persistence_path: None,
+
+            dithering: true,
         }
     }
 }
@@ -466,6 +477,15 @@ pub struct WebOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
+
+    /// Controls whether to apply dithering to minimize banding artifacts.
+    ///
+    /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
+    /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
+    /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
+    ///
+    /// Defaults to true.
+    pub dithering: bool,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -481,6 +501,8 @@ impl Default for WebOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+
+            dithering: true,
         }
     }
 }
