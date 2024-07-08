@@ -137,7 +137,7 @@ mod space_allocation {
 
         // Focusable elements always get an accessible node, so let's ensure that
         // the parent is set correctly when the responses are created the first time.
-        with_accessibility_parent(ui, id, |ui| {
+        ui.ctx().clone().with_accessibility_parent(id, || {
             let buttons = options
                 .into_iter()
                 .enumerate()
@@ -193,14 +193,6 @@ mod space_allocation {
         radius: f32,
         padding: f32,
         buttons: usize,
-    }
-
-    // TODO: this is a workaround, maybe we can change the function on ctx?
-    fn with_accessibility_parent<T>(ui: &mut Ui, id: Id, f: impl FnOnce(&mut Ui) -> T) -> T {
-        let ctx = ui.ctx().clone();
-        let mut result = None;
-        ctx.with_accessibility_parent(id, || result = Some(f(ui)));
-        result.expect("with_accessibility_parent() always calls f()")
     }
 
     fn allocate_button<T>(

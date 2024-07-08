@@ -2864,7 +2864,7 @@ impl Context {
     /// No locks are held while the given closure is called.
     #[allow(clippy::unused_self)]
     #[inline]
-    pub fn with_accessibility_parent(&self, _id: Id, f: impl FnOnce()) {
+    pub fn with_accessibility_parent<T>(&self, _id: Id, f: impl FnOnce() -> T) -> T {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
         #[cfg(feature = "accesskit")]
         self.frame_state_mut(|fs| {
@@ -2873,7 +2873,7 @@ impl Context {
             }
         });
 
-        f();
+        let result = f();
 
         #[cfg(feature = "accesskit")]
         self.frame_state_mut(|fs| {
@@ -2881,6 +2881,8 @@ impl Context {
                 assert_eq!(state.parent_stack.pop(), Some(_id));
             }
         });
+
+        result
     }
 
     /// If AccessKit support is active for the current frame, get or create
