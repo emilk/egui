@@ -6,7 +6,7 @@ use crate::{Painter, Response, ThemePreference, Ui, Widget};
 mod arc;
 mod cogwheel;
 mod moon;
-mod painter_ext;
+mod rotated_rect;
 mod sun;
 
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]

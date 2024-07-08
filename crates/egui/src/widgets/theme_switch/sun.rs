@@ -1,7 +1,7 @@
-use super::painter_ext::PainterExt;
+use super::rotated_rect::draw_rotated_rect;
 use crate::Painter;
 use emath::{vec2, Pos2, Rect, Rot2, Vec2};
-use epaint::{Color32, RectShape, Stroke};
+use epaint::{Color32, Stroke};
 use std::f32::consts::TAU;
 
 pub(crate) fn sun(painter: &Painter, center: Pos2, radius: f32, color: Color32) {
@@ -18,11 +18,8 @@ pub(crate) fn sun(painter: &Painter, center: Pos2, radius: f32, color: Color32) 
     for n in 0..rays {
         let ray_center = center - vec2(0., sun_radius + ray_spacing + ray_length / 2.);
         let ray_size = vec2(ray_radius, ray_length);
-        let ray = RectShape::filled(
-            Rect::from_center_size(ray_center, ray_size),
-            ray_radius,
-            color,
-        );
-        clipped.add_rotated(ray, Rot2::from_angle(TAU / rays as f32 * n as f32), center);
+        let rect = Rect::from_center_size(ray_center, ray_size);
+        let rotation = Rot2::from_angle(TAU / rays as f32 * n as f32);
+        draw_rotated_rect(painter, rect, ray_radius / 2.0, color, rotation, center);
     }
 }
