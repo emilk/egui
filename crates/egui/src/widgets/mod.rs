@@ -4,8 +4,6 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
-use theme_switch::ThemeSwitch;
-
 use crate::*;
 
 mod button;
@@ -43,6 +41,7 @@ pub use self::{
     slider::{Slider, SliderOrientation},
     spinner::Spinner,
     text_edit::{TextBuffer, TextEdit},
+    theme_switch::ThemeSwitch,
 };
 
 // ----------------------------------------------------------------------------

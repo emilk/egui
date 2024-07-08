@@ -1,3 +1,5 @@
+use egui::{ThemePreference, ThemeSwitch};
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
@@ -18,6 +20,7 @@ pub struct WidgetGallery {
     string: String,
     color: egui::Color32,
     animate_progress_bar: bool,
+    theme: ThemePreference,
 
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -36,6 +39,7 @@ impl Default for WidgetGallery {
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
+            theme: ThemePreference::System,
             #[cfg(feature = "chrono")]
             date: None,
         }
@@ -119,6 +123,7 @@ impl WidgetGallery {
             animate_progress_bar,
             #[cfg(feature = "chrono")]
             date,
+            theme,
         } = self;
 
         ui.add(doc_link_label("Label", "label"));
@@ -246,6 +251,10 @@ impl WidgetGallery {
                 ui.add(egui::Spinner::new());
             });
         });
+        ui.end_row();
+
+        ui.add(doc_link_label("ThemeSwitch", "ThemeSwitch"));
+        ui.add(ThemeSwitch::new(theme));
         ui.end_row();
 
         ui.add(doc_link_label_with_crate("egui_plot", "Plot", "plot"));
