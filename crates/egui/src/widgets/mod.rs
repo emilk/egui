@@ -4,6 +4,8 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
+use theme_switch::ThemeSwitch;
+
 use crate::*;
 
 mod button;
@@ -21,6 +23,7 @@ mod separator;
 mod slider;
 mod spinner;
 pub mod text_edit;
+mod theme_switch;
 
 pub use self::{
     button::Button,
@@ -134,9 +137,17 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
 
 /// Show a small button to switch to/from dark/light mode (globally).
 pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    let style: crate::Style = (*ui.ctx().style()).clone();
-    let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
-    if let Some(visuals) = new_visuals {
+    let mut theme = if ui.ctx().style().visuals.dark_mode {
+        ThemePreference::Dark
+    } else {
+        ThemePreference::Light
+    };
+    let response = ui.add(ThemeSwitch::new(&mut theme).show_follow_system(false));
+    if response.changed {
+        let visuals = match theme {
+            ThemePreference::Dark | ThemePreference::System => Visuals::dark(),
+            ThemePreference::Light => Visuals::light(),
+        };
         ui.ctx().set_visuals(visuals);
     }
 }

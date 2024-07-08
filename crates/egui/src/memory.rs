@@ -1103,6 +1103,14 @@ impl Areas {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ThemePreference {
+    Dark,
+    Light,
+    System,
+}
+
 // ----------------------------------------------------------------------------
 
 #[test]
