@@ -1,7 +1,6 @@
+use crate::{Painter, Response, ThemePreference, Ui, Widget};
 use emath::{Pos2, Rect};
 use epaint::Color32;
-
-use crate::{Painter, Response, ThemePreference, Ui, Widget};
 
 mod arc;
 mod cogwheel;
@@ -9,7 +8,10 @@ mod moon;
 mod rotated_rect;
 mod sun;
 
+/// A switch control that allows choosing the theme
+/// preference (dark, light or follow system).
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[derive(Debug)]
 pub struct ThemeSwitch<'a> {
     value: &'a mut ThemePreference,
     show_follow_system: bool,

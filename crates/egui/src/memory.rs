@@ -1103,11 +1103,17 @@ impl Areas {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+/// Which theme should egui use?
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ThemePreference {
+    /// Dark mode: light text on a dark background.
     Dark,
+
+    /// Light mode: dark text on a light background.
     Light,
+
+    /// Follow the system's theme preference.
     System,
 }
 
