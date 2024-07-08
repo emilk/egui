@@ -24,7 +24,7 @@ impl<'a> ThemeSwitch<'a> {
     }
 
     /// Disables the "Follow System" option. Intentionally internal.
-    /// Should be removed once https://github.com/emilk/egui/issues/4490 is done.
+    /// Should be removed once <https://github.com/emilk/egui/issues/4490> is done.
     pub(crate) fn show_follow_system(mut self, show_follow_system: bool) -> Self {
         self.show_follow_system = show_follow_system;
         self
@@ -195,6 +195,7 @@ mod space_allocation {
         buttons: usize,
     }
 
+    // TODO: this is a workaround, maybe we can change the function on ctx?
     fn with_accessibility_parent<T>(ui: &mut Ui, id: Id, f: impl FnOnce(&mut Ui) -> T) -> T {
         let ctx = ui.ctx().clone();
         let mut result = None;
@@ -203,7 +204,7 @@ mod space_allocation {
     }
 
     fn allocate_button<T>(
-        ui: &mut Ui,
+        ui: &Ui,
         remaining: &mut Rect,
         switch_id: Id,
         measurements: &SwitchMeasurements,
@@ -275,7 +276,7 @@ mod painting {
     use emath::pos2;
     use epaint::Stroke;
 
-    pub(super) fn draw_switch_background<T>(ui: &mut Ui, space: &AllocatedSpace<T>) {
+    pub(super) fn draw_switch_background<T>(ui: &Ui, space: &AllocatedSpace<T>) {
         let rect = space.rect;
         let rounding = 0.5 * rect.height();
         let WidgetVisuals {
@@ -293,7 +294,7 @@ mod painting {
     }
 
     pub(super) fn draw_active_indicator<T: PartialEq>(
-        ui: &mut Ui,
+        ui: &Ui,
         space: &AllocatedSpace<T>,
         value: &T,
     ) {
@@ -309,7 +310,7 @@ mod painting {
         }
     }
 
-    fn animate_active_indicator_position(ui: &mut Ui, id: Id, anchor: Pos2, pos: Pos2) -> Pos2 {
+    fn animate_active_indicator_position(ui: &Ui, id: Id, anchor: Pos2, pos: Pos2) -> Pos2 {
         let animation_time = ui.style().animation_time;
         // Animate the relative position to prevent
         // animating the active indicator when the switch itself is moved around.
@@ -318,7 +319,7 @@ mod painting {
         pos2(x, pos.y)
     }
 
-    pub(super) fn draw_button<T>(ui: &mut Ui, button: &ButtonSpace<T>, selected: bool) {
+    pub(super) fn draw_button<T>(ui: &Ui, button: &ButtonSpace<T>, selected: bool) {
         let visuals = ui.style().interact_selectable(&button.response, selected);
         let animation_factor = animate_click(ui, &button.response);
         let radius = animation_factor * button.radius;
@@ -332,7 +333,7 @@ mod painting {
 
     // We want to avoid drawing a background when the button is either active itself or was previously active.
     fn button_fill(response: &Response, visuals: &WidgetVisuals) -> Color32 {
-        if interacted(&response) {
+        if interacted(response) {
             visuals.bg_fill
         } else {
             Color32::TRANSPARENT
@@ -357,71 +358,39 @@ mod painting {
 
 mod accessibility {
     use super::*;
-    use crate::accesskit::{NodeBuilder, NodeId as AccessKitId, Role};
-    use crate::{Id, WidgetInfo, WidgetType};
+    use crate::{WidgetInfo, WidgetType};
 
+    // TODO: this only consumes `space` becuase `on_hover_text` does
     pub(super) fn attach_widget_info<T: PartialEq>(
-        ui: &mut Ui,
+        ui: &Ui,
         space: AllocatedSpace<T>,
         label: &str,
         value: &T,
     ) -> Response {
-        let button_group = button_group(&space);
-
-        configure_accesskit_radio_group(ui, space.rect, space.response.id, label);
+        space
+            .response
+            .widget_info(|| radio_group_widget_info(ui, label));
 
         for button in space.buttons {
             let selected = value == &button.option.value;
-            attach_widget_info_to_button(ui, button, &button_group, selected);
+            attach_widget_info_to_button(ui, button, selected);
         }
 
         space.response
     }
 
-    fn configure_accesskit_radio_group(ui: &mut Ui, rect: Rect, id: Id, label: &str) {
-        ui.ctx().accesskit_node_builder(id, |builder| {
-            builder.set_role(Role::RadioGroup);
-            builder.set_bounds(to_accesskit_rect(rect));
-            builder.set_name(label);
-        });
-    }
-
-    fn button_group<T>(space: &AllocatedSpace<T>) -> Vec<AccessKitId> {
-        space
-            .buttons
-            .iter()
-            .map(|b| b.response.id.accesskit_id())
-            .collect()
-    }
-
-    fn attach_widget_info_to_button<T>(
-        ui: &mut Ui,
-        button: ButtonSpace<T>,
-        buttons: &[AccessKitId],
-        selected: bool,
-    ) {
+    fn attach_widget_info_to_button<T>(ui: &Ui, button: ButtonSpace<T>, selected: bool) {
         let response = button.response;
         let label = button.option.label;
         response.widget_info(|| button_widget_info(ui, label, selected));
-        configure_accesskit_radio_button(ui, response.id, buttons);
         response.on_hover_text(label);
+    }
+
+    fn radio_group_widget_info(ui: &Ui, label: &str) -> WidgetInfo {
+        WidgetInfo::labeled(WidgetType::RadioGroup, ui.is_enabled(), label)
     }
 
     fn button_widget_info(ui: &Ui, label: &str, selected: bool) -> WidgetInfo {
         WidgetInfo::selected(WidgetType::RadioButton, ui.is_enabled(), selected, label)
-    }
-
-    fn configure_accesskit_radio_button(ui: &mut Ui, id: Id, group: &[AccessKitId]) {
-        let writer = |b: &mut NodeBuilder| b.set_radio_group(group);
-        ui.ctx().accesskit_node_builder(id, writer);
-    }
-
-    fn to_accesskit_rect(rect: Rect) -> accesskit::Rect {
-        accesskit::Rect {
-            x0: rect.min.x.into(),
-            y0: rect.min.y.into(),
-            x1: rect.max.x.into(),
-            y1: rect.max.y.into(),
-        }
     }
 }
