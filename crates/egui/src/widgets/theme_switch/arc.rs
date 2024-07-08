@@ -1,51 +1,26 @@
-use crate::{vec2, Color32, Painter, Pos2, Shape, Stroke, Vec2};
-use epaint::CubicBezierShape;
+use emath::{vec2, Pos2, Vec2};
+use epaint::{Color32, CubicBezierShape, Stroke};
 use std::f32::consts::FRAC_PI_2;
 use std::ops::RangeInclusive;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct ArcShape {
-    center: Pos2,
-    radius: f32,
-    range: RangeInclusive<f32>,
-    fill: Color32,
-    stroke: Stroke,
-}
-
-impl ArcShape {
-    pub fn new(
-        center: impl Into<Pos2>,
-        radius: impl Into<f32>,
-        range: impl Into<RangeInclusive<f32>>,
-        fill: impl Into<Color32>,
-        stroke: impl Into<Stroke>,
-    ) -> Self {
-        Self {
-            center: center.into(),
-            radius: radius.into(),
-            range: range.into(),
-            fill: fill.into(),
-            stroke: stroke.into(),
-        }
-    }
-
-    pub fn approximate_as_beziers(&self) -> impl Iterator<Item = CubicBezierShape> + Clone {
-        let fill = self.fill;
-        let stroke = self.stroke;
-        approximate_with_beziers(self.center, self.radius, self.range.clone())
-            .map(move |p| CubicBezierShape::from_points_stroke(p, false, fill, stroke))
-    }
-
-    pub fn paint(&self, painter: &Painter) {
-        painter.extend(self.approximate_as_beziers().map(Shape::from));
-    }
+pub(crate) fn approximate_with_beziers(
+    center: impl Into<Pos2>,
+    radius: impl Into<f32>,
+    range: impl Into<RangeInclusive<f32>>,
+    fill: impl Into<Color32>,
+    stroke: impl Into<Stroke>,
+) -> impl Iterator<Item = CubicBezierShape> + Clone {
+    let fill = fill.into();
+    let stroke = stroke.into();
+    approximate_with_beziers_impl(center.into(), radius.into(), range.into())
+        .map(move |p| CubicBezierShape::from_points_stroke(p, false, fill, stroke))
 }
 
 // Implementation based on:
 // Riškus, Aleksas. (2006). Approximation of a cubic bezier curve by circular arcs and vice versa.
 // Information Technology and Control. 35.
 
-fn approximate_with_beziers(
+fn approximate_with_beziers_impl(
     center: Pos2,
     radius: f32,
     range: RangeInclusive<f32>,

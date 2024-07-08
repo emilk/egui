@@ -1,4 +1,4 @@
-use super::arc::ArcShape;
+use super::arc;
 use crate::epaint::{CubicBezierShape, PathShape, PathStroke};
 use crate::{Color32, Painter, Pos2, Vec2};
 use std::f32::consts::{PI, TAU};
@@ -27,14 +27,14 @@ pub(crate) fn moon(painter: &Painter, center: Pos2, radius: f32, color: Color32)
     let occlusion_start = direction_angle + PI - angle / 2.;
     let occlusion_end = direction_angle + PI + angle / 2.;
 
-    let main_arc = ArcShape::new(
+    let main_arc = arc::approximate_with_beziers(
         center,
         radius,
         start..=(start + size),
         Color32::TRANSPARENT,
         (stroke_width, color),
     );
-    let occluding_arc = ArcShape::new(
+    let occluding_arc = arc::approximate_with_beziers(
         occluding_center,
         radius,
         occlusion_end..=occlusion_start,
@@ -44,12 +44,7 @@ pub(crate) fn moon(painter: &Painter, center: Pos2, radius: f32, color: Color32)
 
     // We join the beziers together to a path which improves
     // the drawing of the joints somewhat.
-    let path = to_path(
-        main_arc
-            .approximate_as_beziers()
-            .chain(occluding_arc.approximate_as_beziers()),
-        (stroke_width, color),
-    );
+    let path = to_path(main_arc.chain(occluding_arc), (stroke_width, color));
 
     painter.add(path);
 }

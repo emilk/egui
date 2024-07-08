@@ -23,6 +23,8 @@ impl<'a> ThemeSwitch<'a> {
         }
     }
 
+    /// Disables the "Follow System" option. Intentionally internal.
+    /// Should be removed once https://github.com/emilk/egui/issues/4490 is done.
     pub(crate) fn show_follow_system(mut self, show_follow_system: bool) -> Self {
         self.show_follow_system = show_follow_system;
         self
