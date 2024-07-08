@@ -52,6 +52,7 @@ fn approximate_with_bezier(center: Pos2, radius: f32, start: f32, end: f32) -> [
 struct QuarterTurnsIter(Option<RangeInclusive<f32>>);
 
 const QUARTER_TURN: f32 = FRAC_PI_2;
+
 impl Iterator for QuarterTurnsIter {
     type Item = RangeInclusive<f32>;
 

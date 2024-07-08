@@ -2862,7 +2862,7 @@ impl Context {
     /// the function is still called, but with no other effect.
     ///
     /// No locks are held while the given closure is called.
-    #[allow(clippy::unused_self)]
+    #[allow(clippy::unused_self, clippy::let_and_return)]
     #[inline]
     pub fn with_accessibility_parent<T>(&self, _id: Id, f: impl FnOnce() -> T) -> T {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
