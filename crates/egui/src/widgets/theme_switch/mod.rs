@@ -33,11 +33,9 @@ impl<'a> ThemeSwitch<'a> {
 
 impl<'a> Widget for ThemeSwitch<'a> {
     fn ui(self, ui: &mut crate::Ui) -> crate::Response {
-        let (update, mut response) = switch(ui, *self.value, "Theme", self.options());
+        let (update, response) = switch(ui, *self.value, "Theme", self.options());
 
-        // TODO: union inner responses
         if let Some(value) = update {
-            response.mark_changed();
             *self.value = value;
         }
 
@@ -104,9 +102,16 @@ where
         }
     }
 
-    let response = accessibility::attach_widget_info(ui, space, label, &value);
+    accessibility::attach_widget_info(ui, &space, label, &value);
 
-    (updated_value, response)
+    (updated_value, unioned_response(space))
+}
+
+fn unioned_response<T>(space: AllocatedSpace<T>) -> Response {
+    space
+        .buttons
+        .into_iter()
+        .fold(space.response, |r, button| r.union(button.response))
 }
 
 struct AllocatedSpace<T> {
@@ -352,30 +357,27 @@ mod accessibility {
     use super::*;
     use crate::{WidgetInfo, WidgetType};
 
-    // TODO: this only consumes `space` becuase `on_hover_text` does
     pub(super) fn attach_widget_info<T: PartialEq>(
         ui: &Ui,
-        space: AllocatedSpace<T>,
+        space: &AllocatedSpace<T>,
         label: &str,
         value: &T,
-    ) -> Response {
+    ) {
         space
             .response
             .widget_info(|| radio_group_widget_info(ui, label));
 
-        for button in space.buttons {
+        for button in &space.buttons {
             let selected = value == &button.option.value;
             attach_widget_info_to_button(ui, button, selected);
         }
-
-        space.response
     }
 
-    fn attach_widget_info_to_button<T>(ui: &Ui, button: ButtonSpace<T>, selected: bool) {
-        let response = button.response;
+    fn attach_widget_info_to_button<T>(ui: &Ui, button: &ButtonSpace<T>, selected: bool) {
+        let response = &button.response;
         let label = button.option.label;
         response.widget_info(|| button_widget_info(ui, label, selected));
-        response.on_hover_text(label);
+        response.clone().on_hover_text(label);
     }
 
     fn radio_group_widget_info(ui: &Ui, label: &str) -> WidgetInfo {
