@@ -2543,16 +2543,19 @@ impl Ui {
     /// If called from within a menu this will instead create a button for a sub-menu.
     ///
     /// ```ignore
+    /// # egui::__run_test_ui(|ui| {
     /// let img = egui::include_image!("../assets/ferris.png");
     ///
-    /// ui.menu_image_button(img, |ui| {
+    /// ui.menu_image_button(title, img, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
     ///             ui.close_menu();
     ///         }
     ///     });
     /// });
+    /// # });
     /// ```
+    ///     
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
@@ -2564,7 +2567,41 @@ impl Ui {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::menu_image_button(self, ImageButton::new(image), add_contents)
+            menu::menu_custom_button(self, Button::image(image), add_contents)
+        }
+    }
+
+    /// Create a menu button with an image and a text that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let img = egui::include_image!("../assets/ferris.png");
+    /// let title = "My Menu";
+    ///
+    /// ui.menu_image_text_button(img, title, |ui| {
+    ///     ui.menu_button("My sub-menu", |ui| {
+    ///         if ui.button("Close the menu").clicked() {
+    ///             ui.close_menu();
+    ///         }
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    #[inline]
+    pub fn menu_image_text_button<'a, R>(
+        &mut self,
+        image: impl Into<Image<'a>>,
+        title: impl Into<WidgetText>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, title, add_contents)
+        } else {
+            menu::menu_custom_button(self, Button::image_and_text(image, title), add_contents)
         }
     }
 }
