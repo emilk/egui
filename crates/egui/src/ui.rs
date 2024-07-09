@@ -2587,10 +2587,10 @@ impl Ui {
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
-    pub fn menu_text_image_button<'a, R>(
+    pub fn menu_image_text_button<'a, R>(
         &mut self,
-        title: impl Into<WidgetText>,
         image: impl Into<Image<'a>>,
+        title: impl Into<WidgetText>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {
