@@ -14,3 +14,4 @@ Please be patient! I will review your PR, but my time is limited!
 -->
 
 * Closes <https://github.com/emilk/egui/issues/THE_RELEVANT_ISSUE>
+* [ ] I have followed the instructions in the PR template
