@@ -2543,16 +2543,19 @@ impl Ui {
     /// If called from within a menu this will instead create a button for a sub-menu.
     ///
     /// ```ignore
+    /// # egui::__run_test_ui(|ui| {
     /// let img = egui::include_image!("../assets/ferris.png");
     ///
-    /// ui.menu_image_button(img, |ui| {
+    /// ui.menu_image_button(title, img, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
     ///             ui.close_menu();
     ///         }
     ///     });
     /// });
+    /// # });
     /// ```
+    ///     
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
@@ -2572,17 +2575,19 @@ impl Ui {
     ///
     /// If called from within a menu this will instead create a button for a sub-menu.
     ///
-    /// ```ignore
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
     /// let img = egui::include_image!("../assets/ferris.png");
     /// let title = "My Menu";
     ///
-    /// ui.menu_text_image_button(title, img, |ui| {
+    /// ui.menu_image_text_button(img, title, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
     ///             ui.close_menu();
     ///         }
     ///     });
     /// });
+    /// # });
     /// ```
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].

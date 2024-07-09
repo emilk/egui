@@ -118,6 +118,24 @@ pub fn menu_custom_button<R>(
     stationary_menu_button_impl(ui, button, Box::new(add_contents))
 }
 
+/// Construct a top level menu with an image in a menu bar. This would be e.g. "File", "Edit" etc.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+#[deprecated = "Use `menu_custom_button` instead"]
+pub fn menu_image_button<R>(
+    ui: &mut Ui,
+    image_button: ImageButton<'_>,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_button_impl(
+        ui,
+        Button::image(image_button.image),
+        Box::new(add_contents),
+    )
+}
+
 /// Construct a nested sub menu in another menu.
 ///
 /// Opens on hover.
