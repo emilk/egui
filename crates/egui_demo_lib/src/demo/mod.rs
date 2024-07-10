@@ -32,6 +32,7 @@ pub mod text_edit;
 pub mod text_layout;
 pub mod toggle_switch;
 pub mod tooltips;
+pub mod undo_redo;
 pub mod widget_gallery;
 pub mod window_options;
 
