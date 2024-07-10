@@ -1235,7 +1235,7 @@ impl GlutinWindowContext {
                 change_gl_context(
                     &mut self.current_gl_context,
                     &mut self.not_current_gl_context,
-                    &gl_surface,
+                    gl_surface,
                 );
                 gl_surface.resize(
                     self.current_gl_context
