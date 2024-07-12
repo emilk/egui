@@ -764,7 +764,7 @@ impl Default for TextCursorStyle {
             blink: true,
             on_duration: 0.5,
             off_duration: 0.5,
-            ime_visible: false,
+            ime_visible: true,
         }
     }
 }
