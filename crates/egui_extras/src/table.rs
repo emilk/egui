@@ -185,7 +185,7 @@ impl Default for TableScrollOptions {
             scroll_to_row: None,
             scroll_offset_y: None,
             min_scrolled_height: 200.0,
-            max_scroll_height: 800.0,
+            max_scroll_height: f32::INFINITY,
             auto_shrink: Vec2b::TRUE,
             scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
         }
