@@ -840,7 +840,7 @@ impl State {
                 let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
                 let ime_rect_px = pixels_per_point * ime.cursor_rect;
                 if self.ime_rect_px != Some(ime_rect_px)
-                    || self.egui_ctx.input(|i| !i.events.is_empty())
+                    && self.egui_ctx.input(|i| !i.events.is_empty())
                 {
                     self.ime_rect_px = Some(ime_rect_px);
                     crate::profile_scope!("set_ime_cursor_area");
