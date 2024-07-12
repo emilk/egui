@@ -838,8 +838,13 @@ impl State {
         if let Some(ime) = ime {
             if ime.visible {
                 let ime_rect = ime.cursor_rect;
-                if self.ime_rect != Some(ime_rect) || self.egui_ctx.input(|i| !i.events.is_empty())
-                {
+                let has_ime_event = self.egui_ctx.input(|i| {
+                    i.events
+                        .iter()
+                        .any(|event| matches!(event, egui::Event::Ime(_)))
+                });
+
+                if self.ime_rect != Some(ime_rect) || has_ime_event {
                     self.ime_rect = Some(ime_rect);
                     crate::profile_scope!("set_ime_cursor_area");
                     self.egui_ctx
