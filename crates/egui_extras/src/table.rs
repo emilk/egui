@@ -1256,6 +1256,12 @@ impl<'a, 'b> TableRow<'a, 'b> {
         self.selected = selected;
     }
 
+    /// Set the hovered highlight state for cells added after a call to this function.
+    #[inline]
+    pub fn set_hovered(&mut self, hovered: bool) {
+        self.hovered = hovered;
+    }
+
     /// Returns a union of the [`Response`]s of the cells added to the row up to this point.
     ///
     /// You need to add at least one row to the table before calling this function.
