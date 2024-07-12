@@ -836,23 +836,27 @@ impl State {
         }
 
         if let Some(ime) = ime {
-            let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
-            let ime_rect_px = pixels_per_point * ime.rect;
-            if self.ime_rect_px != Some(ime_rect_px)
-                || self.egui_ctx.input(|i| !i.events.is_empty())
-            {
-                self.ime_rect_px = Some(ime_rect_px);
-                crate::profile_scope!("set_ime_cursor_area");
-                window.set_ime_cursor_area(
-                    winit::dpi::PhysicalPosition {
-                        x: ime_rect_px.min.x,
-                        y: ime_rect_px.min.y,
-                    },
-                    winit::dpi::PhysicalSize {
-                        width: ime_rect_px.width(),
-                        height: ime_rect_px.height(),
-                    },
-                );
+            if ime.visible {
+                let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+                let ime_rect_px = pixels_per_point * ime.cursor_rect;
+                if self.ime_rect_px != Some(ime_rect_px)
+                    || self.egui_ctx.input(|i| !i.events.is_empty())
+                {
+                    self.ime_rect_px = Some(ime_rect_px);
+                    crate::profile_scope!("set_ime_cursor_area");
+                    window.set_ime_cursor_area(
+                        winit::dpi::PhysicalPosition {
+                            x: ime_rect_px.min.x,
+                            y: ime_rect_px.min.y,
+                        },
+                        winit::dpi::PhysicalSize {
+                            width: ime_rect_px.width(),
+                            height: ime_rect_px.height(),
+                        },
+                    );
+                }
+            } else {
+                self.ime_rect_px = None;
             }
         } else {
             self.ime_rect_px = None;
