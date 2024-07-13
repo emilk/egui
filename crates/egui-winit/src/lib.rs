@@ -836,20 +836,21 @@ impl State {
         }
 
         if let Some(ime) = ime {
-            if ime.visible {
-                let ime_rect = ime.cursor_rect;
-                let has_ime_event = self.egui_ctx.input(|i| {
-                    i.events
-                        .iter()
-                        .any(|event| matches!(event, egui::Event::Ime(_)))
-                });
+            let ime_rect = if ime.visible {
+                ime.cursor_rect
+            } else {
+                self.egui_ctx.screen_rect()
+            };
+            let has_ime_event = self.egui_ctx.input(|i| {
+                i.events
+                    .iter()
+                    .any(|event| matches!(event, egui::Event::Ime(_)))
+            });
 
-                if has_ime_event || self.ime_rect != Some(ime_rect) {
-                    self.ime_rect = Some(ime_rect);
-                    crate::profile_scope!("set_ime_cursor_area");
-                    self.egui_ctx
-                        .send_viewport_cmd_to(self.viewport_id, ViewportCommand::IMERect(ime_rect));
-                }
+            if has_ime_event || self.ime_rect != Some(ime_rect) {
+                crate::profile_scope!("set_ime_cursor_area");
+                self.egui_ctx
+                    .send_viewport_cmd_to(self.viewport_id, ViewportCommand::IMERect(ime_rect));
             }
         } else {
             self.ime_rect = None;
