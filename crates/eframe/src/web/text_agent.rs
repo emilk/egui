@@ -22,6 +22,7 @@ impl TextAgent {
             .create_element("input")?
             .dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
+        input.set_autofocus(true);
 
         // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
