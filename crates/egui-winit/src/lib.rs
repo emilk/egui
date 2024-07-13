@@ -848,6 +848,7 @@ impl State {
             });
 
             if has_ime_event || self.ime_rect != Some(ime_rect) {
+                self.ime_rect = Some(ime_rect);
                 crate::profile_scope!("set_ime_cursor_area");
                 self.egui_ctx
                     .send_viewport_cmd_to(self.viewport_id, ViewportCommand::IMERect(ime_rect));
