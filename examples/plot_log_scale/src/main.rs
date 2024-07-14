@@ -117,23 +117,49 @@ impl eframe::App for PlotExample {
 #[allow(clippy::needless_pass_by_value)]
 fn log_axis_spacer(input: GridInput) -> Vec<GridMark> {
     let (min, max) = input.bounds;
+    let min_decade = min.floor().max(-300.0) as i32;
+    let max_decade = max.ceil().min(300.0) as i32;
+    let span = max_decade - min_decade;
     let mut marks = vec![];
-    for i in min.floor() as i32..=max.ceil() as i32 {
-        marks.extend(
-            (10..100)
-                .map(|j| {
-                    let value = i as f64 + (j as f64).log10() - 1.0;
-                    let step_size = if j == 10 {
-                        1.0
-                    } else if j % 10 == 0 {
-                        0.1
-                    } else {
-                        0.01
-                    };
-                    GridMark { value, step_size }
-                })
-                .filter(|gm| (min..=max).contains(&gm.value)),
-        );
+    for i in min_decade..=max_decade {
+        if span >= 100 {
+            let value = i as f64;
+            let step_size = if i % 10 == 0 { 10.0 } else { 1.0 };
+            let mark = GridMark { value, step_size };
+            marks.push(mark);
+        } else if span >= 10 {
+            marks.extend(
+                (1..10)
+                    .map(|j| {
+                        let value = i as f64 + (j as f64).log10();
+                        let step_size = if j == 1 && i % 10 == 0 {
+                            10.0
+                        } else if j == 1 {
+                            1.0
+                        } else {
+                            0.1
+                        };
+                        GridMark { value, step_size }
+                    })
+                    .filter(|gm| (min..=max).contains(&gm.value)),
+            );
+        } else {
+            marks.extend(
+                (10..100)
+                    .map(|j| {
+                        let value = i as f64 + (j as f64).log10() - 1.0;
+                        let step_size = if j == 10 {
+                            1.0
+                        } else if j % 10 == 0 {
+                            0.1
+                        } else {
+                            0.01
+                        };
+                        GridMark { value, step_size }
+                    })
+                    .filter(|gm| (min..=max).contains(&gm.value)),
+            );
+        }
     }
     marks
 }
