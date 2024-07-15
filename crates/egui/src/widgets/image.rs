@@ -445,7 +445,7 @@ impl ImageSize {
             (true, true) => SizeHint::Size(size.x.round() as u32, size.y.round() as u32),
             (true, false) => SizeHint::Width(size.x.round() as u32),
             (false, true) => SizeHint::Height(size.y.round() as u32),
-            (false, false) => SizeHint::Scale(1.0.ord()),
+            (false, false) => SizeHint::Scale(pixels_per_point.ord()),
         }
     }
 
