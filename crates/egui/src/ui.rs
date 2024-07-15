@@ -2389,6 +2389,58 @@ impl Ui {
         result
     }
 
+    /// Temporarily split a [`Ui`] into several columns.
+    ///
+    /// The same as [`Self::columns()`], but uses a constant for the column count.
+    /// This allows for compile-time bounds checking, and makes the compiler happy.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.columns_const(|[col_1, col_2]| {
+    ///     col_1.label("First column");
+    ///     col_2.label("Second column");
+    /// });
+    /// # });
+    /// ```
+    #[inline]
+    pub fn columns_const<const NUM_COL: usize, R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut [Self; NUM_COL]) -> R,
+    ) -> R {
+        // TODO(emilk): ensure there is space
+        let spacing = self.spacing().item_spacing.x;
+        let total_spacing = spacing * (NUM_COL as f32 - 1.0);
+        let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
+        let top_left = self.cursor().min;
+
+        let mut columns = std::array::from_fn(|col_idx| {
+            let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+            let child_rect = Rect::from_min_max(
+                pos,
+                pos2(pos.x + column_width, self.max_rect().right_bottom().y),
+            );
+            let mut column_ui =
+                self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
+            column_ui.set_width(column_width);
+            column_ui
+        });
+        let result = add_contents(&mut columns);
+
+        let mut max_column_width = column_width;
+        let mut max_height = 0.0;
+        for column in &columns {
+            max_column_width = max_column_width.max(column.min_rect().width());
+            max_height = column.min_size().y.max(max_height);
+        }
+
+        // Make sure we fit everything next frame:
+        let total_required_width = total_spacing + max_column_width * (NUM_COL as f32);
+
+        let size = vec2(self.available_width().max(total_required_width), max_height);
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        result
+    }
+
     /// Create something that can be drag-and-dropped.
     ///
     /// The `id` needs to be globally unique.
