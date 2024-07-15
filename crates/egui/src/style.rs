@@ -727,7 +727,7 @@ pub struct Interaction {
 
     /// Can the user select text that span multiple labels?
     ///
-    /// The default is `true`, but text seelction can be slightly glitchy,
+    /// The default is `true`, but text selection can be slightly glitchy,
     /// so you may want to disable it.
     pub multi_widget_text_select: bool,
 }

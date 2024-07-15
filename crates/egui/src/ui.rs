@@ -1144,6 +1144,7 @@ impl Ui {
     }
 
     /// Allocated the given rectangle and then adds content to that rectangle.
+    ///
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
@@ -2389,6 +2390,58 @@ impl Ui {
         result
     }
 
+    /// Temporarily split a [`Ui`] into several columns.
+    ///
+    /// The same as [`Self::columns()`], but uses a constant for the column count.
+    /// This allows for compile-time bounds checking, and makes the compiler happy.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.columns_const(|[col_1, col_2]| {
+    ///     col_1.label("First column");
+    ///     col_2.label("Second column");
+    /// });
+    /// # });
+    /// ```
+    #[inline]
+    pub fn columns_const<const NUM_COL: usize, R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut [Self; NUM_COL]) -> R,
+    ) -> R {
+        // TODO(emilk): ensure there is space
+        let spacing = self.spacing().item_spacing.x;
+        let total_spacing = spacing * (NUM_COL as f32 - 1.0);
+        let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
+        let top_left = self.cursor().min;
+
+        let mut columns = std::array::from_fn(|col_idx| {
+            let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+            let child_rect = Rect::from_min_max(
+                pos,
+                pos2(pos.x + column_width, self.max_rect().right_bottom().y),
+            );
+            let mut column_ui =
+                self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
+            column_ui.set_width(column_width);
+            column_ui
+        });
+        let result = add_contents(&mut columns);
+
+        let mut max_column_width = column_width;
+        let mut max_height = 0.0;
+        for column in &columns {
+            max_column_width = max_column_width.max(column.min_rect().width());
+            max_height = column.min_size().y.max(max_height);
+        }
+
+        // Make sure we fit everything next frame:
+        let total_required_width = total_spacing + max_column_width * (NUM_COL as f32);
+
+        let size = vec2(self.available_width().max(total_required_width), max_height);
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        result
+    }
+
     /// Create something that can be drag-and-dropped.
     ///
     /// The `id` needs to be globally unique.
@@ -2543,16 +2596,19 @@ impl Ui {
     /// If called from within a menu this will instead create a button for a sub-menu.
     ///
     /// ```ignore
+    /// # egui::__run_test_ui(|ui| {
     /// let img = egui::include_image!("../assets/ferris.png");
     ///
-    /// ui.menu_image_button(img, |ui| {
+    /// ui.menu_image_button(title, img, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
     ///             ui.close_menu();
     ///         }
     ///     });
     /// });
+    /// # });
     /// ```
+    ///
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
@@ -2564,7 +2620,41 @@ impl Ui {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::menu_image_button(self, ImageButton::new(image), add_contents)
+            menu::menu_custom_button(self, Button::image(image), add_contents)
+        }
+    }
+
+    /// Create a menu button with an image and a text that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let img = egui::include_image!("../assets/ferris.png");
+    /// let title = "My Menu";
+    ///
+    /// ui.menu_image_text_button(img, title, |ui| {
+    ///     ui.menu_button("My sub-menu", |ui| {
+    ///         if ui.button("Close the menu").clicked() {
+    ///             ui.close_menu();
+    ///         }
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    #[inline]
+    pub fn menu_image_text_button<'a, R>(
+        &mut self,
+        image: impl Into<Image<'a>>,
+        title: impl Into<WidgetText>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, title, add_contents)
+        } else {
+            menu::menu_custom_button(self, Button::image_and_text(image, title), add_contents)
         }
     }
 }
@@ -2599,64 +2689,11 @@ fn register_rect(ui: &Ui, rect: Rect) {
         return;
     }
 
-    if ui.ctx().frame_state(|o| o.has_debug_viewed_this_frame) {
-        return;
-    }
-
     if !ui.rect_contains_pointer(rect) {
         return;
     }
 
-    // We only show one debug rectangle, or things get confusing:
-    ui.ctx()
-        .frame_state_mut(|o| o.has_debug_viewed_this_frame = true);
-
-    // ----------------------------------------------
-
     let is_clicking = ui.input(|i| i.pointer.could_any_button_be_click());
-
-    // Use the debug-painter to avoid clip rect,
-    // otherwise the content of the widget may cover what we paint here!
-    let painter = ui.ctx().debug_painter();
-
-    // Paint rectangle around widget:
-    {
-        // Print width and height:
-        let text_color = if ui.visuals().dark_mode {
-            Color32::WHITE
-        } else {
-            Color32::BLACK
-        };
-        painter.debug_text(
-            rect.left_center() + 2.0 * Vec2::LEFT,
-            Align2::RIGHT_CENTER,
-            text_color,
-            format!("H: {:.1}", rect.height()),
-        );
-        painter.debug_text(
-            rect.center_top(),
-            Align2::CENTER_BOTTOM,
-            text_color,
-            format!("W: {:.1}", rect.width()),
-        );
-
-        // Paint rect:
-        let rect_fg_color = if is_clicking {
-            Color32::WHITE
-        } else {
-            Color32::LIGHT_BLUE
-        };
-        let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
-        painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
-    }
-
-    // ----------------------------------------------
-
-    if debug.hover_shows_next {
-        ui.placer.debug_paint_cursor(&painter, "next");
-    }
-
-    // ----------------------------------------------
 
     #[cfg(feature = "callstack")]
     let callstack = crate::callstack::capture();
@@ -2664,45 +2701,38 @@ fn register_rect(ui: &Ui, rect: Rect) {
     #[cfg(not(feature = "callstack"))]
     let callstack = String::default();
 
-    if !callstack.is_empty() {
-        let font_id = FontId::monospace(12.0);
-        let text = format!("{callstack}\n\n(click to copy)");
-        let text_color = Color32::WHITE;
-        let galley = painter.layout_no_wrap(text, font_id, text_color);
+    // We only show one debug rectangle, or things get confusing:
+    let debug_rect = frame_state::DebugRect {
+        rect,
+        callstack,
+        is_clicking,
+    };
 
-        // Position the text either under or above:
-        let screen_rect = ui.ctx().screen_rect();
-        let y = if galley.size().y <= rect.top() {
-            // Above
-            rect.top() - galley.size().y - 16.0
+    let mut kept = false;
+    ui.ctx().frame_state_mut(|fs| {
+        if let Some(final_debug_rect) = &mut fs.debug_rect {
+            // or maybe pick the one with deepest callstack?
+            if final_debug_rect.rect.contains_rect(rect) {
+                *final_debug_rect = debug_rect;
+                kept = true;
+            }
         } else {
-            // Below
-            rect.bottom()
-        };
-
-        let y = y
-            .at_most(screen_rect.bottom() - galley.size().y)
-            .at_least(0.0);
-
-        let x = rect
-            .left()
-            .at_most(screen_rect.right() - galley.size().x)
-            .at_least(0.0);
-        let text_pos = pos2(x, y);
-
-        let text_bg_color = Color32::from_black_alpha(180);
-        let text_rect_stroke_color = if is_clicking {
-            Color32::WHITE
-        } else {
-            text_bg_color
-        };
-        let text_rect = Rect::from_min_size(text_pos, galley.size());
-        painter.rect(text_rect, 0.0, text_bg_color, (1.0, text_rect_stroke_color));
-        painter.galley(text_pos, galley, text_color);
-
-        if ui.input(|i| i.pointer.any_click()) {
-            ui.ctx().copy_text(callstack);
+            fs.debug_rect = Some(debug_rect);
+            kept = true;
         }
+    });
+    if !kept {
+        return;
+    }
+
+    // ----------------------------------------------
+
+    // Use the debug-painter to avoid clip rect,
+    // otherwise the content of the widget may cover what we paint here!
+    let painter = ui.ctx().debug_painter();
+
+    if debug.hover_shows_next {
+        ui.placer.debug_paint_cursor(&painter, "next");
     }
 }
 

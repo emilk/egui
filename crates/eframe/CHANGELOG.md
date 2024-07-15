@@ -7,6 +7,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.1 - 2024-07-05
+* Web: only capture clicks/touches when actually over canvas [#4775](https://github.com/emilk/egui/pull/4775) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.28.0 - 2024-07-03 - Better integration of a eframe in a bigger website
 ### ✨ Highlights
 The eframe web canvas now works properly when its a small part of a larger web page.

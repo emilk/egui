@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
 ## 0.28.0 - 2024-07-03
 * Fix `hex_color!` macro by re-exporting `color_hex` crate from `ecolor` [#4372](https://github.com/emilk/egui/pull/4372) by [@dataphract](https://github.com/dataphract)
 * Remove `extra_asserts` and `extra_debug_asserts` feature flags [#4478](https://github.com/emilk/egui/pull/4478) by [@emilk](https://github.com/emilk)

@@ -185,7 +185,7 @@ impl Default for TableScrollOptions {
             scroll_to_row: None,
             scroll_offset_y: None,
             min_scrolled_height: 200.0,
-            max_scroll_height: 800.0,
+            max_scroll_height: f32::INFINITY,
             auto_shrink: Vec2b::TRUE,
             scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
         }
@@ -1254,6 +1254,12 @@ impl<'a, 'b> TableRow<'a, 'b> {
     #[inline]
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
+    }
+
+    /// Set the hovered highlight state for cells added after a call to this function.
+    #[inline]
+    pub fn set_hovered(&mut self, hovered: bool) {
+        self.hovered = hovered;
     }
 
     /// Returns a union of the [`Response`]s of the cells added to the row up to this point.

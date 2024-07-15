@@ -105,17 +105,35 @@ pub fn menu_button<R>(
     stationary_menu_impl(ui, title, Box::new(add_contents))
 }
 
+/// Construct a top level menu with a custom button in a menu bar.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_custom_button<R>(
+    ui: &mut Ui,
+    button: Button<'_>,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_button_impl(ui, button, Box::new(add_contents))
+}
+
 /// Construct a top level menu with an image in a menu bar. This would be e.g. "File", "Edit" etc.
 ///
 /// Responds to primary clicks.
 ///
 /// Returns `None` if the menu is not open.
+#[deprecated = "Use `menu_custom_button` instead"]
 pub fn menu_image_button<R>(
     ui: &mut Ui,
     image_button: ImageButton<'_>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
-    stationary_menu_image_impl(ui, image_button, Box::new(add_contents))
+    stationary_menu_button_impl(
+        ui,
+        Button::image(image_button.image),
+        Box::new(add_contents),
+    )
 }
 
 /// Construct a nested sub menu in another menu.
@@ -226,15 +244,15 @@ fn stationary_menu_impl<'c, R>(
 /// Build a top level menu with an image button.
 ///
 /// Responds to primary clicks.
-fn stationary_menu_image_impl<'c, R>(
+fn stationary_menu_button_impl<'c, R>(
     ui: &mut Ui,
-    image_button: ImageButton<'_>,
+    button: Button<'_>,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
     let bar_id = ui.id();
 
     let mut bar_state = BarState::load(ui.ctx(), bar_id);
-    let button_response = ui.add(image_button);
+    let button_response = ui.add(button);
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
     bar_state.store(ui.ctx(), bar_id);

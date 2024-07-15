@@ -79,12 +79,22 @@ pub fn show_tooltip_at_pointer<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     ctx.input(|i| i.pointer.hover_pos()).map(|pointer_pos| {
-        show_tooltip_at(
+        let allow_placing_below = true;
+
+        // Add a small exclusion zone around the pointer to avoid tooltips
+        // covering what we're hovering over.
+        let mut exclusion_rect = Rect::from_center_size(pointer_pos, Vec2::splat(24.0));
+
+        // Keep the left edge of the tooltip in line with the cursor:
+        exclusion_rect.min.x = pointer_pos.x;
+
+        show_tooltip_at_dyn(
             ctx,
             parent_layer,
             widget_id,
-            pointer_pos + vec2(16.0, 16.0),
-            add_contents,
+            allow_placing_below,
+            &exclusion_rect,
+            Box::new(add_contents),
         )
     })
 }

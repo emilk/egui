@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.1 - 2024-07-05
+Nothing new
+
+
 ## 0.28.0 - 2024-07-03
 * Update `webbrowser` to `v1.0.0` [#4394](https://github.com/emilk/egui/pull/4394) by [@torokati44](https://github.com/torokati44)
 * Emit physical key presses when a non-Latin layout is active [#4461](https://github.com/emilk/egui/pull/4461) by [@TicClick](https://github.com/TicClick)

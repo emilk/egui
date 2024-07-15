@@ -1165,7 +1165,7 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "ecolor"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1177,7 +1177,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1216,7 +1216,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1233,7 +1233,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "accesskit_winit",
  "ahash",
@@ -1270,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -1295,7 +1295,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "chrono",
  "criterion",
@@ -1310,7 +1310,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ahash",
  "chrono",
@@ -1329,7 +1329,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1350,7 +1350,7 @@ dependencies = [
 
 [[package]]
 name = "egui_plot"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ahash",
  "document-features",
@@ -1381,7 +1381,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "emath"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1456,7 +1456,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -2886,7 +2886,7 @@ checksum = "22686f4785f02a4fcc856d3b3bb19bf6c8160d103f7a99cc258bddd0251dc7f2"
 
 [[package]]
 name = "popups"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "eframe",
  "env_logger",
@@ -4816,7 +4816,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.28.0"
+version = "0.28.1"
 
 [[package]]
 name = "yaml-rust"

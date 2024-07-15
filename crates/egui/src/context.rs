@@ -146,7 +146,7 @@ impl ContextImpl {
 
     fn request_repaint_after(
         &mut self,
-        delay: Duration,
+        mut delay: Duration,
         viewport_id: ViewportId,
         cause: RepaintCause,
     ) {
@@ -161,6 +161,11 @@ impl ContextImpl {
             // otherwise we would just schedule an immediate repaint _now_,
             // which would then clear the delay and repaint again.
             // Hovering a tooltip is a good example of a case where we want to repaint after a delay.
+        }
+
+        if let Ok(predicted_frame_time) = Duration::try_from_secs_f32(viewport.input.predicted_dt) {
+            // Make it less likely we over-shoot the target:
+            delay = delay.saturating_sub(predicted_frame_time);
         }
 
         viewport.repaint.causes.push(cause);
@@ -771,7 +776,7 @@ impl Context {
 
         self.write(|ctx| ctx.begin_frame_mut(new_input));
 
-        // Plugs run just after the frame has started:
+        // Plugins run just after the frame has started:
         self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
     }
 }
@@ -1442,6 +1447,16 @@ impl Context {
         self.request_repaint_after_for(duration, self.viewport_id());
     }
 
+    /// Repaint after this many seconds.
+    ///
+    /// See [`Self::request_repaint_after`] for details.
+    #[track_caller]
+    pub fn request_repaint_after_secs(&self, seconds: f32) {
+        if let Ok(duration) = std::time::Duration::try_from_secs_f32(seconds) {
+            self.request_repaint_after(duration);
+        }
+    }
+
     /// Request repaint after at most the specified duration elapses.
     ///
     /// The backend can chose to repaint sooner, for instance if some other code called
@@ -1941,6 +1956,10 @@ impl Context {
             for widget in &drag {
                 paint_widget(widget, "drag", Color32::GREEN);
             }
+        }
+
+        if let Some(debug_rect) = self.frame_state_mut(|fs| fs.debug_rect.take()) {
+            debug_rect.paint(&self.debug_painter());
         }
     }
 }

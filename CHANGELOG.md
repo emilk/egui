@@ -7,6 +7,22 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.28.1 - 2024-07-05 - Tooltip tweaks
+### ⭐ Added
+* Add `Image::uri()` [#4720](https://github.com/emilk/egui/pull/4720) by [@rustbasic](https://github.com/rustbasic)
+
+### 🔧 Changed
+* Better documentation for `Event::Zoom` [#4778](https://github.com/emilk/egui/pull/4778) by [@emilk](https://github.com/emilk)
+* Hide tooltips when scrolling [#4784](https://github.com/emilk/egui/pull/4784) by [@emilk](https://github.com/emilk)
+* Smoother animations [#4787](https://github.com/emilk/egui/pull/4787) by [@emilk](https://github.com/emilk)
+* Hide tooltip on click [#4789](https://github.com/emilk/egui/pull/4789) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Fix default height of top/bottom panels [#4779](https://github.com/emilk/egui/pull/4779) by [@emilk](https://github.com/emilk)
+* Show the innermost debug rectangle when pressing all modifier keys [#4782](https://github.com/emilk/egui/pull/4782) by [@emilk](https://github.com/emilk)
+* Fix occasional flickering of pointer-tooltips [#4788](https://github.com/emilk/egui/pull/4788) by [@emilk](https://github.com/emilk)
+
+
 ## 0.28.0 - 2024-07-03 - Sizing pass, `UiStack` and GIF support
 ### ✨ Highlights
 * Automatic sizing of menus/popups/tooltips with no jittering, using new _sizing pass_ [#4557](https://github.com/emilk/egui/pull/4557), [#4579](https://github.com/emilk/egui/pull/4579) by [@emilk](https://github.com/emilk)

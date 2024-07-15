@@ -611,27 +611,47 @@ impl Response {
             return false;
         }
 
+        let style = self.ctx.style();
+
+        let tooltip_delay = style.interaction.tooltip_delay;
+        let tooltip_grace_time = style.interaction.tooltip_grace_time;
+
+        let (
+            time_since_last_scroll,
+            time_since_last_click,
+            time_since_last_pointer_movement,
+            pointer_pos,
+            pointer_dir,
+        ) = self.ctx.input(|i| {
+            (
+                i.time_since_last_scroll(),
+                i.pointer.time_since_last_click(),
+                i.pointer.time_since_last_movement(),
+                i.pointer.hover_pos(),
+                i.pointer.direction(),
+            )
+        });
+
+        if time_since_last_scroll < tooltip_delay {
+            // See https://github.com/emilk/egui/issues/4781
+            // Note that this means we cannot have `ScrollArea`s in a tooltip.
+            self.ctx
+                .request_repaint_after_secs(tooltip_delay - time_since_last_scroll);
+            return false;
+        }
+
         let is_our_tooltip_open = self.is_tooltip_open();
 
         if is_our_tooltip_open {
-            let (pointer_pos, pointer_dir) = self
-                .ctx
-                .input(|i| (i.pointer.hover_pos(), i.pointer.direction()));
-
-            if let Some(pointer_pos) = pointer_pos {
-                if self.rect.contains(pointer_pos) {
-                    // Handle the case of a big tooltip that covers the widget:
-                    return true;
-                }
-            }
+            // Check if we should automatically stay open:
 
             let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
-            let layer_id = LayerId::new(Order::Tooltip, tooltip_id);
+            let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
                 vp.prev_frame
                     .widgets
-                    .get_layer(layer_id)
+                    .get_layer(tooltip_layer_id)
                     .any(|w| w.enabled && w.sense.interactive())
             });
 
@@ -644,14 +664,36 @@ impl Response {
                     let rect = area.rect();
 
                     if let Some(pos) = pointer_pos {
-                        let pointer_in_area_or_on_the_way_there = rect.contains(pos)
-                            || rect.intersects_ray(pos, pointer_dir.normalized());
-
-                        if pointer_in_area_or_on_the_way_there {
-                            return true;
+                        if rect.contains(pos) {
+                            return true; // hovering interactive tooltip
+                        }
+                        if pointer_dir != Vec2::ZERO
+                            && rect.intersects_ray(pos, pointer_dir.normalized())
+                        {
+                            return true; // on the way to interactive tooltip
                         }
                     }
                 }
+            }
+        }
+
+        let clicked_more_recently_than_moved =
+            time_since_last_click < time_since_last_pointer_movement + 0.1;
+        if clicked_more_recently_than_moved {
+            // It is common to click a widget and then rest the mouse there.
+            // It would be annoying to then see a tooltip for it immediately.
+            // Similarly, clicking should hide the existing tooltip.
+            // Only hovering should lead to a tooltip, not clicking.
+            // The offset is only to allow small movement just right after the click.
+            return false;
+        }
+
+        if is_our_tooltip_open {
+            // Check if we should automatically stay open:
+
+            if pointer_pos.is_some_and(|pointer_pos| self.rect.contains(pointer_pos)) {
+                // Handle the case of a big tooltip that covers the widget:
+                return true;
             }
         }
 
@@ -680,9 +722,6 @@ impl Response {
             return false;
         }
 
-        let tooltip_delay = self.ctx.style().interaction.tooltip_delay;
-        let tooltip_grace_time = self.ctx.style().interaction.tooltip_grace_time;
-
         // There is a tooltip_delay before showing the first tooltip,
         // but once one tooltips is show, moving the mouse cursor to
         // another widget should show the tooltip for that widget right away.
@@ -692,23 +731,26 @@ impl Response {
             crate::popup::seconds_since_last_tooltip(&self.ctx) < tooltip_grace_time;
 
         if !tooltip_was_recently_shown && !is_our_tooltip_open {
-            if self.ctx.style().interaction.show_tooltips_only_when_still {
+            if style.interaction.show_tooltips_only_when_still {
                 // We only show the tooltip when the mouse pointer is still.
-                if !self.ctx.input(|i| i.pointer.is_still()) {
+                if !self
+                    .ctx
+                    .input(|i| i.pointer.is_still() && i.smooth_scroll_delta == Vec2::ZERO)
+                {
                     // wait for mouse to stop
                     self.ctx.request_repaint();
                     return false;
                 }
             }
 
-            let time_til_tooltip =
-                tooltip_delay - self.ctx.input(|i| i.pointer.time_since_last_movement());
+            let time_since_last_interaction = time_since_last_scroll
+                .min(time_since_last_pointer_movement)
+                .min(time_since_last_click);
+            let time_til_tooltip = tooltip_delay - time_since_last_interaction;
 
             if 0.0 < time_til_tooltip {
                 // Wait until the mouse has been still for a while
-                if let Ok(duration) = std::time::Duration::try_from_secs_f32(time_til_tooltip) {
-                    self.ctx.request_repaint_after(duration);
-                }
+                self.ctx.request_repaint_after_secs(time_til_tooltip);
                 return false;
             }
         }

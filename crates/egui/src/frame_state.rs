@@ -47,6 +47,99 @@ pub struct AccessKitFrameState {
     pub parent_stack: Vec<Id>,
 }
 
+#[cfg(debug_assertions)]
+#[derive(Clone)]
+pub struct DebugRect {
+    pub rect: Rect,
+    pub callstack: String,
+    pub is_clicking: bool,
+}
+
+#[cfg(debug_assertions)]
+impl DebugRect {
+    pub fn paint(self, painter: &Painter) {
+        let Self {
+            rect,
+            callstack,
+            is_clicking,
+        } = self;
+
+        let ctx = painter.ctx();
+
+        // Paint rectangle around widget:
+        {
+            // Print width and height:
+            let text_color = if ctx.style().visuals.dark_mode {
+                Color32::WHITE
+            } else {
+                Color32::BLACK
+            };
+            painter.debug_text(
+                rect.left_center() + 2.0 * Vec2::LEFT,
+                Align2::RIGHT_CENTER,
+                text_color,
+                format!("H: {:.1}", rect.height()),
+            );
+            painter.debug_text(
+                rect.center_top(),
+                Align2::CENTER_BOTTOM,
+                text_color,
+                format!("W: {:.1}", rect.width()),
+            );
+
+            // Paint rect:
+            let rect_fg_color = if is_clicking {
+                Color32::WHITE
+            } else {
+                Color32::LIGHT_BLUE
+            };
+            let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
+            painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
+        }
+
+        if !callstack.is_empty() {
+            let font_id = FontId::monospace(12.0);
+            let text = format!("{callstack}\n\n(click to copy)");
+            let text_color = Color32::WHITE;
+            let galley = painter.layout_no_wrap(text, font_id, text_color);
+
+            // Position the text either under or above:
+            let screen_rect = ctx.screen_rect();
+            let y = if galley.size().y <= rect.top() {
+                // Above
+                rect.top() - galley.size().y - 16.0
+            } else {
+                // Below
+                rect.bottom()
+            };
+
+            let y = y
+                .at_most(screen_rect.bottom() - galley.size().y)
+                .at_least(0.0);
+
+            let x = rect
+                .left()
+                .at_most(screen_rect.right() - galley.size().x)
+                .at_least(0.0);
+            let text_pos = pos2(x, y);
+
+            let text_bg_color = Color32::from_black_alpha(180);
+            let text_rect_stroke_color = if is_clicking {
+                Color32::WHITE
+            } else {
+                text_bg_color
+            };
+            let text_rect = Rect::from_min_size(text_pos, galley.size());
+            painter.rect(text_rect, 0.0, text_bg_color, (1.0, text_rect_stroke_color));
+            painter.galley(text_pos, galley, text_color);
+
+            if is_clicking {
+                ctx.copy_text(callstack);
+            }
+        }
+    }
+}
+
 /// State that is collected during a frame, then saved for the next frame,
 /// and then cleared.
 ///
@@ -99,7 +192,7 @@ pub struct FrameState {
     pub highlight_next_frame: IdSet,
 
     #[cfg(debug_assertions)]
-    pub has_debug_viewed_this_frame: bool,
+    pub debug_rect: Option<DebugRect>,
 }
 
 impl Default for FrameState {
@@ -119,7 +212,7 @@ impl Default for FrameState {
             highlight_next_frame: Default::default(),
 
             #[cfg(debug_assertions)]
-            has_debug_viewed_this_frame: false,
+            debug_rect: None,
         }
     }
 }
@@ -142,7 +235,7 @@ impl FrameState {
             highlight_next_frame,
 
             #[cfg(debug_assertions)]
-            has_debug_viewed_this_frame,
+            debug_rect,
         } = self;
 
         used_ids.clear();
@@ -157,7 +250,7 @@ impl FrameState {
 
         #[cfg(debug_assertions)]
         {
-            *has_debug_viewed_this_frame = false;
+            *debug_rect = None;
         }
 
         #[cfg(feature = "accesskit")]

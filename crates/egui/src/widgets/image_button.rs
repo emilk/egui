@@ -4,7 +4,7 @@ use crate::*;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
 pub struct ImageButton<'a> {
-    image: Image<'a>,
+    pub(crate) image: Image<'a>,
     sense: Sense,
     frame: bool,
     selected: bool,

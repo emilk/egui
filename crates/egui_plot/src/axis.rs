@@ -115,7 +115,7 @@ impl<'a> AxisHints<'a> {
         Self::new(Axis::X)
     }
 
-    /// Initializes a default axis configuration for the X axis.
+    /// Initializes a default axis configuration for the Y axis.
     pub fn new_y() -> Self {
         Self::new(Axis::Y)
     }
@@ -232,7 +232,7 @@ pub(super) struct AxisWidget<'a> {
 }
 
 impl<'a> AxisWidget<'a> {
-    /// if `rect` as width or height == 0, is will be automatically calculated from ticks and text.
+    /// if `rect` has width or height == 0, it will be automatically calculated from ticks and text.
     pub fn new(hints: AxisHints<'a>, rect: Rect) -> Self {
         Self {
             range: (0.0..=0.0),

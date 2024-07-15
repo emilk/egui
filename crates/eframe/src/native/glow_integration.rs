@@ -184,7 +184,12 @@ impl GlowWinitApp {
             }))
         };
 
-        let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)?;
+        let painter = egui_glow::Painter::new(
+            gl,
+            "",
+            native_options.shader_version,
+            native_options.dithering,
+        )?;
 
         Ok((glutin_window_context, painter))
     }
@@ -583,6 +588,7 @@ impl GlowWinitRunning {
             let GlutinWindowContext {
                 viewports,
                 current_gl_context,
+                not_current_gl_context,
                 ..
             } = &mut *glutin;
             let viewport = &viewports[&viewport_id];
@@ -597,7 +603,7 @@ impl GlowWinitRunning {
 
             {
                 frame_timer.pause();
-                change_gl_context(current_gl_context, gl_surface);
+                change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
                 frame_timer.resume();
             }
 
@@ -640,6 +646,7 @@ impl GlowWinitRunning {
         let GlutinWindowContext {
             viewports,
             current_gl_context,
+            not_current_gl_context,
             ..
         } = &mut *glutin;
 
@@ -659,7 +666,7 @@ impl GlowWinitRunning {
         {
             // We may need to switch contexts again, because of immediate viewports:
             frame_timer.pause();
-            change_gl_context(current_gl_context, gl_surface);
+            change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
             frame_timer.resume();
         }
 
@@ -861,6 +868,7 @@ impl GlowWinitRunning {
 
 fn change_gl_context(
     current_gl_context: &mut Option<glutin::context::PossiblyCurrentContext>,
+    not_current_gl_context: &mut Option<glutin::context::NotCurrentContext>,
     gl_surface: &glutin::surface::Surface<glutin::surface::WindowSurface>,
 ) {
     crate::profile_function!();
@@ -879,7 +887,9 @@ fn change_gl_context(
         }
     }
 
-    let not_current = {
+    let not_current = if let Some(not_current_context) = not_current_gl_context.take() {
+        not_current_context
+    } else {
         crate::profile_scope!("make_not_current");
         current_gl_context
             .take()
@@ -1222,7 +1232,11 @@ impl GlutinWindowContext {
 
         if let Some(viewport) = self.viewports.get(&viewport_id) {
             if let Some(gl_surface) = &viewport.gl_surface {
-                change_gl_context(&mut self.current_gl_context, gl_surface);
+                change_gl_context(
+                    &mut self.current_gl_context,
+                    &mut self.not_current_gl_context,
+                    gl_surface,
+                );
                 gl_surface.resize(
                     self.current_gl_context
                         .as_ref()
@@ -1454,6 +1468,7 @@ fn render_immediate_viewport(
 
     let GlutinWindowContext {
         current_gl_context,
+        not_current_gl_context,
         viewports,
         ..
     } = &mut *glutin;
@@ -1474,7 +1489,7 @@ fn render_immediate_viewport(
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-    change_gl_context(current_gl_context, gl_surface);
+    change_gl_context(current_gl_context, not_current_gl_context, gl_surface);
 
     let current_gl_context = current_gl_context.as_ref().unwrap();
 
