@@ -138,7 +138,10 @@
             const handle_one = new wasm_bindgen.WebHandle();
             const handle_two = new wasm_bindgen.WebHandle();
 
-            Promise.all([handle_one.start("canvas_id_one"), handle_two.start("canvas_id_two")]).then((handles) => {
+            Promise.all([
+                handle_one.start(document.getElementById("canvas_id_one")),
+                handle_two.start(document.getElementById("canvas_id_two")),
+            ]).then((handles) => {
                 on_apps_started(handle_one, handle_two)
             }).catch(on_error);
         }

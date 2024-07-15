@@ -122,17 +122,6 @@ fn theme_from_dark_mode(dark_mode: bool) -> Theme {
     }
 }
 
-fn get_canvas_element_by_id(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
-    let document = web_sys::window()?.document()?;
-    let canvas = document.get_element_by_id(canvas_id)?;
-    canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
-}
-
-fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    get_canvas_element_by_id(canvas_id)
-        .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
-}
-
 /// Returns the canvas in client coordinates.
 fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     let bounding_rect = canvas.get_bounding_client_rect();
