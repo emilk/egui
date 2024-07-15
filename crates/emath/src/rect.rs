@@ -199,8 +199,8 @@ impl Rect {
 
     /// Scale up by this factor in each direction, keeping the center
     #[must_use]
-    pub fn scale_from_center2(self, scale: Vec2) -> Self {
-        Self::from_center_size(self.center(), self.size() * scale)
+    pub fn scale_from_center2(self, scale_factor: Vec2) -> Self {
+        Self::from_center_size(self.center(), self.size() * scale_factor)
     }
 
     /// Shrink by this much in each direction, keeping the center
