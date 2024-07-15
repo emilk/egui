@@ -1060,15 +1060,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "custom_plot_manipulation"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_plot",
- "env_logger",
-]
-
-[[package]]
 name = "custom_window_frame"
 version = "0.1.0"
 dependencies = [
@@ -1302,7 +1293,6 @@ dependencies = [
  "document-features",
  "egui",
  "egui_extras",
- "egui_plot",
  "log",
  "serde",
  "unicode_names2",
@@ -1346,17 +1336,6 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "winit",
-]
-
-[[package]]
-name = "egui_plot"
-version = "0.28.1"
-dependencies = [
- "ahash",
- "document-features",
- "egui",
- "emath",
- "serde",
 ]
 
 [[package]]
@@ -3286,17 +3265,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "save_plot"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_plot",
- "env_logger",
- "image",
- "rfd",
 ]
 
 [[package]]
