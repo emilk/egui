@@ -536,12 +536,12 @@ impl<'a> Slider<'a> {
             let end = *self.range.end();
             value = value.clamp(start.min(end), start.max(end));
         }
-        if let Some(max_decimals) = self.max_decimals {
-            value = emath::round_to_decimals(value, max_decimals);
-        }
         if let Some(step) = self.step {
             let start = *self.range.start();
             value = start + ((value - start) / step).round() * step;
+        }
+        if let Some(max_decimals) = self.max_decimals {
+            value = emath::round_to_decimals(value, max_decimals);
         }
         set(&mut self.get_set_value, value);
     }
