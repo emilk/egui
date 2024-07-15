@@ -223,7 +223,6 @@ def main() -> None:
         "ecolor",
         "eframe",
         "egui_extras",
-        "egui_plot",
         "egui_glow",
         "egui-wgpu",
         "egui-winit",
