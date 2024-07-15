@@ -193,13 +193,13 @@ impl Rect {
 
     /// Scale up by this factor in each direction, keeping the center
     #[must_use]
-    pub fn scale(self, amnt: f32) -> Self {
-        self.scale2(Vec2::splat(amnt))
+    pub fn scale_from_center(self, amnt: f32) -> Self {
+        self.scale_from_center2(Vec2::splat(amnt))
     }
 
     /// Scale up by this factor in each direction, keeping the center
     #[must_use]
-    pub fn scale2(self, scale: Vec2) -> Self {
+    pub fn scale_from_center2(self, scale: Vec2) -> Self {
         Self::from_center_size(self.center(), self.size() * scale)
     }
 
@@ -730,10 +730,16 @@ mod tests {
         let c = pos2(100.0, 50.0);
         let r = Rect::from_center_size(c, vec2(30.0, 60.0));
 
-        assert_eq!(r.scale(2.0), Rect::from_center_size(c, vec2(60.0, 120.0)));
-        assert_eq!(r.scale(0.5), Rect::from_center_size(c, vec2(15.0, 30.0)));
         assert_eq!(
-            r.scale2(vec2(2.0, 3.0)),
+            r.scale_from_center(2.0),
+            Rect::from_center_size(c, vec2(60.0, 120.0))
+        );
+        assert_eq!(
+            r.scale_from_center(0.5),
+            Rect::from_center_size(c, vec2(15.0, 30.0))
+        );
+        assert_eq!(
+            r.scale_from_center2(vec2(2.0, 3.0)),
             Rect::from_center_size(c, vec2(60.0, 180.0))
         );
     }
