@@ -193,8 +193,8 @@ impl Rect {
 
     /// Scale up by this factor in each direction, keeping the center
     #[must_use]
-    pub fn scale_from_center(self, amnt: f32) -> Self {
-        self.scale_from_center2(Vec2::splat(amnt))
+    pub fn scale_from_center(self, scale_factor: f32) -> Self {
+        self.scale_from_center2(Vec2::splat(scale_factor))
     }
 
     /// Scale up by this factor in each direction, keeping the center
