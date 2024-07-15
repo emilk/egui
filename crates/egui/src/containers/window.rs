@@ -69,8 +69,8 @@ impl<'open> Window<'open> {
 
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.area = self.area.id(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.area = self.area.id(id.into());
         self
     }
 

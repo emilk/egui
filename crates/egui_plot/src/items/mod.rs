@@ -200,8 +200,8 @@ impl HLine {
 
     /// Set the line's id which is used to identify it in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -348,8 +348,8 @@ impl VLine {
 
     /// Set the line's id which is used to identify it in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -504,8 +504,8 @@ impl Line {
 
     /// Set the line's id which is used to identify it in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -698,8 +698,8 @@ impl Polygon {
 
     /// Set the polygon's id which is used to identify it in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -836,8 +836,8 @@ impl Text {
 
     /// Set the text's id which is used to identify it in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -1013,8 +1013,8 @@ impl Points {
 
     /// Set the points' id which is used to identify them in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -1254,8 +1254,8 @@ impl Arrows {
 
     /// Set the arrows' id which is used to identify them in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -1678,8 +1678,8 @@ impl BarChart {
 
     /// Set the bar chart's id which is used to identify it in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
@@ -1852,8 +1852,8 @@ impl BoxPlot {
 
     /// Set the box plot's id which is used to identify it in the plot's response.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
-        self.id = Some(id);
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
         self
     }
 }
