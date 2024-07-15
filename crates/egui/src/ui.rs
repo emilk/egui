@@ -1144,6 +1144,7 @@ impl Ui {
     }
 
     /// Allocated the given rectangle and then adds content to that rectangle.
+    ///
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
@@ -2607,7 +2608,7 @@ impl Ui {
     /// });
     /// # });
     /// ```
-    ///     
+    ///
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]

@@ -106,7 +106,10 @@ impl Placer {
     /// This is what you then pass to `advance_after_rects`.
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_space(&self, child_size: Vec2, item_spacing: Vec2) -> Rect {
-        debug_assert!(child_size.is_finite() && child_size.x >= 0.0 && child_size.y >= 0.0);
+        debug_assert!(
+            0.0 <= child_size.x && 0.0 <= child_size.y,
+            "Negative child size: {child_size:?}"
+        );
         self.region.sanity_check();
         if let Some(grid) = &self.grid {
             grid.next_cell(self.region.cursor, child_size)
