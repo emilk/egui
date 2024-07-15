@@ -22,7 +22,6 @@ pub mod painting;
 pub mod pan_zoom;
 pub mod panels;
 pub mod password;
-pub mod plot_demo;
 pub mod scrolling;
 pub mod sliders;
 pub mod strip_demo;

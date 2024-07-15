@@ -6,7 +6,6 @@ members = [
     "crates/egui_demo_lib",
     "crates/egui_extras",
     "crates/egui_glow",
-    "crates/egui_plot",
     "crates/egui-wgpu",
     "crates/egui-winit",
     "crates/egui",
@@ -58,7 +57,6 @@ emath = { version = "0.28.1", path = "crates/emath", default-features = false }
 ecolor = { version = "0.28.1", path = "crates/ecolor", default-features = false }
 epaint = { version = "0.28.1", path = "crates/epaint", default-features = false }
 egui = { version = "0.28.1", path = "crates/egui", default-features = false }
-egui_plot = { version = "0.28.1", path = "crates/egui_plot", default-features = false }
 egui-winit = { version = "0.28.1", path = "crates/egui-winit", default-features = false }
 egui_extras = { version = "0.28.1", path = "crates/egui_extras", default-features = false }
 egui-wgpu = { version = "0.28.1", path = "crates/egui-wgpu", default-features = false }
