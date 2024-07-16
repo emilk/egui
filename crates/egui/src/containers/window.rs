@@ -91,8 +91,8 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Call this to programmatically expand, collapse, show, hide the window.
-    /// The Option value will be taken, so the option will be set to None.
+    /// Call this to programmatically expand/collapse or to show/hide the window.
+    /// The passed Option value will be taken, so the option will be set to None.
     #[inline]
     pub fn window_action(mut self, action: &mut Option<WindowAction>) -> Self {
         self.window_action = action.take();
@@ -477,8 +477,6 @@ impl<'open> Window<'open> {
         // Add border padding to the inner margin to prevent it from covering the contents
         window_frame.inner_margin += border_padding;
 
-        //let is_explicitly_closed = matches!(open, Some(false));
-        //let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
         let all_visible = ctx.memory(|mem| mem.everything_is_visible());
         let area_id = area.id;
 

@@ -66,14 +66,8 @@ impl CollapsingState {
         match action {
             WindowAction::Show => self.state.shown = true,
             WindowAction::Hide => self.state.shown = false,
-            WindowAction::Expand => {
-                self.state.shown = true;
-                self.state.expanded = true;
-            }
-            WindowAction::Collapse => {
-                self.state.shown = true;
-                self.state.expanded = true;
-            }
+            WindowAction::Expand => self.state.expanded = true,
+            WindowAction::Collapse => self.state.expanded = false,
             WindowAction::ToggleShow => {
                 self.state.shown = !self.state.shown;
             }
@@ -309,7 +303,7 @@ pub struct HeaderResponse<'ui, HeaderRet> {
 }
 
 impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
-    #[deprecated = "Use het `HeaderResponse::is_expanded`"]
+    #[deprecated = "Use the `HeaderResponse::is_expanded` instead"]
     pub fn is_open(&self) -> bool {
         self.is_expanded()
     }

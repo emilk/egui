@@ -296,7 +296,8 @@ impl DemoWindows {
 
     /// Show the open windows.
     fn show_windows(&mut self, ctx: &Context) {
-        self.about.show_action(ctx, &mut self.about_is_open, &mut self.about_window_action);
+        self.about
+            .show_action(ctx, &mut self.about_is_open, &mut self.about_window_action);
         self.demos.windows(ctx);
         self.tests.windows(ctx);
     }
