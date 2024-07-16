@@ -46,7 +46,9 @@ mod bytemuck_impl {
     use super::Vertex;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for Vertex {}
+    // Safety: empty impl
     unsafe impl Zeroable for Vertex {}
 }
 

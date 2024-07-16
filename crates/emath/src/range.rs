@@ -224,6 +224,8 @@ mod bytemuck_impl {
     use super::Rangef;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for Rangef {}
+    // Safety: empty impl
     unsafe impl Zeroable for Rangef {}
 }

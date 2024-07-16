@@ -256,6 +256,8 @@ mod bytemuck_impl {
     use super::Color32;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for Color32 {}
+    // Safety: empty impl
     unsafe impl Zeroable for Color32 {}
 }

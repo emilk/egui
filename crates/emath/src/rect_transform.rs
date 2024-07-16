@@ -87,6 +87,8 @@ mod bytemuck_impl {
     use super::RectTransform;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for RectTransform {}
+    // Safety: empty impl
     unsafe impl Zeroable for RectTransform {}
 }

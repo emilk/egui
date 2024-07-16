@@ -502,7 +502,9 @@ mod bytemuck_impl {
     use super::Vec2;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for Vec2 {}
+    // Safety: empty impl
     unsafe impl Zeroable for Vec2 {}
 }
 

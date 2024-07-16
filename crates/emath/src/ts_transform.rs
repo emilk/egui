@@ -150,6 +150,8 @@ mod bytemuck_impl {
     use super::TSTransform;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for TSTransform {}
+    // Safety: empty impl
     unsafe impl Zeroable for TSTransform {}
 }

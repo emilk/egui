@@ -343,6 +343,8 @@ mod bytemuck_impl {
     use super::Pos2;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for Pos2 {}
+    // Safety: empty impl
     unsafe impl Zeroable for Pos2 {}
 }

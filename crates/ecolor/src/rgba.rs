@@ -281,6 +281,8 @@ mod bytemuck_impl {
     use crate::Rgba;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for Rgba {}
+    // Safety: empty impl
     unsafe impl Zeroable for Rgba {}
 }

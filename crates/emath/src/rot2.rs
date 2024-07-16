@@ -183,7 +183,9 @@ mod bytemuck_impl {
     use super::Rot2;
     use bytemuck::{Pod, Zeroable};
 
+    // Safety: empty impl
     unsafe impl Pod for Rot2 {}
+    // Safety: empty impl
     unsafe impl Zeroable for Rot2 {}
 }
 
