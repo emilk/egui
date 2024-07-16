@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::collapsing_header::CollapsingState;
 use crate::*;
 use epaint::*;
+use serde::{Deserialize, Serialize};
 
 use super::*;
 
@@ -32,7 +33,9 @@ use super::*;
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,
+    window_action: Option<WindowAction>,
     open: Option<&'open mut bool>,
+    show_close_button: bool,
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
@@ -41,6 +44,18 @@ pub struct Window<'open> {
     default_open: bool,
     with_title_bar: bool,
     fade_out: bool,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub enum WindowAction {
+    Expand,
+    Collapse,
+    Show,
+    Hide,
+    /// Toggles between show and hide
+    ToggleShow,
+    /// Toggles between expand and collapse
+    ToggleExpand,
 }
 
 impl<'open> Window<'open> {
@@ -52,9 +67,10 @@ impl<'open> Window<'open> {
         let area = Area::new(Id::new(title.text())).kind(UiKind::Window);
         Self {
             title,
-            open: None,
             area,
             frame: None,
+            window_action: None,
+            open: None,
             resize: Resize::default()
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
@@ -64,6 +80,7 @@ impl<'open> Window<'open> {
             default_open: true,
             with_title_bar: true,
             fade_out: true,
+            show_close_button: false,
         }
     }
 
@@ -74,11 +91,29 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Call this to add a close-button to the window title bar.
-    ///
-    /// * If `*open == false`, the window will not be visible.
-    /// * If `*open == true`, the window will have a close button.
+    /// Call this to programmatically expand, collapse, show, hide the window.
+    /// The Option value will be taken, so the option will be set to None.
+    #[inline]
+    pub fn window_action(mut self, action: &mut Option<WindowAction>) -> Self {
+        self.window_action = action.take();
+        self
+    }
+
+    /// Set if you want to have a close/hide button on the window
+    #[inline]
+    pub fn with_close_button(mut self, value: bool) -> Self {
+        self.show_close_button = value;
+        self
+    }
+
+    /// Call this to add a close-button to the window title bar.          
+
+    ///                                                                   
+    /// * If `*open == false`, the window will not be visible.            
+    /// * If `*open == true`, the window will have a close button.        
     /// * If the close button is pressed, `*open` will be set to `false`.
+    ///
+    /// You can also use the none borrowing `Window::window_action` function instead.
     #[inline]
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
@@ -420,6 +455,7 @@ impl<'open> Window<'open> {
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
+            window_action,
             open,
             area,
             frame,
@@ -429,6 +465,7 @@ impl<'open> Window<'open> {
             default_open,
             with_title_bar,
             fade_out,
+            show_close_button,
         } = self;
 
         let header_color =
@@ -440,25 +477,37 @@ impl<'open> Window<'open> {
         // Add border padding to the inner margin to prevent it from covering the contents
         window_frame.inner_margin += border_padding;
 
-        let is_explicitly_closed = matches!(open, Some(false));
-        let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
+        //let is_explicitly_closed = matches!(open, Some(false));
+        //let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
+        let all_visible = ctx.memory(|mem| mem.everything_is_visible());
+        let area_id = area.id;
+
+        let mut collapsing =
+            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
+
+        if let Some(action) = &window_action {
+            collapsing.set_action(action);
+        } else if let Some(open) = open.as_ref() {
+            collapsing.set_shown(**open);
+        }
+
         let opacity = ctx.animate_bool_with_easing(
             area.id.with("fade-out"),
-            is_open,
+            collapsing.is_shown() || all_visible,
             emath::easing::cubic_out,
         );
+
         if opacity <= 0.0 {
             return None;
         }
 
-        let area_id = area.id;
         let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
-        let mut collapsing =
-            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
 
-        let is_collapsed = with_title_bar && !collapsing.is_open();
-        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
+        //println!("{collapsing:?}");
+
+        let is_expanded = with_title_bar && collapsing.is_expanded();
+        let possible = PossibleInteractions::new(&area, &resize, is_expanded);
 
         let resize = resize.resizable(false); // We resize it manually
         let mut resize = resize.id(resize_id);
@@ -506,10 +555,10 @@ impl<'open> Window<'open> {
         );
 
         let mut area_content_ui = area.content_ui(ctx);
-        if is_open {
-            // `Area` already takes care of fade-in animations,
-            // so we only need to handle fade-out animations here.
-        } else if fade_out {
+
+        // `Area` already takes care of fade-in animations,
+        // so we only need to handle fade-out animations here.
+        if !collapsing.is_expanded() && fade_out {
             area_content_ui.multiply_opacity(opacity);
         }
 
@@ -517,8 +566,6 @@ impl<'open> Window<'open> {
             // BEGIN FRAME --------------------------------
             let frame_stroke = window_frame.stroke;
             let mut frame = window_frame.begin(&mut area_content_ui);
-
-            let show_close_button = open.is_some();
 
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
@@ -560,6 +607,7 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
+
             paint_resize_corner(
                 &area_content_ui,
                 &possible,
@@ -587,7 +635,7 @@ impl<'open> Window<'open> {
                     // Eliminate the rounding gap between the title bar and the window frame
                     round -= border_padding;
 
-                    if !is_collapsed {
+                    if is_expanded {
                         round.se = 0.0;
                         round.sw = 0.0;
                     }
@@ -607,9 +655,9 @@ impl<'open> Window<'open> {
                     &mut area_content_ui,
                     title_rect,
                     &content_response,
-                    open,
                     &mut collapsing,
                     collapsible,
+                    show_close_button,
                 );
             }
 
@@ -622,11 +670,15 @@ impl<'open> Window<'open> {
 
         let full_response = area.end(ctx, area_content_ui);
 
-        let inner_response = InnerResponse {
+        // Resync if open & window_action are just together.
+        if let Some(open) = open {
+            *open = collapsing.is_shown();
+        }
+
+        Some(InnerResponse {
             inner: content_inner,
             response: full_response,
-        };
-        Some(inner_response)
+        })
     }
 }
 
@@ -691,11 +743,9 @@ struct PossibleInteractions {
 }
 
 impl PossibleInteractions {
-    fn new(area: &Area, resize: &Resize, is_collapsed: bool) -> Self {
+    fn new(area: &Area, resize: &Resize, is_expanded: bool) -> Self {
         let movable = area.is_enabled() && area.is_movable();
-        let resizable = resize
-            .is_resizable()
-            .and(area.is_enabled() && !is_collapsed);
+        let resizable = resize.is_resizable().and(area.is_enabled() && is_expanded);
         let pivot = area.get_pivot();
         Self {
             resize_left: resizable.x && (movable || pivot.x() != Align::LEFT),
@@ -1113,20 +1163,18 @@ impl TitleBar {
         ui: &mut Ui,
         outer_rect: Rect,
         content_response: &Option<Response>,
-        open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
+        show_closing_btn: bool,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
-        if let Some(open) = open {
-            // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked() {
-                *open = false;
-            }
+        // Add close button now that we know our full width:
+        if show_closing_btn && self.close_button_ui(ui).clicked() {
+            collapsing.set_action(&WindowAction::Hide);
         }
 
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());

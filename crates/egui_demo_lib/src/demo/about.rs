@@ -1,3 +1,6 @@
+use egui::WindowAction;
+use crate::demo::Demo;
+
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -19,6 +22,23 @@ impl crate::Demo for About {
                 self.ui(ui);
             });
     }
+}
+
+impl About {
+    pub fn show_action(&mut self, ctx: &egui::Context, open: &mut bool, action: &mut Option<WindowAction>) {
+        egui::Window::new(self.name())
+            .default_width(320.0)
+            .default_height(480.0)
+            .window_action(action)
+            .with_close_button(true)
+            .open(open)
+            .resizable([true, false])
+            .show(ctx, |ui| {
+                use crate::View as _;
+                self.ui(ui);
+            });
+    }
+
 }
 
 impl crate::View for About {

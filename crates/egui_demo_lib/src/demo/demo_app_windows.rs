@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use egui::WindowAction;
 use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
 
 use super::About;
@@ -168,6 +169,7 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoWindows {
     about_is_open: bool,
+    about_window_action: Option<WindowAction>,
     about: About,
     demos: Demos,
     tests: Tests,
@@ -177,6 +179,7 @@ impl Default for DemoWindows {
     fn default() -> Self {
         Self {
             about_is_open: true,
+            about_window_action: None,
             about: Default::default(),
             demos: Default::default(),
             tests: Default::default(),
@@ -284,6 +287,7 @@ impl DemoWindows {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 file_menu_button(ui);
+                self.window_action_buttons(ui);
             });
         });
 
@@ -292,7 +296,7 @@ impl DemoWindows {
 
     /// Show the open windows.
     fn show_windows(&mut self, ctx: &Context) {
-        self.about.show(ctx, &mut self.about_is_open);
+        self.about.show_action(ctx, &mut self.about_is_open, &mut self.about_window_action);
         self.demos.windows(ctx);
         self.tests.windows(ctx);
     }
@@ -313,6 +317,16 @@ impl DemoWindows {
                 }
             });
         });
+    }
+
+    fn window_action_buttons(&mut self, ui: &mut Ui) {
+        if ui.button("Toggle show/hide about").clicked() {
+            self.about_window_action = Some(WindowAction::ToggleShow);
+        }
+
+        if ui.button("Toggle expand/collapse about").clicked() {
+            self.about_window_action = Some(WindowAction::ToggleExpand);
+        }
     }
 }
 
