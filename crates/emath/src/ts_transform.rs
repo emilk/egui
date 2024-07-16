@@ -7,7 +7,6 @@ use crate::{Pos2, Rect, Vec2};
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct TSTransform {
     /// Scaling applied first, scaled around (0, 0).
     pub scaling: f32,
@@ -33,7 +32,7 @@ impl TSTransform {
 
     #[inline]
     /// Creates a new translation that first scales points around
-    /// `(0, 0)`, then translates them.  
+    /// `(0, 0)`, then translates them.
     pub fn new(translation: Vec2, scaling: f32) -> Self {
         Self {
             translation,
@@ -143,4 +142,14 @@ impl std::ops::Mul<Self> for TSTransform {
             translation: self.translation + self.scaling * rhs.translation,
         }
     }
+}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+mod bytemuck_impl {
+    use super::TSTransform;
+    use bytemuck::{Pod, Zeroable};
+
+    unsafe impl Pod for TSTransform {}
+    unsafe impl Zeroable for TSTransform {}
 }

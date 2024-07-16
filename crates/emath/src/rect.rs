@@ -21,7 +21,6 @@ use crate::*;
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rect {
     /// One of the corners of the rectangle, usually the left top one.
     pub min: Pos2,
@@ -732,6 +731,16 @@ impl Div<f32> for Rect {
             max: self.max / factor,
         }
     }
+}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+mod bytemuck_impl {
+    use super::Rect;
+    use bytemuck::{Pod, Zeroable};
+
+    unsafe impl Pod for Rect {}
+    unsafe impl Zeroable for Rect {}
 }
 
 #[cfg(test)]

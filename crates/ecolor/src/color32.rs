@@ -14,7 +14,6 @@ use crate::{
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
 
 impl std::ops::Index<usize> for Color32 {
@@ -249,4 +248,14 @@ impl Color32 {
             fast_round(lerp((self[3] as f32)..=(other[3] as f32), t)),
         )
     }
+}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+mod bytemuck_impl {
+    use super::Color32;
+    use bytemuck::{Pod, Zeroable};
+
+    unsafe impl Pod for Color32 {}
+    unsafe impl Zeroable for Color32 {}
 }

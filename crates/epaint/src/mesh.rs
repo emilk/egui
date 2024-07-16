@@ -8,7 +8,6 @@ use emath::*;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(not(feature = "unity"))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -27,7 +26,6 @@ pub struct Vertex {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(feature = "unity")]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
     /// (0,0) is the top left corner of the screen.
@@ -40,6 +38,16 @@ pub struct Vertex {
     /// (0, 0) is the top left corner of the texture.
     /// (1, 1) is the bottom right corner of the texture.
     pub uv: Pos2, // 64 bit
+}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+mod bytemuck_impl {
+    use super::Vertex;
+    use bytemuck::{Pod, Zeroable};
+
+    unsafe impl Pod for Vertex {}
+    unsafe impl Zeroable for Vertex {}
 }
 
 /// Textured triangles in two dimensions.

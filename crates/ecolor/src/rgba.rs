@@ -7,7 +7,6 @@ use crate::{
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rgba(pub(crate) [f32; 4]);
 
 impl std::ops::Index<usize> for Rgba {
@@ -274,4 +273,14 @@ impl std::ops::Mul<Rgba> for f32 {
             self * rgba[3],
         ])
     }
+}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+mod bytemuck_impl {
+    use crate::Rgba;
+    use bytemuck::{Pod, Zeroable};
+
+    unsafe impl Pod for Rgba {}
+    unsafe impl Zeroable for Rgba {}
 }
