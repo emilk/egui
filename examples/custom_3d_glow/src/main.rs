@@ -106,7 +106,7 @@ impl RotatingTriangle {
             let program = gl.create_program().expect("Cannot create program");
 
             let (vertex_shader_source, fragment_shader_source) = (
-                r#"
+                r"
                     const vec2 verts[3] = vec2[3](
                         vec2(0.0, 1.0),
                         vec2(-1.0, -1.0),
@@ -124,15 +124,15 @@ impl RotatingTriangle {
                         gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
                         gl_Position.x *= cos(u_angle);
                     }
-                "#,
-                r#"
+                ",
+                r"
                     precision mediump float;
                     in vec4 v_color;
                     out vec4 out_color;
                     void main() {
                         out_color = v_color;
                     }
-                "#,
+                ",
             );
 
             let shader_sources = [
