@@ -105,12 +105,6 @@ impl TextAgent {
         ime: Option<egui::output::IMEOutput>,
         canvas: &web_sys::HtmlCanvasElement,
     ) -> Result<(), JsValue> {
-        // Mobile keyboards don't follow the text input it's writing to,
-        // instead typically being fixed in place on the bottom of the screen,
-        // so don't bother moving the text agent on mobile.
-        if is_mobile() {
-            return Ok(());
-        }
 
         // Don't move the text agent unless the position actually changed:
         if self.prev_ime_output.get() == ime {
