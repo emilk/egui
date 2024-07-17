@@ -189,7 +189,7 @@ pub struct ViewportInfo {
     /// This should always be set, if known.
     ///
     /// On web this takes browser scaling into account,
-    /// and orresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
+    /// and corresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
     pub native_pixels_per_point: Option<f32>,
 
     /// Current monitor size in egui points.
