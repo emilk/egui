@@ -8,10 +8,10 @@
 use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
 
 use crate::{
-    color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
-    ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape, EllipseShape, Mesh,
-    PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke, StrokeKind, TextShape,
-    TextureId, Vertex, WHITE_UV,
+    color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, ArcPieShape,
+    CircleShape, ClippedPrimitive, ClippedShape, Color32, CornerRadiusF32, CubicBezierShape,
+    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Shape, Stroke,
+    StrokeKind, TextShape, TextureId, Vertex, WHITE_UV,
 };
 
 // ----------------------------------------------------------------------------
@@ -473,6 +473,59 @@ impl Path {
 
             n0 = n1;
         }
+    }
+
+    fn add_arc_pie(
+        &mut self,
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        closed: bool,
+    ) {
+        use std::f32::consts::TAU;
+
+        let num_segs = if radius <= 2.0 {
+            8
+        } else if radius <= 5.0 {
+            16
+        } else if radius < 18.0 {
+            32
+        } else if radius < 50.0 {
+            64
+        } else {
+            128
+        };
+
+        let angle = (end_angle - start_angle).clamp(-TAU + f32::EPSILON, TAU - f32::EPSILON);
+        let mut points = Vec::with_capacity(num_segs + 3);
+        let step = angle / num_segs as f32;
+        if closed {
+            points.push(center);
+        }
+        for i in 0..=num_segs {
+            let a = start_angle + step * i as f32;
+            points.push(pos2(
+                center.x + radius * a.cos(),
+                center.y + radius * a.sin(),
+            ));
+        }
+        if closed {
+            points.push(center);
+            self.add_line_loop(&points[..]);
+        } else {
+            self.add_open_points(&points[..]);
+        }
+    }
+
+    /// Add an arc line.
+    pub fn add_arc(&mut self, center: Pos2, radius: f32, start_angle: f32, end_angle: f32) {
+        self.add_arc_pie(center, radius, start_angle, end_angle, false);
+    }
+
+    /// Add a pie slice.
+    pub fn add_pie(&mut self, center: Pos2, radius: f32, start_angle: f32, end_angle: f32) {
+        self.add_arc_pie(center, radius, start_angle, end_angle, true);
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
@@ -1429,6 +1482,9 @@ impl Tessellator {
                     self.tessellate_shape(shape, out);
                 }
             }
+            Shape::ArcPie(arc_pie_shape) => {
+                self.tessellate_arc_pie(arc_pie_shape, out);
+            }
             Shape::Circle(circle) => {
                 self.tessellate_circle(circle, out);
             }
@@ -1478,6 +1534,74 @@ impl Tessellator {
             Shape::Callback(_) => {
                 panic!("Shape::Callback passed to Tessellator");
             }
+        }
+    }
+
+    /// Tessellate a single [`ArcPieShape`] into a [`Mesh`].
+    ///
+    /// * `arc_pie_shape`: the arc or pie to tessellate.
+    /// * `out`: triangles are appended to this.
+    pub fn tessellate_arc_pie(&mut self, arc_pie_shape: ArcPieShape, out: &mut Mesh) {
+        let ArcPieShape {
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            closed,
+            fill,
+            stroke,
+        } = arc_pie_shape;
+
+        if radius <= 0.0
+            || start_angle == end_angle
+            || stroke.width <= 0.0 && (!closed || fill == Color32::TRANSPARENT)
+        {
+            return;
+        }
+
+        if self.options.coarse_tessellation_culling
+            && !self
+                .clip_rect
+                .expand(radius + stroke.width)
+                .contains(center)
+        {
+            return;
+        }
+
+        // If the arc is a full circle, we can just use the circle function.
+        if (end_angle - start_angle).abs() >= std::f32::consts::TAU {
+            let stroke_color = match stroke.color {
+                ColorMode::Solid(color) => color,
+                ColorMode::UV(callback) => {
+                    // TODO: Currently, CircleShape does not support PathStroke.
+                    // As a workaround, the stroke color is set to the center color.
+                    // This needs to be revisited once CircleShape gains PathStroke support.
+                    callback(Rect::from_center_size(center, Vec2::splat(radius)), center)
+                }
+            };
+            let stroke = Stroke::new(stroke.width, stroke_color);
+            let circle = CircleShape {
+                center,
+                radius,
+                fill,
+                stroke,
+            };
+            return self.tessellate_circle(circle, out);
+        }
+
+        self.scratchpad_path.clear();
+
+        if closed {
+            self.scratchpad_path
+                .add_pie(center, radius, start_angle, end_angle);
+            self.scratchpad_path.fill(self.feathering, fill, out);
+            self.scratchpad_path
+                .stroke_closed(self.feathering, &stroke, out);
+        } else {
+            self.scratchpad_path
+                .add_arc(center, radius, start_angle, end_angle);
+            self.scratchpad_path
+                .stroke_open(self.feathering, &stroke, out);
         }
     }
 
@@ -2336,6 +2460,7 @@ impl Tessellator {
 
                 Shape::Noop
                 | Shape::Text(_)
+                | Shape::ArcPie(_)
                 | Shape::Circle(_)
                 | Shape::Mesh(_)
                 | Shape::LineSegment { .. }
