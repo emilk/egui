@@ -11,8 +11,8 @@ use crate::{
 };
 
 use super::{
-    CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape, QuadraticBezierShape,
-    RectShape, TextShape,
+    ArcPieShape, CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PathShape,
+    QuadraticBezierShape, RectShape, TextShape,
 };
 
 /// A paint primitive such as a circle or a piece of text.
@@ -31,6 +31,9 @@ pub enum Shape {
     /// Recursively nest more shapes - sometimes a convenience to be able to do.
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
+
+    /// An arc or pie with a given start and end angle.
+    ArcPie(ArcPieShape),
 
     /// Circle with optional outline and fill.
     Circle(CircleShape),
@@ -255,6 +258,80 @@ impl Shape {
         Self::Path(PathShape::convex_polygon(points, fill, stroke))
     }
 
+    /// Generates an arc with a given start and end angle.
+    ///
+    /// This function creates an arc centered at a specified point, with a specified radius.
+    /// The arc starts at the `start_angle` and ends at the `end_angle`.
+    /// Angles are specified in radians, with positive angles indicating clockwise rotation and negative angles indicating counterclockwise rotation.
+    ///
+    /// # Arguments
+    ///
+    /// * `center` - The center point of the arc.
+    /// * `radius` - The radius of the arc.
+    /// * `start_angle` - The start angle of the arc, in radians.
+    /// * `end_angle` - The end angle of the arc, in radians.
+    /// * `stroke` - The stroke of the arc.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use epaint::{pos2, Color32, Shape, Stroke};
+    /// let arc = Shape::arc(pos2(100.0, 100.0), 50.0, 0.0, std::f32::consts::PI, Stroke::new(3.0, Color32::RED));
+    /// ```
+    pub fn arc(
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
+        Self::ArcPie(ArcPieShape::arc(
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            stroke,
+        ))
+    }
+
+    /// Generates an pie with a given start and end angle.
+    ///
+    /// This function creates an arc centered at a specified point, with a specified radius.
+    /// The pie starts at the `start_angle` and ends at the `end_angle`.
+    /// Angles are specified in radians, with positive angles indicating clockwise rotation and negative angles indicating counterclockwise rotation.
+    ///
+    /// # Arguments
+    ///
+    /// * `center` - The center point of the pie.
+    /// * `radius` - The radius of the pie.
+    /// * `start_angle` - The start angle of the pie, in radians.
+    /// * `end_angle` - The end angle of the pie, in radians.
+    /// * `stroke` - The stroke of the pie.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use epaint::{pos2, Color32, Shape, Stroke};
+    /// let pie = Shape::pie(pos2(100.0, 100.0), 50.0, 0.0, std::f32::consts::PI, Color32::BLUE, Stroke::new(3.0, Color32::RED));
+    /// ```
+    pub fn pie(
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        fill: impl Into<Color32>,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
+        Self::ArcPie(ArcPieShape::pie(
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            fill,
+            stroke,
+        ))
+    }
+
     #[inline]
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Circle(CircleShape::filled(center, radius, fill_color))
@@ -366,6 +443,7 @@ impl Shape {
                 }
                 rect
             }
+            Self::ArcPie(arc_pie_shape) => arc_pie_shape.visual_bounding_rect(),
             Self::Circle(circle_shape) => circle_shape.visual_bounding_rect(),
             Self::Ellipse(ellipse_shape) => ellipse_shape.visual_bounding_rect(),
             Self::LineSegment { points, stroke } => {
@@ -426,6 +504,11 @@ impl Shape {
                 for shape in shapes {
                     shape.transform(transform);
                 }
+            }
+            Self::ArcPie(arc_pie_shape) => {
+                arc_pie_shape.center = transform * arc_pie_shape.center;
+                arc_pie_shape.radius *= transform.scaling;
+                arc_pie_shape.stroke.width *= transform.scaling;
             }
             Self::Circle(circle_shape) => {
                 circle_shape.center = transform * circle_shape.center;
