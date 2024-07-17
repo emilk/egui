@@ -4,7 +4,7 @@ use crate::*;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct ScrollTarget {
+struct ScrollingToTarget {
     animation_time_span: (f64, f64),
     target_offset: f32,
 }
@@ -17,7 +17,7 @@ pub struct State {
     pub offset: Vec2,
 
     /// If set, quickly but smoothly scroll to this target offset.
-    offset_target: [Option<ScrollTarget>; 2],
+    offset_target: [Option<ScrollingToTarget>; 2],
 
     /// Were the scroll bars visible last frame?
     show_scroll: Vec2b,
@@ -860,7 +860,7 @@ impl Prepared {
                         let now = ui.input(|i| i.time);
                         let animation_duration = (delta.abs() / animation.points_per_second)
                             .clamp(animation.duration.min, animation.duration.max);
-                        state.offset_target[d] = Some(ScrollTarget {
+                        state.offset_target[d] = Some(ScrollingToTarget {
                             animation_time_span: (now, now + animation_duration as f64),
                             target_offset,
                         });
