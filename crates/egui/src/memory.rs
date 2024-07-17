@@ -9,7 +9,7 @@ use crate::{
 };
 
 mod theme;
-pub use theme::Theme;
+pub use theme::{Theme, ThemePreference};
 
 // ----------------------------------------------------------------------------
 
