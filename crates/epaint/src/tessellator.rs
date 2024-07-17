@@ -1573,7 +1573,7 @@ impl Tessellator {
             let stroke_color = match stroke.color {
                 ColorMode::Solid(color) => color,
                 ColorMode::UV(callback) => {
-                    // TODO: Currently, CircleShape does not support PathStroke.
+                    // TODO(emilk): Currently, CircleShape does not support PathStroke.
                     // As a workaround, the stroke color is set to the center color.
                     // This needs to be revisited once CircleShape gains PathStroke support.
                     callback(Rect::from_center_size(center, Vec2::splat(radius)), center)
