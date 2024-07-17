@@ -28,6 +28,9 @@ pub enum Shape {
     /// For performance reasons it is better to avoid it.
     Vec(Vec<Shape>),
 
+    /// An arc or pie with a given start and end angle.
+    ArcPie(ArcPieShape),
+
     /// Circle with optional outline and fill.
     Circle(CircleShape),
 
@@ -233,6 +236,80 @@ impl Shape {
         Self::Path(PathShape::convex_polygon(points, fill, stroke))
     }
 
+    /// Generates an arc with a given start and end angle.
+    ///
+    /// This function creates an arc centered at a specified point, with a specified radius.
+    /// The arc starts at the `start_angle` and ends at the `end_angle`.
+    /// Angles are specified in radians, with positive angles indicating clockwise rotation and negative angles indicating counterclockwise rotation.
+    ///
+    /// # Arguments
+    ///
+    /// * `center` - The center point of the arc.
+    /// * `radius` - The radius of the arc.
+    /// * `start_angle` - The start angle of the arc, in radians.
+    /// * `end_angle` - The end angle of the arc, in radians.
+    /// * `stroke` - The stroke of the arc.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use epaint::{pos2, Color32, Shape, Stroke};
+    /// let arc = Shape::arc(pos2(100.0, 100.0), 50.0, 0.0, std::f32::consts::PI, Stroke::new(3.0, Color32::RED));
+    /// ```
+    pub fn arc(
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
+        Self::ArcPie(ArcPieShape::arc(
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            stroke,
+        ))
+    }
+
+    /// Generates an pie with a given start and end angle.
+    ///
+    /// This function creates an arc centered at a specified point, with a specified radius.
+    /// The pie starts at the `start_angle` and ends at the `end_angle`.
+    /// Angles are specified in radians, with positive angles indicating clockwise rotation and negative angles indicating counterclockwise rotation.
+    ///
+    /// # Arguments
+    ///
+    /// * `center` - The center point of the pie.
+    /// * `radius` - The radius of the pie.
+    /// * `start_angle` - The start angle of the pie, in radians.
+    /// * `end_angle` - The end angle of the pie, in radians.
+    /// * `stroke` - The stroke of the pie.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use epaint::{pos2, Color32, Shape, Stroke};
+    /// let pie = Shape::pie(pos2(100.0, 100.0), 50.0, 0.0, std::f32::consts::PI, Color32::BLUE, Stroke::new(3.0, Color32::RED));
+    /// ```
+    pub fn pie(
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        fill: impl Into<Color32>,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
+        Self::ArcPie(ArcPieShape::pie(
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            fill,
+            stroke,
+        ))
+    }
+
     #[inline]
     pub fn circle_filled(center: Pos2, radius: f32, fill_color: impl Into<Color32>) -> Self {
         Self::Circle(CircleShape::filled(center, radius, fill_color))
@@ -340,6 +417,7 @@ impl Shape {
                 }
                 rect
             }
+            Self::ArcPie(arc_pie_shape) => arc_pie_shape.visual_bounding_rect(),
             Self::Circle(circle_shape) => circle_shape.visual_bounding_rect(),
             Self::Ellipse(ellipse_shape) => ellipse_shape.visual_bounding_rect(),
             Self::LineSegment { points, stroke } => {
@@ -428,6 +506,11 @@ impl Shape {
                 rect_shape.stroke.width *= transform.scaling;
                 rect_shape.rounding *= transform.scaling;
             }
+            Self::ArcPie(arc_pie_shape) => {
+                arc_pie_shape.center = transform * arc_pie_shape.center;
+                arc_pie_shape.radius *= transform.scaling;
+                arc_pie_shape.stroke.width *= transform.scaling;
+            }
             Self::Text(text_shape) => {
                 text_shape.pos = transform * text_shape.pos;
 
@@ -461,6 +544,114 @@ impl Shape {
             Self::Callback(shape) => {
                 shape.rect = transform * shape.rect;
             }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A arc or pie slice with a given start and end angle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ArcPieShape {
+    pub center: Pos2,
+    pub radius: f32,
+    pub start_angle: f32,
+    pub end_angle: f32,
+    pub closed: bool,
+    pub fill: Color32,
+    pub stroke: PathStroke,
+}
+
+impl ArcPieShape {
+    /// Create a new arc or pie shape.
+    ///
+    /// # Arguments
+    ///
+    /// * `center` - The center of the arc or pie.
+    /// * `radius` - The radius of the arc or pie.
+    /// * `start_angle` - The start angle of the arc or pie, in radians.
+    /// * `end_angle` - The end angle of the arc or pie, in radians.
+    /// * `closed` - If true, connect the center with the start and end points.
+    /// * `fill` - The fill color of the arc or pie.
+    /// * `stroke` - The stroke of the arc or pie.
+    pub fn new(
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        closed: bool,
+        fill: impl Into<Color32>,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
+        Self {
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            closed,
+            fill: fill.into(),
+            stroke: stroke.into(),
+        }
+    }
+
+    /// Create a new arc shape.
+    ///
+    /// # Arguments
+    ///
+    /// * `center` - The center of the arc.
+    /// * `radius` - The radius of the arc.
+    /// * `start_angle` - The start angle of the arc, in radians.
+    /// * `end_angle` - The end angle of the arc, in radians.
+    /// * `stroke` - The stroke of the arc.
+    pub fn arc(
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
+        Self::new(
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            false,
+            Color32::TRANSPARENT,
+            stroke,
+        )
+    }
+
+    /// Create a new pie shape.
+    ///
+    /// # Arguments
+    ///
+    /// * `center` - The center of the pie.
+    /// * `radius` - The radius of the pie.
+    /// * `start_angle` - The start angle of the pie, in radians.
+    /// * `end_angle` - The end angle of the pie, in radians.
+    /// * `fill` - The fill color of the pie.
+    /// * `stroke` - The stroke of the pie.
+    pub fn pie(
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        fill: impl Into<Color32>,
+        stroke: impl Into<PathStroke>,
+    ) -> Self {
+        Self::new(center, radius, start_angle, end_angle, true, fill, stroke)
+    }
+
+    /// The visual bounding rectangle (includes stroke width)
+    pub fn visual_bounding_rect(&self) -> Rect {
+        if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
+            Rect::NOTHING
+        } else {
+            let rect = Rect::from_center_size(self.center, vec2(self.radius, self.radius));
+            let start =
+                self.center + vec2(self.start_angle.cos(), self.start_angle.sin()) * self.radius;
+            let end = self.center + vec2(self.end_angle.cos(), self.end_angle.sin()) * self.radius;
+            rect.union(Rect::from_two_pos(start, end))
         }
     }
 }
