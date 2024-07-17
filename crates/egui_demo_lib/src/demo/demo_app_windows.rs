@@ -169,6 +169,7 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoWindows {
     about_is_open: bool,
+    #[cfg_attr(feature = "serde", serde(skip))]
     about_window_action: Option<WindowAction>,
     about: About,
     demos: Demos,

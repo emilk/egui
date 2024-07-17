@@ -5,7 +5,6 @@ use std::sync::Arc;
 use crate::collapsing_header::CollapsingState;
 use crate::*;
 use epaint::*;
-use serde::{Deserialize, Serialize};
 
 use super::*;
 
@@ -46,14 +45,16 @@ pub struct Window<'open> {
     fade_out: bool,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy)]
 pub enum WindowAction {
     Expand,
     Collapse,
     Show,
     Hide,
+
     /// Toggles between show and hide
     ToggleShow,
+
     /// Toggles between expand and collapse
     ToggleExpand,
 }
