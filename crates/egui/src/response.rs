@@ -848,6 +848,7 @@ impl Response {
         self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
     }
 
+    /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].
     pub fn scroll_to_me_animation(
         &self,
         align: Option<Align>,

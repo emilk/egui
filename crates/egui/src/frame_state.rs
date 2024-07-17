@@ -42,8 +42,15 @@ pub struct PerLayerState {
 
 #[derive(Clone, Debug)]
 pub struct ScrollTarget {
+    // The range that the scroll area should scroll to.
     pub range: Rangef,
+
+    /// How should we align the rect within the visible area?
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
+    /// If `align` is `None`, it'll scroll enough to bring the UI into view.
     pub align: Option<Align>,
+
+    /// How should the scroll be animated?
     pub animation: style::ScrollAnimation,
 }
 
