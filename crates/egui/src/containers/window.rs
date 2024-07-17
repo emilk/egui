@@ -503,8 +503,6 @@ impl<'open> Window<'open> {
         let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
 
-        //println!("{collapsing:?}");
-
         let is_expanded = with_title_bar && collapsing.is_expanded();
         let possible = PossibleInteractions::new(&area, &resize, is_expanded);
 
@@ -669,7 +667,7 @@ impl<'open> Window<'open> {
 
         let full_response = area.end(ctx, area_content_ui);
 
-        // Resync if open & window_action are just together.
+        // Resync if open & window_action are used together.
         if let Some(open) = open {
             *open = collapsing.is_shown();
         }

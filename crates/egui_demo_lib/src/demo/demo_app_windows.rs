@@ -326,7 +326,7 @@ impl DemoWindows {
             self.about_window_action = Some(WindowAction::ToggleShow);
         }
 
-        if ui.button("Toggle expand/collapse about").clicked() {
+        if self.about_is_open && ui.button("Toggle expand/collapse about").clicked() {
             self.about_window_action = Some(WindowAction::ToggleExpand);
         }
     }
