@@ -370,6 +370,38 @@ impl Painter {
         self.add(Shape::vline(x, y, stroke))
     }
 
+    /// Paints an arc line.
+    pub fn arc(
+        &self,
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        stroke: impl Into<PathStroke>,
+    ) -> ShapeIdx {
+        self.add(Shape::arc(center, radius, start_angle, end_angle, stroke))
+    }
+
+    /// Paints a pie slice.
+    pub fn pie(
+        &self,
+        center: Pos2,
+        radius: f32,
+        start_angle: f32,
+        end_angle: f32,
+        fill: impl Into<Color32>,
+        stroke: impl Into<PathStroke>,
+    ) -> ShapeIdx {
+        self.add(Shape::pie(
+            center,
+            radius,
+            start_angle,
+            end_angle,
+            fill,
+            stroke,
+        ))
+    }
+
     pub fn circle(
         &self,
         center: Pos2,
