@@ -160,10 +160,11 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan());
-        let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
+        let new_id = self.id.with(id_source);
+        let child_next_auto_id_source = new_id.with(self.next_auto_id_source).value();
+
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
 
-        let new_id = self.id.with(id_source);
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
             id: new_id,
@@ -175,7 +176,7 @@ impl Ui {
         };
         let child_ui = Ui {
             id: new_id,
-            next_auto_id_source,
+            next_auto_id_source: child_next_auto_id_source,
             painter: self.painter.clone(),
             style: self.style.clone(),
             placer,
