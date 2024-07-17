@@ -56,8 +56,8 @@ pub use self::{
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
     shapes::{
-        CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
-        QuadraticBezierShape, RectShape, Shape, TextShape,
+        ArcPieShape, CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo,
+        PathShape, QuadraticBezierShape, RectShape, Shape, TextShape,
     },
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
