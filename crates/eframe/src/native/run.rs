@@ -187,7 +187,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     }
 
     fn exiting(&mut self, _: &ActiveEventLoop) {
-        // On Mac, Cmd-Q we get here and then `run_on_demand` doesn't return (despite its name),
+        // On Mac, Cmd-Q we get here and then `run_app_on_demand` doesn't return (despite its name),
         // so we need to save state now:
         log::debug!("Received Event::LoopExiting - saving app state…");
         self.winit_app.save_and_destroy();
@@ -269,7 +269,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
 fn run_and_return(event_loop: &mut EventLoop<UserEvent>, winit_app: impl WinitApp) -> Result {
     use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
 
-    log::trace!("Entering the winit event loop (run_on_demand)…");
+    log::trace!("Entering the winit event loop (run_app_on_demand)…");
 
     let mut app = WinitAppWrapper::new(winit_app, true);
     event_loop.run_app_on_demand(&mut app)?;
@@ -278,7 +278,7 @@ fn run_and_return(event_loop: &mut EventLoop<UserEvent>, winit_app: impl WinitAp
 }
 
 fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp + 'static) -> Result {
-    log::trace!("Entering the winit event loop (run)…");
+    log::trace!("Entering the winit event loop (run_app)…");
 
     // When to repaint what window
     let mut app = WinitAppWrapper::new(winit_app, false);
