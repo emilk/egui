@@ -86,17 +86,27 @@ impl FontImpl {
         pixels_per_point: f32,
         name: String,
         ab_glyph_font: ab_glyph::FontArc,
+        font: Arc<cosmic_text::Font>,
         scale_in_pixels: f32,
         tweak: FontTweak,
     ) -> Self {
         assert!(scale_in_pixels > 0.0);
         assert!(pixels_per_point > 0.0);
 
-        use ab_glyph::*;
-        let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
-        let ascent = scaled.ascent() / pixels_per_point;
-        let descent = scaled.descent() / pixels_per_point;
-        let line_gap = scaled.line_gap() / pixels_per_point;
+        let metrics = font.as_swash().metrics(&[]);
+
+        let height_unscaled = metrics.ascent + metrics.descent;
+
+        // v_scale_factor = scale_y / height_unscaled
+        let v_scale_factor = scale_in_pixels / height_unscaled;
+
+        // ascent = v_scale_factor * ascent_unscaled
+        let ascent = v_scale_factor * metrics.ascent;
+
+        // descent = v_scale_factor * descent_unscaled
+        let descent = v_scale_factor * -metrics.descent;
+
+        let line_gap = v_scale_factor * metrics.leading;
 
         // Tweak the scale as the user desired
         let scale_in_pixels = scale_in_pixels * tweak.scale;

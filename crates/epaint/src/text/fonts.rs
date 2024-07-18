@@ -801,14 +801,19 @@ impl FontImplCache {
             .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
             .clone();
 
-        let font_sz_in_pixels = self.pixels_per_point * scale_in_points;
+        let (tweak, font) = self
+            .fonts
+            .get(font_name)
+            .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
+            .clone();
+
+        let scale_in_pixels = self.pixels_per_point * scale_in_points;
+
+        let metrics = font.as_swash().metrics(&[]);
 
         // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
-        let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
-            panic!("The font unit size of {font_name:?} exceeds the expected range (16..=16384)")
-        });
-        let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
-        let scale_in_pixels = font_sz_in_pixels * font_scaling;
+        let font_scaling = (metrics.ascent + metrics.descent) / metrics.units_per_em as f32;
+        let scale_in_pixels = scale_in_pixels * font_scaling;
 
         self.cache
             .entry((
@@ -821,6 +826,7 @@ impl FontImplCache {
                     self.pixels_per_point,
                     font_name.to_owned(),
                     ab_glyph_font,
+                    font,
                     scale_in_pixels,
                     tweak,
                 ))
