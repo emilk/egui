@@ -1773,38 +1773,23 @@ pub fn apply_viewport_builder_to_window(
 
 // ---------------------------------------------------------------------------
 
-/// Short and fast description of an event.
+/// Short and fast description of a device event.
 /// Useful for logging and profiling.
-pub fn short_generic_event_description<T>(event: &winit::event::Event<T>) -> &'static str {
-    use winit::event::{DeviceEvent, Event, StartCause};
+pub fn short_device_event_description(event: &winit::event::DeviceEvent) -> &'static str {
+    use winit::event::DeviceEvent;
 
     match event {
-        Event::AboutToWait => "Event::AboutToWait",
-        Event::LoopExiting => "Event::LoopExiting",
-        Event::Suspended => "Event::Suspended",
-        Event::Resumed => "Event::Resumed",
-        Event::MemoryWarning => "Event::MemoryWarning",
-        Event::UserEvent(_) => "UserEvent",
-        Event::DeviceEvent { event, .. } => match event {
-            DeviceEvent::Added { .. } => "DeviceEvent::Added",
-            DeviceEvent::Removed { .. } => "DeviceEvent::Removed",
-            DeviceEvent::MouseMotion { .. } => "DeviceEvent::MouseMotion",
-            DeviceEvent::MouseWheel { .. } => "DeviceEvent::MouseWheel",
-            DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
-            DeviceEvent::Button { .. } => "DeviceEvent::Button",
-            DeviceEvent::Key { .. } => "DeviceEvent::Key",
-        },
-        Event::NewEvents(start_cause) => match start_cause {
-            StartCause::ResumeTimeReached { .. } => "NewEvents::ResumeTimeReached",
-            StartCause::WaitCancelled { .. } => "NewEvents::WaitCancelled",
-            StartCause::Poll => "NewEvents::Poll",
-            StartCause::Init => "NewEvents::Init",
-        },
-        Event::WindowEvent { event, .. } => short_window_event_description(event),
+        DeviceEvent::Added { .. } => "DeviceEvent::Added",
+        DeviceEvent::Removed { .. } => "DeviceEvent::Removed",
+        DeviceEvent::MouseMotion { .. } => "DeviceEvent::MouseMotion",
+        DeviceEvent::MouseWheel { .. } => "DeviceEvent::MouseWheel",
+        DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
+        DeviceEvent::Button { .. } => "DeviceEvent::Button",
+        DeviceEvent::Key { .. } => "DeviceEvent::Key",
     }
 }
 
-/// Short and fast description of an event.
+/// Short and fast description of a window event.
 /// Useful for logging and profiling.
 pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'static str {
     use winit::event::WindowEvent;

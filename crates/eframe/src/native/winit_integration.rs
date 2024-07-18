@@ -72,13 +72,26 @@ pub trait WinitApp {
         &mut self,
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
-    ) -> EventResult;
+    ) -> crate::Result<EventResult>;
 
-    fn on_event(
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+    fn device_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        event: &winit::event::Event<UserEvent>,
+        device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
     ) -> crate::Result<EventResult>;
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: winit::event::WindowEvent,
+    ) -> crate::Result<EventResult>;
+
+    #[cfg(feature = "accesskit")]
+    fn on_accesskit_event(&mut self, event: accesskit_winit::Event) -> crate::Result<EventResult>;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,6 +111,8 @@ pub enum EventResult {
     /// cause any delay like `RepaintNow`.
     RepaintNext(WindowId),
 
+    RepaintAt(WindowId, Instant),
+
     Exit,
 }
 
@@ -108,18 +123,5 @@ pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<c
             .map(super::epi_integration::theme_from_winit_theme)
     } else {
         None
-    }
-}
-
-/// Short and fast description of an event.
-/// Useful for logging and profiling.
-pub fn short_event_description(event: &winit::event::Event<UserEvent>) -> &'static str {
-    match event {
-        winit::event::Event::UserEvent(user_event) => match user_event {
-            UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
-            #[cfg(feature = "accesskit")]
-            UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
-        },
-        _ => egui_winit::short_generic_event_description(event),
     }
 }
