@@ -75,7 +75,7 @@ pub struct FontImpl {
     pixels_per_point: f32,
     glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
-    font_system: Arc<Mutex<(cosmic_text::FontSystem, cosmic_text::SwashCache)>>
+    font_system: Arc<Mutex<(cosmic_text::FontSystem, cosmic_text::SwashCache)>>,
 }
 
 impl FontImpl {
@@ -185,14 +185,12 @@ impl FontImpl {
     fn characters(&self) -> impl Iterator<Item = char> + '_ {
         let mut chars = Vec::new();
 
-        self.font.as_swash()
-            .charmap()
-            .enumerate(|chr, _| {
-                let chr = char::from_u32(chr).unwrap();
-                if !self.ignore_character(chr) {
-                    chars.push(chr);
-                }
-            });
+        self.font.as_swash().charmap().enumerate(|chr, _| {
+            let chr = char::from_u32(chr).unwrap();
+            if !self.ignore_character(chr) {
+                chars.push(chr);
+            }
+        });
 
         chars.into_iter()
     }
@@ -285,7 +283,7 @@ impl FontImpl {
                 swash_glyph_id,
                 self.font_size,
                 (0., 0.),
-                cosmic_text::CacheKeyFlags::empty()
+                cosmic_text::CacheKeyFlags::empty(),
             );
 
             swash_cache.get_image_uncached(font_system, cache_key)
@@ -300,10 +298,11 @@ impl FontImpl {
             } = image;
 
             if placement.width == 0 || placement.height == 0 {
-                return None
+                return None;
             }
 
-            let glyph_size @ (glyph_width, glyph_height) = (placement.width as usize, placement.height as usize);
+            let glyph_size @ (glyph_width, glyph_height) =
+                (placement.width as usize, placement.height as usize);
 
             let (x, y) = {
                 let mut atlas = self.atlas.lock();
@@ -316,10 +315,7 @@ impl FontImpl {
 
                         for y in 0..glyph_height {
                             for x in 0..glyph_width {
-                                image[(
-                                    atlas_x + x,
-                                    atlas_y + y
-                                )] = data[i] as f32 / 255.0;
+                                image[(atlas_x + x, atlas_y + y)] = data[i] as f32 / 255.0;
 
                                 i += 1;
                             }
@@ -328,7 +324,7 @@ impl FontImpl {
                     cosmic_text::SwashContent::Color => {
                         unimplemented!();
                     }
-                    cosmic_text::SwashContent::SubpixelMask => unimplemented!()
+                    cosmic_text::SwashContent::SubpixelMask => unimplemented!(),
                 }
 
                 glyph_pos
@@ -339,17 +335,12 @@ impl FontImpl {
             let offset =
                 offset_in_pixels / self.pixels_per_point + self.y_offset_in_points * Vec2::Y;
 
-            Some(
-                UvRect {
-                    offset,
-                    size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
-                    min: [x as u16, y as u16],
-                    max: [
-                        (x + glyph_width) as u16,
-                        (y + glyph_height) as u16,
-                    ],
-                }
-            )
+            Some(UvRect {
+                offset,
+                size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
+                min: [x as u16, y as u16],
+                max: [(x + glyph_width) as u16, (y + glyph_height) as u16],
+            })
         });
 
         let uv_rect = uv_rect.unwrap_or_default();
