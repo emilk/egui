@@ -194,9 +194,9 @@ fn cosmic_text_font_from_font_data(
     data: &FontData,
     db: &mut fontdb::Database,
 ) -> cosmic_text::Font {
-    let face_ids = db.load_font_source(fontdb::Source::Binary(match data.font {
-        std::borrow::Cow::Borrowed(bytes) => Arc::new(bytes),
-        std::borrow::Cow::Owned(ref bytes) => Arc::new(bytes.clone()),
+    let face_ids = db.load_font_source(fontdb::Source::Binary(match &data.font {
+        std::borrow::Cow::Borrowed(bytes) => Arc::new(&**bytes),
+        std::borrow::Cow::Owned(bytes) => Arc::new(bytes.clone()),
     }));
 
     let face_id = face_ids
@@ -749,7 +749,7 @@ impl FontImplCache {
 
         // TODO(tamewild): Allow OS fonts?
         let font_system =
-            cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_string(), font_db);
+            cosmic_text::FontSystem::new_with_locale_and_db("en-US".to_owned(), font_db);
 
         let swash_cache = cosmic_text::SwashCache::new();
 

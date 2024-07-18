@@ -322,9 +322,11 @@ impl FontImpl {
                         }
                     }
                     cosmic_text::SwashContent::Color => {
-                        unimplemented!();
+                        panic!("Colored glyphs are currently not supported")
                     }
-                    cosmic_text::SwashContent::SubpixelMask => unimplemented!(),
+                    cosmic_text::SwashContent::SubpixelMask => {
+                        panic!("Glyphs with a subpixel mask aren't currently supported")
+                    },
                 }
 
                 glyph_pos
