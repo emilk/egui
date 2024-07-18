@@ -1,4 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
+use cosmic_text::fontdb;
+use cosmic_text::fontdb::Source;
 
 use crate::{
     mutex::{Mutex, MutexGuard},
@@ -201,6 +203,29 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
         }
     }
     .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
+}
+
+fn cosmic_text_font_from_font_data(
+    data: &FontData,
+    db: &mut fontdb::Database
+) -> cosmic_text::Font {
+    let face_ids = db.load_font_source(Source::Binary(match data.font {
+        std::borrow::Cow::Borrowed(bytes) => {
+            Arc::new(bytes)
+        },
+        std::borrow::Cow::Owned(ref bytes) => {
+            Arc::new(bytes.clone())
+        }
+    }));
+
+    let face_id = face_ids.get(data.index as usize)
+        .unwrap_or_else(|| {
+            panic!("Unable to find specified font face index in font")
+        });
+
+
+    cosmic_text::Font::new(db, *face_id)
+        .unwrap_or_else(|| panic!("Failed to construct cosmic text font"))
 }
 
 /// Describes the font data and the sizes to use.
@@ -720,6 +745,9 @@ struct FontImplCache {
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
+    font_system: Arc<Mutex<cosmic_text::FontSystem>>,
+    fonts: BTreeMap<String, (FontTweak, Arc<cosmic_text::Font>)>,
+
     /// Map font pixel sizes and names to the cached [`FontImpl`].
     cache: ahash::HashMap<(u32, String), Arc<FontImpl>>,
 }
@@ -739,10 +767,29 @@ impl FontImplCache {
             })
             .collect();
 
+        let mut font_db = fontdb::Database::new();
+
+        let fonts = font_data
+            .iter()
+            .map(|(name, font_data)| {
+                let tweak = font_data.tweak;
+                let cosmic_font = cosmic_text_font_from_font_data(font_data, &mut font_db);
+                (name.clone(), (tweak, Arc::new(cosmic_font)))
+            })
+            .collect();
+
+        // TODO(tamewild): Allow OS fonts?
+        let font_system = cosmic_text::FontSystem::new_with_locale_and_db(
+            "en-US".to_string(),
+            font_db
+        );
+
         Self {
             atlas,
             pixels_per_point,
             ab_glyph_fonts,
+            font_system: Arc::new(Mutex::new(font_system)),
+            fonts,
             cache: Default::default(),
         }
     }
