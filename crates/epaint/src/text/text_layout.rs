@@ -158,9 +158,8 @@ fn layout_section(
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_impl, glyph_info) = font.font_impl_and_glyph_info(chr);
-            if let Some(font_impl) = font_impl {
-                if let Some(last_glyph_id) = last_glyph_id {
-                    paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id);
+            if let Some(_font_impl) = font_impl {
+                if let Some(_last_glyph_id) = last_glyph_id {
                     paragraph.cursor_x += extra_letter_spacing;
                 }
             }
@@ -375,8 +374,6 @@ fn replace_last_glyph_with_overflow_character(
         let font = fonts.font(&section.format.font_id);
         let line_height = row_height(section, font);
 
-        let (_, last_glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-
         let mut x = last_glyph.pos.x + last_glyph.size.x;
 
         let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
@@ -384,9 +381,6 @@ fn replace_last_glyph_with_overflow_character(
         {
             // Kerning:
             x += section.format.extra_letter_spacing;
-            if let Some(font_impl) = font_impl {
-                x += font_impl.pair_kerning(last_glyph_info.id, replacement_glyph_info.id);
-            }
         }
 
         row.glyphs.push(Glyph {
@@ -441,27 +435,17 @@ fn replace_last_glyph_with_overflow_character(
         let font = fonts.font(&section.format.font_id);
         let line_height = row_height(section, font);
 
-        if let Some(prev_glyph) = prev_glyph {
-            let prev_glyph_id = font.font_impl_and_glyph_info(prev_glyph.chr).1.id;
-
-            // Undo kerning with previous glyph:
-            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
+        if let Some(_prev_glyph) = prev_glyph {
             last_glyph.pos.x -= extra_letter_spacing;
-            if let Some(font_impl) = font_impl {
-                last_glyph.pos.x -= font_impl.pair_kerning(prev_glyph_id, glyph_info.id);
-            }
 
             // Replace the glyph:
             last_glyph.chr = overflow_character;
-            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
+            let (_font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
             last_glyph.size = vec2(glyph_info.advance_width, line_height);
             last_glyph.uv_rect = glyph_info.uv_rect;
 
             // Reapply kerning:
             last_glyph.pos.x += extra_letter_spacing;
-            if let Some(font_impl) = font_impl {
-                last_glyph.pos.x += font_impl.pair_kerning(prev_glyph_id, glyph_info.id);
-            }
 
             // Check if we're within width budget:
             if row_width(row) <= job.wrap.max_width || row.glyphs.len() == 1 {

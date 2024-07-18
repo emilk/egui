@@ -267,15 +267,6 @@ impl FontImpl {
         }
     }
 
-    #[inline]
-    pub fn pair_kerning(
-        &self,
-        _last_glyph_id: ab_glyph::GlyphId,
-        _glyph_id: ab_glyph::GlyphId,
-    ) -> f32 {
-        0.0
-    }
-
     /// Height of one row of text in points.
     #[inline(always)]
     pub fn row_height(&self) -> f32 {
