@@ -190,20 +190,6 @@ impl Default for FontTweak {
 
 // ----------------------------------------------------------------------------
 
-fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontArc {
-    match &data.font {
-        std::borrow::Cow::Borrowed(bytes) => {
-            ab_glyph::FontRef::try_from_slice_and_index(bytes, data.index)
-                .map(ab_glyph::FontArc::from)
-        }
-        std::borrow::Cow::Owned(bytes) => {
-            ab_glyph::FontVec::try_from_vec_and_index(bytes.clone(), data.index)
-                .map(ab_glyph::FontArc::from)
-        }
-    }
-    .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
-}
-
 fn cosmic_text_font_from_font_data(
     data: &FontData,
     db: &mut fontdb::Database
@@ -741,7 +727,6 @@ impl GalleyCache {
 struct FontImplCache {
     atlas: Arc<Mutex<TextureAtlas>>,
     pixels_per_point: f32,
-    ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
     font_system: Arc<Mutex<(cosmic_text::FontSystem, cosmic_text::SwashCache)>>,
     fonts: BTreeMap<String, (FontTweak, Arc<cosmic_text::Font>)>,
@@ -756,15 +741,6 @@ impl FontImplCache {
         pixels_per_point: f32,
         font_data: &BTreeMap<String, FontData>,
     ) -> Self {
-        let ab_glyph_fonts = font_data
-            .iter()
-            .map(|(name, font_data)| {
-                let tweak = font_data.tweak;
-                let ab_glyph = ab_glyph_font_from_font_data(name, font_data);
-                (name.clone(), (tweak, ab_glyph))
-            })
-            .collect();
-
         let mut font_db = fontdb::Database::new();
 
         let fonts = font_data
@@ -787,7 +763,6 @@ impl FontImplCache {
         Self {
             atlas,
             pixels_per_point,
-            ab_glyph_fonts,
             font_system: Arc::new(Mutex::new((font_system, swash_cache))),
             fonts,
             cache: Default::default(),
@@ -795,12 +770,6 @@ impl FontImplCache {
     }
 
     pub fn font_impl(&mut self, scale_in_points: f32, font_name: &str) -> Arc<FontImpl> {
-        let (_tweak, ab_glyph_font) = self
-            .ab_glyph_fonts
-            .get(font_name)
-            .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
-            .clone();
-
         let (tweak, font) = self
             .fonts
             .get(font_name)
@@ -826,7 +795,6 @@ impl FontImplCache {
                     self.font_system.clone(),
                     self.pixels_per_point,
                     font_name.to_owned(),
-                    ab_glyph_font,
                     font,
                     scale_in_pixels,
                     tweak,

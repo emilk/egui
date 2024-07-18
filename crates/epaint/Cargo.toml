@@ -78,7 +78,7 @@ unity = []
 emath.workspace = true
 ecolor.workspace = true
 
-ab_glyph = "0.2.11"
+# ab_glyph = "0.2.11"
 cosmic-text = "0.12.0"
 ahash.workspace = true
 nohash-hasher.workspace = true

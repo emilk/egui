@@ -34,12 +34,6 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphInfo {
-    /// Used for pair-kerning.
-    ///
-    /// Doesn't need to be unique.
-    /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
-    pub(crate) id: ab_glyph::GlyphId,
-
     /// Unit: points.
     pub advance_width: f32,
 
@@ -51,7 +45,6 @@ impl Default for GlyphInfo {
     /// Basically a zero-width space.
     fn default() -> Self {
         Self {
-            id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
             uv_rect: Default::default(),
         }
@@ -64,7 +57,6 @@ impl Default for GlyphInfo {
 /// The interface uses points as the unit for everything.
 pub struct FontImpl {
     name: String,
-    ab_glyph_font: ab_glyph::FontArc,
     font: Arc<cosmic_text::Font>,
 
     // Horizontal & vertical scale factor
@@ -92,7 +84,6 @@ impl FontImpl {
         font_system: Arc<Mutex<(cosmic_text::FontSystem, cosmic_text::SwashCache)>>,
         pixels_per_point: f32,
         name: String,
-        ab_glyph_font: ab_glyph::FontArc,
         font: Arc<cosmic_text::Font>,
         scale_in_pixels: f32,
         tweak: FontTweak,
@@ -148,7 +139,6 @@ impl FontImpl {
 
         Self {
             name,
-            ab_glyph_font,
             font,
             scale_factor: v_scale_factor,
             font_size,
@@ -254,14 +244,12 @@ impl FontImpl {
         }
 
         // Add new character:
-        use ab_glyph::Font as _;
-        let ab_glyph_id = self.ab_glyph_font.glyph_id(c);
         let glyph_id = self.font.as_swash().charmap().map(c);
 
         if glyph_id == 0 {
             None // unsupported character
         } else {
-            let glyph_info = self.allocate_glyph(ab_glyph_id, glyph_id);
+            let glyph_info = self.allocate_glyph(glyph_id);
             self.glyph_info_cache.write().insert(c, glyph_info);
             Some(glyph_info)
         }
@@ -286,9 +274,7 @@ impl FontImpl {
         self.ascent
     }
 
-    fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId, swash_glyph_id: u16) -> GlyphInfo {
-        assert!(glyph_id.0 != 0);
-
+    fn allocate_glyph(&self, swash_glyph_id: u16) -> GlyphInfo {
         let image = {
             let mut lock = self.font_system.lock();
 
@@ -379,7 +365,6 @@ impl FontImpl {
         let advance_width_in_points = (self.scale_factor * h_advance) / self.pixels_per_point;
 
         GlyphInfo {
-            id: glyph_id,
             advance_width: advance_width_in_points,
             uv_rect,
         }

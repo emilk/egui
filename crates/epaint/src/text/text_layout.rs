@@ -175,7 +175,7 @@ fn layout_section(
 
             paragraph.cursor_x += glyph_info.advance_width;
             paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
-            last_glyph_id = Some(glyph_info.id);
+            last_glyph_id = Some(());
         }
     }
 }

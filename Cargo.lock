@@ -1481,7 +1481,6 @@ dependencies = [
 name = "epaint"
 version = "0.28.1"
 dependencies = [
- "ab_glyph",
  "ahash",
  "backtrace",
  "bytemuck",
