@@ -3,7 +3,7 @@
 use web_time::Instant;
 
 use std::path::PathBuf;
-use winit::event_loop::EventLoopWindowTarget;
+use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
@@ -12,9 +12,9 @@ use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
 
-pub fn viewport_builder<E>(
+pub fn viewport_builder(
     egui_zoom_factor: f32,
-    event_loop: &EventLoopWindowTarget<E>,
+    event_loop: &ActiveEventLoop,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) -> ViewportBuilder {
@@ -95,10 +95,7 @@ pub fn apply_window_settings(
     }
 }
 
-fn largest_monitor_point_size<E>(
-    egui_zoom_factor: f32,
-    event_loop: &EventLoopWindowTarget<E>,
-) -> egui::Vec2 {
+fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
     crate::profile_function!();
 
     let mut max_size = egui::Vec2::ZERO;
@@ -167,6 +164,24 @@ pub struct EpiIntegration {
     app_icon_setter: super::app_icon::AppTitleIconSetter,
 }
 
+#[cfg(feature = "accesskit")]
+struct AccessKitInitHandler {
+    egui_ctx: egui::Context,
+}
+
+#[cfg(feature = "accesskit")]
+impl egui::accesskit::ActivationHandler for AccessKitInitHandler {
+    fn request_initial_tree(&mut self) -> Option<egui::accesskit::TreeUpdate> {
+        // This function is called when an accessibility client
+        // (e.g. screen reader) makes its first request. If we got here,
+        // we know that an accessibility tree is actually wanted.
+        self.egui_ctx.enable_accesskit();
+        // Enqueue a repaint so we'll receive a full tree update soon.
+        self.egui_ctx.request_repaint();
+        Some(self.egui_ctx.accesskit_placeholder_tree_update())
+    }
+}
+
 impl EpiIntegration {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -230,7 +245,7 @@ impl EpiIntegration {
     }
 
     #[cfg(feature = "accesskit")]
-    pub fn init_accesskit<E: From<egui_winit::accesskit_winit::ActionRequestEvent> + Send>(
+    pub fn init_accesskit<E: From<egui_winit::accesskit_winit::Event> + Send>(
         &self,
         egui_winit: &mut egui_winit::State,
         window: &winit::window::Window,
@@ -239,15 +254,7 @@ impl EpiIntegration {
         crate::profile_function!();
 
         let egui_ctx = self.egui_ctx.clone();
-        egui_winit.init_accesskit(window, event_loop_proxy, move || {
-            // This function is called when an accessibility client
-            // (e.g. screen reader) makes its first request. If we got here,
-            // we know that an accessibility tree is actually wanted.
-            egui_ctx.enable_accesskit();
-            // Enqueue a repaint so we'll receive a full tree update soon.
-            egui_ctx.request_repaint();
-            egui_ctx.accesskit_placeholder_tree_update()
-        });
+        egui_winit.init_accesskit(window, event_loop_proxy, AccessKitInitHandler { egui_ctx });
     }
 
     /// If `true`, it is time to close the native window.

@@ -59,14 +59,7 @@ android-native-activity = ["egui-winit/android-native-activity"]
 default_fonts = ["egui/default_fonts"]
 
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
-glow = [
-  "dep:egui_glow",
-  "dep:glow",
-  "dep:glutin-winit",
-  "dep:glutin",
-  "dep:rwh_05",
-  "winit/rwh_05",
-]
+glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
 persistence = [
@@ -141,10 +134,6 @@ web-time.workspace = true
 
 egui_glow = { workspace = true, optional = true, default-features = false }
 glow = { workspace = true, optional = true }
-# glutin stuck on old version of raw-window-handle:
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", optional = true, features = [
-  "std",
-] }
 ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { workspace = true, optional = true }
 

@@ -82,15 +82,7 @@ wasm-bindgen.workspace = true
 [dev-dependencies]
 glutin.workspace = true       # examples/pure_glow
 glutin-winit.workspace = true
-# glutin stuck on old version of raw-window-handle:
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
-  "std",
-] }
 
 [[example]]
 name = "pure_glow"
-required-features = [
-  "winit",
-  "egui/default_fonts",
-  "winit/rwh_05",       # glutin stuck on old version of raw-window-handle
-]
+required-features = ["winit", "egui/default_fonts", "winit/rwh_06"]

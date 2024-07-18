@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use winit::{
-    event_loop::EventLoopWindowTarget,
+    event_loop::ActiveEventLoop,
     window::{Window, WindowId},
 };
 
@@ -48,12 +48,12 @@ pub enum UserEvent {
 
     /// A request related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
-    AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
+    AccessKitActionRequest(accesskit_winit::Event),
 }
 
 #[cfg(feature = "accesskit")]
-impl From<accesskit_winit::ActionRequestEvent> for UserEvent {
-    fn from(inner: accesskit_winit::ActionRequestEvent) -> Self {
+impl From<accesskit_winit::Event> for UserEvent {
+    fn from(inner: accesskit_winit::Event) -> Self {
         Self::AccessKitActionRequest(inner)
     }
 }
@@ -70,13 +70,13 @@ pub trait WinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
     ) -> EventResult;
 
     fn on_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         event: &winit::event::Event<UserEvent>,
     ) -> crate::Result<EventResult>;
 }
@@ -97,8 +97,6 @@ pub enum EventResult {
     /// so that multiple input events can be handled in one frame. Does not
     /// cause any delay like `RepaintNow`.
     RepaintNext(WindowId),
-
-    RepaintAt(WindowId, Instant),
 
     Exit,
 }
