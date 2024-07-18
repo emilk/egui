@@ -326,7 +326,7 @@ impl FontImpl {
                     }
                     cosmic_text::SwashContent::SubpixelMask => {
                         panic!("Glyphs with a subpixel mask aren't currently supported")
-                    },
+                    }
                 }
 
                 glyph_pos
