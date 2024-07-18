@@ -93,8 +93,9 @@ wgpu = { version = "0.20.1", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
 ] }
-winit = { version = "=0.30.0", default-features = false }
 
+# Version 0.30.1 and up unfortunately crash on macOS, due to https://github.com/rust-windowing/winit/pull/3684
+winit = { version = "=0.30.0", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
