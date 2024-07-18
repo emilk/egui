@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, sync::Arc};
 use cosmic_text::fontdb;
-use cosmic_text::fontdb::Source;
 
 use crate::{
     mutex::{Mutex, MutexGuard},
@@ -209,7 +208,7 @@ fn cosmic_text_font_from_font_data(
     data: &FontData,
     db: &mut fontdb::Database
 ) -> cosmic_text::Font {
-    let face_ids = db.load_font_source(Source::Binary(match data.font {
+    let face_ids = db.load_font_source(fontdb::Source::Binary(match data.font {
         std::borrow::Cow::Borrowed(bytes) => {
             Arc::new(bytes)
         },
@@ -222,7 +221,6 @@ fn cosmic_text_font_from_font_data(
         .unwrap_or_else(|| {
             panic!("Unable to find specified font face index in font")
         });
-
 
     cosmic_text::Font::new(db, *face_id)
         .unwrap_or_else(|| panic!("Failed to construct cosmic text font"))
@@ -803,14 +801,14 @@ impl FontImplCache {
             .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
             .clone();
 
-        let scale_in_pixels = self.pixels_per_point * scale_in_points;
+        let font_sz_in_pixels = self.pixels_per_point * scale_in_points;
 
         // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
         let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
             panic!("The font unit size of {font_name:?} exceeds the expected range (16..=16384)")
         });
         let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
-        let scale_in_pixels = scale_in_pixels * font_scaling;
+        let scale_in_pixels = font_sz_in_pixels * font_scaling;
 
         self.cache
             .entry((
