@@ -1112,17 +1112,18 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_builder = egui_winit::create_winit_window_atrributes(
+            let window_attributes = egui_winit::create_winit_window_atrributes(
                 &self.egui_ctx,
                 event_loop,
                 viewport.builder.clone(),
             );
-            if window_builder.transparent() && self.gl_config.supports_transparency() == Some(false)
+            if window_attributes.transparent()
+                && self.gl_config.supports_transparency() == Some(false)
             {
                 log::error!("Cannot create transparent window: the GL config does not support it");
             }
             let window =
-                glutin_winit::finalize_window(event_loop, window_builder, &self.gl_config)?;
+                glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?;
             egui_winit::apply_viewport_builder_to_window(
                 &self.egui_ctx,
                 &window,
