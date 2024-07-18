@@ -1654,16 +1654,16 @@ pub fn create_winit_window_atrributes(
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     if let Some(app_id) = _app_id {
-        use winit::platform::wayland::WindowBuilderExtWayland as _;
-        window_builder = window_builder.with_name(app_id, "");
+        use winit::platform::wayland::WindowAttributesExtWayland as _;
+        window_attributes = window_attributes.with_name(app_id, "");
     }
 
     #[cfg(all(feature = "x11", target_os = "linux"))]
     {
         if let Some(window_type) = _window_type {
-            use winit::platform::x11::WindowBuilderExtX11 as _;
+            use winit::platform::x11::WindowAttributesExtX11 as _;
             use winit::platform::x11::XWindowType;
-            window_builder = window_builder.with_x11_window_type(vec![match window_type {
+            window_attributes = window_attributes.with_x11_window_type(vec![match window_type {
                 egui::X11WindowType::Normal => XWindowType::Normal,
                 egui::X11WindowType::Utility => XWindowType::Utility,
                 egui::X11WindowType::Dock => XWindowType::Dock,
@@ -1684,12 +1684,12 @@ pub fn create_winit_window_atrributes(
 
     #[cfg(target_os = "windows")]
     {
-        use winit::platform::windows::WindowBuilderExtWindows as _;
+        use winit::platform::windows::WindowAttributesExtWindows as _;
         if let Some(enable) = _drag_and_drop {
-            window_builder = window_builder.with_drag_and_drop(enable);
+            window_attributes = window_attributes.with_drag_and_drop(enable);
         }
         if let Some(show) = _taskbar {
-            window_builder = window_builder.with_skip_taskbar(!show);
+            window_attributes = window_attributes.with_skip_taskbar(!show);
         }
     }
 
