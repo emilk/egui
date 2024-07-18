@@ -31,12 +31,12 @@ impl AppRunner {
     /// # Errors
     /// Failure to initialize WebGL renderer, or failure to create app.
     pub async fn new(
-        canvas_id: &str,
+        canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
-        let painter = super::ActiveWebPainter::new(canvas_id, &web_options).await?;
+        let painter = super::ActiveWebPainter::new(canvas, &web_options).await?;
 
         let system_theme = if web_options.follow_system_theme {
             super::system_theme()

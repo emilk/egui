@@ -32,10 +32,13 @@ impl WebHandle {
 
     /// Call this once from JavaScript to start your app.
     #[wasm_bindgen]
-    pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
+    pub async fn start(
+        &self,
+        canvas: web_sys::HtmlCanvasElement,
+    ) -> Result<(), wasm_bindgen::JsValue> {
         self.runner
             .start(
-                canvas_id,
+                canvas,
                 eframe::WebOptions::default(),
                 Box::new(|cc| Ok(Box::new(WrapApp::new(cc)))),
             )

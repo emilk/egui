@@ -1,7 +1,7 @@
 # egui changelog
 All notable changes to the `egui` crate will be documented in this file.
 
-NOTE: this is just the changelog for the core `egui` crate. [`eframe`](crates/eframe/CHANGELOG.md), [`egui_plot`](crates/egui_plot/CHANGELOG.md), [`ecolor`](crates/ecolor/CHANGELOG.md), [`epaint`](crates/epaint/CHANGELOG.md), [`egui-winit`](crates/egui-winit/CHANGELOG.md), [`egui_glow`](crates/egui_glow/CHANGELOG.md) and [`egui-wgpu`](crates/egui-wgpu/CHANGELOG.md) have their own changelogs!
+NOTE: this is just the changelog for the core `egui` crate. [`eframe`](crates/eframe/CHANGELOG.md), [`ecolor`](crates/ecolor/CHANGELOG.md), [`epaint`](crates/epaint/CHANGELOG.md), [`egui-winit`](crates/egui-winit/CHANGELOG.md), [`egui_glow`](crates/egui_glow/CHANGELOG.md) and [`egui-wgpu`](crates/egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.

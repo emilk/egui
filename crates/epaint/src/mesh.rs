@@ -76,6 +76,7 @@ impl Mesh {
         self.vertices = Default::default();
     }
 
+    /// Returns the amount of memory used by the vertices and indices.
     pub fn bytes_used(&self) -> usize {
         std::mem::size_of::<Self>()
             + self.vertices.len() * std::mem::size_of::<Vertex>()
@@ -107,6 +108,8 @@ impl Mesh {
     }
 
     /// Append all the indices and vertices of `other` to `self`.
+    ///
+    /// Panics when `other` mesh has a different texture.
     pub fn append(&mut self, other: Self) {
         crate::profile_function!();
         debug_assert!(other.is_valid());
@@ -120,6 +123,8 @@ impl Mesh {
 
     /// Append all the indices and vertices of `other` to `self` without
     /// taking ownership.
+    ///
+    /// Panics when `other` mesh has a different texture.
     pub fn append_ref(&mut self, other: &Self) {
         debug_assert!(other.is_valid());
 
@@ -138,6 +143,9 @@ impl Mesh {
         self.vertices.extend(other.vertices.iter());
     }
 
+    /// Add a colored vertex.
+    ///
+    /// Panics when the mesh has assigned a texture.
     #[inline(always)]
     pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
         debug_assert!(self.texture_id == TextureId::default());

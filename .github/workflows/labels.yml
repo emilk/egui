@@ -29,4 +29,4 @@ jobs:
         with:
           mode: minimum
           count: 1
-          labels: "CI, dependencies, docs and examples, ecolor, eframe, egui_extras, egui_glow, egui_plot, egui-wgpu, egui-winit, egui, epaint, exclude from changelog, typo"
+          labels: "CI, dependencies, docs and examples, ecolor, eframe, egui_extras, egui_glow, egui-wgpu, egui-winit, egui, epaint, exclude from changelog, typo"

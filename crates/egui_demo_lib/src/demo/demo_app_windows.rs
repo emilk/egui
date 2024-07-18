@@ -36,7 +36,6 @@ impl Default for Demos {
             Box::<super::painting::Painting>::default(),
             Box::<super::pan_zoom::PanZoom>::default(),
             Box::<super::panels::Panels>::default(),
-            Box::<super::plot_demo::PlotDemo>::default(),
             Box::<super::scrolling::Scrolling>::default(),
             Box::<super::sliders::Sliders>::default(),
             Box::<super::strip_demo::StripDemo>::default(),
@@ -44,6 +43,7 @@ impl Default for Demos {
             Box::<super::text_edit::TextEditDemo>::default(),
             Box::<super::text_layout::TextLayoutDemo>::default(),
             Box::<super::tooltips::Tooltips>::default(),
+            Box::<super::undo_redo::UndoRedoDemo>::default(),
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
         ])
