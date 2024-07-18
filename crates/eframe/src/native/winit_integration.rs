@@ -125,3 +125,36 @@ pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<c
         None
     }
 }
+
+#[cfg(feature = "accesskit")]
+pub(crate) fn on_accesskit_window_event(
+    egui_winit: &mut egui_winit::State,
+    window_id: WindowId,
+    event: &accesskit_winit::WindowEvent,
+) -> EventResult {
+    match event {
+        accesskit_winit::WindowEvent::InitialTreeRequested => {
+            egui_winit.egui_ctx().enable_accesskit();
+            // Because we can't provide the initial tree synchronously
+            // (because that would require the activation handler to access
+            // the same mutable state as the winit event handler), some
+            // AccessKit platform adapters will use a placeholder tree
+            // until we send the first tree update. To minimize the possible
+            // bad effects of that workaround, repaint and send the tree
+            // immediately.
+            EventResult::RepaintNow(window_id)
+        }
+        accesskit_winit::WindowEvent::ActionRequested(request) => {
+            egui_winit.on_accesskit_action_request(request.clone());
+            // As a form of user input, accessibility actions should cause
+            // a repaint, but not until the next regular frame.
+            EventResult::RepaintNext(window_id)
+        }
+        accesskit_winit::WindowEvent::AccessibilityDeactivated => {
+            egui_winit.egui_ctx().disable_accesskit();
+            // Disabling AccessKit support should have no visible effect,
+            // so there's no need to repaint.
+            EventResult::Wait
+        }
+    }
+}

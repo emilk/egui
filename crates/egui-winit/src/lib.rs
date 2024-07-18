@@ -162,13 +162,11 @@ impl State {
         &mut self,
         window: &Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
-        activation_handler: impl egui::accesskit::ActivationHandler + Send + 'static,
     ) {
         crate::profile_function!();
 
-        self.accesskit = Some(accesskit_winit::Adapter::with_mixed_handlers(
+        self.accesskit = Some(accesskit_winit::Adapter::with_event_loop_proxy(
             window,
-            activation_handler,
             event_loop_proxy,
         ));
     }

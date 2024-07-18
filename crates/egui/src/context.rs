@@ -2915,21 +2915,10 @@ impl Context {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
     }
 
-    /// Return a tree update that the egui integration should provide to the
-    /// AccessKit adapter if it cannot immediately run the egui application
-    /// to get a full tree update after running [`Context::enable_accesskit`].
+    /// Disable generation of AccessKit tree updates in all future frames.
     #[cfg(feature = "accesskit")]
-    pub fn accesskit_placeholder_tree_update(&self) -> accesskit::TreeUpdate {
-        crate::profile_function!();
-
-        use accesskit::{NodeBuilder, Role, Tree, TreeUpdate};
-
-        let root_id = crate::accesskit_root_id().accesskit_id();
-        self.write(|_| TreeUpdate {
-            nodes: vec![(root_id, NodeBuilder::new(Role::Window).build())],
-            tree: Some(Tree::new(root_id)),
-            focus: root_id,
-        })
+    pub fn disable_accesskit(&self) {
+        self.write(|ctx| ctx.is_accesskit_enabled = false);
     }
 }
 

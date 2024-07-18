@@ -249,7 +249,7 @@ impl WgpuWinitApp {
         #[cfg(feature = "accesskit")]
         {
             let event_loop_proxy = self.repaint_proxy.lock().clone();
-            integration.init_accesskit(&mut egui_winit, &window, event_loop_proxy);
+            egui_winit.init_accesskit(&window, event_loop_proxy);
         }
         let theme = system_theme.unwrap_or(self.native_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
@@ -473,29 +473,24 @@ impl WinitApp for WgpuWinitApp {
 
     #[cfg(feature = "accesskit")]
     fn on_accesskit_event(&mut self, event: accesskit_winit::Event) -> crate::Result<EventResult> {
-        if let accesskit_winit::Event {
-            window_id,
-            window_event: accesskit_winit::WindowEvent::ActionRequested(request),
-        } = event
-        {
-            if let Some(running) = &mut self.running {
-                let mut shared_lock = running.shared.borrow_mut();
-                let SharedState {
-                    viewport_from_window,
-                    viewports,
-                    ..
-                } = &mut *shared_lock;
-                if let Some(viewport) = viewport_from_window
-                    .get(&window_id)
-                    .and_then(|id| viewports.get_mut(id))
-                {
-                    if let Some(egui_winit) = &mut viewport.egui_winit {
-                        egui_winit.on_accesskit_action_request(request.clone());
-                    }
+        if let Some(running) = &mut self.running {
+            let mut shared_lock = running.shared.borrow_mut();
+            let SharedState {
+                viewport_from_window,
+                viewports,
+                ..
+            } = &mut *shared_lock;
+            if let Some(viewport) = viewport_from_window
+                .get(&event.window_id)
+                .and_then(|id| viewports.get_mut(id))
+            {
+                if let Some(egui_winit) = &mut viewport.egui_winit {
+                    return Ok(winit_integration::on_accesskit_window_event(
+                        egui_winit,
+                        event.window_id,
+                        &event.window_event,
+                    ));
                 }
-                // As a form of user input, accessibility actions should
-                // lead to a repaint.
-                return Ok(EventResult::RepaintNext(window_id));
             }
         }
 

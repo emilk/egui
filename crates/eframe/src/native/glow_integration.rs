@@ -277,7 +277,7 @@ impl GlowWinitApp {
                 ..
             } = viewport
             {
-                integration.init_accesskit(egui_winit, window, event_loop_proxy);
+                egui_winit.init_accesskit(window, event_loop_proxy);
             }
         }
 
@@ -476,24 +476,18 @@ impl WinitApp for GlowWinitApp {
 
     #[cfg(feature = "accesskit")]
     fn on_accesskit_event(&mut self, event: accesskit_winit::Event) -> crate::Result<EventResult> {
-        if let accesskit_winit::Event {
-            window_id,
-            window_event: accesskit_winit::WindowEvent::ActionRequested(request),
-        } = event
-        {
-            if let Some(running) = &self.running {
-                let mut glutin = running.glutin.borrow_mut();
-                if let Some(viewport_id) = glutin.viewport_from_window.get(&window_id).copied() {
-                    if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                        if let Some(egui_winit) = &mut viewport.egui_winit {
-                            crate::profile_scope!("on_accesskit_action_request");
-                            egui_winit.on_accesskit_action_request(request.clone());
-                        }
+        if let Some(running) = &self.running {
+            let mut glutin = running.glutin.borrow_mut();
+            if let Some(viewport_id) = glutin.viewport_from_window.get(&event.window_id).copied() {
+                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                    if let Some(egui_winit) = &mut viewport.egui_winit {
+                        return Ok(winit_integration::on_accesskit_window_event(
+                            egui_winit,
+                            event.window_id,
+                            &event.window_event,
+                        ));
                     }
                 }
-                // As a form of user input, accessibility actions should
-                // lead to a repaint.
-                return Ok(EventResult::RepaintNext(window_id));
             }
         }
 
