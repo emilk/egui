@@ -67,6 +67,10 @@ pub struct FontImpl {
     ab_glyph_font: ab_glyph::FontArc,
     font: Arc<cosmic_text::Font>,
 
+    // Horizontal & vertical scale factor
+    scale_factor: f32,
+    font_size: f32,
+
     /// Maximum character height
     scale_in_pixels: u32,
 
@@ -79,11 +83,13 @@ pub struct FontImpl {
     pixels_per_point: f32,
     glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
+    font_system: Arc<Mutex<(cosmic_text::FontSystem, cosmic_text::SwashCache)>>
 }
 
 impl FontImpl {
     pub fn new(
         atlas: Arc<Mutex<TextureAtlas>>,
+        font_system: Arc<Mutex<(cosmic_text::FontSystem, cosmic_text::SwashCache)>>,
         pixels_per_point: f32,
         name: String,
         ab_glyph_font: ab_glyph::FontArc,
@@ -108,6 +114,13 @@ impl FontImpl {
         let descent = v_scale_factor * -metrics.descent;
 
         let line_gap = v_scale_factor * metrics.leading;
+
+        let ascent = ascent / pixels_per_point;
+        let descent = descent / pixels_per_point;
+        let line_gap = line_gap / pixels_per_point;
+
+        // TODO(tamewild): is this correct?
+        let font_size = v_scale_factor * metrics.units_per_em as f32;
 
         // Tweak the scale as the user desired
         let scale_in_pixels = scale_in_pixels * tweak.scale;
@@ -137,6 +150,8 @@ impl FontImpl {
             name,
             ab_glyph_font,
             font,
+            scale_factor: v_scale_factor,
+            font_size,
             scale_in_pixels,
             height_in_points: ascent - descent + line_gap,
             y_offset_in_points,
@@ -144,6 +159,7 @@ impl FontImpl {
             pixels_per_point,
             glyph_info_cache: Default::default(),
             atlas,
+            font_system,
         }
     }
 
@@ -239,12 +255,13 @@ impl FontImpl {
 
         // Add new character:
         use ab_glyph::Font as _;
-        let glyph_id = self.ab_glyph_font.glyph_id(c);
+        let ab_glyph_id = self.ab_glyph_font.glyph_id(c);
+        let glyph_id = self.font.as_swash().charmap().map(c);
 
-        if glyph_id.0 == 0 {
+        if glyph_id == 0 {
             None // unsupported character
         } else {
-            let glyph_info = self.allocate_glyph(glyph_id);
+            let glyph_info = self.allocate_glyph(ab_glyph_id, glyph_id);
             self.glyph_info_cache.write().insert(c, glyph_info);
             Some(glyph_info)
         }
@@ -256,11 +273,7 @@ impl FontImpl {
         last_glyph_id: ab_glyph::GlyphId,
         glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
-        use ab_glyph::{Font as _, ScaleFont};
-        self.ab_glyph_font
-            .as_scaled(self.scale_in_pixels as f32)
-            .kern(last_glyph_id, glyph_id)
-            / self.pixels_per_point
+        0.0
     }
 
     /// Height of one row of text in points.
@@ -282,56 +295,109 @@ impl FontImpl {
         self.ascent
     }
 
-    fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
+    fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId, swash_glyph_id: u16) -> GlyphInfo {
         assert!(glyph_id.0 != 0);
-        use ab_glyph::{Font as _, ScaleFont};
 
-        let glyph = glyph_id.with_scale_and_position(
-            self.scale_in_pixels as f32,
-            ab_glyph::Point { x: 0.0, y: 0.0 },
-        );
+        let image = {
+            let mut lock = self.font_system.lock();
 
-        let uv_rect = self.ab_glyph_font.outline_glyph(glyph).map(|glyph| {
-            let bb = glyph.px_bounds();
-            let glyph_width = bb.width() as usize;
-            let glyph_height = bb.height() as usize;
-            if glyph_width == 0 || glyph_height == 0 {
-                UvRect::default()
-            } else {
-                let glyph_pos = {
-                    let atlas = &mut self.atlas.lock();
-                    let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-                    glyph.draw(|x, y, v| {
-                        if 0.0 < v {
-                            let px = glyph_pos.0 + x as usize;
-                            let py = glyph_pos.1 + y as usize;
-                            image[(px, py)] = v;
+            let (font_system, swash_cache) = &mut *lock;
+
+            let (cache_key, ..) = cosmic_text::CacheKey::new(
+                self.font.id(),
+                swash_glyph_id,
+                self.font_size,
+                (0., 0.),
+                cosmic_text::CacheKeyFlags::empty()
+            );
+
+            swash_cache.get_image_uncached(font_system, cache_key)
+        };
+
+        let uv_rect = image.and_then(|image| {
+            let cosmic_text::SwashImage {
+                content,
+                placement,
+                data,
+                ..
+            } = image;
+
+            if placement.width == 0 || placement.height == 0 {
+                return None
+            }
+
+            let glyph_size @ (glyph_width, glyph_height) = (placement.width as usize, placement.height as usize);
+
+            let (x, y) = {
+                let mut atlas = self.atlas.lock();
+
+                let (glyph_pos @ (atlas_x, atlas_y), image) = atlas.allocate(glyph_size);
+
+                match content {
+                    cosmic_text::SwashContent::Mask => {
+                        let mut i = 0;
+
+                        for y in 0..glyph_height {
+                            for x in 0..glyph_width {
+                                image[(
+                                    atlas_x + x,
+                                    atlas_y + y
+                                )] = data[i] as f32 / 255.0;
+
+                                i += 1;
+                            }
                         }
-                    });
-                    glyph_pos
-                };
+                    }
+                    cosmic_text::SwashContent::Color => {
+                        unimplemented!();
+                        let mut pixel_iter = data.chunks_exact(4);
 
-                let offset_in_pixels = vec2(bb.min.x, bb.min.y);
-                let offset =
-                    offset_in_pixels / self.pixels_per_point + self.y_offset_in_points * Vec2::Y;
+                        for y in 0..glyph_height {
+                            for x in 0..glyph_width {
+                                let Some([.., alpha]) = pixel_iter.next() else { break };
+
+                                image[(
+                                    atlas_x + x,
+                                    atlas_y + y
+                                )] = *alpha as f32 / 255.0;
+                            }
+                        }
+                    }
+                    cosmic_text::SwashContent::SubpixelMask => unimplemented!()
+                }
+
+                glyph_pos
+            };
+
+            let offset_in_pixels = vec2(placement.left as f32, -placement.top as f32);
+
+            let offset =
+                offset_in_pixels / self.pixels_per_point + self.y_offset_in_points * Vec2::Y;
+
+            Some(
                 UvRect {
                     offset,
                     size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
-                    min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+                    min: [x as u16, y as u16],
                     max: [
-                        (glyph_pos.0 + glyph_width) as u16,
-                        (glyph_pos.1 + glyph_height) as u16,
+                        (x + glyph_width) as u16,
+                        (y + glyph_height) as u16,
                     ],
                 }
-            }
+            )
         });
+
         let uv_rect = uv_rect.unwrap_or_default();
 
-        let advance_width_in_points = self
-            .ab_glyph_font
-            .as_scaled(self.scale_in_pixels as f32)
-            .h_advance(glyph_id)
-            / self.pixels_per_point;
+        let h_advance = self
+            .font
+            .as_swash()
+            .glyph_metrics(&[])
+            .advance_width(swash_glyph_id);
+
+        // h_scale_factor = v_scale_factor
+        // h_scale_factor * h_advance_unscaled = h_advance (scaled)
+        let advance_width_in_points = (self.scale_factor * h_advance) / self.pixels_per_point;
 
         GlyphInfo {
             id: glyph_id,

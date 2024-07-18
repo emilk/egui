@@ -743,7 +743,7 @@ struct FontImplCache {
     pixels_per_point: f32,
     ab_glyph_fonts: BTreeMap<String, (FontTweak, ab_glyph::FontArc)>,
 
-    font_system: Arc<Mutex<cosmic_text::FontSystem>>,
+    font_system: Arc<Mutex<(cosmic_text::FontSystem, cosmic_text::SwashCache)>>,
     fonts: BTreeMap<String, (FontTweak, Arc<cosmic_text::Font>)>,
 
     /// Map font pixel sizes and names to the cached [`FontImpl`].
@@ -782,11 +782,13 @@ impl FontImplCache {
             font_db
         );
 
+        let swash_cache = cosmic_text::SwashCache::new();
+
         Self {
             atlas,
             pixels_per_point,
             ab_glyph_fonts,
-            font_system: Arc::new(Mutex::new(font_system)),
+            font_system: Arc::new(Mutex::new((font_system, swash_cache))),
             fonts,
             cache: Default::default(),
         }
@@ -823,6 +825,7 @@ impl FontImplCache {
             .or_insert_with(|| {
                 Arc::new(FontImpl::new(
                     self.atlas.clone(),
+                    self.font_system.clone(),
                     self.pixels_per_point,
                     font_name.to_owned(),
                     ab_glyph_font,
