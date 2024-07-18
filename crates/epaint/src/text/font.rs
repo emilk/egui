@@ -65,6 +65,7 @@ impl Default for GlyphInfo {
 pub struct FontImpl {
     name: String,
     ab_glyph_font: ab_glyph::FontArc,
+    font: Arc<cosmic_text::Font>,
 
     /// Maximum character height
     scale_in_pixels: u32,
@@ -135,6 +136,7 @@ impl FontImpl {
         Self {
             name,
             ab_glyph_font,
+            font,
             scale_in_pixels,
             height_in_points: ascent - descent + line_gap,
             y_offset_in_points,
@@ -175,11 +177,18 @@ impl FontImpl {
 
     /// An un-ordered iterator over all supported characters.
     fn characters(&self) -> impl Iterator<Item = char> + '_ {
-        use ab_glyph::Font as _;
-        self.ab_glyph_font
-            .codepoint_ids()
-            .map(|(_, chr)| chr)
-            .filter(|&chr| !self.ignore_character(chr))
+        let mut chars = Vec::new();
+
+        self.font.as_swash()
+            .charmap()
+            .enumerate(|chr, _| {
+                let chr = char::from_u32(chr).unwrap();
+                if !self.ignore_character(chr) {
+                    chars.push(chr);
+                }
+            });
+
+        chars.into_iter()
     }
 
     /// `\n` will result in `None`
