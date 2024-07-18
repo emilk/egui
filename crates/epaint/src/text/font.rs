@@ -72,7 +72,7 @@ pub struct FontImpl {
     font_size: f32,
 
     /// Maximum character height
-    scale_in_pixels: u32,
+    _scale_in_pixels: u32,
 
     height_in_points: f32,
 
@@ -152,7 +152,7 @@ impl FontImpl {
             font,
             scale_factor: v_scale_factor,
             font_size,
-            scale_in_pixels,
+            _scale_in_pixels: scale_in_pixels,
             height_in_points: ascent - descent + line_gap,
             y_offset_in_points,
             ascent: ascent + baseline_offset,
@@ -270,8 +270,8 @@ impl FontImpl {
     #[inline]
     pub fn pair_kerning(
         &self,
-        last_glyph_id: ab_glyph::GlyphId,
-        glyph_id: ab_glyph::GlyphId,
+        _last_glyph_id: ab_glyph::GlyphId,
+        _glyph_id: ab_glyph::GlyphId,
     ) -> f32 {
         0.0
     }
@@ -350,18 +350,6 @@ impl FontImpl {
                     }
                     cosmic_text::SwashContent::Color => {
                         unimplemented!();
-                        let mut pixel_iter = data.chunks_exact(4);
-
-                        for y in 0..glyph_height {
-                            for x in 0..glyph_width {
-                                let Some([.., alpha]) = pixel_iter.next() else { break };
-
-                                image[(
-                                    atlas_x + x,
-                                    atlas_y + y
-                                )] = *alpha as f32 / 255.0;
-                            }
-                        }
                     }
                     cosmic_text::SwashContent::SubpixelMask => unimplemented!()
                 }

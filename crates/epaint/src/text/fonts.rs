@@ -795,9 +795,7 @@ impl FontImplCache {
     }
 
     pub fn font_impl(&mut self, scale_in_points: f32, font_name: &str) -> Arc<FontImpl> {
-        use ab_glyph::Font as _;
-
-        let (tweak, ab_glyph_font) = self
+        let (_tweak, ab_glyph_font) = self
             .ab_glyph_fonts
             .get(font_name)
             .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
