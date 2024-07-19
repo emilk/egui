@@ -64,7 +64,9 @@ ahash.workspace = true
 log.workspace = true
 
 # wayland-cursor should enable the fs feature as it otherwise doesn't compile.
-# Instead do this manually for now.
+# This is fixed upstream post https://github.com/Smithay/wayland-rs/commit/edd0f60d0baf09604553525c2636df5d6ba05d44 or v0.31.1
+# so should be removed when winit upgrades past that version.
+# Enable this feature manually for now.
 nix = { version = "0.26.4", default-features = false, optional = true }
 raw-window-handle.workspace = true
 web-time.workspace = true
