@@ -46,14 +46,15 @@ deny = [
 ]
 
 skip = [
+  { name = "bit-set" },        # wgpu's naga depends on 0.6, syntect's (used by egui_extras) fancy-regex depends on 0.5
+  { name = "bit-vec" },        # dependency of bit-set in turn, different between 0.6 and 0.5
   { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
   { name = "block2" },         # old version via glutin->icrate
   { name = "event-listener" }, # TODO(emilk): rustls pulls in two versions of this 😭
-  { name = "libloading" },     # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
+  { name = "glutin_wgl_sys" }, # 0.6.0 used by wgpu-hal, 0.5.0 used by glutin which can't be updated until we update to winit 0.30
   { name = "memoffset" },      # tiny dependency
   { name = "quick-xml" },      # old version via wayland-scanner
   { name = "redox_syscall" },  # old version via winit
-  { name = "spin" },           # old version via ring through rusttls and other libraries, newer for wgpu.
   { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
   { name = "windows" },        # old version via accesskit_windows
   { name = "x11rb-protocol" }, # old version via arboard

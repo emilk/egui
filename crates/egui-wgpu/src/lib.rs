@@ -304,6 +304,7 @@ impl Default for WgpuConfiguration {
                         max_texture_dimension_2d: 8192,
                         ..base_limits
                     },
+                    memory_hints: wgpu::MemoryHints::default(),
                 }
             }),
 
