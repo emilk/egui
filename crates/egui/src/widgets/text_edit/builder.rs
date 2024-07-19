@@ -425,7 +425,7 @@ impl<'t> TextEdit<'t> {
                         frame_rect,
                         visuals.rounding,
                         ui.visuals().extreme_bg_color,
-                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        ui.visuals().widgets.noninteractive.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
             } else {
@@ -481,6 +481,14 @@ impl<'t> TextEdit<'t> {
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
+
+        let wrap_mode = if ui.style().wrap_mode.is_some() {
+            ui.style().wrap_mode
+        } else if multiline {
+            Some(TextWrapMode::Wrap)
+        } else {
+            Some(TextWrapMode::Extend)
+        };
         let wrap_width = if ui.layout().horizontal_justify() {
             available_width
         } else {
@@ -491,6 +499,11 @@ impl<'t> TextEdit<'t> {
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
             let layout_job = if multiline {
+                let wrap_width = if wrap_mode == Some(TextWrapMode::Extend) {
+                    f32::INFINITY
+                } else {
+                    wrap_width
+                };
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
@@ -521,13 +534,13 @@ impl<'t> TextEdit<'t> {
             }
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+        let has_focus = ui.memory(|mem| mem.has_focus(id));
 
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
         // Since currently copying selected text in not supported on `eframe` web,
         // we prioritize touch-scrolling:
-        let allow_drag_to_select =
-            ui.input(|i| !i.has_touch_screen()) || ui.memory(|mem| mem.has_focus(id));
+        let allow_drag_to_select = has_focus || ui.input(|i| !i.has_touch_screen());
 
         let sense = if interactive {
             if allow_drag_to_select {
@@ -554,8 +567,11 @@ impl<'t> TextEdit<'t> {
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
 
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
-                let cursor_at_pointer =
-                    galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
+                let cursor_at_pointer = if has_focus {
+                    galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset)
+                } else {
+                    state.cursor.range(&galley).unwrap_or_default().primary
+                };
 
                 if ui.visuals().text_cursor.preview
                     && response.hovered()
@@ -668,19 +684,9 @@ impl<'t> TextEdit<'t> {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
-                    hint_text.into_galley(
-                        ui,
-                        Some(TextWrapMode::Wrap),
-                        desired_inner_size.x,
-                        hint_text_font_id,
-                    )
+                    hint_text.into_galley(ui, wrap_mode, desired_inner_size.x, hint_text_font_id)
                 } else {
-                    hint_text.into_galley(
-                        ui,
-                        Some(TextWrapMode::Extend),
-                        f32::INFINITY,
-                        hint_text_font_id,
-                    )
+                    hint_text.into_galley(ui, wrap_mode, f32::INFINITY, hint_text_font_id)
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }
@@ -733,6 +739,7 @@ impl<'t> TextEdit<'t> {
 
                         ui.ctx().output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
+                                visible: ui.visuals().text_cursor.ime_visible,
                                 rect: transform * rect,
                                 cursor_rect: transform * primary_cursor_rect,
                             });
