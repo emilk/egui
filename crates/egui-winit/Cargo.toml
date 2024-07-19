@@ -52,7 +52,7 @@ puffin = ["dep:puffin", "egui/puffin"]
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland", "bytemuck"]
+wayland = ["winit/wayland", "bytemuck", "nix/fs"]
 
 ## Enables compiling for x11.
 x11 = ["winit/x11", "bytemuck"]
@@ -62,6 +62,10 @@ egui = { workspace = true, default-features = false, features = ["log"] }
 
 ahash.workspace = true
 log.workspace = true
+
+# wayland-cursor shoud enable the fs feature as it otherwise doesn't compile.
+# Instead do this manually for now.
+nix = { version = "0.26.4", default-features = false, optional = true }
 raw-window-handle.workspace = true
 web-time.workspace = true
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }

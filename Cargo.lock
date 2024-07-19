@@ -1247,6 +1247,7 @@ dependencies = [
  "document-features",
  "egui",
  "log",
+ "nix",
  "puffin",
  "raw-window-handle 0.6.0",
  "serde",
