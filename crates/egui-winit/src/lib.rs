@@ -1518,13 +1518,13 @@ pub fn create_window(
     crate::profile_function!();
 
     let window_attributes =
-        create_winit_window_atrributes(egui_ctx, event_loop, viewport_builder.clone());
+        create_winit_window_attributes(egui_ctx, event_loop, viewport_builder.clone());
     let window = event_loop.create_window(window_attributes)?;
     apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
     Ok(window)
 }
 
-pub fn create_winit_window_atrributes(
+pub fn create_winit_window_attributes(
     egui_ctx: &egui::Context,
     event_loop: &ActiveEventLoop,
     viewport_builder: ViewportBuilder,

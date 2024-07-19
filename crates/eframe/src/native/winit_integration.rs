@@ -75,7 +75,9 @@ pub trait WinitApp {
     ) -> crate::Result<EventResult>;
 
     fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+
     fn device_event(
         &mut self,
         event_loop: &ActiveEventLoop,

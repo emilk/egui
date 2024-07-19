@@ -944,7 +944,7 @@ impl GlutinWindowContext {
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-            .with_window_attributes(Some(egui_winit::create_winit_window_atrributes(
+            .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,
                 viewport_builder.clone(),
@@ -1098,7 +1098,7 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_attributes = egui_winit::create_winit_window_atrributes(
+            let window_attributes = egui_winit::create_winit_window_attributes(
                 &self.egui_ctx,
                 event_loop,
                 viewport.builder.clone(),
@@ -1141,7 +1141,10 @@ impl GlutinWindowContext {
             let surface_attributes = {
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
                     .build(
-                        window.window_handle().expect("TODO TDO").as_raw(),
+                        window
+                            .window_handle()
+                            .expect("Failed to get display handle")
+                            .as_raw(),
                         width_px,
                         height_px,
                     )

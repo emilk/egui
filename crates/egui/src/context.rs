@@ -2902,14 +2902,6 @@ impl Context {
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
-    ///
-    /// If it's practical for the egui integration to immediately run the egui
-    /// application when it is either initializing the AccessKit adapter or
-    /// being called by the AccessKit adapter to provide the initial tree update,
-    /// then it should do so, to provide a complete AccessKit tree to the adapter
-    /// immediately. Otherwise, it should enqueue a repaint and use the
-    /// placeholder tree update from [`Context::accesskit_placeholder_tree_update`]
-    /// in the meantime.
     #[cfg(feature = "accesskit")]
     pub fn enable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = true);

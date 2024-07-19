@@ -85,7 +85,7 @@ ron = "0.8"
 raw-window-handle = "0.6.0"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1.0.37"
-web-time = "0.2" # Timekeeping for native and web
+web-time = "1.1.0" # Timekeeping for native and web
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.58"
@@ -94,7 +94,7 @@ wgpu = { version = "22.0.0", default-features = false, features = [
     "fragile-send-sync-non-atomic-wasm",
 ] }
 
-# Version 0.30.1 and up unfortunately crash on macOS, due to https://github.com/rust-windowing/winit/pull/3684
+# Version 0.30.1 and up unfortunately crash on macOS, see https://github.com/rust-windowing/winit/issues/3800
 winit = { version = "=0.30.0", default-features = false }
 
 [workspace.lints.rust]

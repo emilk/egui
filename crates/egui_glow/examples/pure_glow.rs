@@ -297,6 +297,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
             self.gl_window.as_mut().unwrap().window().request_redraw();
         }
     }
+
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::Redraw(delay) => self.repaint_delay = delay,

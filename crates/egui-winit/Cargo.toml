@@ -63,7 +63,7 @@ egui = { workspace = true, default-features = false, features = ["log"] }
 ahash.workspace = true
 log.workspace = true
 
-# wayland-cursor shoud enable the fs feature as it otherwise doesn't compile.
+# wayland-cursor should enable the fs feature as it otherwise doesn't compile.
 # Instead do this manually for now.
 nix = { version = "0.26.4", default-features = false, optional = true }
 raw-window-handle.workspace = true
