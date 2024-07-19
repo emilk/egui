@@ -51,6 +51,7 @@ skip = [
   { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
   { name = "block2" },         # old version via glutin->icrate
   { name = "event-listener" }, # TODO(emilk): rustls pulls in two versions of this 😭
+  { name = "glutin_wgl_sys" }, # 0.6.0 used by wgpu-hal, 0.5.0 used by glutin which can't be updated until we update to winit 0.30
   { name = "libloading" },     # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
   { name = "memoffset" },      # tiny dependency
   { name = "quick-xml" },      # old version via wayland-scanner
