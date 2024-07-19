@@ -364,7 +364,7 @@ fn run_and_exit(
             // WaitUntil seems to not work on iOS
             #[cfg(target_os = "ios")]
             winit_app
-                .get_window_winit_id(ViewportId::ROOT)
+                .window_id_from_viewport_id(egui::ViewportId::ROOT)
                 .map(|window_id| {
                     winit_app
                         .window(window_id)
