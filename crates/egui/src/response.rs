@@ -968,7 +968,7 @@ impl Response {
 
         self.fill_accesskit_node_common(builder);
         builder.set_role(match info.typ {
-            WidgetType::Label => Role::StaticText,
+            WidgetType::Label => Role::Label,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextInput,
             WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
