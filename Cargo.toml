@@ -11,6 +11,7 @@ members = [
     "crates/egui",
     "crates/emath",
     "crates/epaint",
+    "crates/epaint_default_fonts",
 
     "examples/*",
     "tests/*",
@@ -56,6 +57,7 @@ opt-level = 2
 emath = { version = "0.28.1", path = "crates/emath", default-features = false }
 ecolor = { version = "0.28.1", path = "crates/ecolor", default-features = false }
 epaint = { version = "0.28.1", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.28.1", path = "crates/epaint_default_fonts" }
 egui = { version = "0.28.1", path = "crates/egui", default-features = false }
 egui-winit = { version = "0.28.1", path = "crates/egui-winit", default-features = false }
 egui_extras = { version = "0.28.1", path = "crates/egui_extras", default-features = false }

@@ -1460,6 +1460,7 @@ dependencies = [
  "document-features",
  "ecolor",
  "emath",
+ "epaint_default_fonts",
  "log",
  "nohash-hasher",
  "parking_lot",
@@ -1467,6 +1468,10 @@ dependencies = [
  "rayon",
  "serde",
 ]
+
+[[package]]
+name = "epaint_default_fonts"
+version = "0.28.1"
 
 [[package]]
 name = "equivalent"
