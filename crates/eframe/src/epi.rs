@@ -309,8 +309,8 @@ pub struct NativeOptions {
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
     /// or eframe fails to detect the system theme.
     ///
-    /// Default: [`Theme::Dark`].
-    pub default_theme: Theme,
+    /// Default: [`egui::Theme::Dark`].
+    pub default_theme: egui::Theme,
 
     /// This controls what happens when you close the main eframe window.
     ///
@@ -418,7 +418,7 @@ impl Default for NativeOptions {
             renderer: Renderer::default(),
 
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
-            default_theme: Theme::Dark,
+            default_theme: egui::Theme::Dark,
             run_and_return: true,
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -459,8 +459,8 @@ pub struct WebOptions {
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
     /// or system theme detection fails.
     ///
-    /// Default: `Theme::Dark`.
-    pub default_theme: Theme,
+    /// Default: `egui::Theme::Dark`.
+    pub default_theme: egui::Theme,
 
     /// Sets the number of bits in the depth buffer.
     ///
@@ -493,7 +493,7 @@ impl Default for WebOptions {
     fn default() -> Self {
         Self {
             follow_system_theme: true,
-            default_theme: Theme::Dark,
+            default_theme: egui::Theme::Dark,
             depth_buffer: 0,
 
             #[cfg(feature = "glow")]
@@ -503,31 +503,6 @@ impl Default for WebOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             dithering: true,
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Dark or Light theme.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum Theme {
-    /// Dark mode: light text on a dark background.
-    Dark,
-
-    /// Light mode: dark text on a light background.
-    Light,
-}
-
-impl Theme {
-    /// Get the egui visuals corresponding to this theme.
-    ///
-    /// Use with [`egui::Context::set_visuals`].
-    pub fn egui_visuals(self) -> egui::Visuals {
-        match self {
-            Self::Dark => egui::Visuals::dark(),
-            Self::Light => egui::Visuals::light(),
         }
     }
 }
@@ -817,7 +792,7 @@ pub struct IntegrationInfo {
     /// Does the OS use dark or light mode?
     ///
     /// `None` means "don't know".
-    pub system_theme: Option<Theme>,
+    pub system_theme: Option<egui::Theme>,
 
     /// Seconds of cpu usage (in seconds) on the previous frame.
     ///

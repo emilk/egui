@@ -8,6 +8,9 @@ use crate::{
     ViewportId, ViewportIdMap, ViewportIdSet,
 };
 
+mod theme;
+pub use theme::Theme;
+
 // ----------------------------------------------------------------------------
 
 /// The data that egui persists between frames.

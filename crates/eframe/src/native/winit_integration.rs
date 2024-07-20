@@ -118,7 +118,7 @@ pub enum EventResult {
     Exit,
 }
 
-pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<crate::Theme> {
+pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<egui::Theme> {
     if options.follow_system_theme {
         window
             .theme()

@@ -7,10 +7,10 @@ use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
-use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
+use egui::{DeferredViewportUiCallback, NumExt as _, Theme, ViewportBuilder, ViewportId};
 use egui_winit::{EventResponse, WindowSettings};
 
-use crate::{epi, Theme};
+use crate::epi;
 
 pub fn viewport_builder(
     egui_zoom_factor: f32,
