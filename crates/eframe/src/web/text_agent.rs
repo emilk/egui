@@ -5,7 +5,9 @@ use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
 
-use super::{is_mobile, AppRunner, WebRunner};
+use egui::ImeEvent;
+
+use super::{AppRunner, WebRunner};
 
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
@@ -26,9 +28,12 @@ impl TextAgent {
 
         // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
-        style.set_property("opacity", "0")?;
+        style.set_property("background-color", "transparent")?;
+        style.set_property("border", "none")?;
+        style.set_property("outline", "none")?;
         style.set_property("width", "1px")?;
         style.set_property("height", "1px")?;
+        style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
@@ -40,6 +45,8 @@ impl TextAgent {
             let input = input.clone();
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
                 let text = input.value();
+                input.blur().unwrap();
+                input.focus().unwrap();
                 // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
                 // In that case, the browser emits both `input` and `compositionupdate` events,
                 // and we need to ignore the `input` event.
@@ -104,6 +111,7 @@ impl TextAgent {
         &self,
         ime: Option<egui::output::IMEOutput>,
         canvas: &web_sys::HtmlCanvasElement,
+        zoom_factor: f32,
     ) -> Result<(), JsValue> {
 
         // Don't move the text agent unless the position actually changed:
@@ -120,8 +128,8 @@ impl TextAgent {
         let style = self.input.style();
 
         // This is where the IME input will point to:
-        style.set_property("left", &format!("{}px", cursor_rect.center().x))?;
-        style.set_property("top", &format!("{}px", cursor_rect.center().y))?;
+        style.set_property("left", &format!("{}px", cursor_rect.center().x * zoom_factor))?;
+        style.set_property("top", &format!("{}px", cursor_rect.center().y * zoom_factor))?;
 
         Ok(())
     }
@@ -167,4 +175,17 @@ impl Drop for TextAgent {
     fn drop(&mut self) {
         self.input.remove();
     }
+}
+
+/// Returns `true` if the app is likely running on a mobile device.
+fn is_mobile() -> bool {
+    fn try_is_mobile() -> Option<bool> {
+        const MOBILE_DEVICE: [&str; 6] =
+            ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
+
+        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
+        let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
+        Some(is_mobile)
+    }
+    try_is_mobile().unwrap_or(false)
 }
