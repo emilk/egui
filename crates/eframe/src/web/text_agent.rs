@@ -3,7 +3,10 @@
 
 use std::cell::Cell;
 
+use log::{debug, error};
 use wasm_bindgen::prelude::*;
+
+use egui::ImeEvent;
 
 use super::{AppRunner, WebRunner};
 
@@ -23,12 +26,16 @@ impl TextAgent {
             .dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
         input.set_autofocus(true);
+        input.set_attribute("autocapitalize", "off")?;
 
         // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
-        style.set_property("opacity", "0")?;
+        style.set_property("background-color", "transparent")?;
+        style.set_property("border", "none")?;
+        style.set_property("outline", "none")?;
         style.set_property("width", "1px")?;
         style.set_property("height", "1px")?;
+        style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
@@ -40,6 +47,8 @@ impl TextAgent {
             let input = input.clone();
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
                 let text = input.value();
+                input.blur().unwrap();
+                input.focus().unwrap();
                 // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
                 // In that case, the browser emits both `input` and `compositionupdate` events,
                 // and we need to ignore the `input` event.
@@ -91,8 +100,8 @@ impl TextAgent {
 
         // The canvas doesn't get keydown/keyup events when the text agent is focused,
         // so we need to forward them to the runner:
-        runner_ref.add_event_listener(&input, "keydown", super::events::on_keydown)?;
-        runner_ref.add_event_listener(&input, "keyup", super::events::on_keyup)?;
+        runner_ref.add_event_listener(&document.body().unwrap(), "keydown", super::events::on_keydown)?;
+        runner_ref.add_event_listener(&document.body().unwrap(), "keyup", super::events::on_keyup)?;
 
         Ok(Self {
             input,
@@ -104,8 +113,9 @@ impl TextAgent {
         &self,
         ime: Option<egui::output::IMEOutput>,
         canvas: &web_sys::HtmlCanvasElement,
+        zoom_factor: f32,
     ) -> Result<(), JsValue> {
-
+        // Don't move the text agent if focus
         // Don't move the text agent unless the position actually changed:
         if self.prev_ime_output.get() == ime {
             return Ok(());
@@ -114,14 +124,14 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        let canvas_rect = super::canvas_content_rect(canvas);
-        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
+        //let canvas_rect = super::canvas_content_rect(canvas);
+        //let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
 
         // This is where the IME input will point to:
-        style.set_property("left", &format!("{}px", cursor_rect.center().x))?;
-        style.set_property("top", &format!("{}px", cursor_rect.center().y))?;
+        style.set_property("left", &format!("{}px", ime.cursor_rect.center().x * zoom_factor))?;
+        style.set_property("top", &format!("{}px", ime.cursor_rect.center().y * zoom_factor))?;
 
         Ok(())
     }
