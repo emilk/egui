@@ -5,8 +5,6 @@ use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
 
-use egui::ImeEvent;
-
 use super::{AppRunner, WebRunner};
 
 pub struct TextAgent {
