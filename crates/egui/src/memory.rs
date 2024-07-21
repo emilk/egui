@@ -9,7 +9,7 @@ use crate::{
 };
 
 mod theme;
-pub use theme::{Theme, ThemePreference};
+pub use theme::Theme;
 
 // ----------------------------------------------------------------------------
 
@@ -172,13 +172,12 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
 
-    /// Whether to use a dark style, light style or follow
-    /// the OS' setting.
+    /// Whether to update the visuals according to the system theme or not.
     ///
-    /// Note: Currently only [`ThemePreference::System`] has an effect.
-    pub theme_preference: ThemePreference,
+    /// Default: `true`.
+    pub follow_system_theme: bool,
 
-    /// Which theme to use in case [`Self::theme_preference`] is set to [`ThemePreference::System`]
+    /// Which theme to use in case [`Self::follow_system_theme`] is set
     /// and egui fails to detect the system theme.
     ///
     /// Default: [`crate::Theme::Dark`].
@@ -280,7 +279,7 @@ impl Default for Options {
 
         Self {
             style: Default::default(),
-            theme_preference: ThemePreference::System,
+            follow_system_theme: true,
             fallback_theme: Theme::Dark,
             system_theme: None,
             zoom_factor: 1.0,
@@ -301,7 +300,7 @@ impl Default for Options {
 
 impl Options {
     pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput) {
-        if self.theme_preference == ThemePreference::System {
+        if self.follow_system_theme {
             let theme_from_visuals = Theme::from_dark_mode(self.style.visuals.dark_mode);
             let current_system_theme = self.system_theme.unwrap_or(theme_from_visuals);
             let new_system_theme = new_raw_input.system_theme.unwrap_or(self.fallback_theme);
@@ -325,7 +324,7 @@ impl Options {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             style, // covered above
-            theme_preference: _,
+            follow_system_theme: _,
             fallback_theme: _,
             system_theme: _,
             zoom_factor: _, // TODO(emilk)
