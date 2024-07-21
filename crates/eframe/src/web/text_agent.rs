@@ -127,8 +127,14 @@ impl TextAgent {
         let style = self.input.style();
 
         // This is where the IME input will point to:
-        style.set_property("left", &format!("{}px", ime.cursor_rect.center().x * zoom_factor))?;
-        style.set_property("top", &format!("{}px", ime.cursor_rect.center().y * zoom_factor))?;
+        style.set_property(
+            "left",
+            &format!("{}px", ime.cursor_rect.center().x * zoom_factor),
+        )?;
+        style.set_property(
+            "top",
+            &format!("{}px", ime.cursor_rect.center().y * zoom_factor),
+        )?;
 
         Ok(())
     }
