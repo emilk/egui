@@ -577,6 +577,8 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                 event.stop_propagation();
                 event.prevent_default();
 
+                // Fix virtual keyboard IOS
+                // Need call focus at the same time of event
                 if runner.text_agent.has_focus() {
                     runner.text_agent.set_focus(false);
                     runner.text_agent.set_focus(true);

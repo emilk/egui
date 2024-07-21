@@ -44,6 +44,8 @@ impl TextAgent {
             let input = input.clone();
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
                 let text = input.value();
+                // Fix android virtual keyboard
+                // This removes the virtual keyboard's suggestion.
                 input.blur().unwrap();
                 input.focus().unwrap();
                 // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
