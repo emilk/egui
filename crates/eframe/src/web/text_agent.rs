@@ -3,10 +3,7 @@
 
 use std::cell::Cell;
 
-use log::{debug, error};
 use wasm_bindgen::prelude::*;
-
-use egui::ImeEvent;
 
 use super::{AppRunner, WebRunner};
 
@@ -100,8 +97,8 @@ impl TextAgent {
 
         // The canvas doesn't get keydown/keyup events when the text agent is focused,
         // so we need to forward them to the runner:
-        runner_ref.add_event_listener(&document.body().unwrap(), "keydown", super::events::on_keydown)?;
-        runner_ref.add_event_listener(&document.body().unwrap(), "keyup", super::events::on_keyup)?;
+        runner_ref.add_event_listener(&input, "keydown", super::events::on_keydown)?;
+        runner_ref.add_event_listener(&input, "keyup", super::events::on_keyup)?;
 
         Ok(Self {
             input,
