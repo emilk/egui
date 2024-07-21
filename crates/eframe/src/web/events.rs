@@ -358,7 +358,7 @@ fn install_color_scheme_change_event(
     runner_ref: &WebRunner,
     window: &web_sys::Window,
 ) -> Result<(), JsValue> {
-    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
+    if let Some(media_query_list) = prefers_color_scheme_dark(window)? {
         runner_ref.add_event_listener::<web_sys::MediaQueryListEvent>(
             &media_query_list,
             "change",
