@@ -172,6 +172,21 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
 
+    /// Whether to use a dark style, light style or follow
+    /// the OS' setting.
+    ///
+    /// Note: Currently only [`ThemePreference::System`] has an effect.
+    pub theme_preference: ThemePreference,
+
+    /// Which theme to use in case [`Self::theme_preference`] is set to [`ThemePreference::System`]
+    /// and egui fails to detect the system theme.
+    ///
+    /// Default: [`crate::Theme::Dark`].
+    pub fallback_theme: Theme,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    system_theme: Option<Theme>,
+
     /// Global zoom factor of the UI.
     ///
     /// This is used to calculate the `pixels_per_point`
@@ -265,6 +280,9 @@ impl Default for Options {
 
         Self {
             style: Default::default(),
+            theme_preference: ThemePreference::System,
+            fallback_theme: Theme::Dark,
+            system_theme: None,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
@@ -282,10 +300,34 @@ impl Default for Options {
 }
 
 impl Options {
+    pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput) {
+        if self.theme_preference == ThemePreference::System {
+            let theme_from_visuals = Theme::from_dark_mode(self.style.visuals.dark_mode);
+            let current_system_theme = self.system_theme.unwrap_or(theme_from_visuals);
+            let new_system_theme = new_raw_input.system_theme.unwrap_or(self.fallback_theme);
+
+            // Only update the visuals if the system theme has changed.
+            // This allows users to change the visuals without them
+            // getting reset on the next frame.
+            if current_system_theme != new_system_theme || self.system_theme.is_none() {
+                self.system_theme = Some(new_system_theme);
+                if theme_from_visuals != new_system_theme {
+                    let visuals = new_system_theme.default_visuals();
+                    std::sync::Arc::make_mut(&mut self.style).visuals = visuals;
+                }
+            }
+        }
+    }
+}
+
+impl Options {
     /// Show the options in the ui.
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            style,          // covered above
+            style, // covered above
+            theme_preference: _,
+            fallback_theme: _,
+            system_theme: _,
             zoom_factor: _, // TODO(emilk)
             zoom_with_keyboard,
             tessellation_options,
@@ -667,6 +709,8 @@ impl Memory {
         self.areas.entry(self.viewport_id).or_default();
 
         // self.interactions  is handled elsewhere
+
+        self.options.begin_frame(new_raw_input);
 
         self.focus
             .entry(self.viewport_id)

@@ -16,6 +16,14 @@ impl Theme {
             Self::Light => crate::Visuals::light(),
         }
     }
+
+    pub(crate) fn from_dark_mode(dark_mode: bool) -> Self {
+        if dark_mode {
+            Self::Dark
+        } else {
+            Self::Light
+        }
+    }
 }
 
 /// The user's theme preference.
@@ -23,9 +31,11 @@ impl Theme {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ThemePreference {
     /// Dark mode: light text on a dark background.
+    #[doc(hidden)]
     Dark,
 
     /// Light mode: dark text on a light background.
+    #[doc(hidden)]
     Light,
 
     /// Follow the system's theme preference.
