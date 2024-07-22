@@ -583,7 +583,6 @@ impl<'t> TextEdit<'t> {
                     );
                 } else if response.clicked() {
                     did_interact = true;
-                    state.cursor.set_range(state.cursor.range(&galley));
                 }
 
                 if did_interact {
