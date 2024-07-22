@@ -522,6 +522,10 @@ impl<'t> TextEdit<'t> {
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
+        if !ui.input(|i| i.focused) {
+            ui.memory_mut(|mem| mem.surrender_focus(id));
+        }
+
         // On touch screens (e.g. mobile in `eframe` web), should
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
         // Since currently copying selected text in not supported on `eframe` web,
@@ -567,14 +571,20 @@ impl<'t> TextEdit<'t> {
                     text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
                 }
 
-                let is_being_dragged = ui.ctx().is_being_dragged(response.id);
-                let did_interact = state.cursor.pointer_interaction(
-                    ui,
-                    &response,
-                    cursor_at_pointer,
-                    &galley,
-                    is_being_dragged,
-                );
+                let mut did_interact = false;
+                if response.has_focus() {
+                    let is_being_dragged = ui.ctx().is_being_dragged(response.id);
+                    did_interact = state.cursor.pointer_interaction(
+                        ui,
+                        &response,
+                        cursor_at_pointer,
+                        &galley,
+                        is_being_dragged,
+                    );
+                } else if response.clicked() {
+                    did_interact = true;
+                    state.cursor.set_range(state.cursor.range(&galley));
+                }
 
                 if did_interact {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
