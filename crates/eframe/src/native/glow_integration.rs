@@ -902,6 +902,7 @@ fn change_gl_context(
     let not_current = if let Some(not_current_context) = not_current_gl_context.take() {
         not_current_context
     } else {
+        crate::profile_scope!("make_not_current");
         current_gl_context
             .take()
             .unwrap()
