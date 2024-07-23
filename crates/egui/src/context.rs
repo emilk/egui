@@ -1668,7 +1668,7 @@ impl Context {
     /// Global zoom factor of the UI.
     ///
     /// This is used to calculate the `pixels_per_point`
-    /// for the UI as `pixels_per_point = zoom_fator * native_pixels_per_point`.
+    /// for the UI as `pixels_per_point = zoom_factor * native_pixels_per_point`.
     ///
     /// The default is 1.0.
     /// Make larger to make everything larger.
