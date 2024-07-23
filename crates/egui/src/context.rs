@@ -2188,12 +2188,15 @@ impl Context {
 
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
-            let texture_atlas = ctx
-                .fonts
-                .get(&pixels_per_point.into())
-                .expect("tessellate called with a different pixels_per_point than the font atlas was created with. \
-                         You should use egui::FullOutput::pixels_per_point when tessellating.")
-                .texture_atlas();
+            let texture_atlas = match ctx.fonts.get(&pixels_per_point.into()) {
+                Some(fonts) => fonts.texture_atlas(),
+                None => {
+                    ctx.fonts.iter().next()
+                    .expect("tessellate called with a different pixels_per_point than the font atlas was created with. \
+                    You should use egui::FullOutput::pixels_per_point when tessellating.")
+                    .1.texture_atlas()
+                }
+            };
             let (font_tex_size, prepared_discs) = {
                 let atlas = texture_atlas.lock();
                 (atlas.size(), atlas.prepared_discs())
