@@ -44,10 +44,12 @@ impl TextAgent {
             let input = input.clone();
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
                 let text = input.value();
-                // Fix android virtual keyboard
+                // Fix android virtual keyboard Gboard
                 // This removes the virtual keyboard's suggestion.
-                input.blur().unwrap();
-                input.focus().unwrap();
+                if !event.is_composing(){
+                    input.blur().unwrap();
+                    input.focus().unwrap();
+                }
                 // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
                 // In that case, the browser emits both `input` and `compositionupdate` events,
                 // and we need to ignore the `input` event.
