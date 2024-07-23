@@ -581,7 +581,7 @@ impl<'t> TextEdit<'t> {
                         &galley,
                         is_being_dragged,
                     );
-                } else if response.clicked() {
+                } else if response.is_pointer_button_down_on() {
                     did_interact = true;
                 }
 
