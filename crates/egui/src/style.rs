@@ -2222,7 +2222,7 @@ impl Widget for &mut Margin {
                 ui.checkbox(&mut same, "same");
 
                 let mut value = self.left;
-                ui.add(DragValue::new(&mut value));
+                ui.add(DragValue::new(&mut value).range(0.0..=100.0));
                 *self = Margin::same(value);
             })
             .response
@@ -2232,19 +2232,19 @@ impl Widget for &mut Margin {
 
                 crate::Grid::new("margin").num_columns(2).show(ui, |ui| {
                     ui.label("Left");
-                    ui.add(DragValue::new(&mut self.left));
+                    ui.add(DragValue::new(&mut self.left).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Right");
-                    ui.add(DragValue::new(&mut self.right));
+                    ui.add(DragValue::new(&mut self.right).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Top");
-                    ui.add(DragValue::new(&mut self.top));
+                    ui.add(DragValue::new(&mut self.top).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Bottom");
-                    ui.add(DragValue::new(&mut self.bottom));
+                    ui.add(DragValue::new(&mut self.bottom).range(0.0..=100.0));
                     ui.end_row();
                 });
             })
