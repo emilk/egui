@@ -6,6 +6,9 @@ NOTE: this is just the changelog for the core `egui` crate. [`eframe`](crates/ef
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+## Unreleased
+### Added ⭐
+* Add `ProgressBar::track_fill` if you want to set the fill color of the track manually. ( TODO: PR Link )
 
 ## 0.28.1 - 2024-07-05 - Tooltip tweaks
 ### ⭐ Added
