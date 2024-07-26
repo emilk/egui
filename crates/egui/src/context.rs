@@ -402,7 +402,6 @@ struct ContextImpl {
     loaders: Arc<Loaders>,
 
     interaction_valid: bool,
-    hover_listeners: std::collections::HashSet<Id>,
 }
 
 impl ContextImpl {
@@ -474,7 +473,6 @@ impl ContextImpl {
     }
 
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        self.hover_listeners.clear();
         let viewport_id = new_raw_input.viewport_id;
         let parent_id = new_raw_input
             .viewports
