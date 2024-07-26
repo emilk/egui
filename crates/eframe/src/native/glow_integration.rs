@@ -456,6 +456,7 @@ impl WinitApp for GlowWinitApp {
                 device_id: _,
                 event: winit::event::DeviceEvent::MouseMotion { delta },
             } => {
+                #[cfg(not(feature = "very_lazy"))]
                 if let Some(running) = &mut self.running {
                     let mut glutin = running.glutin.borrow_mut();
                     if let Some(viewport) = glutin
@@ -475,6 +476,22 @@ impl WinitApp for GlowWinitApp {
                         EventResult::Wait
                     }
                 } else {
+                    EventResult::Wait
+                }
+
+                #[cfg(feature = "very_lazy")]
+                {
+                    if let Some(running) = &mut self.running {
+                        let mut glutin = running.glutin.borrow_mut();
+                        if let Some(viewport) = glutin
+                            .focused_viewport
+                            .and_then(|viewport| glutin.viewports.get_mut(&viewport))
+                        {
+                            if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                                egui_winit.on_mouse_motion(*delta);
+                            }
+                        }
+                    }
                     EventResult::Wait
                 }
             }
@@ -564,7 +581,11 @@ impl GlowWinitRunning {
 
             self.integration.pre_update();
 
-            raw_input.time = Some(self.integration.beginning.elapsed().as_secs_f64());
+            #[cfg(not(feature = "very_lazy"))] // required as egui-winit will use the original time
+            {
+                raw_input.time = Some(self.integration.beginning.elapsed().as_secs_f64());
+            }
+
             raw_input.viewports = glutin
                 .viewports
                 .iter()

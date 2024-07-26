@@ -72,7 +72,7 @@ impl<'a> Image<'a> {
                 source,
                 texture_options: Default::default(),
                 image_options: Default::default(),
-                sense: Sense::hover(),
+                sense: Sense::hover().no_hover(),
                 size,
                 show_loading_spinner: None,
             }

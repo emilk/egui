@@ -55,7 +55,7 @@ impl eframe::App for Custom3d {
 impl Custom3d {
     fn custom_painting(&mut self, ui: &mut egui::Ui) {
         let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
+            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag().no_hover());
 
         self.angle += response.drag_motion().x * 0.01;
 

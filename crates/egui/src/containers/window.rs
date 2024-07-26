@@ -845,7 +845,7 @@ fn resize_interaction(
             id,
             rect,
             interact_rect: rect,
-            sense: Sense::drag(),
+            sense: Sense::drag().no_hover(),
             enabled: true,
         });
         SideResponse {
@@ -1155,7 +1155,7 @@ impl TitleBar {
         let double_click_rect = self.rect.shrink2(vec2(32.0, 0.0));
 
         if ui
-            .interact(double_click_rect, self.id, Sense::click())
+            .interact(double_click_rect, self.id, Sense::click().no_hover())
             .double_clicked()
             && collapsible
         {

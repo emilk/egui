@@ -195,7 +195,7 @@ fn show_tooltip_at_dyn<'c, R>(
         .pivot(pivot)
         .fixed_pos(anchor)
         .default_width(ctx.style().spacing.tooltip_width)
-        .sense(Sense::hover()) // don't click to bring to front
+        .sense(Sense::hover().no_hover()) // don't click to bring to front
         .show(ctx, |ui| {
             // By default the text in tooltips aren't selectable.
             // This means that most tooltips aren't interactable,

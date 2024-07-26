@@ -26,7 +26,12 @@ web_app = ["http", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
-persistence = ["eframe/persistence", "egui/persistence", "serde", "egui_extras/serde"]
+persistence = [
+  "eframe/persistence",
+  "egui/persistence",
+  "serde",
+  "egui_extras/serde",
+]
 puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
@@ -35,6 +40,9 @@ glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck", "dep:wgpu"]
 wayland = ["eframe/wayland"]
 x11 = ["eframe/x11"]
+
+## Experimental: remove hoverable effects on some widgets from egui and do not re-render without effects, for very lazy rendering
+very_lazy = ["eframe/very_lazy"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = [

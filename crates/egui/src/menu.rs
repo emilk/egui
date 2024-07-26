@@ -179,7 +179,7 @@ fn menu_popup<'c, R>(
         .order(Order::Foreground)
         .fixed_pos(pos)
         .default_width(ctx.style().spacing.menu_width)
-        .sense(Sense::hover());
+        .sense(Sense::hover().no_hover());
 
     let mut sizing_pass = false;
 
@@ -701,7 +701,7 @@ impl MenuState {
 
             self.open_submenu(sub_id, pos);
         } else if open
-            && ui.interact_bg(Sense::hover()).contains_pointer()
+            && ui.interact_bg(Sense::hover().no_hover()).contains_pointer()
             && !button.hovered()
             && !self.hovering_current_submenu(&pointer)
         {

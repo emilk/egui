@@ -451,11 +451,11 @@ impl Area {
             let interact_id = layer_id.id.with("move");
             let sense = sense.unwrap_or_else(|| {
                 if movable {
-                    Sense::drag()
+                    Sense::drag().no_hover()
                 } else if interactable {
-                    Sense::click() // allow clicks to bring to front
+                    Sense::click().no_hover() // allow clicks to bring to front
                 } else {
-                    Sense::hover()
+                    Sense::hover().no_hover()
                 }
             });
 

@@ -13,6 +13,8 @@ pub struct Sense {
     /// Anything interactive + labels that can be focused
     /// for the benefit of screen readers.
     pub focusable: bool,
+
+    pub hoverable: bool,
 }
 
 impl std::fmt::Debug for Sense {
@@ -21,6 +23,7 @@ impl std::fmt::Debug for Sense {
             click,
             drag,
             focusable,
+            hoverable,
         } = self;
 
         write!(f, "Sense {{")?;
@@ -33,19 +36,34 @@ impl std::fmt::Debug for Sense {
         if *focusable {
             write!(f, " focusable")?;
         }
+        if *hoverable {
+            write!(f, " hoverable")?;
+        }
         write!(f, " }}")
     }
 }
 
 impl Sense {
+    /// Senses no clicks or drags or mouse hover.
+    /// Using `hover().no_hover()` for now for max backward compatibility
+    #[inline]
+    pub fn none() -> Self {
+        Self {
+            click: false,
+            drag: false,
+            focusable: false,
+            hoverable: false,
+        }
+    }
+
     /// Senses no clicks or drags. Only senses mouse hover.
-    #[doc(alias = "none")]
     #[inline]
     pub fn hover() -> Self {
         Self {
             click: false,
             drag: false,
             focusable: false,
+            hoverable: true,
         }
     }
 
@@ -57,6 +75,7 @@ impl Sense {
             click: false,
             drag: false,
             focusable: true,
+            hoverable: true,
         }
     }
 
@@ -67,6 +86,7 @@ impl Sense {
             click: true,
             drag: false,
             focusable: true,
+            hoverable: true,
         }
     }
 
@@ -77,6 +97,7 @@ impl Sense {
             click: false,
             drag: true,
             focusable: true,
+            hoverable: true,
         }
     }
 
@@ -94,6 +115,7 @@ impl Sense {
             click: true,
             drag: true,
             focusable: true,
+            hoverable: true,
         }
     }
 
@@ -105,6 +127,7 @@ impl Sense {
             click: self.click | other.click,
             drag: self.drag | other.drag,
             focusable: self.focusable | other.focusable,
+            hoverable: self.hoverable | other.hoverable,
         }
     }
 
@@ -112,6 +135,21 @@ impl Sense {
     #[inline]
     pub fn interactive(&self) -> bool {
         self.click || self.drag
+    }
+
+    /// Experimental: disables hovering
+    #[inline]
+    pub fn no_hover(self) -> Self {
+        #[cfg(feature = "very_lazy")]
+        {
+            Self {
+                hoverable: false,
+                ..self
+            }
+        }
+
+        #[cfg(not(feature = "very_lazy"))]
+        self
     }
 }
 

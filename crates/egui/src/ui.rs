@@ -118,7 +118,7 @@ impl Ui {
             layer_id: ui.layer_id(),
             rect: start_rect,
             interact_rect: start_rect,
-            sense: Sense::hover(),
+            sense: Sense::hover().no_hover(),
             enabled: ui.enabled,
         });
 
@@ -192,7 +192,7 @@ impl Ui {
             layer_id: child_ui.layer_id(),
             rect: start_rect,
             interact_rect: start_rect,
-            sense: Sense::hover(),
+            sense: Sense::hover().no_hover(),
             enabled: child_ui.enabled,
         });
 
@@ -1139,7 +1139,7 @@ impl Ui {
         self.placer
             .advance_after_rects(final_child_rect, final_child_rect, item_spacing);
 
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
+        let response = self.interact(final_child_rect, child_ui.id, Sense::hover().no_hover());
         InnerResponse::new(ret, response)
     }
 
@@ -1164,7 +1164,7 @@ impl Ui {
             self.spacing().item_spacing,
         );
 
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
+        let response = self.interact(final_child_rect, child_ui.id, Sense::hover().no_hover());
         InnerResponse::new(ret, response)
     }
 
@@ -1177,7 +1177,7 @@ impl Ui {
     /// # use std::f32::consts::TAU;
     /// # egui::__run_test_ui(|ui| {
     /// let size = Vec2::splat(16.0);
-    /// let (response, painter) = ui.allocate_painter(size, Sense::hover());
+    /// let (response, painter) = ui.allocate_painter(size, Sense::hover().no_hover());
     /// let rect = response.rect;
     /// let c = rect.center();
     /// let r = rect.width() / 2.0 - 1.0;
@@ -2004,7 +2004,7 @@ impl Ui {
             self.child_ui_with_id_source(child_rect, *self.layout(), id_source, ui_stack_info);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
-        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover().no_hover());
         InnerResponse::new(ret, response)
     }
 
@@ -2091,7 +2091,7 @@ impl Ui {
             }
         }
 
-        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover().no_hover());
         InnerResponse::new(ret, response)
     }
 
@@ -2289,7 +2289,10 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
+        InnerResponse::new(
+            inner,
+            self.interact(rect, child_ui.id, Sense::hover().no_hover()),
+        )
     }
 
     /// This will make the next added widget centered and justified in the available space.

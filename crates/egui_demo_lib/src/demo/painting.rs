@@ -32,7 +32,7 @@ impl Painting {
 
     pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
         let (mut response, painter) =
-            ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag());
+            ui.allocate_painter(ui.available_size_before_wrap(), Sense::drag().no_hover());
 
         let to_screen = emath::RectTransform::from_to(
             Rect::from_min_size(Pos2::ZERO, response.rect.square_proportions()),

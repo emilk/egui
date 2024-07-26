@@ -166,7 +166,7 @@ impl View for MiscDemoWindow {
                     ui.label("You can pretty easily paint your own small icons:");
                     use std::f32::consts::TAU;
                     let size = Vec2::splat(16.0);
-                    let (response, painter) = ui.allocate_painter(size, Sense::hover());
+                    let (response, painter) = ui.allocate_painter(size, Sense::hover().no_hover());
                     let rect = response.rect;
                     let c = rect.center();
                     let r = rect.width() / 2.0 - 1.0;
@@ -186,7 +186,7 @@ impl View for MiscDemoWindow {
                     for i in 0..100 {
                         let r = i as f32 * 0.5;
                         let size = Vec2::splat(2.0 * r + 5.0);
-                        let (rect, _response) = ui.allocate_at_least(size, Sense::hover());
+                        let (rect, _response) = ui.allocate_at_least(size, Sense::hover().no_hover());
                         ui.painter()
                             .circle_filled(rect.center(), r, ui.visuals().text_color());
                     }
@@ -381,7 +381,7 @@ impl BoxPainting {
 
         ui.horizontal_wrapped(|ui| {
             for _ in 0..self.num_boxes {
-                let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover());
+                let (rect, _response) = ui.allocate_at_least(self.size, Sense::hover().no_hover());
                 ui.painter().rect(
                     rect,
                     self.rounding,
