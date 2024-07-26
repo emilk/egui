@@ -1403,7 +1403,7 @@ fn render_immediate_viewport(
             None,
         );
 
-        let event_ret = event_loop_context::with_current_event_loop(|event_loop| {
+        let ret = event_loop_context::with_current_event_loop(|event_loop| {
             glutin.initialize_window(viewport_id, event_loop)
         });
 
