@@ -308,16 +308,9 @@ impl WgpuWinitApp {
             let shared = Rc::downgrade(&shared);
             let beginning = integration.beginning;
 
-            let event_loop: *const ActiveEventLoop = event_loop;
-
             egui::Context::set_immediate_viewport_renderer(move |_egui_ctx, immediate_viewport| {
                 if let Some(shared) = shared.upgrade() {
-                    // SAFETY: the event loop lives longer than
-                    // the Rc:s we just upgraded above.
-                    #[allow(unsafe_code)]
-                    let event_loop = unsafe { event_loop.as_ref().unwrap() };
-
-                    render_immediate_viewport(event_loop, beginning, &shared, immediate_viewport);
+                    render_immediate_viewport(beginning, &shared, immediate_viewport);
                 } else {
                     log::warn!("render_sync_callback called after window closed");
                 }
@@ -915,7 +908,6 @@ fn create_window(
 }
 
 fn render_immediate_viewport(
-    event_loop: &ActiveEventLoop,
     beginning: Instant,
     shared: &RefCell<SharedState>,
     immediate_viewport: ImmediateViewport<'_>,
@@ -940,7 +932,9 @@ fn render_immediate_viewport(
         let viewport =
             initialize_or_update_viewport(viewports, ids, ViewportClass::Immediate, builder, None);
         if viewport.window.is_none() {
-            viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+            event_loop_context::with_current_event_loop(|event_loop| {
+                viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+            });
         }
 
         let (Some(window), Some(egui_winit)) = (&viewport.window, &mut viewport.egui_winit) else {

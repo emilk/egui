@@ -3314,46 +3314,48 @@ impl Context {
             return viewport_ui_cb(self, ViewportClass::Embedded);
         }
 
-        IMMEDIATE_VIEWPORT_RENDERER.with(|immediate_viewport_renderer| {
-            let immediate_viewport_renderer = immediate_viewport_renderer.borrow();
-            let Some(immediate_viewport_renderer) = immediate_viewport_renderer.as_ref() else {
-                // This egui backend does not support multiple viewports.
-                return viewport_ui_cb(self, ViewportClass::Embedded);
-            };
-
-            let ids = self.write(|ctx| {
-                let parent_viewport_id = ctx.viewport_id();
-
-                ctx.viewport_parents
-                    .insert(new_viewport_id, parent_viewport_id);
-
-                let viewport = ctx.viewports.entry(new_viewport_id).or_default();
-                viewport.builder = builder.clone();
-                viewport.used = true;
-                viewport.viewport_ui_cb = None; // it is immediate
-
-                ViewportIdPair::from_self_and_parent(new_viewport_id, parent_viewport_id)
-            });
-
-            let mut out = None;
-            {
-                let out = &mut out;
-
-                let viewport = ImmediateViewport {
-                    ids,
-                    builder,
-                    viewport_ui_cb: Box::new(move |context| {
-                        *out = Some(viewport_ui_cb(context, ViewportClass::Immediate));
-                    }),
+        self.0
+            .IMMEDIATE_VIEWPORT_RENDERER
+            .with(|immediate_viewport_renderer| {
+                let immediate_viewport_renderer = immediate_viewport_renderer.borrow();
+                let Some(immediate_viewport_renderer) = immediate_viewport_renderer.as_ref() else {
+                    // This egui backend does not support multiple viewports.
+                    return viewport_ui_cb(self, ViewportClass::Embedded);
                 };
 
-                immediate_viewport_renderer(self, viewport);
-            }
+                let ids = self.write(|ctx| {
+                    let parent_viewport_id = ctx.viewport_id();
 
-            out.expect(
-                "egui backend is implemented incorrectly - the user callback was never called",
-            )
-        })
+                    ctx.viewport_parents
+                        .insert(new_viewport_id, parent_viewport_id);
+
+                    let viewport = ctx.viewports.entry(new_viewport_id).or_default();
+                    viewport.builder = builder.clone();
+                    viewport.used = true;
+                    viewport.viewport_ui_cb = None; // it is immediate
+
+                    ViewportIdPair::from_self_and_parent(new_viewport_id, parent_viewport_id)
+                });
+
+                let mut out = None;
+                {
+                    let out = &mut out;
+
+                    let viewport = ImmediateViewport {
+                        ids,
+                        builder,
+                        viewport_ui_cb: Box::new(move |context| {
+                            *out = Some(viewport_ui_cb(context, ViewportClass::Immediate));
+                        }),
+                    };
+
+                    immediate_viewport_renderer(self, viewport);
+                }
+
+                out.expect(
+                    "egui backend is implemented incorrectly - the user callback was never called",
+                )
+            })
     }
 }
 

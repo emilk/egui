@@ -9,7 +9,11 @@ use winit::{
 use ahash::HashMap;
 
 use super::winit_integration::{UserEvent, WinitApp};
-use crate::{epi, native::winit_integration::EventResult, Result};
+use crate::{
+    epi,
+    native::{event_loop_context, winit_integration::EventResult},
+    Result,
+};
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
@@ -176,21 +180,30 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
         crate::profile_function!("Event::Suspended");
-        let event_result = self.winit_app.suspended(event_loop);
-        self.handle_event_result(event_loop, event_result);
+
+        event_loop_context::with_event_loop_context(event_loop, move || {
+            let event_result = self.winit_app.suspended(event_loop);
+            self.handle_event_result(event_loop, event_result);
+        });
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         crate::profile_function!("Event::Resumed");
-        let event_result = self.winit_app.resumed(event_loop);
-        self.handle_event_result(event_loop, event_result);
+
+        // Nb: Make sure this guard is dropped after this function returns.
+        event_loop_context::with_event_loop_context(event_loop, move || {
+            let event_result = self.winit_app.resumed(event_loop);
+            self.handle_event_result(event_loop, event_result);
+        });
     }
 
-    fn exiting(&mut self, _: &ActiveEventLoop) {
+    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
         // On Mac, Cmd-Q we get here and then `run_app_on_demand` doesn't return (despite its name),
         // so we need to save state now:
         log::debug!("Received Event::LoopExiting - saving app state…");
-        self.winit_app.save_and_destroy();
+        event_loop_context::with_event_loop_context(event_loop, move || {
+            self.winit_app.save_and_destroy();
+        });
     }
 
     fn device_event(
@@ -200,8 +213,12 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event: winit::event::DeviceEvent,
     ) {
         crate::profile_function!(egui_winit::short_device_event_description(&event));
-        let event_result = self.winit_app.device_event(event_loop, device_id, event);
-        self.handle_event_result(event_loop, event_result);
+
+        // Nb: Make sure this guard is dropped after this function returns.
+        event_loop_context::with_event_loop_context(event_loop, move || {
+            let event_result = self.winit_app.device_event(event_loop, device_id, event);
+            self.handle_event_result(event_loop, event_result);
+        });
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
@@ -211,32 +228,35 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
             UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
         });
 
-        let event_result = match event {
-            UserEvent::RequestRepaint {
-                when,
-                frame_nr,
-                viewport_id,
-            } => {
-                let current_frame_nr = self.winit_app.frame_nr(viewport_id);
-                if current_frame_nr == frame_nr || current_frame_nr == frame_nr + 1 {
-                    log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
-                    if let Some(window_id) = self.winit_app.window_id_from_viewport_id(viewport_id)
-                    {
-                        Ok(EventResult::RepaintAt(window_id, when))
+        event_loop_context::with_event_loop_context(event_loop, move || {
+            let event_result = match event {
+                UserEvent::RequestRepaint {
+                    when,
+                    frame_nr,
+                    viewport_id,
+                } => {
+                    let current_frame_nr = self.winit_app.frame_nr(viewport_id);
+                    if current_frame_nr == frame_nr || current_frame_nr == frame_nr + 1 {
+                        log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
+                        if let Some(window_id) =
+                            self.winit_app.window_id_from_viewport_id(viewport_id)
+                        {
+                            Ok(EventResult::RepaintAt(window_id, when))
+                        } else {
+                            Ok(EventResult::Wait)
+                        }
                     } else {
-                        Ok(EventResult::Wait)
+                        log::trace!("Got outdated UserEvent::RequestRepaint");
+                        Ok(EventResult::Wait) // old request - we've already repainted
                     }
-                } else {
-                    log::trace!("Got outdated UserEvent::RequestRepaint");
-                    Ok(EventResult::Wait) // old request - we've already repainted
                 }
-            }
-            #[cfg(feature = "accesskit")]
-            UserEvent::AccessKitActionRequest(request) => {
-                self.winit_app.on_accesskit_event(request)
-            }
-        };
-        self.handle_event_result(event_loop, event_result);
+                #[cfg(feature = "accesskit")]
+                UserEvent::AccessKitActionRequest(request) => {
+                    self.winit_app.on_accesskit_event(request)
+                }
+            };
+            self.handle_event_result(event_loop, event_result);
+        });
     }
 
     fn new_events(&mut self, _: &ActiveEventLoop, cause: winit::event::StartCause) {
@@ -253,15 +273,18 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     ) {
         crate::profile_function!(egui_winit::short_window_event_description(&event));
 
-        let event_result = match event {
-            winit::event::WindowEvent::RedrawRequested => {
-                self.windows_next_repaint_times.remove(&window_id);
-                self.winit_app.run_ui_and_paint(event_loop, window_id)
-            }
-            _ => self.winit_app.window_event(event_loop, window_id, event),
-        };
+        // Nb: Make sure this guard is dropped after this function returns.
+        event_loop_context::with_event_loop_context(event_loop, move || {
+            let event_result = match event {
+                winit::event::WindowEvent::RedrawRequested => {
+                    self.windows_next_repaint_times.remove(&window_id);
+                    self.winit_app.run_ui_and_paint(event_loop, window_id)
+                }
+                _ => self.winit_app.window_event(event_loop, window_id, event),
+            };
 
-        self.handle_event_result(event_loop, event_result);
+            self.handle_event_result(event_loop, event_result);
+        });
     }
 }
 

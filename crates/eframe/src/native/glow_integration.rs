@@ -328,17 +328,9 @@ impl GlowWinitApp {
             let painter = Rc::downgrade(&painter);
             let beginning = integration.beginning;
 
-            let event_loop: *const ActiveEventLoop = event_loop;
-
             egui::Context::set_immediate_viewport_renderer(move |egui_ctx, immediate_viewport| {
                 if let (Some(glutin), Some(painter)) = (glutin.upgrade(), painter.upgrade()) {
-                    // SAFETY: the event loop lives longer than
-                    // the Rc:s we just upgraded above.
-                    #[allow(unsafe_code)]
-                    let event_loop = unsafe { event_loop.as_ref().unwrap() };
-
                     render_immediate_viewport(
-                        event_loop,
                         egui_ctx,
                         &glutin,
                         &painter,
@@ -1384,7 +1376,6 @@ fn initialize_or_update_viewport(
 /// This is called (via a callback) by user code to render immediate viewports,
 /// i.e. viewport that are directly nested inside a parent viewport.
 fn render_immediate_viewport(
-    event_loop: &ActiveEventLoop,
     egui_ctx: &egui::Context,
     glutin: &RefCell<GlutinWindowContext>,
     painter: &RefCell<egui_glow::Painter>,
@@ -1412,7 +1403,11 @@ fn render_immediate_viewport(
             None,
         );
 
-        if let Err(err) = glutin.initialize_window(viewport_id, event_loop) {
+        let event_ret = event_loop_context::with_current_event_loop(|event_loop| {
+            glutin.initialize_window(viewport_id, event_loop)
+        });
+
+        if let Some(Err(err)) = ret {
             log::error!(
                 "Failed to initialize a window for immediate viewport {viewport_id:?}: {err}"
             );
@@ -1518,7 +1513,9 @@ fn render_immediate_viewport(
 
     egui_winit.handle_platform_output(window, platform_output);
 
-    glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
+    event_loop_context::with_current_event_loop(|event_loop| {
+        glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
+    });
 }
 
 #[cfg(feature = "__screenshot")]

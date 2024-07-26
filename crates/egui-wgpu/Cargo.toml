@@ -61,9 +61,7 @@ wgpu = { workspace = true, features = ["wgsl"] }
 
 # Optional dependencies:
 
-winit = { workspace = true, optional = true, default-features = false, features = [
-  "rwh_06",
-] }
+winit = { workspace = true, optional = true, default-features = false }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

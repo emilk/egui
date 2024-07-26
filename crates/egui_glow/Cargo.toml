@@ -69,9 +69,7 @@ document-features = { workspace = true, optional = true }
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 puffin = { workspace = true, optional = true }
-winit = { workspace = true, optional = true, default-features = false, features = [
-  "rwh_06", # for compatibility with egui-winit
-] }
+winit = { workspace = true, optional = true, default-features = false }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -85,4 +83,4 @@ glutin-winit.workspace = true
 
 [[example]]
 name = "pure_glow"
-required-features = ["winit", "egui/default_fonts", "winit/rwh_06"]
+required-features = ["winit", "egui/default_fonts"]

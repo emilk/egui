@@ -95,7 +95,7 @@ wgpu = { version = "22.0.0", default-features = false, features = [
 ] }
 
 # Version 0.30.1 and up unfortunately crash on macOS, see https://github.com/rust-windowing/winit/issues/3800
-winit = { version = "=0.30.0", default-features = false }
+winit = { version = "0.30.4", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
