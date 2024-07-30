@@ -51,9 +51,8 @@ puffin = ["dep:puffin", "egui/puffin"]
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 
-
 ## Enables Wayland support.
-wayland = ["winit/wayland", "bytemuck", "dep:wayland-cursor"]
+wayland = ["winit/wayland", "bytemuck"]
 
 ## Enables compiling for x11.
 x11 = ["winit/x11", "bytemuck"]
@@ -88,7 +87,7 @@ serde = { workspace = true, optional = true }
 webbrowser = { version = "1.0.0", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
-smithay-clipboard = { version = "0.7.2", optional = true }
+smithay-clipboard = { version = "0.7.0", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3.3", optional = true, default-features = false }
