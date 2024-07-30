@@ -135,6 +135,10 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             }
         }
 
+        self.check_redraw_requests(event_loop);
+    }
+
+    fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
         let mut next_repaint_time = self.windows_next_repaint_times.values().min().copied();
 
         self.windows_next_repaint_times
@@ -259,10 +263,12 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         });
     }
 
-    fn new_events(&mut self, _: &ActiveEventLoop, cause: winit::event::StartCause) {
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
         if let winit::event::StartCause::ResumeTimeReached { .. } = cause {
             log::trace!("Woke up to check next_repaint_time");
         }
+
+        self.check_redraw_requests(event_loop);
     }
 
     fn window_event(
