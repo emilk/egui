@@ -412,7 +412,7 @@ impl WinitApp for GlowWinitApp {
                 .initialize_all_windows(event_loop);
             running
         } else {
-            // First resume event. Created our root window etc.
+            // First resume event. Create our root window etc.
             self.init_run_state(event_loop)?
         };
         let window_id = running.glutin.borrow().window_from_viewport[&ViewportId::ROOT];
@@ -705,11 +705,12 @@ impl GlowWinitRunning {
             // vsync - don't count as frame-time:
             frame_timer.pause();
             crate::profile_scope!("swap_buffers");
-            let context = current_gl_context.as_ref().ok_or(std::convert::Into::<
-                egui_glow::PainterError,
-            >::into(
-                "failed to get current context to swap buffers".to_owned(),
-            ))?;
+            let context = current_gl_context
+                .as_ref()
+                .ok_or(egui_glow::PainterError::from(
+                    "failed to get current context to swap buffers".to_owned(),
+                ))?;
+
             gl_surface.swap_buffers(context)?;
             frame_timer.resume();
         }

@@ -51,16 +51,12 @@ puffin = ["dep:puffin", "egui/puffin"]
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 
-# wayland-cursor should enable the fs feature as it otherwise doesn't compile.
-# This is fixed upstream post https://github.com/Smithay/wayland-rs/commit/edd0f60d0baf09604553525c2636df5d6ba05d44 or v0.31.1
-# so should be removed when winit upgrades past that version.
-# Enable this feature manually for now (needed in both wayand and x11 backends).
 
 ## Enables Wayland support.
-wayland = ["winit/wayland", "bytemuck", "nix/fs"]
+wayland = ["winit/wayland", "bytemuck", "dep:wayland-cursor"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11", "bytemuck", "nix/fs"]
+x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["log"] }
@@ -68,9 +64,14 @@ egui = { workspace = true, default-features = false, features = ["log"] }
 ahash.workspace = true
 log.workspace = true
 
-
 nix = { version = "0.26.4", default-features = false, optional = true }
 raw-window-handle.workspace = true
+
+# The wayland-cursor normally selected doesn't properly enable all the features it uses
+# and thus doens't compile as it is used in egui-winit. This is fixed upstream, so force
+# a slightly newer version. Remove this when winit upgrades past this version.
+wayland-cursor = { version = "0.31.1", default-features = false, optional = true }
+
 web-time.workspace = true
 winit = { workspace = true, default-features = false }
 

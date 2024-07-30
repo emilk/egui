@@ -78,47 +78,54 @@ impl<T: WinitApp> WinitAppWrapper<T> {
     ) {
         let mut exit = false;
 
-        match event_result {
-            Ok(event_result) => {
-                log::trace!("event_result: {event_result:?}");
-                match event_result {
-                    EventResult::Wait => {
-                        event_loop.set_control_flow(ControlFlow::Wait);
-                    }
-                    EventResult::RepaintNow(window_id) => {
-                        log::trace!("RepaintNow of {window_id:?}",);
-                        if cfg!(target_os = "windows") {
-                            // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                            self.windows_next_repaint_times.remove(&window_id);
+        log::trace!("event_result: {event_result:?}");
 
-                            let _ = self.winit_app.run_ui_and_paint(event_loop, window_id);
-                        } else {
-                            // Fix for https://github.com/emilk/egui/issues/2425
-                            self.windows_next_repaint_times
-                                .insert(window_id, Instant::now());
-                        }
-                    }
-                    EventResult::RepaintNext(window_id) => {
-                        log::trace!("RepaintNext of {window_id:?}",);
+        let combined_result = event_result.and_then(|event_result| {
+            match event_result {
+                EventResult::Wait => {
+                    event_loop.set_control_flow(ControlFlow::Wait);
+                    Ok(event_result)
+                }
+                EventResult::RepaintNow(window_id) => {
+                    log::trace!("RepaintNow of {window_id:?}",);
+
+                    if cfg!(target_os = "windows") {
+                        // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                        self.windows_next_repaint_times.remove(&window_id);
+                        self.winit_app.run_ui_and_paint(event_loop, window_id)
+                    } else {
+                        // Fix for https://github.com/emilk/egui/issues/2425
                         self.windows_next_repaint_times
                             .insert(window_id, Instant::now());
+                        Ok(event_result)
                     }
-                    EventResult::RepaintAt(window_id, repaint_time) => {
-                        self.windows_next_repaint_times.insert(
-                            window_id,
-                            self.windows_next_repaint_times
-                                .get(&window_id)
-                                .map_or(repaint_time, |last| (*last).min(repaint_time)),
-                        );
-                    }
-                    EventResult::Exit => exit = true,
+                }
+                EventResult::RepaintNext(window_id) => {
+                    log::trace!("RepaintNext of {window_id:?}",);
+                    self.windows_next_repaint_times
+                        .insert(window_id, Instant::now());
+                    Ok(event_result)
+                }
+                EventResult::RepaintAt(window_id, repaint_time) => {
+                    self.windows_next_repaint_times.insert(
+                        window_id,
+                        self.windows_next_repaint_times
+                            .get(&window_id)
+                            .map_or(repaint_time, |last| (*last).min(repaint_time)),
+                    );
+                    Ok(event_result)
+                }
+                EventResult::Exit => {
+                    exit = true;
+                    Ok(event_result)
                 }
             }
-            Err(err) => {
-                log::error!("Exiting because of error: {err}");
-                exit = true;
-                self.return_result = Err(err);
-            }
+        });
+
+        if let Err(err) = combined_result {
+            log::error!("Exiting because of error: {err}");
+            exit = true;
+            self.return_result = Err(err);
         };
 
         if exit {
@@ -130,6 +137,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 self.winit_app.save_and_destroy();
 
                 log::debug!("Exiting with return code 0");
+
                 #[allow(clippy::exit)]
                 std::process::exit(0);
             }
