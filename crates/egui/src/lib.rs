@@ -270,7 +270,7 @@
 //!
 //! ## Widget interaction
 //! Each widget has a [`Sense`], which defines whether or not the widget
-//! is sensitive to clickicking and/or drags.
+//! is sensitive to clicking and/or drags.
 //!
 //! For instance, a [`Button`] only has a [`Sense::click`] (by default).
 //! This means if you drag a button it will not respond with [`Response::dragged`].
