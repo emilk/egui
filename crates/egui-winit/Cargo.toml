@@ -83,7 +83,7 @@ webbrowser = { version = "1.0.0", optional = true }
 smithay-clipboard = { version = "0.7.0", optional = true }
 
 # The wayland-cursor normally selected doesn't properly enable all the features it uses
-# and thus doens't compile as it is used in egui-winit. This is fixed upstream, so force
+# and thus doesn't compile as it is used in egui-winit. This is fixed upstream, so force
 # a slightly newer version. Remove this when winit upgrades past this version.
 wayland-cursor = { version = "0.31.1", default-features = false, optional = true }
 
