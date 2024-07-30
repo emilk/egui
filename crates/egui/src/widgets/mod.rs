@@ -21,6 +21,7 @@ mod separator;
 mod slider;
 mod spinner;
 pub mod text_edit;
+mod theme_switch;
 
 pub use self::{
     button::Button,
@@ -134,10 +135,10 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
 
 /// Show a small button to switch to/from dark/light mode (globally).
 pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    let style: crate::Style = (*ui.ctx().style()).clone();
-    let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
-    if let Some(visuals) = new_visuals {
-        ui.ctx().set_visuals(visuals);
+    let mut theme = memory::ThemePreference::from_dark_mode(ui.ctx().style().visuals.dark_mode);
+    let response = ui.add(theme_switch::ThemeSwitch::new(&mut theme).show_follow_system(false));
+    if response.changed {
+        ui.ctx().set_visuals(theme.into_visuals());
     }
 }
 

@@ -640,6 +640,7 @@ impl WidgetInfo {
             WidgetType::Button => "button",
             WidgetType::Checkbox => "checkbox",
             WidgetType::RadioButton => "radio",
+            WidgetType::RadioGroup => "radio group",
             WidgetType::SelectableLabel => "selectable",
             WidgetType::ComboBox => "combo",
             WidgetType::Slider => "slider",
