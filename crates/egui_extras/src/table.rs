@@ -261,7 +261,7 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    /// What should table cells sense for? (default: [`egui::Sense::hover()`]).
+    /// What should table cells sense for? (default: [`egui::Sense::hover().no_hover()`]).
     #[inline]
     pub fn sense(mut self, sense: egui::Sense) -> Self {
         self.sense = sense;

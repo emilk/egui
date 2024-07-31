@@ -299,7 +299,10 @@ impl EpiIntegration {
         viewport_ui_cb: Option<&DeferredViewportUiCallback>,
         mut raw_input: egui::RawInput,
     ) -> egui::FullOutput {
-        raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+        #[cfg(not(feature = "very_lazy"))] // required as egui-winit uses the original time
+        {
+            raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+        }
 
         let close_requested = raw_input.viewport().close_requested();
 

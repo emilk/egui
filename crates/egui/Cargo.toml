@@ -77,6 +77,9 @@ serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
+## Experimental: remove hoverable effects on some widgets, for very lazy rendering
+very_lazy = []
+
 
 [dependencies]
 emath = { workspace = true, default-features = false }

@@ -57,6 +57,9 @@ wayland = ["winit/wayland", "bytemuck"]
 ## Enables compiling for x11.
 x11 = ["winit/x11", "bytemuck"]
 
+## Experimental: do not re-render for hovering without effects, for very lazy rendering
+very_lazy = ["egui/very_lazy"]
+
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["log"] }
 

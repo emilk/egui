@@ -202,16 +202,18 @@ impl AppRunner {
         }
     }
 
+    pub(crate) fn raw_input(&mut self) -> egui::RawInput {
+        let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
+        self.input.new_frame(canvas_size)
+    }
+
     /// Runs the logic, but doesn't paint the result.
     ///
     /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
     pub fn logic(&mut self) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
-
-        let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
-        let mut raw_input = self.input.new_frame(canvas_size);
-
+        let mut raw_input = self.raw_input();
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {

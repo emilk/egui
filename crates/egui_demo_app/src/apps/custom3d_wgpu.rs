@@ -174,7 +174,7 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
 impl Custom3d {
     fn custom_painting(&mut self, ui: &mut egui::Ui) {
         let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
+            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag().no_hover());
 
         self.angle += response.drag_motion().x * 0.01;
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(

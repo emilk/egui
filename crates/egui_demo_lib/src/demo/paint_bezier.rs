@@ -80,8 +80,10 @@ impl PaintBezier {
     }
 
     pub fn ui_content(&mut self, ui: &mut Ui) -> egui::Response {
-        let (response, painter) =
-            ui.allocate_painter(Vec2::new(ui.available_width(), 300.0), Sense::hover());
+        let (response, painter) = ui.allocate_painter(
+            Vec2::new(ui.available_width(), 300.0),
+            Sense::hover().no_hover(),
+        );
 
         let to_screen = emath::RectTransform::from_to(
             Rect::from_min_size(Pos2::ZERO, response.rect.size()),

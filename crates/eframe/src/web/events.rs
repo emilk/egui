@@ -493,7 +493,33 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             egui::pos2(event.client_x() as f32, event.client_y() as f32),
         ) {
             runner.input.raw.events.push(egui::Event::PointerMoved(pos));
-            runner.needs_repaint.repaint_asap();
+
+            #[cfg(feature = "very_lazy")]
+            {
+                let raw_input = runner.raw_input();
+                runner.egui_ctx().detect_interaction(raw_input);
+                let (repaint, is_drag) = runner.egui_ctx().viewport(|v| {
+                    (
+                        !v.interact_widgets.hovered.is_empty(),
+                        v.interact_widgets.dragged.is_some(),
+                    )
+                });
+                if repaint {
+                    runner.needs_repaint.repaint_asap();
+                    if !is_drag {
+                        runner.egui_ctx().undo_interaction();
+                    }
+                } else {
+                    runner.input.raw.events.pop();
+                    runner.egui_ctx().undo_interaction();
+                }
+            }
+
+            #[cfg(not(feature = "very_lazy"))]
+            {
+                runner.needs_repaint.repaint_asap();
+            }
+
             event.stop_propagation();
             event.prevent_default();
         }

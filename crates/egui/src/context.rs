@@ -400,40 +400,16 @@ struct ContextImpl {
     accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
+
+    interaction_valid: bool,
 }
 
 impl ContextImpl {
-    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        let viewport_id = new_raw_input.viewport_id;
-        let parent_id = new_raw_input
-            .viewports
-            .get(&viewport_id)
-            .and_then(|v| v.parent)
-            .unwrap_or_default();
-        let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
-
-        let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
-        self.viewport_stack.push(ids);
-
-        self.begin_frame_repaint_logic(viewport_id);
-
-        let viewport = self.viewports.entry(viewport_id).or_default();
-
-        if is_outermost_viewport {
-            if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
-                let ratio = self.memory.options.zoom_factor / new_zoom_factor;
-                self.memory.options.zoom_factor = new_zoom_factor;
-
-                let input = &viewport.input;
-                // This is a bit hacky, but is required to avoid jitter:
-                let mut rect = input.screen_rect;
-                rect.min = (ratio * rect.min.to_vec2()).to_pos2();
-                rect.max = (ratio * rect.max.to_vec2()).to_pos2();
-                new_raw_input.screen_rect = Some(rect);
-                // We should really scale everything else in the input too,
-                // but the `screen_rect` is the most important part.
-            }
+    pub(crate) fn detect_interaction(&mut self, new_raw_input: RawInput) {
+        if self.interaction_valid {
+            return;
         }
+
         let native_pixels_per_point = new_raw_input
             .viewport()
             .native_pixels_per_point
@@ -442,9 +418,9 @@ impl ContextImpl {
 
         let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
-        let viewport = self.viewports.entry(self.viewport_id()).or_default();
-
         self.memory.begin_frame(&new_raw_input, &all_viewport_ids);
+
+        let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
@@ -453,9 +429,7 @@ impl ContextImpl {
             &self.memory.options,
         );
 
-        let screen_rect = viewport.input.screen_rect;
-
-        viewport.this_frame.begin_frame(screen_rect);
+        viewport.this_frame.begin_frame(viewport.input.screen_rect);
 
         {
             let area_order = self.memory.areas().order_map();
@@ -493,7 +467,46 @@ impl ContextImpl {
                 &viewport.input,
                 self.memory.interaction_mut(),
             );
+
+            self.interaction_valid = true;
         }
+    }
+
+    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
+        let viewport_id = new_raw_input.viewport_id;
+        let parent_id = new_raw_input
+            .viewports
+            .get(&viewport_id)
+            .and_then(|v| v.parent)
+            .unwrap_or_default();
+        let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
+
+        let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
+        self.viewport_stack.push(ids);
+
+        self.begin_frame_repaint_logic(viewport_id);
+
+        let viewport = self.viewports.entry(viewport_id).or_default();
+
+        if is_outermost_viewport {
+            if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
+                let ratio = self.memory.options.zoom_factor / new_zoom_factor;
+                self.memory.options.zoom_factor = new_zoom_factor;
+
+                let input = &viewport.input;
+                // This is a bit hacky, but is required to avoid jitter:
+                let mut rect = input.screen_rect;
+                rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+                rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+                new_raw_input.screen_rect = Some(rect);
+                // We should really scale everything else in the input too,
+                // but the `screen_rect` is the most important part.
+            }
+        }
+
+        let viewport = self.viewports.entry(self.viewport_id()).or_default();
+
+        let screen_rect = viewport.input.screen_rect;
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         self.memory.areas_mut().set_state(
@@ -522,6 +535,8 @@ impl ContextImpl {
                 parent_stack: vec![id],
             });
         }
+        self.detect_interaction(new_raw_input);
+        self.interaction_valid = false;
 
         self.update_fonts_mut();
     }
@@ -721,6 +736,18 @@ impl Context {
     /// Do read-write (exclusive access) transaction on Context
     fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
         writer(&mut self.0.write())
+    }
+
+    /// Perform a interaction detection wrt the given input
+    pub fn detect_interaction(&self, raw_input: RawInput) {
+        self.write(|ctx| ctx.detect_interaction(raw_input));
+    }
+
+    /// Undo the interaction detection when the context is not updated immediately
+    pub fn undo_interaction(&self) {
+        self.write(|ctx| {
+            ctx.interaction_valid = false;
+        });
     }
 
     /// Run the ui code for one frame.

@@ -123,6 +123,9 @@ x11 = ["egui-winit/x11", "egui-wgpu?/x11", "egui_glow?/x11"]
 ## This is used to generate images for examples.
 __screenshot = []
 
+## Experimental: remove hoverable effects on some widgets from egui and do not re-render without effects, for very lazy rendering
+very_lazy = ["egui/very_lazy", "egui-winit/very_lazy"]
+
 [dependencies]
 egui = { workspace = true, default-features = false, features = [
   "bytemuck",

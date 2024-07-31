@@ -454,6 +454,7 @@ impl WinitApp for WgpuWinitApp {
                 device_id: _,
                 event: winit::event::DeviceEvent::MouseMotion { delta },
             } => {
+                #[cfg(not(feature = "very_lazy"))]
                 if let Some(running) = &mut self.running {
                     let mut shared = running.shared.borrow_mut();
                     if let Some(viewport) = shared
@@ -473,6 +474,22 @@ impl WinitApp for WgpuWinitApp {
                         EventResult::Wait
                     }
                 } else {
+                    EventResult::Wait
+                }
+
+                #[cfg(feature = "very_lazy")]
+                {
+                    if let Some(running) = &mut self.running {
+                        let mut shared = running.shared.borrow_mut();
+                        if let Some(viewport) = shared
+                            .focused_viewport
+                            .and_then(|viewport| shared.viewports.get_mut(&viewport))
+                        {
+                            if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                                egui_winit.on_mouse_motion(*delta);
+                            }
+                        }
+                    }
                     EventResult::Wait
                 }
             }

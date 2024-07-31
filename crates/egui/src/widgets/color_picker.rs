@@ -52,7 +52,7 @@ pub fn show_color(ui: &mut Ui, color: impl Into<Color32>, desired_size: Vec2) ->
 }
 
 fn show_color32(ui: &mut Ui, color: Color32, desired_size: Vec2) -> Response {
-    let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover());
+    let (rect, response) = ui.allocate_at_least(desired_size, Sense::hover().no_hover());
     if ui.is_rect_visible(rect) {
         show_color_at(ui.painter(), color, rect);
     }

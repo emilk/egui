@@ -299,6 +299,26 @@ impl State {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.on_cursor_moved(window, *position);
+
+                #[cfg(feature = "very_lazy")]
+                {
+                    let raw_input = self.take_egui_input(window);
+                    // raw_input.time = None;
+                    self.egui_ctx.detect_interaction(raw_input);
+                    let repaint = self.egui_ctx.viewport(|v| {
+                        let widgets = &v.interact_widgets;
+                        !&widgets.hovered.is_empty()
+                    });
+                    if !repaint {
+                        self.egui_ctx.undo_interaction();
+                    }
+                    EventResponse {
+                        repaint,
+                        consumed: self.egui_ctx.is_using_pointer(),
+                    }
+                }
+
+                #[cfg(not(feature = "very_lazy"))]
                 EventResponse {
                     repaint: true,
                     consumed: self.egui_ctx.is_using_pointer(),

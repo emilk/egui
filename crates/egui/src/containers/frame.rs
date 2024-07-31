@@ -317,7 +317,7 @@ impl Prepared {
     ///
     /// This can be called before or after [`Self::paint`].
     pub fn allocate_space(&self, ui: &mut Ui) -> Response {
-        ui.allocate_rect(self.content_with_margin(), Sense::hover())
+        ui.allocate_rect(self.content_with_margin(), Sense::hover().no_hover())
     }
 
     /// Paint the frame.

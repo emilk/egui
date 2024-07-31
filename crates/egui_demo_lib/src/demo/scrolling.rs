@@ -223,7 +223,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
                 used_rect = used_rect.union(text_rect);
             }
 
-            ui.allocate_rect(used_rect, Sense::hover()); // make sure it is visible!
+            ui.allocate_rect(used_rect, Sense::hover().no_hover()); // make sure it is visible!
         });
 }
 

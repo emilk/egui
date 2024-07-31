@@ -186,7 +186,7 @@ impl<'l> StripLayout<'l> {
         let before = self.cursor;
         self.cursor += delta;
         let rect = Rect::from_two_pos(before, self.cursor);
-        self.ui.allocate_rect(rect, Sense::hover());
+        self.ui.allocate_rect(rect, Sense::hover().no_hover());
     }
 
     /// Return the Ui to which the contents where added
@@ -227,6 +227,6 @@ impl<'l> StripLayout<'l> {
         rect.set_right(self.max.x);
         rect.set_bottom(self.max.y);
 
-        self.ui.allocate_rect(rect, Sense::hover())
+        self.ui.allocate_rect(rect, Sense::hover().no_hover())
     }
 }

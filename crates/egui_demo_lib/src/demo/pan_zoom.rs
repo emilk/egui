@@ -38,7 +38,7 @@ impl crate::View for PanZoom {
         ui.separator();
 
         let (id, rect) = ui.allocate_space(ui.available_size());
-        let response = ui.interact(rect, id, egui::Sense::click_and_drag());
+        let response = ui.interact(rect, id, egui::Sense::click_and_drag().no_hover());
         // Allow dragging the background as well.
         if response.dragged() {
             self.transform.translation += response.drag_delta();

@@ -65,7 +65,7 @@ impl Widget for Spinner {
         let size = self
             .size
             .unwrap_or_else(|| ui.style().spacing.interact_size.y);
-        let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
+        let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover().no_hover());
         response.widget_info(|| WidgetInfo::new(WidgetType::ProgressIndicator));
         self.paint_at(ui, rect);
 

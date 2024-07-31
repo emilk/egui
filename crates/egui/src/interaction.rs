@@ -247,6 +247,7 @@ pub(crate) fn interact(
             .chain(&dragged)
             .chain(&long_touched)
             .copied()
+            // .filter(|id| widgets.get(*id).is_some_and(|w| w.sense.hoverable))
             .collect()
     } else {
         // We may be hovering a an interactive widget or two.
@@ -272,10 +273,16 @@ pub(crate) fn interact(
         let drag_order = hits.drag.and_then(|w| order(w.id)).unwrap_or(0);
         let top_interactive_order = click_order.max(drag_order);
 
-        let mut hovered: IdSet = hits.click.iter().chain(&hits.drag).map(|w| w.id).collect();
+        let mut hovered: IdSet = hits
+            .click
+            .iter()
+            .chain(&hits.drag)
+            .filter(|w| w.sense.hoverable)
+            .map(|w| w.id)
+            .collect();
 
         for w in &hits.contains_pointer {
-            if top_interactive_order <= order(w.id).unwrap_or(0) {
+            if top_interactive_order <= order(w.id).unwrap_or(0) && w.sense.hoverable {
                 hovered.insert(w.id);
             }
         }
