@@ -38,7 +38,7 @@ fn paint_selection(
         ui.ctx(),
         _response.id,
         cursor_range,
-        accesskit::Role::StaticText,
+        accesskit::Role::Label,
         galley_pos,
         galley,
     );

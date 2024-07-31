@@ -62,14 +62,15 @@ egui = { workspace = true, default-features = false, features = ["log"] }
 
 ahash.workspace = true
 log.workspace = true
+nix = { version = "0.26.4", default-features = false, optional = true }
 raw-window-handle.workspace = true
 web-time.workspace = true
-winit = { workspace = true, default-features = false, features = ["rwh_06"] }
+winit = { workspace = true, default-features = false }
 
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.16.0", optional = true }
+accesskit_winit = { version = "0.22", optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
@@ -80,6 +81,11 @@ webbrowser = { version = "1.0.0", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.7.0", optional = true }
+
+# The wayland-cursor normally selected doesn't properly enable all the features it uses
+# and thus doesn't compile as it is used in egui-winit. This is fixed upstream, so force
+# a slightly newer version. Remove this when winit upgrades past this version.
+wayland-cursor = { version = "0.31.1", default-features = false, optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3.3", optional = true, default-features = false }

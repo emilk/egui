@@ -228,6 +228,7 @@ def main() -> None:
         "egui-winit",
         "egui",
         "epaint",
+        "epaint_default_fonts",
     ]
 
     # We read all existing changelogs to remove duplicate entries.
