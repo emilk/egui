@@ -311,7 +311,7 @@ impl Widget for Button<'_> {
                     .align_size_within_rect(image_size, rect.shrink2(button_padding))
                     .min;
                 if galley.is_some() || shortcut_galley.is_some() {
-                    image_pos.x = cursor_x
+                    image_pos.x = cursor_x;
                 }
                 let image_rect = Rect::from_min_size(image_pos, image_size);
                 cursor_x += image_size.x;
@@ -340,7 +340,7 @@ impl Widget for Button<'_> {
                     .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
                     .min;
                 if image.is_some() || shortcut_galley.is_some() {
-                    text_pos.x = cursor_x
+                    text_pos.x = cursor_x;
                 }
                 ui.painter().galley(text_pos, galley, visuals.text_color());
             }
