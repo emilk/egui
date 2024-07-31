@@ -10,6 +10,9 @@ use crate::{
 };
 use emath::{NumExt as _, OrderedFloat};
 
+#[cfg(feature = "default_fonts")]
+use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
+
 // ----------------------------------------------------------------------------
 
 /// How to select a sized font.
@@ -217,7 +220,7 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 ///
 /// // Install my own font (maybe supporting non-latin characters):
 /// fonts.font_data.insert("my_font".to_owned(),
-///    FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf"))); // .ttf and .otf supported
+///    FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))); // .ttf and .otf supported
 ///
 /// // Put my font first (highest priority):
 /// fonts.families.get_mut(&FontFamily::Proportional).unwrap()
@@ -263,39 +266,32 @@ impl Default for FontDefinitions {
 
         let mut families = BTreeMap::new();
 
-        font_data.insert(
-            "Hack".to_owned(),
-            FontData::from_static(include_bytes!("../../fonts/Hack-Regular.ttf")),
-        );
+        font_data.insert("Hack".to_owned(), FontData::from_static(HACK_REGULAR));
         font_data.insert(
             "Ubuntu-Light".to_owned(),
-            FontData::from_static(include_bytes!("../../fonts/Ubuntu-Light.ttf")),
+            FontData::from_static(UBUNTU_LIGHT),
         );
 
         // Some good looking emojis. Use as first priority:
         font_data.insert(
             "NotoEmoji-Regular".to_owned(),
-            FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")).tweak(
-                FontTweak {
-                    scale: 0.81, // make it smaller
-                    ..Default::default()
-                },
-            ),
+            FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
+                scale: 0.81, // make it smaller
+                ..Default::default()
+            }),
         );
 
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
         font_data.insert(
             "emoji-icon-font".to_owned(),
-            FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
-                FontTweak {
-                    scale: 0.88, // make it smaller
+            FontData::from_static(EMOJI_ICON).tweak(FontTweak {
+                scale: 0.88, // make it smaller
 
-                    // probably not correct, but this does make texts look better (#2724 for details)
-                    y_offset_factor: 0.11, // move glyphs down to better align with common fonts
-                    baseline_offset_factor: -0.11, // ...now the entire row is a bit down so shift it back
-                    ..Default::default()
-                },
-            ),
+                // probably not correct, but this does make texts look better (#2724 for details)
+                y_offset_factor: 0.11, // move glyphs down to better align with common fonts
+                baseline_offset_factor: -0.11, // ...now the entire row is a bit down so shift it back
+                ..Default::default()
+            }),
         );
 
         families.insert(
