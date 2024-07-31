@@ -46,9 +46,9 @@ impl TextAgent {
                 let text = input.value();
                 // Fix android virtual keyboard Gboard
                 // This removes the virtual keyboard's suggestion.
-                if !event.is_composing(){
-                    input.blur().unwrap();
-                    input.focus().unwrap();
+                if !event.is_composing() {
+                    input.blur().ok();
+                    input.focus().ok();
                 }
                 // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
                 // In that case, the browser emits both `input` and `compositionupdate` events,
@@ -116,7 +116,6 @@ impl TextAgent {
         canvas: &web_sys::HtmlCanvasElement,
         zoom_factor: f32,
     ) -> Result<(), JsValue> {
-        // Don't move the text agent if focus
         // Don't move the text agent unless the position actually changed:
         if self.prev_ime_output.get() == ime {
             return Ok(());
@@ -125,19 +124,19 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        //let canvas_rect = super::canvas_content_rect(canvas);
-        //let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
+        let canvas_rect = super::canvas_content_rect(canvas);
+        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
 
         // This is where the IME input will point to:
         style.set_property(
             "left",
-            &format!("{}px", ime.cursor_rect.center().x * zoom_factor),
+            &format!("{}px", cursor_rect.center().x * zoom_factor),
         )?;
         style.set_property(
             "top",
-            &format!("{}px", ime.cursor_rect.center().y * zoom_factor),
+            &format!("{}px", cursor_rect.center().y * zoom_factor),
         )?;
 
         Ok(())
