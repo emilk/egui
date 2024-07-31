@@ -1,6 +1,6 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use ahash::HashMap;
+use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
 use crate::{
@@ -227,10 +227,39 @@ pub struct Options {
     ///
     /// By default this is `true` in debug builds.
     pub warn_on_id_clash: bool,
+
+    // ------------------------------
+    // Input:
+    /// Multiplier for the scroll speed when reported in [`crate::MouseWheelUnit::Line`]s.
+    pub line_scroll_speed: f32,
+
+    /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
+    pub scroll_zoom_speed: f32,
+
+    /// If `true`, `egui` will discard the loaded image data after
+    /// the texture is loaded onto the GPU to reduce memory usage.
+    ///
+    /// In modern GPU rendering, the texture data is not required after the texture is loaded.
+    ///
+    /// This is beneficial when using a large number or resolution of images and there is no need to
+    /// retain the image data, potentially saving a significant amount of memory.
+    ///
+    /// The drawback is that it becomes impossible to serialize the loaded images or render in non-GPU systems.
+    ///
+    /// Default is `false`.
+    pub reduce_texture_memory: bool,
 }
 
 impl Default for Options {
     fn default() -> Self {
+        // TODO(emilk): figure out why these constants need to be different on web and on native (winit).
+        let is_web = cfg!(target_arch = "wasm32");
+        let line_scroll_speed = if is_web {
+            8.0
+        } else {
+            40.0 // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
+        };
+
         Self {
             style: Default::default(),
             zoom_factor: 1.0,
@@ -240,6 +269,11 @@ impl Default for Options {
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
+
+            // Input:
+            line_scroll_speed,
+            scroll_zoom_speed: 1.0 / 200.0,
+            reduce_texture_memory: false,
         }
     }
 }
@@ -256,6 +290,10 @@ impl Options {
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
+
+            line_scroll_speed,
+            scroll_zoom_speed,
+            reduce_texture_memory,
         } = self;
 
         use crate::Widget as _;
@@ -274,6 +312,8 @@ impl Options {
                 );
 
                 ui.checkbox(warn_on_id_clash, "Warn if two widgets have the same Id");
+
+                ui.checkbox(reduce_texture_memory, "Reduce texture memory");
             });
 
         use crate::containers::*;
@@ -289,6 +329,27 @@ impl Options {
                 tessellation_options.ui(ui);
                 ui.vertical_centered(|ui| {
                     crate::reset_button(ui, tessellation_options, "Reset paint settings");
+                });
+            });
+
+        CollapsingHeader::new("🖱 Input")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Line scroll speed");
+                    ui.add(crate::DragValue::new(line_scroll_speed).range(0.0..=f32::INFINITY))
+                        .on_hover_text(
+                            "How many lines to scroll with each tick of the mouse wheel",
+                        );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Scroll zoom speed");
+                    ui.add(
+                        crate::DragValue::new(scroll_zoom_speed)
+                            .range(0.0..=f32::INFINITY)
+                            .speed(0.001),
+                    )
+                    .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
                 });
             });
 
@@ -873,7 +934,7 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    areas: IdMap<area::State>,
+    areas: IdMap<area::AreaState>,
 
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
@@ -887,6 +948,11 @@ pub struct Areas {
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
     wants_to_be_on_top: ahash::HashSet<LayerId>,
+
+    /// List of sublayers for each layer
+    ///
+    /// When a layer has sublayers, they are moved directly above it in the ordering.
+    sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
 }
 
 impl Areas {
@@ -894,7 +960,7 @@ impl Areas {
         self.areas.len()
     }
 
-    pub(crate) fn get(&self, id: Id) -> Option<&area::State> {
+    pub(crate) fn get(&self, id: Id) -> Option<&area::AreaState> {
         self.areas.get(&id)
     }
 
@@ -912,7 +978,7 @@ impl Areas {
             .collect()
     }
 
-    pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
+    pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
         self.visible_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
         if !self.order.iter().any(|x| *x == layer_id) {
@@ -961,12 +1027,12 @@ impl Areas {
             .collect()
     }
 
-    pub(crate) fn visible_windows(&self) -> Vec<&area::State> {
+    pub(crate) fn visible_windows(&self) -> impl Iterator<Item = (LayerId, &area::AreaState)> {
         self.visible_layer_ids()
-            .iter()
+            .into_iter()
             .filter(|layer| layer.order == crate::Order::Middle)
-            .filter_map(|layer| self.get(layer.id))
-            .collect()
+            .filter(|&layer| !self.is_sublayer(&layer))
+            .filter_map(|layer| Some((layer, self.get(layer.id)?)))
     }
 
     pub fn move_to_top(&mut self, layer_id: LayerId) {
@@ -978,12 +1044,29 @@ impl Areas {
         }
     }
 
+    /// Mark the `child` layer as a sublayer of `parent`.
+    ///
+    /// Sublayers are moved directly above the parent layer at the end of the frame. This is mainly
+    /// intended for adding a new [Area](crate::Area) inside a [Window](crate::Window).
+    ///
+    /// This currently only supports one level of nesting. If `parent` is a sublayer of another
+    /// layer, the behavior is unspecified.
+    pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
+        self.sublayers.entry(parent).or_default().insert(child);
+    }
+
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()
-            .filter(|layer| layer.order == order)
+            .filter(|layer| layer.order == order && !self.is_sublayer(layer))
             .last()
             .copied()
+    }
+
+    pub(crate) fn is_sublayer(&self, layer: &LayerId) -> bool {
+        self.sublayers
+            .iter()
+            .any(|(_, children)| children.contains(layer))
     }
 
     pub(crate) fn end_frame(&mut self) {
@@ -992,6 +1075,7 @@ impl Areas {
             visible_current_frame,
             order,
             wants_to_be_on_top,
+            sublayers,
             ..
         } = self;
 
@@ -999,6 +1083,23 @@ impl Areas {
         visible_current_frame.clear();
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
+        // For all layers with sublayers, put the sublayers directly after the parent layer:
+        let sublayers = std::mem::take(sublayers);
+        for (parent, children) in sublayers {
+            let mut moved_layers = vec![parent];
+            order.retain(|l| {
+                if children.contains(l) {
+                    moved_layers.push(*l);
+                    false
+                } else {
+                    true
+                }
+            });
+            let Some(parent_pos) = order.iter().position(|l| l == &parent) else {
+                continue;
+            };
+            order.splice(parent_pos..=parent_pos, moved_layers);
+        }
     }
 }
 

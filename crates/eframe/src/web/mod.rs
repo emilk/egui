@@ -40,7 +40,6 @@ pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 
-use egui::Vec2;
 use wasm_bindgen::prelude::*;
 use web_sys::MediaQueryList;
 
@@ -52,6 +51,29 @@ use crate::Theme;
 
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
+}
+
+/// Returns the `Element` with active focus.
+///
+/// Elements can only be focused if they are:
+/// - `<a>`/`<area>` with an `href` attribute
+/// - `<input>`/`<select>`/`<textarea>`/`<button>` which aren't `disabled`
+/// - any other element with a `tabindex` attribute
+pub(crate) fn focused_element() -> Option<web_sys::Element> {
+    web_sys::window()?
+        .document()?
+        .active_element()?
+        .dyn_into()
+        .ok()
+}
+
+pub(crate) fn has_focus<T: JsCast>(element: &T) -> bool {
+    fn try_has_focus<T: JsCast>(element: &T) -> Option<bool> {
+        let element = element.dyn_ref::<web_sys::Element>()?;
+        let focused_element = focused_element()?;
+        Some(element == &focused_element)
+    }
+    try_has_focus(element).unwrap_or(false)
 }
 
 /// Current time in seconds (since undefined point in time).
@@ -100,20 +122,31 @@ fn theme_from_dark_mode(dark_mode: bool) -> Theme {
     }
 }
 
-fn get_canvas_element_by_id(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
-    let document = web_sys::window()?.document()?;
-    let canvas = document.get_element_by_id(canvas_id)?;
-    canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
-}
+/// Returns the canvas in client coordinates.
+fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
+    let bounding_rect = canvas.get_bounding_client_rect();
 
-fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    get_canvas_element_by_id(canvas_id)
-        .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
-}
+    let mut rect = egui::Rect::from_min_max(
+        egui::pos2(bounding_rect.left() as f32, bounding_rect.top() as f32),
+        egui::pos2(bounding_rect.right() as f32, bounding_rect.bottom() as f32),
+    );
 
-fn canvas_origin(canvas: &web_sys::HtmlCanvasElement) -> egui::Pos2 {
-    let rect = canvas.get_bounding_client_rect();
-    egui::pos2(rect.left() as f32, rect.top() as f32)
+    // We need to subtract padding and border:
+    if let Some(window) = web_sys::window() {
+        if let Ok(Some(style)) = window.get_computed_style(canvas) {
+            let get_property = |name: &str| -> Option<f32> {
+                let property = style.get_property_value(name).ok()?;
+                property.trim_end_matches("px").parse::<f32>().ok()
+            };
+
+            rect.min.x += get_property("padding-left").unwrap_or_default();
+            rect.min.y += get_property("padding-top").unwrap_or_default();
+            rect.max.x -= get_property("padding-right").unwrap_or_default();
+            rect.max.y -= get_property("padding-bottom").unwrap_or_default();
+        }
+    }
+
+    rect
 }
 
 fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
@@ -122,56 +155,6 @@ fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Contex
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
     )
-}
-
-fn resize_canvas_to_screen_size(
-    canvas: &web_sys::HtmlCanvasElement,
-    max_size_points: egui::Vec2,
-) -> Option<()> {
-    let parent = canvas.parent_element()?;
-
-    // In this function we use "pixel" to mean physical pixel,
-    // and "point" to mean "logical CSS pixel".
-    let pixels_per_point = native_pixels_per_point();
-
-    // Prefer the client width and height so that if the parent
-    // element is resized that the egui canvas resizes appropriately.
-    let parent_size_points = Vec2 {
-        x: parent.client_width() as f32,
-        y: parent.client_height() as f32,
-    };
-
-    if parent_size_points.x <= 0.0 || parent_size_points.y <= 0.0 {
-        log::error!("The parent element of the egui canvas is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", parent_size_points.x, parent_size_points.y);
-    }
-
-    // We take great care here to ensure the rendered canvas aligns
-    // perfectly to the physical pixel grid, lest we get blurry text.
-    // At the time of writing, we get pixel perfection on Chromium and Firefox on Mac,
-    // but Desktop Safari will be blurry on most zoom levels.
-    // See https://github.com/emilk/egui/issues/4241 for more.
-
-    let canvas_size_pixels = pixels_per_point * parent_size_points.min(max_size_points);
-
-    // Make sure that the size is always an even number of pixels,
-    // otherwise, the page renders blurry on some platforms.
-    // See https://github.com/emilk/egui/issues/103
-    let canvas_size_pixels = (canvas_size_pixels / 2.0).round() * 2.0;
-
-    let canvas_size_points = canvas_size_pixels / pixels_per_point;
-
-    canvas
-        .style()
-        .set_property("width", &format!("{}px", canvas_size_points.x))
-        .ok()?;
-    canvas
-        .style()
-        .set_property("height", &format!("{}px", canvas_size_points.y))
-        .ok()?;
-    canvas.set_width(canvas_size_pixels.x as u32);
-    canvas.set_height(canvas_size_pixels.y as u32);
-
-    Some(())
 }
 
 // ----------------------------------------------------------------------------
@@ -199,6 +182,13 @@ fn set_clipboard_text(s: &str) {
                 }
             };
             wasm_bindgen_futures::spawn_local(future);
+        } else {
+            let is_secure_context = window.is_secure_context();
+            if is_secure_context {
+                log::warn!("window.navigator.clipboard is null; can't copy text");
+            } else {
+                log::warn!("window.navigator.clipboard is null; can't copy text, probably because we're not in a secure context. See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts");
+            }
         }
     }
 }
@@ -273,4 +263,17 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
+}
+
+/// Returns `true` if the app is likely running on a mobile device.
+pub(crate) fn is_mobile() -> bool {
+    fn try_is_mobile() -> Option<bool> {
+        const MOBILE_DEVICE: [&str; 6] =
+            ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
+
+        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
+        let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
+        Some(is_mobile)
+    }
+    try_is_mobile().unwrap_or(false)
 }

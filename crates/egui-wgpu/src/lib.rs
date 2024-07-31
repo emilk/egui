@@ -80,7 +80,7 @@ pub struct RenderState {
 }
 
 impl RenderState {
-    /// Creates a new `RenderState`, containing everything needed for drawing egui with wgpu.
+    /// Creates a new [`RenderState`], containing everything needed for drawing egui with wgpu.
     ///
     /// # Errors
     /// Wgpu initialization may fail due to incompatible hardware or driver for a given config.
@@ -90,6 +90,7 @@ impl RenderState {
         surface: &wgpu::Surface<'static>,
         depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
+        dithering: bool,
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
@@ -164,7 +165,13 @@ impl RenderState {
                 .await?
         };
 
-        let renderer = Renderer::new(&device, target_format, depth_format, msaa_samples);
+        let renderer = Renderer::new(
+            &device,
+            target_format,
+            depth_format,
+            msaa_samples,
+            dithering,
+        );
 
         Ok(Self {
             adapter: Arc::new(adapter),
@@ -223,7 +230,8 @@ pub struct WgpuConfiguration {
     pub supported_backends: wgpu::Backends,
 
     /// Configuration passed on device request, given an adapter
-    pub device_descriptor: Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static>>,
+    pub device_descriptor:
+        Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> + Send + Sync>,
 
     /// Present mode used for the primary surface.
     pub present_mode: wgpu::PresentMode,
@@ -241,7 +249,13 @@ pub struct WgpuConfiguration {
     pub power_preference: wgpu::PowerPreference,
 
     /// Callback for surface errors.
-    pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
+    pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
+}
+
+#[test]
+fn wgpu_config_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<WgpuConfiguration>();
 }
 
 impl std::fmt::Debug for WgpuConfiguration {
@@ -290,6 +304,7 @@ impl Default for WgpuConfiguration {
                         max_texture_dimension_2d: 8192,
                         ..base_limits
                     },
+                    memory_hints: wgpu::MemoryHints::default(),
                 }
             }),
 

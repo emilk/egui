@@ -1,7 +1,9 @@
 //! Common tools used by [`super::glow_integration`] and [`super::wgpu_integration`].
 
 use web_time::Instant;
-use winit::event_loop::EventLoopWindowTarget;
+
+use std::path::PathBuf;
+use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
@@ -10,9 +12,9 @@ use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
 
-pub fn viewport_builder<E>(
+pub fn viewport_builder(
     egui_zoom_factor: f32,
-    event_loop: &EventLoopWindowTarget<E>,
+    event_loop: &ActiveEventLoop,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) -> ViewportBuilder {
@@ -93,10 +95,7 @@ pub fn apply_window_settings(
     }
 }
 
-fn largest_monitor_point_size<E>(
-    egui_zoom_factor: f32,
-    event_loop: &EventLoopWindowTarget<E>,
-) -> egui::Vec2 {
+fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
     crate::profile_function!();
 
     let mut max_size = egui::Vec2::ZERO;
@@ -132,6 +131,16 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     None
 }
 
+#[allow(clippy::unnecessary_wraps)]
+pub fn create_storage_with_file(_file: impl Into<PathBuf>) -> Option<Box<dyn epi::Storage>> {
+    #[cfg(feature = "persistence")]
+    return Some(Box::new(
+        super::file_storage::FileStorage::from_ron_filepath(_file),
+    ));
+    #[cfg(not(feature = "persistence"))]
+    None
+}
+
 // ----------------------------------------------------------------------------
 
 /// Everything needed to make a winit-based integration for [`epi`].
@@ -142,7 +151,6 @@ pub struct EpiIntegration {
     last_auto_save: Instant,
     pub beginning: Instant,
     is_first_frame: bool,
-    pub frame_start: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
 
@@ -215,29 +223,7 @@ impl EpiIntegration {
             app_icon_setter,
             beginning: Instant::now(),
             is_first_frame: true,
-            frame_start: Instant::now(),
         }
-    }
-
-    #[cfg(feature = "accesskit")]
-    pub fn init_accesskit<E: From<egui_winit::accesskit_winit::ActionRequestEvent> + Send>(
-        &self,
-        egui_winit: &mut egui_winit::State,
-        window: &winit::window::Window,
-        event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
-    ) {
-        crate::profile_function!();
-
-        let egui_ctx = self.egui_ctx.clone();
-        egui_winit.init_accesskit(window, event_loop_proxy, move || {
-            // This function is called when an accessibility client
-            // (e.g. screen reader) makes its first request. If we got here,
-            // we know that an accessibility tree is actually wanted.
-            egui_ctx.enable_accesskit();
-            // Enqueue a repaint so we'll receive a full tree update soon.
-            egui_ctx.request_repaint();
-            egui_ctx.accesskit_placeholder_tree_update()
-        });
     }
 
     /// If `true`, it is time to close the native window.

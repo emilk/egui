@@ -58,6 +58,10 @@ pub fn hit_test(
         .filter(|layer| layer.order.allow_interaction())
         .flat_map(|&layer_id| widgets.get_layer(layer_id))
         .filter(|&w| {
+            if w.interact_rect.is_negative() {
+                return false;
+            }
+
             let pos_in_layer = pos_in_layers.get(&w.layer_id).copied().unwrap_or(pos);
             let dist_sq = w.interact_rect.distance_sq_to_pos(pos_in_layer);
 
@@ -311,6 +315,10 @@ fn find_closest(widgets: impl Iterator<Item = WidgetRect>, pos: Pos2) -> Option<
     let mut closest = None;
     let mut closest_dist_sq = f32::INFINITY;
     for widget in widgets {
+        if widget.interact_rect.is_negative() {
+            continue;
+        }
+
         let dist_sq = widget.interact_rect.distance_sq_to_pos(pos);
 
         // In case of a tie, take the last one = the one on top.

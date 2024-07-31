@@ -59,18 +59,11 @@ android-native-activity = ["egui-winit/android-native-activity"]
 default_fonts = ["egui/default_fonts"]
 
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
-glow = [
-  "dep:egui_glow",
-  "dep:glow",
-  "dep:glutin-winit",
-  "dep:glutin",
-  "dep:rwh_05",
-  "winit/rwh_05",
-]
+glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
 persistence = [
-  "directories-next",
+  "directories",
   "egui-winit/serde",
   "egui/persistence",
   "ron",
@@ -129,6 +122,7 @@ egui = { workspace = true, default-features = false, features = [
   "log",
 ] }
 
+ahash.workspace = true
 document-features.workspace = true
 log.workspace = true
 parking_lot.workspace = true
@@ -140,10 +134,6 @@ web-time.workspace = true
 
 egui_glow = { workspace = true, optional = true, default-features = false }
 glow = { workspace = true, optional = true }
-# glutin stuck on old version of raw-window-handle:
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", optional = true, features = [
-  "std",
-] }
 ron = { workspace = true, optional = true, features = ["integer128"] }
 serde = { workspace = true, optional = true }
 
@@ -158,7 +148,7 @@ image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
-directories-next = { version = "2", optional = true }
+directories = { version = "5", optional = true }
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
@@ -236,10 +226,18 @@ web-sys = { workspace = true, features = [
   "MediaQueryListEvent",
   "MouseEvent",
   "Navigator",
+  "Node",
+  "NodeList",
   "Performance",
+  "ResizeObserver",
+  "ResizeObserverBoxOptions",
+  "ResizeObserverEntry",
+  "ResizeObserverOptions",
+  "ResizeObserverSize",
   "Storage",
   "Touch",
   "TouchEvent",
+  "PointerEvent",
   "TouchList",
   "WebGl2RenderingContext",
   "WebglDebugRendererInfo",

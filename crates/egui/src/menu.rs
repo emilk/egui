@@ -25,16 +25,16 @@ use std::sync::Arc;
 
 /// What is saved between frames.
 #[derive(Clone, Default)]
-pub(crate) struct BarState {
+pub struct BarState {
     open_menu: MenuRootManager,
 }
 
 impl BarState {
-    fn load(ctx: &Context, bar_id: Id) -> Self {
+    pub fn load(ctx: &Context, bar_id: Id) -> Self {
         ctx.data_mut(|d| d.get_temp::<Self>(bar_id).unwrap_or_default())
     }
 
-    fn store(self, ctx: &Context, bar_id: Id) {
+    pub fn store(self, ctx: &Context, bar_id: Id) {
         ctx.data_mut(|d| d.insert_temp(bar_id, self));
     }
 
@@ -105,17 +105,35 @@ pub fn menu_button<R>(
     stationary_menu_impl(ui, title, Box::new(add_contents))
 }
 
+/// Construct a top level menu with a custom button in a menu bar.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_custom_button<R>(
+    ui: &mut Ui,
+    button: Button<'_>,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_button_impl(ui, button, Box::new(add_contents))
+}
+
 /// Construct a top level menu with an image in a menu bar. This would be e.g. "File", "Edit" etc.
 ///
 /// Responds to primary clicks.
 ///
 /// Returns `None` if the menu is not open.
+#[deprecated = "Use `menu_custom_button` instead"]
 pub fn menu_image_button<R>(
     ui: &mut Ui,
     image_button: ImageButton<'_>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
-    stationary_menu_image_impl(ui, image_button, Box::new(add_contents))
+    stationary_menu_button_impl(
+        ui,
+        Button::image(image_button.image),
+        Box::new(add_contents),
+    )
 }
 
 /// Construct a nested sub menu in another menu.
@@ -133,10 +151,11 @@ pub(crate) fn submenu_button<R>(
 }
 
 /// wrapper for the contents of every menu.
-pub(crate) fn menu_ui<'c, R>(
+fn menu_popup<'c, R>(
     ctx: &Context,
-    menu_id: Id,
+    parent_layer: LayerId,
     menu_state_arc: &Arc<RwLock<MenuState>>,
+    menu_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
     let pos = {
@@ -145,19 +164,32 @@ pub(crate) fn menu_ui<'c, R>(
         menu_state.rect.min
     };
 
-    let area = Area::new(menu_id.with("__menu"))
+    let area_id = menu_id.with("__menu");
+
+    ctx.frame_state_mut(|fs| {
+        fs.layers
+            .entry(parent_layer)
+            .or_default()
+            .open_popups
+            .insert(area_id)
+    });
+
+    let area = Area::new(area_id)
+        .kind(UiKind::Menu)
         .order(Order::Foreground)
         .fixed_pos(pos)
-        .constrain_to(ctx.screen_rect())
-        .interactable(true)
+        .default_width(ctx.style().spacing.menu_width)
         .sense(Sense::hover());
 
+    let mut sizing_pass = false;
+
     let area_response = area.show(ctx, |ui| {
+        sizing_pass = ui.is_sizing_pass();
+
         set_menu_style(ui.style_mut());
 
         Frame::menu(ui.style())
             .show(ui, |ui| {
-                ui.set_max_width(ui.spacing().menu_width);
                 ui.set_menu_state(Some(menu_state_arc.clone()));
                 ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
                     .inner
@@ -165,7 +197,18 @@ pub(crate) fn menu_ui<'c, R>(
             .inner
     });
 
-    menu_state_arc.write().rect = area_response.response.rect;
+    let area_rect = area_response.response.rect;
+
+    menu_state_arc.write().rect = if sizing_pass {
+        // During the sizing pass we didn't know the size yet,
+        // so we might have just constrained the position unnecessarily.
+        // Therefore keep the original=desired position until the next frame.
+        Rect::from_min_size(pos, area_rect.size())
+    } else {
+        // We knew the size, and this is where it ended up (potentially constrained to screen).
+        // Remember it for the future:
+        area_rect
+    };
 
     area_response
 }
@@ -201,15 +244,15 @@ fn stationary_menu_impl<'c, R>(
 /// Build a top level menu with an image button.
 ///
 /// Responds to primary clicks.
-fn stationary_menu_image_impl<'c, R>(
+fn stationary_menu_button_impl<'c, R>(
     ui: &mut Ui,
-    image_button: ImageButton<'_>,
+    button: Button<'_>,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
     let bar_id = ui.id();
 
     let mut bar_state = BarState::load(ui.ctx(), bar_id);
-    let button_response = ui.add(image_button);
+    let button_response = ui.add(button);
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
     bar_state.store(ui.ctx(), bar_id);
@@ -242,7 +285,7 @@ pub(crate) fn context_menu_opened(response: &Response) -> bool {
 
 /// Stores the state for the context menu.
 #[derive(Clone, Default)]
-pub(crate) struct MenuRootManager {
+pub struct MenuRootManager {
     inner: Option<MenuRoot>,
 }
 
@@ -257,7 +300,7 @@ impl MenuRootManager {
     ) -> Option<InnerResponse<R>> {
         if let Some(root) = self.inner.as_mut() {
             let (menu_response, inner_response) = root.show(button, add_contents);
-            if MenuResponse::Close == menu_response {
+            if menu_response.is_close() {
                 self.inner = None;
             }
             inner_response
@@ -287,7 +330,7 @@ impl std::ops::DerefMut for MenuRootManager {
 
 /// Menu root associated with an Id from a Response
 #[derive(Clone)]
-pub(crate) struct MenuRoot {
+pub struct MenuRoot {
     pub menu_state: Arc<RwLock<MenuState>>,
     pub id: Id,
 }
@@ -306,11 +349,17 @@ impl MenuRoot {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
         if self.id == button.id {
-            let inner_response =
-                MenuState::show(&button.ctx, &self.menu_state, self.id, add_contents);
+            let inner_response = menu_popup(
+                &button.ctx,
+                button.layer_id,
+                &self.menu_state,
+                self.id,
+                add_contents,
+            );
             let menu_state = self.menu_state.read();
 
-            if menu_state.response.is_close() {
+            let escape_pressed = button.ctx.input(|i| i.key_pressed(Key::Escape));
+            if menu_state.response.is_close() || escape_pressed {
                 return (MenuResponse::Close, Some(inner_response));
             }
         }
@@ -352,6 +401,13 @@ impl MenuRoot {
                 }
             }
 
+            if let Some(transform) = button
+                .ctx
+                .memory(|m| m.layer_transforms.get(&button.layer_id).copied())
+            {
+                pos = transform * pos;
+            }
+
             return MenuResponse::Create(pos, id);
         } else if button
             .ctx
@@ -373,7 +429,7 @@ impl MenuRoot {
     }
 
     /// Interaction with a context menu (secondary click).
-    fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
+    pub fn context_interaction(response: &Response, root: &mut Option<Self>) -> MenuResponse {
         let response = response.interact(Sense::click());
         let hovered = response.hovered();
         let secondary_clicked = response.secondary_clicked();
@@ -399,7 +455,7 @@ impl MenuRoot {
         })
     }
 
-    fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
+    pub fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
         match menu_response {
             MenuResponse::Create(pos, id) => {
                 root.inner = Some(Self::new(pos, id));
@@ -422,8 +478,8 @@ impl MenuRoot {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
-pub(crate) enum MenuResponse {
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum MenuResponse {
     Close,
     Stay,
     Create(Pos2, Id),
@@ -476,16 +532,26 @@ impl SubMenuButton {
         let text_style = TextStyle::Button;
         let sense = Sense::click();
 
+        let text_icon_gap = ui.spacing().item_spacing.x;
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
         let text_available_width = ui.available_width() - total_extra.x;
-        let text_galley =
-            text.into_galley(ui, Some(true), text_available_width, text_style.clone());
+        let text_galley = text.into_galley(
+            ui,
+            Some(TextWrapMode::Wrap),
+            text_available_width,
+            text_style.clone(),
+        );
 
         let icon_available_width = text_available_width - text_galley.size().x;
-        let icon_galley = icon.into_galley(ui, Some(true), icon_available_width, text_style);
+        let icon_galley = icon.into_galley(
+            ui,
+            Some(TextWrapMode::Wrap),
+            icon_available_width,
+            text_style,
+        );
         let text_and_icon_size = Vec2::new(
-            text_galley.size().x + icon_galley.size().x,
+            text_galley.size().x + text_icon_gap + icon_galley.size().x,
             text_galley.size().y.max(icon_galley.size().y),
         );
         let mut desired_size = text_and_icon_size + 2.0 * button_padding;
@@ -493,7 +559,11 @@ impl SubMenuButton {
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            crate::WidgetInfo::labeled(crate::WidgetType::Button, text_galley.text())
+            crate::WidgetInfo::labeled(
+                crate::WidgetType::Button,
+                ui.is_enabled(),
+                text_galley.text(),
+            )
         });
 
         if ui.is_rect_visible(rect) {
@@ -545,15 +615,18 @@ impl SubMenu {
         self.parent_state
             .write()
             .submenu_button_interaction(ui, sub_id, &response);
-        let inner = self
-            .parent_state
-            .write()
-            .show_submenu(ui.ctx(), sub_id, add_contents);
+        let inner =
+            self.parent_state
+                .write()
+                .show_submenu(ui.ctx(), ui.layer_id(), sub_id, add_contents);
         InnerResponse::new(inner, response)
     }
 }
 
-pub(crate) struct MenuState {
+/// Components of menu state, public for advanced usage.
+///
+/// Usually you don't need to use it directly.
+pub struct MenuState {
     /// The opened sub-menu and its [`Id`]
     sub_menu: Option<(Id, Arc<RwLock<MenuState>>)>,
 
@@ -583,23 +656,15 @@ impl MenuState {
         self.response = MenuResponse::Close;
     }
 
-    pub fn show<R>(
-        ctx: &Context,
-        menu_state: &Arc<RwLock<Self>>,
-        id: Id,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        crate::menu::menu_ui(ctx, id, menu_state, add_contents)
-    }
-
     fn show_submenu<R>(
         &mut self,
         ctx: &Context,
+        parent_layer: LayerId,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
         let (sub_response, response) = self.submenu(id).map(|sub| {
-            let inner_response = Self::show(ctx, sub, id, add_contents);
+            let inner_response = menu_popup(ctx, parent_layer, sub, id, add_contents);
             (sub.read().response, inner_response.inner)
         })?;
         self.cascade_close_response(sub_response);
@@ -654,7 +719,7 @@ impl MenuState {
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 let rect = sub_menu.read().rect;
-                return rect.intersects_ray(pos, pointer.velocity().normalized());
+                return rect.intersects_ray(pos, pointer.direction().normalized());
             }
         }
         false

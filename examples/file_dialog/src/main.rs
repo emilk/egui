@@ -3,7 +3,7 @@
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -14,7 +14,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|_cc| Ok(Box::<MyApp>::default())),
     )
 }
 

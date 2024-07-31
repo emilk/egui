@@ -3,15 +3,8 @@
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-
-    if cfg!(target_os = "macos") {
-        eprintln!(
-            "This example does not work on Mac! See https://github.com/emilk/egui/issues/1918"
-        );
-        return Ok(());
-    }
 
     let options = eframe::NativeOptions {
         run_and_return: true,
@@ -23,7 +16,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "First Window",
         options.clone(),
-        Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -32,7 +25,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Second Window",
         options.clone(),
-        Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: true }))),
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -41,7 +34,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Third Window",
         options,
-        Box::new(|_cc| Box::new(MyApp { has_next: false })),
+        Box::new(|_cc| Ok(Box::new(MyApp { has_next: false }))),
     )
 }
 
@@ -58,10 +51,6 @@ impl eframe::App for MyApp {
                 "This is the last window. Program will end when closed"
             };
             ui.label(label_text);
-
-            if ctx.os() == egui::os::OperatingSystem::Mac {
-                ui.label("This example doesn't work on Mac!");
-            }
 
             if ui.button("Close").clicked() {
                 eprintln!("Pressed Close button");

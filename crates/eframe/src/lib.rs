@@ -30,7 +30,7 @@
 //!
 //! fn main() {
 //!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))));
 //! }
 //!
 //! #[derive(Default)]
@@ -85,12 +85,12 @@
 //!
 //!     /// Call this once from JavaScript to start your app.
 //!     #[wasm_bindgen]
-//!     pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
+//!     pub async fn start(&self, canvas: web_sys::HtmlCanvasElement) -> Result<(), wasm_bindgen::JsValue> {
 //!         self.runner
 //!             .start(
-//!                 canvas_id,
+//!                 canvas,
 //!                 eframe::WebOptions::default(),
-//!                 Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+//!                 Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc))),)
 //!             )
 //!             .await
 //!     }
@@ -197,9 +197,9 @@ pub mod icon_data;
 /// ``` no_run
 /// use eframe::egui;
 ///
-/// fn main() -> eframe::Result<()> {
+/// fn main() -> eframe::Result {
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))))
 /// }
 ///
 /// #[derive(Default)]
@@ -233,7 +233,7 @@ pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,
     app_creator: AppCreator,
-) -> Result<()> {
+) -> Result {
     #[cfg(not(feature = "__screenshot"))]
     assert!(
         std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
@@ -274,11 +274,13 @@ pub fn run_native(
 
 /// The simplest way to get started when writing a native app.
 ///
-/// This does NOT support persistence. For that you need to use [`run_native`].
+/// This does NOT support persistence of custom user data. For that you need to use [`run_native`].
+/// However, it DOES support persistence of egui data (window positions and sizes, how far the user has scrolled in a
+/// [`ScrollArea`](egui::ScrollArea), etc.) if the persistence feature is enabled.
 ///
 /// # Example
 /// ``` no_run
-/// fn main() -> eframe::Result<()> {
+/// fn main() -> eframe::Result {
 ///     // Our application state:
 ///     let mut name = "Arthur".to_owned();
 ///     let mut age = 42;
@@ -310,7 +312,7 @@ pub fn run_simple_native(
     app_name: &str,
     native_options: NativeOptions,
     update_fun: impl FnMut(&egui::Context, &mut Frame) + 'static,
-) -> Result<()> {
+) -> Result {
     struct SimpleApp<U> {
         update_fun: U,
     }
@@ -324,7 +326,7 @@ pub fn run_simple_native(
     run_native(
         app_name,
         native_options,
-        Box::new(|_cc| Box::new(SimpleApp { update_fun })),
+        Box::new(|_cc| Ok(Box::new(SimpleApp { update_fun }))),
     )
 }
 
@@ -333,6 +335,9 @@ pub fn run_simple_native(
 /// The different problems that can occur when trying to run `eframe`.
 #[derive(Debug)]
 pub enum Error {
+    /// Something went wrong in user code when creating the app.
+    AppCreation(Box<dyn std::error::Error + Send + Sync>),
+
     /// An error from [`winit`].
     #[cfg(not(target_arch = "wasm32"))]
     Winit(winit::error::OsError),
@@ -403,6 +408,8 @@ impl From<egui_wgpu::WgpuError> for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::AppCreation(err) => write!(f, "app creation error: {err}"),
+
             #[cfg(not(target_arch = "wasm32"))]
             Self::Winit(err) => {
                 write!(f, "winit error: {err}")
@@ -440,7 +447,7 @@ impl std::fmt::Display for Error {
 }
 
 /// Short for `Result<T, eframe::Error>`.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
 // ---------------------------------------------------------------------------
 

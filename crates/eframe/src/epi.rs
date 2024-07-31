@@ -23,7 +23,7 @@ use static_assertions::assert_not_impl_any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use winit::{event_loop::EventLoopBuilder, window::WindowBuilder};
+pub use winit::{event_loop::EventLoopBuilder, window::WindowAttributes};
 
 /// Hook into the building of an event loop before it is run
 ///
@@ -41,10 +41,12 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
+type DynError = Box<dyn std::error::Error + Send + Sync>;
+
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
-pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App>>;
+pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Result<Box<dyn App>, DynError>>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
 pub struct CreationContext<'s> {
@@ -150,6 +152,7 @@ pub trait App {
     /// On web the state is stored to "Local Storage".
     ///
     /// On native the path is picked using [`crate::storage_dir`].
+    /// The path can be customized via [`NativeOptions::persistence_path`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called once on shutdown, after [`Self::save`].
@@ -362,6 +365,19 @@ pub struct NativeOptions {
     /// Controls whether or not the native window position and size will be
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
+
+    /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
+    /// from [directories].
+    pub persistence_path: Option<std::path::PathBuf>,
+
+    /// Controls whether to apply dithering to minimize banding artifacts.
+    ///
+    /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
+    /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
+    /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
+    ///
+    /// Defaults to true.
+    pub dithering: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -378,6 +394,8 @@ impl Clone for NativeOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
+
+            persistence_path: self.persistence_path.clone(),
 
             ..*self
         }
@@ -418,6 +436,10 @@ impl Default for NativeOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             persist_window: true,
+
+            persistence_path: None,
+
+            dithering: true,
         }
     }
 }
@@ -456,10 +478,14 @@ pub struct WebOptions {
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
 
-    /// The size limit of the web app canvas.
+    /// Controls whether to apply dithering to minimize banding artifacts.
     ///
-    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
-    pub max_size_points: egui::Vec2,
+    /// Dithering assumes an sRGB output and thus will apply noise to any input value that lies between
+    /// two 8bit values after applying the sRGB OETF function, i.e. if it's not a whole 8bit value in "gamma space".
+    /// This means that only inputs from texture interpolation and vertex colors should be affected in practice.
+    ///
+    /// Defaults to true.
+    pub dithering: bool,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -476,7 +502,7 @@ impl Default for WebOptions {
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
-            max_size_points: egui::Vec2::INFINITY,
+            dithering: true,
         }
     }
 }

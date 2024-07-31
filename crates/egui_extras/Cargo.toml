@@ -27,16 +27,19 @@ all-features = true
 
 
 [features]
-default = ["dep:mime_guess2"]
+default = ["dep:mime_guess2", "serde"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
-all_loaders = ["file", "http", "image", "svg"]
+all_loaders = ["file", "http", "image", "svg", "gif"]
 
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
 ## Add support for loading images from `file://` URIs.
 file = ["dep:mime_guess2"]
+
+## Support loading gif images.
+gif = ["image", "image/gif"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
@@ -54,6 +57,9 @@ image = ["dep:image"]
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
 puffin = ["dep:puffin", "egui/puffin"]
 
+## Derive serde Serialize/Deserialize on stateful structs
+serde = ["egui/serde", "dep:serde"]
+
 ## Support loading svg images.
 svg = ["resvg"]
 
@@ -62,13 +68,16 @@ syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { workspace = true, default-features = false, features = ["serde"] }
+egui = { workspace = true, default-features = false }
 
+ahash.workspace = true
 enum-map = { version = "2", features = ["serde"] }
 log.workspace = true
-serde.workspace = true
 
 #! ### Optional dependencies
+
+# Serde for serializing state
+serde = { workspace = true, optional = true }
 
 # Date operations needed for datepicker widget
 chrono = { version = "0.4", optional = true, default-features = false, features = [

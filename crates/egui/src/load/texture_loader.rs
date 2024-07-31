@@ -28,6 +28,17 @@ impl TextureLoader for DefaultTextureLoader {
                     let handle = ctx.load_texture(uri, image, texture_options);
                     let texture = SizedTexture::from_handle(&handle);
                     cache.insert((uri.into(), texture_options), handle);
+                    let reduce_texture_memory = ctx.options(|o| o.reduce_texture_memory);
+                    if reduce_texture_memory {
+                        let loaders = ctx.loaders();
+                        loaders.include.forget(uri);
+                        for loader in loaders.bytes.lock().iter().rev() {
+                            loader.forget(uri);
+                        }
+                        for loader in loaders.image.lock().iter().rev() {
+                            loader.forget(uri);
+                        }
+                    }
                     Ok(TexturePoll::Ready { texture })
                 }
             }

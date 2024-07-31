@@ -134,6 +134,12 @@ pub(crate) fn interact(
     let mut dragged = prev_snapshot.dragged;
     let mut long_touched = None;
 
+    if input.key_pressed(Key::Escape) {
+        // Abort dragging on escape
+        dragged = None;
+        interaction.potential_drag_id = None;
+    }
+
     if input.is_long_touch() {
         // We implement "press-and-hold for context menu" on touch screens here
         if let Some(widget) = interaction
@@ -283,7 +289,7 @@ pub(crate) fn interact(
         drag_started,
         dragged,
         drag_stopped,
-        hovered,
         contains_pointer,
+        hovered,
     }
 }

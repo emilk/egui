@@ -49,26 +49,20 @@ impl Size {
     /// Won't shrink below this size (in points).
     #[inline]
     pub fn at_least(mut self, minimum: f32) -> Self {
-        match &mut self {
-            Self::Absolute { range, .. }
-            | Self::Relative { range, .. }
-            | Self::Remainder { range, .. } => {
-                range.min = minimum;
-            }
-        }
+        self.range_mut().min = minimum;
         self
     }
 
     /// Won't grow above this size (in points).
     #[inline]
     pub fn at_most(mut self, maximum: f32) -> Self {
-        match &mut self {
-            Self::Absolute { range, .. }
-            | Self::Relative { range, .. }
-            | Self::Remainder { range, .. } => {
-                range.max = maximum;
-            }
-        }
+        self.range_mut().max = maximum;
+        self
+    }
+
+    #[inline]
+    pub fn with_range(mut self, range: Rangef) -> Self {
+        *self.range_mut() = range;
         self
     }
 
@@ -79,6 +73,29 @@ impl Size {
             | Self::Relative { range, .. }
             | Self::Remainder { range, .. } => range,
         }
+    }
+
+    pub fn range_mut(&mut self) -> &mut Rangef {
+        match self {
+            Self::Absolute { range, .. }
+            | Self::Relative { range, .. }
+            | Self::Remainder { range, .. } => range,
+        }
+    }
+
+    #[inline]
+    pub fn is_absolute(&self) -> bool {
+        matches!(self, Self::Absolute { .. })
+    }
+
+    #[inline]
+    pub fn is_relative(&self) -> bool {
+        matches!(self, Self::Relative { .. })
+    }
+
+    #[inline]
+    pub fn is_remainder(&self) -> bool {
+        matches!(self, Self::Remainder { .. })
     }
 }
 
@@ -97,7 +114,7 @@ impl Sizing {
             return vec![];
         }
 
-        let mut remainders = 0;
+        let mut num_remainders = 0;
         let sum_non_remainder = self
             .sizes
             .iter()
@@ -108,28 +125,28 @@ impl Sizing {
                     range.clamp(length * fraction)
                 }
                 Size::Remainder { .. } => {
-                    remainders += 1;
+                    num_remainders += 1;
                     0.0
                 }
             })
             .sum::<f32>()
             + spacing * (self.sizes.len() - 1) as f32;
 
-        let avg_remainder_length = if remainders == 0 {
+        let avg_remainder_length = if num_remainders == 0 {
             0.0
         } else {
             let mut remainder_length = length - sum_non_remainder;
-            let avg_remainder_length = 0.0f32.max(remainder_length / remainders as f32).floor();
-            self.sizes.iter().for_each(|&size| {
+            let avg_remainder_length = 0.0f32.max(remainder_length / num_remainders as f32).floor();
+            for &size in &self.sizes {
                 if let Size::Remainder { range } = size {
                     if avg_remainder_length < range.min {
                         remainder_length -= range.min;
-                        remainders -= 1;
+                        num_remainders -= 1;
                     }
                 }
-            });
-            if remainders > 0 {
-                0.0f32.max(remainder_length / remainders as f32)
+            }
+            if num_remainders > 0 {
+                0.0f32.max(remainder_length / num_remainders as f32)
             } else {
                 0.0
             }

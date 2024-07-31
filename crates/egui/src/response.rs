@@ -2,9 +2,9 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetRect, WidgetText,
+    frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
+    Ui, WidgetRect, WidgetText,
 };
-
 // ----------------------------------------------------------------------------
 
 /// The result of adding a widget to a [`Ui`].
@@ -467,7 +467,7 @@ impl Response {
                 .ctx
                 .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
             {
-                pos = transform * pos;
+                pos = transform.inverse() * pos;
             }
             Some(pos)
         } else {
@@ -519,15 +519,24 @@ impl Response {
     /// For that, use [`Self::on_disabled_hover_ui`] instead.
     ///
     /// If you call this multiple times the tooltips will stack underneath the previous ones.
+    ///
+    /// The widget can contain interactive widgets, such as buttons and links.
+    /// If so, it will stay open as the user moves their pointer over it.
+    /// By default, the text of a tooltip is NOT selectable (i.e. interactive),
+    /// but you can change this by setting [`style::Interaction::selectable_labels` from within the tooltip:
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.label("Hover me").on_hover_ui(|ui| {
+    ///     ui.style_mut().interaction.selectable_labels = true;
+    ///     ui.label("This text can be selected");
+    /// });
+    /// # });
+    /// ```
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
         if self.enabled && self.should_show_hover_ui() {
-            crate::containers::show_tooltip_for(
-                &self.ctx,
-                self.id.with("__tooltip"),
-                &self.rect,
-                add_contents,
-            );
+            self.show_tooltip_ui(add_contents);
         }
         self
     }
@@ -537,7 +546,8 @@ impl Response {
         if !self.enabled && self.should_show_hover_ui() {
             crate::containers::show_tooltip_for(
                 &self.ctx,
-                self.id.with("__tooltip"),
+                self.layer_id,
+                self.id,
                 &self.rect,
                 add_contents,
             );
@@ -550,16 +560,39 @@ impl Response {
         if self.enabled && self.should_show_hover_ui() {
             crate::containers::show_tooltip_at_pointer(
                 &self.ctx,
-                self.id.with("__tooltip"),
+                self.layer_id,
+                self.id,
                 add_contents,
             );
         }
         self
     }
 
+    /// Always show this tooltip, even if disabled and the user isn't hovering it.
+    ///
+    /// This can be used to give attention to a widget during a tutorial.
+    pub fn show_tooltip_ui(&self, add_contents: impl FnOnce(&mut Ui)) {
+        crate::containers::show_tooltip_for(
+            &self.ctx,
+            self.layer_id,
+            self.id,
+            &self.rect,
+            add_contents,
+        );
+    }
+
+    /// Always show this tooltip, even if disabled and the user isn't hovering it.
+    ///
+    /// This can be used to give attention to a widget during a tutorial.
+    pub fn show_tooltip_text(&self, text: impl Into<WidgetText>) {
+        self.show_tooltip_ui(|ui| {
+            ui.label(text);
+        });
+    }
+
     /// Was the tooltip open last frame?
     pub fn is_tooltip_open(&self) -> bool {
-        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id.with("__tooltip"))
+        crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id)
     }
 
     fn should_show_hover_ui(&self) -> bool {
@@ -567,10 +600,119 @@ impl Response {
             return true;
         }
 
-        if self.context_menu_opened() {
+        let any_open_popups = self.ctx.prev_frame_state(|fs| {
+            fs.layers
+                .get(&self.layer_id)
+                .map_or(false, |layer| !layer.open_popups.is_empty())
+        });
+        if any_open_popups {
+            // Hide tooltips if the user opens a popup (menu, combo-box, etc) in the same layer.
             return false;
         }
 
+        let style = self.ctx.style();
+
+        let tooltip_delay = style.interaction.tooltip_delay;
+        let tooltip_grace_time = style.interaction.tooltip_grace_time;
+
+        let (
+            time_since_last_scroll,
+            time_since_last_click,
+            time_since_last_pointer_movement,
+            pointer_pos,
+            pointer_dir,
+        ) = self.ctx.input(|i| {
+            (
+                i.time_since_last_scroll(),
+                i.pointer.time_since_last_click(),
+                i.pointer.time_since_last_movement(),
+                i.pointer.hover_pos(),
+                i.pointer.direction(),
+            )
+        });
+
+        if time_since_last_scroll < tooltip_delay {
+            // See https://github.com/emilk/egui/issues/4781
+            // Note that this means we cannot have `ScrollArea`s in a tooltip.
+            self.ctx
+                .request_repaint_after_secs(tooltip_delay - time_since_last_scroll);
+            return false;
+        }
+
+        let is_our_tooltip_open = self.is_tooltip_open();
+
+        if is_our_tooltip_open {
+            // Check if we should automatically stay open:
+
+            let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
+            let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
+
+            let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
+                vp.prev_frame
+                    .widgets
+                    .get_layer(tooltip_layer_id)
+                    .any(|w| w.enabled && w.sense.interactive())
+            });
+
+            if tooltip_has_interactive_widget {
+                // We keep the tooltip open if hovered,
+                // or if the pointer is on its way to it,
+                // so that the user can interact with the tooltip
+                // (i.e. click links that are in it).
+                if let Some(area) = AreaState::load(&self.ctx, tooltip_id) {
+                    let rect = area.rect();
+
+                    if let Some(pos) = pointer_pos {
+                        if rect.contains(pos) {
+                            return true; // hovering interactive tooltip
+                        }
+                        if pointer_dir != Vec2::ZERO
+                            && rect.intersects_ray(pos, pointer_dir.normalized())
+                        {
+                            return true; // on the way to interactive tooltip
+                        }
+                    }
+                }
+            }
+        }
+
+        let clicked_more_recently_than_moved =
+            time_since_last_click < time_since_last_pointer_movement + 0.1;
+        if clicked_more_recently_than_moved {
+            // It is common to click a widget and then rest the mouse there.
+            // It would be annoying to then see a tooltip for it immediately.
+            // Similarly, clicking should hide the existing tooltip.
+            // Only hovering should lead to a tooltip, not clicking.
+            // The offset is only to allow small movement just right after the click.
+            return false;
+        }
+
+        if is_our_tooltip_open {
+            // Check if we should automatically stay open:
+
+            if pointer_pos.is_some_and(|pointer_pos| self.rect.contains(pointer_pos)) {
+                // Handle the case of a big tooltip that covers the widget:
+                return true;
+            }
+        }
+
+        let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
+            if let Some(already_open_tooltip) = fs
+                .layers
+                .get(&self.layer_id)
+                .and_then(|layer| layer.widget_with_tooltip)
+            {
+                already_open_tooltip != self.id
+            } else {
+                false
+            }
+        });
+        if is_other_tooltip_open {
+            // We only allow one tooltip per layer. First one wins. It is up to that tooltip to close itself.
+            return false;
+        }
+
+        // Fast early-outs:
         if self.enabled {
             if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
                 return false;
@@ -579,26 +721,35 @@ impl Response {
             return false;
         }
 
-        if self.ctx.style().interaction.show_tooltips_only_when_still {
-            // We only show the tooltip when the mouse pointer is still,
-            // but once shown we keep showing it until the mouse leaves the parent.
+        // There is a tooltip_delay before showing the first tooltip,
+        // but once one tooltips is show, moving the mouse cursor to
+        // another widget should show the tooltip for that widget right away.
 
-            if !self.ctx.input(|i| i.pointer.is_still()) && !self.is_tooltip_open() {
-                // wait for mouse to stop
-                self.ctx.request_repaint();
-                return false;
+        // Let the user quickly move over some dead space to hover the next thing
+        let tooltip_was_recently_shown =
+            crate::popup::seconds_since_last_tooltip(&self.ctx) < tooltip_grace_time;
+
+        if !tooltip_was_recently_shown && !is_our_tooltip_open {
+            if style.interaction.show_tooltips_only_when_still {
+                // We only show the tooltip when the mouse pointer is still.
+                if !self
+                    .ctx
+                    .input(|i| i.pointer.is_still() && i.smooth_scroll_delta == Vec2::ZERO)
+                {
+                    // wait for mouse to stop
+                    self.ctx.request_repaint();
+                    return false;
+                }
             }
-        }
 
-        if !self.is_tooltip_open() {
-            let time_til_tooltip = self.ctx.style().interaction.tooltip_delay
-                - self.ctx.input(|i| i.pointer.time_since_last_movement());
+            let time_since_last_interaction = time_since_last_scroll
+                .min(time_since_last_pointer_movement)
+                .min(time_since_last_click);
+            let time_til_tooltip = tooltip_delay - time_since_last_interaction;
 
             if 0.0 < time_til_tooltip {
                 // Wait until the mouse has been still for a while
-                if let Ok(duration) = std::time::Duration::try_from_secs_f32(time_til_tooltip) {
-                    self.ctx.request_repaint_after(duration);
-                }
+                self.ctx.request_repaint_after_secs(time_til_tooltip);
                 return false;
             }
         }
@@ -611,6 +762,8 @@ impl Response {
         {
             return false;
         }
+
+        // All checks passed: show the tooltip!
 
         true
     }
@@ -734,9 +887,26 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
+        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
+    }
+
+    /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].
+    pub fn scroll_to_me_animation(
+        &self,
+        align: Option<Align>,
+        animation: crate::style::ScrollAnimation,
+    ) {
         self.ctx.frame_state_mut(|state| {
-            state.scroll_target[0] = Some((self.rect.x_range(), align));
-            state.scroll_target[1] = Some((self.rect.y_range(), align));
+            state.scroll_target[0] = Some(frame_state::ScrollTarget::new(
+                self.rect.x_range(),
+                align,
+                animation,
+            ));
+            state.scroll_target[1] = Some(frame_state::ScrollTarget::new(
+                self.rect.y_range(),
+                align,
+                animation,
+            ));
         });
     }
 
@@ -786,6 +956,9 @@ impl Response {
 
     #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::NodeBuilder) {
+        if !self.enabled {
+            builder.set_disabled();
+        }
         builder.set_bounds(accesskit::Rect {
             x0: self.rect.min.x.into(),
             y0: self.rect.min.y.into(),
@@ -807,11 +980,11 @@ impl Response {
         info: crate::WidgetInfo,
     ) {
         use crate::WidgetType;
-        use accesskit::{Checked, Role};
+        use accesskit::{Role, Toggled};
 
         self.fill_accesskit_node_common(builder);
         builder.set_role(match info.typ {
-            WidgetType::Label => Role::StaticText,
+            WidgetType::Label => Role::Label,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextInput,
             WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
@@ -819,7 +992,7 @@ impl Response {
             }
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
-            WidgetType::SelectableLabel => Role::ToggleButton,
+            WidgetType::SelectableLabel => Role::Button,
             WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
@@ -827,6 +1000,9 @@ impl Response {
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
             WidgetType::Other => Role::Unknown,
         });
+        if !info.enabled {
+            builder.set_disabled();
+        }
         if let Some(label) = info.label {
             builder.set_name(label);
         }
@@ -837,14 +1013,14 @@ impl Response {
             builder.set_numeric_value(value);
         }
         if let Some(selected) = info.selected {
-            builder.set_checked(if selected {
-                Checked::True
+            builder.set_toggled(if selected {
+                Toggled::True
             } else {
-                Checked::False
+                Toggled::False
             });
         } else if matches!(info.typ, WidgetType::Checkbox) {
             // Indeterminate state
-            builder.set_checked(Checked::Mixed);
+            builder.set_toggled(Toggled::Mixed);
         }
     }
 

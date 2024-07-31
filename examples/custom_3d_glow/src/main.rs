@@ -8,7 +8,7 @@ use eframe::{egui, egui_glow, glow};
 use egui::mutex::Mutex;
 use std::sync::Arc;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([350.0, 380.0]),
@@ -19,7 +19,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Custom 3D painting in eframe using glow",
         options,
-        Box::new(|cc| Box::new(MyApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
 }
 

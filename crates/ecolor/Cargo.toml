@@ -30,6 +30,8 @@ default = []
 
 
 [dependencies]
+emath.workspace = true
+
 #! ### Optional dependencies
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `ecolor` types to `&[u8]`.

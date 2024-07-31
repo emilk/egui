@@ -27,14 +27,15 @@ impl DragAndDrop {
     }
 
     fn end_frame(ctx: &Context) {
-        let pointer_released = ctx.input(|i| i.pointer.any_released());
+        let abort_dnd =
+            ctx.input(|i| i.pointer.any_released() || i.key_pressed(crate::Key::Escape));
 
         let mut is_dragging = false;
 
         ctx.data_mut(|data| {
             let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
 
-            if pointer_released {
+            if abort_dnd {
                 state.payload = None;
             }
 

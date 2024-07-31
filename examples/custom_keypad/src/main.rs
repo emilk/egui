@@ -5,7 +5,7 @@ use eframe::egui;
 mod keypad;
 use keypad::Keypad;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([640.0, 480.0]),
@@ -20,7 +20,7 @@ fn main() -> Result<(), eframe::Error> {
             // This gives us image support:
             egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            Box::<MyApp>::default()
+            Ok(Box::<MyApp>::default())
         }),
     )
 }

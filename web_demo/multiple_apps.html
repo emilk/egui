@@ -1,4 +1,3 @@
-<!-- TODO(emilk): make this example nicer. The layout is HORRIBLE -->
 <!DOCTYPE html>
 <html>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -21,11 +20,6 @@
             display: flex;
         }
 
-        .canvas_wrap {
-            /* height: 200px; */
-            width: 400px;
-        }
-
         @media (prefers-color-scheme: dark) {
             body {
                 /* Dark mode background color for what is not covered by the egui canvas,
@@ -37,24 +31,14 @@
         /* Allow canvas to fill entire web page: */
         html,
         body {
-            overflow: hidden;
-            margin: 0 !important;
-            padding: 0 !important;
             height: 100%;
-            width: 100%;
         }
 
-        /* Position canvas in center-top: */
         canvas {
-            /* margin-right: auto;
-            margin-left: auto; */
-            /* display: block;
-            position: absolute;
-            top: 0%;
-            left: 50%;
-            transform: translate(-50%, 0%); */
+            margin: 8px;
+            padding: 8px;
             width: 45%;
-            height: 90%;
+            height: 110%;
         }
 
         .centered {
@@ -106,19 +90,13 @@
 <body>
     <!-- The WASM code will resize the canvas dynamically -->
 
-    <div>controls</div>
-
     <button class="stop_one">
-        stop
+        Stop one app
     </button>
 
-    <div class="canvas_wrap one">
-        <canvas id="canvas_id_one"></canvas>
-    </div>
+    <canvas id="canvas_id_one"></canvas>
 
-    <div class="canvas_wrap two">
-        <canvas id="canvas_id_two"></canvas>
-    </div>
+    <canvas id="canvas_id_two"></canvas>
 
     <div class="centered" id="center_text">
         <p style="font-size:16px">
@@ -160,7 +138,10 @@
             const handle_one = new wasm_bindgen.WebHandle();
             const handle_two = new wasm_bindgen.WebHandle();
 
-            Promise.all([handle_one.start("canvas_id_one"), handle_two.start("canvas_id_two")]).then((handles) => {
+            Promise.all([
+                handle_one.start(document.getElementById("canvas_id_one")),
+                handle_two.start(document.getElementById("canvas_id_two")),
+            ]).then((handles) => {
                 on_apps_started(handle_one, handle_two)
             }).catch(on_error);
         }

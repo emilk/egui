@@ -22,13 +22,13 @@ impl Default for DragAndDropDemo {
     }
 }
 
-impl super::Demo for DragAndDropDemo {
+impl crate::Demo for DragAndDropDemo {
     fn name(&self) -> &'static str {
         "✋ Drag and Drop"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
-        use super::View as _;
+        use crate::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))
@@ -45,7 +45,7 @@ struct Location {
     row: usize,
 }
 
-impl super::View for DragAndDropDemo {
+impl crate::View for DragAndDropDemo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("This is a simple example of drag-and-drop in egui.");
         ui.label("Drag items between columns.");

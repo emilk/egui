@@ -42,7 +42,7 @@ impl Default for WidgetGallery {
     }
 }
 
-impl super::Demo for WidgetGallery {
+impl crate::Demo for WidgetGallery {
     fn name(&self) -> &'static str {
         "🗄 Widget Gallery"
     }
@@ -53,17 +53,19 @@ impl super::Demo for WidgetGallery {
             .resizable([true, false])
             .default_width(280.0)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for WidgetGallery {
+impl crate::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.add_enabled_ui(self.enabled, |ui| {
-            ui.set_visible(self.visible);
-            ui.set_opacity(self.opacity);
+            if !self.visible {
+                ui.set_invisible();
+            }
+            ui.multiply_opacity(self.opacity);
 
             egui::Grid::new("my_grid")
                 .num_columns(2)
@@ -85,7 +87,7 @@ impl super::View for WidgetGallery {
                 (ui.add(
                     egui::DragValue::new(&mut self.opacity)
                         .speed(0.01)
-                        .clamp_range(0.0..=1.0),
+                        .range(0.0..=1.0),
                 ) | ui.label("Opacity"))
                 .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
@@ -172,8 +174,6 @@ impl WidgetGallery {
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{radio:?}"))
             .show_ui(ui, |ui| {
-                ui.style_mut().wrap = Some(false);
-                ui.set_min_width(60.0);
                 ui.selectable_value(radio, Enum::First, "First");
                 ui.selectable_value(radio, Enum::Second, "Second");
                 ui.selectable_value(radio, Enum::Third, "Third");
@@ -248,10 +248,6 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label_with_crate("egui_plot", "Plot", "plot"));
-        example_plot(ui);
-        ui.end_row();
-
         ui.hyperlink_to(
             "Custom widget:",
             super::toggle_switch::url_to_file_source_code(),
@@ -262,25 +258,6 @@ impl WidgetGallery {
         );
         ui.end_row();
     }
-}
-
-fn example_plot(ui: &mut egui::Ui) -> egui::Response {
-    use egui_plot::{Line, PlotPoints};
-    let n = 128;
-    let line_points: PlotPoints = (0..=n)
-        .map(|i| {
-            use std::f64::consts::TAU;
-            let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
-            [x, x.sin()]
-        })
-        .collect();
-    let line = Line::new(line_points);
-    egui_plot::Plot::new("example_plot")
-        .height(32.0)
-        .show_axes(false)
-        .data_aspect(1.0)
-        .show(ui, |plot_ui| plot_ui.line(line))
-        .response
 }
 
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {

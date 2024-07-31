@@ -37,7 +37,8 @@ impl Widget for Link {
         let label = Label::new(text).sense(Sense::click());
 
         let (galley_pos, galley, response) = label.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, galley.text()));
+        response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Link, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             let color = ui.visuals().hyperlink_color;

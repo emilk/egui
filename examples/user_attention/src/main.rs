@@ -6,7 +6,7 @@ use egui::{Button, CentralPanel, Context, UserAttentionType};
 
 use std::time::{Duration, SystemTime};
 
-fn main() -> eframe::Result<()> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let native_options = NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([400., 200.]),
@@ -15,7 +15,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "User attention test",
         native_options,
-        Box::new(|cc| Box::new(Application::new(cc))),
+        Box::new(|cc| Ok(Box::new(Application::new(cc)))),
     )
 }
 
@@ -103,9 +103,9 @@ impl eframe::App for Application {
                         None => "Unfocus the window, fast!".to_owned(),
                         Some(t) => {
                             if let Ok(elapsed) = t.duration_since(SystemTime::now()) {
-                                format!("Resetting attention in {} s...", elapsed.as_secs())
+                                format!("Resetting attention in {} s…", elapsed.as_secs())
                             } else {
-                                "Resetting attention...".to_owned()
+                                "Resetting attention…".to_owned()
                             }
                         }
                     }

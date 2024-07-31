@@ -50,6 +50,7 @@ x11 = ["winit?/x11"]
 egui = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
+ahash.workspace = true
 bytemuck.workspace = true
 document-features.workspace = true
 log.workspace = true
@@ -60,9 +61,7 @@ wgpu = { workspace = true, features = ["wgsl"] }
 
 # Optional dependencies:
 
-winit = { workspace = true, optional = true, default-features = false, features = [
-  "rwh_06",
-] }
+winit = { workspace = true, optional = true, default-features = false }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

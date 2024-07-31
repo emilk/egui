@@ -123,6 +123,7 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// Given as a hint for image loading requests.
 ///
 /// Used mostly for rendering SVG:s to a good size.
+/// The size is measured in texels, with the pixels per point already factored in.
 ///
 /// All variants will preserve the original aspect ratio.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -27,7 +27,7 @@ pub struct Scrolling {
     scroll_stick_to: ScrollStickTo,
 }
 
-impl super::Demo for Scrolling {
+impl crate::Demo for Scrolling {
     fn name(&self) -> &'static str {
         "↕ Scrolling"
     }
@@ -39,13 +39,13 @@ impl super::Demo for Scrolling {
             .hscroll(false)
             .vscroll(false)
             .show(ctx, |ui| {
-                use super::View as _;
+                use crate::View as _;
                 self.ui(ui);
             });
     }
 }
 
-impl super::View for Scrolling {
+impl crate::View for Scrolling {
     fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.demo, ScrollDemo::ScrollAppearance, "Appearance");
@@ -82,7 +82,7 @@ impl super::View for Scrolling {
             }
             ScrollDemo::Bidirectional => {
                 egui::ScrollArea::both().show(ui, |ui| {
-                    ui.style_mut().wrap = Some(false);
+                    ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                     for _ in 0..100 {
                         ui.label(crate::LOREM_IPSUM);
                     }
@@ -236,6 +236,7 @@ struct ScrollTo {
     track_item: usize,
     tack_item_align: Option<Align>,
     offset: f32,
+    delta: f32,
 }
 
 impl Default for ScrollTo {
@@ -244,11 +245,12 @@ impl Default for ScrollTo {
             track_item: 25,
             tack_item_align: Some(Align::Center),
             offset: 0.0,
+            delta: 64.0,
         }
     }
 }
 
-impl super::View for ScrollTo {
+impl crate::View for ScrollTo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("This shows how you can scroll to a specific item or pixel offset");
 
@@ -258,6 +260,7 @@ impl super::View for ScrollTo {
         let mut go_to_scroll_offset = false;
         let mut scroll_top = false;
         let mut scroll_bottom = false;
+        let mut scroll_delta = None;
 
         ui.horizontal(|ui| {
             ui.label("Scroll to a specific item index:");
@@ -294,6 +297,20 @@ impl super::View for ScrollTo {
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
         });
 
+        ui.horizontal(|ui| {
+            ui.label("Scroll by");
+            DragValue::new(&mut self.delta)
+                .speed(1.0)
+                .suffix("px")
+                .ui(ui);
+            if ui.button("⬇").clicked() {
+                scroll_delta = Some(self.delta * Vec2::UP); // scroll down (move contents up)
+            }
+            if ui.button("⬆").clicked() {
+                scroll_delta = Some(self.delta * Vec2::DOWN); // scroll up (move contents down)
+            }
+        });
+
         let mut scroll_area = ScrollArea::vertical().max_height(200.0).auto_shrink(false);
         if go_to_scroll_offset {
             scroll_area = scroll_area.vertical_scroll_offset(self.offset);
@@ -305,6 +322,10 @@ impl super::View for ScrollTo {
                 if scroll_top {
                     ui.scroll_to_cursor(Some(Align::TOP));
                 }
+                if let Some(scroll_delta) = scroll_delta {
+                    ui.scroll_with_delta(scroll_delta);
+                }
+
                 ui.vertical(|ui| {
                     for item in 1..=num_items {
                         if track_item && item == self.track_item {
@@ -349,7 +370,7 @@ struct ScrollStickTo {
     n_items: usize,
 }
 
-impl super::View for ScrollStickTo {
+impl crate::View for ScrollStickTo {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("Rows enter from the bottom, we want the scroll handle to start and stay at bottom unless moved");
 

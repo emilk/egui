@@ -8,7 +8,7 @@ use std::thread::JoinHandle;
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1024.0, 768.0]),
@@ -17,7 +17,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "My parallel egui App",
         options,
-        Box::new(|_cc| Box::new(MyApp::new())),
+        Box::new(|_cc| Ok(Box::new(MyApp::new()))),
     )
 }
 

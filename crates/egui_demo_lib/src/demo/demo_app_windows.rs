@@ -3,9 +3,9 @@ use std::collections::BTreeSet;
 use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
 
 use super::About;
-use super::Demo;
-use super::View;
 use crate::is_mobile;
+use crate::Demo;
+use crate::View;
 
 // ----------------------------------------------------------------------------
 
@@ -30,21 +30,22 @@ impl Default for Demos {
             Box::<super::extra_viewport::ExtraViewport>::default(),
             Box::<super::font_book::FontBook>::default(),
             Box::<super::frame_demo::FrameDemo>::default(),
+            Box::<super::highlighting::Highlighting>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
             Box::<super::pan_zoom::PanZoom>::default(),
             Box::<super::panels::Panels>::default(),
-            Box::<super::plot_demo::PlotDemo>::default(),
             Box::<super::scrolling::Scrolling>::default(),
             Box::<super::sliders::Sliders>::default(),
             Box::<super::strip_demo::StripDemo>::default(),
             Box::<super::table_demo::TableDemo>::default(),
             Box::<super::text_edit::TextEditDemo>::default(),
             Box::<super::text_layout::TextLayoutDemo>::default(),
+            Box::<super::tooltips::Tooltips>::default(),
+            Box::<super::undo_redo::UndoRedoDemo>::default(),
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
-            Box::<super::tests::WindowResizeTest>::default(),
         ])
     }
 }
@@ -106,12 +107,13 @@ impl Default for Tests {
     fn default() -> Self {
         Self::from_demos(vec![
             Box::<super::tests::CursorTest>::default(),
-            Box::<super::highlighting::Highlighting>::default(),
+            Box::<super::tests::GridTest>::default(),
             Box::<super::tests::IdTest>::default(),
+            Box::<super::tests::InputEventHistory>::default(),
             Box::<super::tests::InputTest>::default(),
-            Box::<super::layout_test::LayoutTest>::default(),
+            Box::<super::tests::LayoutTest>::default(),
             Box::<super::tests::ManualLayoutTest>::default(),
-            Box::<super::tests::TableTest>::default(),
+            Box::<super::tests::WindowResizeTest>::default(),
         ])
     }
 }
@@ -334,8 +336,7 @@ fn file_menu_button(ui: &mut Ui) {
     }
 
     ui.menu_button("File", |ui| {
-        ui.set_min_width(220.0);
-        ui.style_mut().wrap = Some(false);
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
         // On the web the browser controls the zoom
         #[cfg(not(target_arch = "wasm32"))]

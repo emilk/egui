@@ -9,10 +9,11 @@ use self::text_selection::LabelSelectionState;
 /// Usually it is more convenient to use [`Ui::label`].
 ///
 /// ```
+/// # use egui::TextWrapMode;
 /// # egui::__run_test_ui(|ui| {
 /// ui.label("Equivalent");
 /// ui.add(egui::Label::new("Equivalent"));
-/// ui.add(egui::Label::new("With Options").wrap(false));
+/// ui.add(egui::Label::new("With Options").truncate());
 /// ui.label(egui::RichText::new("With formatting").underline());
 /// # });
 /// ```
@@ -22,8 +23,7 @@ use self::text_selection::LabelSelectionState;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     text: WidgetText,
-    wrap: Option<bool>,
-    truncate: bool,
+    wrap_mode: Option<TextWrapMode>,
     sense: Option<Sense>,
     selectable: Option<bool>,
 }
@@ -32,8 +32,7 @@ impl Label {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
             text: text.into(),
-            wrap: None,
-            truncate: false,
+            wrap_mode: None,
             sense: None,
             selectable: None,
         }
@@ -43,37 +42,37 @@ impl Label {
         self.text.text()
     }
 
-    /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
+    /// Set the wrap mode for the text.
     ///
-    /// Calling `wrap` will override [`Self::truncate`].
-    ///
-    /// By default [`Self::wrap`] will be `true` in vertical layouts
-    /// and horizontal layouts with wrapping,
-    /// and `false` on non-wrapping horizontal layouts.
+    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
-    ///
-    /// You can also use [`crate::Style::wrap`].
     #[inline]
-    pub fn wrap(mut self, wrap: bool) -> Self {
-        self.wrap = Some(wrap);
-        self.truncate = false;
+    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
+        self.wrap_mode = Some(wrap_mode);
         self
     }
 
-    /// If `true`, the text will stop at the max width of the [`Ui`],
-    /// and what doesn't fit will be elided, replaced with `…`.
-    ///
-    /// If the text is truncated, the full text will be shown on hover as a tool-tip.
-    ///
-    /// Default is `false`, which means the text will expand the parent [`Ui`],
-    /// or wrap if [`Self::wrap`] is set.
-    ///
-    /// Calling `truncate` will override [`Self::wrap`].
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
     #[inline]
-    pub fn truncate(mut self, truncate: bool) -> Self {
-        self.wrap = None;
-        self.truncate = truncate;
+    pub fn wrap(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Wrap);
+
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
+    #[inline]
+    pub fn truncate(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Truncate);
+        self
+    }
+
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Extend`],
+    /// disabling wrapping and truncating, and instead expanding the parent [`Ui`].
+    #[inline]
+    pub fn extend(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Extend);
         self
     }
 
@@ -156,11 +155,10 @@ impl Label {
             .text
             .into_layout_job(ui.style(), FontSelection::Default, valign);
 
-        let truncate = self.truncate;
-        let wrap = !truncate && self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();
 
-        if wrap
+        let wrap_mode = self.wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+        if wrap_mode == TextWrapMode::Wrap
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
             && available_width.is_finite()
@@ -192,15 +190,21 @@ impl Label {
             }
             (pos, galley, response)
         } else {
-            if truncate {
-                layout_job.wrap.max_width = available_width;
-                layout_job.wrap.max_rows = 1;
-                layout_job.wrap.break_anywhere = true;
-            } else if wrap {
-                layout_job.wrap.max_width = available_width;
-            } else {
-                layout_job.wrap.max_width = f32::INFINITY;
-            };
+            // Apply wrap_mode, but don't overwrite anything important
+            // the user may have set manually on the layout_job:
+            match wrap_mode {
+                TextWrapMode::Extend => {
+                    layout_job.wrap.max_width = f32::INFINITY;
+                }
+                TextWrapMode::Wrap => {
+                    layout_job.wrap.max_width = available_width;
+                }
+                TextWrapMode::Truncate => {
+                    layout_job.wrap.max_width = available_width;
+                    layout_job.wrap.max_rows = 1;
+                    layout_job.wrap.break_anywhere = true;
+                }
+            }
 
             if ui.is_grid() {
                 // TODO(emilk): remove special Grid hacks like these
@@ -233,7 +237,8 @@ impl Widget for Label {
         let selectable = self.selectable;
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
+        response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             if galley.elided {

@@ -4,8 +4,8 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    scroll_area::ScrollBarVisibility, Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui,
-    Vec2, Vec2b,
+    scroll_area::{ScrollAreaOutput, ScrollBarVisibility},
+    Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
 };
 
 use crate::{
@@ -156,8 +156,7 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
             InitialColumnSize::Automatic(suggested_width) => Size::initial(suggested_width),
             InitialColumnSize::Remainder => Size::remainder(),
         }
-        .at_least(column.width_range.min)
-        .at_most(column.width_range.max);
+        .with_range(column.width_range);
         sizing.add(size);
     }
     sizing
@@ -186,7 +185,7 @@ impl Default for TableScrollOptions {
             scroll_to_row: None,
             scroll_offset_y: None,
             min_scrolled_height: 200.0,
-            max_scroll_height: 800.0,
+            max_scroll_height: f32::INFINITY,
             auto_shrink: Vec2b::TRUE,
             scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
         }
@@ -401,13 +400,14 @@ impl<'a> TableBuilder<'a> {
 
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
-            - if self.scroll_options.vscroll {
-                self.ui.spacing().scroll.bar_inner_margin
-                    + self.ui.spacing().scroll.bar_width
-                    + self.ui.spacing().scroll.bar_outer_margin
-            } else {
-                0.0
-            }
+            - (self.scroll_options.vscroll as i32 as f32)
+                * self.ui.spacing().scroll.allocated_width()
+    }
+
+    /// Reset all column widths.
+    pub fn reset(&mut self) {
+        let state_id = self.ui.id().with("__table_state");
+        TableState::reset(self.ui, state_id);
     }
 
     /// Create a header row which always stays visible and at the top
@@ -428,17 +428,16 @@ impl<'a> TableBuilder<'a> {
 
         let state_id = ui.id().with("__table_state");
 
-        let initial_widths =
-            to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
-        let mut max_used_widths = vec![0.0; initial_widths.len()];
-        let (had_state, state) = TableState::load(ui, initial_widths, state_id);
-        let is_first_frame = !had_state;
-        let first_frame_auto_size_columns = is_first_frame && columns.iter().any(|c| c.is_auto());
+        let (is_sizing_pass, state) =
+            TableState::load(ui, state_id, resizable, &columns, available_width);
 
+        let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
-        // Hide first-frame-jitters when auto-sizing.
-        ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
+        ui.scope(|ui| {
+            if is_sizing_pass {
+                ui.set_sizing_pass();
+            }
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
@@ -465,7 +464,7 @@ impl<'a> TableBuilder<'a> {
             available_width,
             state,
             max_used_widths,
-            first_frame_auto_size_columns,
+            is_sizing_pass,
             resizable,
             striped,
             cell_layout,
@@ -475,7 +474,7 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Create table body without a header row
-    pub fn body<F>(self, add_body_contents: F)
+    pub fn body<F>(self, add_body_contents: F) -> ScrollAreaOutput<()>
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
@@ -495,13 +494,10 @@ impl<'a> TableBuilder<'a> {
 
         let state_id = ui.id().with("__table_state");
 
-        let initial_widths =
-            to_sizing(&columns).to_lengths(available_width, ui.spacing().item_spacing.x);
-        let max_used_widths = vec![0.0; initial_widths.len()];
-        let (had_state, state) = TableState::load(ui, initial_widths, state_id);
-        let is_first_frame = !had_state;
-        let first_frame_auto_size_columns = is_first_frame && columns.iter().any(|c| c.is_auto());
+        let (is_sizing_pass, state) =
+            TableState::load(ui, state_id, resizable, &columns, available_width);
 
+        let max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
         Table {
@@ -512,47 +508,100 @@ impl<'a> TableBuilder<'a> {
             available_width,
             state,
             max_used_widths,
-            first_frame_auto_size_columns,
+            is_sizing_pass,
             resizable,
             striped,
             cell_layout,
             scroll_options,
             sense,
         }
-        .body(add_body_contents);
+        .body(add_body_contents)
     }
 }
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct TableState {
     column_widths: Vec<f32>,
+
+    /// If known from previous frame
+    #[cfg_attr(feature = "serde", serde(skip))]
+    max_used_widths: Vec<f32>,
 }
 
 impl TableState {
-    /// Returns `true` if it did load.
-    fn load(ui: &egui::Ui, default_widths: Vec<f32>, state_id: egui::Id) -> (bool, Self) {
+    /// Return true if we should do a sizing pass.
+    fn load(
+        ui: &Ui,
+        state_id: egui::Id,
+        resizable: bool,
+        columns: &[Column],
+        available_width: f32,
+    ) -> (bool, Self) {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
-        if let Some(state) = ui.data_mut(|d| d.get_persisted::<Self>(state_id)) {
-            // make sure that the stored widths aren't out-dated
-            if state.column_widths.len() == default_widths.len() {
-                return (true, state);
+        let state = ui
+            .data_mut(|d| d.get_persisted::<Self>(state_id))
+            .filter(|state| {
+                // make sure that the stored widths aren't out-dated
+                state.column_widths.len() == columns.len()
+            });
+
+        let is_sizing_pass =
+            ui.is_sizing_pass() || state.is_none() && columns.iter().any(|c| c.is_auto());
+
+        let mut state = state.unwrap_or_else(|| {
+            let initial_widths =
+                to_sizing(columns).to_lengths(available_width, ui.spacing().item_spacing.x);
+            Self {
+                column_widths: initial_widths,
+                max_used_widths: Default::default(),
             }
+        });
+
+        if !is_sizing_pass && state.max_used_widths.len() == columns.len() {
+            // Make sure any non-resizable `remainder` columns are updated
+            // to take up the remainder of the current available width.
+            // Also handles changing item spacing.
+            let mut sizing = crate::sizing::Sizing::default();
+            for ((prev_width, max_used), column) in state
+                .column_widths
+                .iter()
+                .zip(&state.max_used_widths)
+                .zip(columns)
+            {
+                use crate::Size;
+
+                let column_resizable = column.resizable.unwrap_or(resizable);
+                let size = if column_resizable {
+                    // Resiable columns keep their width:
+                    Size::exact(*prev_width)
+                } else {
+                    match column.initial_width {
+                        InitialColumnSize::Absolute(width) => Size::exact(width),
+                        InitialColumnSize::Automatic(_) => Size::exact(*prev_width),
+                        InitialColumnSize::Remainder => Size::remainder(),
+                    }
+                    .at_least(column.width_range.min.max(*max_used))
+                    .at_most(column.width_range.max)
+                };
+                sizing.add(size);
+            }
+            state.column_widths = sizing.to_lengths(available_width, ui.spacing().item_spacing.x);
         }
 
-        (
-            false,
-            Self {
-                column_widths: default_widths,
-            },
-        )
+        (is_sizing_pass, state)
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
         ui.data_mut(|d| d.insert_persisted(state_id, self));
+    }
+
+    fn reset(ui: &egui::Ui, state_id: egui::Id) {
+        ui.data_mut(|d| d.remove::<Self>(state_id));
     }
 }
 
@@ -572,7 +621,8 @@ pub struct Table<'a> {
     /// Accumulated maximum used widths for each column.
     max_used_widths: Vec<f32>,
 
-    first_frame_auto_size_columns: bool,
+    /// During the sizing pass we calculate the width of columns with [`Column::auto`].
+    is_sizing_pass: bool,
     resizable: bool,
     striped: bool,
     cell_layout: egui::Layout,
@@ -591,7 +641,7 @@ impl<'a> Table<'a> {
     }
 
     /// Create table body after adding a header row
-    pub fn body<F>(self, add_body_contents: F)
+    pub fn body<F>(self, add_body_contents: F) -> ScrollAreaOutput<()>
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
@@ -604,7 +654,7 @@ impl<'a> Table<'a> {
             mut available_width,
             mut state,
             mut max_used_widths,
-            first_frame_auto_size_columns,
+            is_sizing_pass,
             striped,
             cell_layout,
             scroll_options,
@@ -642,13 +692,16 @@ impl<'a> Table<'a> {
         let widths_ref = &state.column_widths;
         let max_used_widths_ref = &mut max_used_widths;
 
-        scroll_area.show(ui, move |ui| {
+        let scroll_area_out = scroll_area.show(ui, move |ui| {
             let mut scroll_to_y_range = None;
 
             let clip_rect = ui.clip_rect();
 
-            // Hide first-frame-jitters when auto-sizing.
-            ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
+            ui.scope(|ui| {
+                if is_sizing_pass {
+                    ui.set_sizing_pass();
+                }
+
                 let hovered_row_index_id = self.state_id.with("__table_hovered_row");
                 let hovered_row_index =
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
@@ -693,16 +746,11 @@ impl<'a> Table<'a> {
             let column_is_resizable = column.resizable.unwrap_or(resizable);
             let width_range = column.width_range;
 
-            if !column.clip {
-                // Unless we clip we don't want to shrink below the
-                // size that was actually used:
-                *column_width = column_width.at_least(max_used_widths[i]);
-            }
-            *column_width = width_range.clamp(*column_width);
-
             let is_last_column = i + 1 == columns.len();
-
-            if is_last_column && column.initial_width == InitialColumnSize::Remainder {
+            if is_last_column
+                && column.initial_width == InitialColumnSize::Remainder
+                && !ui.is_sizing_pass()
+            {
                 // If the last column is 'remainder', then let it fill the remainder!
                 let eps = 0.1; // just to avoid some rounding errors.
                 *column_width = available_width - eps;
@@ -713,11 +761,24 @@ impl<'a> Table<'a> {
                 break;
             }
 
+            if ui.is_sizing_pass() {
+                if column.clip {
+                    // If we clip, we don't need to be as wide as the max used width
+                    *column_width = column_width.min(max_used_widths[i]);
+                } else {
+                    *column_width = max_used_widths[i];
+                }
+            } else if !column.clip {
+                // Unless we clip we don't want to shrink below the
+                // size that was actually used:
+                *column_width = column_width.at_least(max_used_widths[i]);
+            }
+            *column_width = width_range.clamp(*column_width);
+
             x += *column_width + spacing_x;
 
-            if column.is_auto() && (first_frame_auto_size_columns || !column_is_resizable) {
-                *column_width = max_used_widths[i];
-                *column_width = width_range.clamp(*column_width);
+            if column.is_auto() && (is_sizing_pass || !column_is_resizable) {
+                *column_width = width_range.clamp(max_used_widths[i]);
             } else if column_is_resizable {
                 let column_resize_id = ui.id().with("resize_column").with(i);
 
@@ -774,12 +835,15 @@ impl<'a> Table<'a> {
                 };
 
                 ui.painter().line_segment([p0, p1], stroke);
-            };
+            }
 
             available_width -= *column_width + spacing_x;
         }
 
+        state.max_used_widths = max_used_widths;
+
         state.store(ui, state_id);
+        scroll_area_out
     }
 }
 
@@ -956,7 +1020,7 @@ impl<'a> TableBody<'a> {
     /// Add rows with varying heights.
     ///
     /// This takes a very slight performance hit compared to [`TableBody::rows`] due to the need to
-    /// iterate over all row heights in to calculate the virtual table height above and below the
+    /// iterate over all row heights in order to calculate the virtual table height above and below the
     /// visible region, but it is many orders of magnitude more performant than adding individual
     /// heterogeneously-sized rows using [`TableBody::row`] at the cost of the additional complexity
     /// that comes with pre-calculating row heights and representing them as an iterator.
@@ -1191,6 +1255,12 @@ impl<'a, 'b> TableRow<'a, 'b> {
     #[inline]
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
+    }
+
+    /// Set the hovered highlight state for cells added after a call to this function.
+    #[inline]
+    pub fn set_hovered(&mut self, hovered: bool) {
+        self.hovered = hovered;
     }
 
     /// Returns a union of the [`Response`]s of the cells added to the row up to this point.

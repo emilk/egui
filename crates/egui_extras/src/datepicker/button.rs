@@ -2,7 +2,8 @@ use super::popup::DatePickerPopup;
 use chrono::NaiveDate;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
 
-#[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
@@ -140,9 +141,9 @@ impl<'a> Widget for DatePickerButton<'a> {
                 inner: saved,
                 response: area_response,
             } = Area::new(ui.make_persistent_id(self.id_source))
+                .kind(egui::UiKind::Picker)
                 .order(Order::Foreground)
                 .fixed_pos(pos)
-                .constrain_to(ui.ctx().screen_rect())
                 .show(ui.ctx(), |ui| {
                     let frame = Frame::popup(ui.style());
                     frame

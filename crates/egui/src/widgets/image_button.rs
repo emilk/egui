@@ -4,7 +4,7 @@ use crate::*;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
 pub struct ImageButton<'a> {
-    image: Image<'a>,
+    pub(crate) image: Image<'a>,
     sense: Sense,
     frame: bool,
     selected: bool,
@@ -125,6 +125,6 @@ impl<'a> Widget for ImageButton<'a> {
                 .rect_stroke(rect.expand2(expansion), rounding, stroke);
         }
 
-        widgets::image::texture_load_result_response(self.image.source(), &tlr, response)
+        widgets::image::texture_load_result_response(&self.image.source(ui.ctx()), &tlr, response)
     }
 }

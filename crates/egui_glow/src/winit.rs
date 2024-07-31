@@ -1,8 +1,8 @@
+use ahash::HashSet;
+use egui::{ViewportId, ViewportOutput};
 pub use egui_winit;
-pub use egui_winit::EventResponse;
-
-use egui::{ahash::HashSet, ViewportId, ViewportOutput};
 use egui_winit::winit;
+pub use egui_winit::EventResponse;
 
 use crate::shader_version::ShaderVersion;
 
@@ -22,13 +22,14 @@ pub struct EguiGlow {
 
 impl EguiGlow {
     /// For automatic shader version detection set `shader_version` to `None`.
-    pub fn new<E>(
-        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    pub fn new(
+        event_loop: &winit::event_loop::ActiveEventLoop,
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
+        dithering: bool,
     ) -> Self {
-        let painter = crate::Painter::new(gl, "", shader_version)
+        let painter = crate::Painter::new(gl, "", shader_version, dithering)
             .map_err(|err| {
                 log::error!("error occurred in initializing painter:\n{err}");
             })
@@ -85,7 +86,6 @@ impl EguiGlow {
                 &mut self.viewport_info,
                 commands,
                 window,
-                true,
                 &mut actions_requested,
             );
             for action in actions_requested {

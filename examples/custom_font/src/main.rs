@@ -3,7 +3,7 @@
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
@@ -12,7 +12,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "egui example: custom font",
         options,
-        Box::new(|cc| Box::new(MyApp::new(cc))),
+        Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
 }
 
@@ -25,7 +25,7 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     fonts.font_data.insert(
         "my_font".to_owned(),
         egui::FontData::from_static(include_bytes!(
-            "../../../crates/epaint/fonts/Hack-Regular.ttf"
+            "../../../crates/epaint_default_fonts/fonts/Hack-Regular.ttf"
         )),
     );
 

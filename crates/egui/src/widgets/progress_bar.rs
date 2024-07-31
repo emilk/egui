@@ -115,7 +115,7 @@ impl Widget for ProgressBar {
 
         response.widget_info(|| {
             let mut info = if let Some(ProgressBarText::Custom(text)) = &text {
-                WidgetInfo::labeled(WidgetType::ProgressIndicator, text.text())
+                WidgetInfo::labeled(WidgetType::ProgressIndicator, ui.is_enabled(), text.text())
             } else {
                 WidgetInfo::new(WidgetType::ProgressIndicator)
             };
@@ -183,7 +183,12 @@ impl Widget for ProgressBar {
                         format!("{}%", (progress * 100.0) as usize).into()
                     }
                 };
-                let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
+                let galley = text.into_galley(
+                    ui,
+                    Some(TextWrapMode::Extend),
+                    f32::INFINITY,
+                    TextStyle::Button,
+                );
                 let text_pos = outer_rect.left_center() - Vec2::new(0.0, galley.size().y / 2.0)
                     + vec2(ui.spacing().item_spacing.x, 0.0);
                 let text_color = visuals
