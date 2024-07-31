@@ -280,6 +280,9 @@ pub struct Style {
 
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
+
+    /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [Ui::scroll_to_rect].
+    pub scroll_animation: ScrollAnimation,
 }
 
 #[test]
@@ -687,6 +690,88 @@ impl ScrollStyle {
                 ui.label("Inner margin");
             });
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
+/// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollAnimation {
+    /// With what speed should we scroll? (Default: 1000.0)
+    pub points_per_second: f32,
+
+    /// The min / max scroll duration.
+    pub duration: Rangef,
+}
+
+impl Default for ScrollAnimation {
+    fn default() -> Self {
+        Self {
+            points_per_second: 1000.0,
+            duration: Rangef::new(0.1, 0.3),
+        }
+    }
+}
+
+impl ScrollAnimation {
+    /// New scroll animation
+    pub fn new(points_per_second: f32, duration: Rangef) -> Self {
+        Self {
+            points_per_second,
+            duration,
+        }
+    }
+
+    /// No animation, scroll instantly.
+    pub fn none() -> Self {
+        Self {
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(0.0, 0.0),
+        }
+    }
+
+    /// Scroll with a fixed duration, regardless of distance.
+    pub fn duration(t: f32) -> Self {
+        Self {
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(t, t),
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        crate::Grid::new("scroll_animation").show(ui, |ui| {
+            ui.label("Scroll animation:");
+            ui.add(
+                DragValue::new(&mut self.points_per_second)
+                    .speed(100.0)
+                    .range(0.0..=5000.0),
+            );
+            ui.label("points/second");
+            ui.end_row();
+
+            ui.label("Min duration:");
+            ui.add(
+                DragValue::new(&mut self.duration.min)
+                    .speed(0.01)
+                    .range(0.0..=self.duration.max),
+            );
+            ui.label("seconds");
+            ui.end_row();
+
+            ui.label("Max duration:");
+            ui.add(
+                DragValue::new(&mut self.duration.max)
+                    .speed(0.01)
+                    .range(0.0..=1.0),
+            );
+            ui.label("seconds");
+            ui.end_row();
+        });
     }
 }
 
@@ -1129,6 +1214,7 @@ impl Default for Style {
             explanation_tooltips: false,
             url_in_tooltip: false,
             always_scroll_the_only_direction: false,
+            scroll_animation: ScrollAnimation::default(),
         }
     }
 }
@@ -1425,6 +1511,7 @@ impl Style {
             explanation_tooltips,
             url_in_tooltip,
             always_scroll_the_only_direction,
+            scroll_animation,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -1488,6 +1575,7 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
+        ui.collapsing("🔄 Scroll Animation", |ui| scroll_animation.ui(ui));
 
         #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));

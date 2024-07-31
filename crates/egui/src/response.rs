@@ -2,10 +2,9 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui, WidgetRect,
-    WidgetText,
+    frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
+    Ui, WidgetRect, WidgetText,
 };
-
 // ----------------------------------------------------------------------------
 
 /// The result of adding a widget to a [`Ui`].
@@ -888,9 +887,26 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
+        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
+    }
+
+    /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].
+    pub fn scroll_to_me_animation(
+        &self,
+        align: Option<Align>,
+        animation: crate::style::ScrollAnimation,
+    ) {
         self.ctx.frame_state_mut(|state| {
-            state.scroll_target[0] = Some((self.rect.x_range(), align));
-            state.scroll_target[1] = Some((self.rect.y_range(), align));
+            state.scroll_target[0] = Some(frame_state::ScrollTarget::new(
+                self.rect.x_range(),
+                align,
+                animation,
+            ));
+            state.scroll_target[1] = Some(frame_state::ScrollTarget::new(
+                self.rect.y_range(),
+                align,
+                animation,
+            ));
         });
     }
 
