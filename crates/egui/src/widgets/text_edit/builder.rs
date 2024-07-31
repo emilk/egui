@@ -497,11 +497,6 @@ impl<'t> TextEdit<'t> {
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
             let layout_job = if multiline {
-                let wrap_width = if wrap_mode == TextWrapMode::Extend {
-                    f32::INFINITY
-                } else {
-                    wrap_width
-                };
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
@@ -510,7 +505,11 @@ impl<'t> TextEdit<'t> {
         };
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
-
+        let wrap_width = if wrap_mode == TextWrapMode::Extend {
+            f32::INFINITY
+        } else {
+            wrap_width
+        };
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
         let desired_width = if clip_text {
