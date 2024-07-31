@@ -346,10 +346,15 @@ impl Widget for Button<'_> {
             }
 
             if let Some(shortcut_galley) = shortcut_galley {
-                let shortcut_text_pos = pos2(
-                    rect.max.x - button_padding.x - shortcut_galley.size().x,
-                    rect.center().y - 0.5 * shortcut_galley.size().y,
-                );
+                // Always align to the right
+                let layout = if ui.layout().is_horizontal() {
+                    ui.layout().with_main_align(Align::Max)
+                } else {
+                    ui.layout().with_cross_align(Align::Max)
+                };
+                let shortcut_text_pos = layout
+                    .align_size_within_rect(shortcut_galley.size(), rect.shrink2(button_padding))
+                    .min;
                 ui.painter().galley(
                     shortcut_text_pos,
                     shortcut_galley,
