@@ -487,7 +487,9 @@ impl<'t> TextEdit<'t> {
         } else {
             TextWrapMode::Extend
         });
-        let wrap_width = if ui.layout().horizontal_justify() {
+        let wrap_width = if wrap_mode == TextWrapMode::Extend {
+            f32::INFINITY
+        } else if ui.layout().horizontal_justify() {
             available_width
         } else {
             desired_width.min(available_width)
@@ -505,11 +507,7 @@ impl<'t> TextEdit<'t> {
         };
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
-        let wrap_width = if wrap_mode == TextWrapMode::Extend {
-            f32::INFINITY
-        } else {
-            wrap_width
-        };
+
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
         let desired_width = if clip_text {
