@@ -40,6 +40,30 @@ pub struct PerLayerState {
     pub widget_with_tooltip: Option<Id>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ScrollTarget {
+    // The range that the scroll area should scroll to.
+    pub range: Rangef,
+
+    /// How should we align the rect within the visible area?
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
+    /// If `align` is `None`, it'll scroll enough to bring the UI into view.
+    pub align: Option<Align>,
+
+    /// How should the scroll be animated?
+    pub animation: style::ScrollAnimation,
+}
+
+impl ScrollTarget {
+    pub fn new(range: Rangef, align: Option<Align>, animation: style::ScrollAnimation) -> Self {
+        Self {
+            range,
+            align,
+            animation,
+        }
+    }
+}
+
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitFrameState {
@@ -172,7 +196,7 @@ pub struct FrameState {
     pub used_by_panels: Rect,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
-    pub scroll_target: [Option<(Rangef, Option<Align>)>; 2],
+    pub scroll_target: [Option<ScrollTarget>; 2],
 
     /// The current scroll area should scroll by this much.
     ///
@@ -183,7 +207,7 @@ pub struct FrameState {
     ///
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    pub scroll_delta: Vec2,
+    pub scroll_delta: (Vec2, style::ScrollAnimation),
 
     #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitFrameState>,
@@ -206,7 +230,7 @@ impl Default for FrameState {
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
             scroll_target: [None, None],
-            scroll_delta: Vec2::default(),
+            scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_next_frame: Default::default(),
@@ -246,7 +270,7 @@ impl FrameState {
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
         *scroll_target = [None, None];
-        *scroll_delta = Vec2::default();
+        *scroll_delta = Default::default();
 
         #[cfg(debug_assertions)]
         {
