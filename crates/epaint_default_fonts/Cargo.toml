@@ -1,0 +1,29 @@
+[package]
+name = "epaint_default_fonts"
+version.workspace = true
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Default fonts for use in epaint / egui"
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/emilk/egui/tree/master/crates/epaint_default_fonts"
+license = "(MIT OR Apache-2.0) AND OFL-1.1 AND LicenseRef-UFL-1.0" # OFL and UFL are from the font files themselves.
+readme = "README.md"
+repository = "https://github.com/emilk/egui/tree/master/crates/epaint_default_fonts"
+categories = ["graphics", "gui"]
+keywords = ["graphics", "gui", "egui"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+  "fonts/*.ttf",
+  "fonts/*.txt",
+  "fonts/OFL.txt",
+  "fonts/UFL.txt",
+]
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
