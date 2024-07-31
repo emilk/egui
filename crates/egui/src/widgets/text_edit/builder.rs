@@ -497,7 +497,7 @@ impl<'t> TextEdit<'t> {
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
             let layout_job = if multiline {
-                let wrap_width = if wrap_mode == Some(TextWrapMode::Extend) {
+                let wrap_width = if wrap_mode == TextWrapMode::Extend {
                     f32::INFINITY
                 } else {
                     wrap_width
@@ -679,9 +679,14 @@ impl<'t> TextEdit<'t> {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
                 let galley = if multiline {
-                    hint_text.into_galley(ui, wrap_mode, desired_inner_size.x, hint_text_font_id)
+                    hint_text.into_galley(
+                        ui,
+                        Some(wrap_mode),
+                        desired_inner_size.x,
+                        hint_text_font_id,
+                    )
                 } else {
-                    hint_text.into_galley(ui, wrap_mode, f32::INFINITY, hint_text_font_id)
+                    hint_text.into_galley(ui, Some(wrap_mode), f32::INFINITY, hint_text_font_id)
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }
