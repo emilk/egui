@@ -77,11 +77,11 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     // so we check if we have focus inside of the handler.
     install_copy_cut_paste(runner_ref, &document)?;
 
-    install_mousedown(runner_ref, &canvas)?;
     // Use `document` here to notice if the user releases a drag outside of the canvas:
     // See https://github.com/emilk/egui/issues/3157
     install_mousemove(runner_ref, &document)?;
-    install_mouseup(runner_ref, &document)?;
+    install_pointerup(runner_ref, &document)?;
+    install_pointerdown(runner_ref, &canvas)?;
     install_mouseleave(runner_ref, &canvas)?;
 
     install_touchstart(runner_ref, &canvas)?;
@@ -390,11 +390,11 @@ fn prevent_default_and_stop_propagation(
     Ok(())
 }
 
-fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
+fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(
         target,
-        "mousedown",
-        |event: web_sys::MouseEvent, runner: &mut AppRunner| {
+        "pointerdown",
+        |event: web_sys::PointerEvent, runner: &mut AppRunner| {
             let modifiers = modifiers_from_mouse_event(&event);
             runner.input.raw.modifiers = modifiers;
             if let Some(button) = button_from_mouse_event(&event) {
@@ -416,6 +416,53 @@ fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             }
             event.stop_propagation();
             // Note: prevent_default breaks VSCode tab focusing, hence why we don't call it here.
+        },
+    )
+}
+
+fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
+    runner_ref.add_event_listener(
+        target,
+        "pointerup",
+        |event: web_sys::PointerEvent, runner| {
+            let modifiers = modifiers_from_mouse_event(&event);
+            runner.input.raw.modifiers = modifiers;
+
+            let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
+
+            if is_interested_in_pointer_event(
+                runner,
+                egui::pos2(event.client_x() as f32, event.client_y() as f32),
+            ) {
+                if let Some(button) = button_from_mouse_event(&event) {
+                    let modifiers = runner.input.raw.modifiers;
+                    runner.input.raw.events.push(egui::Event::PointerButton {
+                        pos,
+                        button,
+                        pressed: false,
+                        modifiers,
+                    });
+
+                    // Previously on iOS, the canvas would not receive focus on
+                    // any touch event, which resulted in the on-screen keyboard
+                    // not working when focusing on a text field in an egui app.
+                    // This attempts to fix that by forcing the focus on any
+                    // click on the canvas.
+                    runner.canvas().focus().ok();
+
+                    // In Safari we are only allowed to do certain things
+                    // (like playing audio, start a download, etc)
+                    // on user action, such as a click.
+                    // So we need to run the app logic here and now:
+                    runner.logic();
+
+                    // Make sure we paint the output of the above logic call asap:
+                    runner.needs_repaint.repaint_asap();
+
+                    event.prevent_default();
+                    event.stop_propagation();
+                }
+            }
         },
     )
 }
@@ -449,42 +496,6 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
-        }
-    })
-}
-
-fn install_mouseup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    runner_ref.add_event_listener(target, "mouseup", |event: web_sys::MouseEvent, runner| {
-        let modifiers = modifiers_from_mouse_event(&event);
-        runner.input.raw.modifiers = modifiers;
-
-        let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
-
-        if is_interested_in_pointer_event(
-            runner,
-            egui::pos2(event.client_x() as f32, event.client_y() as f32),
-        ) {
-            if let Some(button) = button_from_mouse_event(&event) {
-                let modifiers = runner.input.raw.modifiers;
-                runner.input.raw.events.push(egui::Event::PointerButton {
-                    pos,
-                    button,
-                    pressed: false,
-                    modifiers,
-                });
-
-                // In Safari we are only allowed to do certain things
-                // (like playing audio, start a download, etc)
-                // on user action, such as a click.
-                // So we need to run the app logic here and now:
-                runner.logic();
-
-                // Make sure we paint the output of the above logic call asap:
-                runner.needs_repaint.repaint_asap();
-
-                event.prevent_default();
-                event.stop_propagation();
-            }
         }
     })
 }

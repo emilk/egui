@@ -417,7 +417,6 @@ impl Layout {
 
     pub(crate) fn region_from_max_rect(&self, max_rect: Rect) -> Region {
         debug_assert!(!max_rect.any_nan());
-        debug_assert!(max_rect.is_finite());
         let mut region = Region {
             min_rect: Rect::NOTHING, // temporary
             max_rect,
@@ -452,7 +451,6 @@ impl Layout {
     fn available_from_cursor_max_rect(&self, cursor: Rect, max_rect: Rect) -> Rect {
         debug_assert!(!cursor.any_nan());
         debug_assert!(!max_rect.any_nan());
-        debug_assert!(max_rect.is_finite());
 
         // NOTE: in normal top-down layout the cursor has moved below the current max_rect,
         // but the available shouldn't be negative.

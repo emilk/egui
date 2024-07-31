@@ -682,7 +682,11 @@ impl<'t> TextEdit<'t> {
                         hint_text_font_id,
                     )
                 };
-                painter.galley(rect.min, galley, hint_text_color);
+                let galley_pos = align
+                    .align_size_within_rect(galley.size(), rect)
+                    .intersect(rect)
+                    .min;
+                painter.galley(galley_pos, galley, hint_text_color);
             }
 
             if ui.memory(|mem| mem.has_focus(id)) {

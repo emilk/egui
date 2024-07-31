@@ -44,6 +44,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
   - check the in-browser profiler
 * [ ] check the color test
 * [ ] update `eframe_template` and test
+* [ ] update `egui_plot` and test
 * [ ] update `egui_tiles` and test
 * [ ] test with Rerun
 * [ ] `./scripts/check.sh`
@@ -72,17 +73,17 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 
 ###  `cargo publish`:
 ```
-(cd crates/emath         && cargo publish --quiet)  &&  echo "✅ emath"
-(cd crates/ecolor        && cargo publish --quiet)  &&  echo "✅ ecolor"
-(cd crates/epaint        && cargo publish --quiet)  &&  echo "✅ epaint"
-(cd crates/egui          && cargo publish --quiet)  &&  echo "✅ egui"
-(cd crates/egui_plot     && cargo publish --quiet)  &&  echo "✅ egui_plot"
-(cd crates/egui-winit    && cargo publish --quiet)  &&  echo "✅ egui-winit"
-(cd crates/egui_extras   && cargo publish --quiet)  &&  echo "✅ egui_extras"
-(cd crates/egui-wgpu     && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
-(cd crates/egui_demo_lib && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
-(cd crates/egui_glow     && cargo publish --quiet)  &&  echo "✅ egui_glow"
-(cd crates/eframe        && cargo publish --quiet)  &&  echo "✅ eframe"
+(cd crates/emath                && cargo publish --quiet)  &&  echo "✅ emath"
+(cd crates/ecolor               && cargo publish --quiet)  &&  echo "✅ ecolor"
+(cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
+(cd crates/epaint_default_fonts && cargo publish --quiet)  &&  echo "✅ epaint_default_fonts"
+(cd crates/egui                 && cargo publish --quiet)  &&  echo "✅ egui"
+(cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
+(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
+(cd crates/egui-wgpu            && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
+(cd crates/egui_demo_lib        && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
+(cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
+(cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
 ```
 
 ## Announcements
@@ -94,4 +95,5 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 
 ## After release
 * [ ] publish new `eframe_template`
+* [ ] publish new `egui_plot`
 * [ ] publish new `egui_tiles`

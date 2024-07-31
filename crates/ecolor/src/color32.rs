@@ -201,7 +201,7 @@ impl Color32 {
     /// This is perceptually even, and faster that [`Self::linear_multiply`].
     #[inline]
     pub fn gamma_multiply(self, factor: f32) -> Self {
-        debug_assert!(0.0 <= factor && factor <= 1.0);
+        debug_assert!(0.0 <= factor && factor.is_finite());
         let Self([r, g, b, a]) = self;
         Self([
             (r as f32 * factor + 0.5) as u8,
@@ -217,7 +217,7 @@ impl Color32 {
     /// You likely want to use [`Self::gamma_multiply`] instead.
     #[inline]
     pub fn linear_multiply(self, factor: f32) -> Self {
-        debug_assert!(0.0 <= factor && factor <= 1.0);
+        debug_assert!(0.0 <= factor && factor.is_finite());
         // As an unfortunate side-effect of using premultiplied alpha
         // we need a somewhat expensive conversion to linear space and back.
         Rgba::from(self).multiply(factor).into()

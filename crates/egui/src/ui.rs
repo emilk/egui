@@ -9,7 +9,6 @@ use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     util::IdTypeMap, widgets::*, *,
 };
-
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -1144,6 +1143,7 @@ impl Ui {
     }
 
     /// Allocated the given rectangle and then adds content to that rectangle.
+    ///
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
@@ -1215,10 +1215,22 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
+        self.scroll_to_rect_animation(rect, align, self.style.scroll_animation);
+    }
+
+    /// Same as [`Self::scroll_to_rect`], but allows you to specify the [`style::ScrollAnimation`].
+    pub fn scroll_to_rect_animation(
+        &self,
+        rect: Rect,
+        align: Option<Align>,
+        animation: style::ScrollAnimation,
+    ) {
         for d in 0..2 {
             let range = Rangef::new(rect.min[d], rect.max[d]);
-            self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((range, align)));
+            self.ctx().frame_state_mut(|state| {
+                state.scroll_target[d] =
+                    Some(frame_state::ScrollTarget::new(range, align, animation));
+            });
         }
     }
 
@@ -1245,11 +1257,22 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_to_cursor(&self, align: Option<Align>) {
+        self.scroll_to_cursor_animation(align, self.style.scroll_animation);
+    }
+
+    /// Same as [`Self::scroll_to_cursor`], but allows you to specify the [`style::ScrollAnimation`].
+    pub fn scroll_to_cursor_animation(
+        &self,
+        align: Option<Align>,
+        animation: style::ScrollAnimation,
+    ) {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = Rangef::point(target[d]);
-            self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((target, align)));
+            self.ctx().frame_state_mut(|state| {
+                state.scroll_target[d] =
+                    Some(frame_state::ScrollTarget::new(target, align, animation));
+            });
         }
     }
 
@@ -1283,8 +1306,14 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
+        self.scroll_with_delta_animation(delta, self.style.scroll_animation);
+    }
+
+    /// Same as [`Self::scroll_with_delta`], but allows you to specify the [`style::ScrollAnimation`].
+    pub fn scroll_with_delta_animation(&self, delta: Vec2, animation: style::ScrollAnimation) {
         self.ctx().frame_state_mut(|state| {
-            state.scroll_delta += delta;
+            state.scroll_delta.0 += delta;
+            state.scroll_delta.1 = animation;
         });
     }
 }
@@ -2389,6 +2418,58 @@ impl Ui {
         result
     }
 
+    /// Temporarily split a [`Ui`] into several columns.
+    ///
+    /// The same as [`Self::columns()`], but uses a constant for the column count.
+    /// This allows for compile-time bounds checking, and makes the compiler happy.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.columns_const(|[col_1, col_2]| {
+    ///     col_1.label("First column");
+    ///     col_2.label("Second column");
+    /// });
+    /// # });
+    /// ```
+    #[inline]
+    pub fn columns_const<const NUM_COL: usize, R>(
+        &mut self,
+        add_contents: impl FnOnce(&mut [Self; NUM_COL]) -> R,
+    ) -> R {
+        // TODO(emilk): ensure there is space
+        let spacing = self.spacing().item_spacing.x;
+        let total_spacing = spacing * (NUM_COL as f32 - 1.0);
+        let column_width = (self.available_width() - total_spacing) / (NUM_COL as f32);
+        let top_left = self.cursor().min;
+
+        let mut columns = std::array::from_fn(|col_idx| {
+            let pos = top_left + vec2((col_idx as f32) * (column_width + spacing), 0.0);
+            let child_rect = Rect::from_min_max(
+                pos,
+                pos2(pos.x + column_width, self.max_rect().right_bottom().y),
+            );
+            let mut column_ui =
+                self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
+            column_ui.set_width(column_width);
+            column_ui
+        });
+        let result = add_contents(&mut columns);
+
+        let mut max_column_width = column_width;
+        let mut max_height = 0.0;
+        for column in &columns {
+            max_column_width = max_column_width.max(column.min_rect().width());
+            max_height = column.min_size().y.max(max_height);
+        }
+
+        // Make sure we fit everything next frame:
+        let total_required_width = total_spacing + max_column_width * (NUM_COL as f32);
+
+        let size = vec2(self.available_width().max(total_required_width), max_height);
+        self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+        result
+    }
+
     /// Create something that can be drag-and-dropped.
     ///
     /// The `id` needs to be globally unique.
@@ -2555,7 +2636,7 @@ impl Ui {
     /// });
     /// # });
     /// ```
-    ///     
+    ///
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
