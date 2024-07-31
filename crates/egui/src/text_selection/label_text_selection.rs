@@ -618,8 +618,8 @@ fn process_selection_key_events(
 }
 
 fn selected_text(galley: &Galley, cursor_range: &CursorRange) -> String {
-    // This logic means we can select everything in an ellided label (including the `…`)
-    // and still copy the entire un-ellided text!
+    // This logic means we can select everything in an elided label (including the `…`)
+    // and still copy the entire un-elided text!
     let everything_is_selected = cursor_range.contains(&CursorRange::select_all(galley));
 
     let copy_everything = cursor_range.is_empty() || everything_is_selected;
