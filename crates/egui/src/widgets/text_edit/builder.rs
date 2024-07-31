@@ -482,13 +482,11 @@ impl<'t> TextEdit<'t> {
         let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
 
-        let wrap_mode = if ui.style().wrap_mode.is_some() {
-            ui.style().wrap_mode
-        } else if multiline {
-            Some(TextWrapMode::Wrap)
+        let wrap_mode = ui.style().wrap_mode.unwrap_or(if multiline {
+            TextWrapMode::Wrap
         } else {
-            Some(TextWrapMode::Extend)
-        };
+            TextWrapMode::Extend
+        });
         let wrap_width = if ui.layout().horizontal_justify() {
             available_width
         } else {
