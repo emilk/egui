@@ -686,7 +686,12 @@ impl<'t> TextEdit<'t> {
                         hint_text_font_id,
                     )
                 } else {
-                    hint_text.into_galley(ui, Some(wrap_mode), f32::INFINITY, hint_text_font_id)
+                    hint_text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Extend),
+                        f32::INFINITY,
+                        hint_text_font_id,
+                    )
                 };
                 painter.galley(rect.min, galley, hint_text_color);
             }
