@@ -396,8 +396,6 @@ struct ContextImpl {
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
-    #[cfg(feature = "accesskit")]
-    accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
 }
@@ -2016,12 +2014,7 @@ impl ContextImpl {
                     state
                         .node_builders
                         .into_iter()
-                        .map(|(id, builder)| {
-                            (
-                                id.accesskit_id(),
-                                builder.build(&mut self.accesskit_node_classes),
-                            )
-                        })
+                        .map(|(id, builder)| (id.accesskit_id(), builder.build()))
                         .collect()
                 };
                 let focus_id = self
@@ -2909,37 +2902,15 @@ impl Context {
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
-    ///
-    /// If it's practical for the egui integration to immediately run the egui
-    /// application when it is either initializing the AccessKit adapter or
-    /// being called by the AccessKit adapter to provide the initial tree update,
-    /// then it should do so, to provide a complete AccessKit tree to the adapter
-    /// immediately. Otherwise, it should enqueue a repaint and use the
-    /// placeholder tree update from [`Context::accesskit_placeholder_tree_update`]
-    /// in the meantime.
     #[cfg(feature = "accesskit")]
     pub fn enable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
     }
 
-    /// Return a tree update that the egui integration should provide to the
-    /// AccessKit adapter if it cannot immediately run the egui application
-    /// to get a full tree update after running [`Context::enable_accesskit`].
+    /// Disable generation of AccessKit tree updates in all future frames.
     #[cfg(feature = "accesskit")]
-    pub fn accesskit_placeholder_tree_update(&self) -> accesskit::TreeUpdate {
-        crate::profile_function!();
-
-        use accesskit::{NodeBuilder, Role, Tree, TreeUpdate};
-
-        let root_id = crate::accesskit_root_id().accesskit_id();
-        self.write(|ctx| TreeUpdate {
-            nodes: vec![(
-                root_id,
-                NodeBuilder::new(Role::Window).build(&mut ctx.accesskit_node_classes),
-            )],
-            tree: Some(Tree::new(root_id)),
-            focus: root_id,
-        })
+    pub fn disable_accesskit(&self) {
+        self.write(|ctx| ctx.is_accesskit_enabled = false);
     }
 }
 

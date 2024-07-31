@@ -21,8 +21,9 @@ use glutin::{
     prelude::{GlDisplay, PossiblyCurrentGlContext},
     surface::GlSurface,
 };
+use raw_window_handle::HasWindowHandle;
 use winit::{
-    event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
 };
 
@@ -145,7 +146,7 @@ impl GlowWinitApp {
     #[allow(unsafe_code)]
     fn create_glutin_windowed_context(
         egui_ctx: &egui::Context,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         storage: Option<&dyn Storage>,
         native_options: &mut NativeOptions,
     ) -> Result<(GlutinWindowContext, egui_glow::Painter)> {
@@ -194,10 +195,7 @@ impl GlowWinitApp {
         Ok((glutin_window_context, painter))
     }
 
-    fn init_run_state(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-    ) -> Result<&mut GlowWinitRunning> {
+    fn init_run_state(&mut self, event_loop: &ActiveEventLoop) -> Result<&mut GlowWinitRunning> {
         crate::profile_function!();
 
         let storage = if let Some(file) = &self.native_options.persistence_path {
@@ -279,7 +277,7 @@ impl GlowWinitApp {
                 ..
             } = viewport
             {
-                integration.init_accesskit(egui_winit, window, event_loop_proxy);
+                egui_winit.init_accesskit(window, event_loop_proxy);
             }
         }
 
@@ -330,17 +328,9 @@ impl GlowWinitApp {
             let painter = Rc::downgrade(&painter);
             let beginning = integration.beginning;
 
-            let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
-
             egui::Context::set_immediate_viewport_renderer(move |egui_ctx, immediate_viewport| {
                 if let (Some(glutin), Some(painter)) = (glutin.upgrade(), painter.upgrade()) {
-                    // SAFETY: the event loop lives longer than
-                    // the Rc:s we just upgraded above.
-                    #[allow(unsafe_code)]
-                    let event_loop = unsafe { event_loop.as_ref().unwrap() };
-
                     render_immediate_viewport(
-                        event_loop,
                         egui_ctx,
                         &glutin,
                         &painter,
@@ -401,116 +391,108 @@ impl WinitApp for GlowWinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
-    ) -> EventResult {
+    ) -> Result<EventResult> {
         if let Some(running) = &mut self.running {
             running.run_ui_and_paint(event_loop, window_id)
         } else {
-            EventResult::Wait
+            Ok(EventResult::Wait)
         }
     }
 
-    fn on_event(
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult> {
+        log::debug!("Event::Resumed");
+
+        let running = if let Some(running) = &mut self.running {
+            // Not the first resume event. Create all outstanding windows.
+            running
+                .glutin
+                .borrow_mut()
+                .initialize_all_windows(event_loop);
+            running
+        } else {
+            // First resume event. Create our root window etc.
+            self.init_run_state(event_loop)?
+        };
+        let window_id = running.glutin.borrow().window_from_viewport[&ViewportId::ROOT];
+        Ok(EventResult::RepaintNow(window_id))
+    }
+
+    fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
+        if let Some(running) = &mut self.running {
+            running.glutin.borrow_mut().on_suspend()?;
+        }
+        Ok(EventResult::Wait)
+    }
+
+    fn device_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-        event: &winit::event::Event<UserEvent>,
+        _: &ActiveEventLoop,
+        _: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) -> crate::Result<EventResult> {
+        if let winit::event::DeviceEvent::MouseMotion { delta } = event {
+            if let Some(running) = &mut self.running {
+                let mut glutin = running.glutin.borrow_mut();
+                if let Some(viewport) = glutin
+                    .focused_viewport
+                    .and_then(|viewport| glutin.viewports.get_mut(&viewport))
+                {
+                    if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                        egui_winit.on_mouse_motion(delta);
+                    }
+
+                    if let Some(window) = viewport.window.as_ref() {
+                        return Ok(EventResult::RepaintNext(window.id()));
+                    }
+                }
+            }
+        }
+
+        Ok(EventResult::Wait)
+    }
+
+    fn window_event(
+        &mut self,
+        _: &ActiveEventLoop,
+        window_id: WindowId,
+        event: winit::event::WindowEvent,
     ) -> Result<EventResult> {
-        crate::profile_function!(winit_integration::short_event_description(event));
+        if let Some(running) = &mut self.running {
+            Ok(running.on_window_event(window_id, &event))
+        } else {
+            Ok(EventResult::Wait)
+        }
+    }
 
-        Ok(match event {
-            winit::event::Event::Resumed => {
-                log::debug!("Event::Resumed");
-
-                let running = if let Some(running) = &mut self.running {
-                    // Not the first resume event. Create all outstanding windows.
-                    running
-                        .glutin
-                        .borrow_mut()
-                        .initialize_all_windows(event_loop);
-                    running
-                } else {
-                    // First resume event. Created our root window etc.
-                    self.init_run_state(event_loop)?
-                };
-                let window_id = running.glutin.borrow().window_from_viewport[&ViewportId::ROOT];
-                EventResult::RepaintNow(window_id)
-            }
-
-            winit::event::Event::Suspended => {
-                if let Some(running) = &mut self.running {
-                    running.glutin.borrow_mut().on_suspend()?;
-                }
-                EventResult::Wait
-            }
-
-            winit::event::Event::WindowEvent { event, window_id } => {
-                if let Some(running) = &mut self.running {
-                    running.on_window_event(*window_id, event)
-                } else {
-                    EventResult::Wait
-                }
-            }
-
-            winit::event::Event::DeviceEvent {
-                device_id: _,
-                event: winit::event::DeviceEvent::MouseMotion { delta },
-            } => {
-                if let Some(running) = &mut self.running {
-                    let mut glutin = running.glutin.borrow_mut();
-                    if let Some(viewport) = glutin
-                        .focused_viewport
-                        .and_then(|viewport| glutin.viewports.get_mut(&viewport))
-                    {
-                        if let Some(egui_winit) = viewport.egui_winit.as_mut() {
-                            egui_winit.on_mouse_motion(*delta);
-                        }
-
-                        if let Some(window) = viewport.window.as_ref() {
-                            EventResult::RepaintNext(window.id())
-                        } else {
-                            EventResult::Wait
-                        }
-                    } else {
-                        EventResult::Wait
+    #[cfg(feature = "accesskit")]
+    fn on_accesskit_event(&mut self, event: accesskit_winit::Event) -> crate::Result<EventResult> {
+        if let Some(running) = &self.running {
+            let mut glutin = running.glutin.borrow_mut();
+            if let Some(viewport_id) = glutin.viewport_from_window.get(&event.window_id).copied() {
+                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                    if let Some(egui_winit) = &mut viewport.egui_winit {
+                        return Ok(winit_integration::on_accesskit_window_event(
+                            egui_winit,
+                            event.window_id,
+                            &event.window_event,
+                        ));
                     }
-                } else {
-                    EventResult::Wait
                 }
             }
+        }
 
-            #[cfg(feature = "accesskit")]
-            winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
-                accesskit_winit::ActionRequestEvent { request, window_id },
-            )) => {
-                if let Some(running) = &self.running {
-                    let mut glutin = running.glutin.borrow_mut();
-                    if let Some(viewport_id) = glutin.viewport_from_window.get(window_id).copied() {
-                        if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                            if let Some(egui_winit) = &mut viewport.egui_winit {
-                                crate::profile_scope!("on_accesskit_action_request");
-                                egui_winit.on_accesskit_action_request(request.clone());
-                            }
-                        }
-                    }
-                    // As a form of user input, accessibility actions should
-                    // lead to a repaint.
-                    EventResult::RepaintNext(*window_id)
-                } else {
-                    EventResult::Wait
-                }
-            }
-            _ => EventResult::Wait,
-        })
+        Ok(EventResult::Wait)
     }
 }
 
 impl GlowWinitRunning {
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
-    ) -> EventResult {
+    ) -> Result<EventResult> {
         crate::profile_function!();
 
         let Some(viewport_id) = self
@@ -520,7 +502,7 @@ impl GlowWinitRunning {
             .get(&window_id)
             .copied()
         else {
-            return EventResult::Wait;
+            return Ok(EventResult::Wait);
         };
 
         #[cfg(feature = "puffin")]
@@ -538,10 +520,10 @@ impl GlowWinitRunning {
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                 if let Some(parent_viewport) = glutin.viewports.get(&viewport.ids.parent) {
                     if let Some(window) = parent_viewport.window.as_ref() {
-                        return EventResult::RepaintNext(window.id());
+                        return Ok(EventResult::RepaintNext(window.id()));
                     }
                 }
-                return EventResult::Wait;
+                return Ok(EventResult::Wait);
             }
         }
 
@@ -549,15 +531,15 @@ impl GlowWinitRunning {
             let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
             let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
-                return EventResult::Wait;
+                return Ok(EventResult::Wait);
             };
             let Some(window) = viewport.window.as_ref() else {
-                return EventResult::Wait;
+                return Ok(EventResult::Wait);
             };
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window, false);
 
             let Some(egui_winit) = viewport.egui_winit.as_mut() else {
-                return EventResult::Wait;
+                return Ok(EventResult::Wait);
             };
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
@@ -593,10 +575,10 @@ impl GlowWinitRunning {
             } = &mut *glutin;
             let viewport = &viewports[&viewport_id];
             let Some(window) = viewport.window.as_ref() else {
-                return EventResult::Wait;
+                return Ok(EventResult::Wait);
             };
             let Some(gl_surface) = viewport.gl_surface.as_ref() else {
-                return EventResult::Wait;
+                return Ok(EventResult::Wait);
             };
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
@@ -651,7 +633,7 @@ impl GlowWinitRunning {
         } = &mut *glutin;
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
-            return EventResult::Wait;
+            return Ok(EventResult::Wait);
         };
 
         viewport.info.events.clear(); // they should have been processed
@@ -723,13 +705,13 @@ impl GlowWinitRunning {
             // vsync - don't count as frame-time:
             frame_timer.pause();
             crate::profile_scope!("swap_buffers");
-            if let Err(err) = gl_surface.swap_buffers(
-                current_gl_context
-                    .as_ref()
-                    .expect("failed to get current context to swap buffers"),
-            ) {
-                log::error!("swap_buffers failed: {err}");
-            }
+            let context = current_gl_context
+                .as_ref()
+                .ok_or(egui_glow::PainterError::from(
+                    "failed to get current context to swap buffers".to_owned(),
+                ))?;
+
+            gl_surface.swap_buffers(context)?;
             frame_timer.resume();
         }
 
@@ -755,9 +737,9 @@ impl GlowWinitRunning {
         }
 
         if integration.should_close() {
-            EventResult::Exit
+            Ok(EventResult::Exit)
         } else {
-            EventResult::Wait
+            Ok(EventResult::Wait)
         }
     }
 
@@ -766,8 +748,6 @@ impl GlowWinitRunning {
         window_id: WindowId,
         event: &winit::event::WindowEvent,
     ) -> EventResult {
-        crate::profile_function!(egui_winit::short_window_event_description(event));
-
         let mut glutin = self.glutin.borrow_mut();
         let viewport_id = glutin.viewport_from_window.get(&window_id).copied();
 
@@ -908,7 +888,7 @@ impl GlutinWindowContext {
         egui_ctx: &egui::Context,
         viewport_builder: ViewportBuilder,
         native_options: &NativeOptions,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
     ) -> Result<Self> {
         crate::profile_function!();
 
@@ -957,7 +937,7 @@ impl GlutinWindowContext {
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-            .with_window_builder(Some(egui_winit::create_winit_window_builder(
+            .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,
                 viewport_builder.clone(),
@@ -993,8 +973,9 @@ impl GlutinWindowContext {
             gl_display.supported_features()
         );
         let glutin_raw_window_handle = window.as_ref().map(|w| {
-            use rwh_05::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
-            w.raw_window_handle()
+            w.window_handle()
+                .expect("Failed to get window handle")
+                .as_raw()
         });
         log::debug!("creating gl context using raw window handle: {glutin_raw_window_handle:?}");
 
@@ -1080,7 +1061,7 @@ impl GlutinWindowContext {
     /// Create a surface, window, and winit integration for all viewports lacking any of that.
     ///
     /// Errors will be logged.
-    fn initialize_all_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
+    fn initialize_all_windows(&mut self, event_loop: &ActiveEventLoop) {
         crate::profile_function!();
 
         let viewports: Vec<ViewportId> = self.viewports.keys().copied().collect();
@@ -1097,7 +1078,7 @@ impl GlutinWindowContext {
     pub(crate) fn initialize_window(
         &mut self,
         viewport_id: ViewportId,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
     ) -> Result {
         crate::profile_function!();
 
@@ -1110,17 +1091,18 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window_builder = egui_winit::create_winit_window_builder(
+            let window_attributes = egui_winit::create_winit_window_attributes(
                 &self.egui_ctx,
                 event_loop,
                 viewport.builder.clone(),
             );
-            if window_builder.transparent() && self.gl_config.supports_transparency() == Some(false)
+            if window_attributes.transparent()
+                && self.gl_config.supports_transparency() == Some(false)
             {
                 log::error!("Cannot create transparent window: the GL config does not support it");
             }
             let window =
-                glutin_winit::finalize_window(event_loop, window_builder, &self.gl_config)?;
+                glutin_winit::finalize_window(event_loop, window_attributes, &self.gl_config)?;
             egui_winit::apply_viewport_builder_to_window(
                 &self.egui_ctx,
                 &window,
@@ -1150,9 +1132,15 @@ impl GlutinWindowContext {
             let width_px = NonZeroU32::new(width_px).unwrap_or(NonZeroU32::MIN);
             let height_px = NonZeroU32::new(height_px).unwrap_or(NonZeroU32::MIN);
             let surface_attributes = {
-                use rwh_05::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                    .build(window.raw_window_handle(), width_px, height_px)
+                    .build(
+                        window
+                            .window_handle()
+                            .expect("Failed to get display handle")
+                            .as_raw(),
+                        width_px,
+                        height_px,
+                    )
             };
 
             log::trace!("creating surface with attributes: {surface_attributes:?}");
@@ -1267,7 +1255,7 @@ impl GlutinWindowContext {
 
     fn handle_viewport_output(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         egui_ctx: &egui::Context,
         viewport_output: &ViewportIdMap<ViewportOutput>,
     ) {
@@ -1389,7 +1377,6 @@ fn initialize_or_update_viewport(
 /// This is called (via a callback) by user code to render immediate viewports,
 /// i.e. viewport that are directly nested inside a parent viewport.
 fn render_immediate_viewport(
-    event_loop: &EventLoopWindowTarget<UserEvent>,
     egui_ctx: &egui::Context,
     glutin: &RefCell<GlutinWindowContext>,
     painter: &RefCell<egui_glow::Painter>,
@@ -1417,7 +1404,11 @@ fn render_immediate_viewport(
             None,
         );
 
-        if let Err(err) = glutin.initialize_window(viewport_id, event_loop) {
+        let ret = event_loop_context::with_current_event_loop(|event_loop| {
+            glutin.initialize_window(viewport_id, event_loop)
+        });
+
+        if let Some(Err(err)) = ret {
             log::error!(
                 "Failed to initialize a window for immediate viewport {viewport_id:?}: {err}"
             );
@@ -1523,7 +1514,9 @@ fn render_immediate_viewport(
 
     egui_winit.handle_platform_output(window, platform_output);
 
-    glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
+    event_loop_context::with_current_event_loop(|event_loop| {
+        glutin.handle_viewport_output(event_loop, egui_ctx, &viewport_output);
+    });
 }
 
 #[cfg(feature = "__screenshot")]
