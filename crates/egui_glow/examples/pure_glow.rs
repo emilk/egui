@@ -8,8 +8,10 @@
 #![allow(unsafe_code)]
 
 use std::num::NonZeroU32;
+use std::sync::Arc;
 
 use egui_winit::winit;
+use winit::raw_window_handle::HasWindowHandle;
 
 /// The majority of `GlutinWindowContext` is taken from `eframe`
 struct GlutinWindowContext {
@@ -23,13 +25,12 @@ impl GlutinWindowContext {
     // refactor this function to use `glutin-winit` crate eventually.
     // preferably add android support at the same time.
     #[allow(unsafe_code)]
-    unsafe fn new(event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent>) -> Self {
+    unsafe fn new(event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
         use glutin::context::NotCurrentGlContext;
         use glutin::display::GetGlDisplay;
         use glutin::display::GlDisplay;
         use glutin::prelude::GlSurface;
-        use rwh_05::HasRawWindowHandle;
-        let winit_window_builder = winit::window::WindowBuilder::new()
+        let winit_window_builder = winit::window::WindowAttributes::default()
             .with_resizable(true)
             .with_inner_size(winit::dpi::LogicalSize {
                 width: 800.0,
@@ -48,7 +49,7 @@ impl GlutinWindowContext {
         let (mut window, gl_config) =
             glutin_winit::DisplayBuilder::new() // let glutin-winit helper crate handle the complex parts of opengl context creation
                 .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-                .with_window_builder(Some(winit_window_builder.clone()))
+                .with_window_attributes(Some(winit_window_builder.clone()))
                 .build(
                     event_loop,
                     config_template_builder,
@@ -62,7 +63,11 @@ impl GlutinWindowContext {
         let gl_display = gl_config.display();
         log::debug!("found gl_config: {:?}", &gl_config);
 
-        let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
+        let raw_window_handle = window.as_ref().map(|w| {
+            w.window_handle()
+                .expect("failed to get window handle")
+                .as_raw()
+        });
         log::debug!("raw window handle: {:?}", raw_window_handle);
         let context_attributes =
             glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
@@ -95,7 +100,14 @@ impl GlutinWindowContext {
         let height = NonZeroU32::new(height).unwrap_or(NonZeroU32::MIN);
         let surface_attributes =
             glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                .build(window.raw_window_handle(), width, height);
+                .build(
+                    window
+                        .window_handle()
+                        .expect("failed to get window handle")
+                        .as_raw(),
+                    width,
+                    height,
+                );
         log::debug!(
             "creating surface with attributes: {:?}",
             &surface_attributes
@@ -152,51 +164,81 @@ pub enum UserEvent {
     Redraw(std::time::Duration),
 }
 
-fn main() {
-    let mut clear_color = [0.1, 0.1, 0.1];
+struct GlowApp {
+    proxy: winit::event_loop::EventLoopProxy<UserEvent>,
+    gl_window: Option<GlutinWindowContext>,
+    gl: Option<Arc<glow::Context>>,
+    egui_glow: Option<egui_glow::EguiGlow>,
+    repaint_delay: std::time::Duration,
+    clear_color: [f32; 3],
+}
 
-    let event_loop = winit::event_loop::EventLoopBuilder::<UserEvent>::with_user_event()
-        .build()
-        .unwrap();
-    let (gl_window, gl) = create_display(&event_loop);
-    let gl = std::sync::Arc::new(gl);
+impl GlowApp {
+    fn new(proxy: winit::event_loop::EventLoopProxy<UserEvent>) -> Self {
+        Self {
+            proxy,
+            gl_window: None,
+            gl: None,
+            egui_glow: None,
+            repaint_delay: std::time::Duration::MAX,
+            clear_color: [0.1, 0.1, 0.1],
+        }
+    }
+}
 
-    let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None, true);
+impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let (gl_window, gl) = create_display(event_loop);
+        let gl = std::sync::Arc::new(gl);
+        gl_window.window().set_visible(true);
 
-    let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
-    egui_glow
-        .egui_ctx
-        .set_request_repaint_callback(move |info| {
-            event_loop_proxy
-                .lock()
-                .send_event(UserEvent::Redraw(info.delay))
-                .expect("Cannot send event");
-        });
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
 
-    let mut repaint_delay = std::time::Duration::MAX;
+        let event_loop_proxy = egui::mutex::Mutex::new(self.proxy.clone());
+        egui_glow
+            .egui_ctx
+            .set_request_repaint_callback(move |info| {
+                event_loop_proxy
+                    .lock()
+                    .send_event(UserEvent::Redraw(info.delay))
+                    .expect("Cannot send event");
+            });
+        self.gl_window = Some(gl_window);
+        self.gl = Some(gl);
+        self.egui_glow = Some(egui_glow);
+    }
 
-    let _ = event_loop.run(move |event, event_loop_window_target| {
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        _window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
         let mut redraw = || {
             let mut quit = false;
 
-            egui_glow.run(gl_window.window(), |egui_ctx| {
-                egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
-                    ui.heading("Hello World!");
-                    if ui.button("Quit").clicked() {
-                        quit = true;
-                    }
-                    ui.color_edit_button_rgb(&mut clear_color);
-                });
-            });
+            self.egui_glow.as_mut().unwrap().run(
+                self.gl_window.as_mut().unwrap().window(),
+                |egui_ctx| {
+                    egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
+                        ui.heading("Hello World!");
+                        if ui.button("Quit").clicked() {
+                            quit = true;
+                        }
+
+                        ui.color_edit_button_rgb(self.clear_color.as_mut().try_into().unwrap());
+                    });
+                },
+            );
 
             if quit {
-                event_loop_window_target.exit();
+                event_loop.exit();
             } else {
-                event_loop_window_target.set_control_flow(if repaint_delay.is_zero() {
-                    gl_window.window().request_redraw();
+                event_loop.set_control_flow(if self.repaint_delay.is_zero() {
+                    self.gl_window.as_mut().unwrap().window().request_redraw();
                     winit::event_loop::ControlFlow::Poll
                 } else if let Some(repaint_after_instant) =
-                    std::time::Instant::now().checked_add(repaint_delay)
+                    std::time::Instant::now().checked_add(self.repaint_delay)
                 {
                     winit::event_loop::ControlFlow::WaitUntil(repaint_after_instant)
                 } else {
@@ -207,64 +249,88 @@ fn main() {
             {
                 unsafe {
                     use glow::HasContext as _;
-                    gl.clear_color(clear_color[0], clear_color[1], clear_color[2], 1.0);
-                    gl.clear(glow::COLOR_BUFFER_BIT);
+                    self.gl.as_mut().unwrap().clear_color(
+                        self.clear_color[0],
+                        self.clear_color[1],
+                        self.clear_color[2],
+                        1.0,
+                    );
+                    self.gl.as_mut().unwrap().clear(glow::COLOR_BUFFER_BIT);
                 }
 
                 // draw things behind egui here
 
-                egui_glow.paint(gl_window.window());
+                self.egui_glow
+                    .as_mut()
+                    .unwrap()
+                    .paint(self.gl_window.as_mut().unwrap().window());
 
                 // draw things on top of egui here
 
-                gl_window.swap_buffers().unwrap();
-                gl_window.window().set_visible(true);
+                self.gl_window.as_mut().unwrap().swap_buffers().unwrap();
+                self.gl_window.as_mut().unwrap().window().set_visible(true);
             }
         };
 
-        match event {
-            winit::event::Event::WindowEvent { event, .. } => {
-                use winit::event::WindowEvent;
-                if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
-                    event_loop_window_target.exit();
-                    return;
-                }
-
-                if matches!(event, WindowEvent::RedrawRequested) {
-                    redraw();
-                    return;
-                }
-
-                if let winit::event::WindowEvent::Resized(physical_size) = &event {
-                    gl_window.resize(*physical_size);
-                }
-
-                let event_response = egui_glow.on_window_event(gl_window.window(), &event);
-
-                if event_response.repaint {
-                    gl_window.window().request_redraw();
-                }
-            }
-
-            winit::event::Event::UserEvent(UserEvent::Redraw(delay)) => {
-                repaint_delay = delay;
-            }
-            winit::event::Event::LoopExiting => {
-                egui_glow.destroy();
-            }
-            winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
-                ..
-            }) => {
-                gl_window.window().request_redraw();
-            }
-
-            _ => (),
+        use winit::event::WindowEvent;
+        if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
+            event_loop.exit();
+            return;
         }
-    });
+
+        if matches!(event, WindowEvent::RedrawRequested) {
+            redraw();
+            return;
+        }
+
+        if let winit::event::WindowEvent::Resized(physical_size) = &event {
+            self.gl_window.as_mut().unwrap().resize(*physical_size);
+        }
+
+        let event_response = self
+            .egui_glow
+            .as_mut()
+            .unwrap()
+            .on_window_event(self.gl_window.as_mut().unwrap().window(), &event);
+
+        if event_response.repaint {
+            self.gl_window.as_mut().unwrap().window().request_redraw();
+        }
+    }
+
+    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
+        match event {
+            UserEvent::Redraw(delay) => self.repaint_delay = delay,
+        }
+    }
+
+    fn new_events(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        cause: winit::event::StartCause,
+    ) {
+        if let winit::event::StartCause::ResumeTimeReached { .. } = &cause {
+            self.gl_window.as_mut().unwrap().window().request_redraw();
+        }
+    }
+
+    fn exiting(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        self.egui_glow.as_mut().unwrap().destroy();
+    }
+}
+
+fn main() {
+    let event_loop = winit::event_loop::EventLoop::<UserEvent>::with_user_event()
+        .build()
+        .unwrap();
+    let proxy = event_loop.create_proxy();
+
+    let mut app = GlowApp::new(proxy);
+    event_loop.run_app(&mut app).expect("failed to run app");
 }
 
 fn create_display(
-    event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent>,
+    event_loop: &winit::event_loop::ActiveEventLoop,
 ) -> (GlutinWindowContext, glow::Context) {
     let glutin_window_context = unsafe { GlutinWindowContext::new(event_loop) };
     let gl = unsafe {
