@@ -487,12 +487,15 @@ impl<'t> TextEdit<'t> {
         } else {
             TextWrapMode::Extend
         });
-        let wrap_width = if wrap_mode == TextWrapMode::Extend {
-            f32::INFINITY
-        } else if ui.layout().horizontal_justify() {
+        let clip_wrap_width = if ui.layout().horizontal_justify() {
             available_width
         } else {
             desired_width.min(available_width)
+        };
+        let wrap_width = if wrap_mode == TextWrapMode::Extend {
+            f32::INFINITY
+        } else {
+            clip_wrap_width
         };
 
         let font_id_clone = font_id.clone();
@@ -511,9 +514,9 @@ impl<'t> TextEdit<'t> {
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
         let desired_width = if clip_text {
-            wrap_width // visual clipping with scroll in singleline input.
+            clip_wrap_width // visual clipping with scroll in singleline input.
         } else {
-            galley.size().x.max(wrap_width)
+            galley.size().x.max(clip_wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
         let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
