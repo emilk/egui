@@ -160,13 +160,8 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
                 if let Some(window) = self.winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
-                    let is_minimized = window.is_minimized().unwrap_or(false);
-                    if is_minimized {
-                        false
-                    } else {
-                        window.request_redraw();
-                        true
-                    }
+                    window.request_redraw();
+                    true
                 } else {
                     log::trace!("No window found for {window_id:?}");
                     false
