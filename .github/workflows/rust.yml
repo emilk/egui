@@ -1,4 +1,4 @@
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 name: Rust
 
@@ -163,6 +163,26 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android
+        working-directory: crates/eframe
+
+  # ---------------------------------------------------------------------------
+
+  ios:
+    name: ios
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.76.0
+          targets: aarch64-apple-ios
+
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+
+        # Default features are disabled because glutin doesn't compile for ios.
+      - run: cargo check --features wgpu --target aarch64-apple-ios --no-default-features
         working-directory: crates/eframe
 
   # ---------------------------------------------------------------------------
