@@ -136,36 +136,10 @@ fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElemen
 /// Returns the canvas in client coordinates.
 fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
     let bounding_rect = canvas.get_bounding_client_rect();
-    // Need to fix Safari with vkeyboard open (flapping canvas position)
-    let rect_body = match web_sys::window()
-        .and_then(|w| w.document())
-        .and_then(|d| d.body())
-    {
-        None => egui::Rect::everything_above(0.),
-        Some(body) => {
-            let bounding_rect_body = body.get_bounding_client_rect();
-            egui::Rect::from_min_max(
-                egui::pos2(
-                    bounding_rect_body.left() as f32,
-                    bounding_rect_body.top() as f32,
-                ),
-                egui::pos2(
-                    bounding_rect_body.right() as f32,
-                    bounding_rect_body.bottom() as f32,
-                ),
-            )
-        }
-    };
 
     let mut rect = egui::Rect::from_min_max(
-        egui::pos2(
-            bounding_rect.left() as f32 - rect_body.left(),
-            bounding_rect.top() as f32 - rect_body.top(),
-        ),
-        egui::pos2(
-            bounding_rect.right() as f32 - rect_body.right(),
-            bounding_rect.bottom() as f32 - rect_body.bottom(),
-        ),
+        egui::pos2(bounding_rect.left() as f32, bounding_rect.top() as f32),
+        egui::pos2(bounding_rect.right() as f32, bounding_rect.bottom() as f32),
     );
 
     // We need to subtract padding and border:

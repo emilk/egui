@@ -124,7 +124,14 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        let canvas_rect = super::canvas_content_rect(canvas);
+        let mut canvas_rect = super::canvas_content_rect(canvas);
+        // Fix for safari with virtual keyboard flapping position
+        if web_sys::window()
+            .and_then(|w| w.navigator().user_agent().ok())
+            .map_or(false, |ua| ua.contains("Safari"))
+        {
+            canvas_rect.min.y = canvas.offset_top() as f32;
+        }
         let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
