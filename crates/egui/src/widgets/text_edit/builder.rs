@@ -746,6 +746,10 @@ impl<'t> TextEdit<'t> {
             }
         }
 
+        if state.ime_enabled && response.lost_focus() {
+            state.ime_enabled = false;
+        }
+
         state.clone().store(ui.ctx(), id);
 
         if response.changed {
