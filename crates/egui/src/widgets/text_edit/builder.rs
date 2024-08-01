@@ -1,1228 +1,1175 @@
-#![allow(clippy::needless_range_loop)]
+use std::sync::Arc;
 
-use crate::*;
+use epaint::text::{cursor::*, Galley, LayoutJob};
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct ScrollingToTarget {
-    animation_time_span: (f64, f64),
-    target_offset: f32,
-}
+use crate::{
+    os::OperatingSystem,
+    output::OutputEvent,
+    text_selection::{
+        text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange, CursorRange,
+    },
+    *,
+};
 
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct State {
-    /// Positive offset means scrolling down/right
-    pub offset: Vec2,
+use super::{TextEditOutput, TextEditState};
 
-    /// If set, quickly but smoothly scroll to this target offset.
-    offset_target: [Option<ScrollingToTarget>; 2],
-
-    /// Were the scroll bars visible last frame?
-    show_scroll: Vec2b,
-
-    /// The content were to large to fit large frame.
-    content_is_too_large: Vec2b,
-
-    /// Did the user interact (hover or drag) the scroll bars last frame?
-    scroll_bar_interaction: Vec2b,
-
-    /// Momentum, used for kinetic scrolling
-    #[cfg_attr(feature = "serde", serde(skip))]
-    vel: Vec2,
-
-    /// Mouse offset relative to the top of the handle when started moving the handle.
-    scroll_start_offset_from_top_left: [Option<f32>; 2],
-
-    /// Is the scroll sticky. This is true while scroll handle is in the end position
-    /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
-    /// it remains false until the scroll touches the end position, which reenables stickiness.
-    scroll_stuck_to_end: Vec2b,
-
-    /// Area that can be dragged. This is the size of the content from the last frame.
-    interact_rect: Option<Rect>,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            offset: Vec2::ZERO,
-            offset_target: Default::default(),
-            show_scroll: Vec2b::FALSE,
-            content_is_too_large: Vec2b::FALSE,
-            scroll_bar_interaction: Vec2b::FALSE,
-            vel: Vec2::ZERO,
-            scroll_start_offset_from_top_left: [None; 2],
-            scroll_stuck_to_end: Vec2b::TRUE,
-            interact_rect: None,
-        }
-    }
-}
-
-impl State {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| d.get_persisted(id))
-    }
-
-    pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data_mut(|d| d.insert_persisted(id, self));
-    }
-
-    /// Get the current kinetic scrolling velocity.
-    pub fn velocity(&self) -> Vec2 {
-        self.vel
-    }
-}
-
-pub struct ScrollAreaOutput<R> {
-    /// What the user closure returned.
-    pub inner: R,
-
-    /// [`Id`] of the [`ScrollArea`].
-    pub id: Id,
-
-    /// The current state of the scroll area.
-    pub state: State,
-
-    /// The size of the content. If this is larger than [`Self::inner_rect`],
-    /// then there was need for scrolling.
-    pub content_size: Vec2,
-
-    /// Where on the screen the content is (excludes scroll bars).
-    pub inner_rect: Rect,
-}
-
-/// Indicate whether the horizontal and vertical scroll bars must be always visible, hidden or visible when needed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum ScrollBarVisibility {
-    /// Hide scroll bar even if they are needed.
-    ///
-    /// You can still scroll, with the scroll-wheel
-    /// and by dragging the contents, but there is no
-    /// visual indication of how far you have scrolled.
-    AlwaysHidden,
-
-    /// Show scroll bars only when the content size exceeds the container,
-    /// i.e. when there is any need to scroll.
-    ///
-    /// This is the default.
-    VisibleWhenNeeded,
-
-    /// Always show the scroll bar, even if the contents fit in the container
-    /// and there is no need to scroll.
-    AlwaysVisible,
-}
-
-impl Default for ScrollBarVisibility {
-    #[inline]
-    fn default() -> Self {
-        Self::VisibleWhenNeeded
-    }
-}
-
-impl ScrollBarVisibility {
-    pub const ALL: [Self; 3] = [
-        Self::AlwaysHidden,
-        Self::VisibleWhenNeeded,
-        Self::AlwaysVisible,
-    ];
-}
-
-/// Add vertical and/or horizontal scrolling to a contained [`Ui`].
+/// A text region that the user can edit the contents of.
 ///
-/// By default, scroll bars only show up when needed, i.e. when the contents
-/// is larger than the container.
-/// This is controlled by [`Self::scroll_bar_visibility`].
+/// See also [`Ui::text_edit_singleline`] and [`Ui::text_edit_multiline`].
 ///
-/// There are two flavors of scroll areas: solid and floating.
-/// Solid scroll bars use up space, reducing the amount of space available
-/// to the contents. Floating scroll bars float on top of the contents, covering it.
-/// You can change the scroll style by changing the [`crate::style::Spacing::scroll`].
+/// Example:
 ///
-/// ### Coordinate system
-/// * content: size of contents (generally large; that's why we want scroll bars)
-/// * outer: size of scroll area including scroll bar(s)
-/// * inner: excluding scroll bar(s). The area we clip the contents to.
-///
-/// If the floating scroll bars settings is turned on then `inner == outer`.
-///
-/// ## Example
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// egui::ScrollArea::vertical().show(ui, |ui| {
-///     // Add a lot of widgets here.
-/// });
+/// # let mut my_string = String::new();
+/// let response = ui.add(egui::TextEdit::singleline(&mut my_string));
+/// if response.changed() {
+///     // …
+/// }
+/// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+///     // …
+/// }
 /// # });
 /// ```
 ///
-/// You can scroll to an element using [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
-#[derive(Clone, Debug)]
-#[must_use = "You should call .show()"]
-pub struct ScrollArea {
-    /// Do we have horizontal/vertical scrolling enabled?
-    scroll_enabled: Vec2b,
-
-    auto_shrink: Vec2b,
-    max_size: Vec2,
-    min_scrolled_size: Vec2,
-    scroll_bar_visibility: ScrollBarVisibility,
+/// To fill an [`Ui`] with a [`TextEdit`] use [`Ui::add_sized`]:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// # let mut my_string = String::new();
+/// ui.add_sized(ui.available_size(), egui::TextEdit::multiline(&mut my_string));
+/// # });
+/// ```
+///
+///
+/// You can also use [`TextEdit`] to show text that can be selected, but not edited.
+/// To do so, pass in a `&mut` reference to a `&str`, for instance:
+///
+/// ```
+/// fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
+///     ui.add(egui::TextEdit::multiline(&mut text));
+/// }
+/// ```
+///
+/// ## Advanced usage
+/// See [`TextEdit::show`].
+///
+/// ## Other
+/// The background color of a [`TextEdit`] is [`Visuals::extreme_bg_color`].
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+pub struct TextEdit<'t> {
+    text: &'t mut dyn TextBuffer,
+    hint_text: WidgetText,
+    hint_text_font: Option<FontSelection>,
+    id: Option<Id>,
     id_source: Option<Id>,
-    offset_x: Option<f32>,
-    offset_y: Option<f32>,
-
-    /// If false, we ignore scroll events.
-    scrolling_enabled: bool,
-    drag_to_scroll: bool,
-
-    /// If true for vertical or horizontal the scroll wheel will stick to the
-    /// end position until user manually changes position. It will become true
-    /// again once scroll handle makes contact with end.
-    stick_to_end: Vec2b,
-
-    /// If false, `scroll_to_*` functions will not be animated
-    animated: bool,
+    font_selection: FontSelection,
+    text_color: Option<Color32>,
+    layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
+    password: bool,
+    frame: bool,
+    margin: Margin,
+    multiline: bool,
+    interactive: bool,
+    desired_width: Option<f32>,
+    desired_height_rows: usize,
+    event_filter: EventFilter,
+    cursor_at_end: bool,
+    min_size: Vec2,
+    align: Align2,
+    clip_text: bool,
+    char_limit: usize,
+    return_key: Option<KeyboardShortcut>,
 }
 
-impl ScrollArea {
-    /// Create a horizontal scroll area.
-    #[inline]
-    pub fn horizontal() -> Self {
-        Self::new([true, false])
+impl<'t> WidgetWithState for TextEdit<'t> {
+    type State = TextEditState;
+}
+
+impl<'t> TextEdit<'t> {
+    pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
+        TextEditState::load(ctx, id)
     }
 
-    /// Create a vertical scroll area.
-    #[inline]
-    pub fn vertical() -> Self {
-        Self::new([false, true])
+    pub fn store_state(ctx: &Context, id: Id, state: TextEditState) {
+        state.store(ctx, id);
     }
+}
 
-    /// Create a bi-directional (horizontal and vertical) scroll area.
-    #[inline]
-    pub fn both() -> Self {
-        Self::new([true, true])
-    }
-
-    /// Create a scroll area where both direction of scrolling is disabled.
-    /// It's unclear why you would want to do this.
-    #[inline]
-    pub fn neither() -> Self {
-        Self::new([false, false])
-    }
-
-    /// Create a scroll area where you decide which axis has scrolling enabled.
-    /// For instance, `ScrollArea::new([true, false])` enables horizontal scrolling.
-    pub fn new(scroll_enabled: impl Into<Vec2b>) -> Self {
+impl<'t> TextEdit<'t> {
+    /// No newlines (`\n`) allowed. Pressing enter key will result in the [`TextEdit`] losing focus (`response.lost_focus`).
+    pub fn singleline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
-            scroll_enabled: scroll_enabled.into(),
-            auto_shrink: Vec2b::TRUE,
-            max_size: Vec2::INFINITY,
-            min_scrolled_size: Vec2::splat(64.0),
-            scroll_bar_visibility: Default::default(),
-            id_source: None,
-            offset_x: None,
-            offset_y: None,
-            scrolling_enabled: true,
-            drag_to_scroll: true,
-            stick_to_end: Vec2b::FALSE,
-            animated: true,
+            desired_height_rows: 1,
+            multiline: false,
+            clip_text: true,
+            ..Self::multiline(text)
         }
     }
 
-    /// The maximum width of the outer frame of the scroll area.
-    ///
-    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding [`Ui`] (default).
-    ///
-    /// See also [`Self::auto_shrink`].
+    /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line by default (can be changed with [`return_key`](TextEdit::return_key)).
+    pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
+        Self {
+            text,
+            hint_text: Default::default(),
+            hint_text_font: None,
+            id: None,
+            id_source: None,
+            font_selection: Default::default(),
+            text_color: None,
+            layouter: None,
+            password: false,
+            frame: true,
+            margin: Margin::symmetric(4.0, 2.0),
+            multiline: true,
+            interactive: true,
+            desired_width: None,
+            desired_height_rows: 4,
+            event_filter: EventFilter {
+                // moving the cursor is really important
+                horizontal_arrows: true,
+                vertical_arrows: true,
+                tab: false, // tab is used to change focus, not to insert a tab character
+                ..Default::default()
+            },
+            cursor_at_end: true,
+            min_size: Vec2::ZERO,
+            align: Align2::LEFT_TOP,
+            clip_text: false,
+            char_limit: usize::MAX,
+            return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
+        }
+    }
+
+    /// Build a [`TextEdit`] focused on code editing.
+    /// By default it comes with:
+    /// - monospaced font
+    /// - focus lock (tab will insert a tab character instead of moving focus)
+    pub fn code_editor(self) -> Self {
+        self.font(TextStyle::Monospace).lock_focus(true)
+    }
+
+    /// Use if you want to set an explicit [`Id`] for this widget.
     #[inline]
-    pub fn max_width(mut self, max_width: f32) -> Self {
-        self.max_size.x = max_width;
+    pub fn id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 
-    /// The maximum height of the outer frame of the scroll area.
-    ///
-    /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding [`Ui`] (default).
-    ///
-    /// See also [`Self::auto_shrink`].
-    #[inline]
-    pub fn max_height(mut self, max_height: f32) -> Self {
-        self.max_size.y = max_height;
-        self
-    }
-
-    /// The minimum width of a horizontal scroll area which requires scroll bars.
-    ///
-    /// The [`ScrollArea`] will only become smaller than this if the content is smaller than this
-    /// (and so we don't require scroll bars).
-    ///
-    /// Default: `64.0`.
-    #[inline]
-    pub fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
-        self.min_scrolled_size.x = min_scrolled_width;
-        self
-    }
-
-    /// The minimum height of a vertical scroll area which requires scroll bars.
-    ///
-    /// The [`ScrollArea`] will only become smaller than this if the content is smaller than this
-    /// (and so we don't require scroll bars).
-    ///
-    /// Default: `64.0`.
-    #[inline]
-    pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
-        self.min_scrolled_size.y = min_scrolled_height;
-        self
-    }
-
-    /// Set the visibility of both horizontal and vertical scroll bars.
-    ///
-    /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
-    #[inline]
-    pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
-        self.scroll_bar_visibility = scroll_bar_visibility;
-        self
-    }
-
-    /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
+    /// A source for the unique [`Id`], e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
     #[inline]
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
     }
 
-    /// Set the horizontal and vertical scroll offset position.
+    /// Show a faint hint text when the text field is empty.
     ///
-    /// Positive offset means scrolling down/right.
-    ///
-    /// See also: [`Self::vertical_scroll_offset`], [`Self::horizontal_scroll_offset`],
-    /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
-    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    /// If the hint text needs to be persisted even when the text field has input,
+    /// the following workaround can be used:
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_string = String::new();
+    /// # use egui::{ Color32, FontId };
+    /// let text_edit = egui::TextEdit::multiline(&mut my_string)
+    ///     .desired_width(f32::INFINITY);
+    /// let output = text_edit.show(ui);
+    /// let painter = ui.painter_at(output.response.rect);
+    /// let text_color = Color32::from_rgba_premultiplied(100, 100, 100, 100);
+    /// let galley = painter.layout(
+    ///     String::from("Enter text"),
+    ///     FontId::default(),
+    ///     text_color,
+    ///     f32::INFINITY
+    /// );
+    /// painter.galley(output.galley_pos, galley, text_color);
+    /// # });
+    /// ```
     #[inline]
-    pub fn scroll_offset(mut self, offset: Vec2) -> Self {
-        self.offset_x = Some(offset.x);
-        self.offset_y = Some(offset.y);
+    pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
+        self.hint_text = hint_text.into();
         self
     }
 
-    /// Set the vertical scroll offset position.
-    ///
-    /// Positive offset means scrolling down.
-    ///
-    /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
-    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    /// Set a specific style for the hint text.
     #[inline]
-    pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
-        self.offset_y = Some(offset);
+    pub fn hint_text_font(mut self, hint_text_font: impl Into<FontSelection>) -> Self {
+        self.hint_text_font = Some(hint_text_font.into());
         self
     }
 
-    /// Set the horizontal scroll offset position.
-    ///
-    /// Positive offset means scrolling right.
-    ///
-    /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
-    /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    /// If true, hide the letters from view and prevent copying from the field.
     #[inline]
-    pub fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
-        self.offset_x = Some(offset);
+    pub fn password(mut self, password: bool) -> Self {
+        self.password = password;
         self
     }
 
-    /// Turn on/off scrolling on the horizontal axis.
+    /// Pick a [`FontId`] or [`TextStyle`].
     #[inline]
-    pub fn hscroll(mut self, hscroll: bool) -> Self {
-        self.scroll_enabled[0] = hscroll;
+    pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
+        self.font_selection = font_selection.into();
         self
     }
 
-    /// Turn on/off scrolling on the vertical axis.
     #[inline]
-    pub fn vscroll(mut self, vscroll: bool) -> Self {
-        self.scroll_enabled[1] = vscroll;
+    pub fn text_color(mut self, text_color: Color32) -> Self {
+        self.text_color = Some(text_color);
         self
     }
 
-    /// Turn on/off scrolling on the horizontal/vertical axes.
-    ///
-    /// You can pass in `false`, `true`, `[false, true]` etc.
     #[inline]
-    pub fn scroll(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
-        self.scroll_enabled = scroll_enabled.into();
+    pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
+        self.text_color = text_color;
         self
     }
 
-    /// Turn on/off scrolling on the horizontal/vertical axes.
-    #[deprecated = "Renamed to `scroll`"]
-    #[inline]
-    pub fn scroll2(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
-        self.scroll_enabled = scroll_enabled.into();
-        self
-    }
-
-    /// Control the scrolling behavior.
+    /// Override how text is being shown inside the [`TextEdit`].
     ///
-    /// * If `true` (default), the scroll area will respond to user scrolling.
-    /// * If `false`, the scroll area will not respond to user scrolling.
+    /// This can be used to implement things like syntax highlighting.
     ///
-    /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is typing text in a [`TextEdit`] widget contained within the scroll area.
+    /// This function will be called at least once per frame,
+    /// so it is strongly suggested that you cache the results of any syntax highlighter
+    /// so as not to waste CPU highlighting the same string every frame.
     ///
-    /// This controls both scrolling directions.
-    #[inline]
-    pub fn enable_scrolling(mut self, enable: bool) -> Self {
-        self.scrolling_enabled = enable;
-        self
-    }
-
-    /// Can the user drag the scroll area to scroll?
-    ///
-    /// This is useful for touch screens.
-    ///
-    /// If `true`, the [`ScrollArea`] will sense drags.
-    ///
-    /// Default: `true`.
-    #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
-        self.drag_to_scroll = drag_to_scroll;
-        self
-    }
-
-    /// For each axis, should the containing area shrink if the content is small?
-    ///
-    /// * If `true`, egui will add blank space outside the scroll area.
-    /// * If `false`, egui will add blank space inside the scroll area.
-    ///
-    /// Default: `true`.
-    #[inline]
-    pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
-        self.auto_shrink = auto_shrink.into();
-        self
-    }
-
-    /// Should the scroll area animate `scroll_to_*` functions?
-    ///
-    /// Default: `true`.
-    #[inline]
-    pub fn animated(mut self, animated: bool) -> Self {
-        self.animated = animated;
-        self
-    }
-
-    /// Is any scrolling enabled?
-    pub(crate) fn is_any_scroll_enabled(&self) -> bool {
-        self.scroll_enabled[0] || self.scroll_enabled[1]
-    }
-
-    /// The scroll handle will stick to the rightmost position even while the content size
-    /// changes dynamically. This can be useful to simulate text scrollers coming in from right
-    /// hand side. The scroll handle remains stuck until user manually changes position. Once "unstuck"
-    /// it will remain focused on whatever content viewport the user left it on. If the scroll
-    /// handle is dragged all the way to the right it will again become stuck and remain there
-    /// until manually pulled from the end position.
-    #[inline]
-    pub fn stick_to_right(mut self, stick: bool) -> Self {
-        self.stick_to_end[0] = stick;
-        self
-    }
-
-    /// The scroll handle will stick to the bottom position even while the content size
-    /// changes dynamically. This can be useful to simulate terminal UIs or log/info scrollers.
-    /// The scroll handle remains stuck until user manually changes position. Once "unstuck"
-    /// it will remain focused on whatever content viewport the user left it on. If the scroll
-    /// handle is dragged to the bottom it will again become stuck and remain there until manually
-    /// pulled from the end position.
-    #[inline]
-    pub fn stick_to_bottom(mut self, stick: bool) -> Self {
-        self.stick_to_end[1] = stick;
-        self
-    }
-}
-
-struct Prepared {
-    id: Id,
-    state: State,
-
-    auto_shrink: Vec2b,
-
-    /// Does this `ScrollArea` have horizontal/vertical scrolling enabled?
-    scroll_enabled: Vec2b,
-
-    /// Smoothly interpolated boolean of whether or not to show the scroll bars.
-    show_bars_factor: Vec2,
-
-    /// How much horizontal and vertical space are used up by the
-    /// width of the vertical bar, and the height of the horizontal bar?
-    ///
-    /// This is always zero for floating scroll bars.
-    ///
-    /// Note that this is a `yx` swizzling of [`Self::show_bars_factor`]
-    /// times the maximum bar with.
-    /// That's because horizontal scroll uses up vertical space,
-    /// and vice versa.
-    current_bar_use: Vec2,
-
-    scroll_bar_visibility: ScrollBarVisibility,
-
-    /// Where on the screen the content is (excludes scroll bars).
-    inner_rect: Rect,
-
-    content_ui: Ui,
-
-    /// Relative coordinates: the offset and size of the view of the inner UI.
-    /// `viewport.min == ZERO` means we scrolled to the top.
-    viewport: Rect,
-
-    scrolling_enabled: bool,
-    stick_to_end: Vec2b,
-    animated: bool,
-}
-
-impl ScrollArea {
-    fn begin(self, ui: &mut Ui) -> Prepared {
-        let Self {
-            scroll_enabled,
-            auto_shrink,
-            max_size,
-            min_scrolled_size,
-            scroll_bar_visibility,
-            id_source,
-            offset_x,
-            offset_y,
-            scrolling_enabled,
-            drag_to_scroll,
-            stick_to_end,
-            animated,
-        } = self;
-
-        let ctx = ui.ctx().clone();
-        let scrolling_enabled = scrolling_enabled && ui.is_enabled();
-
-        let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
-        let id = ui.make_persistent_id(id_source);
-        ctx.check_for_id_clash(
-            id,
-            Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO),
-            "ScrollArea",
-        );
-        let mut state = State::load(&ctx, id).unwrap_or_default();
-
-        state.offset.x = offset_x.unwrap_or(state.offset.x);
-        state.offset.y = offset_y.unwrap_or(state.offset.y);
-
-        let show_bars: Vec2b = match scroll_bar_visibility {
-            ScrollBarVisibility::AlwaysHidden => Vec2b::FALSE,
-            ScrollBarVisibility::VisibleWhenNeeded => state.show_scroll,
-            ScrollBarVisibility::AlwaysVisible => scroll_enabled,
-        };
-
-        let show_bars_factor = Vec2::new(
-            ctx.animate_bool_responsive(id.with("h"), show_bars[0]),
-            ctx.animate_bool_responsive(id.with("v"), show_bars[1]),
-        );
-
-        let current_bar_use = show_bars_factor.yx() * ui.spacing().scroll.allocated_width();
-
-        let available_outer = ui.available_rect_before_wrap();
-
-        let outer_size = available_outer.size().at_most(max_size);
-
-        let inner_size = {
-            let mut inner_size = outer_size - current_bar_use;
-
-            // Don't go so far that we shrink to zero.
-            // In particular, if we put a [`ScrollArea`] inside of a [`ScrollArea`], the inner
-            // one shouldn't collapse into nothingness.
-            // See https://github.com/emilk/egui/issues/1097
-            for d in 0..2 {
-                if scroll_enabled[d] {
-                    inner_size[d] = inner_size[d].max(min_scrolled_size[d]);
-                }
-            }
-            inner_size
-        };
-
-        let inner_rect = Rect::from_min_size(available_outer.min, inner_size);
-
-        let mut content_max_size = inner_size;
-
-        if true {
-            // Tell the inner Ui to *try* to fit the content without needing to scroll,
-            // i.e. better to wrap text and shrink images than showing a horizontal scrollbar!
-        } else {
-            // Tell the inner Ui to use as much space as possible, we can scroll to see it!
-            for d in 0..2 {
-                if scroll_enabled[d] {
-                    content_max_size[d] = f32::INFINITY;
-                }
-            }
-        }
-
-        let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
-        let mut content_ui = ui.child_ui(
-            content_max_rect,
-            *ui.layout(),
-            Some(UiStackInfo::new(UiKind::ScrollArea)),
-        );
-
-        {
-            // Clip the content, but only when we really need to:
-            let clip_rect_margin = ui.visuals().clip_rect_margin;
-            let mut content_clip_rect = ui.clip_rect();
-            for d in 0..2 {
-                if scroll_enabled[d] {
-                    if state.content_is_too_large[d] {
-                        content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                        content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
-                    }
-                } else {
-                    // Nice handling of forced resizing beyond the possible:
-                    content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
-                }
-            }
-            // Make sure we didn't accidentally expand the clip rect
-            content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
-            content_ui.set_clip_rect(content_clip_rect);
-        }
-
-        let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
-        let dt = ui.input(|i| i.stable_dt).at_most(0.1);
-
-        if (scrolling_enabled && drag_to_scroll)
-            && (state.content_is_too_large[0] || state.content_is_too_large[1])
-        {
-            // Drag contents to scroll (for touch screens mostly).
-            // We must do this BEFORE adding content to the `ScrollArea`,
-            // or we will steal input from the widgets we contain.
-            let content_response_option = state
-                .interact_rect
-                .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
-
-            if content_response_option.map(|response| response.dragged()) == Some(true) {
-                for d in 0..2 {
-                    if scroll_enabled[d] {
-                        ui.input(|input| {
-                            state.offset[d] -= input.pointer.delta()[d];
-                            state.vel[d] = input.pointer.velocity()[d];
-                        });
-                        state.scroll_stuck_to_end[d] = false;
-                        state.offset_target[d] = None;
-                    } else {
-                        state.vel[d] = 0.0;
-                    }
-                }
-            } else {
-                for d in 0..2 {
-                    // Kinetic scrolling
-                    let stop_speed = 20.0; // Pixels per second.
-                    let friction_coeff = 1000.0; // Pixels per second squared.
-
-                    let friction = friction_coeff * dt;
-                    if friction > state.vel[d].abs() || state.vel[d].abs() < stop_speed {
-                        state.vel[d] = 0.0;
-                    } else {
-                        state.vel[d] -= friction * state.vel[d].signum();
-                        // Offset has an inverted coordinate system compared to
-                        // the velocity, so we subtract it instead of adding it
-                        state.offset[d] -= state.vel[d] * dt;
-                        ctx.request_repaint();
-                    }
-                }
-            }
-        }
-
-        // Scroll with an animation if we have a target offset (that hasn't been cleared by the code
-        // above).
-        for d in 0..2 {
-            if let Some(scroll_target) = state.offset_target[d] {
-                state.vel[d] = 0.0;
-
-                if (state.offset[d] - scroll_target.target_offset).abs() < 1.0 {
-                    // Arrived
-                    state.offset[d] = scroll_target.target_offset;
-                    state.offset_target[d] = None;
-                } else {
-                    // Move towards target
-                    let t = emath::interpolation_factor(
-                        scroll_target.animation_time_span,
-                        ui.input(|i| i.time),
-                        dt,
-                        emath::ease_in_ease_out,
-                    );
-                    if t < 1.0 {
-                        state.offset[d] =
-                            emath::lerp(state.offset[d]..=scroll_target.target_offset, t);
-                        ctx.request_repaint();
-                    } else {
-                        // Arrived
-                        state.offset[d] = scroll_target.target_offset;
-                        state.offset_target[d] = None;
-                    }
-                }
-            }
-        }
-
-        Prepared {
-            id,
-            state,
-            auto_shrink,
-            scroll_enabled,
-            show_bars_factor,
-            current_bar_use,
-            scroll_bar_visibility,
-            inner_rect,
-            content_ui,
-            viewport,
-            scrolling_enabled,
-            stick_to_end,
-            animated,
-        }
-    }
-
-    /// Show the [`ScrollArea`], and add the contents to the viewport.
-    ///
-    /// If the inner area can be very long, consider using [`Self::show_rows`] instead.
-    pub fn show<R>(
-        self,
-        ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> ScrollAreaOutput<R> {
-        self.show_viewport_dyn(ui, Box::new(|ui, _viewport| add_contents(ui)))
-    }
-
-    /// Efficiently show only the visible part of a large number of rows.
+    /// The arguments is the enclosing [`Ui`] (so you can access e.g. [`Ui::fonts`]),
+    /// the text and the wrap width.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// let text_style = egui::TextStyle::Body;
-    /// let row_height = ui.text_style_height(&text_style);
-    /// // let row_height = ui.spacing().interact_size.y; // if you are adding buttons instead of labels.
-    /// let total_rows = 10_000;
-    /// egui::ScrollArea::vertical().show_rows(ui, row_height, total_rows, |ui, row_range| {
-    ///     for row in row_range {
-    ///         let text = format!("Row {}/{}", row + 1, total_rows);
-    ///         ui.label(text);
-    ///     }
-    /// });
+    /// # let mut my_code = String::new();
+    /// # fn my_memoized_highlighter(s: &str) -> egui::text::LayoutJob { Default::default() }
+    /// let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+    ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(string);
+    ///     layout_job.wrap.max_width = wrap_width;
+    ///     ui.fonts(|f| f.layout_job(layout_job))
+    /// };
+    /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });
     /// ```
-    pub fn show_rows<R>(
-        self,
-        ui: &mut Ui,
-        row_height_sans_spacing: f32,
-        total_rows: usize,
-        add_contents: impl FnOnce(&mut Ui, std::ops::Range<usize>) -> R,
-    ) -> ScrollAreaOutput<R> {
-        let spacing = ui.spacing().item_spacing;
-        let row_height_with_spacing = row_height_sans_spacing + spacing.y;
-        self.show_viewport(ui, |ui, viewport| {
-            ui.set_height((row_height_with_spacing * total_rows as f32 - spacing.y).at_least(0.0));
+    #[inline]
+    pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
+        self.layouter = Some(layouter);
 
-            let mut min_row = (viewport.min.y / row_height_with_spacing).floor() as usize;
-            let mut max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
-            if max_row > total_rows {
-                let diff = max_row.saturating_sub(min_row);
-                max_row = total_rows;
-                min_row = total_rows.saturating_sub(diff);
+        self
+    }
+
+    /// Default is `true`. If set to `false` then you cannot interact with the text (neither edit or select it).
+    ///
+    /// Consider using [`Ui::add_enabled`] instead to also give the [`TextEdit`] a greyed out look.
+    #[inline]
+    pub fn interactive(mut self, interactive: bool) -> Self {
+        self.interactive = interactive;
+        self
+    }
+
+    /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
+    #[inline]
+    pub fn frame(mut self, frame: bool) -> Self {
+        self.frame = frame;
+        self
+    }
+
+    /// Set margin of text. Default is `Margin::symmetric(4.0, 2.0)`
+    #[inline]
+    pub fn margin(mut self, margin: impl Into<Margin>) -> Self {
+        self.margin = margin.into();
+        self
+    }
+
+    /// Set to 0.0 to keep as small as possible.
+    /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
+    #[inline]
+    pub fn desired_width(mut self, desired_width: f32) -> Self {
+        self.desired_width = Some(desired_width);
+        self
+    }
+
+    /// Set the number of rows to show by default.
+    /// The default for singleline text is `1`.
+    /// The default for multiline text is `4`.
+    #[inline]
+    pub fn desired_rows(mut self, desired_height_rows: usize) -> Self {
+        self.desired_height_rows = desired_height_rows;
+        self
+    }
+
+    /// When `false` (default), pressing TAB will move focus
+    /// to the next widget.
+    ///
+    /// When `true`, the widget will keep the focus and pressing TAB
+    /// will insert the `'\t'` character.
+    #[inline]
+    pub fn lock_focus(mut self, tab_will_indent: bool) -> Self {
+        self.event_filter.tab = tab_will_indent;
+        self
+    }
+
+    /// When `true` (default), the cursor will initially be placed at the end of the text.
+    ///
+    /// When `false`, the cursor will initially be placed at the beginning of the text.
+    #[inline]
+    pub fn cursor_at_end(mut self, b: bool) -> Self {
+        self.cursor_at_end = b;
+        self
+    }
+
+    /// When `true` (default), overflowing text will be clipped.
+    ///
+    /// When `false`, widget width will expand to make all text visible.
+    ///
+    /// This only works for singleline [`TextEdit`].
+    #[inline]
+    pub fn clip_text(mut self, b: bool) -> Self {
+        // always show everything in multiline
+        if !self.multiline {
+            self.clip_text = b;
+        }
+        self
+    }
+
+    /// Sets the limit for the amount of characters can be entered
+    ///
+    /// This only works for singleline [`TextEdit`]
+    #[inline]
+    pub fn char_limit(mut self, limit: usize) -> Self {
+        self.char_limit = limit;
+        self
+    }
+
+    /// Set the horizontal align of the inner text.
+    #[inline]
+    pub fn horizontal_align(mut self, align: Align) -> Self {
+        self.align.0[0] = align;
+        self
+    }
+
+    /// Set the vertical align of the inner text.
+    #[inline]
+    pub fn vertical_align(mut self, align: Align) -> Self {
+        self.align.0[1] = align;
+        self
+    }
+
+    /// Set the minimum size of the [`TextEdit`].
+    #[inline]
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
+        self
+    }
+
+    /// Set the return key combination.
+    ///
+    /// This combination will cause a newline on multiline,
+    /// whereas on singleline it will cause the widget to lose focus.
+    ///
+    /// This combination is optional and can be disabled by passing [`None`] into this function.
+    #[inline]
+    pub fn return_key(mut self, return_key: impl Into<Option<KeyboardShortcut>>) -> Self {
+        self.return_key = return_key.into();
+        self
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+impl<'t> Widget for TextEdit<'t> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        self.show(ui).response
+    }
+}
+
+impl<'t> TextEdit<'t> {
+    /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_string = String::new();
+    /// let output = egui::TextEdit::singleline(&mut my_string).show(ui);
+    /// if let Some(text_cursor_range) = output.cursor_range {
+    ///     use egui::TextBuffer as _;
+    ///     let selected_chars = text_cursor_range.as_sorted_char_range();
+    ///     let selected_text = my_string.char_range(selected_chars);
+    ///     ui.label("Selected text: ");
+    ///     ui.monospace(selected_text);
+    /// }
+    /// # });
+    /// ```
+    pub fn show(self, ui: &mut Ui) -> TextEditOutput {
+        let is_mutable = self.text.is_mutable();
+        let frame = self.frame;
+        let where_to_put_background = ui.painter().add(Shape::Noop);
+
+        let margin = self.margin;
+        let mut output = self.show_content(ui);
+
+        // TODO(emilk): return full outer_rect in `TextEditOutput`.
+        // Can't do it now because this fix is ging into a patch release.
+        let outer_rect = output.response.rect;
+        let inner_rect = outer_rect - margin;
+        output.response.rect = inner_rect;
+
+        if frame {
+            let visuals = ui.style().interact(&output.response);
+            let frame_rect = outer_rect.expand(visuals.expansion);
+            let shape = if is_mutable {
+                if output.response.has_focus() {
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        ui.visuals().selection.stroke,
+                    )
+                } else {
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        ui.visuals().widgets.noninteractive.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    )
+                }
+            } else {
+                let visuals = &ui.style().visuals.widgets.inactive;
+                epaint::RectShape::stroke(
+                    frame_rect,
+                    visuals.rounding,
+                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                )
+            };
+
+            ui.painter().set(where_to_put_background, shape);
+        }
+
+        output
+    }
+
+    fn show_content(self, ui: &mut Ui) -> TextEditOutput {
+        let TextEdit {
+            text,
+            hint_text,
+            hint_text_font,
+            id,
+            id_source,
+            font_selection,
+            text_color,
+            layouter,
+            password,
+            frame: _,
+            margin,
+            multiline,
+            interactive,
+            desired_width,
+            desired_height_rows,
+            event_filter,
+            cursor_at_end,
+            min_size,
+            align,
+            clip_text,
+            char_limit,
+            return_key,
+        } = self;
+
+        let text_color = text_color
+            .or(ui.visuals().override_text_color)
+            // .unwrap_or_else(|| ui.style().interact(&response).text_color()); // too bright
+            .unwrap_or_else(|| ui.visuals().widgets.inactive.text_color());
+
+        let prev_text = text.as_str().to_owned();
+
+        let font_id = font_selection.resolve(ui.style());
+        let row_height = ui.fonts(|f| f.row_height(&font_id));
+        const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
+        let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
+        let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
+        let wrap_width = if ui.layout().horizontal_justify() {
+            available_width
+        } else {
+            desired_width.min(available_width)
+        };
+
+        let font_id_clone = font_id.clone();
+        let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
+            let text = mask_if_password(password, text);
+            let layout_job = if multiline {
+                LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
+            } else {
+                LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
+            };
+            ui.fonts(|f| f.layout_job(layout_job))
+        };
+
+        let layouter = layouter.unwrap_or(&mut default_layouter);
+
+        let mut galley = layouter(ui, text.as_str(), wrap_width);
+
+        let desired_width = if clip_text {
+            wrap_width // visual clipping with scroll in singleline input.
+        } else {
+            galley.size().x.max(wrap_width)
+        };
+        let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
+        let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
+        let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
+        let rect = outer_rect - margin; // inner rect (excluding frame/margin).
+
+        let id = id.unwrap_or_else(|| {
+            if let Some(id_source) = id_source {
+                ui.make_persistent_id(id_source)
+            } else {
+                auto_id // Since we are only storing the cursor a persistent Id is not super important
+            }
+        });
+        let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
+
+        if !ui.input(|i| i.focused) {
+            ui.memory_mut(|mem| mem.surrender_focus(id));
+        }
+
+        // On touch screens (e.g. mobile in `eframe` web), should
+        // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
+        // Since currently copying selected text in not supported on `eframe` web,
+        // we prioritize touch-scrolling:
+        let allow_drag_to_select =
+            ui.input(|i| !i.has_touch_screen()) || ui.memory(|mem| mem.has_focus(id));
+
+        let sense = if interactive {
+            if allow_drag_to_select {
+                Sense::click_and_drag()
+            } else {
+                Sense::click()
+            }
+        } else {
+            Sense::hover()
+        };
+        let mut response = ui.interact(outer_rect, id, sense);
+
+        response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
+
+        let text_clip_rect = rect;
+        let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
+
+        if interactive {
+            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+                if response.hovered() && text.is_mutable() {
+                    ui.output_mut(|o| o.mutable_text_under_cursor = true);
+                }
+
+                // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
+
+                let singleline_offset = vec2(state.singleline_offset, 0.0);
+                let cursor_at_pointer =
+                    galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
+
+                if ui.visuals().text_cursor.preview
+                    && response.hovered()
+                    && ui.input(|i| i.pointer.is_moving())
+                {
+                    // text cursor preview:
+                    let cursor_rect =
+                        cursor_rect(rect.min, &galley, &cursor_at_pointer, row_height);
+                    text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
+                }
+
+                let mut did_interact = false;
+                if response.has_focus() {
+                    let is_being_dragged = ui.ctx().is_being_dragged(response.id);
+                    did_interact = state.cursor.pointer_interaction(
+                        ui,
+                        &response,
+                        cursor_at_pointer,
+                        &galley,
+                        is_being_dragged,
+                    );
+                } else if response.is_pointer_button_down_on() {
+                    did_interact = true;
+                }
+
+                if did_interact {
+                    ui.memory_mut(|mem| mem.request_focus(response.id));
+                }
+            }
+        }
+
+        if interactive && response.hovered() {
+            ui.ctx().set_cursor_icon(CursorIcon::Text);
+        }
+
+        let mut cursor_range = None;
+        let prev_cursor_range = state.cursor.range(&galley);
+        if interactive && ui.memory(|mem| mem.has_focus(id)) {
+            ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
+
+            let default_cursor_range = if cursor_at_end {
+                CursorRange::one(galley.end())
+            } else {
+                CursorRange::default()
+            };
+
+            let (changed, new_cursor_range) = events(
+                ui,
+                &mut state,
+                text,
+                &mut galley,
+                layouter,
+                id,
+                wrap_width,
+                multiline,
+                password,
+                default_cursor_range,
+                char_limit,
+                event_filter,
+                return_key,
+            );
+
+            if changed {
+                response.mark_changed();
+            }
+            cursor_range = Some(new_cursor_range);
+        }
+
+        let mut galley_pos = align
+            .align_size_within_rect(galley.size(), rect)
+            .intersect(rect) // limit pos to the response rect area
+            .min;
+        let align_offset = rect.left() - galley_pos.x;
+
+        // Visual clipping for singleline text editor with text larger than width
+        if clip_text && align_offset == 0.0 {
+            let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
+                (Some(cursor_range), true) => galley.pos_from_cursor(&cursor_range.primary).min.x,
+                _ => 0.0,
+            };
+
+            let mut offset_x = state.singleline_offset;
+            let visible_range = offset_x..=offset_x + desired_inner_size.x;
+
+            if !visible_range.contains(&cursor_pos) {
+                if cursor_pos < *visible_range.start() {
+                    offset_x = cursor_pos;
+                } else {
+                    offset_x = cursor_pos - desired_inner_size.x;
+                }
             }
 
-            let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
-            let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
+            offset_x = offset_x
+                .at_most(galley.size().x - desired_inner_size.x)
+                .at_least(0.0);
 
-            let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
+            state.singleline_offset = offset_x;
+            galley_pos -= vec2(offset_x, 0.0);
+        } else {
+            state.singleline_offset = align_offset;
+        }
 
-            ui.allocate_ui_at_rect(rect, |viewport_ui| {
-                viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
-                add_contents(viewport_ui, min_row..max_row)
-            })
-            .inner
-        })
-    }
+        let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
+            (cursor_range, prev_cursor_range)
+        {
+            prev_cursor_range.as_ccursor_range() != cursor_range.as_ccursor_range()
+        } else {
+            false
+        };
 
-    /// This can be used to only paint the visible part of the contents.
-    ///
-    /// `add_contents` is given the viewport rectangle, which is the relative view of the content.
-    /// So if the passed rect has min = zero, then show the top left content (the user has not scrolled).
-    pub fn show_viewport<R>(
-        self,
-        ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui, Rect) -> R,
-    ) -> ScrollAreaOutput<R> {
-        self.show_viewport_dyn(ui, Box::new(add_contents))
-    }
+        if ui.is_rect_visible(rect) {
+            painter.galley(galley_pos, galley.clone(), text_color);
 
-    fn show_viewport_dyn<'c, R>(
-        self,
-        ui: &mut Ui,
-        add_contents: Box<dyn FnOnce(&mut Ui, Rect) -> R + 'c>,
-    ) -> ScrollAreaOutput<R> {
-        let mut prepared = self.begin(ui);
-        let id = prepared.id;
-        let inner_rect = prepared.inner_rect;
-        let inner = add_contents(&mut prepared.content_ui, prepared.viewport);
-        let (content_size, state) = prepared.end(ui);
-        ScrollAreaOutput {
-            inner,
-            id,
+            if text.as_str().is_empty() && !hint_text.is_empty() {
+                let hint_text_color = ui.visuals().weak_text_color();
+                let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
+                let galley = if multiline {
+                    hint_text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Wrap),
+                        desired_inner_size.x,
+                        hint_text_font_id,
+                    )
+                } else {
+                    hint_text.into_galley(
+                        ui,
+                        Some(TextWrapMode::Extend),
+                        f32::INFINITY,
+                        hint_text_font_id,
+                    )
+                };
+                let galley_pos = align
+                    .align_size_within_rect(galley.size(), rect)
+                    .intersect(rect)
+                    .min;
+                painter.galley(galley_pos, galley, hint_text_color);
+            }
+
+            if ui.memory(|mem| mem.has_focus(id)) {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
+                    // We paint the cursor on top of the text, in case
+                    // the text galley has backgrounds (as e.g. `code` snippets in markup do).
+                    paint_text_selection(
+                        &painter,
+                        ui.visuals(),
+                        galley_pos,
+                        &galley,
+                        &cursor_range,
+                        None,
+                    );
+
+                    let primary_cursor_rect =
+                        cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
+
+                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO(emilk): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+                    if (response.changed || selection_changed) && !is_fully_visible {
+                        // Scroll to keep primary cursor in view:
+                        ui.scroll_to_rect(primary_cursor_rect, None);
+                    }
+
+                    if text.is_mutable() && interactive {
+                        let now = ui.ctx().input(|i| i.time);
+                        if response.changed || selection_changed {
+                            state.last_edit_time = now;
+                        }
+
+                        // Only show (and blink) cursor if the egui viewport has focus.
+                        // This is for two reasons:
+                        // * Don't give the impression that the user can type into a window without focus
+                        // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
+                        if ui.ctx().input(|i| i.focused) {
+                            text_selection::visuals::paint_text_cursor(
+                                ui,
+                                &painter,
+                                primary_cursor_rect,
+                                now - state.last_edit_time,
+                            );
+                        }
+
+                        // Set IME output (in screen coords) when text is editable and visible
+                        let transform = ui
+                            .memory(|m| m.layer_transforms.get(&ui.layer_id()).copied())
+                            .unwrap_or_default();
+
+                        ui.ctx().output_mut(|o| {
+                            o.ime = Some(crate::output::IMEOutput {
+                                rect: transform * rect,
+                                cursor_rect: transform * primary_cursor_rect,
+                            });
+                        });
+                    }
+                }
+            }
+        }
+
+        if state.ime_enabled && response.lost_focus() {
+            state.ime_enabled = false;
+        }
+
+        state.clone().store(ui.ctx(), id);
+
+        if response.changed {
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    ui.is_enabled(),
+                    mask_if_password(password, prev_text.as_str()),
+                    mask_if_password(password, text.as_str()),
+                )
+            });
+        } else if selection_changed {
+            let cursor_range = cursor_range.unwrap_or_default();
+            let char_range =
+                cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
+            let info = WidgetInfo::text_selection_changed(
+                ui.is_enabled(),
+                char_range,
+                mask_if_password(password, text.as_str()),
+            );
+            response.output_event(OutputEvent::TextSelectionChanged(info));
+        } else {
+            response.widget_info(|| {
+                WidgetInfo::text_edit(
+                    ui.is_enabled(),
+                    mask_if_password(password, prev_text.as_str()),
+                    mask_if_password(password, text.as_str()),
+                )
+            });
+        }
+
+        #[cfg(feature = "accesskit")]
+        {
+            let role = if password {
+                accesskit::Role::PasswordInput
+            } else if multiline {
+                accesskit::Role::MultilineTextInput
+            } else {
+                accesskit::Role::TextInput
+            };
+
+            crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
+                ui.ctx(),
+                id,
+                cursor_range,
+                role,
+                galley_pos,
+                &galley,
+            );
+        }
+
+        TextEditOutput {
+            response,
+            galley,
+            galley_pos,
+            text_clip_rect,
             state,
-            content_size,
-            inner_rect,
+            cursor_range,
         }
     }
 }
 
-impl Prepared {
-    /// Returns content size and state
-    fn end(self, ui: &mut Ui) -> (Vec2, State) {
-        let Self {
-            id,
-            mut state,
-            inner_rect,
-            auto_shrink,
-            scroll_enabled,
-            mut show_bars_factor,
-            current_bar_use,
-            scroll_bar_visibility,
-            content_ui,
-            viewport: _,
-            scrolling_enabled,
-            stick_to_end,
-            animated,
-        } = self;
+fn mask_if_password(is_password: bool, text: &str) -> String {
+    fn mask_password(text: &str) -> String {
+        std::iter::repeat(epaint::text::PASSWORD_REPLACEMENT_CHAR)
+            .take(text.chars().count())
+            .collect::<String>()
+    }
 
-        let content_size = content_ui.min_size();
+    if is_password {
+        mask_password(text)
+    } else {
+        text.to_owned()
+    }
+}
 
-        for d in 0..2 {
-            // We always take both scroll targets regardless of which scroll axes are enabled. This
-            // is to avoid them leaking to other scroll areas.
-            let scroll_target = content_ui
-                .ctx()
-                .frame_state_mut(|state| state.scroll_target[d].take());
+// ----------------------------------------------------------------------------
 
-            if scroll_enabled[d] {
-                let scroll_delta_0 = content_ui
-                    .ctx()
-                    .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta.0[d]));
-                let scroll_delta_1 = content_ui
-                    .ctx()
-                    .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta.1));
+/// Check for (keyboard) events to edit the cursor and/or text.
+#[allow(clippy::too_many_arguments)]
+fn events(
+    ui: &crate::Ui,
+    state: &mut TextEditState,
+    text: &mut dyn TextBuffer,
+    galley: &mut Arc<Galley>,
+    layouter: &mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>,
+    id: Id,
+    wrap_width: f32,
+    multiline: bool,
+    password: bool,
+    default_cursor_range: CursorRange,
+    char_limit: usize,
+    event_filter: EventFilter,
+    return_key: Option<KeyboardShortcut>,
+) -> (bool, CursorRange) {
+    let os = ui.ctx().os();
 
-                // FrameState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
-                let mut delta = -scroll_delta_0;
-                let mut animation = scroll_delta_1;
+    let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
 
-                if let Some(target) = scroll_target {
-                    let frame_state::ScrollTarget {
-                        range,
-                        align,
-                        animation: animation_update,
-                    } = target;
-                    let min = content_ui.min_rect().min[d];
-                    let clip_rect = content_ui.clip_rect();
-                    let visible_range = min..=min + clip_rect.size()[d];
-                    let (start, end) = (range.min, range.max);
-                    let clip_start = clip_rect.min[d];
-                    let clip_end = clip_rect.max[d];
-                    let mut spacing = ui.spacing().item_spacing[d];
+    // We feed state to the undoer both before and after handling input
+    // so that the undoer creates automatic saves even when there are no events for a while.
+    state.undoer.lock().feed_state(
+        ui.input(|i| i.time),
+        &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
+    );
 
-                    let delta_update = if let Some(align) = align {
-                        let center_factor = align.to_factor();
+    let copy_if_not_password = |ui: &Ui, text: String| {
+        if !password {
+            ui.ctx().copy_text(text);
+        }
+    };
 
-                        let offset =
-                            lerp(range, center_factor) - lerp(visible_range, center_factor);
+    let mut any_change = false;
 
-                        // Depending on the alignment we need to add or subtract the spacing
-                        spacing *= remap(center_factor, 0.0..=1.0, -1.0..=1.0);
+    let mut events = ui.input(|i| i.filtered_events(&event_filter));
 
-                        offset + spacing - state.offset[d]
-                    } else if start < clip_start && end < clip_end {
-                        -(clip_start - start + spacing).min(clip_end - end - spacing)
-                    } else if end > clip_end && start > clip_start {
-                        (end - clip_end + spacing).min(start - clip_start - spacing)
-                    } else {
-                        // Ui is already in view, no need to adjust scroll.
-                        0.0
-                    };
+    if state.ime_enabled {
+        remove_ime_incompatible_events(&mut events);
+        // Process IME events first:
+        events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
+    }
 
-                    delta += delta_update;
-                    animation = animation_update;
-                };
+    for event in &events {
+        let did_mutate_text = match event {
+            // First handle events that only changes the selection cursor, not the text:
+            event if cursor_range.on_event(os, event, galley, id) => None,
 
-                if delta != 0.0 {
-                    let target_offset = state.offset[d] + delta;
-
-                    if !animated {
-                        state.offset[d] = target_offset;
-                    } else if let Some(animation) = &mut state.offset_target[d] {
-                        // For instance: the user is continuously calling `ui.scroll_to_cursor`,
-                        // so we don't want to reset the animation, but perhaps update the target:
-                        animation.target_offset = target_offset;
-                    } else {
-                        // The further we scroll, the more time we take.
-                        let now = ui.input(|i| i.time);
-                        let animation_duration = (delta.abs() / animation.points_per_second)
-                            .clamp(animation.duration.min, animation.duration.max);
-                        state.offset_target[d] = Some(ScrollingToTarget {
-                            animation_time_span: (now, now + animation_duration as f64),
-                            target_offset,
-                        });
-                    }
-                    ui.ctx().request_repaint();
+            Event::Copy => {
+                if cursor_range.is_empty() {
+                    copy_if_not_password(ui, text.as_str().to_owned());
+                } else {
+                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
+                }
+                None
+            }
+            Event::Cut => {
+                if cursor_range.is_empty() {
+                    copy_if_not_password(ui, text.take());
+                    Some(CCursorRange::default())
+                } else {
+                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
+                    Some(CCursorRange::one(text.delete_selected(&cursor_range)))
                 }
             }
-        }
+            Event::Paste(text_to_insert) => {
+                if !text_to_insert.is_empty() {
+                    let mut ccursor = text.delete_selected(&cursor_range);
 
-        let inner_rect = {
-            // At this point this is the available size for the inner rect.
-            let mut inner_size = inner_rect.size();
+                    text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
 
-            for d in 0..2 {
-                inner_size[d] = match (scroll_enabled[d], auto_shrink[d]) {
-                    (true, true) => inner_size[d].min(content_size[d]), // shrink scroll area if content is small
-                    (true, false) => inner_size[d], // let scroll area be larger than content; fill with blank space
-                    (false, true) => content_size[d], // Follow the content (expand/contract to fit it).
-                    (false, false) => inner_size[d].max(content_size[d]), // Expand to fit content
-                };
+                    Some(CCursorRange::one(ccursor))
+                } else {
+                    None
+                }
+            }
+            Event::Text(text_to_insert) => {
+                // Newlines are handled by `Key::Enter`.
+                if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
+                    let mut ccursor = text.delete_selected(&cursor_range);
+
+                    text.insert_text_at(&mut ccursor, text_to_insert, char_limit);
+
+                    Some(CCursorRange::one(ccursor))
+                } else {
+                    None
+                }
+            }
+            Event::Key {
+                key: Key::Tab,
+                pressed: true,
+                modifiers,
+                ..
+            } if multiline => {
+                let mut ccursor = text.delete_selected(&cursor_range);
+                if modifiers.shift {
+                    // TODO(emilk): support removing indentation over a selection?
+                    text.decrease_indentation(&mut ccursor);
+                } else {
+                    text.insert_text_at(&mut ccursor, "\t", char_limit);
+                }
+                Some(CCursorRange::one(ccursor))
+            }
+            Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } if return_key.is_some_and(|return_key| {
+                *key == return_key.logical_key && modifiers.matches_logically(return_key.modifiers)
+            }) =>
+            {
+                if multiline {
+                    let mut ccursor = text.delete_selected(&cursor_range);
+                    text.insert_text_at(&mut ccursor, "\n", char_limit);
+                    // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
+                    Some(CCursorRange::one(ccursor))
+                } else {
+                    ui.memory_mut(|mem| mem.surrender_focus(id)); // End input with enter
+                    break;
+                }
+            }
+            Event::Key {
+                key: Key::Z,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.matches_logically(Modifiers::COMMAND) => {
+                if let Some((undo_ccursor_range, undo_txt)) = state
+                    .undoer
+                    .lock()
+                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace_with(undo_txt);
+                    Some(*undo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+            Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } if (modifiers.matches_logically(Modifiers::COMMAND) && *key == Key::Y)
+                || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
+                    && *key == Key::Z) =>
+            {
+                if let Some((redo_ccursor_range, redo_txt)) = state
+                    .undoer
+                    .lock()
+                    .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace_with(redo_txt);
+                    Some(*redo_ccursor_range)
+                } else {
+                    None
+                }
             }
 
-            Rect::from_min_size(inner_rect.min, inner_size)
+            Event::Key {
+                modifiers,
+                key,
+                pressed: true,
+                ..
+            } => check_for_mutating_key_press(os, &cursor_range, text, galley, modifiers, *key),
+
+            Event::Ime(ime_event) => match ime_event {
+                ImeEvent::Enabled => {
+                    state.ime_enabled = true;
+                    state.ime_cursor_range = cursor_range;
+                    None
+                }
+                ImeEvent::Preedit(text_mark) => {
+                    if text_mark == "\n" || text_mark == "\r" {
+                        None
+                    } else {
+                        // Empty prediction can be produced when user press backspace
+                        // or escape during IME, so we clear current text.
+                        let mut ccursor = text.delete_selected(&cursor_range);
+                        let start_cursor = ccursor;
+                        if !text_mark.is_empty() {
+                            text.insert_text_at(&mut ccursor, text_mark, char_limit);
+                        }
+                        state.ime_cursor_range = cursor_range;
+                        Some(CCursorRange::two(start_cursor, ccursor))
+                    }
+                }
+                ImeEvent::Commit(prediction) => {
+                    if prediction == "\n" || prediction == "\r" {
+                        None
+                    } else {
+                        state.ime_enabled = false;
+
+                        if !prediction.is_empty()
+                            && cursor_range.secondary.ccursor.index
+                                == state.ime_cursor_range.secondary.ccursor.index
+                        {
+                            let mut ccursor = text.delete_selected(&cursor_range);
+                            text.insert_text_at(&mut ccursor, prediction, char_limit);
+                            Some(CCursorRange::one(ccursor))
+                        } else {
+                            let ccursor = cursor_range.primary.ccursor;
+                            Some(CCursorRange::one(ccursor))
+                        }
+                    }
+                }
+                ImeEvent::Disabled => {
+                    state.ime_enabled = false;
+                    None
+                }
+            },
+
+            _ => None,
         };
 
-        let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
+        if let Some(new_ccursor_range) = did_mutate_text {
+            any_change = true;
 
-        let content_is_too_large = Vec2b::new(
-            scroll_enabled[0] && inner_rect.width() < content_size.x,
-            scroll_enabled[1] && inner_rect.height() < content_size.y,
-        );
+            // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
+            *galley = layouter(ui, text.as_str(), wrap_width);
 
-        let max_offset = content_size - inner_rect.size();
-        let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
-        if scrolling_enabled && is_hovering_outer_rect {
-            let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
-                && scroll_enabled[0] != scroll_enabled[1];
-            for d in 0..2 {
-                if scroll_enabled[d] {
-                    let scroll_delta = ui.ctx().input_mut(|input| {
-                        if always_scroll_enabled_direction {
-                            // no bidirectional scrolling; allow horizontal scrolling without pressing shift
-                            input.smooth_scroll_delta[0] + input.smooth_scroll_delta[1]
-                        } else {
-                            input.smooth_scroll_delta[d]
-                        }
-                    });
+            // Set cursor_range using new galley:
+            cursor_range = CursorRange {
+                primary: galley.from_ccursor(new_ccursor_range.primary),
+                secondary: galley.from_ccursor(new_ccursor_range.secondary),
+            };
+        }
+    }
 
-                    let scrolling_up = state.offset[d] > 0.0 && scroll_delta > 0.0;
-                    let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta < 0.0;
+    state.cursor.set_range(Some(cursor_range));
 
-                    if scrolling_up || scrolling_down {
-                        state.offset[d] -= scroll_delta;
+    state.undoer.lock().feed_state(
+        ui.input(|i| i.time),
+        &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
+    );
 
-                        // Clear scroll delta so no parent scroll will use it:
-                        ui.ctx().input_mut(|input| {
-                            if always_scroll_enabled_direction {
-                                input.smooth_scroll_delta[0] = 0.0;
-                                input.smooth_scroll_delta[1] = 0.0;
-                            } else {
-                                input.smooth_scroll_delta[d] = 0.0;
-                            }
-                        });
+    (any_change, cursor_range)
+}
 
-                        state.scroll_stuck_to_end[d] = false;
-                        state.offset_target[d] = None;
-                    }
+// ----------------------------------------------------------------------------
+
+fn remove_ime_incompatible_events(events: &mut Vec<Event>) {
+    // Remove key events which cause problems while 'IME' is being used.
+    // See https://github.com/emilk/egui/pull/4509
+    events.retain(|event| {
+        !matches!(
+            event,
+            Event::Key { repeat: true, .. }
+                | Event::Key {
+                    key: Key::Backspace
+                        | Key::ArrowUp
+                        | Key::ArrowDown
+                        | Key::ArrowLeft
+                        | Key::ArrowRight,
+                    ..
                 }
-            }
-        }
+        )
+    });
+}
 
-        let show_scroll_this_frame = match scroll_bar_visibility {
-            ScrollBarVisibility::AlwaysHidden => Vec2b::FALSE,
-            ScrollBarVisibility::VisibleWhenNeeded => content_is_too_large,
-            ScrollBarVisibility::AlwaysVisible => scroll_enabled,
-        };
+// ----------------------------------------------------------------------------
 
-        // Avoid frame delay; start showing scroll bar right away:
-        if show_scroll_this_frame[0] && show_bars_factor.x <= 0.0 {
-            show_bars_factor.x = ui.ctx().animate_bool_responsive(id.with("h"), true);
-        }
-        if show_scroll_this_frame[1] && show_bars_factor.y <= 0.0 {
-            show_bars_factor.y = ui.ctx().animate_bool_responsive(id.with("v"), true);
-        }
-
-        let scroll_style = ui.spacing().scroll;
-
-        // Paint the bars:
-        for d in 0..2 {
-            // maybe force increase in offset to keep scroll stuck to end position
-            if stick_to_end[d] && state.scroll_stuck_to_end[d] {
-                state.offset[d] = content_size[d] - inner_rect.size()[d];
-            }
-
-            let show_factor = show_bars_factor[d];
-            if show_factor == 0.0 {
-                state.scroll_bar_interaction[d] = false;
-                continue;
-            }
-
-            // left/right of a horizontal scroll (d==1)
-            // top/bottom of vertical scroll (d == 1)
-            let main_range = Rangef::new(inner_rect.min[d], inner_rect.max[d]);
-
-            // Margin on either side of the scroll bar:
-            let inner_margin = show_factor * scroll_style.bar_inner_margin;
-            let outer_margin = show_factor * scroll_style.bar_outer_margin;
-
-            // top/bottom of a horizontal scroll (d==0).
-            // left/rigth of a vertical scroll (d==1).
-            let mut cross = if scroll_style.floating {
-                // The bounding rect of a fully visible bar.
-                // When we hover this area, we should show the full bar:
-                let max_bar_rect = if d == 0 {
-                    outer_rect.with_min_y(outer_rect.max.y - outer_margin - scroll_style.bar_width)
+/// Returns `Some(new_cursor)` if we did mutate `text`.
+fn check_for_mutating_key_press(
+    os: OperatingSystem,
+    cursor_range: &CursorRange,
+    text: &mut dyn TextBuffer,
+    galley: &Galley,
+    modifiers: &Modifiers,
+    key: Key,
+) -> Option<CCursorRange> {
+    match key {
+        Key::Backspace => {
+            let ccursor = if modifiers.mac_cmd {
+                text.delete_paragraph_before_cursor(galley, cursor_range)
+            } else if let Some(cursor) = cursor_range.single() {
+                if modifiers.alt || modifiers.ctrl {
+                    // alt on mac, ctrl on windows
+                    text.delete_previous_word(cursor.ccursor)
                 } else {
-                    outer_rect.with_min_x(outer_rect.max.x - outer_margin - scroll_style.bar_width)
-                };
-
-                let is_hovering_bar_area = is_hovering_outer_rect
-                    && ui.rect_contains_pointer(max_bar_rect)
-                    || state.scroll_bar_interaction[d];
-
-                let is_hovering_bar_area_t = ui
-                    .ctx()
-                    .animate_bool_responsive(id.with((d, "bar_hover")), is_hovering_bar_area);
-
-                let width = show_factor
-                    * lerp(
-                        scroll_style.floating_width..=scroll_style.bar_width,
-                        is_hovering_bar_area_t,
-                    );
-
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
-                let min_cross = max_cross - width;
-                Rangef::new(min_cross, max_cross)
-            } else {
-                let min_cross = inner_rect.max[1 - d] + inner_margin;
-                let max_cross = outer_rect.max[1 - d] - outer_margin;
-                Rangef::new(min_cross, max_cross)
-            };
-
-            if ui.clip_rect().max[1 - d] < cross.max + outer_margin {
-                // Move the scrollbar so it is visible. This is needed in some cases.
-                // For instance:
-                // * When we have a vertical-only scroll area in a top level panel,
-                //   and that panel is not wide enough for the contents.
-                // * When one ScrollArea is nested inside another, and the outer
-                //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
-                //   is outside the clip rectangle.
-                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
-                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
-                let width = cross.max - cross.min;
-                cross.max = ui.clip_rect().max[1 - d] - outer_margin;
-                cross.min = cross.max - width;
-            }
-
-            let outer_scroll_rect = if d == 0 {
-                Rect::from_min_max(
-                    pos2(inner_rect.left(), cross.min),
-                    pos2(inner_rect.right(), cross.max),
-                )
-            } else {
-                Rect::from_min_max(
-                    pos2(cross.min, inner_rect.top()),
-                    pos2(cross.max, inner_rect.bottom()),
-                )
-            };
-
-            let from_content = |content| remap_clamp(content, 0.0..=content_size[d], main_range);
-
-            let handle_rect = if d == 0 {
-                Rect::from_min_max(
-                    pos2(from_content(state.offset.x), cross.min),
-                    pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
-                )
-            } else {
-                Rect::from_min_max(
-                    pos2(cross.min, from_content(state.offset.y)),
-                    pos2(
-                        cross.max,
-                        from_content(state.offset.y + inner_rect.height()),
-                    ),
-                )
-            };
-
-            let interact_id = id.with(d);
-            let sense = if self.scrolling_enabled {
-                Sense::click_and_drag()
-            } else {
-                Sense::hover()
-            };
-            let response = ui.interact(outer_scroll_rect, interact_id, sense);
-
-            state.scroll_bar_interaction[d] = response.hovered() || response.dragged();
-
-            if let Some(pointer_pos) = response.interact_pointer_pos() {
-                let scroll_start_offset_from_top_left = state.scroll_start_offset_from_top_left[d]
-                    .get_or_insert_with(|| {
-                        if handle_rect.contains(pointer_pos) {
-                            pointer_pos[d] - handle_rect.min[d]
-                        } else {
-                            let handle_top_pos_at_bottom = main_range.max - handle_rect.size()[d];
-                            // Calculate the new handle top position, centering the handle on the mouse.
-                            let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
-                                .clamp(main_range.min, handle_top_pos_at_bottom);
-                            pointer_pos[d] - new_handle_top_pos
-                        }
-                    });
-
-                let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
-                state.offset[d] = remap(new_handle_top, main_range, 0.0..=content_size[d]);
-
-                // some manual action taken, scroll not stuck
-                state.scroll_stuck_to_end[d] = false;
-                state.offset_target[d] = None;
-            } else {
-                state.scroll_start_offset_from_top_left[d] = None;
-            }
-
-            let unbounded_offset = state.offset[d];
-            state.offset[d] = state.offset[d].max(0.0);
-            state.offset[d] = state.offset[d].min(max_offset[d]);
-
-            if state.offset[d] != unbounded_offset {
-                state.vel[d] = 0.0;
-            }
-
-            if ui.is_rect_visible(outer_scroll_rect) {
-                // Avoid frame-delay by calculating a new handle rect:
-                let mut handle_rect = if d == 0 {
-                    Rect::from_min_max(
-                        pos2(from_content(state.offset.x), cross.min),
-                        pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
-                    )
-                } else {
-                    Rect::from_min_max(
-                        pos2(cross.min, from_content(state.offset.y)),
-                        pos2(
-                            cross.max,
-                            from_content(state.offset.y + inner_rect.height()),
-                        ),
-                    )
-                };
-                let min_handle_size = scroll_style.handle_min_length;
-                if handle_rect.size()[d] < min_handle_size {
-                    handle_rect = Rect::from_center_size(
-                        handle_rect.center(),
-                        if d == 0 {
-                            vec2(min_handle_size, handle_rect.size().y)
-                        } else {
-                            vec2(handle_rect.size().x, min_handle_size)
-                        },
-                    );
+                    text.delete_previous_char(cursor.ccursor)
                 }
-
-                let visuals = if scrolling_enabled {
-                    // Pick visuals based on interaction with the handle.
-                    // Remember that the response is for the whole scroll bar!
-                    let is_hovering_handle = response.hovered()
-                        && ui.input(|i| {
-                            i.pointer
-                                .latest_pos()
-                                .map_or(false, |p| handle_rect.contains(p))
-                        });
-                    let visuals = ui.visuals();
-                    if response.is_pointer_button_down_on() {
-                        &visuals.widgets.active
-                    } else if is_hovering_handle {
-                        &visuals.widgets.hovered
-                    } else {
-                        &visuals.widgets.inactive
-                    }
-                } else {
-                    &ui.visuals().widgets.inactive
-                };
-
-                let handle_opacity = if scroll_style.floating {
-                    if response.hovered() || response.dragged() {
-                        scroll_style.interact_handle_opacity
-                    } else {
-                        let is_hovering_outer_rect_t = ui.ctx().animate_bool_responsive(
-                            id.with((d, "is_hovering_outer_rect")),
-                            is_hovering_outer_rect,
-                        );
-                        lerp(
-                            scroll_style.dormant_handle_opacity
-                                ..=scroll_style.active_handle_opacity,
-                            is_hovering_outer_rect_t,
-                        )
-                    }
-                } else {
-                    1.0
-                };
-
-                let background_opacity = if scroll_style.floating {
-                    if response.hovered() || response.dragged() {
-                        scroll_style.interact_background_opacity
-                    } else if is_hovering_outer_rect {
-                        scroll_style.active_background_opacity
-                    } else {
-                        scroll_style.dormant_background_opacity
-                    }
-                } else {
-                    1.0
-                };
-
-                let handle_color = if scroll_style.foreground_color {
-                    visuals.fg_stroke.color
-                } else {
-                    visuals.bg_fill
-                };
-
-                // Background:
-                ui.painter().add(epaint::Shape::rect_filled(
-                    outer_scroll_rect,
-                    visuals.rounding,
-                    ui.visuals()
-                        .extreme_bg_color
-                        .gamma_multiply(background_opacity),
-                ));
-
-                // Handle:
-                ui.painter().add(epaint::Shape::rect_filled(
-                    handle_rect,
-                    visuals.rounding,
-                    handle_color.gamma_multiply(handle_opacity),
-                ));
-            }
+            } else {
+                text.delete_selected(cursor_range)
+            };
+            Some(CCursorRange::one(ccursor))
         }
 
-        ui.advance_cursor_after_rect(outer_rect);
-
-        if show_scroll_this_frame != state.show_scroll {
-            ui.ctx().request_repaint();
+        Key::Delete if !modifiers.shift || os != OperatingSystem::Windows => {
+            let ccursor = if modifiers.mac_cmd {
+                text.delete_paragraph_after_cursor(galley, cursor_range)
+            } else if let Some(cursor) = cursor_range.single() {
+                if modifiers.alt || modifiers.ctrl {
+                    // alt on mac, ctrl on windows
+                    text.delete_next_word(cursor.ccursor)
+                } else {
+                    text.delete_next_char(cursor.ccursor)
+                }
+            } else {
+                text.delete_selected(cursor_range)
+            };
+            let ccursor = CCursor {
+                prefer_next_row: true,
+                ..ccursor
+            };
+            Some(CCursorRange::one(ccursor))
         }
 
-        let available_offset = content_size - inner_rect.size();
-        state.offset = state.offset.min(available_offset);
-        state.offset = state.offset.max(Vec2::ZERO);
+        Key::H if modifiers.ctrl => {
+            let ccursor = text.delete_previous_char(cursor_range.primary.ccursor);
+            Some(CCursorRange::one(ccursor))
+        }
 
-        // Is scroll handle at end of content, or is there no scrollbar
-        // yet (not enough content), but sticking is requested? If so, enter sticky mode.
-        // Only has an effect if stick_to_end is enabled but we save in
-        // state anyway so that entering sticky mode at an arbitrary time
-        // has appropriate effect.
-        state.scroll_stuck_to_end = Vec2b::new(
-            (state.offset[0] == available_offset[0])
-                || (self.stick_to_end[0] && available_offset[0] < 0.0),
-            (state.offset[1] == available_offset[1])
-                || (self.stick_to_end[1] && available_offset[1] < 0.0),
-        );
+        Key::K if modifiers.ctrl => {
+            let ccursor = text.delete_paragraph_after_cursor(galley, cursor_range);
+            Some(CCursorRange::one(ccursor))
+        }
 
-        state.show_scroll = show_scroll_this_frame;
-        state.content_is_too_large = content_is_too_large;
-        state.interact_rect = Some(inner_rect);
+        Key::U if modifiers.ctrl => {
+            let ccursor = text.delete_paragraph_before_cursor(galley, cursor_range);
+            Some(CCursorRange::one(ccursor))
+        }
 
-        state.store(ui.ctx(), id);
+        Key::W if modifiers.ctrl => {
+            let ccursor = if let Some(cursor) = cursor_range.single() {
+                text.delete_previous_word(cursor.ccursor)
+            } else {
+                text.delete_selected(cursor_range)
+            };
+            Some(CCursorRange::one(ccursor))
+        }
 
-        (content_size, state)
+        _ => None,
     }
 }
