@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use winit::{
-    event_loop::EventLoopWindowTarget,
+    event_loop::ActiveEventLoop,
     window::{Window, WindowId},
 };
 
@@ -48,12 +48,12 @@ pub enum UserEvent {
 
     /// A request related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
-    AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
+    AccessKitActionRequest(accesskit_winit::Event),
 }
 
 #[cfg(feature = "accesskit")]
-impl From<accesskit_winit::ActionRequestEvent> for UserEvent {
-    fn from(inner: accesskit_winit::ActionRequestEvent) -> Self {
+impl From<accesskit_winit::Event> for UserEvent {
+    fn from(inner: accesskit_winit::Event) -> Self {
         Self::AccessKitActionRequest(inner)
     }
 }
@@ -70,15 +70,30 @@ pub trait WinitApp {
 
     fn run_ui_and_paint(
         &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event_loop: &ActiveEventLoop,
         window_id: WindowId,
-    ) -> EventResult;
-
-    fn on_event(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-        event: &winit::event::Event<UserEvent>,
     ) -> crate::Result<EventResult>;
+
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult>;
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) -> crate::Result<EventResult>;
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: winit::event::WindowEvent,
+    ) -> crate::Result<EventResult>;
+
+    #[cfg(feature = "accesskit")]
+    fn on_accesskit_event(&mut self, event: accesskit_winit::Event) -> crate::Result<EventResult>;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,15 +128,35 @@ pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<c
     }
 }
 
-/// Short and fast description of an event.
-/// Useful for logging and profiling.
-pub fn short_event_description(event: &winit::event::Event<UserEvent>) -> &'static str {
+#[cfg(feature = "accesskit")]
+pub(crate) fn on_accesskit_window_event(
+    egui_winit: &mut egui_winit::State,
+    window_id: WindowId,
+    event: &accesskit_winit::WindowEvent,
+) -> EventResult {
     match event {
-        winit::event::Event::UserEvent(user_event) => match user_event {
-            UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
-            #[cfg(feature = "accesskit")]
-            UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
-        },
-        _ => egui_winit::short_generic_event_description(event),
+        accesskit_winit::WindowEvent::InitialTreeRequested => {
+            egui_winit.egui_ctx().enable_accesskit();
+            // Because we can't provide the initial tree synchronously
+            // (because that would require the activation handler to access
+            // the same mutable state as the winit event handler), some
+            // AccessKit platform adapters will use a placeholder tree
+            // until we send the first tree update. To minimize the possible
+            // bad effects of that workaround, repaint and send the tree
+            // immediately.
+            EventResult::RepaintNow(window_id)
+        }
+        accesskit_winit::WindowEvent::ActionRequested(request) => {
+            egui_winit.on_accesskit_action_request(request.clone());
+            // As a form of user input, accessibility actions should cause
+            // a repaint, but not until the next regular frame.
+            EventResult::RepaintNext(window_id)
+        }
+        accesskit_winit::WindowEvent::AccessibilityDeactivated => {
+            egui_winit.egui_ctx().disable_accesskit();
+            // Disabling AccessKit support should have no visible effect,
+            // so there's no need to repaint.
+            EventResult::Wait
+        }
     }
 }

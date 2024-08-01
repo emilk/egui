@@ -2,10 +2,9 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui, WidgetRect,
-    WidgetText,
+    frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
+    Ui, WidgetRect, WidgetText,
 };
-
 // ----------------------------------------------------------------------------
 
 /// The result of adding a widget to a [`Ui`].
@@ -888,9 +887,26 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
+        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
+    }
+
+    /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].
+    pub fn scroll_to_me_animation(
+        &self,
+        align: Option<Align>,
+        animation: crate::style::ScrollAnimation,
+    ) {
         self.ctx.frame_state_mut(|state| {
-            state.scroll_target[0] = Some((self.rect.x_range(), align));
-            state.scroll_target[1] = Some((self.rect.y_range(), align));
+            state.scroll_target[0] = Some(frame_state::ScrollTarget::new(
+                self.rect.x_range(),
+                align,
+                animation,
+            ));
+            state.scroll_target[1] = Some(frame_state::ScrollTarget::new(
+                self.rect.y_range(),
+                align,
+                animation,
+            ));
         });
     }
 
@@ -964,11 +980,11 @@ impl Response {
         info: crate::WidgetInfo,
     ) {
         use crate::WidgetType;
-        use accesskit::{Checked, Role};
+        use accesskit::{Role, Toggled};
 
         self.fill_accesskit_node_common(builder);
         builder.set_role(match info.typ {
-            WidgetType::Label => Role::StaticText,
+            WidgetType::Label => Role::Label,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextInput,
             WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
@@ -976,7 +992,7 @@ impl Response {
             }
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
-            WidgetType::SelectableLabel => Role::ToggleButton,
+            WidgetType::SelectableLabel => Role::Button,
             WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
@@ -997,14 +1013,14 @@ impl Response {
             builder.set_numeric_value(value);
         }
         if let Some(selected) = info.selected {
-            builder.set_checked(if selected {
-                Checked::True
+            builder.set_toggled(if selected {
+                Toggled::True
             } else {
-                Checked::False
+                Toggled::False
             });
         } else if matches!(info.typ, WidgetType::Checkbox) {
             // Indeterminate state
-            builder.set_checked(Checked::Mixed);
+            builder.set_toggled(Toggled::Mixed);
         }
     }
 

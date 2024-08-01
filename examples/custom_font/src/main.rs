@@ -25,7 +25,7 @@ fn setup_custom_fonts(ctx: &egui::Context) {
     fonts.font_data.insert(
         "my_font".to_owned(),
         egui::FontData::from_static(include_bytes!(
-            "../../../crates/epaint/fonts/Hack-Regular.ttf"
+            "../../../crates/epaint_default_fonts/fonts/Hack-Regular.ttf"
         )),
     );
 
