@@ -68,6 +68,14 @@ impl Label {
         self
     }
 
+    /// Set [`Self::wrap_mode`] to [`TextWrapMode::Extend`],
+    /// disabling wrapping and truncating, and instead expanding the parent [`Ui`].
+    #[inline]
+    pub fn extend(mut self) -> Self {
+        self.wrap_mode = Some(TextWrapMode::Extend);
+        self
+    }
+
     /// Can the user select the text with the mouse?
     ///
     /// Overrides [`crate::style::Interaction::selectable_labels`].
@@ -229,7 +237,8 @@ impl Widget for Label {
         let selectable = self.selectable;
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
+        response
+            .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
 
         if ui.is_rect_visible(response.rect) {
             if galley.elided {

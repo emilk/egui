@@ -190,6 +190,9 @@ pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
     format_with_decimals_in_range(value, decimals..=6)
 }
 
+/// Use as few decimals as possible to show the value accurately, but within the given range.
+///
+/// Decimals are counted after the decimal point.
 pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
@@ -198,7 +201,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 
-    if min_decimals != max_decimals {
+    if min_decimals < max_decimals {
         // Ugly/slow way of doing this. TODO(emilk): clean up precision.
         for decimals in min_decimals..max_decimals {
             let text = format!("{value:.decimals$}");

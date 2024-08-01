@@ -83,7 +83,10 @@ impl WebPainterWgpu {
     }
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
-    pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
+    pub async fn new(
+        canvas: web_sys::HtmlCanvasElement,
+        options: &WebOptions,
+    ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
         let mut backends = options.wgpu_options.supported_backends;
@@ -162,17 +165,22 @@ impl WebPainterWgpu {
             }
         }
 
-        let canvas = super::get_canvas_element_by_id_or_die(canvas_id);
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
 
-        let render_state =
-            RenderState::create(&options.wgpu_options, &instance, &surface, depth_format, 1)
-                .await
-                .map_err(|err| err.to_string())?;
+        let render_state = RenderState::create(
+            &options.wgpu_options,
+            &instance,
+            &surface,
+            depth_format,
+            1,
+            options.dithering,
+        )
+        .await
+        .map_err(|err| err.to_string())?;
 
         let surface_configuration = wgpu::SurfaceConfiguration {
             format: render_state.target_format,

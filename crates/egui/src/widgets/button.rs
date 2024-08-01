@@ -265,7 +265,7 @@ impl Widget for Button<'_> {
         let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
             if let Some(galley) = &galley {
-                WidgetInfo::labeled(WidgetType::Button, galley.text())
+                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())
             } else {
                 WidgetInfo::new(WidgetType::Button)
             }

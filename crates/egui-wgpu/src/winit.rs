@@ -83,6 +83,7 @@ pub struct Painter {
     configuration: WgpuConfiguration,
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
+    dithering: bool,
     depth_format: Option<wgpu::TextureFormat>,
     screen_capture_state: Option<CaptureState>,
 
@@ -93,6 +94,17 @@ pub struct Painter {
     depth_texture_view: ViewportIdMap<wgpu::TextureView>,
     msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
     surfaces: ViewportIdMap<SurfaceState>,
+}
+
+impl Drop for Painter {
+    fn drop(&mut self) {
+        // Drop surfaces before dropping the render state.
+        //
+        // This is a workaround for a bug in wgpu 22.0.0.
+        // Fixed in https://github.com/gfx-rs/wgpu/pull/6052
+        // Remove with wgpu 22.1.0 update!
+        self.surfaces.clear();
+    }
 }
 
 impl Painter {
@@ -113,6 +125,7 @@ impl Painter {
         msaa_samples: u32,
         depth_format: Option<wgpu::TextureFormat>,
         support_transparent_backbuffer: bool,
+        dithering: bool,
     ) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: configuration.supported_backends,
@@ -123,6 +136,7 @@ impl Painter {
             configuration,
             msaa_samples,
             support_transparent_backbuffer,
+            dithering,
             depth_format,
             screen_capture_state: None,
 
@@ -264,6 +278,7 @@ impl Painter {
                 &surface,
                 self.depth_format,
                 self.msaa_samples,
+                self.dithering,
             )
             .await?;
             self.render_state.get_or_insert(render_state)

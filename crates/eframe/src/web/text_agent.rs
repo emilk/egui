@@ -5,7 +5,7 @@ use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
 
-use super::{AppRunner, WebRunner};
+use super::{is_mobile, AppRunner, WebRunner};
 
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
@@ -119,13 +119,14 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        let ime_pos = ime.cursor_rect.left_top();
         let canvas_rect = super::canvas_content_rect(canvas);
-        let new_pos = canvas_rect.min + ime_pos.to_vec2();
+        let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
-        style.set_property("top", &format!("{}px", new_pos.y))?;
-        style.set_property("left", &format!("{}px", new_pos.x))?;
+
+        // This is where the IME input will point to:
+        style.set_property("left", &format!("{}px", cursor_rect.center().x))?;
+        style.set_property("top", &format!("{}px", cursor_rect.center().y))?;
 
         Ok(())
     }
@@ -142,20 +143,24 @@ impl TextAgent {
         super::has_focus(&self.input)
     }
 
-    fn focus(&self) {
+    pub fn focus(&self) {
         if self.has_focus() {
             return;
         }
+
+        log::trace!("Focusing text agent");
 
         if let Err(err) = self.input.focus() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
         };
     }
 
-    fn blur(&self) {
+    pub fn blur(&self) {
         if !self.has_focus() {
             return;
         }
+
+        log::trace!("Blurring text agent");
 
         if let Err(err) = self.input.blur() {
             log::error!("failed to set focus: {}", super::string_from_js_value(&err));
@@ -167,17 +172,4 @@ impl Drop for TextAgent {
     fn drop(&mut self) {
         self.input.remove();
     }
-}
-
-/// Returns `true` if the app is likely running on a mobile device.
-fn is_mobile() -> bool {
-    fn try_is_mobile() -> Option<bool> {
-        const MOBILE_DEVICE: [&str; 6] =
-            ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
-
-        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-        let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
-        Some(is_mobile)
-    }
-    try_is_mobile().unwrap_or(false)
 }

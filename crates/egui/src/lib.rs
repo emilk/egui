@@ -106,7 +106,7 @@
 //!
 //! `egui` uses logical _points_ as its coordinate system.
 //! Those related to physical _pixels_ by the `pixels_per_point` scale factor.
-//! For example, a high-dpi screeen can have `pixels_per_point = 2.0`,
+//! For example, a high-dpi screen can have `pixels_per_point = 2.0`,
 //! meaning there are two physical screen pixels for each logical point.
 //!
 //! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
@@ -270,7 +270,7 @@
 //!
 //! ## Widget interaction
 //! Each widget has a [`Sense`], which defines whether or not the widget
-//! is sensitive to clickicking and/or drags.
+//! is sensitive to clicking and/or drags.
 //!
 //! For instance, a [`Button`] only has a [`Sense::click`] (by default).
 //! This means if you drag a button it will not respond with [`Response::dragged`].

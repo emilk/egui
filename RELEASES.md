@@ -9,6 +9,8 @@ All crates under the [`crates/`](crates/) folder are published in lock-step, wit
 
 The only exception to this are patch releases, where we sometimes only patch a single crate.
 
+The egui version in egui `master` is always the version of the last published crates. This is so that users can easily patch their egui crates to egui `master` if they want to.
+
 ## Governance
 Releases are generally done by [emilk](https://github.com/emilk/), but the [rerun-io](https://github.com/rerun-io/) organization (where emilk is CTO) also has publish rights to all the crates.
 
@@ -35,13 +37,14 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
-* [ ] `./scripts/build_demo_web.sh --release`
+* [ ] `./scripts/build_demo_web.sh --release -g`
   - check frame-rate and wasm size
   - test on mobile
   - test on chromium
-  - check the in-browser profiler (build without `--release` to get profile data)
+  - check the in-browser profiler
 * [ ] check the color test
 * [ ] update `eframe_template` and test
+* [ ] update `egui_plot` and test
 * [ ] update `egui_tiles` and test
 * [ ] test with Rerun
 * [ ] `./scripts/check.sh`
@@ -70,17 +73,17 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 
 ###  `cargo publish`:
 ```
-(cd crates/emath         && cargo publish --quiet)  &&  echo "✅ emath"
-(cd crates/ecolor        && cargo publish --quiet)  &&  echo "✅ ecolor"
-(cd crates/epaint        && cargo publish --quiet)  &&  echo "✅ epaint"
-(cd crates/egui          && cargo publish --quiet)  &&  echo "✅ egui"
-(cd crates/egui_plot     && cargo publish --quiet)  &&  echo "✅ egui_plot"
-(cd crates/egui-winit    && cargo publish --quiet)  &&  echo "✅ egui-winit"
-(cd crates/egui_extras   && cargo publish --quiet)  &&  echo "✅ egui_extras"
-(cd crates/egui-wgpu     && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
-(cd crates/egui_demo_lib && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
-(cd crates/egui_glow     && cargo publish --quiet)  &&  echo "✅ egui_glow"
-(cd crates/eframe        && cargo publish --quiet)  &&  echo "✅ eframe"
+(cd crates/emath                && cargo publish --quiet)  &&  echo "✅ emath"
+(cd crates/ecolor               && cargo publish --quiet)  &&  echo "✅ ecolor"
+(cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
+(cd crates/epaint_default_fonts && cargo publish --quiet)  &&  echo "✅ epaint_default_fonts"
+(cd crates/egui                 && cargo publish --quiet)  &&  echo "✅ egui"
+(cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
+(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
+(cd crates/egui-wgpu            && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
+(cd crates/egui_demo_lib        && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
+(cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
+(cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
 ```
 
 ## Announcements
@@ -92,4 +95,5 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 
 ## After release
 * [ ] publish new `eframe_template`
+* [ ] publish new `egui_plot`
 * [ ] publish new `egui_tiles`

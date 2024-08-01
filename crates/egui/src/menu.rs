@@ -105,17 +105,35 @@ pub fn menu_button<R>(
     stationary_menu_impl(ui, title, Box::new(add_contents))
 }
 
+/// Construct a top level menu with a custom button in a menu bar.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_custom_button<R>(
+    ui: &mut Ui,
+    button: Button<'_>,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_button_impl(ui, button, Box::new(add_contents))
+}
+
 /// Construct a top level menu with an image in a menu bar. This would be e.g. "File", "Edit" etc.
 ///
 /// Responds to primary clicks.
 ///
 /// Returns `None` if the menu is not open.
+#[deprecated = "Use `menu_custom_button` instead"]
 pub fn menu_image_button<R>(
     ui: &mut Ui,
     image_button: ImageButton<'_>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
-    stationary_menu_image_impl(ui, image_button, Box::new(add_contents))
+    stationary_menu_button_impl(
+        ui,
+        Button::image(image_button.image),
+        Box::new(add_contents),
+    )
 }
 
 /// Construct a nested sub menu in another menu.
@@ -135,6 +153,7 @@ pub(crate) fn submenu_button<R>(
 /// wrapper for the contents of every menu.
 fn menu_popup<'c, R>(
     ctx: &Context,
+    parent_layer: LayerId,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     menu_id: Id,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
@@ -145,7 +164,17 @@ fn menu_popup<'c, R>(
         menu_state.rect.min
     };
 
-    let area = Area::new(menu_id.with("__menu"))
+    let area_id = menu_id.with("__menu");
+
+    ctx.frame_state_mut(|fs| {
+        fs.layers
+            .entry(parent_layer)
+            .or_default()
+            .open_popups
+            .insert(area_id)
+    });
+
+    let area = Area::new(area_id)
         .kind(UiKind::Menu)
         .order(Order::Foreground)
         .fixed_pos(pos)
@@ -215,15 +244,15 @@ fn stationary_menu_impl<'c, R>(
 /// Build a top level menu with an image button.
 ///
 /// Responds to primary clicks.
-fn stationary_menu_image_impl<'c, R>(
+fn stationary_menu_button_impl<'c, R>(
     ui: &mut Ui,
-    image_button: ImageButton<'_>,
+    button: Button<'_>,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
     let bar_id = ui.id();
 
     let mut bar_state = BarState::load(ui.ctx(), bar_id);
-    let button_response = ui.add(image_button);
+    let button_response = ui.add(button);
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
     bar_state.store(ui.ctx(), bar_id);
@@ -320,7 +349,13 @@ impl MenuRoot {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
         if self.id == button.id {
-            let inner_response = menu_popup(&button.ctx, &self.menu_state, self.id, add_contents);
+            let inner_response = menu_popup(
+                &button.ctx,
+                button.layer_id,
+                &self.menu_state,
+                self.id,
+                add_contents,
+            );
             let menu_state = self.menu_state.read();
 
             let escape_pressed = button.ctx.input(|i| i.key_pressed(Key::Escape));
@@ -524,7 +559,11 @@ impl SubMenuButton {
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            crate::WidgetInfo::labeled(crate::WidgetType::Button, text_galley.text())
+            crate::WidgetInfo::labeled(
+                crate::WidgetType::Button,
+                ui.is_enabled(),
+                text_galley.text(),
+            )
         });
 
         if ui.is_rect_visible(rect) {
@@ -576,10 +615,10 @@ impl SubMenu {
         self.parent_state
             .write()
             .submenu_button_interaction(ui, sub_id, &response);
-        let inner = self
-            .parent_state
-            .write()
-            .show_submenu(ui.ctx(), sub_id, add_contents);
+        let inner =
+            self.parent_state
+                .write()
+                .show_submenu(ui.ctx(), ui.layer_id(), sub_id, add_contents);
         InnerResponse::new(inner, response)
     }
 }
@@ -620,11 +659,12 @@ impl MenuState {
     fn show_submenu<R>(
         &mut self,
         ctx: &Context,
+        parent_layer: LayerId,
         id: Id,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
         let (sub_response, response) = self.submenu(id).map(|sub| {
-            let inner_response = menu_popup(ctx, sub, id, add_contents);
+            let inner_response = menu_popup(ctx, parent_layer, sub, id, add_contents);
             (sub.read().response, inner_response.inner)
         })?;
         self.cascade_close_response(sub_response);
@@ -679,7 +719,7 @@ impl MenuState {
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 let rect = sub_menu.read().rect;
-                return rect.intersects_ray(pos, pointer.velocity().normalized());
+                return rect.intersects_ray(pos, pointer.direction().normalized());
             }
         }
         false

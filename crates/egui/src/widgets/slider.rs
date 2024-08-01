@@ -318,7 +318,9 @@ impl<'a> Slider<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
-    /// See also: [`DragValue::custom_parser`]
+    /// The default formatter is [`Style::number_formatter`].
+    ///
+    /// See also: [`Slider::custom_parser`]
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -361,7 +363,7 @@ impl<'a> Slider<'a> {
     /// A custom parser takes an `&str` to parse into a number and returns `Some` if it was successfully parsed
     /// or `None` otherwise.
     ///
-    /// See also: [`DragValue::custom_formatter`]
+    /// See also: [`Slider::custom_formatter`]
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -534,12 +536,12 @@ impl<'a> Slider<'a> {
             let end = *self.range.end();
             value = value.clamp(start.min(end), start.max(end));
         }
-        if let Some(max_decimals) = self.max_decimals {
-            value = emath::round_to_decimals(value, max_decimals);
-        }
         if let Some(step) = self.step {
             let start = *self.range.start();
             value = start + ((value - start) / step).round() * step;
+        }
+        if let Some(max_decimals) = self.max_decimals {
+            value = emath::round_to_decimals(value, max_decimals);
         }
         set(&mut self.get_set_value, value);
     }
@@ -851,7 +853,7 @@ impl<'a> Slider<'a> {
 
         let value = self.get_value();
         response.changed = value != old_value;
-        response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
+        response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {

@@ -176,6 +176,8 @@ impl<'a> DragValue<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
+    /// The default formatter is [`Style::number_formatter`].
+    ///
     /// See also: [`DragValue::custom_parser`]
     ///
     /// ```
@@ -481,7 +483,10 @@ impl<'a> Widget for DragValue<'a> {
 
         let value_text = match custom_formatter {
             Some(custom_formatter) => custom_formatter(value, auto_decimals..=max_decimals),
-            None => emath::format_with_decimals_in_range(value, auto_decimals..=max_decimals),
+            None => ui
+                .style()
+                .number_formatter
+                .format(value, auto_decimals..=max_decimals),
         };
 
         let text_style = ui.style().drag_value_text_style.clone();
@@ -491,10 +496,7 @@ impl<'a> Widget for DragValue<'a> {
             if let Some(value_text) = value_text {
                 // We were editing the value as text last frame, but lost focus.
                 // Make sure we applied the last text value:
-                let parsed_value = match &custom_parser {
-                    Some(parser) => parser(&value_text),
-                    None => value_text.parse().ok(),
-                };
+                let parsed_value = parse(&custom_parser, &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     if clamp_to_range {
                         parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -530,10 +532,7 @@ impl<'a> Widget for DragValue<'a> {
                 response.lost_focus() && !ui.input(|i| i.key_pressed(Key::Escape))
             };
             if update {
-                let parsed_value = match &custom_parser {
-                    Some(parser) => parser(&value_text),
-                    None => value_text.parse().ok(),
-                };
+                let parsed_value = parse(&custom_parser, &value_text);
                 if let Some(mut parsed_value) = parsed_value {
                     if clamp_to_range {
                         parsed_value = clamp_value_to_range(parsed_value, range.clone());
@@ -622,7 +621,7 @@ impl<'a> Widget for DragValue<'a> {
 
         response.changed = get(&mut get_set_value) != old_value;
 
-        response.widget_info(|| WidgetInfo::drag_value(value));
+        response.widget_info(|| WidgetInfo::drag_value(ui.is_enabled(), value));
 
         #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {
@@ -675,6 +674,28 @@ impl<'a> Widget for DragValue<'a> {
     }
 }
 
+fn parse(custom_parser: &Option<NumParser<'_>>, value_text: &str) -> Option<f64> {
+    match &custom_parser {
+        Some(parser) => parser(value_text),
+        None => default_parser(value_text),
+    }
+}
+
+/// The default egui parser of numbers.
+///
+/// It ignored whitespaces anywhere in the input, and treats the special minus character (U+2212) as a normal minus.
+fn default_parser(text: &str) -> Option<f64> {
+    let text: String = text
+        .chars()
+        // Ignore whitespace (trailing, leading, and thousands separators):
+        .filter(|c| !c.is_whitespace())
+        // Replace special minus character with normal minus (hyphen):
+        .map(|c| if c == '−' { '-' } else { c })
+        .collect();
+
+    text.parse().ok()
+}
+
 fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
     let (mut min, mut max) = (*range.start(), *range.end());
 
@@ -718,5 +739,35 @@ mod tests {
         total_assert_eq!(5.0_f64, clamp_value_to_range(5.0, 10.0..=1.0));
         total_assert_eq!(5.0_f64, clamp_value_to_range(15.0, 5.0..=1.0));
         total_assert_eq!(1.0_f64, clamp_value_to_range(-5.0, 5.0..=1.0));
+    }
+
+    #[test]
+    fn test_default_parser() {
+        assert_eq!(super::default_parser("123"), Some(123.0));
+
+        assert_eq!(super::default_parser("1.23"), Some(1.230));
+
+        assert_eq!(
+            super::default_parser(" 1.23 "),
+            Some(1.230),
+            "We should handle leading and trailing spaces"
+        );
+
+        assert_eq!(
+            super::default_parser("1 234 567"),
+            Some(1_234_567.0),
+            "We should handle thousands separators using half-space"
+        );
+
+        assert_eq!(
+            super::default_parser("-1.23"),
+            Some(-1.23),
+            "Should handle normal hyphen as minus character"
+        );
+        assert_eq!(
+            super::default_parser("−1.23"),
+            Some(-1.23),
+            "Should handle special minus character (https://www.compart.com/en/unicode/U+2212)"
+        );
     }
 }

@@ -556,7 +556,7 @@ pub struct RowVisuals {
 
     /// The range of vertices in the mesh that contain glyphs (as opposed to background, underlines, strikethorugh, etc).
     ///
-    /// The glyph vertices comes before backgrounds (if any), and after any underlines and strikethrough.
+    /// The glyph vertices comes after backgrounds (if any), but before any underlines and strikethrough.
     pub glyph_vertex_range: Range<usize>,
 }
 

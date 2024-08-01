@@ -34,7 +34,7 @@ default = []
 chrono = ["egui_extras/datepicker", "dep:chrono"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["egui/serde", "egui_plot/serde", "dep:serde", "egui_extras/serde"]
+serde = ["egui/serde", "dep:serde", "egui_extras/serde"]
 
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["egui_extras/syntect"]
@@ -43,7 +43,6 @@ syntect = ["egui_extras/syntect"]
 [dependencies]
 egui = { workspace = true, default-features = false, features = ["color-hex"] }
 egui_extras = { workspace = true, features = ["default"] }
-egui_plot = { workspace = true, features = ["default"] }
 
 log.workspace = true
 unicode_names2 = { version = "0.6.0", default-features = false } # this old version has fewer dependencies

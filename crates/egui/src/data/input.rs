@@ -426,10 +426,16 @@ pub enum Event {
     /// On touch-up first send `PointerButton{pressed: false, …}` followed by `PointerLeft`.
     PointerGone,
 
-    /// Zoom scale factor this frame (e.g. from ctrl-scroll or pinch gesture).
+    /// Zoom scale factor this frame (e.g. from a pinch gesture).
+    ///
     /// * `zoom = 1`: no change.
     /// * `zoom < 1`: pinch together
     /// * `zoom > 1`: pinch spread
+    ///
+    /// Note that egui also implement zooming by holding `Ctrl` and scrolling the mouse wheel,
+    /// so integration need NOT emit this `Zoom` event in those cases, just [`Self::MouseWheel`].
+    ///
+    /// As a user, check [`crate::InputState::smooth_scroll_delta`] to see if the user did any zooming this frame.
     Zoom(f32),
 
     /// IME Event
