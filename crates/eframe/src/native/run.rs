@@ -176,10 +176,10 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         if let Some(next_repaint_time) = next_repaint_time {
             // WaitUntil seems to not work on iOS
             #[cfg(target_os = "ios")]
-            winit_app
+            self.winit_app
                 .window_id_from_viewport_id(egui::ViewportId::ROOT)
                 .map(|window_id| {
-                    winit_app
+                    self.winit_app
                         .window(window_id)
                         .map(|window| window.request_redraw())
                 });
