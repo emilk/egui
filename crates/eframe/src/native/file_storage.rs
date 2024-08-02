@@ -10,13 +10,58 @@ use std::{
 /// [`egui::ViewportBuilder::app_id`] of [`crate::NativeOptions::viewport`]
 /// or the title argument to [`crate::run_native`].
 ///
-/// On native the path is picked using [`directories::ProjectDirs::data_dir`](https://docs.rs/directories/5.0.1/directories/struct.ProjectDirs.html#method.data_dir) which is:
+/// On native, if the `directories` feature is enabled, the path is picked using
+/// [`directories::ProjectDirs::data_dir`](https://docs.rs/directories/5.0.1/directories/struct.ProjectDirs.html#method.data_dir)
+/// which is:
 /// * Linux:   `/home/UserName/.local/share/APP_ID`
 /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
 /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
+///
+/// If the `directories` feature is not enabled, it uses a naive approximation that returns the
+/// same result for the most common systems.
 pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
+    #[cfg(feature = "directories")]
+    {
+        directories_storage_dir(app_id)
+    }
+    #[cfg(not(feature = "directories"))]
+    {
+        naive_storage_dir(app_id)
+    }
+}
+
+#[cfg(feature = "directories")]
+#[inline]
+fn directories_storage_dir(app_id: &str) -> Option<PathBuf> {
     directories::ProjectDirs::from("", "", app_id)
         .map(|proj_dirs| proj_dirs.data_dir().to_path_buf())
+}
+
+#[allow(dead_code)]
+#[inline]
+fn naive_storage_dir(app_id: &str) -> Option<PathBuf> {
+    use egui::os::OperatingSystem as OS;
+    use std::env::var_os;
+    match OS::from_target_os() {
+        OS::Nix => var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| var_os("HOME").map(|s| PathBuf::from(s).join(".local").join("share")))
+            .map(|p| {
+                p.join(
+                    app_id
+                        .to_lowercase()
+                        .replace(|c: char| c.is_ascii_whitespace(), ""),
+                )
+            }),
+        OS::Mac => var_os("HOME").map(|s| {
+            PathBuf::from(s)
+                .join("Library")
+                .join("Application Support")
+                .join(app_id.replace(|c: char| c.is_ascii_whitespace(), "-"))
+        }),
+        OS::Windows => var_os("APPDATA").map(|s| PathBuf::from(s).join(app_id)),
+        OS::Unknown | OS::Android | OS::IOS => None,
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -168,6 +213,18 @@ where
         Err(_err) => {
             // File probably doesn't exist. That's fine.
             None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(feature = "directories")]
+    #[test]
+    fn naive_path_matches_directories() {
+        use super::{directories_storage_dir, naive_storage_dir};
+        for app_id in ["MyApp", "My App", "my_app", "my-app"] {
+            assert_eq!(directories_storage_dir(app_id), naive_storage_dir(app_id));
         }
     }
 }
