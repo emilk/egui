@@ -967,7 +967,7 @@ impl Prepared {
 
             // Margin on either side of the scroll bar:
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
-            let clip_max = ui.clip_rect().max[1 - d];
+            let clip_max = ui.clip_rect().max[1 - d] - ui.spacing().item_spacing[1 - d];
 
             // top/bottom of a horizontal scroll (d==0).
             // left/rigth of a vertical scroll (d==1).
