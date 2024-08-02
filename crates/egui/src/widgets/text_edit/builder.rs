@@ -572,7 +572,7 @@ impl<'t> TextEdit<'t> {
                 }
 
                 let mut did_interact = false;
-                if response.has_focus() {
+                if response.has_focus() || !ui.visuals().text_cursor.retain_position {
                     let is_being_dragged = ui.ctx().is_being_dragged(response.id);
                     did_interact = state.cursor.pointer_interaction(
                         ui,
