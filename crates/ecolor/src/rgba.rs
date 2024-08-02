@@ -28,7 +28,7 @@ impl std::ops::IndexMut<usize> for Rgba {
 
 /// Deterministically hash an `f32`, treating all NANs as equal, and ignoring the sign of zero.
 #[inline]
-pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
+pub fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     if f == 0.0 {
         state.write_u8(0);
     } else if f.is_nan() {
@@ -119,7 +119,7 @@ impl Rgba {
 
     /// Return an additive version of this color (alpha = 0)
     #[inline]
-    pub fn additive(self) -> Self {
+    pub const fn additive(self) -> Self {
         let [r, g, b, _] = self.0;
         Self([r, g, b, 0.0])
     }
@@ -142,29 +142,29 @@ impl Rgba {
     }
 
     #[inline]
-    pub fn r(&self) -> f32 {
+    pub const fn r(&self) -> f32 {
         self.0[0]
     }
 
     #[inline]
-    pub fn g(&self) -> f32 {
+    pub const fn g(&self) -> f32 {
         self.0[1]
     }
 
     #[inline]
-    pub fn b(&self) -> f32 {
+    pub const fn b(&self) -> f32 {
         self.0[2]
     }
 
     #[inline]
-    pub fn a(&self) -> f32 {
+    pub const fn a(&self) -> f32 {
         self.0[3]
     }
 
     /// How perceptually intense (bright) is the color?
     #[inline]
     pub fn intensity(&self) -> f32 {
-        0.3 * self.r() + 0.59 * self.g() + 0.11 * self.b()
+        0.11f32.mul_add(self.b(), 0.3f32.mul_add(self.r(), 0.59 * self.g()))
     }
 
     /// Returns an opaque version of self
@@ -185,13 +185,13 @@ impl Rgba {
 
     /// Premultiplied RGBA
     #[inline]
-    pub fn to_array(&self) -> [f32; 4] {
+    pub const fn to_array(&self) -> [f32; 4] {
         [self.r(), self.g(), self.b(), self.a()]
     }
 
     /// Premultiplied RGBA
     #[inline]
-    pub fn to_tuple(&self) -> (f32, f32, f32, f32) {
+    pub const fn to_tuple(&self) -> (f32, f32, f32, f32) {
         (self.r(), self.g(), self.b(), self.a())
     }
 

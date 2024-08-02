@@ -382,11 +382,9 @@ impl WinitApp for WgpuWinitApp {
     ) -> EventResult {
         self.initialized_all_windows(event_loop);
 
-        if let Some(running) = &mut self.running {
+        self.running.as_mut().map_or(EventResult::Wait, |running| {
             running.run_ui_and_paint(window_id)
-        } else {
-            EventResult::Wait
-        }
+        })
     }
 
     fn on_event(
@@ -429,11 +427,12 @@ impl WinitApp for WgpuWinitApp {
                 };
 
                 let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
-                if let Some(window) = &viewport.window {
-                    EventResult::RepaintNow(window.id())
-                } else {
-                    EventResult::Wait
-                }
+                viewport
+                    .window
+                    .as_ref()
+                    .map_or(EventResult::Wait, |window| {
+                        EventResult::RepaintNow(window.id())
+                    })
             }
 
             winit::event::Event::Suspended => {
@@ -443,11 +442,9 @@ impl WinitApp for WgpuWinitApp {
             }
 
             winit::event::Event::WindowEvent { event, window_id } => {
-                if let Some(running) = &mut self.running {
+                self.running.as_mut().map_or(EventResult::Wait, |running| {
                     running.on_window_event(*window_id, event)
-                } else {
-                    EventResult::Wait
-                }
+                })
             }
 
             winit::event::Event::DeviceEvent {
@@ -464,11 +461,12 @@ impl WinitApp for WgpuWinitApp {
                             egui_winit.on_mouse_motion(*delta);
                         }
 
-                        if let Some(window) = viewport.window.as_ref() {
-                            EventResult::RepaintNext(window.id())
-                        } else {
-                            EventResult::Wait
-                        }
+                        viewport
+                            .window
+                            .as_ref()
+                            .map_or(EventResult::Wait, |window| {
+                                EventResult::RepaintNext(window.id())
+                            })
                     } else {
                         EventResult::Wait
                     }
@@ -1038,7 +1036,7 @@ fn render_immediate_viewport(
     );
 }
 
-pub(crate) fn remove_viewports_not_in(
+pub fn remove_viewports_not_in(
     viewports: &mut ViewportIdMap<Viewport>,
     painter: &mut egui_wgpu::winit::Painter,
     viewport_from_window: &mut HashMap<WindowId, ViewportId>,

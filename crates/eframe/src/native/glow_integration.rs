@@ -373,11 +373,10 @@ impl WinitApp for GlowWinitApp {
         let running = self.running.as_ref()?;
         let glutin = running.glutin.borrow();
         let viewport_id = *glutin.viewport_from_window.get(&window_id)?;
-        if let Some(viewport) = glutin.viewports.get(&viewport_id) {
-            viewport.window.clone()
-        } else {
-            None
-        }
+        glutin
+            .viewports
+            .get(&viewport_id)
+            .map_or_else(|| None, |viewport| viewport.window.clone())
     }
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
@@ -404,11 +403,9 @@ impl WinitApp for GlowWinitApp {
         event_loop: &EventLoopWindowTarget<UserEvent>,
         window_id: WindowId,
     ) -> EventResult {
-        if let Some(running) = &mut self.running {
+        self.running.as_mut().map_or(EventResult::Wait, |running| {
             running.run_ui_and_paint(event_loop, window_id)
-        } else {
-            EventResult::Wait
-        }
+        })
     }
 
     fn on_event(
@@ -445,11 +442,9 @@ impl WinitApp for GlowWinitApp {
             }
 
             winit::event::Event::WindowEvent { event, window_id } => {
-                if let Some(running) = &mut self.running {
+                self.running.as_mut().map_or(EventResult::Wait, |running| {
                     running.on_window_event(*window_id, event)
-                } else {
-                    EventResult::Wait
-                }
+                })
             }
 
             winit::event::Event::DeviceEvent {
@@ -466,11 +461,12 @@ impl WinitApp for GlowWinitApp {
                             egui_winit.on_mouse_motion(*delta);
                         }
 
-                        if let Some(window) = viewport.window.as_ref() {
-                            EventResult::RepaintNext(window.id())
-                        } else {
-                            EventResult::Wait
-                        }
+                        viewport
+                            .window
+                            .as_ref()
+                            .map_or(EventResult::Wait, |window| {
+                                EventResult::RepaintNext(window.id())
+                            })
                     } else {
                         EventResult::Wait
                     }
@@ -483,7 +479,7 @@ impl WinitApp for GlowWinitApp {
             winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
                 accesskit_winit::ActionRequestEvent { request, window_id },
             )) => {
-                if let Some(running) = &self.running {
+                self.running.as_ref().map_or(EventResult::Wait, |running| {
                     let mut glutin = running.glutin.borrow_mut();
                     if let Some(viewport_id) = glutin.viewport_from_window.get(window_id).copied() {
                         if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
@@ -496,9 +492,7 @@ impl WinitApp for GlowWinitApp {
                     // As a form of user input, accessibility actions should
                     // lead to a repaint.
                     EventResult::RepaintNext(*window_id)
-                } else {
-                    EventResult::Wait
-                }
+                })
             }
             _ => EventResult::Wait,
         })
@@ -887,16 +881,17 @@ fn change_gl_context(
         }
     }
 
-    let not_current = if let Some(not_current_context) = not_current_gl_context.take() {
-        not_current_context
-    } else {
-        crate::profile_scope!("make_not_current");
-        current_gl_context
-            .take()
-            .unwrap()
-            .make_not_current()
-            .unwrap()
-    };
+    let not_current = not_current_gl_context.take().map_or_else(
+        || {
+            crate::profile_scope!("make_not_current");
+            current_gl_context
+                .take()
+                .unwrap()
+                .make_not_current()
+                .unwrap()
+        },
+        |not_current_context| not_current_context,
+    );
 
     crate::profile_scope!("make_current");
     *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());

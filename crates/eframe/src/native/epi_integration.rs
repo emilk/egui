@@ -251,7 +251,7 @@ impl EpiIntegration {
     }
 
     /// If `true`, it is time to close the native window.
-    pub fn should_close(&self) -> bool {
+    pub const fn should_close(&self) -> bool {
         self.close
     }
 
@@ -423,7 +423,7 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
     None
 }
 
-pub(crate) fn theme_from_winit_theme(theme: winit::window::Theme) -> Theme {
+pub const fn theme_from_winit_theme(theme: winit::window::Theme) -> Theme {
     match theme {
         winit::window::Theme::Dark => Theme::Dark,
         winit::window::Theme::Light => Theme::Light,

@@ -56,21 +56,24 @@ impl FileStorage {
     /// Find a good place to put the files that the OS likes.
     pub fn from_app_id(app_id: &str) -> Option<Self> {
         crate::profile_function!(app_id);
-        if let Some(data_dir) = storage_dir(app_id) {
-            if let Err(err) = std::fs::create_dir_all(&data_dir) {
-                log::warn!(
-                    "Saving disabled: Failed to create app path at {:?}: {}",
-                    data_dir,
-                    err
-                );
+        storage_dir(app_id).map_or_else(
+            || {
+                log::warn!("Saving disabled: Failed to find path to data_dir.");
                 None
-            } else {
-                Some(Self::from_ron_filepath(data_dir.join("app.ron")))
-            }
-        } else {
-            log::warn!("Saving disabled: Failed to find path to data_dir.");
-            None
-        }
+            },
+            |data_dir| {
+                if let Err(err) = std::fs::create_dir_all(&data_dir) {
+                    log::warn!(
+                        "Saving disabled: Failed to create app path at {:?}: {}",
+                        data_dir,
+                        err
+                    );
+                    None
+                } else {
+                    Some(Self::from_ron_filepath(data_dir.join("app.ron")))
+                }
+            },
+        )
     }
 }
 

@@ -10,7 +10,7 @@ pub struct Stopwatch {
 }
 
 impl Stopwatch {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             total_time_ns: 0,
             start: None,
@@ -34,14 +34,11 @@ impl Stopwatch {
     }
 
     pub fn total_time_ns(&self) -> u128 {
-        if let Some(start) = self.start {
+        self.start.map_or(self.total_time_ns, |start| {
             // Running
             let duration = start.elapsed();
             self.total_time_ns + duration.as_nanos()
-        } else {
-            // Paused
-            self.total_time_ns
-        }
+        })
     }
 
     pub fn total_time_sec(&self) -> f32 {

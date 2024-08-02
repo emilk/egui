@@ -685,12 +685,12 @@ impl Frame {
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`
     #[allow(clippy::unused_self)]
-    pub fn is_web(&self) -> bool {
+    pub const fn is_web(&self) -> bool {
         cfg!(target_arch = "wasm32")
     }
 
     /// Information about the integration.
-    pub fn info(&self) -> &IntegrationInfo {
+    pub const fn info(&self) -> &IntegrationInfo {
         &self.info
     }
 
@@ -717,7 +717,7 @@ impl Frame {
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe using [`Renderer::Glow`].
     #[cfg(feature = "glow")]
-    pub fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
+    pub const fn gl(&self) -> Option<&std::sync::Arc<glow::Context>> {
         self.gl.as_ref()
     }
 
@@ -736,7 +736,7 @@ impl Frame {
     ///
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
+    pub const fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
         self.wgpu_render_state.as_ref()
     }
 }
@@ -851,7 +851,7 @@ pub trait Storage {
 
 /// Stores nothing.
 #[derive(Clone, Default)]
-pub(crate) struct DummyStorage {}
+pub struct DummyStorage {}
 
 impl Storage for DummyStorage {
     fn get_string(&self, _key: &str) -> Option<String> {

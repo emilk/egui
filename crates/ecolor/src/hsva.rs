@@ -22,7 +22,7 @@ pub struct Hsva {
 
 impl Hsva {
     #[inline]
-    pub fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
+    pub const fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
         Self { h, s, v, a }
     }
 
@@ -110,7 +110,7 @@ impl Hsva {
     // ------------------------------------------------------------------------
 
     #[inline]
-    pub fn to_opaque(self) -> Self {
+    pub const fn to_opaque(self) -> Self {
         Self { a: 1.0, ..self }
     }
 
@@ -233,10 +233,10 @@ pub fn rgb_from_hsv((h, s, v): (f32, f32, f32)) -> [f32; 3] {
     let h = (h.fract() + 1.0).fract(); // wrap
     let s = s.clamp(0.0, 1.0);
 
-    let f = h * 6.0 - (h * 6.0).floor();
+    let f = h.mul_add(6.0, -(h * 6.0).floor());
     let p = v * (1.0 - s);
-    let q = v * (1.0 - f * s);
-    let t = v * (1.0 - (1.0 - f) * s);
+    let q = v * f.mul_add(-s, 1.0);
+    let t = v * (1.0 - f).mul_add(-s, 1.0);
 
     match (h * 6.0).floor() as i32 % 6 {
         0 => [v, t, p],

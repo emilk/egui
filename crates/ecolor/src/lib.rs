@@ -83,7 +83,7 @@ pub fn gamma_u8_from_linear_f32(l: f32) -> u8 {
     } else if l <= 0.0031308 {
         fast_round(3294.6 * l)
     } else if l <= 1.0 {
-        fast_round(269.025 * l.powf(1.0 / 2.4) - 14.025)
+        fast_round(269.025f32.mul_add(l.powf(1.0 / 2.4), -14.025))
     } else {
         255
     }
@@ -129,7 +129,7 @@ pub fn gamma_from_linear(linear: f32) -> f32 {
     } else if linear <= 0.0031308 {
         12.92 * linear
     } else {
-        1.055 * linear.powf(1.0 / 2.4) - 0.055
+        1.055f32.mul_add(linear.powf(1.0 / 2.4), -0.055)
     }
 }
 
@@ -137,7 +137,7 @@ pub fn gamma_from_linear(linear: f32) -> f32 {
 
 /// Cheap and ugly.
 /// Made for graying out disabled `Ui`s.
-pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
+pub const fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
     let [mut r, mut g, mut b, mut a] = color.to_array();
 
     if a == 0 {

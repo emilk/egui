@@ -173,7 +173,7 @@ impl Color32 {
 
     /// Is the alpha=0 ?
     #[inline]
-    pub fn is_additive(self) -> bool {
+    pub const fn is_additive(self) -> bool {
         self.a() == 0
     }
 
@@ -204,10 +204,10 @@ impl Color32 {
         debug_assert!(0.0 <= factor && factor.is_finite());
         let Self([r, g, b, a]) = self;
         Self([
-            (r as f32 * factor + 0.5) as u8,
-            (g as f32 * factor + 0.5) as u8,
-            (b as f32 * factor + 0.5) as u8,
-            (a as f32 * factor + 0.5) as u8,
+            (r as f32).mul_add(factor, 0.5) as u8,
+            (g as f32).mul_add(factor, 0.5) as u8,
+            (b as f32).mul_add(factor, 0.5) as u8,
+            (a as f32).mul_add(factor, 0.5) as u8,
         ])
     }
 
