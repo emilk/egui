@@ -57,12 +57,15 @@ android-native-activity = ["egui-winit/android-native-activity"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
 
+# Enable the directories dependency for a more precise file path for the persistence feature.
+# Not needed if you provide your own path, or if the simpler default path resolvers are good enough.
+directories = ["dep:directories"]
+
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
 glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
 persistence = [
-  "directories",
   "egui-winit/serde",
   "egui/persistence",
   "ron",
