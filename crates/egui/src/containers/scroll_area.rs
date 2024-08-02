@@ -70,7 +70,7 @@ impl State {
     }
 
     /// Get the current kinetic scrolling velocity.
-    pub fn velocity(&self) -> Vec2 {
+    pub const fn velocity(&self) -> Vec2 {
         self.vel
     }
 }
@@ -236,7 +236,7 @@ impl ScrollArea {
     ///
     /// See also [`Self::auto_shrink`].
     #[inline]
-    pub fn max_width(mut self, max_width: f32) -> Self {
+    pub const fn max_width(mut self, max_width: f32) -> Self {
         self.max_size.x = max_width;
         self
     }
@@ -247,7 +247,7 @@ impl ScrollArea {
     ///
     /// See also [`Self::auto_shrink`].
     #[inline]
-    pub fn max_height(mut self, max_height: f32) -> Self {
+    pub const fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
         self
     }
@@ -259,7 +259,7 @@ impl ScrollArea {
     ///
     /// Default: `64.0`.
     #[inline]
-    pub fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
+    pub const fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
         self.min_scrolled_size.x = min_scrolled_width;
         self
     }
@@ -271,7 +271,7 @@ impl ScrollArea {
     ///
     /// Default: `64.0`.
     #[inline]
-    pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
+    pub const fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
         self.min_scrolled_size.y = min_scrolled_height;
         self
     }
@@ -280,7 +280,7 @@ impl ScrollArea {
     ///
     /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
     #[inline]
-    pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
+    pub const fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
         self.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
@@ -300,7 +300,7 @@ impl ScrollArea {
     /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     #[inline]
-    pub fn scroll_offset(mut self, offset: Vec2) -> Self {
+    pub const fn scroll_offset(mut self, offset: Vec2) -> Self {
         self.offset_x = Some(offset.x);
         self.offset_y = Some(offset.y);
         self
@@ -313,7 +313,7 @@ impl ScrollArea {
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     #[inline]
-    pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
+    pub const fn vertical_scroll_offset(mut self, offset: f32) -> Self {
         self.offset_y = Some(offset);
         self
     }
@@ -325,7 +325,7 @@ impl ScrollArea {
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     #[inline]
-    pub fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
+    pub const fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
         self.offset_x = Some(offset);
         self
     }
@@ -371,7 +371,7 @@ impl ScrollArea {
     ///
     /// This controls both scrolling directions.
     #[inline]
-    pub fn enable_scrolling(mut self, enable: bool) -> Self {
+    pub const fn enable_scrolling(mut self, enable: bool) -> Self {
         self.scrolling_enabled = enable;
         self
     }
@@ -384,7 +384,7 @@ impl ScrollArea {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub const fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.drag_to_scroll = drag_to_scroll;
         self
     }
@@ -405,7 +405,7 @@ impl ScrollArea {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn animated(mut self, animated: bool) -> Self {
+    pub const fn animated(mut self, animated: bool) -> Self {
         self.animated = animated;
         self
     }

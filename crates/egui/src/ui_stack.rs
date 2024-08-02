@@ -55,7 +55,7 @@ pub enum UiKind {
 impl UiKind {
     /// Is this any kind of panel?
     #[inline]
-    pub fn is_panel(&self) -> bool {
+    pub const fn is_panel(&self) -> bool {
         matches!(
             self,
             Self::CentralPanel
@@ -68,7 +68,7 @@ impl UiKind {
 
     /// Is this any kind of [`crate::Area`]?
     #[inline]
-    pub fn is_area(&self) -> bool {
+    pub const fn is_area(&self) -> bool {
         match self {
             Self::CentralPanel
             | Self::LeftPanel
@@ -111,7 +111,7 @@ impl UiStackInfo {
     }
 
     #[inline]
-    pub fn with_frame(mut self, frame: Frame) -> Self {
+    pub const fn with_frame(mut self, frame: Frame) -> Self {
         self.frame = frame;
         self
     }
@@ -207,18 +207,18 @@ pub struct UiStack {
 // these methods act on this specific node
 impl UiStack {
     #[inline]
-    pub fn kind(&self) -> Option<UiKind> {
+    pub const fn kind(&self) -> Option<UiKind> {
         self.info.kind
     }
 
     #[inline]
-    pub fn frame(&self) -> &Frame {
+    pub const fn frame(&self) -> &Frame {
         &self.info.frame
     }
 
     /// User tags.
     #[inline]
-    pub fn tags(&self) -> &UiTags {
+    pub const fn tags(&self) -> &UiTags {
         &self.info.tags
     }
 
@@ -230,7 +230,7 @@ impl UiStack {
 
     /// Is this a root [`crate::Ui`], i.e. created with [`crate::Ui::new()`]?
     #[inline]
-    pub fn is_root_ui(&self) -> bool {
+    pub const fn is_root_ui(&self) -> bool {
         self.parent.is_none()
     }
 
@@ -245,7 +245,7 @@ impl UiStack {
 impl UiStack {
     /// Return an iterator that walks the stack from this node to the root.
     #[allow(clippy::iter_without_into_iter)]
-    pub fn iter(&self) -> UiStackIterator<'_> {
+    pub const fn iter(&self) -> UiStackIterator<'_> {
         UiStackIterator { next: Some(self) }
     }
 

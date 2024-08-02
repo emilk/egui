@@ -246,12 +246,12 @@ impl FontImpl {
 
     /// Height of one row of text in points.
     #[inline(always)]
-    pub fn row_height(&self) -> f32 {
+    pub const fn row_height(&self) -> f32 {
         self.height_in_points
     }
 
     #[inline(always)]
-    pub fn pixels_per_point(&self) -> f32 {
+    pub const fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
 
@@ -259,7 +259,7 @@ impl FontImpl {
     ///
     /// Unit: points.
     #[inline(always)]
-    pub fn ascent(&self) -> f32 {
+    pub const fn ascent(&self) -> f32 {
         self.ascent
     }
 
@@ -416,7 +416,7 @@ impl Font {
 
     /// Height of one row of text. In points
     #[inline(always)]
-    pub fn row_height(&self) -> f32 {
+    pub const fn row_height(&self) -> f32 {
         self.row_height
     }
 
@@ -479,7 +479,7 @@ impl Font {
 ///
 /// See also [`FontImpl::ignore_character`].
 #[inline]
-fn invisible_char(c: char) -> bool {
+const fn invisible_char(c: char) -> bool {
     if c == '\r' {
         // A character most vile and pernicious. Don't display it.
         return true;

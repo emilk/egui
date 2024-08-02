@@ -114,7 +114,7 @@ impl<'a> DragValue<'a> {
     /// Dragging will be restricted to the range regardless of this setting.
     /// Default: `true`.
     #[inline]
-    pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
+    pub const fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
         self
     }
@@ -138,7 +138,7 @@ impl<'a> DragValue<'a> {
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
-    pub fn min_decimals(mut self, min_decimals: usize) -> Self {
+    pub const fn min_decimals(mut self, min_decimals: usize) -> Self {
         self.min_decimals = min_decimals;
         self
     }
@@ -149,13 +149,13 @@ impl<'a> DragValue<'a> {
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
-    pub fn max_decimals(mut self, max_decimals: usize) -> Self {
+    pub const fn max_decimals(mut self, max_decimals: usize) -> Self {
         self.max_decimals = Some(max_decimals);
         self
     }
 
     #[inline]
-    pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
+    pub const fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
         self.max_decimals = max_decimals;
         self
     }
@@ -165,7 +165,7 @@ impl<'a> DragValue<'a> {
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
-    pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
+    pub const fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
         self
@@ -377,7 +377,7 @@ impl<'a> DragValue<'a> {
     /// Default: `true`.
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
     #[inline]
-    pub fn update_while_editing(mut self, update: bool) -> Self {
+    pub const fn update_while_editing(mut self, update: bool) -> Self {
         self.update_while_editing = update;
         self
     }

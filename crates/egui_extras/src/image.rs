@@ -124,17 +124,17 @@ impl RetainedImage {
     }
 
     /// The size of the image data (number of pixels wide/high).
-    pub fn size(&self) -> [usize; 2] {
+    pub const fn size(&self) -> [usize; 2] {
         self.size
     }
 
     /// The width of the image.
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.size[0]
     }
 
     /// The height of the image.
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.size[1]
     }
 

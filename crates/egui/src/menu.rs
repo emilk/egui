@@ -50,7 +50,7 @@ impl BarState {
         self.open_menu.show(button, add_contents)
     }
 
-    pub(crate) fn has_root(&self) -> bool {
+    pub(crate) const fn has_root(&self) -> bool {
         self.open_menu.inner.is_some()
     }
 }

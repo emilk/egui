@@ -122,7 +122,7 @@ impl WidgetWithState for Area {
 
 impl Area {
     /// The `id` must be globally unique.
-    pub fn new(id: Id) -> Self {
+    pub const fn new(id: Id) -> Self {
         Self {
             id,
             kind: UiKind::GenericArea,
@@ -146,7 +146,7 @@ impl Area {
     ///
     /// The `id` must be globally unique.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
+    pub const fn id(mut self, id: Id) -> Self {
         self.id = id;
         self
     }
@@ -155,7 +155,7 @@ impl Area {
     ///
     /// Default to [`UiKind::GenericArea`].
     #[inline]
-    pub fn kind(mut self, kind: UiKind) -> Self {
+    pub const fn kind(mut self, kind: UiKind) -> Self {
         self.kind = kind;
         self
     }
@@ -169,24 +169,24 @@ impl Area {
     /// You won't be able to move the window.
     /// Default: `true`.
     #[inline]
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub const fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
 
     /// Moveable by dragging the area?
     #[inline]
-    pub fn movable(mut self, movable: bool) -> Self {
+    pub const fn movable(mut self, movable: bool) -> Self {
         self.movable = movable;
         self.interactable |= movable;
         self
     }
 
-    pub fn is_enabled(&self) -> bool {
+    pub const fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn is_movable(&self) -> bool {
+    pub const fn is_movable(&self) -> bool {
         self.movable && self.enabled
     }
 
@@ -196,7 +196,7 @@ impl Area {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn interactable(mut self, interactable: bool) -> Self {
+    pub const fn interactable(mut self, interactable: bool) -> Self {
         self.interactable = interactable;
         self.movable &= interactable;
         self
@@ -206,14 +206,14 @@ impl Area {
     ///
     /// If not set, this will default to `Sense::drag()` if movable, `Sense::click()` if interactable, and `Sense::hover()` otherwise.
     #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
+    pub const fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);
         self
     }
 
     /// `order(Order::Foreground)` for an Area that should always be on top
     #[inline]
-    pub fn order(mut self, order: Order) -> Self {
+    pub const fn order(mut self, order: Order) -> Self {
         self.order = order;
         self
     }
@@ -241,14 +241,14 @@ impl Area {
 
     /// See [`Self::default_size`].
     #[inline]
-    pub fn default_width(mut self, default_width: f32) -> Self {
+    pub const fn default_width(mut self, default_width: f32) -> Self {
         self.default_size.x = default_width;
         self
     }
 
     /// See [`Self::default_size`].
     #[inline]
-    pub fn default_height(mut self, default_height: f32) -> Self {
+    pub const fn default_height(mut self, default_height: f32) -> Self {
         self.default_size.y = default_height;
         self
     }
@@ -288,7 +288,7 @@ impl Area {
     ///
     /// Default: [`Align2::LEFT_TOP`].
     #[inline]
-    pub fn pivot(mut self, pivot: Align2) -> Self {
+    pub const fn pivot(mut self, pivot: Align2) -> Self {
         self.pivot = pivot;
         self
     }
@@ -317,7 +317,7 @@ impl Area {
         self.movable(false)
     }
 
-    pub(crate) fn get_pivot(&self) -> Align2 {
+    pub(crate) const fn get_pivot(&self) -> Align2 {
         if let Some((pivot, _)) = self.anchor {
             pivot
         } else {
@@ -329,7 +329,7 @@ impl Area {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn fade_in(mut self, fade_in: bool) -> Self {
+    pub const fn fade_in(mut self, fade_in: bool) -> Self {
         self.fade_in = fade_in;
         self
     }
@@ -513,7 +513,7 @@ impl Area {
 }
 
 impl Prepared {
-    pub(crate) fn state(&self) -> &AreaState {
+    pub(crate) const fn state(&self) -> &AreaState {
         &self.state
     }
 

@@ -96,7 +96,7 @@ impl RichText {
     /// Select the font size (in points).
     /// This overrides the value from [`Self::text_style`].
     #[inline]
-    pub fn size(mut self, size: f32) -> Self {
+    pub const fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
         self
     }
@@ -108,7 +108,7 @@ impl RichText {
     /// For even text it is recommended you round this to an even number of _pixels_,
     /// e.g. using [`crate::Painter::round_to_pixel`].
     #[inline]
-    pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
+    pub const fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
         self.extra_letter_spacing = extra_letter_spacing;
         self
     }
@@ -122,7 +122,7 @@ impl RichText {
     /// For even text it is recommended you round this to an even number of _pixels_,
     /// e.g. using [`crate::Painter::round_to_pixel`].
     #[inline]
-    pub fn line_height(mut self, line_height: Option<f32>) -> Self {
+    pub const fn line_height(mut self, line_height: Option<f32>) -> Self {
         self.line_height = line_height;
         self
     }
@@ -183,14 +183,14 @@ impl RichText {
 
     /// Extra strong text (stronger color).
     #[inline]
-    pub fn strong(mut self) -> Self {
+    pub const fn strong(mut self) -> Self {
         self.strong = true;
         self
     }
 
     /// Extra weak text (fainter color).
     #[inline]
-    pub fn weak(mut self) -> Self {
+    pub const fn weak(mut self) -> Self {
         self.weak = true;
         self
     }
@@ -199,7 +199,7 @@ impl RichText {
     ///
     /// If you want to control the line color, use [`LayoutJob`] instead.
     #[inline]
-    pub fn underline(mut self) -> Self {
+    pub const fn underline(mut self) -> Self {
         self.underline = true;
         self
     }
@@ -208,14 +208,14 @@ impl RichText {
     ///
     /// If you want to control the strikethrough line color, use [`LayoutJob`] instead.
     #[inline]
-    pub fn strikethrough(mut self) -> Self {
+    pub const fn strikethrough(mut self) -> Self {
         self.strikethrough = true;
         self
     }
 
     /// Tilt the characters to the right.
     #[inline]
-    pub fn italics(mut self) -> Self {
+    pub const fn italics(mut self) -> Self {
         self.italics = true;
         self
     }
@@ -234,7 +234,7 @@ impl RichText {
 
     /// Align text to top. Only applicable together with [`Self::small()`].
     #[inline]
-    pub fn raised(mut self) -> Self {
+    pub const fn raised(mut self) -> Self {
         self.raised = true;
         self
     }

@@ -34,7 +34,7 @@ impl TSTransform {
     #[inline]
     /// Creates a new translation that first scales points around
     /// `(0, 0)`, then translates them.  
-    pub fn new(translation: Vec2, scaling: f32) -> Self {
+    pub const fn new(translation: Vec2, scaling: f32) -> Self {
         Self {
             translation,
             scaling,

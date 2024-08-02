@@ -151,7 +151,7 @@ impl<'t> TextEdit<'t> {
 
     /// Use if you want to set an explicit [`Id`] for this widget.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
+    pub const fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
@@ -200,7 +200,7 @@ impl<'t> TextEdit<'t> {
 
     /// If true, hide the letters from view and prevent copying from the field.
     #[inline]
-    pub fn password(mut self, password: bool) -> Self {
+    pub const fn password(mut self, password: bool) -> Self {
         self.password = password;
         self
     }
@@ -213,13 +213,13 @@ impl<'t> TextEdit<'t> {
     }
 
     #[inline]
-    pub fn text_color(mut self, text_color: Color32) -> Self {
+    pub const fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }
 
     #[inline]
-    pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
+    pub const fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
         self.text_color = text_color;
         self
     }
@@ -258,14 +258,14 @@ impl<'t> TextEdit<'t> {
     ///
     /// Consider using [`Ui::add_enabled`] instead to also give the [`TextEdit`] a greyed out look.
     #[inline]
-    pub fn interactive(mut self, interactive: bool) -> Self {
+    pub const fn interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
         self
     }
 
     /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
     #[inline]
-    pub fn frame(mut self, frame: bool) -> Self {
+    pub const fn frame(mut self, frame: bool) -> Self {
         self.frame = frame;
         self
     }
@@ -280,7 +280,7 @@ impl<'t> TextEdit<'t> {
     /// Set to 0.0 to keep as small as possible.
     /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
     #[inline]
-    pub fn desired_width(mut self, desired_width: f32) -> Self {
+    pub const fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
     }
@@ -289,7 +289,7 @@ impl<'t> TextEdit<'t> {
     /// The default for singleline text is `1`.
     /// The default for multiline text is `4`.
     #[inline]
-    pub fn desired_rows(mut self, desired_height_rows: usize) -> Self {
+    pub const fn desired_rows(mut self, desired_height_rows: usize) -> Self {
         self.desired_height_rows = desired_height_rows;
         self
     }
@@ -300,7 +300,7 @@ impl<'t> TextEdit<'t> {
     /// When `true`, the widget will keep the focus and pressing TAB
     /// will insert the `'\t'` character.
     #[inline]
-    pub fn lock_focus(mut self, tab_will_indent: bool) -> Self {
+    pub const fn lock_focus(mut self, tab_will_indent: bool) -> Self {
         self.event_filter.tab = tab_will_indent;
         self
     }
@@ -309,7 +309,7 @@ impl<'t> TextEdit<'t> {
     ///
     /// When `false`, the cursor will initially be placed at the beginning of the text.
     #[inline]
-    pub fn cursor_at_end(mut self, b: bool) -> Self {
+    pub const fn cursor_at_end(mut self, b: bool) -> Self {
         self.cursor_at_end = b;
         self
     }
@@ -320,7 +320,7 @@ impl<'t> TextEdit<'t> {
     ///
     /// This only works for singleline [`TextEdit`].
     #[inline]
-    pub fn clip_text(mut self, b: bool) -> Self {
+    pub const fn clip_text(mut self, b: bool) -> Self {
         // always show everything in multiline
         if !self.multiline {
             self.clip_text = b;
@@ -332,7 +332,7 @@ impl<'t> TextEdit<'t> {
     ///
     /// This only works for singleline [`TextEdit`]
     #[inline]
-    pub fn char_limit(mut self, limit: usize) -> Self {
+    pub const fn char_limit(mut self, limit: usize) -> Self {
         self.char_limit = limit;
         self
     }
@@ -353,7 +353,7 @@ impl<'t> TextEdit<'t> {
 
     /// Set the minimum size of the [`TextEdit`].
     #[inline]
-    pub fn min_size(mut self, min_size: Vec2) -> Self {
+    pub const fn min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
     }

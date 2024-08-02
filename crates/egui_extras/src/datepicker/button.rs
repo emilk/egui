@@ -39,42 +39,42 @@ impl<'a> DatePickerButton<'a> {
     /// Add id source.
     /// Must be set if multiple date picker buttons are in the same Ui.
     #[inline]
-    pub fn id_source(mut self, id_source: &'a str) -> Self {
+    pub const fn id_source(mut self, id_source: &'a str) -> Self {
         self.id_source = Some(id_source);
         self
     }
 
     /// Show combo boxes in date picker popup. (Default: true)
     #[inline]
-    pub fn combo_boxes(mut self, combo_boxes: bool) -> Self {
+    pub const fn combo_boxes(mut self, combo_boxes: bool) -> Self {
         self.combo_boxes = combo_boxes;
         self
     }
 
     /// Show arrows in date picker popup. (Default: true)
     #[inline]
-    pub fn arrows(mut self, arrows: bool) -> Self {
+    pub const fn arrows(mut self, arrows: bool) -> Self {
         self.arrows = arrows;
         self
     }
 
     /// Show calendar in date picker popup. (Default: true)
     #[inline]
-    pub fn calendar(mut self, calendar: bool) -> Self {
+    pub const fn calendar(mut self, calendar: bool) -> Self {
         self.calendar = calendar;
         self
     }
 
     /// Show calendar week in date picker popup. (Default: true)
     #[inline]
-    pub fn calendar_week(mut self, week: bool) -> Self {
+    pub const fn calendar_week(mut self, week: bool) -> Self {
         self.calendar_week = week;
         self
     }
 
     /// Show the calendar icon on the button. (Default: true)
     #[inline]
-    pub fn show_icon(mut self, show_icon: bool) -> Self {
+    pub const fn show_icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
         self
     }
@@ -89,7 +89,7 @@ impl<'a> DatePickerButton<'a> {
 
     /// Highlight weekend days. (Default: true)
     #[inline]
-    pub fn highlight_weekends(mut self, highlight_weekends: bool) -> Self {
+    pub const fn highlight_weekends(mut self, highlight_weekends: bool) -> Self {
         self.highlight_weekends = highlight_weekends;
         self
     }

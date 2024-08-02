@@ -38,7 +38,7 @@ impl<'a> Checkbox<'a> {
     /// This only affects the checkbox's appearance. It will still toggle its boolean value when
     /// clicked.
     #[inline]
-    pub fn indeterminate(mut self, indeterminate: bool) -> Self {
+    pub const fn indeterminate(mut self, indeterminate: bool) -> Self {
         self.indeterminate = indeterminate;
         self
     }

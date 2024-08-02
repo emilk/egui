@@ -312,7 +312,7 @@ impl Style {
     }
 
     /// Style to use for non-interactive widgets.
-    pub fn noninteractive(&self) -> &WidgetVisuals {
+    pub const fn noninteractive(&self) -> &WidgetVisuals {
         &self.visuals.widgets.noninteractive
     }
 
@@ -523,7 +523,7 @@ impl Default for ScrollStyle {
 
 impl ScrollStyle {
     /// Solid scroll bars that always use up space
-    pub fn solid() -> Self {
+    pub const fn solid() -> Self {
         Self {
             floating: false,
             bar_width: 6.0,
@@ -720,7 +720,7 @@ impl Default for ScrollAnimation {
 
 impl ScrollAnimation {
     /// New scroll animation
-    pub fn new(points_per_second: f32, duration: Rangef) -> Self {
+    pub const fn new(points_per_second: f32, duration: Rangef) -> Self {
         Self {
             points_per_second,
             duration,
@@ -970,7 +970,7 @@ pub struct Visuals {
 
 impl Visuals {
     #[inline(always)]
-    pub fn noninteractive(&self) -> &WidgetVisuals {
+    pub const fn noninteractive(&self) -> &WidgetVisuals {
         &self.widgets.noninteractive
     }
 
@@ -991,19 +991,19 @@ impl Visuals {
 
     /// Window background color.
     #[inline(always)]
-    pub fn window_fill(&self) -> Color32 {
+    pub const fn window_fill(&self) -> Color32 {
         self.window_fill
     }
 
     #[inline(always)]
-    pub fn window_stroke(&self) -> Stroke {
+    pub const fn window_stroke(&self) -> Stroke {
         self.window_stroke
     }
 
     /// When fading out things, we fade the colors towards this.
     // TODO(emilk): replace with an alpha
     #[inline(always)]
-    pub fn fade_out_to_color(&self) -> Color32 {
+    pub const fn fade_out_to_color(&self) -> Color32 {
         self.widgets.noninteractive.weak_bg_fill
     }
 
@@ -1110,7 +1110,7 @@ pub struct WidgetVisuals {
 
 impl WidgetVisuals {
     #[inline(always)]
-    pub fn text_color(&self) -> Color32 {
+    pub const fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
 }

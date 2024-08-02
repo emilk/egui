@@ -150,7 +150,7 @@ fn show_code(ui: &mut egui::Ui, code: &str) {
 }
 
 fn remove_leading_indentation(code: &str) -> String {
-    fn is_indent(c: &u8) -> bool {
+    const fn is_indent(c: &u8) -> bool {
         matches!(*c, b' ' | b'\t')
     }
 

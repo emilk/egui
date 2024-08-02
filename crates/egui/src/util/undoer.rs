@@ -126,7 +126,7 @@ where
     }
 
     /// Return true if the state is currently changing
-    pub fn is_in_flux(&self) -> bool {
+    pub const fn is_in_flux(&self) -> bool {
         self.flux.is_some()
     }
 

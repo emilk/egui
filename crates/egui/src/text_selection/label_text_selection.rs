@@ -233,7 +233,7 @@ impl LabelSelectionState {
         state.store(ctx);
     }
 
-    pub fn has_selection(&self) -> bool {
+    pub const fn has_selection(&self) -> bool {
         self.selection.is_some()
     }
 

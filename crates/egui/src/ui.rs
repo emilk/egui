@@ -214,7 +214,7 @@ impl Ui {
     /// Set to true in special cases where we do one frame
     /// where we size up the contents of the Ui, without actually showing it.
     #[inline]
-    pub fn is_sizing_pass(&self) -> bool {
+    pub const fn is_sizing_pass(&self) -> bool {
         self.sizing_pass
     }
 
@@ -222,7 +222,7 @@ impl Ui {
 
     /// A unique identity of this [`Ui`].
     #[inline]
-    pub fn id(&self) -> Id {
+    pub const fn id(&self) -> Id {
         self.id
     }
 
@@ -230,7 +230,7 @@ impl Ui {
     ///
     /// Note that this may be a different [`Style`] than that of [`Context::style`].
     #[inline]
-    pub fn style(&self) -> &Arc<Style> {
+    pub const fn style(&self) -> &Arc<Style> {
         &self.style
     }
 
@@ -305,7 +305,7 @@ impl Ui {
 
     /// Get a reference to this [`Ui`]'s [`UiStack`].
     #[inline]
-    pub fn stack(&self) -> &Arc<UiStack> {
+    pub const fn stack(&self) -> &Arc<UiStack> {
         &self.stack
     }
 
@@ -317,14 +317,14 @@ impl Ui {
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
-    pub fn painter(&self) -> &Painter {
+    pub const fn painter(&self) -> &Painter {
         &self.painter
     }
 
     /// If `false`, the [`Ui`] does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline]
-    pub fn is_enabled(&self) -> bool {
+    pub const fn is_enabled(&self) -> bool {
         self.enabled
     }
 
@@ -1066,7 +1066,7 @@ impl Ui {
         id
     }
 
-    pub(crate) fn placer(&self) -> &Placer {
+    pub(crate) const fn placer(&self) -> &Placer {
         &self.placer
     }
 

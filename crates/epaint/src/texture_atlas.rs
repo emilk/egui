@@ -129,7 +129,7 @@ impl TextureAtlas {
         atlas
     }
 
-    pub fn size(&self) -> [usize; 2] {
+    pub const fn size(&self) -> [usize; 2] {
         self.image.size
     }
 
@@ -174,13 +174,13 @@ impl TextureAtlas {
 
     /// The texture options suitable for a font texture
     #[inline]
-    pub fn texture_options() -> crate::textures::TextureOptions {
+    pub const fn texture_options() -> crate::textures::TextureOptions {
         crate::textures::TextureOptions::LINEAR
     }
 
     /// The full font atlas image.
     #[inline]
-    pub fn image(&self) -> &FontImage {
+    pub const fn image(&self) -> &FontImage {
         &self.image
     }
 

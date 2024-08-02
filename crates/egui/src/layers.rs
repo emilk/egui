@@ -42,7 +42,7 @@ impl Order {
     pub const TOP: Self = Self::Debug;
 
     #[inline(always)]
-    pub fn allow_interaction(&self) -> bool {
+    pub const fn allow_interaction(&self) -> bool {
         match self {
             Self::Background
             | Self::PanelResizeLine
@@ -54,7 +54,7 @@ impl Order {
     }
 
     /// Short and readable summary
-    pub fn short_debug_format(&self) -> &'static str {
+    pub const fn short_debug_format(&self) -> &'static str {
         match self {
             Self::Background => "backg",
             Self::PanelResizeLine => "panel",
@@ -76,7 +76,7 @@ pub struct LayerId {
 }
 
 impl LayerId {
-    pub fn new(order: Order, id: Id) -> Self {
+    pub const fn new(order: Order, id: Id) -> Self {
         Self { order, id }
     }
 

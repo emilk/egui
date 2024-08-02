@@ -334,7 +334,7 @@ impl FontDefinitions {
 
     /// List of all the builtin font names used by `epaint`.
     #[cfg(feature = "default_fonts")]
-    pub fn builtin_font_names() -> &'static [&'static str] {
+    pub const fn builtin_font_names() -> &'static [&'static str] {
         &[
             "Ubuntu-Light",
             "NotoEmoji-Regular",
@@ -608,12 +608,12 @@ impl FontsImpl {
     }
 
     #[inline(always)]
-    pub fn pixels_per_point(&self) -> f32 {
+    pub const fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
 
     #[inline]
-    pub fn definitions(&self) -> &FontDefinitions {
+    pub const fn definitions(&self) -> &FontDefinitions {
         &self.definitions
     }
 

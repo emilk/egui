@@ -17,7 +17,7 @@ mod mutex_impl {
 
     impl<T> Mutex<T> {
         #[inline(always)]
-        pub fn new(val: T) -> Self {
+        pub const fn new(val: T) -> Self {
             Self(parking_lot::Mutex::new(val))
         }
 
@@ -137,7 +137,7 @@ mod rw_lock_impl {
 
     impl<T> RwLock<T> {
         #[inline(always)]
-        pub fn new(val: T) -> Self {
+        pub const fn new(val: T) -> Self {
             Self(parking_lot::RwLock::new(val))
         }
     }

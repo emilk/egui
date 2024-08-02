@@ -132,7 +132,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn fade_out(mut self, fade_out: bool) -> Self {
+    pub const fn fade_out(mut self, fade_out: bool) -> Self {
         self.fade_out = fade_out;
         self
     }
@@ -155,7 +155,7 @@ impl<'open> Window<'open> {
 
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
@@ -276,7 +276,7 @@ impl<'open> Window<'open> {
 
     /// Set initial collapsed state of the window
     #[inline]
-    pub fn default_open(mut self, default_open: bool) -> Self {
+    pub const fn default_open(mut self, default_open: bool) -> Self {
         self.default_open = default_open;
         self
     }
@@ -337,7 +337,7 @@ impl<'open> Window<'open> {
 
     /// Can the window be collapsed by clicking on its title?
     #[inline]
-    pub fn collapsible(mut self, collapsible: bool) -> Self {
+    pub const fn collapsible(mut self, collapsible: bool) -> Self {
         self.collapsible = collapsible;
         self
     }
@@ -345,7 +345,7 @@ impl<'open> Window<'open> {
     /// Show title bar on top of the window?
     /// If `false`, the window will not be collapsible nor have a close-button.
     #[inline]
-    pub fn title_bar(mut self, title_bar: bool) -> Self {
+    pub const fn title_bar(mut self, title_bar: bool) -> Self {
         self.with_title_bar = title_bar;
         self
     }
@@ -705,7 +705,7 @@ impl PossibleInteractions {
         }
     }
 
-    pub fn resizable(&self) -> bool {
+    pub const fn resizable(&self) -> bool {
         self.resize_left || self.resize_right || self.resize_top || self.resize_bottom
     }
 }
@@ -728,7 +728,7 @@ struct SideResponse {
 }
 
 impl SideResponse {
-    pub fn any(&self) -> bool {
+    pub const fn any(&self) -> bool {
         self.hover || self.drag
     }
 }
@@ -761,11 +761,11 @@ impl ResizeInteraction {
         }
     }
 
-    pub fn any_hovered(&self) -> bool {
+    pub const fn any_hovered(&self) -> bool {
         self.left.hover || self.right.hover || self.top.hover || self.bottom.hover
     }
 
-    pub fn any_dragged(&self) -> bool {
+    pub const fn any_dragged(&self) -> bool {
         self.left.drag || self.right.drag || self.top.drag || self.bottom.drag
     }
 }

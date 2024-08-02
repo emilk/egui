@@ -76,14 +76,14 @@ impl<'a> Button<'a> {
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
-    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
+    pub const fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
         self
     }
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
     #[inline]
-    pub fn wrap(mut self) -> Self {
+    pub const fn wrap(mut self) -> Self {
         self.wrap_mode = Some(TextWrapMode::Wrap);
 
         self
@@ -91,7 +91,7 @@ impl<'a> Button<'a> {
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
     #[inline]
-    pub fn truncate(mut self) -> Self {
+    pub const fn truncate(mut self) -> Self {
         self.wrap_mode = Some(TextWrapMode::Truncate);
         self
     }
@@ -126,7 +126,7 @@ impl<'a> Button<'a> {
 
     /// Turn off the frame
     #[inline]
-    pub fn frame(mut self, frame: bool) -> Self {
+    pub const fn frame(mut self, frame: bool) -> Self {
         self.frame = Some(frame);
         self
     }
@@ -134,14 +134,14 @@ impl<'a> Button<'a> {
     /// By default, buttons senses clicks.
     /// Change this to a drag-button with `Sense::drag()`.
     #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
+    pub const fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
     }
 
     /// Set the minimum size of the button.
     #[inline]
-    pub fn min_size(mut self, min_size: Vec2) -> Self {
+    pub const fn min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
     }
@@ -166,7 +166,7 @@ impl<'a> Button<'a> {
 
     /// If `true`, mark this button as "selected".
     #[inline]
-    pub fn selected(mut self, selected: bool) -> Self {
+    pub const fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
     }

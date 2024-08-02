@@ -22,7 +22,7 @@ impl Spinner {
     /// Sets the spinner's size. The size sets both the height and width, as the spinner is always
     /// square. If the size isn't set explicitly, the active style's `interact_size` is used.
     #[inline]
-    pub fn size(mut self, size: f32) -> Self {
+    pub const fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
         self
     }

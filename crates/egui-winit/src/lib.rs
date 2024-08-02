@@ -188,7 +188,7 @@ impl State {
     }
 
     /// Returns [`false`] or the last value that [`Window::set_ime_allowed()`] was called with, used for debouncing.
-    pub fn allow_ime(&self) -> bool {
+    pub const fn allow_ime(&self) -> bool {
         self.allow_ime
     }
 
@@ -198,14 +198,14 @@ impl State {
     }
 
     #[inline]
-    pub fn egui_ctx(&self) -> &egui::Context {
+    pub const fn egui_ctx(&self) -> &egui::Context {
         &self.egui_ctx
     }
 
     /// The current input state.
     /// This is changed by [`Self::on_window_event`] and cleared by [`Self::take_egui_input`].
     #[inline]
-    pub fn egui_input(&self) -> &egui::RawInput {
+    pub const fn egui_input(&self) -> &egui::RawInput {
         &self.egui_input
     }
 
@@ -992,7 +992,7 @@ fn open_url_in_browser(_url: &str) {
 /// Ignore those.
 /// We also ignore '\r', '\n', '\t'.
 /// Newlines are handled by the `Key::Enter` event.
-fn is_printable_char(chr: char) -> bool {
+const fn is_printable_char(chr: char) -> bool {
     let is_in_private_use_area = '\u{e000}' <= chr && chr <= '\u{f8ff}'
         || '\u{f0000}' <= chr && chr <= '\u{ffffd}'
         || '\u{100000}' <= chr && chr <= '\u{10fffd}';
@@ -1018,7 +1018,7 @@ fn is_paste_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
         || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Insert)
 }
 
-fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::PointerButton> {
+const fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::PointerButton> {
     match button {
         winit::event::MouseButton::Left => Some(egui::PointerButton::Primary),
         winit::event::MouseButton::Right => Some(egui::PointerButton::Secondary),
@@ -1104,7 +1104,7 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
     })
 }
 
-fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
+const fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
     use egui::Key;
     use winit::keyboard::KeyCode;
 
@@ -1226,7 +1226,7 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
     })
 }
 
-fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::CursorIcon> {
+const fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::CursorIcon> {
     match cursor_icon {
         egui::CursorIcon::None => None,
 
@@ -1773,7 +1773,7 @@ pub fn apply_viewport_builder_to_window(
 
 /// Short and fast description of a device event.
 /// Useful for logging and profiling.
-pub fn short_device_event_description(event: &winit::event::DeviceEvent) -> &'static str {
+pub const fn short_device_event_description(event: &winit::event::DeviceEvent) -> &'static str {
     use winit::event::DeviceEvent;
 
     match event {
@@ -1789,7 +1789,7 @@ pub fn short_device_event_description(event: &winit::event::DeviceEvent) -> &'st
 
 /// Short and fast description of a window event.
 /// Useful for logging and profiling.
-pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'static str {
+pub const fn short_window_event_description(event: &winit::event::WindowEvent) -> &'static str {
     use winit::event::WindowEvent;
 
     match event {

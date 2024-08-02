@@ -455,7 +455,7 @@ impl Key {
     }
 
     /// Human-readable English name.
-    pub fn name(self) -> &'static str {
+    pub const fn name(self) -> &'static str {
         match self {
             Self::ArrowDown => "Down",
             Self::ArrowLeft => "Left",

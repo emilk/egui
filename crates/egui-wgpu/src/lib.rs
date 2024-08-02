@@ -352,7 +352,7 @@ pub fn preferred_framebuffer_format(
 }
 
 /// Take's epi's depth/stencil bits and returns the corresponding wgpu format.
-pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wgpu::TextureFormat> {
+pub const fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wgpu::TextureFormat> {
     match (depth_buffer, stencil_buffer) {
         (0, 8) => Some(wgpu::TextureFormat::Stencil8),
         (16, 0) => Some(wgpu::TextureFormat::Depth16Unorm),

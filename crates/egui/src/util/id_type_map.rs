@@ -19,7 +19,7 @@ impl TypeId {
     }
 
     #[inline(always)]
-    pub(crate) fn value(&self) -> u64 {
+    pub(crate) const fn value(&self) -> u64 {
         self.0
     }
 }
@@ -549,7 +549,7 @@ impl IdTypeMap {
     /// Once this limit is reached, the state that was read the longest time ago will be dropped first.
     ///
     /// This value in itself will not be serialized.
-    pub fn max_bytes_per_type(&self) -> usize {
+    pub const fn max_bytes_per_type(&self) -> usize {
         self.max_bytes_per_type
     }
 

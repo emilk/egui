@@ -275,11 +275,11 @@ impl Painter {
     }
 
     /// Access the shared glow context.
-    pub fn gl(&self) -> &Arc<glow::Context> {
+    pub const fn gl(&self) -> &Arc<glow::Context> {
         &self.gl
     }
 
-    pub fn max_texture_side(&self) -> usize {
+    pub const fn max_texture_side(&self) -> usize {
         self.max_texture_side
     }
 
@@ -293,7 +293,7 @@ impl Painter {
     /// then restore to this afterwards with
     /// `gl.bind_framebuffer(glow::FRAMEBUFFER, painter.intermediate_fbo());`
     #[allow(clippy::unused_self)]
-    pub fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
+    pub const fn intermediate_fbo(&self) -> Option<glow::Framebuffer> {
         // We don't currently ever render to an offscreen buffer,
         // but we may want to start to in order to do anti-aliasing on web, for instance.
         None

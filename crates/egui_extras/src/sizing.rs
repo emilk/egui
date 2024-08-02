@@ -67,7 +67,7 @@ impl Size {
     }
 
     /// Allowed range of movement (in points), if in a resizable [`Table`](crate::table::Table).
-    pub fn range(self) -> Rangef {
+    pub const fn range(self) -> Rangef {
         match self {
             Self::Absolute { range, .. }
             | Self::Relative { range, .. }
@@ -84,17 +84,17 @@ impl Size {
     }
 
     #[inline]
-    pub fn is_absolute(&self) -> bool {
+    pub const fn is_absolute(&self) -> bool {
         matches!(self, Self::Absolute { .. })
     }
 
     #[inline]
-    pub fn is_relative(&self) -> bool {
+    pub const fn is_relative(&self) -> bool {
         matches!(self, Self::Relative { .. })
     }
 
     #[inline]
-    pub fn is_remainder(&self) -> bool {
+    pub const fn is_remainder(&self) -> bool {
         matches!(self, Self::Remainder { .. })
     }
 }

@@ -36,14 +36,14 @@ impl<'a> ImageButton<'a> {
 
     /// If `true`, mark this button as "selected".
     #[inline]
-    pub fn selected(mut self, selected: bool) -> Self {
+    pub const fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
     }
 
     /// Turn off the frame
     #[inline]
-    pub fn frame(mut self, frame: bool) -> Self {
+    pub const fn frame(mut self, frame: bool) -> Self {
         self.frame = frame;
         self
     }
@@ -51,7 +51,7 @@ impl<'a> ImageButton<'a> {
     /// By default, buttons senses clicks.
     /// Change this to a drag-button with `Sense::drag()`.
     #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
+    pub const fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
     }

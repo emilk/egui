@@ -140,7 +140,7 @@ impl<'a> Slider<'a> {
     /// Control whether or not the slider shows the current value.
     /// Default: `true`.
     #[inline]
-    pub fn show_value(mut self, show_value: bool) -> Self {
+    pub const fn show_value(mut self, show_value: bool) -> Self {
         self.show_value = show_value;
         self
     }
@@ -174,14 +174,14 @@ impl<'a> Slider<'a> {
 
     /// Vertical or horizontal slider? The default is horizontal.
     #[inline]
-    pub fn orientation(mut self, orientation: SliderOrientation) -> Self {
+    pub const fn orientation(mut self, orientation: SliderOrientation) -> Self {
         self.orientation = orientation;
         self
     }
 
     /// Make this a vertical slider.
     #[inline]
-    pub fn vertical(mut self) -> Self {
+    pub const fn vertical(mut self) -> Self {
         self.orientation = SliderOrientation::Vertical;
         self
     }
@@ -191,7 +191,7 @@ impl<'a> Slider<'a> {
     /// e.g. from one to a million.
     /// The default is OFF.
     #[inline]
-    pub fn logarithmic(mut self, logarithmic: bool) -> Self {
+    pub const fn logarithmic(mut self, logarithmic: bool) -> Self {
         self.spec.logarithmic = logarithmic;
         self
     }
@@ -200,7 +200,7 @@ impl<'a> Slider<'a> {
     /// what is the smallest positive value you want to be able to select?
     /// The default is `1` for integer sliders and `1e-6` for real sliders.
     #[inline]
-    pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
+    pub const fn smallest_positive(mut self, smallest_positive: f64) -> Self {
         self.spec.smallest_positive = smallest_positive;
         self
     }
@@ -209,7 +209,7 @@ impl<'a> Slider<'a> {
     /// before the slider switches to `INFINITY`, if that is the higher end.
     /// Default: INFINITY.
     #[inline]
-    pub fn largest_finite(mut self, largest_finite: f64) -> Self {
+    pub const fn largest_finite(mut self, largest_finite: f64) -> Self {
         self.spec.largest_finite = largest_finite;
         self
     }
@@ -217,7 +217,7 @@ impl<'a> Slider<'a> {
     /// If set to `true`, all incoming and outgoing values will be clamped to the slider range.
     /// Default: `true`.
     #[inline]
-    pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
+    pub const fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
         self
     }
@@ -225,7 +225,7 @@ impl<'a> Slider<'a> {
     /// Turn smart aim on/off. Default is ON.
     /// There is almost no point in turning this off.
     #[inline]
-    pub fn smart_aim(mut self, smart_aim: bool) -> Self {
+    pub const fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
         self
     }
@@ -251,7 +251,7 @@ impl<'a> Slider<'a> {
     /// but you can change it here to for instance have a much finer control
     /// by dragging the slider value rather than the slider itself.
     #[inline]
-    pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
+    pub const fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
         self.drag_value_speed = Some(drag_value_speed);
         self
     }
@@ -262,7 +262,7 @@ impl<'a> Slider<'a> {
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
-    pub fn min_decimals(mut self, min_decimals: usize) -> Self {
+    pub const fn min_decimals(mut self, min_decimals: usize) -> Self {
         self.min_decimals = min_decimals;
         self
     }
@@ -274,7 +274,7 @@ impl<'a> Slider<'a> {
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
-    pub fn max_decimals(mut self, max_decimals: usize) -> Self {
+    pub const fn max_decimals(mut self, max_decimals: usize) -> Self {
         self.max_decimals = Some(max_decimals);
         self
     }
@@ -285,7 +285,7 @@ impl<'a> Slider<'a> {
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     #[inline]
-    pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
+    pub const fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
         self
@@ -298,7 +298,7 @@ impl<'a> Slider<'a> {
     ///
     /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
     #[inline]
-    pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
+    pub const fn trailing_fill(mut self, trailing_fill: bool) -> Self {
         self.trailing_fill = Some(trailing_fill);
         self
     }
@@ -308,7 +308,7 @@ impl<'a> Slider<'a> {
     /// This setting can be enabled globally for all sliders with [`Visuals::handle_shape`].
     /// Changing it here will override the above setting ONLY for this individual slider.
     #[inline]
-    pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
+    pub const fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
         self.handle_shape = Some(handle_shape);
         self
     }
@@ -748,7 +748,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn pointer_position(&self, pointer_position_2d: Pos2) -> f32 {
+    const fn pointer_position(&self, pointer_position_2d: Pos2) -> f32 {
         match self.orientation {
             SliderOrientation::Horizontal => pointer_position_2d.x,
             SliderOrientation::Vertical => pointer_position_2d.y,

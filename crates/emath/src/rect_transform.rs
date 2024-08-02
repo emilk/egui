@@ -17,15 +17,15 @@ impl RectTransform {
         Self::from_to(from_and_to, from_and_to)
     }
 
-    pub fn from_to(from: Rect, to: Rect) -> Self {
+    pub const fn from_to(from: Rect, to: Rect) -> Self {
         Self { from, to }
     }
 
-    pub fn from(&self) -> &Rect {
+    pub const fn from(&self) -> &Rect {
         &self.from
     }
 
-    pub fn to(&self) -> &Rect {
+    pub const fn to(&self) -> &Rect {
         &self.to
     }
 

@@ -64,21 +64,21 @@ impl<'a> StripBuilder<'a> {
 
     /// Should we clip the contents of each cell? Default: `false`.
     #[inline]
-    pub fn clip(mut self, clip: bool) -> Self {
+    pub const fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
         self
     }
 
     /// What layout should we use for the individual cells?
     #[inline]
-    pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
+    pub const fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
         self.cell_layout = cell_layout;
         self
     }
 
     /// What should strip cells sense for? Default: [`egui::Sense::hover()`].
     #[inline]
-    pub fn sense(mut self, sense: egui::Sense) -> Self {
+    pub const fn sense(mut self, sense: egui::Sense) -> Self {
         self.sense = sense;
         self
     }

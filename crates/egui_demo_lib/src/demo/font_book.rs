@@ -122,7 +122,7 @@ fn char_name(chr: char) -> String {
         .unwrap_or_else(|| "unknown".to_owned())
 }
 
-fn special_char_name(chr: char) -> Option<&'static str> {
+const fn special_char_name(chr: char) -> Option<&'static str> {
     #[allow(clippy::match_same_arms)] // many "flag"
     match chr {
         // Special private-use-area extensions found in `emoji-icon-font.ttf`:

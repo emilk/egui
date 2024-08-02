@@ -693,19 +693,19 @@ impl Modifiers {
     }
 
     #[inline]
-    pub fn all(&self) -> bool {
+    pub const fn all(&self) -> bool {
         self.alt && self.ctrl && self.shift && self.command
     }
 
     /// Is shift the only pressed button?
     #[inline]
-    pub fn shift_only(&self) -> bool {
+    pub const fn shift_only(&self) -> bool {
         self.shift && !(self.alt || self.command)
     }
 
     /// true if only [`Self::ctrl`] or only [`Self::mac_cmd`] is pressed.
     #[inline]
-    pub fn command_only(&self) -> bool {
+    pub const fn command_only(&self) -> bool {
         !self.alt && !self.shift && self.command
     }
 
@@ -807,7 +807,7 @@ impl Modifiers {
     ///
     /// This takes care to properly handle the difference between
     /// [`Self::ctrl`], [`Self::command`] and [`Self::mac_cmd`].
-    pub fn cmd_ctrl_matches(&self, pattern: Self) -> bool {
+    pub const fn cmd_ctrl_matches(&self, pattern: Self) -> bool {
         if pattern.mac_cmd {
             // Mac-specific match:
             if !self.mac_cmd {
@@ -1190,7 +1190,7 @@ impl Default for EventFilter {
 }
 
 impl EventFilter {
-    pub fn matches(&self, event: &Event) -> bool {
+    pub const fn matches(&self, event: &Event) -> bool {
         if let Event::Key { key, .. } = event {
             match key {
                 crate::Key::Tab => self.tab,

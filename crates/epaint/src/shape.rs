@@ -750,7 +750,7 @@ impl RectShape {
     ///
     /// The blur is currently implemented using a simple linear blur in `sRGBA` gamma space.
     #[inline]
-    pub fn with_blur_width(mut self, blur_width: f32) -> Self {
+    pub const fn with_blur_width(mut self, blur_width: f32) -> Self {
         self.blur_width = blur_width;
         self
     }
@@ -1043,14 +1043,14 @@ impl TextShape {
     }
 
     #[inline]
-    pub fn with_underline(mut self, underline: Stroke) -> Self {
+    pub const fn with_underline(mut self, underline: Stroke) -> Self {
         self.underline = underline;
         self
     }
 
     /// Use the given color for the text, regardless of what color is already in the galley.
     #[inline]
-    pub fn with_override_text_color(mut self, override_text_color: Color32) -> Self {
+    pub const fn with_override_text_color(mut self, override_text_color: Color32) -> Self {
         self.override_text_color = Some(override_text_color);
         self
     }
@@ -1058,14 +1058,14 @@ impl TextShape {
     /// Rotate text by this many radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
     #[inline]
-    pub fn with_angle(mut self, angle: f32) -> Self {
+    pub const fn with_angle(mut self, angle: f32) -> Self {
         self.angle = angle;
         self
     }
 
     /// Render text with this opacity in gamma space
     #[inline]
-    pub fn with_opacity_factor(mut self, opacity_factor: f32) -> Self {
+    pub const fn with_opacity_factor(mut self, opacity_factor: f32) -> Self {
         self.opacity_factor = opacity_factor;
         self
     }

@@ -163,7 +163,7 @@ impl Response {
     ///
     /// Usually you want to check [`Self::secondary_clicked`] instead.
     #[inline]
-    pub fn long_touched(&self) -> bool {
+    pub const fn long_touched(&self) -> bool {
         self.long_touched
     }
 
@@ -226,7 +226,7 @@ impl Response {
     /// If false, there was no interaction attempted
     /// and the widget should be drawn in a gray disabled look.
     #[inline(always)]
-    pub fn enabled(&self) -> bool {
+    pub const fn enabled(&self) -> bool {
         self.enabled
     }
 
@@ -235,7 +235,7 @@ impl Response {
     /// In contrast to [`Self::contains_pointer`], this will be `false` whenever some other widget is being dragged.
     /// `hovered` is always `false` for disabled widgets.
     #[inline(always)]
-    pub fn hovered(&self) -> bool {
+    pub const fn hovered(&self) -> bool {
         self.hovered
     }
 
@@ -248,14 +248,14 @@ impl Response {
     /// This is slightly different from [`Ui::rect_contains_pointer`] and [`Context::rect_contains_pointer`], in that
     /// [`Self::contains_pointer`] also checks that no other widget is covering this response rectangle.
     #[inline(always)]
-    pub fn contains_pointer(&self) -> bool {
+    pub const fn contains_pointer(&self) -> bool {
         self.contains_pointer
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
     #[doc(hidden)]
     #[inline(always)]
-    pub fn highlighted(&self) -> bool {
+    pub const fn highlighted(&self) -> bool {
         self.highlighted
     }
 
@@ -308,7 +308,7 @@ impl Response {
     ///
     /// This will only be true for a single frame.
     #[inline]
-    pub fn drag_started(&self) -> bool {
+    pub const fn drag_started(&self) -> bool {
         self.drag_started
     }
 
@@ -338,7 +338,7 @@ impl Response {
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
     /// You can use [`Self::interact`] to sense more things *after* adding a widget.
     #[inline(always)]
-    pub fn dragged(&self) -> bool {
+    pub const fn dragged(&self) -> bool {
         self.dragged
     }
 
@@ -350,7 +350,7 @@ impl Response {
 
     /// The widget was being dragged, but now it has been released.
     #[inline]
-    pub fn drag_stopped(&self) -> bool {
+    pub const fn drag_stopped(&self) -> bool {
         self.drag_stopped
     }
 
@@ -362,7 +362,7 @@ impl Response {
     /// The widget was being dragged, but now it has been released.
     #[inline]
     #[deprecated = "Renamed 'drag_stopped'"]
-    pub fn drag_released(&self) -> bool {
+    pub const fn drag_released(&self) -> bool {
         self.drag_stopped
     }
 
@@ -452,7 +452,7 @@ impl Response {
     ///
     /// `None` if the widget is not being interacted with.
     #[inline]
-    pub fn interact_pointer_pos(&self) -> Option<Pos2> {
+    pub const fn interact_pointer_pos(&self) -> Option<Pos2> {
         self.interact_pointer_pos
     }
 
@@ -482,7 +482,7 @@ impl Response {
     ///
     /// This could also be thought of as "is this widget being interacted with?".
     #[inline(always)]
-    pub fn is_pointer_button_down_on(&self) -> bool {
+    pub const fn is_pointer_button_down_on(&self) -> bool {
         self.is_pointer_button_down_on
     }
 
@@ -497,7 +497,7 @@ impl Response {
     /// This is not set if the *view* of the data was changed.
     /// For instance, moving the cursor in a [`TextEdit`](crate::TextEdit) does not set this to `true`.
     #[inline(always)]
-    pub fn changed(&self) -> bool {
+    pub const fn changed(&self) -> bool {
         self.changed
     }
 
@@ -1214,7 +1214,7 @@ pub struct InnerResponse<R> {
 
 impl<R> InnerResponse<R> {
     #[inline]
-    pub fn new(inner: R, response: Response) -> Self {
+    pub const fn new(inner: R, response: Response) -> Self {
         Self { inner, response }
     }
 }

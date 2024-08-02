@@ -61,7 +61,7 @@ impl ShaderVersion {
     }
 
     /// Goes on top of the shader.
-    pub fn version_declaration(&self) -> &'static str {
+    pub const fn version_declaration(&self) -> &'static str {
         match self {
             Self::Gl120 => "#version 120\n",
             Self::Gl140 => "#version 140\n",
@@ -71,14 +71,14 @@ impl ShaderVersion {
     }
 
     /// If true, use `in/out`. If `false`, use `varying` and `gl_FragColor`.
-    pub fn is_new_shader_interface(&self) -> bool {
+    pub const fn is_new_shader_interface(&self) -> bool {
         match self {
             Self::Gl120 | Self::Es100 => false,
             Self::Es300 | Self::Gl140 => true,
         }
     }
 
-    pub fn is_embedded(&self) -> bool {
+    pub const fn is_embedded(&self) -> bool {
         match self {
             Self::Gl120 | Self::Gl140 => false,
             Self::Es100 | Self::Es300 => true,

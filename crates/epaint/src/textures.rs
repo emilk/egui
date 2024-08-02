@@ -140,7 +140,7 @@ pub struct TextureMeta {
 impl TextureMeta {
     /// Size in bytes.
     /// width x height x [`Self::bytes_per_pixel`].
-    pub fn bytes_used(&self) -> usize {
+    pub const fn bytes_used(&self) -> usize {
         self.size[0] * self.size[1] * self.bytes_per_pixel
     }
 }

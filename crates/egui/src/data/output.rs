@@ -434,7 +434,7 @@ pub enum OutputEvent {
 }
 
 impl OutputEvent {
-    pub fn widget_info(&self) -> &WidgetInfo {
+    pub const fn widget_info(&self) -> &WidgetInfo {
         match self {
             Self::Clicked(info)
             | Self::DoubleClicked(info)
@@ -533,7 +533,7 @@ impl std::fmt::Debug for WidgetInfo {
 }
 
 impl WidgetInfo {
-    pub fn new(typ: WidgetType) -> Self {
+    pub const fn new(typ: WidgetType) -> Self {
         Self {
             typ,
             enabled: true,

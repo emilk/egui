@@ -330,7 +330,7 @@ impl Grid {
 
     /// Setting this will allow the last column to expand to take up the rest of the space of the parent [`Ui`].
     #[inline]
-    pub fn num_columns(mut self, num_columns: usize) -> Self {
+    pub const fn num_columns(mut self, num_columns: usize) -> Self {
         self.num_columns = Some(num_columns);
         self
     }
@@ -353,7 +353,7 @@ impl Grid {
     /// Set minimum width of each column.
     /// Default: [`crate::style::Spacing::interact_size`]`.x`.
     #[inline]
-    pub fn min_col_width(mut self, min_col_width: f32) -> Self {
+    pub const fn min_col_width(mut self, min_col_width: f32) -> Self {
         self.min_col_width = Some(min_col_width);
         self
     }
@@ -361,14 +361,14 @@ impl Grid {
     /// Set minimum height of each row.
     /// Default: [`crate::style::Spacing::interact_size`]`.y`.
     #[inline]
-    pub fn min_row_height(mut self, min_row_height: f32) -> Self {
+    pub const fn min_row_height(mut self, min_row_height: f32) -> Self {
         self.min_row_height = Some(min_row_height);
         self
     }
 
     /// Set soft maximum width (wrapping width) of each column.
     #[inline]
-    pub fn max_col_width(mut self, max_col_width: f32) -> Self {
+    pub const fn max_col_width(mut self, max_col_width: f32) -> Self {
         self.max_cell_size.x = max_col_width;
         self
     }
@@ -384,7 +384,7 @@ impl Grid {
     /// Change which row number the grid starts on.
     /// This can be useful when you have a large [`Grid`] inside of [`ScrollArea::show_rows`].
     #[inline]
-    pub fn start_row(mut self, start_row: usize) -> Self {
+    pub const fn start_row(mut self, start_row: usize) -> Self {
         self.start_row = start_row;
         self
     }
@@ -459,7 +459,7 @@ impl Grid {
     }
 }
 
-fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
+const fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
     if row % 2 == 1 {
         return Some(style.visuals.faint_bg_color);
     }

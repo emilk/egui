@@ -109,7 +109,7 @@ impl<'a> Image<'a> {
 
     /// Texture options used when creating the texture.
     #[inline]
-    pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
+    pub const fn texture_options(mut self, texture_options: TextureOptions) -> Self {
         self.texture_options = texture_options;
         self
     }
@@ -118,7 +118,7 @@ impl<'a> Image<'a> {
     ///
     /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
-    pub fn max_width(mut self, width: f32) -> Self {
+    pub const fn max_width(mut self, width: f32) -> Self {
         self.size.max_size.x = width;
         self
     }
@@ -127,7 +127,7 @@ impl<'a> Image<'a> {
     ///
     /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
-    pub fn max_height(mut self, height: f32) -> Self {
+    pub const fn max_height(mut self, height: f32) -> Self {
         self.size.max_size.y = height;
         self
     }
@@ -136,14 +136,14 @@ impl<'a> Image<'a> {
     ///
     /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
-    pub fn max_size(mut self, size: Vec2) -> Self {
+    pub const fn max_size(mut self, size: Vec2) -> Self {
         self.size.max_size = size;
         self
     }
 
     /// Whether or not the [`ImageFit`] should maintain the image's original aspect ratio.
     #[inline]
-    pub fn maintain_aspect_ratio(mut self, value: bool) -> Self {
+    pub const fn maintain_aspect_ratio(mut self, value: bool) -> Self {
         self.size.maintain_aspect_ratio = value;
         self
     }
@@ -154,7 +154,7 @@ impl<'a> Image<'a> {
     ///
     /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
-    pub fn fit_to_original_size(mut self, scale: f32) -> Self {
+    pub const fn fit_to_original_size(mut self, scale: f32) -> Self {
         self.size.fit = ImageFit::Original { scale };
         self
     }
@@ -163,7 +163,7 @@ impl<'a> Image<'a> {
     ///
     /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
-    pub fn fit_to_exact_size(mut self, size: Vec2) -> Self {
+    pub const fn fit_to_exact_size(mut self, size: Vec2) -> Self {
         self.size.fit = ImageFit::Exact(size);
         self
     }
@@ -172,7 +172,7 @@ impl<'a> Image<'a> {
     ///
     /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
-    pub fn fit_to_fraction(mut self, fraction: Vec2) -> Self {
+    pub const fn fit_to_fraction(mut self, fraction: Vec2) -> Self {
         self.size.fit = ImageFit::Fraction(fraction);
         self
     }
@@ -189,7 +189,7 @@ impl<'a> Image<'a> {
 
     /// Make the image respond to clicks and/or drags.
     #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
+    pub const fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
     }
@@ -250,7 +250,7 @@ impl<'a> Image<'a> {
     ///
     /// By default this uses the value of [`Visuals::image_loading_spinners`].
     #[inline]
-    pub fn show_loading_spinner(mut self, show: bool) -> Self {
+    pub const fn show_loading_spinner(mut self, show: bool) -> Self {
         self.show_loading_spinner = Some(show);
         self
     }
@@ -276,7 +276,7 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
-    pub fn size(&self) -> Option<Vec2> {
+    pub const fn size(&self) -> Option<Vec2> {
         match &self.source {
             ImageSource::Texture(texture) => Some(texture.size),
             ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,
@@ -298,7 +298,7 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
-    pub fn image_options(&self) -> &ImageOptions {
+    pub const fn image_options(&self) -> &ImageOptions {
         &self.image_options
     }
 
@@ -557,7 +557,7 @@ impl<'a> std::fmt::Debug for ImageSource<'a> {
 impl<'a> ImageSource<'a> {
     /// Size of the texture, if known.
     #[inline]
-    pub fn texture_size(&self) -> Option<Vec2> {
+    pub const fn texture_size(&self) -> Option<Vec2> {
         match self {
             ImageSource::Texture(texture) => Some(texture.size),
             ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,

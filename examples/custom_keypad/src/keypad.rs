@@ -19,7 +19,7 @@ struct State {
 }
 
 impl State {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             open: false,
             closable: false,

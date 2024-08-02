@@ -61,7 +61,7 @@ impl TextureHandle {
     }
 
     #[inline]
-    pub fn id(&self) -> TextureId {
+    pub const fn id(&self) -> TextureId {
         self.id
     }
 

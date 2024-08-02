@@ -115,11 +115,11 @@ impl AllocInfo {
         self.num_elements
     }
 
-    pub fn num_allocs(&self) -> usize {
+    pub const fn num_allocs(&self) -> usize {
         self.num_allocs
     }
 
-    pub fn num_bytes(&self) -> usize {
+    pub const fn num_bytes(&self) -> usize {
         self.num_bytes
     }
 

@@ -25,7 +25,7 @@ pub struct TextEditOutput {
 
 impl TextEditOutput {
     #[deprecated = "Renamed `self.galley_pos`"]
-    pub fn text_draw_pos(&self) -> crate::Pos2 {
+    pub const fn text_draw_pos(&self) -> crate::Pos2 {
         self.galley_pos
     }
 }

@@ -125,7 +125,7 @@ impl Pos2 {
     /// The vector from origin to this position.
     /// `p.to_vec2()` is equivalent to `p - Pos2::default()`.
     #[inline(always)]
-    pub fn to_vec2(self) -> Vec2 {
+    pub const fn to_vec2(self) -> Vec2 {
         Vec2 {
             x: self.x,
             y: self.y,

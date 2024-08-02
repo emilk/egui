@@ -436,7 +436,7 @@ pub enum TexturePoll {
 
 impl TexturePoll {
     #[inline]
-    pub fn size(&self) -> Option<Vec2> {
+    pub const fn size(&self) -> Option<Vec2> {
         match self {
             Self::Pending { size } => *size,
             Self::Ready { texture } => Some(texture.size),
@@ -444,7 +444,7 @@ impl TexturePoll {
     }
 
     #[inline]
-    pub fn texture_id(&self) -> Option<TextureId> {
+    pub const fn texture_id(&self) -> Option<TextureId> {
         match self {
             Self::Pending { .. } => None,
             Self::Ready { texture } => Some(texture.id),

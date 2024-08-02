@@ -53,7 +53,7 @@ pub enum Side {
 }
 
 impl Side {
-    fn opposite(self) -> Self {
+    const fn opposite(self) -> Self {
         match self {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
@@ -140,7 +140,7 @@ impl SidePanel {
     /// * A [`TextEdit`].
     /// * …
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub const fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
     }
@@ -149,7 +149,7 @@ impl SidePanel {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+    pub const fn show_separator_line(mut self, show_separator_line: bool) -> Self {
         self.show_separator_line = show_separator_line;
         self
     }
@@ -198,7 +198,7 @@ impl SidePanel {
 
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
@@ -532,7 +532,7 @@ pub enum TopBottomSide {
 }
 
 impl TopBottomSide {
-    fn opposite(self) -> Self {
+    const fn opposite(self) -> Self {
         match self {
             Self::Top => Self::Bottom,
             Self::Bottom => Self::Top,
@@ -619,7 +619,7 @@ impl TopBottomPanel {
     /// * A [`TextEdit`].
     /// * …
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub const fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
     }
@@ -628,7 +628,7 @@ impl TopBottomPanel {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+    pub const fn show_separator_line(mut self, show_separator_line: bool) -> Self {
         self.show_separator_line = show_separator_line;
         self
     }
@@ -680,7 +680,7 @@ impl TopBottomPanel {
 
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
@@ -1066,7 +1066,7 @@ pub struct CentralPanel {
 impl CentralPanel {
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }

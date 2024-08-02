@@ -94,7 +94,7 @@ impl Column {
     /// If you don't call this, the fallback value of
     /// [`TableBuilder::resizable`] is used (which by default is `false`).
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub const fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = Some(resizable);
         self
     }
@@ -108,7 +108,7 @@ impl Column {
     ///
     /// Default: `false`.
     #[inline]
-    pub fn clip(mut self, clip: bool) -> Self {
+    pub const fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
         self
     }
@@ -117,7 +117,7 @@ impl Column {
     ///
     /// Default: 0.0
     #[inline]
-    pub fn at_least(mut self, minimum: f32) -> Self {
+    pub const fn at_least(mut self, minimum: f32) -> Self {
         self.width_range.min = minimum;
         self
     }
@@ -126,7 +126,7 @@ impl Column {
     ///
     /// Default: [`f32::INFINITY`]
     #[inline]
-    pub fn at_most(mut self, maximum: f32) -> Self {
+    pub const fn at_most(mut self, maximum: f32) -> Self {
         self.width_range.max = maximum;
         self
     }
@@ -138,7 +138,7 @@ impl Column {
         self
     }
 
-    fn is_auto(&self) -> bool {
+    const fn is_auto(&self) -> bool {
         match self.initial_width {
             InitialColumnSize::Automatic(_) => true,
             InitialColumnSize::Absolute(_) | InitialColumnSize::Remainder => false,
@@ -256,14 +256,14 @@ impl<'a> TableBuilder<'a> {
     ///
     /// Default is whatever is in [`egui::Visuals::striped`].
     #[inline]
-    pub fn striped(mut self, striped: bool) -> Self {
+    pub const fn striped(mut self, striped: bool) -> Self {
         self.striped = Some(striped);
         self
     }
 
     /// What should table cells sense for? (default: [`egui::Sense::hover()`]).
     #[inline]
-    pub fn sense(mut self, sense: egui::Sense) -> Self {
+    pub const fn sense(mut self, sense: egui::Sense) -> Self {
         self.sense = sense;
         self
     }
@@ -279,14 +279,14 @@ impl<'a> TableBuilder<'a> {
     ///
     /// Default is `false`.
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub const fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
     }
 
     /// Enable vertical scrolling in body (default: `true`)
     #[inline]
-    pub fn vscroll(mut self, vscroll: bool) -> Self {
+    pub const fn vscroll(mut self, vscroll: bool) -> Self {
         self.scroll_options.vscroll = vscroll;
         self
     }
@@ -295,7 +295,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// See [`ScrollArea::drag_to_scroll`] for more.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub const fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll_options.drag_to_scroll = drag_to_scroll;
         self
     }
@@ -304,7 +304,7 @@ impl<'a> TableBuilder<'a> {
     /// dynamically? The scroll handle remains stuck until manually changed, and will become stuck
     /// once again when repositioned to the bottom. Default: `false`.
     #[inline]
-    pub fn stick_to_bottom(mut self, stick: bool) -> Self {
+    pub const fn stick_to_bottom(mut self, stick: bool) -> Self {
         self.scroll_options.stick_to_bottom = stick;
         self
     }
@@ -317,7 +317,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// See also: [`Self::vertical_scroll_offset`].
     #[inline]
-    pub fn scroll_to_row(mut self, row: usize, align: Option<Align>) -> Self {
+    pub const fn scroll_to_row(mut self, row: usize, align: Option<Align>) -> Self {
         self.scroll_options.scroll_to_row = Some((row, align));
         self
     }
@@ -326,7 +326,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// See also: [`Self::scroll_to_row`].
     #[inline]
-    pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
+    pub const fn vertical_scroll_offset(mut self, offset: f32) -> Self {
         self.scroll_options.scroll_offset_y = Some(offset);
         self
     }
@@ -338,7 +338,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// Default: `200.0`.
     #[inline]
-    pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
+    pub const fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
         self.scroll_options.min_scrolled_height = min_scrolled_height;
         self
     }
@@ -348,7 +348,7 @@ impl<'a> TableBuilder<'a> {
     /// In other words: add scroll-bars when this height is reached.
     /// Default: `800.0`.
     #[inline]
-    pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
+    pub const fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
         self.scroll_options.max_scroll_height = max_scroll_height;
         self
     }
@@ -370,14 +370,14 @@ impl<'a> TableBuilder<'a> {
     ///
     /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
     #[inline]
-    pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
+    pub const fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
         self.scroll_options.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
 
     /// What layout should we use for the individual cells?
     #[inline]
-    pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
+    pub const fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
         self.cell_layout = cell_layout;
         self
     }
@@ -903,7 +903,7 @@ impl<'a> TableBody<'a> {
     /// This is primarily meant for use with [`TableBody::heterogeneous_rows`] in cases where row
     /// heights are expected to according to the width of one or more cells -- for example, if text
     /// is wrapped rather than clipped within the cell.
-    pub fn widths(&self) -> &[f32] {
+    pub const fn widths(&self) -> &[f32] {
         self.widths
     }
 
@@ -1274,13 +1274,13 @@ impl<'a, 'b> TableRow<'a, 'b> {
 
     /// Returns the index of the row.
     #[inline]
-    pub fn index(&self) -> usize {
+    pub const fn index(&self) -> usize {
         self.row_index
     }
 
     /// Returns the index of the column. Incremented after a column is added.
     #[inline]
-    pub fn col_index(&self) -> usize {
+    pub const fn col_index(&self) -> usize {
         self.col_index
     }
 }

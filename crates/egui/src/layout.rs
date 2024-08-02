@@ -86,7 +86,7 @@ pub enum Direction {
 
 impl Direction {
     #[inline(always)]
-    pub fn is_horizontal(self) -> bool {
+    pub const fn is_horizontal(self) -> bool {
         match self {
             Self::LeftToRight | Self::RightToLeft => true,
             Self::TopDown | Self::BottomUp => false,
@@ -94,7 +94,7 @@ impl Direction {
     }
 
     #[inline(always)]
-    pub fn is_vertical(self) -> bool {
+    pub const fn is_vertical(self) -> bool {
         match self {
             Self::LeftToRight | Self::RightToLeft => false,
             Self::TopDown | Self::BottomUp => true,
@@ -155,7 +155,7 @@ impl Layout {
     ///
     /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn left_to_right(valign: Align) -> Self {
+    pub const fn left_to_right(valign: Align) -> Self {
         Self {
             main_dir: Direction::LeftToRight,
             main_wrap: false,
@@ -170,7 +170,7 @@ impl Layout {
     ///
     /// The `valign` parameter controls how to align elements vertically.
     #[inline(always)]
-    pub fn right_to_left(valign: Align) -> Self {
+    pub const fn right_to_left(valign: Align) -> Self {
         Self {
             main_dir: Direction::RightToLeft,
             main_wrap: false,
@@ -185,7 +185,7 @@ impl Layout {
     ///
     /// Use the provided horizontal alignment.
     #[inline(always)]
-    pub fn top_down(halign: Align) -> Self {
+    pub const fn top_down(halign: Align) -> Self {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
@@ -206,7 +206,7 @@ impl Layout {
     ///
     /// Use the provided horizontal alignment.
     #[inline(always)]
-    pub fn bottom_up(halign: Align) -> Self {
+    pub const fn bottom_up(halign: Align) -> Self {
         Self {
             main_dir: Direction::BottomUp,
             main_wrap: false,
@@ -218,7 +218,7 @@ impl Layout {
     }
 
     #[inline(always)]
-    pub fn from_main_dir_and_cross_align(main_dir: Direction, cross_align: Align) -> Self {
+    pub const fn from_main_dir_and_cross_align(main_dir: Direction, cross_align: Align) -> Self {
         Self {
             main_dir,
             main_wrap: false,
@@ -234,7 +234,7 @@ impl Layout {
     ///
     /// Only one widget may be added to the inner `Ui`!
     #[inline(always)]
-    pub fn centered_and_justified(main_dir: Direction) -> Self {
+    pub const fn centered_and_justified(main_dir: Direction) -> Self {
         Self {
             main_dir,
             main_wrap: false,
@@ -250,13 +250,13 @@ impl Layout {
     /// For instance, for left-to-right layouts, setting this to `true` will
     /// put widgets on a new row if we would overflow the right side of [`crate::Ui::max_rect`].
     #[inline(always)]
-    pub fn with_main_wrap(self, main_wrap: bool) -> Self {
+    pub const fn with_main_wrap(self, main_wrap: bool) -> Self {
         Self { main_wrap, ..self }
     }
 
     /// The alignment to use on the main axis.
     #[inline(always)]
-    pub fn with_main_align(self, main_align: Align) -> Self {
+    pub const fn with_main_align(self, main_align: Align) -> Self {
         Self { main_align, ..self }
     }
 
@@ -265,7 +265,7 @@ impl Layout {
     /// The "cross" axis is the one orthogonal to the main axis.
     /// For instance: in left-to-right layout, the main axis is horizontal and the cross axis is vertical.
     #[inline(always)]
-    pub fn with_cross_align(self, cross_align: Align) -> Self {
+    pub const fn with_cross_align(self, cross_align: Align) -> Self {
         Self {
             cross_align,
             ..self
@@ -276,7 +276,7 @@ impl Layout {
     ///
     /// Justify here means "take up all available space".
     #[inline(always)]
-    pub fn with_main_justify(self, main_justify: bool) -> Self {
+    pub const fn with_main_justify(self, main_justify: bool) -> Self {
         Self {
             main_justify,
             ..self
@@ -290,7 +290,7 @@ impl Layout {
     /// The "cross" axis is the one orthogonal to the main axis.
     /// For instance: in left-to-right layout, the main axis is horizontal and the cross axis is vertical.
     #[inline(always)]
-    pub fn with_cross_justify(self, cross_justify: bool) -> Self {
+    pub const fn with_cross_justify(self, cross_justify: bool) -> Self {
         Self {
             cross_justify,
             ..self
@@ -301,22 +301,22 @@ impl Layout {
 /// ## Inspectors
 impl Layout {
     #[inline(always)]
-    pub fn main_dir(&self) -> Direction {
+    pub const fn main_dir(&self) -> Direction {
         self.main_dir
     }
 
     #[inline(always)]
-    pub fn main_wrap(&self) -> bool {
+    pub const fn main_wrap(&self) -> bool {
         self.main_wrap
     }
 
     #[inline(always)]
-    pub fn cross_align(&self) -> Align {
+    pub const fn cross_align(&self) -> Align {
         self.cross_align
     }
 
     #[inline(always)]
-    pub fn cross_justify(&self) -> bool {
+    pub const fn cross_justify(&self) -> bool {
         self.cross_justify
     }
 
@@ -338,7 +338,7 @@ impl Layout {
     /// e.g. for adjusting the placement of something.
     /// * in horizontal layout: left or right?
     /// * in vertical layout: same as [`Self::horizontal_align`].
-    pub fn horizontal_placement(&self) -> Align {
+    pub const fn horizontal_placement(&self) -> Align {
         match self.main_dir {
             Direction::LeftToRight => Align::LEFT,
             Direction::RightToLeft => Align::RIGHT,

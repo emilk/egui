@@ -370,7 +370,7 @@ impl InputState {
     }
 
     #[inline(always)]
-    pub fn screen_rect(&self) -> Rect {
+    pub const fn screen_rect(&self) -> Rect {
         self.screen_rect
     }
 
@@ -551,7 +551,7 @@ impl InputState {
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     #[inline(always)]
-    pub fn pixels_per_point(&self) -> f32 {
+    pub const fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
 
@@ -684,11 +684,11 @@ pub(crate) struct Click {
 }
 
 impl Click {
-    pub fn is_double(&self) -> bool {
+    pub const fn is_double(&self) -> bool {
         self.count == 2
     }
 
-    pub fn is_triple(&self) -> bool {
+    pub const fn is_triple(&self) -> bool {
         self.count == 3
     }
 }
@@ -708,15 +708,15 @@ pub(crate) enum PointerEvent {
 }
 
 impl PointerEvent {
-    pub fn is_press(&self) -> bool {
+    pub const fn is_press(&self) -> bool {
         matches!(self, Self::Pressed { .. })
     }
 
-    pub fn is_release(&self) -> bool {
+    pub const fn is_release(&self) -> bool {
         matches!(self, Self::Released { .. })
     }
 
-    pub fn is_click(&self) -> bool {
+    pub const fn is_click(&self) -> bool {
         matches!(self, Self::Released { click: Some(_), .. })
     }
 }
@@ -966,7 +966,7 @@ impl PointerState {
 
     /// How much the pointer moved compared to last frame, in points.
     #[inline(always)]
-    pub fn delta(&self) -> Vec2 {
+    pub const fn delta(&self) -> Vec2 {
         self.delta
     }
 
@@ -974,7 +974,7 @@ impl PointerState {
     /// Represents the actual movement of the mouse, without acceleration or clamped by screen edges.
     /// May be unavailable on some integrations.
     #[inline(always)]
-    pub fn motion(&self) -> Option<Vec2> {
+    pub const fn motion(&self) -> Option<Vec2> {
         self.motion
     }
 
@@ -983,7 +983,7 @@ impl PointerState {
     /// This is smoothed over a few frames,
     /// but can be ZERO when frame-rate is bad.
     #[inline(always)]
-    pub fn velocity(&self) -> Vec2 {
+    pub const fn velocity(&self) -> Vec2 {
         self.velocity
     }
 
@@ -991,34 +991,34 @@ impl PointerState {
     ///
     /// This is less sensitive to bad framerate than [`Self::velocity`].
     #[inline(always)]
-    pub fn direction(&self) -> Vec2 {
+    pub const fn direction(&self) -> Vec2 {
         self.direction
     }
 
     /// Where did the current click/drag originate?
     /// `None` if no mouse button is down.
     #[inline(always)]
-    pub fn press_origin(&self) -> Option<Pos2> {
+    pub const fn press_origin(&self) -> Option<Pos2> {
         self.press_origin
     }
 
     /// When did the current click/drag originate?
     /// `None` if no mouse button is down.
     #[inline(always)]
-    pub fn press_start_time(&self) -> Option<f64> {
+    pub const fn press_start_time(&self) -> Option<f64> {
         self.press_start_time
     }
 
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
-    pub fn latest_pos(&self) -> Option<Pos2> {
+    pub const fn latest_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
     #[inline(always)]
-    pub fn hover_pos(&self) -> Option<Pos2> {
+    pub const fn hover_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 
@@ -1028,7 +1028,7 @@ impl PointerState {
     /// if there were interactions this frame.
     /// When tapping a touch screen, this will be the location of the touch.
     #[inline(always)]
-    pub fn interact_pos(&self) -> Option<Pos2> {
+    pub const fn interact_pos(&self) -> Option<Pos2> {
         self.interact_pos
     }
 
@@ -1036,7 +1036,7 @@ impl PointerState {
     ///
     /// `false` if the mouse is not over the egui area, or if no touches are down on touch screens.
     #[inline(always)]
-    pub fn has_pointer(&self) -> bool {
+    pub const fn has_pointer(&self) -> bool {
         self.latest_pos.is_some()
     }
 
@@ -1170,7 +1170,7 @@ impl PointerState {
 
     /// Is this button currently down?
     #[inline(always)]
-    pub fn button_down(&self, button: PointerButton) -> bool {
+    pub const fn button_down(&self, button: PointerButton) -> bool {
         self.down[button as usize]
     }
 

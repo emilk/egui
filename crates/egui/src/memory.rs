@@ -147,7 +147,7 @@ enum FocusDirection {
 }
 
 impl FocusDirection {
-    fn is_cardinal(&self) -> bool {
+    const fn is_cardinal(&self) -> bool {
         match self {
             Self::Up | Self::Right | Self::Down | Self::Left => true,
 
@@ -430,7 +430,7 @@ impl FocusWidget {
 
 impl InteractionState {
     /// Are we currently clicking or dragging an egui widget?
-    pub fn is_using_pointer(&self) -> bool {
+    pub const fn is_using_pointer(&self) -> bool {
         self.potential_click_id.is_some() || self.potential_drag_id.is_some()
     }
 }
@@ -912,7 +912,7 @@ impl Memory {
     ///
     /// Experimental feature!
     #[inline(always)]
-    pub fn everything_is_visible(&self) -> bool {
+    pub const fn everything_is_visible(&self) -> bool {
         self.everything_is_visible
     }
 

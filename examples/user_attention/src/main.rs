@@ -32,7 +32,7 @@ struct Application {
 }
 
 impl Application {
-    fn new(_cc: &CreationContext<'_>) -> Self {
+    const fn new(_cc: &CreationContext<'_>) -> Self {
         Self {
             attention: UserAttentionType::Informational,
             request_at: None,
@@ -41,15 +41,15 @@ impl Application {
         }
     }
 
-    fn attention_reset_timeout() -> Duration {
+    const fn attention_reset_timeout() -> Duration {
         Duration::from_secs(3)
     }
 
-    fn attention_request_timeout() -> Duration {
+    const fn attention_request_timeout() -> Duration {
         Duration::from_secs(2)
     }
 
-    fn repaint_max_timeout() -> Duration {
+    const fn repaint_max_timeout() -> Duration {
         Duration::from_secs(1)
     }
 }

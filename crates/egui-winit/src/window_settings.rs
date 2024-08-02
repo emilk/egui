@@ -46,7 +46,7 @@ impl WindowSettings {
         }
     }
 
-    pub fn inner_size_points(&self) -> Option<egui::Vec2> {
+    pub const fn inner_size_points(&self) -> Option<egui::Vec2> {
         self.inner_size_points
     }
 

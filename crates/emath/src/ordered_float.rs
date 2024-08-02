@@ -16,7 +16,7 @@ pub struct OrderedFloat<T>(pub T);
 
 impl<T: Float + Copy> OrderedFloat<T> {
     #[inline]
-    pub fn into_inner(self) -> T {
+    pub const fn into_inner(self) -> T {
         self.0
     }
 }

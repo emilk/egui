@@ -35,21 +35,21 @@ impl ProgressBar {
 
     /// The desired width of the bar. Will use all horizontal space if not set.
     #[inline]
-    pub fn desired_width(mut self, desired_width: f32) -> Self {
+    pub const fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
     }
 
     /// The desired height of the bar. Will use the default interaction size if not set.
     #[inline]
-    pub fn desired_height(mut self, desired_height: f32) -> Self {
+    pub const fn desired_height(mut self, desired_height: f32) -> Self {
         self.desired_height = Some(desired_height);
         self
     }
 
     /// The fill color of the bar.
     #[inline]
-    pub fn fill(mut self, color: Color32) -> Self {
+    pub const fn fill(mut self, color: Color32) -> Self {
         self.fill = Some(color);
         self
     }
@@ -76,7 +76,7 @@ impl ProgressBar {
     /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
     /// redrawn.
     #[inline]
-    pub fn animate(mut self, animate: bool) -> Self {
+    pub const fn animate(mut self, animate: bool) -> Self {
         self.animate = animate;
         self
     }

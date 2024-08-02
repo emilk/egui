@@ -40,7 +40,7 @@ impl CollapsingState {
         ctx.data_mut(|d| d.remove::<InnerState>(self.id));
     }
 
-    pub fn id(&self) -> Id {
+    pub const fn id(&self) -> Id {
         self.id
     }
 
@@ -54,7 +54,7 @@ impl CollapsingState {
         })
     }
 
-    pub fn is_open(&self) -> bool {
+    pub const fn is_open(&self) -> bool {
         self.state.open
     }
 
@@ -403,7 +403,7 @@ impl CollapsingHeader {
     /// By default, the [`CollapsingHeader`] is collapsed.
     /// Call `.default_open(true)` to change this.
     #[inline]
-    pub fn default_open(mut self, open: bool) -> Self {
+    pub const fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
         self
     }
@@ -414,7 +414,7 @@ impl CollapsingHeader {
     ///
     /// Calling `.open(None)` has no effect (default).
     #[inline]
-    pub fn open(mut self, open: Option<bool>) -> Self {
+    pub const fn open(mut self, open: Option<bool>) -> Self {
         self.open = open;
         self
     }
@@ -431,7 +431,7 @@ impl CollapsingHeader {
     ///
     /// This is a convenience for [`Ui::disable`].
     #[inline]
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub const fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
@@ -445,7 +445,7 @@ impl CollapsingHeader {
     /// # });
     /// ```
     #[inline]
-    pub fn show_background(mut self, show_background: bool) -> Self {
+    pub const fn show_background(mut self, show_background: bool) -> Self {
         self.show_background = show_background;
         self
     }

@@ -39,7 +39,7 @@ impl Default for LayoutSettings {
 }
 
 impl LayoutSettings {
-    fn top_down() -> Self {
+    const fn top_down() -> Self {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
@@ -48,7 +48,7 @@ impl LayoutSettings {
         }
     }
 
-    fn top_down_justified_centered() -> Self {
+    const fn top_down_justified_centered() -> Self {
         Self {
             main_dir: Direction::TopDown,
             main_wrap: false,
@@ -57,7 +57,7 @@ impl LayoutSettings {
         }
     }
 
-    fn horizontal_wrapped() -> Self {
+    const fn horizontal_wrapped() -> Self {
         Self {
             main_dir: Direction::LeftToRight,
             main_wrap: true,

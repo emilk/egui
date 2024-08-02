@@ -11,18 +11,18 @@ impl Vec2b {
     pub const TRUE: Self = Self { x: true, y: true };
 
     #[inline]
-    pub fn new(x: bool, y: bool) -> Self {
+    pub const fn new(x: bool, y: bool) -> Self {
         Self { x, y }
     }
 
     #[inline]
-    pub fn any(&self) -> bool {
+    pub const fn any(&self) -> bool {
         self.x || self.y
     }
 
     /// Are both `x` and `y` true?
     #[inline]
-    pub fn all(&self) -> bool {
+    pub const fn all(&self) -> bool {
         self.x && self.y
     }
 

@@ -31,12 +31,12 @@ impl Rangef {
     };
 
     #[inline]
-    pub fn new(min: f32, max: f32) -> Self {
+    pub const fn new(min: f32, max: f32) -> Self {
         Self { min, max }
     }
 
     #[inline]
-    pub fn point(min_and_max: f32) -> Self {
+    pub const fn point(min_and_max: f32) -> Self {
         Self {
             min: min_and_max,
             max: min_and_max,
@@ -100,7 +100,7 @@ impl Rangef {
     /// Flip the min and the max
     #[inline]
     #[must_use]
-    pub fn flip(self) -> Self {
+    pub const fn flip(self) -> Self {
         Self {
             min: self.max,
             max: self.min,

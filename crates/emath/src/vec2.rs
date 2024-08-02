@@ -157,7 +157,7 @@ impl Vec2 {
     /// Treat this vector as a position.
     /// `v.to_pos2()` is equivalent to `Pos2::default() + v`.
     #[inline(always)]
-    pub fn to_pos2(self) -> crate::Pos2 {
+    pub const fn to_pos2(self) -> crate::Pos2 {
         crate::Pos2 {
             x: self.x,
             y: self.y,
@@ -302,7 +302,7 @@ impl Vec2 {
     /// Swizzle the axes.
     #[inline]
     #[must_use]
-    pub fn yx(self) -> Self {
+    pub const fn yx(self) -> Self {
         Self {
             x: self.y,
             y: self.x,
