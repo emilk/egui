@@ -4,8 +4,8 @@
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
 use egui::{
-    scroll_area::ScrollBarVisibility, Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui,
-    Vec2, Vec2b,
+    scroll_area::{ScrollAreaOutput, ScrollBarVisibility},
+    Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
 };
 
 use crate::{
@@ -474,7 +474,7 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Create table body without a header row
-    pub fn body<F>(self, add_body_contents: F)
+    pub fn body<F>(self, add_body_contents: F) -> ScrollAreaOutput<()>
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
@@ -515,7 +515,7 @@ impl<'a> TableBuilder<'a> {
             scroll_options,
             sense,
         }
-        .body(add_body_contents);
+        .body(add_body_contents)
     }
 }
 
@@ -641,7 +641,7 @@ impl<'a> Table<'a> {
     }
 
     /// Create table body after adding a header row
-    pub fn body<F>(self, add_body_contents: F)
+    pub fn body<F>(self, add_body_contents: F) -> ScrollAreaOutput<()>
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
@@ -692,7 +692,7 @@ impl<'a> Table<'a> {
         let widths_ref = &state.column_widths;
         let max_used_widths_ref = &mut max_used_widths;
 
-        scroll_area.show(ui, move |ui| {
+        let scroll_area_out = scroll_area.show(ui, move |ui| {
             let mut scroll_to_y_range = None;
 
             let clip_rect = ui.clip_rect();
@@ -843,6 +843,7 @@ impl<'a> Table<'a> {
         state.max_used_widths = max_used_widths;
 
         state.store(ui, state_id);
+        scroll_area_out
     }
 }
 

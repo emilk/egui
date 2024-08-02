@@ -528,7 +528,7 @@ impl<'open> Window<'open> {
             frame.content_ui.spacing_mut().item_spacing.y = title_content_spacing;
 
             let title_bar = if with_title_bar {
-                let title_bar = show_title_bar(
+                let title_bar = TitleBar::new(
                     &mut frame.content_ui,
                     title,
                     show_close_button,
@@ -1040,60 +1040,60 @@ struct TitleBar {
     rect: Rect,
 }
 
-fn show_title_bar(
-    ui: &mut Ui,
-    title: WidgetText,
-    show_close_button: bool,
-    collapsing: &mut CollapsingState,
-    collapsible: bool,
-) -> TitleBar {
-    let inner_response = ui.horizontal(|ui| {
-        let height = ui
-            .fonts(|fonts| title.font_height(fonts, ui.style()))
-            .max(ui.spacing().interact_size.y);
-        ui.set_min_height(height);
-
-        let item_spacing = ui.spacing().item_spacing;
-        let button_size = Vec2::splat(ui.spacing().icon_width);
-
-        let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
-
-        if collapsible {
-            ui.add_space(pad);
-            collapsing.show_default_button_with_size(ui, button_size);
-        }
-
-        let title_galley = title.into_galley(
-            ui,
-            Some(crate::TextWrapMode::Extend),
-            f32::INFINITY,
-            TextStyle::Heading,
-        );
-
-        let minimum_width = if collapsible || show_close_button {
-            // If at least one button is shown we make room for both buttons (since title is centered):
-            2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
-        } else {
-            pad + title_galley.size().x + pad
-        };
-        let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
-        let id = ui.advance_cursor_after_rect(min_rect);
-
-        TitleBar {
-            id,
-            title_galley,
-            min_rect,
-            rect: Rect::NAN, // Will be filled in later
-        }
-    });
-
-    let title_bar = inner_response.inner;
-    let rect = inner_response.response.rect;
-
-    TitleBar { rect, ..title_bar }
-}
-
 impl TitleBar {
+    fn new(
+        ui: &mut Ui,
+        title: WidgetText,
+        show_close_button: bool,
+        collapsing: &mut CollapsingState,
+        collapsible: bool,
+    ) -> Self {
+        let inner_response = ui.horizontal(|ui| {
+            let height = ui
+                .fonts(|fonts| title.font_height(fonts, ui.style()))
+                .max(ui.spacing().interact_size.y);
+            ui.set_min_height(height);
+
+            let item_spacing = ui.spacing().item_spacing;
+            let button_size = Vec2::splat(ui.spacing().icon_width);
+
+            let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
+
+            if collapsible {
+                ui.add_space(pad);
+                collapsing.show_default_button_with_size(ui, button_size);
+            }
+
+            let title_galley = title.into_galley(
+                ui,
+                Some(crate::TextWrapMode::Extend),
+                f32::INFINITY,
+                TextStyle::Heading,
+            );
+
+            let minimum_width = if collapsible || show_close_button {
+                // If at least one button is shown we make room for both buttons (since title is centered):
+                2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
+            } else {
+                pad + title_galley.size().x + pad
+            };
+            let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
+            let id = ui.advance_cursor_after_rect(min_rect);
+
+            Self {
+                id,
+                title_galley,
+                min_rect,
+                rect: Rect::NAN, // Will be filled in later
+            }
+        });
+
+        let title_bar = inner_response.inner;
+        let rect = inner_response.response.rect;
+
+        Self { rect, ..title_bar }
+    }
+
     /// Finishes painting of the title bar when the window content size already known.
     ///
     /// # Parameters

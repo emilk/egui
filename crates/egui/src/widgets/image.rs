@@ -326,7 +326,7 @@ impl<'a> Image<'a> {
     /// # Errors
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load_for_size(&self, ctx: &Context, available_size: Vec2) -> TextureLoadResult {
-        let size_hint = self.size.hint(available_size);
+        let size_hint = self.size.hint(available_size, ctx.pixels_per_point());
         self.source(ctx)
             .clone()
             .load(ctx, self.texture_options, size_hint)
@@ -431,23 +431,21 @@ impl ImageFit {
 
 impl ImageSize {
     /// Size hint for e.g. rasterizing an svg.
-    pub fn hint(&self, available_size: Vec2) -> SizeHint {
+    pub fn hint(&self, available_size: Vec2, pixels_per_point: f32) -> SizeHint {
         let size = match self.fit {
             ImageFit::Original { scale } => return SizeHint::Scale(scale.ord()),
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
-
         let size = size.min(self.max_size);
-
-        // TODO(emilk): take pixels_per_point into account here!
+        let size = size * pixels_per_point;
 
         // `inf` on an axis means "any value"
         match (size.x.is_finite(), size.y.is_finite()) {
             (true, true) => SizeHint::Size(size.x.round() as u32, size.y.round() as u32),
             (true, false) => SizeHint::Width(size.x.round() as u32),
             (false, true) => SizeHint::Height(size.y.round() as u32),
-            (false, false) => SizeHint::Scale(1.0.ord()),
+            (false, false) => SizeHint::Scale(pixels_per_point.ord()),
         }
     }
 

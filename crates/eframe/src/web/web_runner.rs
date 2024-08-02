@@ -57,7 +57,7 @@ impl WebRunner {
     /// Failing to initialize graphics, or failure to create app.
     pub async fn start(
         &self,
-        canvas_id: &str,
+        canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<(), JsValue> {
@@ -67,7 +67,7 @@ impl WebRunner {
 
         let text_agent = TextAgent::attach(self)?;
 
-        let runner = AppRunner::new(canvas_id, web_options, app_creator, text_agent).await?;
+        let runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
 
         {
             // Make sure the canvas can be given focus.

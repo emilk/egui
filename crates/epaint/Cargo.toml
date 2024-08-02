@@ -6,7 +6,7 @@ description = "Minimal 2D graphics library for GUI work"
 edition.workspace = true
 rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/epaint"
-license = "(MIT OR Apache-2.0) AND OFL-1.1 AND LicenseRef-UFL-1.0" # OFL and UFL used by default_fonts. See https://github.com/emilk/egui/issues/2321
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/epaint"
 categories = ["graphics", "gui"]
@@ -15,11 +15,7 @@ include = [
   "../LICENSE-APACHE",
   "../LICENSE-MIT",
   "**/*.rs",
-  "Cargo.toml",
-  "fonts/*.ttf",
-  "fonts/*.txt",
-  "fonts/OFL.txt",
-  "fonts/UFL.txt",
+  "Cargo.toml"
 ]
 
 [lints]
@@ -50,7 +46,7 @@ deadlock_detection = ["dep:backtrace"]
 
 ## If set, epaint will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
-default_fonts = []
+default_fonts = ["epaint_default_fonts"]
 
 ## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
 log = ["dep:log"]
@@ -95,6 +91,8 @@ rayon = { version = "1.7", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
+
+epaint_default_fonts = { workspace = true, optional = true }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
