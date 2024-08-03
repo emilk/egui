@@ -550,6 +550,7 @@ impl ScrollStyle {
         Self {
             floating: true,
             bar_width: 10.0,
+            bar_inner_margin: 0.0,
             floating_allocated_width: 6.0,
             foreground_color: false,
 
@@ -574,6 +575,7 @@ impl ScrollStyle {
         Self {
             floating: true,
             bar_width: 10.0,
+            bar_inner_margin: 0.0,
             foreground_color: true,
             floating_allocated_width: 0.0,
             dormant_background_opacity: 0.0,
@@ -650,6 +652,10 @@ impl ScrollStyle {
             ui.label("Minimum handle length");
         });
         ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
+            ui.label("Inner margin");
+        });
+        ui.horizontal(|ui| {
             ui.add(DragValue::new(bar_outer_margin).range(0.0..=32.0));
             ui.label("Outer margin");
         });
@@ -683,11 +689,6 @@ impl ScrollStyle {
                 opacity_ui(ui, active_handle_opacity);
                 opacity_ui(ui, interact_handle_opacity);
                 ui.end_row();
-            });
-        } else {
-            ui.horizontal(|ui| {
-                ui.add(DragValue::new(bar_inner_margin).range(0.0..=32.0));
-                ui.label("Inner margin");
             });
         }
     }
@@ -836,6 +837,12 @@ pub struct TextCursorStyle {
 
     /// When blinking, this is how long the cursor is invisible.
     pub off_duration: f32,
+
+    /// Whether to retain the text cursor's position when focus is gained.
+    pub retain_position: bool,
+
+    /// Indicates whether the IME preedit is committed.
+    pub ime_preedit_finished: bool,
 }
 
 impl Default for TextCursorStyle {
@@ -846,6 +853,8 @@ impl Default for TextCursorStyle {
             blink: true,
             on_duration: 0.5,
             off_duration: 0.5,
+            retain_position: true,
+            ime_preedit_finished: false,
         }
     }
 }
@@ -2126,6 +2135,8 @@ impl TextCursorStyle {
             blink,
             on_duration,
             off_duration,
+            retain_position,
+            ime_preedit_finished,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2158,6 +2169,10 @@ impl TextCursorStyle {
                 ui.end_row();
             });
         }
+
+        ui.checkbox(retain_position, "retain position");
+
+        ui.checkbox(ime_preedit_finished, "IME preedit finished");
     }
 }
 
