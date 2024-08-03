@@ -836,6 +836,9 @@ pub struct TextCursorStyle {
 
     /// When blinking, this is how long the cursor is invisible.
     pub off_duration: f32,
+
+    /// Indicates whether the IME preedit is committed.
+    pub ime_preedit_finished: bool,
 }
 
 impl Default for TextCursorStyle {
@@ -846,6 +849,7 @@ impl Default for TextCursorStyle {
             blink: true,
             on_duration: 0.5,
             off_duration: 0.5,
+            ime_preedit_finished: false,
         }
     }
 }
@@ -2126,6 +2130,7 @@ impl TextCursorStyle {
             blink,
             on_duration,
             off_duration,
+            ime_preedit_finished,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2158,6 +2163,8 @@ impl TextCursorStyle {
                 ui.end_row();
             });
         }
+
+        ui.checkbox(ime_preedit_finished, "IME preedit finished");
     }
 }
 
