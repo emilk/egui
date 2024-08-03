@@ -112,15 +112,11 @@ mod console {
 /// * `core/src/ops/function.rs`
 #[allow(dead_code)] // only used on web and in tests
 fn shorten_file_path(file_path: &str) -> &str {
-    if let Some(i) = file_path.rfind("/src/") {
-        if let Some(prev_slash) = file_path[..i].rfind('/') {
-            &file_path[prev_slash + 1..]
-        } else {
-            file_path
-        }
-    } else {
-        file_path
-    }
+    file_path.rfind("/src/").map_or(file_path, |i| {
+        file_path[..i]
+            .rfind('/')
+            .map_or(file_path, |prev_slash| &file_path[prev_slash + 1..])
+    })
 }
 
 #[test]

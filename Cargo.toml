@@ -270,3 +270,5 @@ wildcard_imports = "allow"            # we do this a lot in egui
 ###
 nursery = "warn"
 cognitive_complexity = "allow"
+missing_const_for_fn = "allow"
+future_not_send = "allow"

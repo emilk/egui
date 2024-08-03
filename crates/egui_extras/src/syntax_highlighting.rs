@@ -141,7 +141,7 @@ impl Default for CodeTheme {
 
 impl CodeTheme {
     /// Selects either dark or light theme based on the given style.
-    pub const fn from_style(style: &egui::Style) -> Self {
+    pub fn from_style(style: &egui::Style) -> Self {
         if style.visuals.dark_mode {
             Self::dark()
         } else {

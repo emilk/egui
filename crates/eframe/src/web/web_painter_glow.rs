@@ -8,7 +8,7 @@ use crate::{WebGlContextOption, WebOptions};
 
 use super::web_painter::WebPainter;
 
-pub(crate) struct WebPainterGlow {
+pub struct WebPainterGlow {
     canvas: HtmlCanvasElement,
     painter: egui_glow::Painter,
 }
@@ -87,11 +87,7 @@ fn init_glow_context_from_canvas(
         }
     };
 
-    if let Some(result) = result {
-        Ok(result)
-    } else {
-        Err("WebGL isn't supported".into())
-    }
+    result.ok_or_else(|| "WebGL isn't supported".into())
 }
 
 fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static str)> {

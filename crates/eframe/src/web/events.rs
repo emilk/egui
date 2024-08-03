@@ -9,7 +9,7 @@ use web_sys::EventTarget;
 /// Calls `request_animation_frame` to schedule repaint.
 ///
 /// It will only paint if needed, but will always call `request_animation_frame` immediately.
-pub(crate) fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
     // Only paint and schedule if there has been no panic
     if let Some(mut runner_lock) = runner_ref.try_lock() {
         paint_if_needed(&mut runner_lock);
@@ -51,7 +51,7 @@ fn paint_if_needed(runner: &mut AppRunner) {
 
 // ------------------------------------------------------------------------
 
-pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let canvas = runner_ref.try_lock().unwrap().canvas().clone();
@@ -149,7 +149,7 @@ fn install_keydown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), J
 }
 
 #[allow(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
-pub(crate) fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
+pub fn on_keydown(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let has_focus = runner.input.raw.focused;
     if !has_focus {
         return;
@@ -236,7 +236,7 @@ fn install_keyup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsV
 }
 
 #[allow(clippy::needless_pass_by_value)] // So that we can pass it directly to `add_event_listener`
-pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
+pub fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
     let modifiers = modifiers_from_kb_event(&event);
     runner.input.raw.modifiers = modifiers;
 
@@ -353,7 +353,7 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
     Ok(())
 }
 
-pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
     if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
@@ -736,7 +736,7 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
 /// The resize observer is called the by the browser at `observe` time, instead of just on the first actual resize.
 /// We use that to trigger the first `request_animation_frame` _after_ updating the size of the canvas to the correct dimensions,
 /// to avoid [#4622](https://github.com/emilk/egui/issues/4622).
-pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let closure = Closure::wrap(Box::new({
         let runner_ref = runner_ref.clone();
         move |entries: js_sys::Array| {

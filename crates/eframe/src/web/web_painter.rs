@@ -3,7 +3,7 @@ use wasm_bindgen::JsValue;
 /// Renderer for a browser canvas.
 /// As of writing we're not allowing to decide on the painter at runtime,
 /// therefore this trait is merely there for specifying and documenting the interface.
-pub(crate) trait WebPainter {
+pub trait WebPainter {
     // Create a new web painter targeting a given canvas.
     // fn new(canvas: HtmlCanvasElement, options: &WebOptions) -> Result<Self, String>
     // where

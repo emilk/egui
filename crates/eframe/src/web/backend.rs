@@ -10,7 +10,7 @@ use super::percent_decode;
 
 /// Data gathered between frames.
 #[derive(Default)]
-pub(crate) struct WebInput {
+pub struct WebInput {
     /// Required because we don't get a position on touched
     pub primary_touch: Option<egui::TouchId>,
 
@@ -18,6 +18,8 @@ pub(crate) struct WebInput {
     pub raw: egui::RawInput,
 }
 
+// #4906
+#[allow(missing_docs)]
 impl WebInput {
     pub fn new_frame(&mut self, canvas_size: egui::Vec2) -> egui::RawInput {
         let mut raw_input = egui::RawInput {
@@ -50,14 +52,15 @@ impl WebInput {
 // ----------------------------------------------------------------------------
 
 /// Stores when to do the next repaint.
-pub(crate) struct NeedRepaint(Mutex<f64>);
+pub struct NeedRepaint(Mutex<f64>);
 
 impl Default for NeedRepaint {
     fn default() -> Self {
         Self(Mutex::new(f64::NEG_INFINITY)) // start with a repaint
     }
 }
-
+// #4906
+#[allow(missing_docs)]
 impl NeedRepaint {
     /// Returns the time (in [`now_sec`] scale) when
     /// we should next repaint.

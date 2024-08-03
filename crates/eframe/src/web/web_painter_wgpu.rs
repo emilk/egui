@@ -39,7 +39,7 @@ impl HasDisplayHandle for EguiWebWindow {
     }
 }
 
-pub(crate) struct WebPainterWgpu {
+pub struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
     surface: wgpu::Surface<'static>,
     surface_configuration: wgpu::SurfaceConfiguration,
