@@ -1016,7 +1016,9 @@ fn events(
                     if prediction == "\n" || prediction == "\r" {
                         None
                     } else {
-                        state.ime_enabled = false;
+                        if ui.visuals().text_cursor.ime_preedit_finished {
+                            state.ime_enabled = false;
+                        }
 
                         if !prediction.is_empty()
                             && cursor_range.secondary.ccursor.index
