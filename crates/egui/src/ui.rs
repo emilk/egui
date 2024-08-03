@@ -545,7 +545,7 @@ impl Ui {
     }
 
     /// Returns the `FontId` corresponding to the given `TextStyle`.
-    pub fn font_id_by_text_style(&self, style: &TextStyle) -> FontId {
+    pub fn text_style_font_id(&self, style: &TextStyle) -> FontId {
         style.resolve(&self.style)
     }
 
