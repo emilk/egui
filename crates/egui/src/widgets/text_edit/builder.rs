@@ -572,7 +572,7 @@ impl<'t> TextEdit<'t> {
                 }
 
                 let mut did_interact = false;
-                if response.has_focus() {
+                if response.has_focus() || !ui.visuals().text_cursor.retain_position {
                     let is_being_dragged = ui.ctx().is_being_dragged(response.id);
                     did_interact = state.cursor.pointer_interaction(
                         ui,
@@ -1014,6 +1014,8 @@ fn events(
                     if text_mark == "\n" || text_mark == "\r" {
                         None
                     } else {
+                        state.ime_enabled = false;
+
                         // Empty prediction can be produced when user press backspace
                         // or escape during IME, so we clear current text.
                         let mut ccursor = text.delete_selected(&cursor_range);
