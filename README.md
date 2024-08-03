@@ -157,6 +157,12 @@ To load images into `egui` you can use the official [`egui_extras`](https://gith
 
 [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) on the other hand has a lot of dependencies, including [`winit`](https://crates.io/crates/winit), [`image`](https://crates.io/crates/image), graphics crates, clipboard crates, etc,
 
+### build on Linux
+
+In order to build eframe on linux you need to install some components: pkg-config, glib, atk, gdk/gtk and pango
+
+`sudo apt install pkg-config libglib2.0-dev libpango1.0-dev libgtk-3-dev libatk1.0-dev`
+
 ## Who is egui for?
 
 egui aims to be the best choice when you want a simple way to create a GUI, or you want to add a GUI to a game engine.
