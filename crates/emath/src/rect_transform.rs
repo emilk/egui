@@ -13,7 +13,7 @@ pub struct RectTransform {
 }
 
 impl RectTransform {
-    pub fn identity(from_and_to: Rect) -> Self {
+    pub const fn identity(from_and_to: Rect) -> Self {
         Self::from_to(from_and_to, from_and_to)
     }
 
@@ -34,7 +34,7 @@ impl RectTransform {
         self.to.size() / self.from.size()
     }
 
-    pub fn inverse(&self) -> Self {
+    pub const fn inverse(&self) -> Self {
         Self::from_to(self.to, self.from)
     }
 

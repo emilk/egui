@@ -200,24 +200,23 @@ impl Widget for Button<'_> {
             button_padding.y = 0.0;
         }
 
-        let space_available_for_image = if let Some(text) = &text {
-            let font_height = ui.fonts(|fonts| text.font_height(fonts, ui.style()));
-            Vec2::splat(font_height) // Reasonable?
-        } else {
-            ui.available_size() - 2.0 * button_padding
-        };
+        let space_available_for_image = text.as_ref().map_or_else(
+            || ui.available_size() - 2.0 * button_padding,
+            |text| {
+                let font_height = ui.fonts(|fonts| text.font_height(fonts, ui.style()));
+                Vec2::splat(font_height) // Reasonable?
+            },
+        );
 
-        let image_size = if let Some(image) = &image {
+        let image_size = image.as_ref().map_or(Vec2::ZERO, |image| {
             image
                 .load_and_calc_size(ui, space_available_for_image)
                 .unwrap_or(space_available_for_image)
-        } else {
-            Vec2::ZERO
-        };
+        });
 
         let gap_before_shortcut_text = ui.spacing().item_spacing.x;
 
-        let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
+        let mut text_wrap_width = 2.0f32.mul_add(-button_padding.x, ui.available_width());
         if image.is_some() {
             text_wrap_width -= image_size.x + ui.spacing().icon_spacing;
         }
@@ -264,11 +263,10 @@ impl Widget for Button<'_> {
 
         let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            if let Some(galley) = &galley {
-                WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text())
-            } else {
-                WidgetInfo::new(WidgetType::Button)
-            }
+            galley.as_ref().map_or_else(
+                || WidgetInfo::new(WidgetType::Button),
+                |galley| WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), galley.text()),
+            )
         });
 
         if ui.is_rect_visible(rect) {
@@ -332,7 +330,7 @@ impl Widget for Button<'_> {
 
             if let Some(galley) = galley {
                 let text_pos = if image.is_some() || shortcut_galley.is_some() {
-                    pos2(cursor_x, rect.center().y - 0.5 * galley.size().y)
+                    pos2(cursor_x, 0.5f32.mul_add(-galley.size().y, rect.center().y))
                 } else {
                     // Make sure button text is centered if within a centered layout
                     ui.layout()
@@ -345,7 +343,7 @@ impl Widget for Button<'_> {
             if let Some(shortcut_galley) = shortcut_galley {
                 let shortcut_text_pos = pos2(
                     rect.max.x - button_padding.x - shortcut_galley.size().x,
-                    rect.center().y - 0.5 * shortcut_galley.size().y,
+                    0.5f32.mul_add(-shortcut_galley.size().y, rect.center().y),
                 );
                 ui.painter().galley(
                     shortcut_text_pos,

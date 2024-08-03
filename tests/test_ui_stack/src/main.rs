@@ -280,11 +280,9 @@ fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
                             }
                         });
                         row.col(|ui| {
-                            let s = if let Some(kind) = node.kind() {
-                                format!("{kind:?}")
-                            } else {
-                                "-".to_owned()
-                            };
+                            let s = node
+                                .kind()
+                                .map_or("-".to_owned(), |kind| format!("{kind:?}"));
 
                             ui.label(s);
                         });

@@ -280,7 +280,10 @@ impl ScrollArea {
     ///
     /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
     #[inline]
-    pub const fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
+    pub const fn scroll_bar_visibility(
+        mut self,
+        scroll_bar_visibility: ScrollBarVisibility,
+    ) -> Self {
         self.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
@@ -717,7 +720,11 @@ impl ScrollArea {
         let spacing = ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
         self.show_viewport(ui, |ui, viewport| {
-            ui.set_height((row_height_with_spacing * total_rows as f32 - spacing.y).at_least(0.0));
+            ui.set_height(
+                row_height_with_spacing
+                    .mul_add(total_rows as f32, -spacing.y)
+                    .at_least(0.0),
+            );
 
             let mut min_row = (viewport.min.y / row_height_with_spacing).floor() as usize;
             let mut max_row = (viewport.max.y / row_height_with_spacing).ceil() as usize + 1;
@@ -727,8 +734,8 @@ impl ScrollArea {
                 min_row = total_rows.saturating_sub(diff);
             }
 
-            let y_min = ui.max_rect().top() + min_row as f32 * row_height_with_spacing;
-            let y_max = ui.max_rect().top() + max_row as f32 * row_height_with_spacing;
+            let y_min = (min_row as f32).mul_add(row_height_with_spacing, ui.max_rect().top());
+            let y_max = (max_row as f32).mul_add(row_height_with_spacing, ui.max_rect().top());
 
             let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 

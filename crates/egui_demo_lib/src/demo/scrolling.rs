@@ -206,7 +206,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
             for i in first_item..last_item {
                 let indentation = (i % 100) as f32;
                 let x = ui.min_rect().left() + indentation;
-                let y = ui.min_rect().top() + i as f32 * row_height;
+                let y = (i as f32).mul_add(row_height, ui.min_rect().top());
                 let text = format!(
                     "This is row {}/{}, indented by {} pixels",
                     i + 1,
@@ -345,7 +345,8 @@ impl crate::View for ScrollTo {
                 let margin = ui.visuals().clip_rect_margin;
 
                 let current_scroll = ui.clip_rect().top() - ui.min_rect().top() + margin;
-                let max_scroll = ui.min_rect().height() - ui.clip_rect().height() + 2.0 * margin;
+                let max_scroll =
+                    2.0f32.mul_add(margin, ui.min_rect().height() - ui.clip_rect().height());
                 (current_scroll, max_scroll)
             })
             .inner;

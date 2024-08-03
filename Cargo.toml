@@ -207,7 +207,6 @@ needless_pass_by_ref_mut = "warn"
 needless_pass_by_value = "warn"
 negative_feature_names = "warn"
 nonstandard_macro_braces = "warn"
-nursery = "warn"
 option_option = "warn"
 path_buf_push_overwrite = "warn"
 ptr_as_ptr = "warn"
@@ -266,3 +265,8 @@ manual_range_contains = "allow"       # this one is just worse imho
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
 wildcard_imports = "allow"            # we do this a lot in egui
+
+
+###
+nursery = "warn"
+cognitive_complexity = "allow"

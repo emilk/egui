@@ -372,10 +372,11 @@ impl WinitApp for WgpuWinitApp {
     ) -> Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
-        self.running.as_mut().map_or_else(
-            || Ok(EventResult::Wait),
-            |running| running.run_ui_and_paint(window_id),
-        )
+        self.running
+            .as_mut()
+            .map_or(Ok(EventResult::Wait), |running| {
+                running.run_ui_and_paint(window_id)
+            })
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult> {
@@ -408,11 +409,12 @@ impl WinitApp for WgpuWinitApp {
         };
 
         let viewport = &running.shared.borrow().viewports[&ViewportId::ROOT];
-        if let Some(window) = &viewport.window {
-            Ok(EventResult::RepaintNow(window.id()))
-        } else {
-            Ok(EventResult::Wait)
-        }
+        viewport
+            .window
+            .as_ref()
+            .map_or(Ok(EventResult::Wait), |window| {
+                Ok(EventResult::RepaintNow(window.id()))
+            })
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
@@ -456,11 +458,11 @@ impl WinitApp for WgpuWinitApp {
     ) -> crate::Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
-        if let Some(running) = &mut self.running {
-            Ok(running.on_window_event(window_id, &event))
-        } else {
-            Ok(EventResult::Wait)
-        }
+        self.running
+            .as_mut()
+            .map_or(Ok(EventResult::Wait), |running| {
+                Ok(running.on_window_event(window_id, &event))
+            })
     }
 
     #[cfg(feature = "accesskit")]

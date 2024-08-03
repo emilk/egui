@@ -628,12 +628,12 @@ impl Row {
     }
 
     #[inline]
-    pub fn min_y(&self) -> f32 {
+    pub const fn min_y(&self) -> f32 {
         self.rect.top()
     }
 
     #[inline]
-    pub fn max_y(&self) -> f32 {
+    pub const fn max_y(&self) -> f32 {
         self.rect.bottom()
     }
 
@@ -654,11 +654,9 @@ impl Row {
     }
 
     pub fn x_offset(&self, column: usize) -> f32 {
-        if let Some(glyph) = self.glyphs.get(column) {
-            glyph.pos.x
-        } else {
-            self.rect.right()
-        }
+        self.glyphs
+            .get(column)
+            .map_or(self.rect.right(), |glyph| glyph.pos.x)
     }
 }
 
@@ -708,13 +706,13 @@ impl std::ops::Deref for Galley {
 impl Galley {
     /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
-        if let Some(row) = self.rows.last() {
-            let x = row.rect.right();
-            Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
-        } else {
-            // Empty galley
-            Rect::from_min_max(pos2(0.0, 0.0), pos2(0.0, 0.0))
-        }
+        self.rows.last().map_or_else(
+            || Rect::from_min_max(pos2(0.0, 0.0), pos2(0.0, 0.0)),
+            |row| {
+                let x = row.rect.right();
+                Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
+            },
+        )
     }
 
     /// Returns a 0-width Rect.
@@ -875,14 +873,12 @@ impl Galley {
     }
 
     pub fn end_rcursor(&self) -> RCursor {
-        if let Some(last_row) = self.rows.last() {
-            RCursor {
+        self.rows
+            .last()
+            .map_or_else(Default::default, |last_row| RCursor {
                 row: self.rows.len() - 1,
                 column: last_row.char_count_including_newline(),
-            }
-        } else {
-            Default::default()
-        }
+            })
     }
 }
 

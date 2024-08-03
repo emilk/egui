@@ -99,7 +99,7 @@ impl TextureAtlas {
         //     let hw = w as i32 / 2;
         const LARGEST_CIRCLE_RADIUS: f32 = 8.0; // keep small so that the initial texture atlas is small
         for i in 0.. {
-            let r = 2.0_f32.powf(i as f32 / 2.0 - 1.0);
+            let r = (i as f32 / 2.0 - 1.0).exp2();
             if r > LARGEST_CIRCLE_RADIUS {
                 break;
             }
@@ -158,7 +158,7 @@ impl TextureAtlas {
             .collect()
     }
 
-    fn max_height(&self) -> usize {
+    const fn max_height(&self) -> usize {
         // the initial width is likely the max texture side size
         self.image.width()
     }

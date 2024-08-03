@@ -171,6 +171,8 @@ impl Keypad {
         trans
     }
 
+    // #4906
+    #[allow(clippy::useless_let_if_seq)]
     pub fn show(&self, ctx: &egui::Context) {
         let (focus, mut state) = ctx.memory(|m| {
             (

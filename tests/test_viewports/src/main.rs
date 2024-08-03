@@ -61,6 +61,8 @@ impl ViewportState {
         }))
     }
 
+    // #4906
+    #[allow(clippy::significant_drop_tightening)]
     pub fn show(vp_state: Arc<RwLock<Self>>, ctx: &egui::Context) {
         if !vp_state.read().visible {
             return;
@@ -206,6 +208,8 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState) {
     generic_ui(ui, &vp_state.children);
 }
 
+// #4906
+#[allow(clippy::significant_drop_tightening)]
 fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
     let container_id = ui.id();
 
@@ -298,7 +302,8 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
 
 // ----------------------------------------------------------------------------
 // Drag-and-drop between windows is not yet implemented, but there is some test code for it here:
-
+// #4906
+#[allow(clippy::significant_drop_in_scrutinee)]
 fn drag_and_drop_test(ui: &mut egui::Ui) {
     use std::collections::HashMap;
     use std::sync::OnceLock;

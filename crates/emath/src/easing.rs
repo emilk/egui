@@ -40,7 +40,7 @@ pub fn quadratic_in_out(t: f32) -> f32 {
     if t < 0.5 {
         2. * t * t
     } else {
-        (-2. * t * t) + (4. * t) - 1.
+        (-2. * t).mul_add(t, 4. * t) - 1.
     }
 }
 
@@ -56,7 +56,7 @@ pub fn cubic_in(t: f32) -> f32 {
 #[inline]
 pub fn cubic_out(t: f32) -> f32 {
     let f = t - 1.;
-    f * f * f + 1.
+    (f * f).mul_add(f, 1.)
 }
 
 /// <https://easings.net/#easeInOutCubic>
@@ -65,8 +65,8 @@ pub fn cubic_in_out(t: f32) -> f32 {
     if t < 0.5 {
         4. * t * t * t
     } else {
-        let f = (2. * t) - 2.;
-        0.5 * f * f * f + 1.
+        let f = 2.0f32.mul_add(t, -2.);
+        (0.5 * f * f).mul_add(f, 1.)
     }
 }
 
@@ -99,7 +99,7 @@ pub fn sin_in_out(t: f32) -> f32 {
 /// Modeled after shifted quadrant IV of unit circle
 #[inline]
 pub fn circular_in(t: f32) -> f32 {
-    1. - (1. - t * t).sqrt()
+    1. - t.mul_add(-t, 1.).sqrt()
 }
 
 /// <https://easings.net/#easeOutCirc>
@@ -114,9 +114,9 @@ pub fn circular_out(t: f32) -> f32 {
 #[inline]
 pub fn circular_in_out(t: f32) -> f32 {
     if t < 0.5 {
-        0.5 * (1. - (1. - 4. * t * t).sqrt())
+        0.5 * (1. - (4. * t).mul_add(-t, 1.).sqrt())
     } else {
-        0.5 * ((-(2. * t - 3.) * (2. * t - 1.)).sqrt() + 1.)
+        0.5 * ((-(2.0f32.mul_add(t, -3.)) * 2.0f32.mul_add(t, -1.)).sqrt() + 1.)
     }
 }
 
@@ -152,23 +152,23 @@ pub fn exponential_in_out(t: f32) -> f32 {
     if t == 0. || t == 1. {
         t
     } else if t < 0.5 {
-        0.5 * powf(2.0, 20. * t - 10.)
+        0.5 * powf(2.0, 20.0f32.mul_add(t, -10.))
     } else {
-        0.5 * powf(2.0, -20. * t + 10.) + 1.
+        0.5f32.mul_add(powf(2.0, (-20.0f32).mul_add(t, 10.)), 1.)
     }
 }
 
 /// <https://easings.net/#easeInBack>
 #[inline]
 pub fn back_in(t: f32) -> f32 {
-    t * t * t - t * (t * PI).sin()
+    (t * t).mul_add(t, -(t * (t * PI).sin()))
 }
 
 /// <https://easings.net/#easeOutBack>
 #[inline]
 pub fn back_out(t: f32) -> f32 {
     let f = 1. - t;
-    1. - (f * f * f - f * (f * PI).sin())
+    1. - (f * f).mul_add(f, -(f * (f * PI).sin()))
 }
 
 /// <https://easings.net/#easeInOutBack>
@@ -176,10 +176,10 @@ pub fn back_out(t: f32) -> f32 {
 pub fn back_in_out(t: f32) -> f32 {
     if t < 0.5 {
         let f = 2. * t;
-        0.5 * (f * f * f - f * (f * PI).sin())
+        0.5 * (f * f).mul_add(f, -(f * (f * PI).sin()))
     } else {
-        let f = 1. - (2. * t - 1.);
-        0.5 * (1. - (f * f * f - f * (f * PI).sin())) + 0.5
+        let f = 1. - 2.0f32.mul_add(t, -1.);
+        0.5f32.mul_add(1. - (f * f).mul_add(f, -(f * (f * PI).sin())), 0.5)
     }
 }
 
@@ -203,17 +203,17 @@ pub fn bounce_out(t: f32) -> f32 {
         const T2: f32 = 363. / 40.;
         const T1: f32 = -99. / 10.;
         const T0: f32 = 17. / 5.;
-        T2 * t * t + T1 * t + T0
+        (T2 * t).mul_add(t, T1 * t) + T0
     } else if t < 9. / 10. {
         const T2: f32 = 4356. / 361.;
         const T1: f32 = -35442. / 1805.;
         const T0: f32 = 16061. / 1805.;
-        T2 * t * t + T1 * t + T0
+        (T2 * t).mul_add(t, T1 * t) + T0
     } else {
         const T2: f32 = 54. / 5.;
         const T1: f32 = -513. / 25.;
         const T0: f32 = 268. / 25.;
-        T2 * t * t + T1 * t + T0
+        (T2 * t).mul_add(t, T1 * t) + T0
     }
 }
 
@@ -225,6 +225,6 @@ pub fn bounce_in_out(t: f32) -> f32 {
     if t < 0.5 {
         0.5 * bounce_in(t * 2.)
     } else {
-        0.5 * bounce_out(t * 2. - 1.) + 0.5
+        0.5f32.mul_add(bounce_out(t.mul_add(2., -1.)), 0.5)
     }
 }

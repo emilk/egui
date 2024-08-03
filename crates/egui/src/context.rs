@@ -1327,6 +1327,8 @@ impl Context {
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`Button::shortcut_text`].
+    // #4906
+    #[allow(clippy::significant_drop_tightening)]
     pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
         let os = self.os();
 
@@ -2246,19 +2248,15 @@ impl Context {
     /// Is the pointer (mouse/touch) over any egui area?
     pub fn is_pointer_over_area(&self) -> bool {
         let pointer_pos = self.input(|i| i.pointer.interact_pos());
-        if let Some(pointer_pos) = pointer_pos {
-            if let Some(layer) = self.layer_id_at(pointer_pos) {
+        pointer_pos.map_or(false, |pointer_pos| {
+            self.layer_id_at(pointer_pos).map_or(false, |layer| {
                 if layer.order == Order::Background {
                     !self.frame_state(|state| state.unused_rect.contains(pointer_pos))
                 } else {
                     true
                 }
-            } else {
-                false
-            }
-        } else {
-            false
-        }
+            })
+        })
     }
 
     /// True if egui is currently interested in the pointer (mouse or touch).
@@ -2418,12 +2416,9 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let rect =
-            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).copied()) {
-                transform * rect
-            } else {
-                rect
-            };
+        let rect = self
+            .memory(|m| m.layer_transforms.get(&layer_id).copied())
+            .map_or(rect, |transform| transform * rect);
         if !rect.is_positive() {
             return false;
         }
@@ -2681,6 +2676,8 @@ impl Context {
     }
 
     /// Show stats about the allocated textures.
+    // #4906
+    #[allow(clippy::significant_drop_tightening)]
     pub fn texture_ui(&self, ui: &mut crate::Ui) {
         let tex_mngr = self.tex_manager();
         let tex_mngr = tex_mngr.read();
@@ -2966,6 +2963,8 @@ impl Context {
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
+    // #4906
+    #[allow(clippy::significant_drop_in_scrutinee)]
     pub fn forget_image(&self, uri: &str) {
         use load::BytesLoader as _;
 
@@ -2988,6 +2987,8 @@ impl Context {
     /// Release all memory and textures related to images used in [`Ui::image`] or [`Image`].
     ///
     /// If you attempt to load any images again, they will be reloaded from scratch.
+    // #4906
+    #[allow(clippy::significant_drop_in_scrutinee)]
     pub fn forget_all_images(&self) {
         use load::BytesLoader as _;
 
@@ -3025,6 +3026,9 @@ impl Context {
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
+    // #4906
+    #[allow(clippy::significant_drop_in_scrutinee)]
+    #[allow(clippy::significant_drop_tightening)]
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
         crate::profile_function!(uri);
 
@@ -3062,6 +3066,9 @@ impl Context {
     /// [no_image_loaders]: crate::load::LoadError::NoImageLoaders
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
+    // #4906
+    #[allow(clippy::significant_drop_in_scrutinee)]
+    #[allow(clippy::significant_drop_tightening)]
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
         crate::profile_function!(uri);
 
@@ -3100,6 +3107,9 @@ impl Context {
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
+    // #4906
+    #[allow(clippy::significant_drop_in_scrutinee)]
+    #[allow(clippy::significant_drop_tightening)]
     pub fn try_load_texture(
         &self,
         uri: &str,
@@ -3437,7 +3447,7 @@ impl Context {
 }
 
 #[test]
-fn context_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+const fn context_impl_send_sync() {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
 }

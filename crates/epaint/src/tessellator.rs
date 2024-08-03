@@ -716,17 +716,15 @@ impl Default for TessellationOptions {
 }
 
 fn cw_signed_area(path: &[PathPoint]) -> f64 {
-    if let Some(last) = path.last() {
+    path.last().map_or(0.0, |last| {
         let mut previous = last.pos;
         let mut area = 0.0;
         for p in path {
-            area += (previous.x * p.pos.y - p.pos.x * previous.y) as f64;
+            area += previous.x.mul_add(p.pos.y, -(p.pos.x * previous.y)) as f64;
             previous = p.pos;
         }
         area
-    } else {
-        0.0
-    }
+    })
 }
 
 /// Tessellate the given convex area into a polygon.
@@ -1257,9 +1255,9 @@ impl Tessellator {
             return;
         }
 
-        let start_new_mesh = match out_primitives.last() {
-            None => true,
-            Some(output_clipped_primitive) => {
+        let start_new_mesh = out_primitives
+            .last()
+            .map_or(true, |output_clipped_primitive| {
                 output_clipped_primitive.clip_rect != clip_rect
                     || match &output_clipped_primitive.primitive {
                         Primitive::Mesh(output_mesh) => {
@@ -1267,8 +1265,7 @@ impl Tessellator {
                         }
                         Primitive::Callback(_) => true,
                     }
-            }
-        };
+            });
 
         if start_new_mesh {
             out_primitives.push(ClippedPrimitive {
@@ -1379,7 +1376,7 @@ impl Tessellator {
         if self.options.prerasterized_discs && fill != Color32::TRANSPARENT {
             let radius_px = radius * self.pixels_per_point;
             // strike the right balance between some circles becoming too blurry, and some too sharp.
-            let cutoff_radius = radius_px * 2.0_f32.powf(0.25);
+            let cutoff_radius = radius_px * 0.25f32.exp2();
 
             // Find the right disc radius for a crisp edge:
             // TODO(emilk): perhaps we can do something faster than this linear search.
@@ -1447,7 +1444,8 @@ impl Tessellator {
                 let percent = i as f32 / num_points as f32;
 
                 // Ease the percent value, concentrating points around tight bends
-                let eased = 2.0 * (percent - percent.powf(2.0)) * ratio + percent.powf(2.0);
+                let eased =
+                    (2.0 * percent.mul_add(-percent, percent)).mul_add(ratio, percent.powi(2));
 
                 // Scale the ease to the quarter
                 let t = eased * std::f32::consts::FRAC_PI_2;

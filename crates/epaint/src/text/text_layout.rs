@@ -484,6 +484,8 @@ fn replace_last_glyph_with_overflow_character(
 /// Horizontally aligned the text on a row.
 ///
 /// /// Ignores the Y coordinate.
+// #4906
+#[allow(clippy::useless_let_if_seq)]
 fn halign_and_justify_row(
     point_scale: PointScale,
     row: &mut Row,
@@ -552,13 +554,14 @@ fn halign_and_justify_row(
 
         extra_x_per_glyph = point_scale.floor_to_pixel(extra_x_per_glyph);
 
-        extra_x_per_space = (target_width
-            - original_width
-            - extra_x_per_glyph * (num_glyphs_in_range as f32 - 1.0))
-            / (num_spaces_in_range as f32);
+        extra_x_per_space = extra_x_per_glyph.mul_add(
+            -(num_glyphs_in_range as f32 - 1.0),
+            target_width - original_width,
+        ) / (num_spaces_in_range as f32);
     }
 
-    let mut translate_x = target_min_x - original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
+    let mut translate_x =
+        extra_x_per_glyph.mul_add(-(glyph_range.0 as f32), target_min_x - original_min_x);
 
     for glyph in &mut row.glyphs {
         glyph.pos.x += translate_x;
@@ -882,7 +885,7 @@ fn add_hline(point_scale: PointScale, [start, stop]: [Pos2; 2], stroke: Stroke, 
 
         assert_eq!(start.y, stop.y);
 
-        let min_y = point_scale.round_to_pixel(start.y - 0.5 * stroke.width);
+        let min_y = point_scale.round_to_pixel(0.5f32.mul_add(-stroke.width, start.y));
         let max_y = point_scale.round_to_pixel(min_y + stroke.width);
 
         let rect = Rect::from_min_max(
@@ -1011,7 +1014,7 @@ const fn is_kana(c: char) -> bool {
 }
 
 #[inline]
-fn is_cjk(c: char) -> bool {
+const fn is_cjk(c: char) -> bool {
     // TODO(bigfarts): Add support for Korean Hangul.
     is_cjk_ideograph(c) || is_kana(c)
 }

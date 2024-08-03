@@ -538,7 +538,7 @@ impl<'a> Slider<'a> {
         }
         if let Some(step) = self.step {
             let start = *self.range.start();
-            value = start + ((value - start) / step).round() * step;
+            value = ((value - start) / step).round().mul_add(step, start);
         }
         if let Some(max_decimals) = self.max_decimals {
             value = emath::round_to_decimals(value, max_decimals);
@@ -639,12 +639,12 @@ impl<'a> Slider<'a> {
         let kb_step = increment as f32 - decrement as f32;
 
         if kb_step != 0.0 {
-            let ui_point_per_step = 1.0; // move this many ui points for each kb_step
+            let ui_point_per_step: f32 = 1.0; // move this many ui points for each kb_step
             let prev_value = self.get_value();
             let prev_position = self.position_from_value(prev_value, position_range);
-            let new_position = prev_position + ui_point_per_step * kb_step;
+            let new_position = ui_point_per_step.mul_add(kb_step, prev_position);
             let new_value = match self.step {
-                Some(step) => prev_value + (kb_step as f64 * step),
+                Some(step) => (kb_step as f64).mul_add(step, prev_value),
                 None if self.smart_aim => {
                     let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
                     emath::smart_aim::best_in_range_f64(

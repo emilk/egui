@@ -97,7 +97,7 @@ impl Widget for RadioButton {
             if let Some(galley) = galley {
                 let text_pos = pos2(
                     rect.min.x + icon_width + icon_spacing,
-                    rect.center().y - 0.5 * galley.size().y,
+                    0.5f32.mul_add(-galley.size().y, rect.center().y),
                 );
                 ui.painter().galley(text_pos, galley, visuals.text_color());
             }

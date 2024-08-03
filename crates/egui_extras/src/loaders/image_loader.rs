@@ -37,6 +37,8 @@ impl ImageLoader for ImageCrateLoader {
         Self::ID
     }
 
+    // #4906
+    #[allow(clippy::significant_drop_tightening)]
     fn load(&self, ctx: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
         // three stages of guessing if we support loading the image:
         // 1. URI extension

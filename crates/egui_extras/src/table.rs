@@ -46,7 +46,7 @@ impl Column {
     /// If you have many thousands of rows and are therefore using [`TableBody::rows`]
     /// or [`TableBody::heterogeneous_rows`], then the automatic size will only be based
     /// on the currently visible rows.
-    pub fn auto() -> Self {
+    pub const fn auto() -> Self {
         Self::auto_with_initial_suggestion(100.0)
     }
 
@@ -55,12 +55,12 @@ impl Column {
     /// The given fallback is a loose suggestion, that may be used to wrap
     /// cell contents, if they contain a wrapping layout.
     /// In most cases though, the given value is ignored.
-    pub fn auto_with_initial_suggestion(suggested_width: f32) -> Self {
+    pub const fn auto_with_initial_suggestion(suggested_width: f32) -> Self {
         Self::new(InitialColumnSize::Automatic(suggested_width))
     }
 
     /// With this initial width.
-    pub fn initial(width: f32) -> Self {
+    pub const fn initial(width: f32) -> Self {
         Self::new(InitialColumnSize::Absolute(width))
     }
 
@@ -76,11 +76,11 @@ impl Column {
     ///
     /// If you have multiple [`Column::remainder`] they all
     /// share the remaining space equally.
-    pub fn remainder() -> Self {
+    pub const fn remainder() -> Self {
         Self::new(InitialColumnSize::Remainder)
     }
 
-    fn new(initial_width: InitialColumnSize) -> Self {
+    const fn new(initial_width: InitialColumnSize) -> Self {
         Self {
             initial_width,
             width_range: Rangef::new(0.0, f32::INFINITY),
@@ -370,7 +370,10 @@ impl<'a> TableBuilder<'a> {
     ///
     /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
     #[inline]
-    pub const fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
+    pub const fn scroll_bar_visibility(
+        mut self,
+        scroll_bar_visibility: ScrollBarVisibility,
+    ) -> Self {
         self.scroll_options.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
@@ -399,9 +402,10 @@ impl<'a> TableBuilder<'a> {
     }
 
     fn available_width(&self) -> f32 {
-        self.ui.available_rect_before_wrap().width()
-            - (self.scroll_options.vscroll as i32 as f32)
-                * self.ui.spacing().scroll.allocated_width()
+        (self.scroll_options.vscroll as i32 as f32).mul_add(
+            -self.ui.spacing().scroll.allocated_width(),
+            self.ui.available_rect_before_wrap().width(),
+        )
     }
 
     /// Reset all column widths.
@@ -740,7 +744,7 @@ impl<'a> Table<'a> {
         let bottom = ui.min_rect().bottom();
 
         let spacing_x = ui.spacing().item_spacing.x;
-        let mut x = cursor_position.x - spacing_x * 0.5;
+        let mut x = spacing_x.mul_add(-0.5, cursor_position.x);
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
             let column_is_resizable = column.resizable.unwrap_or(resizable);
@@ -973,8 +977,8 @@ impl<'a> TableBody<'a> {
         if let Some(scroll_to_row) = self.scroll_to_row {
             let scroll_to_row = scroll_to_row.at_most(total_rows.saturating_sub(1)) as f32;
             *self.scroll_to_y_range = Some(Rangef::new(
-                self.layout.cursor.y + scroll_to_row * row_height_with_spacing,
-                self.layout.cursor.y + (scroll_to_row + 1.0) * row_height_with_spacing,
+                scroll_to_row.mul_add(row_height_with_spacing, self.layout.cursor.y),
+                (scroll_to_row + 1.0).mul_add(row_height_with_spacing, self.layout.cursor.y),
             ));
         }
 

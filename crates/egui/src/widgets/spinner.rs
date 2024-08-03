@@ -46,7 +46,7 @@ impl Spinner {
             let n_points = 20;
             let time = ui.input(|i| i.time);
             let start_angle = time * std::f64::consts::TAU;
-            let end_angle = start_angle + 240f64.to_radians() * time.sin();
+            let end_angle = 240f64.to_radians().mul_add(time.sin(), start_angle);
             let points: Vec<Pos2> = (0..n_points)
                 .map(|i| {
                     let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);

@@ -185,7 +185,7 @@ impl View for MiscDemoWindow {
                 ui.horizontal_wrapped(|ui| {
                     for i in 0..100 {
                         let r = i as f32 * 0.5;
-                        let size = Vec2::splat(2.0 * r + 5.0);
+                        let size = Vec2::splat(2.0f32.mul_add(r, 5.0));
                         let (rect, _response) = ui.allocate_at_least(size, Sense::hover());
                         ui.painter()
                             .circle_filled(rect.center(), r, ui.visuals().text_color());
@@ -547,11 +547,10 @@ fn ui_stack_demo(ui: &mut Ui) {
                         });
 
                         row.col(|ui| {
-                            ui.label(if let Some(kind) = node.kind() {
-                                format!("{kind:?}")
-                            } else {
-                                "-".to_owned()
-                            });
+                            ui.label(
+                                node.kind()
+                                    .map_or_else(|| "-".to_owned(), |kind| format!("{kind:?}")),
+                            );
                         });
                     });
                 }

@@ -32,6 +32,9 @@ impl ImageLoader for SvgLoader {
         Self::ID
     }
 
+    // #4906 this would get too ununderstandable without if let else
+    #[allow(clippy::significant_drop_tightening)]
+    #[allow(clippy::option_if_let_else)]
     fn load(&self, ctx: &egui::Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult {
         if !is_supported(uri) {
             return Err(LoadError::NotSupported);

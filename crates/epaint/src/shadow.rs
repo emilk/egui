@@ -61,10 +61,10 @@ impl Shadow {
             color: _,
         } = *self;
         Margin {
-            left: spread + 0.5 * blur - offset.x,
-            right: spread + 0.5 * blur + offset.x,
-            top: spread + 0.5 * blur - offset.y,
-            bottom: spread + 0.5 * blur + offset.y,
+            left: 0.5f32.mul_add(blur, spread) - offset.x,
+            right: 0.5f32.mul_add(blur, spread) + offset.x,
+            top: 0.5f32.mul_add(blur, spread) - offset.y,
+            bottom: 0.5f32.mul_add(blur, spread) + offset.y,
         }
     }
 }

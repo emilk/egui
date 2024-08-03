@@ -632,9 +632,8 @@ fn selected_text(galley: &Galley, cursor_range: &CursorRange) -> String {
 }
 
 fn estimate_row_height(galley: &Galley) -> f32 {
-    if let Some(row) = galley.rows.first() {
-        row.rect.height()
-    } else {
-        galley.size().y
-    }
+    galley
+        .rows
+        .first()
+        .map_or(galley.size().y, |row| row.rect.height())
 }

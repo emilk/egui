@@ -158,19 +158,22 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 next_repaint_time = None;
                 event_loop.set_control_flow(ControlFlow::Poll);
 
-                if let Some(window) = self.winit_app.window(*window_id) {
-                    log::trace!("request_redraw for {window_id:?}");
-                    let is_minimized = window.is_minimized().unwrap_or(false);
-                    if is_minimized {
+                self.winit_app.window(*window_id).map_or_else(
+                    || {
+                        log::trace!("No window found for {window_id:?}");
                         false
-                    } else {
-                        window.request_redraw();
-                        true
-                    }
-                } else {
-                    log::trace!("No window found for {window_id:?}");
-                    false
-                }
+                    },
+                    |window| {
+                        log::trace!("request_redraw for {window_id:?}");
+                        let is_minimized = window.is_minimized().unwrap_or(false);
+                        if is_minimized {
+                            false
+                        } else {
+                            window.request_redraw();
+                            true
+                        }
+                    },
+                )
             });
 
         if let Some(next_repaint_time) = next_repaint_time {
@@ -250,13 +253,11 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                     let current_frame_nr = self.winit_app.frame_nr(viewport_id);
                     if current_frame_nr == frame_nr || current_frame_nr == frame_nr + 1 {
                         log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
-                        if let Some(window_id) =
-                            self.winit_app.window_id_from_viewport_id(viewport_id)
-                        {
-                            Ok(EventResult::RepaintAt(window_id, when))
-                        } else {
-                            Ok(EventResult::Wait)
-                        }
+                        self.winit_app
+                            .window_id_from_viewport_id(viewport_id)
+                            .map_or(Ok(EventResult::Wait), |window_id| {
+                                Ok(EventResult::RepaintAt(window_id, when))
+                            })
                     } else {
                         log::trace!("Got outdated UserEvent::RequestRepaint");
                         Ok(EventResult::Wait) // old request - we've already repainted

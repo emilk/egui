@@ -80,7 +80,7 @@ impl SyntectTheme {
         .copied()
     }
 
-    fn name(&self) -> &'static str {
+    const fn name(&self) -> &'static str {
         match self {
             Self::Base16EightiesDark => "Base16 Eighties (dark)",
             Self::Base16MochaDark => "Base16 Mocha (dark)",
@@ -92,7 +92,7 @@ impl SyntectTheme {
         }
     }
 
-    fn syntect_key_name(&self) -> &'static str {
+    const fn syntect_key_name(&self) -> &'static str {
         match self {
             Self::Base16EightiesDark => "base16-eighties.dark",
             Self::Base16MochaDark => "base16-mocha.dark",
@@ -104,7 +104,7 @@ impl SyntectTheme {
         }
     }
 
-    pub fn is_dark(&self) -> bool {
+    pub const fn is_dark(&self) -> bool {
         match self {
             Self::Base16EightiesDark
             | Self::Base16MochaDark
@@ -141,7 +141,7 @@ impl Default for CodeTheme {
 
 impl CodeTheme {
     /// Selects either dark or light theme based on the given style.
-    pub fn from_style(style: &egui::Style) -> Self {
+    pub const fn from_style(style: &egui::Style) -> Self {
         if style.visuals.dark_mode {
             Self::dark()
         } else {
@@ -180,14 +180,14 @@ impl CodeTheme {
 
 #[cfg(feature = "syntect")]
 impl CodeTheme {
-    pub fn dark() -> Self {
+    pub const fn dark() -> Self {
         Self {
             dark_mode: true,
             syntect_theme: SyntectTheme::Base16MochaDark,
         }
     }
 
-    pub fn light() -> Self {
+    pub const fn light() -> Self {
         Self {
             dark_mode: false,
             syntect_theme: SyntectTheme::SolarizedLight,

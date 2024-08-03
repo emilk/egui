@@ -4,7 +4,7 @@ use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget}
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct DatePickerButtonState {
+pub struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 

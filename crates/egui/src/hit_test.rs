@@ -77,7 +77,7 @@ pub fn hit_test(
         .collect();
 
     // We need to pick one single layer for the interaction.
-    if let Some(closest_hit) = closest_hit {
+    closest_hit.map_or_else(Default::default, |closest_hit| {
         // Select the top layer, and ignore widgets in any other layer:
         let top_layer = closest_hit.layer_id;
         close.retain(|w| w.layer_id == top_layer);
@@ -103,10 +103,7 @@ pub fn hit_test(
         }
 
         hits
-    } else {
-        // No close widgets.
-        Default::default()
-    }
+    })
 }
 
 fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {

@@ -10,6 +10,9 @@ impl TextureLoader for DefaultTextureLoader {
         crate::generate_loader_id!(DefaultTextureLoader)
     }
 
+    // #4906
+    #[allow(clippy::significant_drop_tightening)]
+    #[allow(clippy::significant_drop_in_scrutinee)]
     fn load(
         &self,
         ctx: &Context,

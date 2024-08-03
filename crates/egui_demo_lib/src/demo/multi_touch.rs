@@ -126,7 +126,7 @@ impl MultiTouch {
         } else {
             // seconds after which half the amount of zoom/rotation will be reverted:
             let half_life =
-                egui::remap_clamp(time_since_last_touch, delay..=1.0, 1.0..=0.0).powf(4.0);
+                egui::remap_clamp(time_since_last_touch, delay..=1.0, 1.0..=0.0).powi(4);
 
             if half_life <= 1e-3 {
                 self.zoom = 1.0;
@@ -135,7 +135,7 @@ impl MultiTouch {
             } else {
                 let dt = ui.input(|i| i.unstable_dt);
                 let half_life_factor = (-(2_f32.ln()) / half_life * dt).exp();
-                self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
+                self.zoom = (self.zoom - 1.).mul_add(half_life_factor, 1.);
                 self.rotation *= half_life_factor;
                 self.translation *= half_life_factor;
                 ui.ctx().request_repaint();

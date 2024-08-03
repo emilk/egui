@@ -166,7 +166,7 @@ impl Align2 {
     }
 
     /// -1, 0, or +1 for each axis
-    pub fn to_sign(self) -> Vec2 {
+    pub const fn to_sign(self) -> Vec2 {
         vec2(self.x().to_sign(), self.y().to_sign())
     }
 
@@ -175,12 +175,12 @@ impl Align2 {
     pub fn anchor_rect(self, rect: Rect) -> Rect {
         let x = match self.x() {
             Align::Min => rect.left(),
-            Align::Center => rect.left() - 0.5 * rect.width(),
+            Align::Center => 0.5f32.mul_add(-rect.width(), rect.left()),
             Align::Max => rect.left() - rect.width(),
         };
         let y = match self.y() {
             Align::Min => rect.top(),
-            Align::Center => rect.top() - 0.5 * rect.height(),
+            Align::Center => 0.5f32.mul_add(-rect.height(), rect.top()),
             Align::Max => rect.top() - rect.height(),
         };
         Rect::from_min_size(pos2(x, y), rect.size())
@@ -192,12 +192,12 @@ impl Align2 {
     pub fn anchor_size(self, pos: Pos2, size: Vec2) -> Rect {
         let x = match self.x() {
             Align::Min => pos.x,
-            Align::Center => pos.x - 0.5 * size.x,
+            Align::Center => 0.5f32.mul_add(-size.x, pos.x),
             Align::Max => pos.x - size.x,
         };
         let y = match self.y() {
             Align::Min => pos.y,
-            Align::Center => pos.y - 0.5 * size.y,
+            Align::Center => 0.5f32.mul_add(-size.y, pos.y),
             Align::Max => pos.y - size.y,
         };
         Rect::from_min_size(pos2(x, y), size)

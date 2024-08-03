@@ -481,13 +481,14 @@ impl<'a> Widget for DragValue<'a> {
             ui.data_mut(|data| data.remove::<String>(id));
         }
 
-        let value_text = match custom_formatter {
-            Some(custom_formatter) => custom_formatter(value, auto_decimals..=max_decimals),
-            None => ui
-                .style()
-                .number_formatter
-                .format(value, auto_decimals..=max_decimals),
-        };
+        let value_text = custom_formatter.map_or_else(
+            || {
+                ui.style()
+                    .number_formatter
+                    .format(value, auto_decimals..=max_decimals)
+            },
+            |custom_formatter| custom_formatter(value, auto_decimals..=max_decimals),
+        );
 
         let text_style = ui.style().drag_value_text_style.clone();
 
@@ -675,10 +676,9 @@ impl<'a> Widget for DragValue<'a> {
 }
 
 fn parse(custom_parser: &Option<NumParser<'_>>, value_text: &str) -> Option<f64> {
-    match &custom_parser {
-        Some(parser) => parser(value_text),
-        None => default_parser(value_text),
-    }
+    custom_parser
+        .as_ref()
+        .map_or_else(|| default_parser(value_text), |parser| parser(value_text))
 }
 
 /// The default egui parser of numbers.

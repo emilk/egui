@@ -214,6 +214,8 @@ impl Painter {
     ///
     /// # Errors
     /// If the provided wgpu configuration does not match an available device.
+    // #4906
+    #[allow(clippy::future_not_send)]
     pub async fn set_window(
         &mut self,
         viewport_id: ViewportId,
@@ -240,6 +242,8 @@ impl Painter {
     ///
     /// # Safety
     /// The user is responsible for ensuring that the window is alive for as long as it is set.
+    // #4906
+    #[allow(clippy::future_not_send)]
     pub async unsafe fn set_window_unsafe(
         &mut self,
         viewport_id: ViewportId,
@@ -263,6 +267,8 @@ impl Painter {
         Ok(())
     }
 
+    // #4906
+    #[allow(clippy::future_not_send)]
     async fn add_surface(
         &mut self,
         surface: wgpu::Surface<'static>,

@@ -366,7 +366,7 @@ impl WinitApp for GlowWinitApp {
         glutin
             .viewports
             .get(&viewport_id)
-            .map_or_else(|| None, |viewport| viewport.window.clone())
+            .and_then(|viewport| viewport.window.clone())
     }
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
@@ -393,11 +393,11 @@ impl WinitApp for GlowWinitApp {
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
     ) -> Result<EventResult> {
-        if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(event_loop, window_id)
-        } else {
-            Ok(EventResult::Wait)
-        }
+        self.running
+            .as_mut()
+            .map_or(Ok(EventResult::Wait), |running| {
+                running.run_ui_and_paint(event_loop, window_id)
+            })
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) -> crate::Result<EventResult> {
@@ -458,11 +458,11 @@ impl WinitApp for GlowWinitApp {
         window_id: WindowId,
         event: winit::event::WindowEvent,
     ) -> Result<EventResult> {
-        if let Some(running) = &mut self.running {
-            Ok(running.on_window_event(window_id, &event))
-        } else {
-            Ok(EventResult::Wait)
-        }
+        self.running
+            .as_mut()
+            .map_or(Ok(EventResult::Wait), |running| {
+                Ok(running.on_window_event(window_id, &event))
+            })
     }
 
     #[cfg(feature = "accesskit")]
@@ -704,11 +704,11 @@ impl GlowWinitRunning {
             // vsync - don't count as frame-time:
             frame_timer.pause();
             crate::profile_scope!("swap_buffers");
-            let context = current_gl_context
-                .as_ref()
-                .ok_or(egui_glow::PainterError::from(
+            let context = current_gl_context.as_ref().ok_or_else(|| {
+                egui_glow::PainterError::from(
                     "failed to get current context to swap buffers".to_owned(),
-                ))?;
+                )
+            })?;
 
             gl_surface.swap_buffers(context)?;
             frame_timer.resume();
@@ -866,17 +866,14 @@ fn change_gl_context(
         }
     }
 
-    let not_current = not_current_gl_context.take().map_or_else(
-        || {
-            crate::profile_scope!("make_not_current");
-            current_gl_context
-                .take()
-                .unwrap()
-                .make_not_current()
-                .unwrap()
-        },
-        |not_current_context| not_current_context,
-    );
+    let not_current = not_current_gl_context.take().unwrap_or_else(|| {
+        crate::profile_scope!("make_not_current");
+        current_gl_context
+            .take()
+            .unwrap()
+            .make_not_current()
+            .unwrap()
+    });
 
     crate::profile_scope!("make_current");
     *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());

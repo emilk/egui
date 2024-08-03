@@ -475,13 +475,16 @@ impl WrapApp {
                 .open(&mut open)
                 .show(ctx, |ui| {
                     for file in &self.dropped_files {
-                        let mut info = if let Some(path) = &file.path {
-                            path.display().to_string()
-                        } else if !file.name.is_empty() {
-                            file.name.clone()
-                        } else {
-                            "???".to_owned()
-                        };
+                        let mut info = file.path.as_ref().map_or_else(
+                            || {
+                                if !file.name.is_empty() {
+                                    file.name.clone()
+                                } else {
+                                    "???".to_owned()
+                                }
+                            },
+                            |path| path.display().to_string(),
+                        );
 
                         let mut additional_info = vec![];
                         if !file.mime.is_empty() {

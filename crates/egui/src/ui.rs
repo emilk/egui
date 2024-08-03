@@ -311,7 +311,7 @@ impl Ui {
 
     /// Get a reference to the parent [`Context`].
     #[inline]
-    pub fn ctx(&self) -> &Context {
+    pub const fn ctx(&self) -> &Context {
         self.painter.ctx()
     }
 
@@ -481,45 +481,56 @@ impl Ui {
     ///
     /// See also: [`Self::set_opacity`] and [`Self::multiply_opacity`].
     #[inline]
-    pub fn opacity(&self) -> f32 {
+    pub const fn opacity(&self) -> f32 {
         self.painter.opacity()
     }
 
     /// Read the [`Layout`].
     #[inline]
-    pub fn layout(&self) -> &Layout {
+    pub const fn layout(&self) -> &Layout {
         self.placer.layout()
     }
 
     /// Which wrap mode should the text use in this [`Ui`]?
     ///
     /// This is determined first by [`Style::wrap_mode`], and then by the layout of this [`Ui`].
+    #[allow(deprecated)]
     pub fn wrap_mode(&self) -> TextWrapMode {
-        #[allow(deprecated)]
-        if let Some(wrap_mode) = self.style.wrap_mode {
-            wrap_mode
-        }
-        // `wrap` handling for backward compatibility
-        else if let Some(wrap) = self.style.wrap {
-            if wrap {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
-        } else if let Some(grid) = self.placer.grid() {
-            if grid.wrap_text() {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
-        } else {
-            let layout = self.layout();
-            if layout.is_vertical() || layout.is_horizontal() && layout.main_wrap() {
-                TextWrapMode::Wrap
-            } else {
-                TextWrapMode::Extend
-            }
-        }
+        self.style.wrap_mode.map_or_else(
+            || {
+                self.style.wrap.map_or_else(
+                    || {
+                        self.placer.grid().map_or_else(
+                            || {
+                                let layout = self.layout();
+                                if layout.is_vertical()
+                                    || layout.is_horizontal() && layout.main_wrap()
+                                {
+                                    TextWrapMode::Wrap
+                                } else {
+                                    TextWrapMode::Extend
+                                }
+                            },
+                            |grid| {
+                                if grid.wrap_text() {
+                                    TextWrapMode::Wrap
+                                } else {
+                                    TextWrapMode::Extend
+                                }
+                            },
+                        )
+                    },
+                    |wrap| {
+                        if wrap {
+                            TextWrapMode::Wrap
+                        } else {
+                            TextWrapMode::Extend
+                        }
+                    },
+                )
+            },
+            |wrap_mode| wrap_mode,
+        )
     }
 
     /// Should text wrap in this [`Ui`]?
@@ -540,7 +551,7 @@ impl Ui {
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
-    pub fn layer_id(&self) -> LayerId {
+    pub const fn layer_id(&self) -> LayerId {
         self.painter().layer_id()
     }
 
@@ -552,7 +563,7 @@ impl Ui {
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
     #[inline]
-    pub fn clip_rect(&self) -> Rect {
+    pub const fn clip_rect(&self) -> Rect {
         self.painter.clip_rect()
     }
 
@@ -659,7 +670,7 @@ impl Ui {
     /// No matter what, the final Ui will be at least this large.
     ///
     /// This will grow as new widgets are added, but never shrink.
-    pub fn min_rect(&self) -> Rect {
+    pub const fn min_rect(&self) -> Rect {
         self.placer.min_rect()
     }
 
@@ -675,7 +686,7 @@ impl Ui {
     ///
     /// If a new widget doesn't fit within the `max_rect` then the
     /// [`Ui`] will make room for it by expanding both `min_rect` and `max_rect`.
-    pub fn max_rect(&self) -> Rect {
+    pub const fn max_rect(&self) -> Rect {
         self.placer.max_rect()
     }
 
@@ -1080,7 +1091,7 @@ impl Ui {
     ///
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
-    pub fn cursor(&self) -> Rect {
+    pub const fn cursor(&self) -> Rect {
         self.placer.cursor()
     }
 
@@ -2341,7 +2352,7 @@ impl Ui {
         self.placer.save_grid();
     }
 
-    pub(crate) fn is_grid(&self) -> bool {
+    pub(crate) const fn is_grid(&self) -> bool {
         self.placer.is_grid()
     }
 
@@ -2411,7 +2422,7 @@ impl Ui {
         }
 
         // Make sure we fit everything next frame:
-        let total_required_width = total_spacing + max_column_width * (num_columns as f32);
+        let total_required_width = max_column_width.mul_add(num_columns as f32, total_spacing);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
         self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
@@ -2463,7 +2474,7 @@ impl Ui {
         }
 
         // Make sure we fit everything next frame:
-        let total_required_width = total_spacing + max_column_width * (NUM_COL as f32);
+        let total_required_width = max_column_width.mul_add(NUM_COL as f32, total_spacing);
 
         let size = vec2(self.available_width().max(total_required_width), max_height);
         self.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
@@ -2768,7 +2779,7 @@ fn register_rect(ui: &Ui, rect: Rect) {
 fn register_rect(_ui: &Ui, _rect: Rect) {}
 
 #[test]
-fn ui_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+const fn ui_impl_send_sync() {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Ui>();
 }

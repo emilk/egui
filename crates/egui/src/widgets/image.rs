@@ -840,10 +840,8 @@ fn gif_frame_index(ctx: &Context, uri: &str) -> usize {
                 return i;
             }
         }
-        0
-    } else {
-        0
     }
+    0
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]

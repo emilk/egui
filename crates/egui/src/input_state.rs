@@ -671,9 +671,9 @@ impl InputState {
 // ----------------------------------------------------------------------------
 
 /// A pointer (mouse or touch) click.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct Click {
+pub struct Click {
     pub pos: Pos2,
 
     /// 1 or 2 (double-click) or 3 (triple-click)
@@ -693,9 +693,9 @@ impl Click {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) enum PointerEvent {
+pub enum PointerEvent {
     Moved(Pos2),
     Pressed {
         position: Pos2,
@@ -1226,19 +1226,19 @@ impl PointerState {
 
     /// Is the primary button currently down?
     #[inline(always)]
-    pub fn primary_down(&self) -> bool {
+    pub const fn primary_down(&self) -> bool {
         self.button_down(PointerButton::Primary)
     }
 
     /// Is the secondary button currently down?
     #[inline(always)]
-    pub fn secondary_down(&self) -> bool {
+    pub const fn secondary_down(&self) -> bool {
         self.button_down(PointerButton::Secondary)
     }
 
     /// Is the middle button currently down?
     #[inline(always)]
-    pub fn middle_down(&self) -> bool {
+    pub const fn middle_down(&self) -> bool {
         self.button_down(PointerButton::Middle)
     }
 }

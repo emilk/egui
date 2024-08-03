@@ -370,7 +370,7 @@ impl Options {
 /// If the user releases the button without moving the mouse we register it as a click on `click_id`.
 /// If the cursor moves too much we clear the `click_id` and start passing move events to `drag_id`.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct InteractionState {
+pub struct InteractionState {
     /// A widget interested in clicks that has a mouse press on it.
     pub potential_click_id: Option<Id>,
 
@@ -385,7 +385,7 @@ pub(crate) struct InteractionState {
 
 /// Keeps tracks of what widget has keyboard focus
 #[derive(Clone, Debug, Default)]
-pub(crate) struct Focus {
+pub struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
     focused_widget: Option<FocusWidget>,
 
@@ -605,12 +605,10 @@ impl Focus {
 
         // Update cache with new rects
         self.focus_widgets_cache.retain(|id, old_rect| {
-            if let Some(new_rect) = new_rects.get(id) {
+            new_rects.get(id).map_or(false, |new_rect| {
                 *old_rect = *new_rect;
                 true // Keep the item
-            } else {
-                false // Remove the item
-            }
+            })
         });
 
         let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
@@ -881,7 +879,7 @@ impl Memory {
     }
 
     /// Is any popup open?
-    pub fn any_popup_open(&self) -> bool {
+    pub const fn any_popup_open(&self) -> bool {
         self.popup.is_some() || self.everything_is_visible()
     }
 
@@ -1106,7 +1104,7 @@ impl Areas {
 // ----------------------------------------------------------------------------
 
 #[test]
-fn memory_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+const fn memory_impl_send_sync() {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Memory>();
 }

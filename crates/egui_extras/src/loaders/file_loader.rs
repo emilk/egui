@@ -43,6 +43,8 @@ impl BytesLoader for FileLoader {
         Self::ID
     }
 
+    // #4906 this would get too ununderstandable without if let else
+    #[allow(clippy::option_if_let_else)]
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
         // File loader only supports the `file` protocol.
         let Some(path) = uri.strip_prefix(PROTOCOL).map(trim_extra_slash) else {

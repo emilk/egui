@@ -586,7 +586,7 @@ impl ViewportBuilder {
 
     /// This window is always on top
     #[inline]
-    pub fn with_always_on_top(self) -> Self {
+    pub const fn with_always_on_top(self) -> Self {
         self.with_window_level(WindowLevel::AlwaysOnTop)
     }
 
@@ -611,6 +611,8 @@ impl ViewportBuilder {
 
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool indicating if the window needs to be recreated.
+    // #4906
+    #[allow(clippy::useless_let_if_seq)]
     #[must_use]
     pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
         let Self {
@@ -716,10 +718,10 @@ impl ViewportBuilder {
         }
 
         if let Some(new_icon) = new_icon {
-            let is_new = match &self.icon {
-                Some(existing) => !Arc::ptr_eq(&new_icon, existing),
-                None => true,
-            };
+            let is_new = self
+                .icon
+                .as_ref()
+                .map_or(true, |existing| !Arc::ptr_eq(&new_icon, existing));
 
             if is_new {
                 commands.push(ViewportCommand::Icon(Some(new_icon.clone())));

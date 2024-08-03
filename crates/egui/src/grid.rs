@@ -1,7 +1,7 @@
 use crate::*;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct State {
+pub struct State {
     col_widths: Vec<f32>,
     row_heights: Vec<f32>,
 }
@@ -39,8 +39,8 @@ impl State {
     }
 
     fn full_width(&self, x_spacing: f32) -> f32 {
-        self.col_widths.iter().sum::<f32>()
-            + (self.col_widths.len().at_least(1) - 1) as f32 * x_spacing
+        ((self.col_widths.len().at_least(1) - 1) as f32)
+            .mul_add(x_spacing, self.col_widths.iter().sum::<f32>())
     }
 }
 
@@ -49,7 +49,7 @@ impl State {
 // type alias for boxed function to determine row color during grid generation
 type ColorPickerFn = Box<dyn Send + Sync + Fn(usize, &Style) -> Option<Color32>>;
 
-pub(crate) struct GridLayout {
+pub struct GridLayout {
     ctx: Context,
     style: std::sync::Arc<Style>,
     id: Id,

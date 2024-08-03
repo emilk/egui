@@ -15,7 +15,7 @@ pub enum Size {
 
 impl Size {
     /// Exactly this big, with no room for resize.
-    pub fn exact(points: f32) -> Self {
+    pub const fn exact(points: f32) -> Self {
         Self::Absolute {
             initial: points,
             range: Rangef::new(points, points),
@@ -23,7 +23,7 @@ impl Size {
     }
 
     /// Initially this big, but can resize.
-    pub fn initial(points: f32) -> Self {
+    pub const fn initial(points: f32) -> Self {
         Self::Absolute {
             initial: points,
             range: Rangef::new(0.0, f32::INFINITY),
@@ -40,7 +40,7 @@ impl Size {
     }
 
     /// Multiple remainders each get the same space.
-    pub fn remainder() -> Self {
+    pub const fn remainder() -> Self {
         Self::Remainder {
             range: Rangef::new(0.0, f32::INFINITY),
         }
@@ -115,22 +115,23 @@ impl Sizing {
         }
 
         let mut num_remainders = 0;
-        let sum_non_remainder = self
-            .sizes
-            .iter()
-            .map(|&size| match size {
-                Size::Absolute { initial, .. } => initial,
-                Size::Relative { fraction, range } => {
-                    assert!(0.0 <= fraction && fraction <= 1.0);
-                    range.clamp(length * fraction)
-                }
-                Size::Remainder { .. } => {
-                    num_remainders += 1;
-                    0.0
-                }
-            })
-            .sum::<f32>()
-            + spacing * (self.sizes.len() - 1) as f32;
+        let sum_non_remainder = spacing.mul_add(
+            (self.sizes.len() - 1) as f32,
+            self.sizes
+                .iter()
+                .map(|&size| match size {
+                    Size::Absolute { initial, .. } => initial,
+                    Size::Relative { fraction, range } => {
+                        assert!(0.0 <= fraction && fraction <= 1.0);
+                        range.clamp(length * fraction)
+                    }
+                    Size::Remainder { .. } => {
+                        num_remainders += 1;
+                        0.0
+                    }
+                })
+                .sum::<f32>(),
+        );
 
         let avg_remainder_length = if num_remainders == 0 {
             0.0

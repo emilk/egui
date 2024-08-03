@@ -190,7 +190,7 @@ impl Vec2 {
 
     #[inline(always)]
     pub fn length_sq(self) -> f32 {
-        self.x * self.x + self.y * self.y
+        self.x.mul_add(self.x, self.y * self.y)
     }
 
     /// Measures the angle of the vector.
@@ -282,7 +282,7 @@ impl Vec2 {
     /// The dot-product of two vectors.
     #[inline]
     pub fn dot(self, other: Self) -> f32 {
-        self.x * other.x + self.y * other.y
+        self.x.mul_add(other.x, self.y * other.y)
     }
 
     /// Returns the minimum of `self.x` and `self.y`.

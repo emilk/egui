@@ -949,12 +949,10 @@ pub fn update_viewport_info(
 
     let monitor_size = {
         crate::profile_scope!("monitor_size");
-        if let Some(monitor) = window.current_monitor() {
+        window.current_monitor().map(|monitor| {
             let size = monitor.size().to_logical::<f32>(pixels_per_point.into());
-            Some(egui::vec2(size.width, size.height))
-        } else {
-            None
-        }
+            egui::vec2(size.width, size.height)
+        })
     };
 
     viewport_info.title = Some(window.title());

@@ -45,10 +45,9 @@ impl<T: Float> PartialOrd<Self> for OrderedFloat<T> {
 impl<T: Float> Ord for OrderedFloat<T> {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.0.partial_cmp(&other.0) {
-            Some(ord) => ord,
-            None => self.0.is_nan().cmp(&other.0.is_nan()),
-        }
+        self.0
+            .partial_cmp(&other.0)
+            .map_or_else(|| self.0.is_nan().cmp(&other.0.is_nan()), |ord| ord)
     }
 }
 

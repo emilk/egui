@@ -185,7 +185,7 @@ fn shorten_source_file_path(path: &std::path::Path) -> String {
     }
 
     // Look for the last `src`:
-    if let Some(src_idx) = src_idx {
+    src_idx.map_or(path.display().to_string(), |src_idx| {
         // Before `src` comes the name of the crate - let's include that:
         let first_index = src_idx.saturating_sub(1);
 
@@ -195,10 +195,7 @@ fn shorten_source_file_path(path: &std::path::Path) -> String {
             output.push_str(component);
         }
         output
-    } else {
-        // No `src` directory found - weird!
-        path.display().to_string()
-    }
+    })
 }
 
 #[test]

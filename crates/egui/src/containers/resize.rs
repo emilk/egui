@@ -2,7 +2,7 @@ use crate::*;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct State {
+pub struct State {
     /// This is the size that the user has picked by dragging the resize handles.
     /// This may be smaller and/or larger than the actual size.
     /// For instance, the user may have tried to shrink too much (not fitting the contents).
@@ -323,17 +323,15 @@ impl Resize {
 
         // ------------------------------
 
-        let corner_response = if let Some(corner_id) = corner_id {
+        let corner_response = corner_id.map(|corner_id| {
             // We do the corner interaction last to place it on top of the content:
             let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
             let corner_rect = Rect::from_min_size(
                 content_ui.min_rect().left_top() + size - corner_size,
                 corner_size,
             );
-            Some(ui.interact(corner_rect, corner_id, Sense::drag()))
-        } else {
-            None
-        };
+            ui.interact(corner_rect, corner_id, Sense::drag())
+        });
 
         // ------------------------------
 
@@ -397,8 +395,8 @@ pub fn paint_resize_corner_with_style(
     while w <= rect.width() && w <= rect.height() {
         painter.line_segment(
             [
-                pos2(cp.x - w * corner.x().to_sign(), cp.y),
-                pos2(cp.x, cp.y - w * corner.y().to_sign()),
+                pos2(w.mul_add(-corner.x().to_sign(), cp.x), cp.y),
+                pos2(cp.x, w.mul_add(-corner.y().to_sign(), cp.y)),
             ],
             stroke,
         );

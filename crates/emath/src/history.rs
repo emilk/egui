@@ -171,6 +171,8 @@ where
     }
 }
 
+// #4906
+#[allow(clippy::type_repetition_in_bounds)]
 impl<T> History<T>
 where
     T: Copy,
@@ -192,6 +194,8 @@ where
     }
 }
 
+// #4906
+#[allow(clippy::type_repetition_in_bounds)]
 impl<T> History<T>
 where
     T: Copy,
@@ -207,6 +211,8 @@ where
     }
 }
 
+// #4906
+#[allow(clippy::type_repetition_in_bounds)]
 impl<T, Vel> History<T>
 where
     T: Copy,

@@ -560,7 +560,7 @@ impl IdTypeMap {
 }
 
 #[inline(always)]
-fn hash(type_id: TypeId, id: Id) -> u64 {
+const fn hash(type_id: TypeId, id: Id) -> u64 {
     type_id.value() ^ id.value()
 }
 

@@ -744,7 +744,7 @@ impl Modifiers {
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
     /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
     /// ```
-    pub fn matches_logically(&self, pattern: Self) -> bool {
+    pub const fn matches_logically(&self, pattern: Self) -> bool {
         if pattern.alt && !self.alt {
             return false;
         }
@@ -786,7 +786,7 @@ impl Modifiers {
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches(Modifiers::COMMAND));
     /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
     /// ```
-    pub fn matches_exact(&self, pattern: Self) -> bool {
+    pub const fn matches_exact(&self, pattern: Self) -> bool {
         // alt and shift must always match the pattern:
         if pattern.alt != self.alt || pattern.shift != self.shift {
             return false;
@@ -796,7 +796,7 @@ impl Modifiers {
     }
 
     #[deprecated = "Renamed `matches_exact`, but maybe you want to use `matches_logically` instead"]
-    pub fn matches(&self, pattern: Self) -> bool {
+    pub const fn matches(&self, pattern: Self) -> bool {
         self.matches_exact(pattern)
     }
 

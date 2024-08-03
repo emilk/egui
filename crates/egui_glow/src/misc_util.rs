@@ -2,7 +2,7 @@
 
 use glow::HasContext as _;
 
-pub(crate) unsafe fn compile_shader(
+pub unsafe fn compile_shader(
     gl: &glow::Context,
     shader_type: u32,
     source: &str,
@@ -22,7 +22,7 @@ pub(crate) unsafe fn compile_shader(
     }
 }
 
-pub(crate) unsafe fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
+pub unsafe fn link_program<'a, T: IntoIterator<Item = &'a glow::Shader>>(
     gl: &glow::Context,
     shaders: T,
 ) -> Result<glow::Program, String> {

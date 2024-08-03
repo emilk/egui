@@ -139,7 +139,7 @@ impl RetainedImage {
     }
 
     /// The size of the image data (number of pixels wide/high).
-    pub fn size_vec2(&self) -> egui::Vec2 {
+    pub const fn size_vec2(&self) -> egui::Vec2 {
         let [w, h] = self.size();
         egui::vec2(w as f32, h as f32)
     }

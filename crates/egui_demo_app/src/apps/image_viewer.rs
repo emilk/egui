@@ -25,7 +25,7 @@ enum ChosenFit {
 }
 
 impl ChosenFit {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
             Self::ExactSize => "exact size",
             Self::Fraction => "fraction",

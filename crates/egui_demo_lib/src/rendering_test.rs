@@ -357,10 +357,10 @@ impl Gradient {
                 .map(|fg| {
                     let a = fg.a() as f32 / 255.0;
                     Color32::from_rgba_premultiplied(
-                        (bg[0] as f32 * (1.0 - a) + fg[0] as f32).round() as u8,
-                        (bg[1] as f32 * (1.0 - a) + fg[1] as f32).round() as u8,
-                        (bg[2] as f32 * (1.0 - a) + fg[2] as f32).round() as u8,
-                        (bg[3] as f32 * (1.0 - a) + fg[3] as f32).round() as u8,
+                        (bg[0] as f32).mul_add(1.0 - a, fg[0] as f32).round() as u8,
+                        (bg[1] as f32).mul_add(1.0 - a, fg[1] as f32).round() as u8,
+                        (bg[2] as f32).mul_add(1.0 - a, fg[2] as f32).round() as u8,
+                        (bg[3] as f32).mul_add(1.0 - a, fg[3] as f32).round() as u8,
                     )
                 })
                 .collect(),
@@ -460,7 +460,7 @@ fn pixel_test_lines(ui: &mut Ui) {
 
     let hspace_px = pixels_per_point * 4.0;
 
-    let size_px = Vec2::new(2.0 * n as f32 + hspace_px, n as f32);
+    let size_px = Vec2::new(2.0f32.mul_add(n as f32, hspace_px), n as f32);
     let size_points = size_px / pixels_per_point + Vec2::splat(2.0);
     let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
 
@@ -473,7 +473,7 @@ fn pixel_test_lines(ui: &mut Ui) {
     // Vertical stripes:
     for x in 0..n / 2 {
         let rect_px = Rect::from_min_size(
-            Pos2::new(cursor_px.x + 2.0 * x as f32, cursor_px.y),
+            Pos2::new(2.0f32.mul_add(x as f32, cursor_px.x), cursor_px.y),
             Vec2::new(1.0, n as f32),
         );
         painter.rect_filled(rect_px / pixels_per_point, 0.0, egui::Color32::WHITE);
@@ -486,7 +486,7 @@ fn pixel_test_lines(ui: &mut Ui) {
     // Horizontal stripes:
     for y in 0..n / 2 {
         let rect_px = Rect::from_min_size(
-            Pos2::new(cursor_px.x, cursor_px.y + 2.0 * y as f32),
+            Pos2::new(cursor_px.x, 2.0f32.mul_add(y as f32, cursor_px.y)),
             Vec2::new(n as f32, 1.0),
         );
         painter.rect_filled(rect_px / pixels_per_point, 0.0, egui::Color32::WHITE);

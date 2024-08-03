@@ -1,6 +1,6 @@
 use crate::*;
 
-pub(crate) struct Placer {
+pub struct Placer {
     /// If set this will take precedence over [`layout`].
     grid: Option<grid::GridLayout>,
     layout: Layout,
@@ -76,29 +76,26 @@ impl Placer {
 
 impl Placer {
     pub(crate) fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
-        if let Some(grid) = &self.grid {
-            grid.align_size_within_rect(size, outer)
-        } else {
-            self.layout.align_size_within_rect(size, outer)
-        }
+        self.grid.as_ref().map_or_else(
+            || self.layout.align_size_within_rect(size, outer),
+            |grid| grid.align_size_within_rect(size, outer),
+        )
     }
 
     pub(crate) fn available_rect_before_wrap(&self) -> Rect {
-        if let Some(grid) = &self.grid {
-            grid.available_rect(&self.region)
-        } else {
-            self.layout.available_rect_before_wrap(&self.region)
-        }
+        self.grid.as_ref().map_or_else(
+            || self.layout.available_rect_before_wrap(&self.region),
+            |grid| grid.available_rect(&self.region),
+        )
     }
 
     /// Amount of space available for a widget.
     /// For wrapping layouts, this is the maximum (after wrap).
     pub(crate) fn available_size(&self) -> Vec2 {
-        if let Some(grid) = &self.grid {
-            grid.available_rect(&self.region).size()
-        } else {
-            self.layout.available_size(&self.region)
-        }
+        self.grid.as_ref().map_or_else(
+            || self.layout.available_size(&self.region),
+            |grid| grid.available_rect(&self.region).size(),
+        )
     }
 
     /// Returns where to put the next widget that is of the given size.
@@ -111,21 +108,21 @@ impl Placer {
             "Negative child size: {child_size:?}"
         );
         self.region.sanity_check();
-        if let Some(grid) = &self.grid {
-            grid.next_cell(self.region.cursor, child_size)
-        } else {
-            self.layout
-                .next_frame(&self.region, child_size, item_spacing)
-        }
+        self.grid.as_ref().map_or_else(
+            || {
+                self.layout
+                    .next_frame(&self.region, child_size, item_spacing)
+            },
+            |grid| grid.next_cell(self.region.cursor, child_size),
+        )
     }
 
     /// Where do we expect a zero-sized widget to be placed?
     pub(crate) fn next_widget_position(&self) -> Pos2 {
-        if let Some(grid) = &self.grid {
-            grid.next_cell(self.region.cursor, Vec2::ZERO).center()
-        } else {
-            self.layout.next_widget_position(&self.region)
-        }
+        self.grid.as_ref().map_or_else(
+            || self.layout.next_widget_position(&self.region),
+            |grid| grid.next_cell(self.region.cursor, Vec2::ZERO).center(),
+        )
     }
 
     /// Apply justify or alignment after calling `next_space`.
@@ -133,11 +130,10 @@ impl Placer {
         debug_assert!(!rect.any_nan());
         debug_assert!(!child_size.any_nan());
 
-        if let Some(grid) = &self.grid {
-            grid.justify_and_align(rect, child_size)
-        } else {
-            self.layout.justify_and_align(rect, child_size)
-        }
+        self.grid.as_ref().map_or_else(
+            || self.layout.justify_and_align(rect, child_size),
+            |grid| grid.justify_and_align(rect, child_size),
+        )
     }
 
     /// Advance the cursor by this many points.

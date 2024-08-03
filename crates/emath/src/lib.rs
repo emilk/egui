@@ -430,5 +430,5 @@ pub fn interpolation_factor(
 #[inline]
 pub fn ease_in_ease_out(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
-    (3.0 * t * t - 2.0 * t * t * t).clamp(0.0, 1.0)
+    (3.0 * t).mul_add(t, -(2.0 * t * t * t)).clamp(0.0, 1.0)
 }

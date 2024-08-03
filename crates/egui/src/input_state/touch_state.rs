@@ -65,7 +65,7 @@ pub struct MultiTouchInfo {
 /// The current state (for a specific touch device) of touch events and gestures.
 #[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct TouchState {
+pub struct TouchState {
     /// Technical identifier of the touch device. This is used to identify relevant touch events
     /// for this [`TouchState`] instance.
     device_id: TouchDeviceId,

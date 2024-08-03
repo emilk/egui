@@ -574,7 +574,7 @@ impl<'open> Window<'open> {
                 let mut title_rect = Rect::from_min_size(
                     outer_rect.min + vec2(border_padding, border_padding),
                     Vec2 {
-                        x: outer_rect.size().x - border_padding * 2.0,
+                        x: border_padding.mul_add(-2.0, outer_rect.size().x),
                         y: title_bar_height,
                     },
                 );
@@ -669,7 +669,9 @@ fn paint_resize_corner(
         2.0
     } else {
         // The corner offset is calculated to make the corner appear to be in the correct position
-        (2.0_f32.sqrt() * (1.0 + radius + stroke.width / 2.0) - radius)
+        2.0_f32
+            .sqrt()
+            .mul_add(1.0 + radius + stroke.width / 2.0, -radius)
             * 45.0_f32.to_radians().cos()
     };
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
@@ -1073,7 +1075,7 @@ impl TitleBar {
 
             let minimum_width = if collapsible || show_close_button {
                 // If at least one button is shown we make room for both buttons (since title is centered):
-                2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
+                2.0f32.mul_add(pad + button_size.x + item_spacing.x, title_galley.size().x)
             } else {
                 pad + title_galley.size().x + pad
             };
@@ -1174,7 +1176,7 @@ impl TitleBar {
         let button_rect = Rect::from_min_size(
             pos2(
                 self.rect.right() - pad - button_size.x,
-                self.rect.center().y - 0.5 * button_size.y,
+                0.5f32.mul_add(-button_size.y, self.rect.center().y),
             ),
             button_size,
         );

@@ -135,7 +135,7 @@ impl GlutinWindowContext {
         }
     }
 
-    fn window(&self) -> &winit::window::Window {
+    const fn window(&self) -> &winit::window::Window {
         &self.window
     }
 
@@ -174,7 +174,7 @@ struct GlowApp {
 }
 
 impl GlowApp {
-    fn new(proxy: winit::event_loop::EventLoopProxy<UserEvent>) -> Self {
+    const fn new(proxy: winit::event_loop::EventLoopProxy<UserEvent>) -> Self {
         Self {
             proxy,
             gl_window: None,

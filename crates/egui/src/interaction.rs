@@ -106,7 +106,7 @@ impl InteractionSnapshot {
     }
 }
 
-pub(crate) fn interact(
+pub fn interact(
     prev_snapshot: &InteractionSnapshot,
     widgets: &WidgetRects,
     hits: &WidgetHits,

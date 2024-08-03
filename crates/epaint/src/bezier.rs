@@ -63,8 +63,8 @@ impl CubicBezierShape {
     /// The `epsilon` is used when comparing two floats.
     pub fn to_path_shapes(&self, tolerance: Option<f32>, epsilon: Option<f32>) -> Vec<PathShape> {
         let mut pathshapes = Vec::new();
-        let mut points_vec = self.flatten_closed(tolerance, epsilon);
-        for points in points_vec.drain(..) {
+        let points_vec = self.flatten_closed(tolerance, epsilon);
+        for points in points_vec {
             let pathshape = PathShape {
                 points,
                 closed: self.closed,
@@ -180,11 +180,15 @@ impl CubicBezierShape {
     pub fn num_quadratics(&self, tolerance: f32) -> u32 {
         debug_assert!(tolerance > 0.0, "the tolerance should be positive");
 
-        let x =
-            self.points[0].x - 3.0 * self.points[1].x + 3.0 * self.points[2].x - self.points[3].x;
-        let y =
-            self.points[0].y - 3.0 * self.points[1].y + 3.0 * self.points[2].y - self.points[3].y;
-        let err = x * x + y * y;
+        let x = 3.0f32.mul_add(
+            self.points[2].x,
+            3.0f32.mul_add(-self.points[1].x, self.points[0].x),
+        ) - self.points[3].x;
+        let y = 3.0f32.mul_add(
+            self.points[2].y,
+            3.0f32.mul_add(-self.points[1].y, self.points[0].y),
+        ) - self.points[3].y;
+        let err = x.mul_add(x, y * y);
 
         (err / (432.0 * tolerance * tolerance))
             .powf(1.0 / 6.0)
@@ -226,6 +230,8 @@ impl CubicBezierShape {
     /// the one between 0.0 and 1.0 is what we need.
     /// <`https://baike.baidu.com/item/%E4%B8%80%E5%85%83%E4%B8%89%E6%AC%A1%E6%96%B9%E7%A8%8B/8388473 /`>
     ///
+    // #4906
+    #[allow(clippy::suboptimal_flops)]
     pub fn find_cross_t(&self, epsilon: f32) -> Option<f32> {
         let p0 = self.points[0];
         let p1 = self.points[1];
@@ -580,7 +586,7 @@ fn flatten_cubic_bezier_with_t<F: FnMut(Pos2, f32)>(
 
         let quadratic = single_curve_approximation(&curve.split_range(t0..t1));
         quadratic.for_each_flattened_with_t(flattening_tolerance, &mut |point, t_sub| {
-            let t = t0 + step * t_sub;
+            let t = step.mul_add(t_sub, t0);
             callback(point, t);
         });
 
@@ -590,7 +596,7 @@ fn flatten_cubic_bezier_with_t<F: FnMut(Pos2, f32)>(
     // Do the last step manually to make sure we finish at t = 1.0 exactly.
     let quadratic = single_curve_approximation(&curve.split_range(t0..1.0));
     quadratic.for_each_flattened_with_t(flattening_tolerance, &mut |point, t_sub| {
-        let t = t0 + step * t_sub;
+        let t = step.mul_add(t_sub, t0);
         callback(point, t);
     });
 }
@@ -614,12 +620,12 @@ impl FlatteningParameters {
         let ctrl = curve.points[1];
         let to = curve.points[2];
 
-        let ddx = 2.0 * ctrl.x - from.x - to.x;
-        let ddy = 2.0 * ctrl.y - from.y - to.y;
-        let cross = (to.x - from.x) * ddy - (to.y - from.y) * ddx;
+        let ddx = 2.0f32.mul_add(ctrl.x, -from.x) - to.x;
+        let ddy = 2.0f32.mul_add(ctrl.y, -from.y) - to.y;
+        let cross = (to.x - from.x).mul_add(ddy, -((to.y - from.y) * ddx));
         let inv_cross = 1.0 / cross;
-        let parabola_from = ((ctrl.x - from.x) * ddx + (ctrl.y - from.y) * ddy) * inv_cross;
-        let parabola_to = ((to.x - ctrl.x) * ddx + (to.y - ctrl.y) * ddy) * inv_cross;
+        let parabola_from = (ctrl.x - from.x).mul_add(ddx, (ctrl.y - from.y) * ddy) * inv_cross;
+        let parabola_to = (to.x - ctrl.x).mul_add(ddx, (to.y - ctrl.y) * ddy) * inv_cross;
         // Note, scale can be NaN, for example with straight lines. When it happens the NaN will
         // propagate to other parameters. We catch it all by setting the iteration count to zero
         // and leave the rest as garbage.
@@ -636,12 +642,14 @@ impl FlatteningParameters {
         // the original author thinks it can be stored as integer if it's not generic.
         // but if so, we have to handle the edge case of the integral being infinite.
         let mut count = (0.5 * integral_diff.abs() * (scale / tolerance).sqrt()).ceil();
-        let mut is_point = false;
         // If count is NaN the curve can be approximated by a single straight line or a point.
-        if !count.is_finite() {
+
+        let is_point = if !count.is_finite() {
             count = 0.0;
-            is_point = (to.x - from.x).hypot(to.y - from.y) < tolerance * tolerance;
-        }
+            (to.x - from.x).hypot(to.y - from.y) < tolerance * tolerance
+        } else {
+            false
+        };
 
         let integral_step = integral_diff / count;
 
@@ -656,7 +664,8 @@ impl FlatteningParameters {
     }
 
     fn t_at_iteration(&self, iteration: f32) -> f32 {
-        let u = approx_parabola_inv_integral(self.integral_from + self.integral_step * iteration);
+        let u =
+            approx_parabola_inv_integral(self.integral_step.mul_add(iteration, self.integral_from));
         (u - self.inv_integral_from) * self.div_inv_integral_diff
     }
 }
@@ -665,21 +674,21 @@ impl FlatteningParameters {
 fn approx_parabola_integral(x: f32) -> f32 {
     let d: f32 = 0.67;
     let quarter = 0.25;
-    x / (1.0 - d + (d.powi(4) + quarter * x * x).sqrt().sqrt())
+    x / (1.0 - d + (quarter * x).mul_add(x, d.powi(4)).sqrt().sqrt())
 }
 
 /// Approximate the inverse of the function above.
 fn approx_parabola_inv_integral(x: f32) -> f32 {
-    let b = 0.39;
+    let b: f32 = 0.39;
     let quarter = 0.25;
-    x * (1.0 - b + (b * b + quarter * x * x).sqrt())
+    x * (1.0 - b + b.mul_add(b, quarter * x * x).sqrt())
 }
 
 fn single_curve_approximation(curve: &CubicBezierShape) -> QuadraticBezierShape {
-    let c1_x = (curve.points[1].x * 3.0 - curve.points[0].x) * 0.5;
-    let c1_y = (curve.points[1].y * 3.0 - curve.points[0].y) * 0.5;
-    let c2_x = (curve.points[2].x * 3.0 - curve.points[3].x) * 0.5;
-    let c2_y = (curve.points[2].y * 3.0 - curve.points[3].y) * 0.5;
+    let c1_x = curve.points[1].x.mul_add(3.0, -curve.points[0].x) * 0.5;
+    let c1_y = curve.points[1].y.mul_add(3.0, -curve.points[0].y) * 0.5;
+    let c2_x = curve.points[2].x.mul_add(3.0, -curve.points[3].x) * 0.5;
+    let c2_y = curve.points[2].y.mul_add(3.0, -curve.points[3].y) * 0.5;
     let c = Pos2 {
         x: (c1_x + c2_x) * 0.5,
         y: (c1_y + c2_y) * 0.5,
@@ -698,7 +707,7 @@ fn quadratic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, c
     // The derivative is:
     // p'(t) = (p1 - p0) + 2(p2 - 2p1 + p0)t or:
     // f(x) = a* x + b
-    let a = p2 - 2.0 * p1 + p0;
+    let a = 2.0f32.mul_add(-p1, p2) + p0;
     // let b = p1 - p0;
     // no need to check for zero, since we're only interested in local extrema
     if a == 0.0 {
@@ -716,8 +725,8 @@ fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, p3: f
     // A cubic Bézier curve can be derived by the following equation:
     // B'(t) = 3(1-t)^2(p1-p0) + 6(1-t)t(p2-p1) + 3t^2(p3-p2) or
     // f(x) = a * x² + b * x + c
-    let a = 3.0 * (p3 + 3.0 * (p1 - p2) - p0);
-    let b = 6.0 * (p2 - 2.0 * p1 + p0);
+    let a = 3.0 * (3.0f32.mul_add(p1 - p2, p3) - p0);
+    let b = 6.0 * (2.0f32.mul_add(-p1, p2) + p0);
     let c = 3.0 * (p1 - p0);
 
     let in_range = |t: f32| t <= 1.0 && t >= 0.0;
@@ -733,7 +742,7 @@ fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, p3: f
         return;
     }
 
-    let discr = b * b - 4.0 * a * c;
+    let discr = b.mul_add(b, -(4.0 * a * c));
     // no Real solution
     if discr < 0.0 {
         return;

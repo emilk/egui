@@ -514,11 +514,8 @@ impl<'t> TextEdit<'t> {
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
 
         let id = id.unwrap_or_else(|| {
-            if let Some(id_source) = id_source {
-                ui.make_persistent_id(id_source)
-            } else {
-                auto_id // Since we are only storing the cursor a persistent Id is not super important
-            }
+            // Since we are only storing the cursor a persistent Id is not super important
+            id_source.map_or(auto_id, |id_source| ui.make_persistent_id(id_source))
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
@@ -666,7 +663,7 @@ impl<'t> TextEdit<'t> {
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
-                let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
+                let hint_text_font_id = hint_text_font.unwrap_or_else(|| font_id.into());
                 let galley = if multiline {
                     hint_text.into_galley(
                         ui,

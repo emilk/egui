@@ -106,7 +106,7 @@ impl FractalClock {
         }
 
         let angle_from_period =
-            |period| TAU * (self.time.rem_euclid(period) / period) as f32 - TAU / 4.0;
+            |period| TAU.mul_add((self.time.rem_euclid(period) / period) as f32, -(TAU / 4.0));
 
         let hands = [
             // Second hand:

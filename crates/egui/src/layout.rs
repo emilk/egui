@@ -6,7 +6,7 @@ use std::f32::INFINITY;
 /// This describes the bounds and existing contents of an [`Ui`][`crate::Ui`].
 /// It is what is used and updated by [`Layout`] when adding new widgets.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Region {
+pub struct Region {
     /// This is the minimal size of the [`Ui`](crate::Ui).
     /// When adding new widgets, this will generally expand.
     ///
@@ -198,7 +198,7 @@ impl Layout {
 
     /// Top-down layout justified so that buttons etc fill the full available width.
     #[inline(always)]
-    pub fn top_down_justified(halign: Align) -> Self {
+    pub const fn top_down_justified(halign: Align) -> Self {
         Self::top_down(halign).with_cross_justify(true)
     }
 
@@ -321,12 +321,12 @@ impl Layout {
     }
 
     #[inline(always)]
-    pub fn is_horizontal(&self) -> bool {
+    pub const fn is_horizontal(&self) -> bool {
         self.main_dir().is_horizontal()
     }
 
     #[inline(always)]
-    pub fn is_vertical(&self) -> bool {
+    pub const fn is_vertical(&self) -> bool {
         self.main_dir().is_vertical()
     }
 
@@ -347,7 +347,7 @@ impl Layout {
     }
 
     /// e.g. for when aligning text within a button.
-    pub fn horizontal_align(&self) -> Align {
+    pub const fn horizontal_align(&self) -> Align {
         if self.is_horizontal() {
             self.main_align
         } else {
@@ -356,7 +356,7 @@ impl Layout {
     }
 
     /// e.g. for when aligning text within a button.
-    pub fn vertical_align(&self) -> Align {
+    pub const fn vertical_align(&self) -> Align {
         if self.is_vertical() {
             self.main_align
         } else {
@@ -365,11 +365,11 @@ impl Layout {
     }
 
     /// e.g. for when aligning text within a button.
-    fn align2(&self) -> Align2 {
+    const fn align2(&self) -> Align2 {
         Align2([self.horizontal_align(), self.vertical_align()])
     }
 
-    pub fn horizontal_justify(&self) -> bool {
+    pub const fn horizontal_justify(&self) -> bool {
         if self.is_horizontal() {
             self.main_justify
         } else {
@@ -377,7 +377,7 @@ impl Layout {
         }
     }
 
-    pub fn vertical_justify(&self) -> bool {
+    pub const fn vertical_justify(&self) -> bool {
         if self.is_vertical() {
             self.main_justify
         } else {

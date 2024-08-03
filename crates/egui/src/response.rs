@@ -397,7 +397,7 @@ impl Response {
     pub fn drag_motion(&self) -> Vec2 {
         if self.dragged() {
             self.ctx
-                .input(|i| i.pointer.motion().unwrap_or(i.pointer.delta()))
+                .input(|i| i.pointer.motion().unwrap_or_else(|| i.pointer.delta()))
         } else {
             Vec2::ZERO
         }
@@ -697,15 +697,12 @@ impl Response {
         }
 
         let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
-            if let Some(already_open_tooltip) = fs
-                .layers
+            fs.layers
                 .get(&self.layer_id)
                 .and_then(|layer| layer.widget_with_tooltip)
-            {
-                already_open_tooltip != self.id
-            } else {
-                false
-            }
+                .map_or(false, |already_open_tooltip| {
+                    already_open_tooltip != self.id
+                })
         });
         if is_other_tooltip_open {
             // We only allow one tooltip per layer. First one wins. It is up to that tooltip to close itself.

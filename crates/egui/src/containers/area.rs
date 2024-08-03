@@ -60,8 +60,8 @@ impl AreaState {
         let pivot_pos = self.pivot_pos.unwrap_or_default();
         let size = self.size.unwrap_or_default();
         pos2(
-            pivot_pos.x - self.pivot.x().to_factor() * size.x,
-            pivot_pos.y - self.pivot.y().to_factor() * size.y,
+            self.pivot.x().to_factor().mul_add(-size.x, pivot_pos.x),
+            self.pivot.y().to_factor().mul_add(-size.y, pivot_pos.y),
         )
     }
 
@@ -69,8 +69,8 @@ impl AreaState {
     pub fn set_left_top_pos(&mut self, pos: Pos2) {
         let size = self.size.unwrap_or_default();
         self.pivot_pos = Some(pos2(
-            pos.x + self.pivot.x().to_factor() * size.x,
-            pos.y + self.pivot.y().to_factor() * size.y,
+            self.pivot.x().to_factor().mul_add(size.x, pos.x),
+            self.pivot.y().to_factor().mul_add(size.y, pos.y),
         ));
     }
 
@@ -160,7 +160,7 @@ impl Area {
         self
     }
 
-    pub fn layer(&self) -> LayerId {
+    pub const fn layer(&self) -> LayerId {
         LayerId::new(self.order, self.id)
     }
 
@@ -265,7 +265,7 @@ impl Area {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn constrain(mut self, constrain: bool) -> Self {
+    pub const fn constrain(mut self, constrain: bool) -> Self {
         self.constrain = constrain;
         self
     }
@@ -274,7 +274,7 @@ impl Area {
     ///
     /// For instance: `.constrain_to(ctx.screen_rect())`.
     #[inline]
-    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
+    pub const fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.constrain = true;
         self.constrain_rect = Some(constrain_rect);
         self
@@ -335,7 +335,7 @@ impl Area {
     }
 }
 
-pub(crate) struct Prepared {
+pub struct Prepared {
     kind: UiKind,
     layer_id: LayerId,
     state: AreaState,
@@ -521,11 +521,11 @@ impl Prepared {
         &mut self.state
     }
 
-    pub(crate) fn constrain(&self) -> bool {
+    pub(crate) const fn constrain(&self) -> bool {
         self.constrain
     }
 
-    pub(crate) fn constrain_rect(&self) -> Rect {
+    pub(crate) const fn constrain_rect(&self) -> Rect {
         self.constrain_rect
     }
 
@@ -596,12 +596,10 @@ impl Prepared {
 }
 
 fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
-    if let Some(pointer_pos) = ctx.pointer_interact_pos() {
+    ctx.pointer_interact_pos().map_or(false, |pointer_pos| {
         let any_pressed = ctx.input(|i| i.pointer.any_pressed());
         any_pressed && ctx.layer_id_at(pointer_pos) == Some(layer_id)
-    } else {
-        false
-    }
+    })
 }
 
 fn automatic_area_position(ctx: &Context, layer_id: LayerId) -> Pos2 {

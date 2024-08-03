@@ -1,7 +1,7 @@
 use egui::{Id, Pos2, Rect, Response, Sense, Ui};
 
 #[derive(Clone, Copy)]
-pub(crate) enum CellSize {
+pub enum CellSize {
     /// Absolute size in points
     Absolute(f32),
 
@@ -18,7 +18,7 @@ pub(crate) enum CellSize {
 ///
 /// In a table there's a [`StripLayout`] for each table row with a horizontal [`CellDirection`].
 /// Its cells go from left to right. And the lines go from top to bottom.
-pub(crate) enum CellDirection {
+pub enum CellDirection {
     /// Cells go from left to right.
     Horizontal,
 
@@ -28,7 +28,7 @@ pub(crate) enum CellDirection {
 
 /// Flags used by [`StripLayout::add`].
 #[derive(Clone, Copy, Default)]
-pub(crate) struct StripLayoutFlags {
+pub struct StripLayoutFlags {
     pub(crate) clip: bool,
     pub(crate) striped: bool,
     pub(crate) hovered: bool,

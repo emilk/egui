@@ -27,7 +27,7 @@ impl DatePickerPopupState {
     }
 }
 
-pub(crate) struct DatePickerPopup<'a> {
+pub struct DatePickerPopup<'a> {
     pub selection: &'a mut NaiveDate,
     pub button_id: Id,
     pub combo_boxes: bool,

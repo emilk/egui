@@ -68,8 +68,8 @@ pub enum Shape {
 }
 
 #[test]
-fn shape_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+const fn shape_impl_send_sync() {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Shape>();
 }
 
@@ -505,7 +505,7 @@ impl CircleShape {
         } else {
             Rect::from_center_size(
                 self.center,
-                Vec2::splat(self.radius * 2.0 + self.stroke.width),
+                Vec2::splat(self.radius.mul_add(2.0, self.stroke.width)),
             )
         }
     }

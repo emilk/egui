@@ -129,7 +129,7 @@ pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<c
 }
 
 #[cfg(feature = "accesskit")]
-pub(crate) fn on_accesskit_window_event(
+pub fn on_accesskit_window_event(
     egui_winit: &mut egui_winit::State,
     window_id: WindowId,
     event: &accesskit_winit::WindowEvent,

@@ -87,11 +87,7 @@ impl Mesh {
     pub fn is_valid(&self) -> bool {
         crate::profile_function!();
 
-        if let Ok(n) = u32::try_from(self.vertices.len()) {
-            self.indices.iter().all(|&i| i < n)
-        } else {
-            false
-        }
+        u32::try_from(self.vertices.len()).map_or(false, |n| self.indices.iter().all(|&i| i < n))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -324,10 +320,6 @@ pub struct Mesh16 {
 impl Mesh16 {
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
-        if let Ok(n) = u16::try_from(self.vertices.len()) {
-            self.indices.iter().all(|&i| i < n)
-        } else {
-            false
-        }
+        u16::try_from(self.vertices.len()).map_or(false, |n| self.indices.iter().all(|&i| i < n))
     }
 }

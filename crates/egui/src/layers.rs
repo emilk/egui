@@ -95,7 +95,7 @@ impl LayerId {
     }
 
     #[inline(always)]
-    pub fn allow_interaction(&self) -> bool {
+    pub const fn allow_interaction(&self) -> bool {
         self.order.allow_interaction()
     }
 
@@ -110,7 +110,6 @@ impl LayerId {
 }
 
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ShapeIdx(pub usize);
 

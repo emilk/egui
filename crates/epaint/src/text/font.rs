@@ -113,7 +113,7 @@ impl FontImpl {
 
         // Center scaled glyphs properly:
         let height = ascent + descent;
-        let y_offset_points = y_offset_points - (1.0 - tweak.scale) * 0.5 * height;
+        let y_offset_points = ((1.0 - tweak.scale) * 0.5).mul_add(-height, y_offset_points);
 
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
@@ -263,6 +263,8 @@ impl FontImpl {
         self.ascent
     }
 
+    // #4906
+    #[allow(clippy::significant_drop_tightening)]
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
         assert!(glyph_id.0 != 0);
         use ab_glyph::{Font as _, ScaleFont};

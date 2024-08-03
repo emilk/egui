@@ -155,32 +155,38 @@ fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
     } else {
         let it = text.chars();
         let mut it = it.skip(ccursor.index - 1);
-        if let Some(char_before_cursor) = it.next() {
-            if let Some(char_after_cursor) = it.next() {
-                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
-                    let min = ccursor_previous_word(text, ccursor + 1);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_before_cursor) {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_after_cursor) {
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(min, max)
-                }
-            } else {
-                let min = ccursor_previous_word(text, ccursor);
-                CCursorRange::two(min, ccursor)
-            }
-        } else {
-            let max = ccursor_next_word(text, ccursor);
-            CCursorRange::two(ccursor, max)
-        }
+        it.next().map_or_else(
+            || {
+                let max = ccursor_next_word(text, ccursor);
+                CCursorRange::two(ccursor, max)
+            },
+            |char_before_cursor| {
+                it.next().map_or_else(
+                    || {
+                        let min = ccursor_previous_word(text, ccursor);
+                        CCursorRange::two(min, ccursor)
+                    },
+                    |char_after_cursor| {
+                        if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
+                            let min = ccursor_previous_word(text, ccursor + 1);
+                            let max = ccursor_next_word(text, min);
+                            CCursorRange::two(min, max)
+                        } else if is_word_char(char_before_cursor) {
+                            let min = ccursor_previous_word(text, ccursor);
+                            let max = ccursor_next_word(text, min);
+                            CCursorRange::two(min, max)
+                        } else if is_word_char(char_after_cursor) {
+                            let max = ccursor_next_word(text, ccursor);
+                            CCursorRange::two(ccursor, max)
+                        } else {
+                            let min = ccursor_previous_word(text, ccursor);
+                            let max = ccursor_next_word(text, ccursor);
+                            CCursorRange::two(min, max)
+                        }
+                    },
+                )
+            },
+        )
     }
 }
 
@@ -190,32 +196,39 @@ fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
     } else {
         let it = text.chars();
         let mut it = it.skip(ccursor.index - 1);
-        if let Some(char_before_cursor) = it.next() {
-            if let Some(char_after_cursor) = it.next() {
-                if (!is_linebreak(char_before_cursor)) && (!is_linebreak(char_after_cursor)) {
-                    let min = ccursor_previous_line(text, ccursor + 1);
-                    let max = ccursor_next_line(text, min);
-                    CCursorRange::two(min, max)
-                } else if !is_linebreak(char_before_cursor) {
-                    let min = ccursor_previous_line(text, ccursor);
-                    let max = ccursor_next_line(text, min);
-                    CCursorRange::two(min, max)
-                } else if !is_linebreak(char_after_cursor) {
-                    let max = ccursor_next_line(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
-                    let min = ccursor_previous_line(text, ccursor);
-                    let max = ccursor_next_line(text, ccursor);
-                    CCursorRange::two(min, max)
-                }
-            } else {
-                let min = ccursor_previous_line(text, ccursor);
-                CCursorRange::two(min, ccursor)
-            }
-        } else {
-            let max = ccursor_next_line(text, ccursor);
-            CCursorRange::two(ccursor, max)
-        }
+        it.next().map_or_else(
+            || {
+                let max = ccursor_next_line(text, ccursor);
+                CCursorRange::two(ccursor, max)
+            },
+            |char_before_cursor| {
+                it.next().map_or_else(
+                    || {
+                        let min = ccursor_previous_line(text, ccursor);
+                        CCursorRange::two(min, ccursor)
+                    },
+                    |char_after_cursor| {
+                        if (!is_linebreak(char_before_cursor)) && (!is_linebreak(char_after_cursor))
+                        {
+                            let min = ccursor_previous_line(text, ccursor + 1);
+                            let max = ccursor_next_line(text, min);
+                            CCursorRange::two(min, max)
+                        } else if !is_linebreak(char_before_cursor) {
+                            let min = ccursor_previous_line(text, ccursor);
+                            let max = ccursor_next_line(text, min);
+                            CCursorRange::two(min, max)
+                        } else if !is_linebreak(char_after_cursor) {
+                            let max = ccursor_next_line(text, ccursor);
+                            CCursorRange::two(ccursor, max)
+                        } else {
+                            let min = ccursor_previous_line(text, ccursor);
+                            let max = ccursor_next_line(text, ccursor);
+                            CCursorRange::two(min, max)
+                        }
+                    },
+                )
+            },
+        )
     }
 }
 
@@ -310,10 +323,9 @@ pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
         .skip(chars_count - current_index.index)
         .position(|x| x == '\n');
 
-    match position {
-        Some(pos) => CCursor::new(current_index.index - pos),
-        None => CCursor::new(0),
-    }
+    position.map_or(CCursor::new(0), |pos| {
+        CCursor::new(current_index.index - pos)
+    })
 }
 
 pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {

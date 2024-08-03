@@ -59,7 +59,7 @@ impl Rot2 {
 
     #[inline]
     pub fn length_squared(self) -> f32 {
-        self.c.powi(2) + self.s.powi(2)
+        self.c.mul_add(self.c, self.s.powi(2))
     }
 
     #[inline]
@@ -120,8 +120,8 @@ impl std::ops::Mul<Self> for Rot2 {
         |ls  lc|   |rs  rc|
         */
         Self {
-            c: self.c * r.c - self.s * r.s,
-            s: self.s * r.c + self.c * r.s,
+            c: self.c.mul_add(r.c, -(self.s * r.s)),
+            s: self.s.mul_add(r.c, self.c * r.s),
         }
     }
 }
@@ -133,8 +133,8 @@ impl std::ops::Mul<Vec2> for Rot2 {
     #[inline]
     fn mul(self, v: Vec2) -> Vec2 {
         Vec2 {
-            x: self.c * v.x - self.s * v.y,
-            y: self.s * v.x + self.c * v.y,
+            x: self.c.mul_add(v.x, -(self.s * v.y)),
+            y: self.s.mul_add(v.x, self.c * v.y),
         }
     }
 }

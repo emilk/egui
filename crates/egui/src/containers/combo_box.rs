@@ -323,7 +323,7 @@ fn combo_box_dyn<'c, R>(
         // The combo box selected text will always have this minimum width.
         // Note: the `ComboBox::width()` if set or `Spacing::combo_width` are considered as the
         // minimum overall width, regardless of the wrap mode.
-        let minimum_width = width.unwrap_or_else(|| ui.spacing().combo_width) - 2.0 * margin.x;
+        let minimum_width = 2.0f32.mul_add(-margin.x, width.unwrap_or(ui.spacing().combo_width));
 
         // width against which to lay out the selected text
         let wrap_width = if wrap_mode == TextWrapMode::Extend {

@@ -140,15 +140,15 @@ impl Default for FontSelection {
 impl FontSelection {
     pub fn resolve(self, style: &Style) -> FontId {
         match self {
-            Self::Default => {
-                if let Some(override_font_id) = &style.override_font_id {
-                    override_font_id.clone()
-                } else if let Some(text_style) = &style.override_text_style {
-                    text_style.resolve(style)
-                } else {
-                    TextStyle::Body.resolve(style)
-                }
-            }
+            Self::Default => style.override_font_id.as_ref().map_or_else(
+                || {
+                    style.override_text_style.as_ref().map_or_else(
+                        || TextStyle::Body.resolve(style),
+                        |text_style| text_style.resolve(style),
+                    )
+                },
+                |override_font_id| override_font_id.clone(),
+            ),
             Self::FontId(font_id) => font_id,
             Self::Style(text_style) => text_style.resolve(style),
         }
@@ -286,8 +286,8 @@ pub struct Style {
 }
 
 #[test]
-fn style_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+const fn style_impl_send_sync() {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Style>();
 }
 
@@ -546,7 +546,7 @@ impl ScrollStyle {
     }
 
     /// Thin scroll bars that expand on hover
-    pub fn thin() -> Self {
+    pub const fn thin() -> Self {
         Self {
             floating: true,
             bar_width: 10.0,
@@ -570,7 +570,7 @@ impl ScrollStyle {
     /// No scroll bars until you hover the scroll area,
     /// at which time they appear faintly, and then expand
     /// when you hover the scroll bars.
-    pub fn floating() -> Self {
+    pub const fn floating() -> Self {
         Self {
             floating: true,
             bar_width: 10.0,
@@ -728,7 +728,7 @@ impl ScrollAnimation {
     }
 
     /// No animation, scroll instantly.
-    pub fn none() -> Self {
+    pub const fn none() -> Self {
         Self {
             points_per_second: f32::INFINITY,
             duration: Rangef::new(0.0, 0.0),
@@ -736,7 +736,7 @@ impl ScrollAnimation {
     }
 
     /// Scroll with a fixed duration, regardless of distance.
-    pub fn duration(t: f32) -> Self {
+    pub const fn duration(t: f32) -> Self {
         Self {
             points_per_second: f32::INFINITY,
             duration: Rangef::new(t, t),
@@ -985,7 +985,7 @@ impl Visuals {
     }
 
     #[inline(always)]
-    pub fn strong_text_color(&self) -> Color32 {
+    pub const fn strong_text_color(&self) -> Color32 {
         self.widgets.active.text_color()
     }
 
@@ -1009,7 +1009,7 @@ impl Visuals {
 
     /// Returned a "grayed out" version of the given color.
     #[inline(always)]
-    pub fn gray_out(&self, color: Color32) -> Color32 {
+    pub const fn gray_out(&self, color: Color32) -> Color32 {
         crate::ecolor::tint_color_towards(color, self.fade_out_to_color())
     }
 }
@@ -1533,10 +1533,13 @@ impl Style {
 
             ui.label("Override text style");
             crate::ComboBox::from_id_source("Override text style")
-                .selected_text(match override_text_style {
-                    None => "None".to_owned(),
-                    Some(override_text_style) => override_text_style.to_string(),
-                })
+                .selected_text(
+                    override_text_style
+                        .as_mut()
+                        .map_or("None".to_owned(), |override_text_style| {
+                            override_text_style.to_string()
+                        }),
+                )
                 .show_ui(ui, |ui| {
                     ui.selectable_value(override_text_style, None, "None");
                     let all_text_styles = ui.style().text_styles();

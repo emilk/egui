@@ -4,7 +4,7 @@ const FIXED_CACHE_SIZE: usize = 1024; // must be small for web/WASM build (for u
 
 /// Very stupid/simple key-value cache. TODO(emilk): improve
 #[derive(Clone)]
-pub(crate) struct FixedCache<K, V>([Option<(K, V)>; FIXED_CACHE_SIZE]);
+pub struct FixedCache<K, V>([Option<(K, V)>; FIXED_CACHE_SIZE]);
 
 impl<K, V> Default for FixedCache<K, V>
 where

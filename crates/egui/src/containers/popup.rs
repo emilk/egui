@@ -14,12 +14,10 @@ pub fn seconds_since_last_tooltip(ctx: &Context) -> f32 {
     let when_was_a_toolip_last_shown =
         ctx.data(|d| d.get_temp::<f64>(when_was_a_toolip_last_shown_id()));
 
-    if let Some(when_was_a_toolip_last_shown) = when_was_a_toolip_last_shown {
+    when_was_a_toolip_last_shown.map_or(f32::INFINITY, |when_was_a_toolip_last_shown| {
         let now = ctx.input(|i| i.time);
         (now - when_was_a_toolip_last_shown) as f32
-    } else {
-        f32::INFINITY
-    }
+    })
 }
 
 fn remember_that_tooltip_was_shown(ctx: &Context) {

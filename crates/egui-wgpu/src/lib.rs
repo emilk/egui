@@ -84,6 +84,8 @@ impl RenderState {
     ///
     /// # Errors
     /// Wgpu initialization may fail due to incompatible hardware or driver for a given config.
+    // #4906
+    #[allow(clippy::future_not_send)]
     pub async fn create(
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
@@ -253,8 +255,8 @@ pub struct WgpuConfiguration {
 }
 
 #[test]
-fn wgpu_config_impl_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+const fn wgpu_config_impl_send_sync() {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<WgpuConfiguration>();
 }
 
@@ -352,7 +354,10 @@ pub fn preferred_framebuffer_format(
 }
 
 /// Take's epi's depth/stencil bits and returns the corresponding wgpu format.
-pub const fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wgpu::TextureFormat> {
+pub const fn depth_format_from_bits(
+    depth_buffer: u8,
+    stencil_buffer: u8,
+) -> Option<wgpu::TextureFormat> {
     match (depth_buffer, stencil_buffer) {
         (0, 8) => Some(wgpu::TextureFormat::Stencil8),
         (16, 0) => Some(wgpu::TextureFormat::Depth16Unorm),

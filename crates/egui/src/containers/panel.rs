@@ -67,7 +67,7 @@ impl Side {
         }
     }
 
-    fn side_x(self, rect: Rect) -> f32 {
+    const fn side_x(self, rect: Rect) -> f32 {
         match self {
             Self::Left => rect.left(),
             Self::Right => rect.right(),
@@ -190,7 +190,7 @@ impl SidePanel {
 
     /// Enforce this exact width, including margins.
     #[inline]
-    pub fn exact_width(mut self, width: f32) -> Self {
+    pub const fn exact_width(mut self, width: f32) -> Self {
         self.default_width = width;
         self.width_range = Rangef::point(width);
         self
@@ -546,7 +546,7 @@ impl TopBottomSide {
         }
     }
 
-    fn side_y(self, rect: Rect) -> f32 {
+    const fn side_y(self, rect: Rect) -> f32 {
         match self {
             Self::Top => rect.top(),
             Self::Bottom => rect.bottom(),
@@ -672,7 +672,7 @@ impl TopBottomPanel {
 
     /// Enforce this exact height, including margins.
     #[inline]
-    pub fn exact_height(mut self, height: f32) -> Self {
+    pub const fn exact_height(mut self, height: f32) -> Self {
         self.default_height = Some(height);
         self.height_range = Rangef::point(height);
         self
@@ -717,12 +717,14 @@ impl TopBottomPanel {
         let available_rect = ui.available_rect_before_wrap();
         let mut panel_rect = available_rect;
 
-        let mut height = if let Some(state) = PanelState::load(ui.ctx(), id) {
-            state.rect.height()
-        } else {
-            default_height
-                .unwrap_or_else(|| ui.style().spacing.interact_size.y + frame.inner_margin.sum().y)
-        };
+        let mut height = PanelState::load(ui.ctx(), id).map_or_else(
+            || {
+                default_height.unwrap_or_else(|| {
+                    ui.style().spacing.interact_size.y + frame.inner_margin.sum().y
+                })
+            },
+            |state| state.rect.height(),
+        );
         {
             height = clamp_to_range(height, height_range).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);

@@ -73,6 +73,8 @@ impl ImageLoader for GifLoader {
         Self::ID
     }
 
+    // #4906
+    #[allow(clippy::significant_drop_tightening)]
     fn load(&self, ctx: &egui::Context, frame_uri: &str, _: SizeHint) -> ImageLoadResult {
         let (image_uri, frame_index) =
             decode_gif_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;

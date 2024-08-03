@@ -31,13 +31,8 @@ impl BytesLoader for DefaultBytesLoader {
 
     fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
         // We accept uri:s that don't start with `bytes://` too… for now.
-        match self.cache.lock().get(uri).cloned() {
-            Some(bytes) => Ok(BytesPoll::Ready {
-                size: None,
-                bytes,
-                mime: None,
-            }),
-            None => {
+        self.cache.lock().get(uri).cloned().map_or_else(
+            || {
                 if uri.starts_with("bytes://") {
                     Err(LoadError::Loading(
                         "Bytes not found. Did you forget to call Context::include_bytes?".into(),
@@ -45,8 +40,15 @@ impl BytesLoader for DefaultBytesLoader {
                 } else {
                     Err(LoadError::NotSupported)
                 }
-            }
-        }
+            },
+            |bytes| {
+                Ok(BytesPoll::Ready {
+                    size: None,
+                    bytes,
+                    mime: None,
+                })
+            },
+        )
     }
 
     fn forget(&self, uri: &str) {

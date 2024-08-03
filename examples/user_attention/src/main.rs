@@ -99,16 +99,15 @@ impl eframe::App for Application {
                         Self::attention_request_timeout().as_secs()
                     )
                 } else {
-                    match self.reset_at {
-                        None => "Unfocus the window, fast!".to_owned(),
-                        Some(t) => {
-                            if let Ok(elapsed) = t.duration_since(SystemTime::now()) {
-                                format!("Resetting attention in {} s…", elapsed.as_secs())
-                            } else {
-                                "Resetting attention…".to_owned()
-                            }
-                        }
-                    }
+                    self.reset_at
+                        .map_or("Unfocus the window, fast!".to_owned(), |t| {
+                            t.duration_since(SystemTime::now()).map_or(
+                                "Resetting attention…".to_owned(),
+                                |elapsed| {
+                                    format!("Resetting attention in {} s…", elapsed.as_secs())
+                                },
+                            )
+                        })
                 };
 
                 let resp = ui

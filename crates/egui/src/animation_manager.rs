@@ -4,7 +4,7 @@ use crate::{
 };
 
 #[derive(Clone, Default)]
-pub(crate) struct AnimationManager {
+pub struct AnimationManager {
     bools: IdMap<BoolAnim>,
     values: IdMap<ValueAnim>,
 }

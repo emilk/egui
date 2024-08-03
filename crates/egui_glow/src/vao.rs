@@ -7,7 +7,7 @@ use crate::check_for_gl_error;
 // ----------------------------------------------------------------------------
 
 #[derive(Debug)]
-pub(crate) struct BufferInfo {
+pub struct BufferInfo {
     pub location: u32, //
     pub vector_size: i32,
     pub data_type: u32, //GL_FLOAT,GL_UNSIGNED_BYTE
@@ -19,7 +19,7 @@ pub(crate) struct BufferInfo {
 // ----------------------------------------------------------------------------
 
 /// Wrapper around either Emulated VAO or GL's VAO.
-pub(crate) struct VertexArrayObject {
+pub struct VertexArrayObject {
     // If `None`, we emulate VAO:s.
     vao: Option<crate::glow::VertexArray>,
     vbo: glow::Buffer,
@@ -114,6 +114,8 @@ impl VertexArrayObject {
 
 // ----------------------------------------------------------------------------
 
+// #4906 this would get too ununderstandable without if let else
+#[allow(clippy::option_if_let_else)]
 fn supports_vao(gl: &glow::Context) -> bool {
     const WEBGL_PREFIX: &str = "WebGL ";
     const OPENGL_ES_PREFIX: &str = "OpenGL ES ";

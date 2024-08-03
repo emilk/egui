@@ -368,10 +368,11 @@ impl RichText {
             font_id
         };
 
-        let mut background_color = background_color;
-        if code {
-            background_color = style.visuals.code_bg_color;
-        }
+        let background_color = if code {
+            style.visuals.code_bg_color
+        } else {
+            background_color
+        };
         let underline = if underline {
             crate::Stroke::new(1.0, line_color)
         } else {
@@ -406,15 +407,18 @@ impl RichText {
     }
 
     fn get_text_color(&self, visuals: &Visuals) -> Option<Color32> {
-        if let Some(text_color) = self.text_color {
-            Some(text_color)
-        } else if self.strong {
-            Some(visuals.strong_text_color())
-        } else if self.weak {
-            Some(visuals.weak_text_color())
-        } else {
-            visuals.override_text_color
-        }
+        self.text_color.map_or_else(
+            || {
+                if self.strong {
+                    Some(visuals.strong_text_color())
+                } else if self.weak {
+                    Some(visuals.weak_text_color())
+                } else {
+                    visuals.override_text_color
+                }
+            },
+            Some,
+        )
     }
 }
 
@@ -615,13 +619,10 @@ impl WidgetText {
         match self {
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
-            Self::Galley(galley) => {
-                if let Some(row) = galley.rows.first() {
-                    row.height()
-                } else {
-                    galley.size().y
-                }
-            }
+            Self::Galley(galley) => galley
+                .rows
+                .first()
+                .map_or(galley.size().y, |row| row.height()),
         }
     }
 

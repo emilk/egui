@@ -42,12 +42,12 @@ impl TSTransform {
     }
 
     #[inline]
-    pub fn from_translation(translation: Vec2) -> Self {
+    pub const fn from_translation(translation: Vec2) -> Self {
         Self::new(translation, 1.0)
     }
 
     #[inline]
-    pub fn from_scaling(scaling: f32) -> Self {
+    pub const fn from_scaling(scaling: f32) -> Self {
         Self::new(Vec2::ZERO, scaling)
     }
 

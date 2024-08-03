@@ -67,7 +67,7 @@ mod mutex_impl {
 
     impl<T> Mutex<T> {
         #[inline(always)]
-        pub fn new(val: T) -> Self {
+        pub const fn new(val: T) -> Self {
             Self(parking_lot::Mutex::new(val))
         }
 
@@ -350,11 +350,11 @@ mod rw_lock_impl {
         let stacktrace = &stacktrace[..end_offset];
 
         let first_interesting_function = "epaint::mutex::rw_lock_impl::make_backtrace\n";
-        if let Some(start_offset) = stacktrace.find(first_interesting_function) {
-            stacktrace[start_offset + first_interesting_function.len()..].to_owned()
-        } else {
-            stacktrace.to_owned()
-        }
+        stacktrace
+            .find(first_interesting_function)
+            .map_or(stacktrace.to_owned(), |start_offset| {
+                stacktrace[start_offset + first_interesting_function.len()..].to_owned()
+            })
     }
 }
 

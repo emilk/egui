@@ -59,6 +59,8 @@ impl BytesLoader for EhttpLoader {
         Self::ID
     }
 
+    // #4906 this would get too ununderstandable without if let else
+    #[allow(clippy::option_if_let_else)]
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
         if !starts_with_one_of(uri, PROTOCOLS) {
             return Err(LoadError::NotSupported);

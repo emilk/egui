@@ -66,7 +66,7 @@ impl LayoutSettings {
         }
     }
 
-    fn layout(&self) -> Layout {
+    const fn layout(&self) -> Layout {
         Layout::from_main_dir_and_cross_align(self.main_dir, self.cross_align)
             .with_main_wrap(self.main_wrap)
             .with_cross_justify(self.cross_justify)

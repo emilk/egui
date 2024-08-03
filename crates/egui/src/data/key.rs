@@ -425,7 +425,7 @@ impl Key {
     }
 
     /// Emoji or name representing the key
-    pub fn symbol_or_name(self) -> &'static str {
+    pub const fn symbol_or_name(self) -> &'static str {
         // TODO(emilk): add support for more unicode symbols (see for instance https://wincent.com/wiki/Unicode_representations_of_modifier_keys).
         // Before we do we must first make sure they are supported in `Fonts` though,
         // so perhaps this functions needs to take a `supports_character: impl Fn(char) -> bool` or something.
