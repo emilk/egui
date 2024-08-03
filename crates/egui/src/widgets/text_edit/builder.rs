@@ -1005,6 +1005,8 @@ fn events(
                     if text_mark == "\n" || text_mark == "\r" {
                         None
                     } else {
+                        state.ime_enabled = false;
+
                         // Empty prediction can be produced when user press backspace
                         // or escape during IME, so we clear current text.
                         let mut ccursor = text.delete_selected(&cursor_range);
