@@ -840,9 +840,6 @@ pub struct TextCursorStyle {
 
     /// Whether to retain the text cursor's position when focus is gained.
     pub retain_position: bool,
-
-    /// Indicates whether the IME preedit is committed.
-    pub ime_preedit_finished: bool,
 }
 
 impl Default for TextCursorStyle {
@@ -854,7 +851,6 @@ impl Default for TextCursorStyle {
             on_duration: 0.5,
             off_duration: 0.5,
             retain_position: true,
-            ime_preedit_finished: false,
         }
     }
 }
@@ -2136,7 +2132,6 @@ impl TextCursorStyle {
             on_duration,
             off_duration,
             retain_position,
-            ime_preedit_finished,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2171,8 +2166,6 @@ impl TextCursorStyle {
         }
 
         ui.checkbox(retain_position, "retain position");
-
-        ui.checkbox(ime_preedit_finished, "IME preedit finished");
     }
 }
 
