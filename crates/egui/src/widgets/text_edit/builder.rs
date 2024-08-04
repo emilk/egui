@@ -748,6 +748,10 @@ impl<'t> TextEdit<'t> {
 
         if state.ime_enabled && response.lost_focus() {
             state.ime_enabled = false;
+            if let Some(mut ccursor_range) = state.cursor.char_range() {
+                ccursor_range.secondary.index = ccursor_range.primary.index;
+                state.cursor.set_char_range(Some(ccursor_range));
+            }
         }
 
         state.clone().store(ui.ctx(), id);
