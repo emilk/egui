@@ -350,16 +350,13 @@ impl State {
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
                     }
-                    winit::event::Ime::Preedit(_, None) => {
-                        self.ime_event_disable();
-                    }
                     winit::event::Ime::Commit(text) => {
                         self.egui_input
                             .events
                             .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
                         self.ime_event_disable();
                     }
-                    winit::event::Ime::Disabled => {
+                    winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
                         self.ime_event_disable();
                     }
                 };
