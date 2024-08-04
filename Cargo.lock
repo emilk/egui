@@ -1311,6 +1311,7 @@ dependencies = [
  "image",
  "log",
  "mime_guess2",
+ "objc",
  "puffin",
  "resvg",
  "serde",
