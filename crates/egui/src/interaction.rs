@@ -10,6 +10,7 @@ use self::{hit_test::WidgetHits, id::IdSet, input_state::PointerEvent, memory::I
 /// * Mouse/touch input
 /// * Current [`InteractionState`].
 #[derive(Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InteractionSnapshot {
     /// The widget that got clicked this frame.
     pub clicked: Option<Id>,

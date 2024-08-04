@@ -4,6 +4,7 @@ use crate::{id::IdSet, *};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TooltipFrameState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
@@ -18,6 +19,7 @@ impl TooltipFrameState {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PerWidgetTooltipState {
     /// Bounding rectangle for all widget and all previous tooltips.
     pub bounding_rect: Rect,
@@ -27,6 +29,7 @@ pub struct PerWidgetTooltipState {
 }
 
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PerLayerState {
     /// Is there any open popup (menus, combo-boxes, etc)?
     ///
@@ -41,6 +44,7 @@ pub struct PerLayerState {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ScrollTarget {
     // The range that the scroll area should scroll to.
     pub range: Rangef,
@@ -169,6 +173,7 @@ impl DebugRect {
 ///
 /// One per viewport.
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FrameState {
     /// All [`Id`]s that were used this frame.
     pub used_ids: IdMap<Rect>,
@@ -210,12 +215,14 @@ pub struct FrameState {
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
     #[cfg(feature = "accesskit")]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub accesskit_state: Option<AccessKitFrameState>,
 
     /// Highlight these widgets the next frame.
     pub highlight_next_frame: IdSet,
 
     #[cfg(debug_assertions)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub debug_rect: Option<DebugRect>,
 }
 

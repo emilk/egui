@@ -1151,6 +1151,7 @@ impl From<u32> for TouchId {
 ///
 /// Any events not covered by the filter are given to the widget, but are not exclusive.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct EventFilter {
     /// If `true`, pressing tab will act on the widget,
     /// and NOT move focus away from the focused widget.

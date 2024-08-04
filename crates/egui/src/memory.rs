@@ -81,17 +81,17 @@ pub struct Memory {
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
     #[cfg_attr(feature = "persistence", serde(skip))]
-    popup: Option<Id>,
+    pub(crate) popup: Option<Id>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    everything_is_visible: bool,
+    pub(crate) everything_is_visible: bool,
 
     /// Transforms per layer
     pub layer_transforms: HashMap<LayerId, TSTransform>,
 
     // -------------------------------------------------
     // Per-viewport:
-    areas: ViewportIdMap<Areas>,
+    pub(crate) areas: ViewportIdMap<Areas>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interactions: ViewportIdMap<InteractionState>,
@@ -122,6 +122,7 @@ impl Default for Memory {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum FocusDirection {
     /// Select the widget closest above the current focused widget.
     Up,
@@ -370,6 +371,7 @@ impl Options {
 /// If the user releases the button without moving the mouse we register it as a click on `click_id`.
 /// If the cursor moves too much we clear the `click_id` and start passing move events to `drag_id`.
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct InteractionState {
     /// A widget interested in clicks that has a mouse press on it.
     pub potential_click_id: Option<Id>,
@@ -385,6 +387,7 @@ pub(crate) struct InteractionState {
 
 /// Keeps tracks of what widget has keyboard focus
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
     focused_widget: Option<FocusWidget>,
@@ -414,6 +417,7 @@ pub(crate) struct Focus {
 
 /// The widget with focus.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct FocusWidget {
     pub id: Id,
     pub filter: EventFilter,
@@ -934,25 +938,25 @@ impl Memory {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
-    areas: IdMap<area::AreaState>,
+    pub(crate) areas: IdMap<area::AreaState>,
 
     /// Back-to-front. Top is last.
-    order: Vec<LayerId>,
+    pub(crate) order: Vec<LayerId>,
 
-    visible_last_frame: ahash::HashSet<LayerId>,
-    visible_current_frame: ahash::HashSet<LayerId>,
+    pub(crate) visible_last_frame: ahash::HashSet<LayerId>,
+    pub(crate) visible_current_frame: ahash::HashSet<LayerId>,
 
     /// When an area want to be on top, it is put in here.
     /// At the end of the frame, this is used to reorder the layers.
     /// This means if several layers want to be on top, they will keep their relative order.
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
-    wants_to_be_on_top: ahash::HashSet<LayerId>,
+    pub(crate) wants_to_be_on_top: ahash::HashSet<LayerId>,
 
     /// List of sublayers for each layer
     ///
     /// When a layer has sublayers, they are moved directly above it in the ordering.
-    sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
+    pub(crate) sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
 }
 
 impl Areas {

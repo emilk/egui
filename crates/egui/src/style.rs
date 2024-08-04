@@ -268,6 +268,7 @@ pub struct Style {
     ///
     /// Only available in debug builds.
     #[cfg(debug_assertions)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub debug: DebugOptions,
 
     /// Show tooltips explaining [`DragValue`]:s etc when hovered.
