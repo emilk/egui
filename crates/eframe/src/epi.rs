@@ -25,6 +25,10 @@ use static_assertions::assert_not_impl_any;
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub use winit::{event_loop::EventLoopBuilder, window::WindowAttributes};
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "glow")]
+pub use glutin_winit::ApiPreference as GlApiPreference;
+
 /// Hook into the building of an event loop before it is run
 ///
 /// You can configure any platform specific details required on top of the default configuration
@@ -396,6 +400,13 @@ pub struct NativeOptions {
     /// [`with_android_app`]: winit::platform::android::EventLoopBuilderExtAndroid::with_android_app
     #[cfg(target_os = "android")]
     pub android_app: Option<winit::platform::android::activity::AndroidApp>,
+
+    /// Which OpenGL API to prefer when using [`Renderer::Glow`].
+    ///
+    /// This is only used when the `glow` feature is enabled.
+    /// Default: [`GlApiPreference::FallbackEgl`].
+    #[cfg(feature = "glow")]
+    pub prefer_gl_api: GlApiPreference,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -462,6 +473,9 @@ impl Default for NativeOptions {
 
             #[cfg(target_os = "android")]
             android_app: None,
+
+            #[cfg(feature = "glow")]
+            prefer_gl_api: GlApiPreference::FallbackEgl,
         }
     }
 }

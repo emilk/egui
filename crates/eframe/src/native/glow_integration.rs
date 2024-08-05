@@ -953,10 +953,7 @@ impl GlutinWindowContext {
 
         // Create GL display. This may probably create a window too on most platforms. Definitely on `MS windows`. Never on Android.
         let display_builder = glutin_winit::DisplayBuilder::new()
-            // we might want to expose this option to users in the future. maybe using an env var or using native_options.
-            //
-            // The justification for FallbackEgl over PreferEgl is at https://github.com/emilk/egui/pull/2526#issuecomment-1400229576 .
-            .with_preference(glutin_winit::ApiPreference::FallbackEgl)
+            .with_preference(native_options.prefer_gl_api) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
             .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,
