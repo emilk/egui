@@ -1592,7 +1592,10 @@ pub fn create_winit_window_attributes(
         .with_decorations(decorations.unwrap_or(true))
         .with_resizable(resizable.unwrap_or(true))
         .with_visible(visible.unwrap_or(true))
-        .with_maximized(maximized.unwrap_or(false))
+        .with_maximized(match cfg!(target_os = "ios") {
+            true => true,
+            false => maximized.unwrap_or(false),
+        })
         .with_window_level(match window_level.unwrap_or_default() {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
@@ -1616,6 +1619,7 @@ pub fn create_winit_window_attributes(
         })
         .with_active(active.unwrap_or(true));
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = inner_size {
         window_attributes = window_attributes.with_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1623,6 +1627,7 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = min_inner_size {
         window_attributes = window_attributes.with_min_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1630,6 +1635,7 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = max_inner_size {
         window_attributes = window_attributes.with_max_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1637,6 +1643,7 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(pos) = position {
         window_attributes = window_attributes.with_position(PhysicalPosition::new(
             pixels_per_point * pos.x,
