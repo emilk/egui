@@ -17,6 +17,12 @@ pub struct MiscDemoWindow {
     dummy_bool: bool,
     dummy_usize: usize,
     checklist: [bool; 3],
+
+    start_angle: f32,
+    end_angle: f32,
+    radius: f32,
+    fill: Color32,
+    stroke: Stroke,
 }
 
 impl Default for MiscDemoWindow {
@@ -33,6 +39,12 @@ impl Default for MiscDemoWindow {
             dummy_bool: false,
             dummy_usize: 0,
             checklist: std::array::from_fn(|i| i == 0),
+
+            start_angle: 0.0,
+            end_angle: std::f32::consts::FRAC_PI_2,
+            radius: 20.0,
+            fill: Color32::GREEN,
+            stroke: Stroke::new(1.0, Color32::RED),
         }
     }
 }
@@ -190,6 +202,49 @@ impl View for MiscDemoWindow {
                         ui.painter()
                             .circle_filled(rect.center(), r, ui.visuals().text_color());
                     }
+                });
+            });
+
+        CollapsingHeader::new("Arc and Pie")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("Start angle:");
+                        ui.drag_angle(&mut self.start_angle);
+                        ui.label("End angle:");
+                        ui.drag_angle(&mut self.end_angle);
+                        ui.label("Radius:");
+                        ui.add(egui::Slider::new(&mut self.radius, 0.0..=100.0));
+                        ui.end_row();
+                        ui.label("Fill:");
+                        ui.color_edit_button_srgba(&mut self.fill);
+                        ui.label("Stroke:");
+                        ui.add(&mut self.stroke);
+                    });
+                    ui.separator();
+                    ui.horizontal_wrapped(|ui| {
+                        let r = self.radius;
+                        let size = Vec2::splat(2.0 * r + self.stroke.width + 5.0);
+                        let (rect, _response) = ui.allocate_at_least(size, Sense::hover());
+                        ui.painter().arc(
+                            rect.center(),
+                            r,
+                            self.start_angle,
+                            self.end_angle,
+                            self.stroke,
+                        );
+                        let (rect, _response) = ui.allocate_at_least(size, Sense::hover());
+                        ui.painter().pie(
+                            rect.center(),
+                            r,
+                            self.start_angle,
+                            self.end_angle,
+                            self.fill,
+                            self.stroke,
+                        );
+                    });
+                    ui.separator();
                 });
             });
     }

@@ -43,6 +43,31 @@ pub fn adjust_colors(
             adjust_color_mode(&mut stroke.color, adjust_color);
         }
 
+        Shape::ArcPie(ArcPieShape {
+            center: _,
+            radius: _,
+            start_angle: _,
+            end_angle: _,
+            closed,
+            fill,
+            stroke,
+        }) => {
+            if *closed {
+                adjust_color(fill);
+            }
+            match &stroke.color {
+                color::ColorMode::Solid(mut col) => adjust_color(&mut col),
+                color::ColorMode::UV(callback) => {
+                    let callback = callback.clone();
+                    stroke.color = color::ColorMode::UV(Arc::new(Box::new(move |rect, pos| {
+                        let mut col = callback(rect, pos);
+                        adjust_color(&mut col);
+                        col
+                    })));
+                }
+            }
+        }
+
         Shape::Circle(CircleShape {
             center: _,
             radius: _,
