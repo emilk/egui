@@ -10,6 +10,7 @@ pub struct Sliders {
     pub max: f64,
     pub logarithmic: bool,
     pub clamp_to_range: bool,
+    pub clamp_to_range_on_value_drag: bool,
     pub smart_aim: bool,
     pub step: f64,
     pub use_steps: bool,
@@ -27,6 +28,7 @@ impl Default for Sliders {
             max: 10000.0,
             logarithmic: true,
             clamp_to_range: false,
+            clamp_to_range_on_value_drag: false,
             smart_aim: true,
             step: 10.0,
             use_steps: false,
@@ -62,6 +64,7 @@ impl crate::View for Sliders {
             max,
             logarithmic,
             clamp_to_range,
+            clamp_to_range_on_value_drag,
             smart_aim,
             step,
             use_steps,
@@ -98,6 +101,7 @@ impl crate::View for Sliders {
                 Slider::new(&mut value_i32, (*min as i32)..=(*max as i32))
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
+                    .clamp_to_range_on_value_drag(*clamp_to_range_on_value_drag)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("i32 demo slider")
@@ -111,6 +115,7 @@ impl crate::View for Sliders {
                 Slider::new(value, (*min)..=(*max))
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
+                    .clamp_to_range_on_value_drag(*clamp_to_range_on_value_drag)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("f64 demo slider")
@@ -190,7 +195,12 @@ impl crate::View for Sliders {
 
         ui.checkbox(clamp_to_range, "Clamp to range");
         ui.label("If true, the slider will clamp incoming and outgoing values to the given range.");
-        ui.label("If false, the slider can shows values outside its range, and you can manually enter values outside the range.");
+        ui.label("If false, the slider can show values outside its range, and you can manually enter values outside the range.");
+        ui.add_space(8.0);
+
+        ui.checkbox(clamp_to_range_on_value_drag, "Clamp to range on value drag");
+        ui.label("If true, the value when dragged will be clamped to the given range.");
+        ui.label("If false, the value when dragged will not be clamped to the given range (if value is not clamped to range).");
         ui.add_space(8.0);
 
         ui.checkbox(smart_aim, "Smart Aim");

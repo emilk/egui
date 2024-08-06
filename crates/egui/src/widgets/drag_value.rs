@@ -39,6 +39,7 @@ pub struct DragValue<'a> {
     suffix: String,
     range: RangeInclusive<f64>,
     clamp_to_range: bool,
+    clamp_to_range_on_drag: bool,
     min_decimals: usize,
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
@@ -70,6 +71,7 @@ impl<'a> DragValue<'a> {
             suffix: Default::default(),
             range: f64::NEG_INFINITY..=f64::INFINITY,
             clamp_to_range: true,
+            clamp_to_range_on_drag: true,
             min_decimals: 0,
             max_decimals: None,
             custom_formatter: None,
@@ -111,11 +113,24 @@ impl<'a> DragValue<'a> {
     /// If set to `true`, all incoming and outgoing values will be clamped to the sliding [`Self::range`] (if any).
     ///
     /// If set to `false`, a value outside of the range that is set programmatically or by user input will not be changed.
-    /// Dragging will be restricted to the range regardless of this setting.
     /// Default: `true`.
     #[inline]
     pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
+        self
+    }
+
+    /// If set to `true`, dragging will clamp the value to the sliding
+    /// [`Self::range`] (if any).
+    ///
+    /// If set to `false`, the value can be dragged outside of the
+    /// sliding [`Self::range`] (if [`Self::clamp_to_range`] is also
+    /// `false`).
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn clamp_to_range_on_drag(mut self, clamp_to_range_on_drag: bool) -> Self {
+        self.clamp_to_range_on_drag = clamp_to_range_on_drag;
         self
     }
 
@@ -390,6 +405,7 @@ impl<'a> Widget for DragValue<'a> {
             speed,
             range,
             clamp_to_range,
+            clamp_to_range_on_drag,
             prefix,
             suffix,
             min_decimals,
@@ -608,8 +624,11 @@ impl<'a> Widget for DragValue<'a> {
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
-                    // Dragging will always clamp the value to the range.
-                    let rounded_new_value = clamp_value_to_range(rounded_new_value, range.clone());
+                    let rounded_new_value = if clamp_to_range_on_drag || clamp_to_range {
+                        clamp_value_to_range(rounded_new_value, range.clone())
+                    } else {
+                        rounded_new_value
+                    };
                     set(&mut get_set_value, rounded_new_value);
 
                     ui.data_mut(|data| data.insert_temp::<f64>(id, precise_value));
