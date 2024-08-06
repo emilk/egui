@@ -126,10 +126,7 @@ impl TextAgent {
 
         let mut canvas_rect = super::canvas_content_rect(canvas);
         // Fix for safari with virtual keyboard flapping position
-        if web_sys::window()
-            .and_then(|w| w.navigator().user_agent().ok())
-            .map_or(false, |ua| ua.contains("Safari"))
-        {
+        if is_mobile_safari() {
             canvas_rect.min.y = canvas.offset_top() as f32;
         }
         let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
@@ -203,4 +200,16 @@ fn is_mobile() -> bool {
         Some(is_mobile)
     }
     try_is_mobile().unwrap_or(false)
+}
+
+fn is_mobile_safari() -> bool {
+    (|| {
+        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
+        let is_ios = user_agent.contains("iPhone")
+            || user_agent.contains("iPad")
+            || user_agent.contains("iPod");
+        let is_safari = user_agent.contains("Safari");
+        Some(is_ios && is_safari)
+    })()
+    .unwrap_or(false)
 }
