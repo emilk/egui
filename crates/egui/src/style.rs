@@ -836,6 +836,9 @@ pub struct TextCursorStyle {
 
     /// When blinking, this is how long the cursor is invisible.
     pub off_duration: f32,
+
+    /// Whether to retain the text cursor's position when focus is gained.
+    pub retain_position: bool,
 }
 
 impl Default for TextCursorStyle {
@@ -846,6 +849,7 @@ impl Default for TextCursorStyle {
             blink: true,
             on_duration: 0.5,
             off_duration: 0.5,
+            retain_position: true,
         }
     }
 }
@@ -2126,6 +2130,7 @@ impl TextCursorStyle {
             blink,
             on_duration,
             off_duration,
+            retain_position,
         } = self;
 
         ui.horizontal(|ui| {
@@ -2158,6 +2163,8 @@ impl TextCursorStyle {
                 ui.end_row();
             });
         }
+
+        ui.checkbox(retain_position, "retain position");
     }
 }
 
