@@ -45,8 +45,6 @@ use web_sys::MediaQueryList;
 
 use input::*;
 
-use crate::Theme;
-
 // ----------------------------------------------------------------------------
 
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
@@ -103,7 +101,7 @@ pub fn native_pixels_per_point() -> f32 {
 /// Ask the browser about the preferred system theme.
 ///
 /// `None` means unknown.
-pub fn system_theme() -> Option<Theme> {
+pub fn system_theme() -> Option<egui::Theme> {
     let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
         .ok()??
         .matches();
@@ -114,11 +112,11 @@ fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQue
     window.match_media("(prefers-color-scheme: dark)")
 }
 
-fn theme_from_dark_mode(dark_mode: bool) -> Theme {
+fn theme_from_dark_mode(dark_mode: bool) -> egui::Theme {
     if dark_mode {
-        Theme::Dark
+        egui::Theme::Dark
     } else {
-        Theme::Light
+        egui::Theme::Light
     }
 }
 

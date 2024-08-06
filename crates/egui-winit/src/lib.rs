@@ -14,7 +14,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
+use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
 pub mod clipboard;
@@ -111,6 +111,7 @@ impl State {
         viewport_id: ViewportId,
         display_target: &dyn HasDisplayHandle,
         native_pixels_per_point: Option<f32>,
+        theme: Option<winit::window::Theme>,
         max_texture_side: Option<usize>,
     ) -> Self {
         crate::profile_function!();
@@ -150,6 +151,7 @@ impl State {
             .entry(ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = native_pixels_per_point;
+        slf.egui_input.system_theme = theme.map(to_egui_theme);
 
         if let Some(max_texture_side) = max_texture_side {
             slf.set_max_texture_side(max_texture_side);
@@ -403,6 +405,13 @@ impl State {
                     consumed: false,
                 }
             }
+            WindowEvent::ThemeChanged(winit_theme) => {
+                self.egui_input.system_theme = Some(to_egui_theme(*winit_theme));
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
+            }
             WindowEvent::HoveredFile(path) => {
                 self.egui_input.hovered_files.push(egui::HoveredFile {
                     path: Some(path.clone()),
@@ -462,7 +471,6 @@ impl State {
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::Moved(_)
-            | WindowEvent::ThemeChanged(_)
             | WindowEvent::TouchpadPressure { .. }
             | WindowEvent::CloseRequested => EventResponse {
                 repaint: true,
@@ -887,6 +895,13 @@ impl State {
             // Remember to set the cursor again once the cursor returns to the screen:
             self.current_cursor_icon = None;
         }
+    }
+}
+
+fn to_egui_theme(theme: winit::window::Theme) -> Theme {
+    match theme {
+        winit::window::Theme::Dark => Theme::Dark,
+        winit::window::Theme::Light => Theme::Light,
     }
 }
 

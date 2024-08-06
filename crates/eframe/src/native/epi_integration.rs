@@ -10,7 +10,7 @@ use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
 use egui_winit::{EventResponse, WindowSettings};
 
-use crate::{epi, Theme};
+use crate::epi;
 
 pub fn viewport_builder(
     egui_zoom_factor: f32,
@@ -158,7 +158,6 @@ pub struct EpiIntegration {
     close: bool,
 
     can_drag_window: bool,
-    follow_system_theme: bool,
     #[cfg(feature = "persistence")]
     persist_window: bool,
     app_icon_setter: super::app_icon::AppTitleIconSetter,
@@ -169,7 +168,6 @@ impl EpiIntegration {
     pub fn new(
         egui_ctx: egui::Context,
         window: &winit::window::Window,
-        system_theme: Option<Theme>,
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
@@ -180,10 +178,7 @@ impl EpiIntegration {
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
         let frame = epi::Frame {
-            info: epi::IntegrationInfo {
-                system_theme,
-                cpu_usage: None,
-            },
+            info: epi::IntegrationInfo { cpu_usage: None },
             storage,
             #[cfg(feature = "glow")]
             gl,
@@ -217,7 +212,6 @@ impl EpiIntegration {
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
-            follow_system_theme: native_options.follow_system_theme,
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
             app_icon_setter,
@@ -251,11 +245,6 @@ impl EpiIntegration {
                 state: ElementState::Pressed,
                 ..
             } => self.can_drag_window = true,
-            WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
-                let theme = theme_from_winit_theme(*winit_theme);
-                self.frame.info.system_theme = Some(theme);
-                self.egui_ctx.set_visuals(theme.egui_visuals());
-            }
             _ => {}
         }
 
@@ -397,11 +386,4 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
     }
     #[cfg(not(feature = "persistence"))]
     None
-}
-
-pub(crate) fn theme_from_winit_theme(theme: winit::window::Theme) -> Theme {
-    match theme {
-        winit::window::Theme::Dark => Theme::Dark,
-        winit::window::Theme::Light => Theme::Light,
-    }
 }
