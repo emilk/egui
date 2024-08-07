@@ -192,8 +192,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         let gl = std::sync::Arc::new(gl);
         gl_window.window().set_visible(true);
 
-        let egui_glow =
-            egui_glow::EguiGlow::new(event_loop, &gl_window.window, gl.clone(), None, None, true);
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
 
         let event_loop_proxy = egui::mutex::Mutex::new(self.proxy.clone());
         egui_glow
