@@ -1,3 +1,5 @@
+use crate::Button;
+
 /// Dark or Light theme.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -36,6 +38,33 @@ impl Theme {
     }
 }
 
+impl Theme {
+    /// Show small toggle-button for light and dark mode.
+    /// This is not the best design as it doesn't allow switching back to "follow system".
+    #[must_use]
+    pub(crate) fn small_toggle_button(self, ui: &mut crate::Ui) -> Option<Self> {
+        #![allow(clippy::collapsible_else_if)]
+        if self == Self::Dark {
+            if ui
+                .add(Button::new("☀").frame(false))
+                .on_hover_text("Switch to light mode")
+                .clicked()
+            {
+                return Some(Self::Light);
+            }
+        } else {
+            if ui
+                .add(Button::new("🌙").frame(false))
+                .on_hover_text("Switch to dark mode")
+                .clicked()
+            {
+                return Some(Self::Dark);
+            }
+        }
+        None
+    }
+}
+
 /// The user's theme preference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -56,5 +85,16 @@ impl From<Theme> for ThemePreference {
             Theme::Dark => Self::Dark,
             Theme::Light => Self::Light,
         }
+    }
+}
+
+impl ThemePreference {
+    /// Show radio-buttons to switch between light mode, dark mode and following the system theme.
+    pub fn radio_buttons(&mut self, ui: &mut crate::Ui) {
+        ui.horizontal(|ui| {
+            ui.selectable_value(self, Self::Light, "☀ Light");
+            ui.selectable_value(self, Self::Dark, "🌙 Dark");
+            ui.selectable_value(self, Self::System, "System");
+        });
     }
 }

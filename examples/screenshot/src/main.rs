@@ -54,9 +54,9 @@ impl eframe::App for MyApp {
                             .add(egui::Label::new("hover me!").sense(egui::Sense::hover()))
                             .hovered()
                         {
-                            ctx.set_visuals(egui::Visuals::dark());
+                            ctx.set_theme(egui::Theme::Dark);
                         } else {
-                            ctx.set_visuals(egui::Visuals::light());
+                            ctx.set_theme(egui::Theme::Light);
                         };
                         ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
                     } else if ui.button("take screenshot!").clicked() {
