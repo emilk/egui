@@ -15,7 +15,7 @@ use std::{
 /// which is:
 /// * Linux:   `/home/UserName/.local/share/APP_ID`
 /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
-/// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
+/// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID\data`
 ///
 /// If the `directories` feature is not enabled, it uses a naive approximation that returns the
 /// same result for the most common systems.
@@ -59,7 +59,7 @@ fn naive_storage_dir(app_id: &str) -> Option<PathBuf> {
                 .join("Application Support")
                 .join(app_id.replace(|c: char| c.is_ascii_whitespace(), "-"))
         }),
-        OS::Windows => var_os("APPDATA").map(|s| PathBuf::from(s).join(app_id)),
+        OS::Windows => var_os("APPDATA").map(|s| PathBuf::from(s).join(app_id).join("data")),
         OS::Unknown | OS::Android | OS::IOS => None,
     }
 }
