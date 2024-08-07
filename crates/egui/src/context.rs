@@ -487,7 +487,7 @@ impl ContextImpl {
             });
 
             viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
-                let interact_radius = self.memory.options.style.interaction.interact_radius;
+                let interact_radius = self.memory.options.style().interaction.interact_radius;
 
                 crate::hit_test::hit_test(
                     &viewport.prev_frame.widgets,
@@ -583,7 +583,7 @@ impl ContextImpl {
             crate::profile_scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
-            for font_id in self.memory.options.style.text_styles.values() {
+            for font_id in self.memory.options.style().text_styles.values() {
                 fonts.lock().fonts.font(font_id).preload_common_characters();
             }
         }
@@ -1245,7 +1245,7 @@ impl Context {
     pub fn register_widget_info(&self, id: Id, make_info: impl Fn() -> crate::WidgetInfo) {
         #[cfg(debug_assertions)]
         self.write(|ctx| {
-            if ctx.memory.options.style.debug.show_interactive_widgets {
+            if ctx.memory.options.style().debug.show_interactive_widgets {
                 ctx.viewport().this_frame.widgets.set_info(id, make_info());
             }
         });
@@ -1624,7 +1624,7 @@ impl Context {
         self.options(|opt| opt.theme())
     }
 
-    /// The [`Theme`] used to select between [`Self::dark_style()`] and [`Self::light_style()`]
+    /// The [`crate::Theme`] used to select between [`Self::dark_style()`] and [`Self::light_style()`]
     /// as the active style used by all subsequent windows, panels etc.
     ///
     /// Example:
@@ -1638,7 +1638,7 @@ impl Context {
 
     /// The [`Style`] used by all subsequent windows, panels etc.
     pub fn style(&self) -> Arc<Style> {
-        self.options(|opt| opt.style.clone())
+        self.options(|opt| opt.style().clone())
     }
 
     /// Mutate the [`Style`] used by all subsequent windows, panels etc.
@@ -2505,7 +2505,7 @@ impl Context {
     /// Whether or not to debug widget layout on hover.
     #[cfg(debug_assertions)]
     pub fn debug_on_hover(&self) -> bool {
-        self.options(|opt| opt.style.debug.debug_on_hover)
+        self.options(|opt| opt.style().debug.debug_on_hover)
     }
 
     /// Turn on/off whether or not to debug widget layout on hover.
