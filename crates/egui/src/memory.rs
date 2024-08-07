@@ -327,6 +327,10 @@ impl Options {
             ThemePreference::System => self.system_theme.unwrap_or(self.fallback_theme),
         }
     }
+
+    pub(crate) fn style(&self) -> &std::sync::Arc<Style> {
+        &self.style
+    }
 }
 
 impl Options {
