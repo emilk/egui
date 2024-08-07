@@ -54,7 +54,7 @@ pub struct CreationContext<'s> {
     /// The egui Context.
     ///
     /// You can use this to customize the look of egui, e.g to call [`egui::Context::set_fonts`],
-    /// [`egui::Context::set_visuals`] etc.
+    /// [`egui::Context::set_dark_visuals`] etc.
     pub egui_ctx: egui::Context,
 
     /// Information about the surrounding environment.
