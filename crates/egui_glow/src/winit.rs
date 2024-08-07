@@ -24,6 +24,7 @@ impl EguiGlow {
     /// For automatic shader version detection set `shader_version` to `None`.
     pub fn new(
         event_loop: &winit::event_loop::ActiveEventLoop,
+        window: &winit::window::Window,
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
@@ -42,6 +43,7 @@ impl EguiGlow {
             ViewportId::ROOT,
             event_loop,
             native_pixels_per_point,
+            window.theme(),
             Some(painter.max_texture_side()),
         );
 

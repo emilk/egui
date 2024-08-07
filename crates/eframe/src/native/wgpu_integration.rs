@@ -203,11 +203,9 @@ impl WgpuWinitApp {
 
         let wgpu_render_state = painter.render_state();
 
-        let system_theme = winit_integration::system_theme(&window, &self.native_options);
         let integration = EpiIntegration::new(
             egui_ctx.clone(),
             &window,
-            system_theme,
             &self.app_name,
             &self.native_options,
             storage,
@@ -243,6 +241,7 @@ impl WgpuWinitApp {
             ViewportId::ROOT,
             event_loop,
             Some(window.scale_factor() as f32),
+            window.theme(),
             painter.max_texture_side(),
         );
 
@@ -251,8 +250,6 @@ impl WgpuWinitApp {
             let event_loop_proxy = self.repaint_proxy.lock().clone();
             egui_winit.init_accesskit(&window, event_loop_proxy);
         }
-        let theme = system_theme.unwrap_or(self.native_options.default_theme);
-        egui_ctx.set_visuals(theme.egui_visuals());
 
         let app_creator = std::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
@@ -872,6 +869,7 @@ impl Viewport {
                     viewport_id,
                     event_loop,
                     Some(window.scale_factor() as f32),
+                    window.theme(),
                     painter.max_texture_side(),
                 ));
 

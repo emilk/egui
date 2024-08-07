@@ -94,6 +94,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_wheel(runner_ref, &canvas)?;
     install_drag_and_drop(runner_ref, &canvas)?;
     install_window_events(runner_ref, &window)?;
+    install_color_scheme_change_event(runner_ref, &window)?;
     Ok(())
 }
 
@@ -353,17 +354,17 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
     Ok(())
 }
 
-pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
-
-    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
+fn install_color_scheme_change_event(
+    runner_ref: &WebRunner,
+    window: &web_sys::Window,
+) -> Result<(), JsValue> {
+    if let Some(media_query_list) = prefers_color_scheme_dark(window)? {
         runner_ref.add_event_listener::<web_sys::MediaQueryListEvent>(
             &media_query_list,
             "change",
             |event, runner| {
                 let theme = theme_from_dark_mode(event.matches());
-                runner.frame.info.system_theme = Some(theme);
-                runner.egui_ctx().set_visuals(theme.egui_visuals());
+                runner.input.raw.system_theme = Some(theme);
                 runner.needs_repaint.repaint_asap();
             },
         )?;
