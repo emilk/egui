@@ -185,7 +185,7 @@ pub struct Options {
 
     /// Used to detect changes in system theme
     #[cfg_attr(feature = "serde", serde(skip))]
-    system_theme: Option<Theme>,
+    pub(crate) system_theme: Option<Theme>,
 
     /// Global zoom factor of the UI.
     ///

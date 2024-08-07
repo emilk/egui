@@ -1596,6 +1596,12 @@ impl Context {
         }
     }
 
+    /// Does the OS use dark or light mode?
+    /// This is used when the theme preference is set to [`ThemePreference::System`].
+    pub fn system_theme(&self) -> Option<Theme> {
+        self.memory(|mem| mem.options.system_theme)
+    }
+
     /// The [`Theme`] used to select the appropriate [`Style`] (dark or light)
     /// used by all subsequent windows, panels etc.
     pub fn theme(&self) -> Theme {
