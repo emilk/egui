@@ -18,6 +18,14 @@ impl Theme {
         }
     }
 
+    /// Default style for this theme.
+    pub fn default_style(self) -> crate::Style {
+        crate::Style {
+            visuals: self.default_visuals(),
+            ..Default::default()
+        }
+    }
+
     /// Chooses between [`Self::Dark`] or [`Self::Light`] based on a boolean value.
     pub fn from_dark_mode(dark_mode: bool) -> Self {
         if dark_mode {
