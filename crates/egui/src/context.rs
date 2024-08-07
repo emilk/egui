@@ -1596,6 +1596,24 @@ impl Context {
         }
     }
 
+    /// The [`Theme`] used to select the appropriate [`Style`] (dark or light)
+    /// used by all subsequent windows, panels etc.
+    pub fn theme(&self) -> Theme {
+        self.options(|opt| opt.theme())
+    }
+
+    /// The [`Theme`] used to select between [`Self::dark_style()`] and [`Self::light_style()`]
+    /// as the active style used by all subsequent windows, panels etc.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_theme(egui::Theme::Light); // Switch to light mode
+    /// ```
+    pub fn set_theme(&self, theme_preference: impl Into<ThemePreference>) {
+        self.options_mut(|opt| opt.theme_preference = theme_preference.into());
+    }
+
     /// The [`Style`] used by all subsequent windows, panels etc.
     pub fn style(&self) -> Arc<Style> {
         self.options(|opt| opt.style.clone())

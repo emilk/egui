@@ -9,7 +9,7 @@ use crate::{
 };
 
 mod theme;
-pub use theme::Theme;
+pub use theme::{Theme, ThemePreference};
 
 // ----------------------------------------------------------------------------
 
@@ -174,10 +174,10 @@ pub struct Options {
 
     /// Whether to update the visuals according to the system theme or not.
     ///
-    /// Default: `true`.
-    pub follow_system_theme: bool,
+    /// Default: `ThemePreference::System`.
+    pub theme_preference: ThemePreference,
 
-    /// Which theme to use in case [`Self::follow_system_theme`] is set
+    /// Which theme to use in case [`Self::theme_preference`] is [`ThemePreference::System`]
     /// and egui fails to detect the system theme.
     ///
     /// Default: [`crate::Theme::Dark`].
@@ -280,7 +280,7 @@ impl Default for Options {
 
         Self {
             style: Default::default(),
-            follow_system_theme: true,
+            theme_preference: ThemePreference::System,
             fallback_theme: Theme::Dark,
             system_theme: None,
             zoom_factor: 1.0,
@@ -301,7 +301,7 @@ impl Default for Options {
 
 impl Options {
     pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput) {
-        if self.follow_system_theme {
+        if self.theme_preference == ThemePreference::System {
             let theme_from_visuals = Theme::from_dark_mode(self.style.visuals.dark_mode);
             let current_system_theme = self.system_theme.unwrap_or(theme_from_visuals);
             let new_system_theme = new_raw_input.system_theme.unwrap_or(self.fallback_theme);
@@ -318,6 +318,15 @@ impl Options {
             }
         }
     }
+
+    /// The currently active theme (may depend on the system theme).
+    pub(crate) fn theme(&self) -> Theme {
+        match self.theme_preference {
+            ThemePreference::Dark => Theme::Dark,
+            ThemePreference::Light => Theme::Light,
+            ThemePreference::System => self.system_theme.unwrap_or(self.fallback_theme),
+        }
+    }
 }
 
 impl Options {
@@ -325,7 +334,7 @@ impl Options {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             style, // covered above
-            follow_system_theme: _,
+            theme_preference: _,
             fallback_theme: _,
             system_theme: _,
             zoom_factor: _, // TODO(emilk)
