@@ -787,7 +787,7 @@ impl<'a> Slider<'a> {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        limit / 2.5
+        limit / 2.7
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
