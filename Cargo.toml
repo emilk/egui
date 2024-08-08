@@ -97,9 +97,6 @@ wgpu = { version = "22.0.0", default-features = false, features = [
 ] }
 winit = { version = "0.30.5", default-features = false }
 
-[patch.crates-io]
-winit = { git = "https://github.com/rust-windowing/winit.git", branch = "kchibisov/release-0305" }
-
 [workspace.lints.rust]
 unsafe_code = "deny"
 
