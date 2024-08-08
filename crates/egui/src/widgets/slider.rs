@@ -845,9 +845,15 @@ impl<'a> Slider<'a> {
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
+        let button_padding = match self.orientation {
+            SliderOrientation::Horizontal => ui.spacing().button_padding.y,
+            SliderOrientation::Vertical => ui.spacing().button_padding.x,
+        };
+
         let thickness = ui
             .text_style_height(&ui.style().drag_value_text_style)
-            .at_least(ui.spacing().interact_size.y);
+            .at_least(ui.spacing().interact_size.y)
+            + button_padding;
         let mut response = self.allocate_slider_space(ui, thickness);
         self.slider_ui(ui, &response);
 
