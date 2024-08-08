@@ -787,7 +787,7 @@ impl<'a> Slider<'a> {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        limit / 2.5
+        limit / 2.7
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
@@ -845,9 +845,15 @@ impl<'a> Slider<'a> {
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
+        let button_padding = match self.orientation {
+            SliderOrientation::Horizontal => ui.spacing().button_padding.y,
+            SliderOrientation::Vertical => ui.spacing().button_padding.x,
+        };
+
         let thickness = ui
-            .text_style_height(&TextStyle::Body)
-            .at_least(ui.spacing().interact_size.y);
+            .text_style_height(&ui.style().drag_value_text_style)
+            .at_least(ui.spacing().interact_size.y)
+            + button_padding;
         let mut response = self.allocate_slider_space(ui, thickness);
         self.slider_ui(ui, &response);
 
@@ -922,7 +928,7 @@ impl<'a> Slider<'a> {
 impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let inner_response = match self.orientation {
-            SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),
+            SliderOrientation::Horizontal => ui.horizontal_top(|ui| self.add_contents(ui)),
             SliderOrientation::Vertical => ui.vertical(|ui| self.add_contents(ui)),
         };
 
