@@ -474,6 +474,9 @@ pub use {
     widgets::*,
 };
 
+#[cfg(feature = "snapshot")]
+pub use context::{ContextShapshotBorrow, ContextSnapshot, ContextSnapshotDeltas};
+
 // ----------------------------------------------------------------------------
 
 /// Helper function that adds a label when compiling with debug assertions enabled.

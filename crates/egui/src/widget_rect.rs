@@ -6,6 +6,7 @@ use crate::*;
 ///
 /// Used to check which widget gets input when a user clicks somewhere.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetRect {
     /// The globally unique widget id.
     ///
@@ -47,6 +48,7 @@ pub struct WidgetRect {
 /// All [`Ui`]s have a [`WidgetRects`], but whether or not their rects are correct
 /// depends on if [`Ui::interact_bg`] was ever called.
 #[derive(Default, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetRects {
     /// All widgets, in painting order.
     by_layer: HashMap<LayerId, Vec<WidgetRect>>,

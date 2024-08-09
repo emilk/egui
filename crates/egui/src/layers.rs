@@ -30,7 +30,9 @@ pub enum Order {
 }
 
 impl Order {
-    const COUNT: usize = 6;
+    /// The number of enum variants in `Order`.
+    pub const COUNT: usize = 6;
+
     const ALL: [Self; Self::COUNT] = [
         Self::Background,
         Self::PanelResizeLine,
@@ -170,11 +172,31 @@ impl PaintList {
     pub fn all_entries(&self) -> impl ExactSizeIterator<Item = &ClippedShape> {
         self.0.iter()
     }
+
+    /// Gets an immutable reference to the inner list of clipped shapes.
+    #[allow(unused)]
+    pub(crate) fn as_inner(&self) -> &Vec<ClippedShape> {
+        &self.0
+    }
+
+    /// Gets a mutable reference to the inner list of clipped shapes.
+    #[allow(unused)]
+    pub(crate) fn as_inner_mut(&mut self) -> &mut Vec<ClippedShape> {
+        &mut self.0
+    }
+
+    /// Creates an instance from a list of clipped shapes.
+    #[allow(unused)]
+    pub(crate) fn from_inner(list: Vec<ClippedShape>) -> Self {
+        Self(list)
+    }
 }
+
+pub(crate) type GraphicLayersInner = [IdMap<PaintList>; Order::COUNT];
 
 /// This is where painted [`Shape`]s end up during a frame.
 #[derive(Clone, Default)]
-pub struct GraphicLayers([IdMap<PaintList>; Order::COUNT]);
+pub struct GraphicLayers(GraphicLayersInner);
 
 impl GraphicLayers {
     /// Get or insert the [`PaintList`] for the given [`LayerId`].
@@ -242,5 +264,23 @@ impl GraphicLayers {
         }
 
         all_shapes
+    }
+
+    /// Gets an immutable reference to the inner set of paint list maps.
+    #[allow(unused)]
+    pub(crate) fn as_inner(&self) -> &GraphicLayersInner {
+        &self.0
+    }
+
+    /// Gets a mutable reference to the inner set of paint list maps.
+    #[allow(unused)]
+    pub(crate) fn as_inner_mut(&mut self) -> &mut GraphicLayersInner {
+        &mut self.0
+    }
+
+    /// Creates an instance from the inner set of paint list maps.
+    #[allow(unused)]
+    pub(crate) fn from_inner(maps: GraphicLayersInner) -> Self {
+        Self(maps)
     }
 }

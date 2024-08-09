@@ -112,6 +112,13 @@ impl std::fmt::Display for FontFamily {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontData {
     /// The content of a `.ttf` or `.otf` file.
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_cow_u8",
+            deserialize_with = "deserialize_cow_u8"
+        )
+    )]
     pub font: std::borrow::Cow<'static, [u8]>,
 
     /// Which font face in the file to use.
@@ -142,6 +149,38 @@ impl FontData {
     pub fn tweak(self, tweak: FontTweak) -> Self {
         Self { tweak, ..self }
     }
+}
+
+/// Serializes a `Cow<'static, [u8]>` as a single byte array rather than an element
+/// at a time, increasing efficiency.
+fn serialize_cow_u8<S: serde::Serializer>(
+    #[allow(clippy::ptr_arg)] value: &std::borrow::Cow<'static, [u8]>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_bytes(value)
+}
+
+/// Deserializes a `Cow<'static, [u8]>` as a single byte array rather than an element
+/// at a time, increasing efficiency.
+fn deserialize_cow_u8<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<std::borrow::Cow<'static, [u8]>, D::Error> {
+    /// Visits the deserializer output to obtain a byte buffer.
+    struct Visitor;
+
+    impl<'a> serde::de::Visitor<'a> for Visitor {
+        type Value = std::borrow::Cow<'static, [u8]>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a byte buffer")
+        }
+
+        fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<Self::Value, E> {
+            Ok(std::borrow::Cow::Owned(v))
+        }
+    }
+
+    deserializer.deserialize_byte_buf(Visitor)
 }
 
 // ----------------------------------------------------------------------------

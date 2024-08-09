@@ -11,6 +11,7 @@ use crate::*;
 /// Note that this doesn't care if the mouse button is pressed or not,
 /// or if we're currently already dragging something.
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetHits {
     /// All widgets that contains the pointer, back-to-front.
     ///

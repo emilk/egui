@@ -261,6 +261,7 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 /// configure the size of the window, and what buttons are shown.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[allow(clippy::option_option)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportBuilder {
     /// The title of the viewport.
     /// `eframe` will use this as the title of the native window.

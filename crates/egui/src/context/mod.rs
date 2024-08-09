@@ -7,6 +7,9 @@ use epaint::{
     emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
 };
 
+#[cfg(feature = "snapshot")]
+use snapshot::{MemorySnapshot, OptionsSnapshot, ViewportStateSnapshot};
+
 use crate::{
     animation_manager::AnimationManager,
     data::output::PlatformOutput,
@@ -23,6 +26,12 @@ use crate::{
 };
 
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
+
+#[cfg(feature = "snapshot")]
+pub use self::snapshot::{ContextShapshotBorrow, ContextSnapshot, ContextSnapshotDeltas};
+
+#[cfg(feature = "snapshot")]
+mod snapshot;
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
@@ -397,11 +406,21 @@ struct ContextImpl {
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
 
+    /// Tracks the changes that have occurred to a context to allow
+    /// for partial synchronization with [`ContextSnapshot`]s.
+    #[cfg(feature = "snapshot")]
+    snapshot_deltas: ContextSnapshotDeltas,
+
     loaders: Arc<Loaders>,
 }
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
+        #[cfg(feature = "snapshot")]
+        {
+            self.snapshot_deltas.frame_count = self.snapshot_deltas.frame_count.wrapping_add(1);
+        }
+
         let viewport_id = new_raw_input.viewport_id;
         let parent_id = new_raw_input
             .viewports
@@ -536,6 +555,11 @@ impl ContextImpl {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts.clear();
             self.font_definitions = font_definitions;
+            #[cfg(feature = "snapshot")]
+            {
+                self.snapshot_deltas.font_definitions_count =
+                    self.snapshot_deltas.font_definitions_count.wrapping_add(1);
+            }
             #[cfg(feature = "log")]
             log::debug!("Loading new font definitions");
         }
@@ -626,6 +650,90 @@ impl ContextImpl {
     }
 }
 
+#[cfg(feature = "snapshot")]
+impl ContextImpl {
+    /// Updates the memory from the snapshot.
+    fn apply_memory_snapshot(&mut self, snapshot: MemorySnapshot) {
+        self.memory.new_font_definitions = snapshot.new_font_definitions;
+        self.memory.viewport_id = snapshot.viewport_id;
+        self.memory.popup = snapshot.popup;
+        self.memory.everything_is_visible = snapshot.everything_is_visible;
+        self.memory.layer_transforms = snapshot.layer_transforms;
+        self.memory.areas = snapshot.areas;
+        self.memory.interactions = snapshot.interactions;
+        self.memory.focus = snapshot.focus;
+    }
+
+    /// Updates the options from the snapshot.
+    fn apply_options_snapshot(&mut self, snapshot: &OptionsSnapshot) {
+        self.memory.options.zoom_factor = snapshot.zoom_factor;
+        self.memory.options.zoom_with_keyboard = snapshot.zoom_with_keyboard;
+        self.memory.options.tessellation_options = snapshot.tessellation_options;
+        self.memory.options.repaint_on_widget_change = snapshot.repaint_on_widget_change;
+        self.memory.options.screen_reader = snapshot.screen_reader;
+        self.memory.options.preload_font_glyphs = snapshot.preload_font_glyphs;
+        self.memory.options.warn_on_id_clash = snapshot.warn_on_id_clash;
+        self.memory.options.line_scroll_speed = snapshot.line_scroll_speed;
+        self.memory.options.scroll_zoom_speed = snapshot.scroll_zoom_speed;
+        self.memory.options.reduce_texture_memory = snapshot.reduce_texture_memory;
+    }
+
+    /// Updates the list of viewports from the snapshot list.
+    fn apply_viewport_snapshots(&mut self, snapshots: ViewportIdMap<ViewportStateSnapshot>) {
+        self.viewports.retain(|x, _| snapshots.contains_key(x));
+        for (id, snapshot) in snapshots {
+            let viewport = self
+                .viewports
+                .get_mut(&id)
+                .expect("Failed to get viewport.");
+            viewport.class = snapshot.class;
+            viewport.builder = snapshot.builder;
+            viewport.input = snapshot.input;
+            viewport.this_frame = snapshot.this_frame;
+            viewport.prev_frame = snapshot.prev_frame;
+            viewport.used = snapshot.used;
+            viewport.hits = snapshot.hits;
+            viewport.interact_widgets = snapshot.interact_widgets;
+            viewport.graphics = snapshot.graphics;
+            viewport.output = snapshot.output;
+            viewport.commands = snapshot.commands;
+        }
+
+        self.reinitialize_galleys();
+    }
+
+    /// Reloads all galleys from the cache, because galley data is not serialized
+    /// within [`ContextSnapshot`]s.
+    fn reinitialize_galleys(&mut self) {
+        let pixels_per_point = self.pixels_per_point();
+        if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
+            for viewport in self.viewports.values_mut() {
+                for paint_lists in viewport.graphics.as_inner_mut() {
+                    for paint_list in paint_lists.values_mut() {
+                        for clipped_shape in paint_list.as_inner_mut() {
+                            Self::reinitialize_galleys_for_shape(&mut clipped_shape.shape, fonts);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Reinitializes any galleys associated with this shape from the cache,
+    /// because galley data is not serialized within [`ContextSnapshot`]s.
+    fn reinitialize_galleys_for_shape(shape: &mut Shape, fonts: &Fonts) {
+        match shape {
+            Shape::Vec(x) => {
+                for shape in x {
+                    Self::reinitialize_galleys_for_shape(shape, fonts);
+                }
+            }
+            Shape::Text(x) => x.galley = fonts.layout_job((*x.galley.job).clone()),
+            _ => {}
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Your handle to egui.
@@ -697,6 +805,12 @@ impl Default for Context {
     fn default() -> Self {
         let ctx_impl = ContextImpl {
             embed_viewports: true,
+            #[cfg(feature = "snapshot")]
+            snapshot_deltas: ContextSnapshotDeltas {
+                font_definitions_count: 0,
+                frame_count: 0,
+                style_count: 0,
+            },
             ..Default::default()
         };
         let ctx = Self(Arc::new(RwLock::new(ctx_impl)));
@@ -1539,6 +1653,79 @@ impl Context {
     }
 }
 
+/// `snapshot` feature implementation
+#[cfg(feature = "snapshot")]
+impl Context {
+    /// Applies the provided snapshot to this context, synchronizing its state.
+    pub fn apply_snapshot(&self, value: ContextSnapshot) {
+        let mut new_frame = false;
+        self.write(|ctx| {
+            new_frame = ctx.snapshot_deltas.frame_count != value.deltas.frame_count;
+            if let Some(style) = value.style {
+                ctx.memory.options.style = style;
+            }
+            if let Some(font_definitions) = value.font_definitions {
+                let to_insert =
+                    std::mem::replace(&mut ctx.memory.new_font_definitions, Some(font_definitions));
+                ctx.update_fonts_mut();
+                ctx.memory.new_font_definitions = to_insert;
+            } else if new_frame {
+                // Reset font cache and galleys for new frame
+                let to_insert = std::mem::take(&mut ctx.memory.new_font_definitions);
+                ctx.update_fonts_mut();
+                ctx.memory.new_font_definitions = to_insert;
+            }
+
+            ctx.apply_memory_snapshot(value.memory);
+            ctx.apply_options_snapshot(&value.options);
+            ctx.new_zoom_factor = value.new_zoom_factor;
+            ctx.last_viewport = value.last_viewport;
+            ctx.apply_viewport_snapshots(value.viewports);
+            ctx.snapshot_deltas = value.deltas;
+        });
+
+        if new_frame {
+            self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
+            self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
+        }
+    }
+
+    /// Gets a structure describing the state of this context. This
+    /// may be used to determine what data is necessary to synchronize with another context.
+    pub fn snapshot_deltas(&self) -> ContextSnapshotDeltas {
+        self.read(|ctx| ctx.snapshot_deltas)
+    }
+
+    /// Gets a `ContextShapshotBorrow` that may serialized and used to synchronize
+    /// another context. The data included for synchronization will be based upon
+    /// the provided `deltas`, which should describe the state of the other context.
+    pub fn snapshot_for<R>(
+        &self,
+        deltas: &ContextSnapshotDeltas,
+        reader: impl FnOnce(&ContextShapshotBorrow<'_>) -> R,
+    ) -> R {
+        self.read(|ctx| {
+            let style = (deltas.style_count != ctx.snapshot_deltas.style_count)
+                .then(|| ctx.memory.options.style.clone());
+
+            let font_definitions = (deltas.font_definitions_count
+                != ctx.snapshot_deltas.font_definitions_count)
+                .then_some(&ctx.font_definitions);
+
+            let borrow = ContextShapshotBorrow {
+                deltas: &ctx.snapshot_deltas,
+                font_definitions,
+                memory: &ctx.memory,
+                style,
+                new_zoom_factor: &ctx.new_zoom_factor,
+                last_viewport: &ctx.last_viewport,
+                viewports: &ctx.viewports,
+            };
+            reader(&borrow)
+        })
+    }
+}
+
 /// Callbacks
 impl Context {
     /// Call the given callback at the start of each frame
@@ -1611,7 +1798,13 @@ impl Context {
     /// });
     /// ```
     pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
-        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(&mut opt.style)));
+        self.write(|ctx| {
+            mutate_style(std::sync::Arc::make_mut(&mut ctx.memory.options.style));
+            #[cfg(feature = "snapshot")]
+            {
+                ctx.snapshot_deltas.style_count = ctx.snapshot_deltas.style_count.wrapping_add(1);
+            }
+        });
     }
 
     /// The [`Style`] used by all new windows, panels etc.
@@ -1620,7 +1813,13 @@ impl Context {
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
-        self.options_mut(|opt| opt.style = style.into());
+        self.write(|ctx| {
+            ctx.memory.options.style = style.into();
+            #[cfg(feature = "snapshot")]
+            {
+                ctx.snapshot_deltas.style_count = ctx.snapshot_deltas.style_count.wrapping_add(1);
+            }
+        });
     }
 
     /// The [`Visuals`] used by all subsequent windows, panels etc.

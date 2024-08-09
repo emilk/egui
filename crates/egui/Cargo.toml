@@ -74,6 +74,9 @@ rayon = ["epaint/rayon"]
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
+## Allow creating instant, serializable snapshots of a context
+snapshot = ["serde", "epaint/serde", "ron"]
+
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
