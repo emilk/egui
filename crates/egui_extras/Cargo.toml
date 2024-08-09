@@ -66,6 +66,7 @@ svg = ["resvg"]
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
 
+ios-safe-area = ["dep:objc"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }
@@ -100,6 +101,9 @@ puffin = { workspace = true, optional = true }
 syntect = { version = "5", optional = true, default-features = false, features = [
   "default-fancy",
 ] }
+
+# ios
+objc = { version = "0.2", optional = true }
 
 # svg feature
 resvg = { version = "0.37", optional = true, default-features = false }

@@ -79,3 +79,5 @@ macro_rules! log_or_panic {
     }};
 }
 pub(crate) use log_or_panic;
+#[cfg(feature = "ios-safe-area")]
+pub mod safe_area;
