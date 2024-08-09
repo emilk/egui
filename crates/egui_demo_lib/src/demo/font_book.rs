@@ -79,7 +79,11 @@ impl crate::View for FontBook {
                 ui.spacing_mut().item_spacing = egui::Vec2::splat(2.0);
 
                 for (&chr, name) in named_chars {
-                    if filter.is_empty() || name.contains(filter) || *filter == chr.to_string() {
+                    if filter.is_empty()
+                        || name.contains(filter)
+                        || format!("{:x}", chr as u32).starts_with(filter)
+                        || filter.contains(chr)
+                    {
                         let button = egui::Button::new(
                             egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                         )
