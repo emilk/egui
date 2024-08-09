@@ -237,7 +237,7 @@ impl Ui {
     /// Mutably borrow internal [`Style`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all [`Ui`]:s, use [`Context::set_style`].
+    /// To set the style of all [`Ui`]:s, use [`Context::set_dark_style`] and [`Context::set_light_style`].
     ///
     /// Example:
     /// ```
@@ -251,7 +251,7 @@ impl Ui {
 
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_dark_visuals`] and [`Context::set_light_visuals`].
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
@@ -291,7 +291,7 @@ impl Ui {
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_dark_visuals`] and `Context::set_light_visuals`].
     ///
     /// Example:
     /// ```
