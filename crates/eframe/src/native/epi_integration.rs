@@ -236,10 +236,6 @@ impl EpiIntegration {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::Destroyed => {
-                log::debug!("Received WindowEvent::Destroyed");
-                self.close = true;
-            }
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
                 state: ElementState::Pressed,

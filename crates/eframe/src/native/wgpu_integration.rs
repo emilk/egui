@@ -158,6 +158,7 @@ impl WgpuWinitApp {
             ViewportClass::Root,
             self.native_options.viewport.clone(),
             None,
+            painter,
         )
         .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
     }
@@ -927,8 +928,14 @@ fn render_immediate_viewport(
             ..
         } = &mut *shared.borrow_mut();
 
-        let viewport =
-            initialize_or_update_viewport(viewports, ids, ViewportClass::Immediate, builder, None);
+        let viewport = initialize_or_update_viewport(
+            viewports,
+            ids,
+            ViewportClass::Immediate,
+            builder,
+            None,
+            painter,
+        );
         if viewport.window.is_none() {
             event_loop_context::with_current_event_loop(|event_loop| {
                 viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
@@ -1051,7 +1058,7 @@ fn handle_viewport_output(
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
         let viewport =
-            initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb);
+            initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb, painter);
 
         if let Some(window) = viewport.window.as_ref() {
             let old_inner_size = window.inner_size();
@@ -1084,13 +1091,14 @@ fn handle_viewport_output(
     remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
 }
 
-fn initialize_or_update_viewport(
-    viewports: &mut Viewports,
+fn initialize_or_update_viewport<'a>(
+    viewports: &'a mut Viewports,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-) -> &mut Viewport {
+    painter: &mut egui_wgpu::winit::Painter,
+) -> &'a mut Viewport {
     crate::profile_function!();
 
     if builder.icon.is_none() {
@@ -1135,6 +1143,12 @@ fn initialize_or_update_viewport(
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
+                if let Err(err) = pollster::block_on(painter.set_window(viewport.ids.this, None)) {
+                    log::error!(
+                        "when rendering viewport_id={:?}, set_window Error {err}",
+                        viewport.ids.this
+                    );
+                }
             }
 
             viewport.deferred_commands.append(&mut delta_commands);

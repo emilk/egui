@@ -803,6 +803,18 @@ impl GlowWinitRunning {
                 }
             }
 
+            winit::event::WindowEvent::Destroyed => {
+                log::debug!(
+                    "Received WindowEvent::Destroyed for viewport {:?}",
+                    viewport_id
+                );
+                if viewport_id == Some(ViewportId::ROOT) {
+                    return EventResult::Exit;
+                } else {
+                    return EventResult::Wait;
+                }
+            }
+
             _ => {}
         }
 
@@ -1360,6 +1372,7 @@ fn initialize_or_update_viewport(
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
+                viewport.gl_surface = None;
             }
 
             viewport.deferred_commands.append(&mut delta_commands);
