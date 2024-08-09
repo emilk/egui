@@ -287,8 +287,18 @@ fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
     index
 }
 
+/// Determines whether a character is a component of a word.
+///
+/// Punctuation marks that are commonly used with words are considered word components.
 pub fn is_word_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_'
+    if matches!(
+        c,
+        '_' | '-' | ':' | '/' | '.' | '\\' | '@' | '#' | '?' | '='
+    ) {
+        return true;
+    }
+
+    !c.is_ascii_whitespace() && !c.is_ascii_punctuation()
 }
 
 fn is_linebreak(c: char) -> bool {
