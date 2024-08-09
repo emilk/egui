@@ -1,4 +1,4 @@
-use std::{cell::RefCell, time::Instant};
+use std::time::Instant;
 
 use winit::{
     application::ApplicationHandler,
@@ -32,11 +32,12 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoo
 ///
 /// We reuse the event-loop so we can support closing and opening an eframe window
 /// multiple times. This is just a limitation of winit.
+#[cfg(not(target_os = "ios"))]
 fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, epi::NativeOptions) -> R,
 ) -> Result<R> {
-    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
+    thread_local!(static EVENT_LOOP: std::cell::RefCell<Option<EventLoop<UserEvent>>> = std::cell::RefCell::new(None));
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't
@@ -174,16 +175,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             });
 
         if let Some(next_repaint_time) = next_repaint_time {
-            // WaitUntil seems to not work on iOS
-            #[cfg(target_os = "ios")]
-            winit_app
-                .window_id_from_viewport_id(egui::ViewportId::ROOT)
-                .map(|window_id| {
-                    winit_app
-                        .window(window_id)
-                        .map(|window| window.request_redraw())
-                });
-
             event_loop.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
     }
