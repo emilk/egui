@@ -80,12 +80,12 @@ impl BytesLoader for FileLoader {
                     move || {
                         let result = match std::fs::read(&path) {
                             Ok(bytes) => {
-                                #[cfg(feature = "mime_guess")]
+                                #[cfg(feature = "file")]
                                 let mime = mime_guess2::from_path(&path)
                                     .first_raw()
                                     .map(|v| v.to_owned());
 
-                                #[cfg(not(feature = "mime_guess"))]
+                                #[cfg(not(feature = "file"))]
                                 let mime = None;
 
                                 Ok(File {
