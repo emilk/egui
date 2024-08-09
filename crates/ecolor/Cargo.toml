@@ -2,8 +2,8 @@
 name = "ecolor"
 version.workspace = true
 authors = [
-  "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
-  "Andreas Reich <reichandreas@gmx.de>",
+    "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+    "Andreas Reich <reichandreas@gmx.de>",
 ]
 description = "Color structs and color conversion utilities"
 edition.workspace = true
