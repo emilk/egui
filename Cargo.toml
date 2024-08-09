@@ -95,9 +95,7 @@ wgpu = { version = "22.0.0", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
 ] }
-
-# Currently can't upgrade above 0.30.2 due to https://github.com/rust-windowing/winit/issues/3837
-winit = { version = "=0.30.2", default-features = false }
+winit = { version = "0.30.5", default-features = false }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

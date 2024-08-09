@@ -1114,7 +1114,7 @@ impl GlutinWindowContext {
                 viewport_id,
                 event_loop,
                 Some(window.scale_factor() as f32),
-                window.theme(),
+                event_loop.system_theme(),
                 self.max_texture_side,
             )
         });
