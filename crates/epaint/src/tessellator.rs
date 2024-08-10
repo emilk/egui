@@ -901,7 +901,7 @@ fn stroke_path(
     let bbox = Rect::from_points(
         &path
             .iter()
-            .map(|p| translate_stroke_point(p, &stroke).pos)
+            .map(|p| translate_stroke_point(p, stroke).pos)
             .collect::<Vec<Pos2>>(),
     )
     .expand((stroke.width / 2.0) + feathering);
@@ -938,7 +938,7 @@ fn stroke_path(
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                let p1 = translate_stroke_point(&path[i1 as usize], &stroke);
+                let p1 = translate_stroke_point(&path[i1 as usize], stroke);
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
@@ -980,7 +980,7 @@ fn stroke_path(
 
                     let mut i0 = n - 1;
                     for i1 in 0..n {
-                        let p1 = translate_stroke_point(&path[i1 as usize], &stroke);
+                        let p1 = translate_stroke_point(&path[i1 as usize], stroke);
                         let p = p1.pos;
                         let n = p1.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1025,7 +1025,7 @@ fn stroke_path(
                     out.reserve_vertices(4 * n as usize);
 
                     {
-                        let end = translate_stroke_point(&path[0], &stroke);
+                        let end = translate_stroke_point(&path[0], stroke);
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = n.rot90() * feathering;
@@ -1046,7 +1046,7 @@ fn stroke_path(
 
                     let mut i0 = 0;
                     for i1 in 1..n - 1 {
-                        let point = translate_stroke_point(&path[i1 as usize], &stroke);
+                        let point = translate_stroke_point(&path[i1 as usize], stroke);
                         let p = point.pos;
                         let n = point.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1074,7 +1074,7 @@ fn stroke_path(
 
                     {
                         let i1 = n - 1;
-                        let end = translate_stroke_point(&path[i1 as usize], &stroke);
+                        let end = translate_stroke_point(&path[i1 as usize], stroke);
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = -n.rot90() * feathering;
@@ -1138,7 +1138,7 @@ fn stroke_path(
                     return;
                 }
             }
-            for p in path.iter().map(|p| translate_stroke_point(p, &stroke)) {
+            for p in path.iter().map(|p| translate_stroke_point(p, stroke)) {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
                     mul_color(
@@ -1156,7 +1156,7 @@ fn stroke_path(
             }
         } else {
             let radius = stroke.width / 2.0;
-            for p in path.iter().map(|p| translate_stroke_point(p, &stroke)) {
+            for p in path.iter().map(|p| translate_stroke_point(p, stroke)) {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
                     get_color(&stroke.color, p.pos + radius * p.normal),
