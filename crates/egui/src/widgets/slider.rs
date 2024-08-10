@@ -550,7 +550,7 @@ impl<'a> Slider<'a> {
         self.range.clone()
     }
 
-    fn button_padding(&self, ui: &mut Ui) -> f32 {
+    fn button_padding(&self, ui: &Ui) -> f32 {
         match self.orientation {
             SliderOrientation::Horizontal => ui.spacing().button_padding.y,
             SliderOrientation::Vertical => ui.spacing().button_padding.x,
