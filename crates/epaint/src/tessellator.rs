@@ -532,8 +532,6 @@ pub mod path {
         let r = clamp_rounding(rounding, rect);
 
         if r == Rounding::ZERO {
-            let min = rect.min;
-            let max = rect.max;
             path.reserve(4);
             path.push(pos2(min.x, min.y)); // left top
             path.push(pos2(max.x, min.y)); // right top
@@ -868,6 +866,21 @@ fn fill_closed_path_with_uv(
     }
 }
 
+/// Translate a point according to the stroke kind.
+fn translate_stroke_point(p: &PathPoint, stroke: &PathStroke) -> PathPoint {
+    match stroke.kind {
+        stroke::StrokeKind::Middle => p.clone(),
+        stroke::StrokeKind::Outside => PathPoint {
+            pos: p.pos + p.normal * stroke.width * 0.5,
+            normal: p.normal,
+        },
+        stroke::StrokeKind::Inside => PathPoint {
+            pos: p.pos - p.normal * stroke.width * 0.5,
+            normal: p.normal,
+        },
+    }
+}
+
 /// Tessellate the given path as a stroke with thickness.
 fn stroke_path(
     feathering: f32,
@@ -885,8 +898,13 @@ fn stroke_path(
     let idx = out.vertices.len() as u32;
 
     // expand the bounding box to include the thickness of the path
-    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-        .expand((stroke.width / 2.0) + feathering);
+    let bbox = Rect::from_points(
+        &path
+            .iter()
+            .map(|p| translate_stroke_point(p, &stroke).pos)
+            .collect::<Vec<Pos2>>(),
+    )
+    .expand((stroke.width / 2.0) + feathering);
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
@@ -920,7 +938,7 @@ fn stroke_path(
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                let p1 = &path[i1 as usize];
+                let p1 = translate_stroke_point(&path[i1 as usize], &stroke);
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
@@ -962,7 +980,7 @@ fn stroke_path(
 
                     let mut i0 = n - 1;
                     for i1 in 0..n {
-                        let p1 = &path[i1 as usize];
+                        let p1 = translate_stroke_point(&path[i1 as usize], &stroke);
                         let p = p1.pos;
                         let n = p1.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1007,7 +1025,7 @@ fn stroke_path(
                     out.reserve_vertices(4 * n as usize);
 
                     {
-                        let end = &path[0];
+                        let end = translate_stroke_point(&path[0], &stroke);
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = n.rot90() * feathering;
@@ -1028,7 +1046,7 @@ fn stroke_path(
 
                     let mut i0 = 0;
                     for i1 in 1..n - 1 {
-                        let point = &path[i1 as usize];
+                        let point = translate_stroke_point(&path[i1 as usize], &stroke);
                         let p = point.pos;
                         let n = point.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1056,7 +1074,7 @@ fn stroke_path(
 
                     {
                         let i1 = n - 1;
-                        let end = &path[i1 as usize];
+                        let end = translate_stroke_point(&path[i1 as usize], &stroke);
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = -n.rot90() * feathering;
@@ -1120,7 +1138,7 @@ fn stroke_path(
                     return;
                 }
             }
-            for p in path {
+            for p in path.iter().map(|p| translate_stroke_point(p, &stroke)) {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
                     mul_color(
@@ -1138,7 +1156,7 @@ fn stroke_path(
             }
         } else {
             let radius = stroke.width / 2.0;
-            for p in path {
+            for p in path.iter().map(|p| translate_stroke_point(p, &stroke)) {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
                     get_color(&stroke.color, p.pos + radius * p.normal),
@@ -1403,8 +1421,11 @@ impl Tessellator {
         self.scratchpad_path.clear();
         self.scratchpad_path.add_circle(center, radius);
         self.scratchpad_path.fill(self.feathering, fill, out);
-        self.scratchpad_path
-            .stroke_closed(self.feathering, &stroke.into(), out);
+        self.scratchpad_path.stroke_closed(
+            self.feathering,
+            &PathStroke::from(stroke).outside(),
+            out,
+        );
     }
 
     /// Tessellate a single [`EllipseShape`] into a [`Mesh`].
@@ -1470,8 +1491,11 @@ impl Tessellator {
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_loop(&points);
         self.scratchpad_path.fill(self.feathering, fill, out);
-        self.scratchpad_path
-            .stroke_closed(self.feathering, &stroke.into(), out);
+        self.scratchpad_path.stroke_closed(
+            self.feathering,
+            &PathStroke::from(stroke).outside(),
+            out,
+        );
     }
 
     /// Tessellate a single [`Mesh`] into a [`Mesh`].
@@ -1661,7 +1685,7 @@ impl Tessellator {
                 path.fill(self.feathering, fill, out);
             }
 
-            path.stroke_closed(self.feathering, &stroke.into(), out);
+            path.stroke_closed(self.feathering, &PathStroke::from(stroke).outside(), out);
         }
 
         self.feathering = old_feathering; // restore
@@ -1700,8 +1724,8 @@ impl Tessellator {
         // The contents of the galley is already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
         let galley_pos = pos2(
-            self.round_to_pixel(galley_pos.x),
-            self.round_to_pixel(galley_pos.y),
+            self.round_to_pixel(galley_pos.x) - 0.0,
+            self.round_to_pixel(galley_pos.y) - 0.0,
         );
 
         let uv_normalizer = vec2(
