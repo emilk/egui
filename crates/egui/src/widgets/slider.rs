@@ -852,12 +852,12 @@ impl<'a> Slider<'a> {
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
-        let button_padding = self.button_padding(ui) * 2.0;
+        let button_padding = self.button_padding(ui);
 
         let thickness = ui
             .text_style_height(&ui.style().drag_value_text_style)
             .at_least(ui.spacing().interact_size.y)
-            + button_padding;
+            + (button_padding * 2.0);
         let mut response = self.allocate_slider_space(ui, thickness);
         self.slider_ui(ui, &response);
 
@@ -932,8 +932,8 @@ impl<'a> Slider<'a> {
 impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let inner_response = match self.orientation {
-            SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),
-            SliderOrientation::Vertical => ui.vertical(|ui| self.add_contents(ui)),
+            SliderOrientation::Horizontal => ui.horizontal_centered(|ui| self.add_contents(ui)),
+            SliderOrientation::Vertical => ui.vertical_centered(|ui| self.add_contents(ui)),
         };
 
         inner_response.inner | inner_response.response
