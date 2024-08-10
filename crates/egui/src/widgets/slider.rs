@@ -550,6 +550,13 @@ impl<'a> Slider<'a> {
         self.range.clone()
     }
 
+    fn button_padding(&self, ui: &mut Ui) -> f32 {
+        match self.orientation {
+            SliderOrientation::Horizontal => ui.spacing().button_padding.y,
+            SliderOrientation::Vertical => ui.spacing().button_padding.x,
+        }
+    }
+
     /// For instance, `position` is the mouse position and `position_range` is the physical location of the slider on the screen.
     fn value_from_position(&self, position: f32, position_range: Rangef) -> f64 {
         let normalized = remap_clamp(position, position_range, 0.0..=1.0) as f64;
@@ -787,7 +794,7 @@ impl<'a> Slider<'a> {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        limit / 2.7
+        limit / 2.8
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
@@ -845,10 +852,7 @@ impl<'a> Slider<'a> {
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
-        let button_padding = match self.orientation {
-            SliderOrientation::Horizontal => ui.spacing().button_padding.y,
-            SliderOrientation::Vertical => ui.spacing().button_padding.x,
-        };
+        let button_padding = self.button_padding(ui) * 2.0;
 
         let thickness = ui
             .text_style_height(&ui.style().drag_value_text_style)
@@ -928,7 +932,7 @@ impl<'a> Slider<'a> {
 impl<'a> Widget for Slider<'a> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let inner_response = match self.orientation {
-            SliderOrientation::Horizontal => ui.horizontal_top(|ui| self.add_contents(ui)),
+            SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),
             SliderOrientation::Vertical => ui.vertical(|ui| self.add_contents(ui)),
         };
 
