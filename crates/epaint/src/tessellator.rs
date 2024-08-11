@@ -1721,11 +1721,11 @@ impl Tessellator {
         out.vertices.reserve(galley.num_vertices);
         out.indices.reserve(galley.num_indices);
 
-        // The contents of the galley is already snapped to pixel coordinates,
+        // The contents of the galley are already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
         let galley_pos = pos2(
-            self.round_to_pixel(galley_pos.x) - 0.0,
-            self.round_to_pixel(galley_pos.y) - 0.0,
+            self.round_to_pixel(galley_pos.x),
+            self.round_to_pixel(galley_pos.y),
         );
 
         let uv_normalizer = vec2(
