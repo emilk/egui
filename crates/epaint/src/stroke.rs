@@ -65,7 +65,7 @@ pub enum StrokeKind {
 
 impl Default for StrokeKind {
     fn default() -> Self {
-        Self::Outside
+        Self::Middle
     }
 }
 
