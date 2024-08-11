@@ -277,12 +277,14 @@ impl eframe::App for WrapApp {
         }
 
         let mut cmd = Command::Nothing;
-        egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.visuals_mut().button_frame = false;
-                self.bar_contents(ui, frame, &mut cmd);
+        egui::TopBottomPanel::top("wrap_app_top_bar")
+            .frame(egui::Frame::none().inner_margin(4.0))
+            .show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.visuals_mut().button_frame = false;
+                    self.bar_contents(ui, frame, &mut cmd);
+                });
             });
-        });
 
         self.state.backend_panel.update(ctx, frame);
 
@@ -324,6 +326,7 @@ impl WrapApp {
         egui::SidePanel::left("backend_panel")
             .resizable(false)
             .show_animated(ctx, is_open, |ui| {
+                ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("💻 Backend");
                 });
