@@ -57,7 +57,7 @@ impl std::hash::Hash for Stroke {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum StrokeKind {
+pub(crate) enum StrokeKind {
     Outside,
     Inside,
     Middle,
@@ -77,7 +77,7 @@ impl Default for StrokeKind {
 pub struct PathStroke {
     pub width: f32,
     pub color: ColorMode,
-    pub kind: StrokeKind,
+    pub(crate) kind: StrokeKind,
 }
 
 impl PathStroke {
