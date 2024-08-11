@@ -342,7 +342,7 @@ impl SidePanel {
             // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
             // (hence the shrink).
             let resize_x = side.opposite().side_x(rect.shrink(1.0));
-            let resize_x = ui.painter().round_to_pixel(resize_x);
+            let resize_x = ui.painter().round_to_pixel_center(resize_x);
             ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
@@ -831,7 +831,7 @@ impl TopBottomPanel {
             // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
             // (hence the shrink).
             let resize_y = side.opposite().side_y(rect.shrink(1.0));
-            let resize_y = ui.painter().round_to_pixel(resize_y);
+            let resize_y = ui.painter().round_to_pixel_center(resize_y);
             ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 
