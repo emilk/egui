@@ -279,6 +279,12 @@ impl<'a> Slider<'a> {
         self
     }
 
+    #[inline]
+    pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
+        self.max_decimals = max_decimals;
+        self
+    }
+
     /// Set an exact number of decimals to display.
     ///
     /// Values will also be rounded to this number of decimals.
