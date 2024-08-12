@@ -74,7 +74,7 @@ backtrace = "0.3"
 bytemuck = "1.7.2"
 criterion = { version = "0.5.1", default-features = false }
 document-features = " 0.2.8"
-glow = "0.13"
+glow = "0.14"
 glutin = "0.32.0"
 glutin-winit = "0.5.0"
 image = { version = "0.25", default-features = false }
