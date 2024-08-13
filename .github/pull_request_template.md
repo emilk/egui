@@ -13,5 +13,6 @@ Please read the "Making a PR" section of [`CONTRIBUTING.md`](https://github.com/
 Please be patient! I will review your PR, but my time is limited!
 -->
 
-* Closes <https://github.com/emilk/egui/issues/THE_RELEVANT_ISSUE>
-* [ ] I have followed the instructions in the PR template
+- Closes <https://github.com/emilk/egui/issues/THE_RELEVANT_ISSUE>
+- [ ] I have followed the instructions in the PR template
+- [ ] I ran the `./scripts/check.sh` script and fixed any issues
