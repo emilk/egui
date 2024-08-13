@@ -12,7 +12,7 @@ pub enum ShaderVersion {
     /// OpenGL 1.4 or later
     Gl140,
 
-    /// e.g. WebGL1
+    /// e.g. `WebGL1`
     Es100,
 
     /// e.g. WebGL2

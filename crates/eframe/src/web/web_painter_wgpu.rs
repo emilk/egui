@@ -13,6 +13,7 @@ use crate::WebOptions;
 
 use super::web_painter::WebPainter;
 
+#[allow(dead_code)] //TODO(emilk): check if this is needed
 struct EguiWebWindow(u32);
 
 #[allow(unsafe_code)]

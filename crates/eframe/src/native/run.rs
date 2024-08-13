@@ -36,7 +36,7 @@ fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, epi::NativeOptions) -> R,
 ) -> Result<R> {
-    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
+    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = const { RefCell::new(None) });
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't

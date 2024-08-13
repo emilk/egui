@@ -9,7 +9,7 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-cargo +1.75.0 install --quiet typos-cli
+cargo +1.78.0 install --quiet typos-cli
 
 # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
 # as well as by the wasm32-backend of the wgpu crate.
