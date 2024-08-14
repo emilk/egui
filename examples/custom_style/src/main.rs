@@ -2,7 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui::{
-    self, global_dark_light_mode_buttons, style::Selection, Color32, Stroke, Style,
+    self, global_theme_preference_buttons, style::Selection, Color32, Stroke, Style,
 };
 use egui_demo_lib::{View, WidgetGallery};
 
@@ -61,7 +61,7 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("egui using a customized style");
             ui.label("Switch between dark and light mode to see the different styles in action.");
-            global_dark_light_mode_buttons(ui);
+            global_theme_preference_buttons(ui);
             ui.separator();
             self.widget_gallery.ui(ui);
         });

@@ -133,14 +133,14 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
 }
 
 /// Show a small button to switch to/from dark/light mode (globally).
-pub fn global_dark_light_mode_switch(ui: &mut Ui) {
+pub fn global_theme_preference_switch(ui: &mut Ui) {
     if let Some(new_theme) = ui.ctx().theme().small_toggle_button(ui) {
         ui.ctx().set_theme(new_theme);
     }
 }
 
 /// Show larger buttons for switching between light and dark mode (globally).
-pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
+pub fn global_theme_preference_buttons(ui: &mut Ui) {
     let mut theme_preference = ui.ctx().options(|opt| opt.theme_preference);
     theme_preference.radio_buttons(ui);
     ui.ctx().set_theme(theme_preference);
