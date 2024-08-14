@@ -1491,7 +1491,7 @@ impl Default for Widgets {
 // ----------------------------------------------------------------------------
 
 use crate::{
-    widgets::{reset_button, Button, DragValue, Slider, Widget},
+    widgets::{reset_button, DragValue, Slider, Widget},
     Ui,
 };
 
@@ -1928,30 +1928,6 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
-    /// Show small toggle-button for light and dark mode.
-    #[must_use]
-    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_else_if)]
-        if self.dark_mode {
-            if ui
-                .add(Button::new("☀").frame(false))
-                .on_hover_text("Switch to light mode")
-                .clicked()
-            {
-                return Some(Self::light());
-            }
-        } else {
-            if ui
-                .add(Button::new("🌙").frame(false))
-                .on_hover_text("Switch to dark mode")
-                .clicked()
-            {
-                return Some(Self::dark());
-            }
-        }
-        None
-    }
-
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode: _,
