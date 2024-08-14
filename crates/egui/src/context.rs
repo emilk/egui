@@ -1719,7 +1719,7 @@ impl Context {
     /// The [`Style`] used by all new windows, panels etc. in light mode.
     /// Use [`Self::set_theme`] to choose between dark and light mode.
     ///
-    /// You can also change this using [`Self::dark_style_mut`]
+    /// You can also change this using [`Self::light_style_mut`]
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_light_style(&self, style: impl Into<std::sync::Arc<crate::Style>>) {
