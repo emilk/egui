@@ -175,7 +175,8 @@ pub struct Options {
     /// The default style for new [`Ui`](crate::Ui):s in light mode.
     pub(crate) light_style: std::sync::Arc<Style>,
 
-    /// Whether to update the visuals according to the system theme or not.
+    /// A preference for how to select between [`crate::Context::dark_style()`] and [`crate::Context::light_style()`]
+    /// as the active style used by all subsequent windows, panels etc.
     ///
     /// Default: `ThemePreference::System`.
     pub theme_preference: ThemePreference,
