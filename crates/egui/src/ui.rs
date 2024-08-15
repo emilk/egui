@@ -1218,19 +1218,35 @@ impl Ui {
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        debug_assert!(max_rect.is_finite());
-        let mut child_ui = self.new_child(UiBuilder::new().max_rect(max_rect));
-        let ret = add_contents(&mut child_ui);
-        let final_child_rect = child_ui.min_rect();
+        self.allocate_new_ui(UiBuilder::new().max_rect(max_rect), add_contents)
+    }
 
-        self.placer.advance_after_rects(
-            final_child_rect,
-            final_child_rect,
-            self.spacing().item_spacing,
-        );
+    /// Allocated space (`UiBuilder::max_rect`) and then add content to it.
+    ///
+    /// If the contents overflow, more space will be allocated.
+    /// When finished, the amount of space actually used (`min_rect`) will be allocated in the parent.
+    /// So you can request a lot of space and then use less.
+    pub fn allocate_new_ui<R>(
+        &mut self,
+        ui_builder: UiBuilder,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        self.allocate_new_ui_dyn(ui_builder, Box::new(add_contents))
+    }
 
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
-        InnerResponse::new(ret, response)
+    fn allocate_new_ui_dyn<'c, R>(
+        &mut self,
+        ui_builder: UiBuilder,
+        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
+    ) -> InnerResponse<R> {
+        let mut child_ui = self.new_child(ui_builder);
+        let inner = add_contents(&mut child_ui);
+        let rect = child_ui.min_rect();
+        let item_spacing = self.spacing().item_spacing;
+        self.placer.advance_after_rects(rect, rect, item_spacing);
+
+        let response = self.interact(rect, child_ui.id, Sense::hover());
+        InnerResponse::new(inner, response)
     }
 
     /// Convenience function to get a region to paint on.
@@ -2385,13 +2401,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let mut child_ui = self.new_child(UiBuilder::new().layout(layout));
-        let inner = add_contents(&mut child_ui);
-        let rect = child_ui.min_rect();
-        let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
-
-        InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
+        self.allocate_new_ui_dyn(UiBuilder::new().layout(layout), add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
