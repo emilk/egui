@@ -4,7 +4,7 @@ use crate::{Id, Layout, Rect, Style, UiStackInfo};
 
 /// Build a [`Ui`] as the chlild of another [`Ui`].
 ///
-/// By default, everyhting is inherited from the parent,
+/// By default, everything is inherited from the parent,
 /// except for `max_rect` which by default is set to
 /// the parent [`Ui::available_rect_before_wrap`].
 #[must_use]
@@ -82,7 +82,7 @@ impl UiBuilder {
 
     /// Make the contents invisible.
     ///
-    /// Will also diable the `Ui` (see [`Self::disable`]).
+    /// Will also disable the `Ui` (see [`Self::disable`]).
     ///
     /// If the parent `Ui` is invisible, the child will always be invisible.
     #[inline]
