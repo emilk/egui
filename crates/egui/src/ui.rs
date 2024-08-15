@@ -130,13 +130,14 @@ impl Ui {
     /// [`Self::scope`] if needed.
     ///
     /// When in doubt, use `None` for the `UiStackInfo` argument.
+    #[deprecated = "Use ui.child_from_builder instead"]
     pub fn child_ui(
         &mut self,
         max_rect: Rect,
         layout: Layout,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
-        self.child_from_builder(
+        self.new_child(
             UiBuilder::new()
                 .max_rect(max_rect)
                 .layout(layout)
@@ -155,7 +156,7 @@ impl Ui {
         id_source: impl Hash,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
-        self.child_from_builder(
+        self.new_child(
             UiBuilder::new()
                 .id_source(id_source)
                 .max_rect(max_rect)
@@ -165,7 +166,7 @@ impl Ui {
     }
 
     /// Create a child `Ui` with the properties of the given builder.
-    pub fn child_from_builder(&mut self, ui_builder: UiBuilder) -> Self {
+    pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_source,
             ui_stack_info,
@@ -1171,7 +1172,7 @@ impl Ui {
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
 
-        let mut child_ui = self.child_ui(child_rect, layout, None);
+        let mut child_ui = self.new_child(UiBuilder::new().max_rect(child_rect).layout(layout));
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -1193,7 +1194,7 @@ impl Ui {
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
         debug_assert!(max_rect.is_finite());
-        let mut child_ui = self.child_ui(max_rect, *self.layout(), None);
+        let mut child_ui = self.new_child(UiBuilder::new().max_rect(max_rect));
         let ret = add_contents(&mut child_ui);
         let final_child_rect = child_ui.min_rect();
 
@@ -2069,7 +2070,7 @@ impl Ui {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui = self.child_from_builder(ui_builder);
+        let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -2129,7 +2130,7 @@ impl Ui {
         child_rect.min.x += indent;
 
         let mut child_ui =
-            self.child_from_builder(UiBuilder::new().id_source(id_source).max_rect(child_rect));
+            self.new_child(UiBuilder::new().id_source(id_source).max_rect(child_rect));
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;
@@ -2351,7 +2352,7 @@ impl Ui {
         layout: Layout,
         add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout, None);
+        let mut child_ui = self.new_child(UiBuilder::new().layout(layout));
         let inner = add_contents(&mut child_ui);
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
@@ -2434,8 +2435,11 @@ impl Ui {
                     pos,
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
-                let mut column_ui =
-                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
+                let mut column_ui = self.new_child(
+                    UiBuilder::new()
+                        .max_rect(child_rect)
+                        .layout(Layout::top_down_justified(Align::LEFT)),
+                );
                 column_ui.set_width(column_width);
                 column_ui
             })
@@ -2488,8 +2492,11 @@ impl Ui {
                 pos,
                 pos2(pos.x + column_width, self.max_rect().right_bottom().y),
             );
-            let mut column_ui =
-                self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
+            let mut column_ui = self.new_child(
+                UiBuilder::new()
+                    .max_rect(child_rect)
+                    .layout(Layout::top_down_justified(Align::LEFT)),
+            );
             column_ui.set_width(column_width);
             column_ui
         });

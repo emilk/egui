@@ -261,7 +261,7 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_from_builder(
+        let mut panel_ui = ui.new_child(
             UiBuilder::new()
                 .id_source(id)
                 .ui_stack_info(UiStackInfo::new(match side {
@@ -751,7 +751,7 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_from_builder(
+        let mut panel_ui = ui.new_child(
             UiBuilder::new()
                 .id_source(id)
                 .ui_stack_info(UiStackInfo::new(match side {
@@ -1093,10 +1093,11 @@ impl CentralPanel {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let mut panel_ui = ui.child_ui(
-            panel_rect,
-            Layout::top_down(Align::Min),
-            Some(UiStackInfo::new(UiKind::CentralPanel)),
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::CentralPanel))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
