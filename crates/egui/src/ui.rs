@@ -1196,16 +1196,10 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
-
-        let mut child_ui = self.new_child(UiBuilder::new().max_rect(child_rect).layout(layout));
-        let ret = add_contents(&mut child_ui);
-        let final_child_rect = child_ui.min_rect();
-
-        self.placer
-            .advance_after_rects(final_child_rect, final_child_rect, item_spacing);
-
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
-        InnerResponse::new(ret, response)
+        self.allocate_new_ui(
+            UiBuilder::new().max_rect(child_rect).layout(layout),
+            add_contents,
+        )
     }
 
     /// Allocated the given rectangle and then adds content to that rectangle.
@@ -1244,7 +1238,6 @@ impl Ui {
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
-
         let response = self.interact(rect, child_ui.id, Sense::hover());
         InnerResponse::new(inner, response)
     }
@@ -2330,7 +2323,10 @@ impl Ui {
     /// See also [`Self::with_layout`] for more options.
     #[inline]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.with_layout_dyn(Layout::top_down(Align::Min), Box::new(add_contents))
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::top_down(Align::Min)),
+            add_contents,
+        )
     }
 
     /// Start a ui with vertical layout.
@@ -2349,7 +2345,10 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(Layout::top_down(Align::Center), Box::new(add_contents))
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::top_down(Align::Center)),
+            add_contents,
+        )
     }
 
     /// Start a ui with vertical layout.
@@ -2367,9 +2366,9 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(
-            Layout::top_down(Align::Center).with_cross_justify(true),
-            Box::new(add_contents),
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::top_down(Align::Center).with_cross_justify(true)),
+            add_contents,
         )
     }
 
@@ -2393,15 +2392,7 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(layout, Box::new(add_contents))
-    }
-
-    fn with_layout_dyn<'c, R>(
-        &mut self,
-        layout: Layout,
-        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
-    ) -> InnerResponse<R> {
-        self.allocate_new_ui_dyn(UiBuilder::new().layout(layout), add_contents)
+        self.allocate_new_ui(UiBuilder::new().layout(layout), add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
@@ -2411,9 +2402,9 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(
-            Layout::centered_and_justified(Direction::TopDown),
-            Box::new(add_contents),
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::centered_and_justified(Direction::TopDown)),
+            add_contents,
         )
     }
 
