@@ -7,6 +7,7 @@ use crate::{Id, Layout, Rect, Style, UiStackInfo};
 /// By default, everyhting is inherited from the parent,
 /// except for `max_rect` which by default is set to
 /// the parent [`Ui::available_rect_before_wrap`].
+#[must_use]
 #[derive(Default)]
 pub struct UiBuilder {
     pub id_source: Option<Id>,
@@ -81,10 +82,13 @@ impl UiBuilder {
 
     /// Make the contents invisible.
     ///
+    /// Will also diable the `Ui` (see [`Self::disable`]).
+    ///
     /// If the parent `Ui` is invisible, the child will always be invisible.
     #[inline]
     pub fn invisible(mut self) -> Self {
         self.invisible = true;
+        self.disabled = true;
         self
     }
 
@@ -96,6 +100,8 @@ impl UiBuilder {
     #[inline]
     pub fn sizing_pass(mut self) -> Self {
         self.sizing_pass = true;
+        self.invisible = true;
+        self.disabled = true;
         self
     }
 

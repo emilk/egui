@@ -75,20 +75,34 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
-    /// Create a new [`Ui`].
+    /// Create a new top-level [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(
-        ctx: Context,
-        layer_id: LayerId,
-        id: Id,
-        max_rect: Rect,
-        clip_rect: Rect,
-        ui_stack_info: UiStackInfo,
-    ) -> Self {
-        let style = ctx.style();
-        let layout = Layout::default();
+    pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
+        let UiBuilder {
+            id_source,
+            ui_stack_info,
+            max_rect,
+            layout,
+            disabled,
+            invisible,
+            sizing_pass,
+            style,
+        } = ui_builder;
+
+        debug_assert!(
+            id_source.is_none(),
+            "Top-level Ui:s should not have an id_source"
+        );
+
+        let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
+        let clip_rect = max_rect;
+        let layout = layout.unwrap_or_default();
+        let invisible = invisible || sizing_pass;
+        let disabled = disabled || invisible || sizing_pass;
+        let style = style.unwrap_or_else(|| ctx.style());
+
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
             id,
@@ -98,7 +112,7 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
-        let ui = Ui {
+        let mut ui = Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
@@ -120,6 +134,16 @@ impl Ui {
             sense: Sense::hover(),
             enabled: ui.enabled,
         });
+
+        if disabled {
+            ui.disable();
+        }
+        if invisible {
+            ui.set_invisible();
+        }
+        if sizing_pass {
+            ui.set_sizing_pass();
+        }
 
         ui
     }
@@ -183,7 +207,8 @@ impl Ui {
         let id_source = id_source.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
-        let enabled = self.enabled && !disabled;
+        let invisible = invisible || sizing_pass;
+        let enabled = self.enabled && !disabled && !invisible && !sizing_pass;
         if invisible {
             painter.set_invisible();
         }
@@ -1527,12 +1552,11 @@ impl Ui {
         visible: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope(|ui| {
-            if !visible {
-                ui.set_invisible();
-            }
-            add_contents(ui)
-        })
+        let mut ui_builder = UiBuilder::new();
+        if !visible {
+            ui_builder = ui_builder.invisible();
+        }
+        self.scope_builder(ui_builder, add_contents)
     }
 
     /// Add extra space before the next widget.
@@ -2061,6 +2085,15 @@ impl Ui {
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         self.scope_dyn(UiBuilder::new(), Box::new(add_contents))
+    }
+
+    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
+    pub fn scope_builder<R>(
+        &mut self,
+        ui_builder: UiBuilder,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.scope_dyn(ui_builder, Box::new(add_contents))
     }
 
     /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
