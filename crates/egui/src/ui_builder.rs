@@ -2,6 +2,9 @@ use std::{hash::Hash, sync::Arc};
 
 use crate::{Id, Layout, Rect, Style, UiStackInfo};
 
+#[allow(unused_imports)] // Used for doclinks
+use crate::Ui;
+
 /// Build a [`Ui`] as the chlild of another [`Ui`].
 ///
 /// By default, everything is inherited from the parent,
@@ -82,7 +85,7 @@ impl UiBuilder {
 
     /// Make the contents invisible.
     ///
-    /// Will also disable the `Ui` (see [`Self::disable`]).
+    /// Will also disable the `Ui` (see [`Self::disabled`]).
     ///
     /// If the parent `Ui` is invisible, the child will always be invisible.
     #[inline]
