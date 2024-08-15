@@ -136,7 +136,12 @@ impl Ui {
         layout: Layout,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
-        self.child_ui_with_id_source(max_rect, layout, "child", ui_stack_info)
+        self.child_from_builder(
+            UiBuilder::new()
+                .layout(layout)
+                .ui_stack_info(ui_stack_info.unwrap_or_default()),
+            max_rect,
+        )
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
@@ -145,10 +150,41 @@ impl Ui {
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
-        mut layout: Layout,
+        layout: Layout,
         id_source: impl Hash,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
+        self.child_from_builder(
+            UiBuilder::new()
+                .id_source(id_source)
+                .layout(layout)
+                .ui_stack_info(ui_stack_info.unwrap_or_default()),
+            max_rect,
+        )
+    }
+
+    /// Create a child `Ui` with the properties of the given builder.
+    pub fn child_from_builder(&mut self, ui_builder: UiBuilder, max_rect: Rect) -> Self {
+        let UiBuilder {
+            id_source,
+            ui_stack_info,
+            layout,
+            disabled,
+            invisible,
+            sizing_pass,
+            style,
+        } = ui_builder;
+
+        let enabled = self.enabled && !disabled;
+        let sizing_pass = self.sizing_pass || sizing_pass;
+        let id_source = id_source.unwrap_or_else(|| Id::from("child"));
+        let mut layout = layout.unwrap_or(*self.layout());
+        let style = style.unwrap_or_else(|| self.style.clone());
+        let mut painter = self.painter.clone();
+        if invisible {
+            painter.set_invisible();
+        }
+
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
             // so that we measure the only the space we _need_.
@@ -167,7 +203,7 @@ impl Ui {
         let ui_stack = UiStack {
             id: new_id,
             layout_direction: layout.main_dir,
-            info: ui_stack_info.unwrap_or_default(),
+            info: ui_stack_info,
             parent: Some(self.stack.clone()),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
@@ -175,11 +211,11 @@ impl Ui {
         let child_ui = Ui {
             id: new_id,
             next_auto_id_source,
-            painter: self.painter.clone(),
-            style: self.style.clone(),
+            painter,
+            style,
             placer,
-            enabled: self.enabled,
-            sizing_pass: self.sizing_pass,
+            enabled,
+            sizing_pass,
             menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
         };
