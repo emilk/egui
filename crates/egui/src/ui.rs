@@ -154,7 +154,7 @@ impl Ui {
     /// [`Self::scope`] if needed.
     ///
     /// When in doubt, use `None` for the `UiStackInfo` argument.
-    #[deprecated = "Use ui.child_from_builder instead"]
+    #[deprecated = "Use ui.new_child() instead"]
     pub fn child_ui(
         &mut self,
         max_rect: Rect,
@@ -172,7 +172,7 @@ impl Ui {
     /// Create a new [`Ui`] at a specific region with a specific id.
     ///
     /// When in doubt, use `None` for the `UiStackInfo` argument.
-    #[deprecated = "Use ui.child_from_builder instead"]
+    #[deprecated = "Use ui.new_child() instead"]
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
@@ -1269,7 +1269,10 @@ impl Ui {
         let painter = self.painter().with_clip_rect(clip_rect);
         (response, painter)
     }
+}
 
+/// # Scrolling
+impl Ui {
     /// Adjust the scroll position of any parent [`ScrollArea`] so that the given [`Rect`] becomes visible.
     ///
     /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
@@ -2655,7 +2658,10 @@ impl Ui {
 
         (InnerResponse { inner, response }, payload)
     }
+}
 
+/// # Menues
+impl Ui {
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
