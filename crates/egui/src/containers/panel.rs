@@ -261,14 +261,15 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(
+        let mut panel_ui = ui.child_from_builder(
             panel_rect,
-            Layout::top_down(Align::Min),
-            id,
-            Some(UiStackInfo::new(match side {
-                Side::Left => UiKind::LeftPanel,
-                Side::Right => UiKind::RightPanel,
-            })),
+            UiBuilder::new()
+                .id_source(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    Side::Left => UiKind::LeftPanel,
+                    Side::Right => UiKind::RightPanel,
+                }))
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
@@ -750,14 +751,15 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(
+        let mut panel_ui = ui.child_from_builder(
             panel_rect,
-            Layout::top_down(Align::Min),
-            id,
-            Some(UiStackInfo::new(match side {
-                TopBottomSide::Top => UiKind::TopPanel,
-                TopBottomSide::Bottom => UiKind::BottomPanel,
-            })),
+            UiBuilder::new()
+                .id_source(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    TopBottomSide::Top => UiKind::TopPanel,
+                    TopBottomSide::Bottom => UiKind::BottomPanel,
+                }))
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)

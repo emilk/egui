@@ -137,16 +137,17 @@ impl Ui {
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.child_from_builder(
+            max_rect,
             UiBuilder::new()
                 .layout(layout)
                 .ui_stack_info(ui_stack_info.unwrap_or_default()),
-            max_rect,
         )
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
     ///
     /// When in doubt, use `None` for the `UiStackInfo` argument.
+    #[deprecated = "Use ui.child_from_builder instead"]
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
@@ -155,16 +156,16 @@ impl Ui {
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.child_from_builder(
+            max_rect,
             UiBuilder::new()
                 .id_source(id_source)
                 .layout(layout)
                 .ui_stack_info(ui_stack_info.unwrap_or_default()),
-            max_rect,
         )
     }
 
     /// Create a child `Ui` with the properties of the given builder.
-    pub fn child_from_builder(&mut self, ui_builder: UiBuilder, max_rect: Rect) -> Self {
+    pub fn child_from_builder(&mut self, max_rect: Rect, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_source,
             ui_stack_info,
@@ -2022,7 +2023,10 @@ impl Ui {
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new(id_source), None)
+        self.scope_dyn(
+            UiBuilder::new().id_source(id_source),
+            Box::new(add_contents),
+        )
     }
 
     /// Push another level onto the [`UiStack`].
@@ -2034,9 +2038,8 @@ impl Ui {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope_dyn(
+            UiBuilder::new().ui_stack_info(ui_stack_info),
             Box::new(add_contents),
-            Id::new("child"),
-            Some(ui_stack_info),
         )
     }
 
@@ -2053,19 +2056,19 @@ impl Ui {
     /// # });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new("child"), None)
+        self.scope_dyn(UiBuilder::new(), Box::new(add_contents))
     }
 
-    fn scope_dyn<'c, R>(
+    /// Allocate a child with [`Self::available_rect_before_wrap`] as its `max_rect`,
+    /// add content to it, and then allocate only what was used in the parent `Ui`.
+    pub fn scope_dyn<'c, R>(
         &mut self,
+        ui_builder: UiBuilder,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-        id_source: Id,
-        ui_stack_info: Option<UiStackInfo>,
     ) -> InnerResponse<R> {
         let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui =
-            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, ui_stack_info);
+        let mut child_ui = self.child_from_builder(child_rect, ui_builder);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -2125,7 +2128,7 @@ impl Ui {
         child_rect.min.x += indent;
 
         let mut child_ui =
-            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
+            self.child_from_builder(child_rect, UiBuilder::new().id_source(id_source));
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;
