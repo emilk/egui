@@ -2660,7 +2660,7 @@ impl Ui {
     }
 }
 
-/// # Menues
+/// # Menus
 impl Ui {
     /// Close the menu we are in (including submenus), if any.
     ///
