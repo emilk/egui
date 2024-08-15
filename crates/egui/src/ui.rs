@@ -137,8 +137,8 @@ impl Ui {
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.child_from_builder(
-            max_rect,
             UiBuilder::new()
+                .max_rect(max_rect)
                 .layout(layout)
                 .ui_stack_info(ui_stack_info.unwrap_or_default()),
         )
@@ -156,19 +156,20 @@ impl Ui {
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.child_from_builder(
-            max_rect,
             UiBuilder::new()
                 .id_source(id_source)
+                .max_rect(max_rect)
                 .layout(layout)
                 .ui_stack_info(ui_stack_info.unwrap_or_default()),
         )
     }
 
     /// Create a child `Ui` with the properties of the given builder.
-    pub fn child_from_builder(&mut self, max_rect: Rect, ui_builder: UiBuilder) -> Self {
+    pub fn child_from_builder(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_source,
             ui_stack_info,
+            max_rect,
             layout,
             disabled,
             invisible,
@@ -176,15 +177,17 @@ impl Ui {
             style,
         } = ui_builder;
 
-        let enabled = self.enabled && !disabled;
-        let sizing_pass = self.sizing_pass || sizing_pass;
-        let id_source = id_source.unwrap_or_else(|| Id::from("child"));
-        let mut layout = layout.unwrap_or(*self.layout());
-        let style = style.unwrap_or_else(|| self.style.clone());
         let mut painter = self.painter.clone();
+
+        let id_source = id_source.unwrap_or_else(|| Id::from("child"));
+        let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
+        let mut layout = layout.unwrap_or(*self.layout());
+        let enabled = self.enabled && !disabled;
         if invisible {
             painter.set_invisible();
         }
+        let sizing_pass = self.sizing_pass || sizing_pass;
+        let style = style.unwrap_or_else(|| self.style.clone());
 
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -2059,16 +2062,14 @@ impl Ui {
         self.scope_dyn(UiBuilder::new(), Box::new(add_contents))
     }
 
-    /// Allocate a child with [`Self::available_rect_before_wrap`] as its `max_rect`,
-    /// add content to it, and then allocate only what was used in the parent `Ui`.
+    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
     pub fn scope_dyn<'c, R>(
         &mut self,
         ui_builder: UiBuilder,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let child_rect = self.available_rect_before_wrap();
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui = self.child_from_builder(child_rect, ui_builder);
+        let mut child_ui = self.child_from_builder(ui_builder);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -2128,7 +2129,7 @@ impl Ui {
         child_rect.min.x += indent;
 
         let mut child_ui =
-            self.child_from_builder(child_rect, UiBuilder::new().id_source(id_source));
+            self.child_from_builder(UiBuilder::new().id_source(id_source).max_rect(child_rect));
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;

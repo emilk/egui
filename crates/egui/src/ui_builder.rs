@@ -1,11 +1,17 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{Id, Layout, Style, UiStackInfo};
+use crate::{Id, Layout, Rect, Style, UiStackInfo};
 
+/// Build a [`Ui`] as the chlild of another [`Ui`].
+///
+/// By default, everyhting is inherited from the parent,
+/// except for `max_rect` which by default is set to
+/// the parent [`Ui::available_rect_before_wrap`].
 #[derive(Default)]
 pub struct UiBuilder {
     pub id_source: Option<Id>,
     pub ui_stack_info: UiStackInfo,
+    pub max_rect: Option<Rect>,
     pub layout: Option<Layout>,
     pub disabled: bool,
     pub invisible: bool,
@@ -34,6 +40,24 @@ impl UiBuilder {
     #[inline]
     pub fn ui_stack_info(mut self, ui_stack_info: UiStackInfo) -> Self {
         self.ui_stack_info = ui_stack_info;
+        self
+    }
+
+    /// Set the max rectangle, within which widgets will go.
+    ///
+    /// New widgets will *try* to fit within this rectangle.
+    ///
+    /// Text labels will wrap to fit within `max_rect`.
+    /// Separator lines will span the `max_rect`.
+    ///
+    /// If a new widget doesn't fit within the `max_rect` then the
+    /// [`Ui`] will make room for it by expanding both `min_rect` and
+    ///
+    /// If not set, this will be set to the parent
+    /// [`Ui::available_rect_before_wrap`].
+    #[inline]
+    pub fn max_rect(mut self, max_rect: Rect) -> Self {
+        self.max_rect = Some(max_rect);
         self
     }
 

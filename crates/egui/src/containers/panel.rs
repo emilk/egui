@@ -262,13 +262,13 @@ impl SidePanel {
         }
 
         let mut panel_ui = ui.child_from_builder(
-            panel_rect,
             UiBuilder::new()
                 .id_source(id)
                 .ui_stack_info(UiStackInfo::new(match side {
                     Side::Left => UiKind::LeftPanel,
                     Side::Right => UiKind::RightPanel,
                 }))
+                .max_rect(panel_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
@@ -752,13 +752,13 @@ impl TopBottomPanel {
         }
 
         let mut panel_ui = ui.child_from_builder(
-            panel_rect,
             UiBuilder::new()
                 .id_source(id)
                 .ui_stack_info(UiStackInfo::new(match side {
                     TopBottomSide::Top => UiKind::TopPanel,
                     TopBottomSide::Bottom => UiKind::BottomPanel,
                 }))
+                .max_rect(panel_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
