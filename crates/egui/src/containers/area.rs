@@ -532,14 +532,18 @@ impl Prepared {
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
         let max_rect = self.state.rect();
 
-        let mut ui = Ui::new(
-            ctx.clone(),
-            self.layer_id,
-            self.layer_id.id,
-            UiBuilder::new()
-                .ui_stack_info(UiStackInfo::new(self.kind))
-                .max_rect(max_rect),
-        );
+        let mut ui_builder = UiBuilder::new()
+            .ui_stack_info(UiStackInfo::new(self.kind))
+            .max_rect(max_rect);
+
+        if !self.enabled {
+            ui_builder = ui_builder.disabled();
+        }
+        if self.sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+
+        let mut ui = Ui::new(ctx.clone(), self.layer_id, self.layer_id.id, ui_builder);
         ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
         if self.fade_in {
@@ -555,12 +559,6 @@ impl Prepared {
             }
         }
 
-        if !self.enabled {
-            ui.disable();
-        }
-        if self.sizing_pass {
-            ui.set_sizing_pass();
-        }
         ui
     }
 
