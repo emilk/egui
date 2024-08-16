@@ -732,7 +732,7 @@ impl ScrollArea {
 
             let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 
-            ui.allocate_ui_at_rect(rect, |viewport_ui| {
+            ui.allocate_new_ui(UiBuilder::new().max_rect(rect), |viewport_ui| {
                 viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
                 add_contents(viewport_ui, min_row..max_row)
             })

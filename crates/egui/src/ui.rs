@@ -1207,6 +1207,7 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
+    #[deprecated = "Use `allocate_new_ui` instead"]
     pub fn allocate_ui_at_rect<R>(
         &mut self,
         max_rect: Rect,
@@ -1445,9 +1446,12 @@ impl Ui {
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
-        self.allocate_ui_at_rect(max_rect, |ui| {
-            ui.centered_and_justified(|ui| ui.add(widget)).inner
-        })
+        self.allocate_new_ui(
+            UiBuilder::new()
+                .max_rect(max_rect)
+                .layout(Layout::centered_and_justified(Direction::TopDown)),
+            |ui| ui.add(widget),
+        )
         .inner
     }
 
