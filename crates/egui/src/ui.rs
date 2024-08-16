@@ -1563,6 +1563,7 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use 'ui.scope_builder' instead"]
     pub fn add_visible_ui<R>(
         &mut self,
         visible: bool,
@@ -2076,6 +2077,7 @@ impl Ui {
     /// Push another level onto the [`UiStack`].
     ///
     /// You can use this, for instance, to tag a group of widgets.
+    #[deprecated = "Use 'ui.scope_builder' instead"]
     pub fn push_stack_info<R>(
         &mut self,
         ui_stack_info: UiStackInfo,
