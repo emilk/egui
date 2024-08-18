@@ -1,4 +1,4 @@
-use emath::{remap_clamp, Rect};
+use emath::{pos2, remap_clamp, Rect};
 
 use crate::{FontImage, ImageDelta};
 
@@ -150,8 +150,8 @@ impl TextureAtlas {
                 } = disc.uv;
                 let w = max_x - min_x;
                 let uv = Rect::from_min_max(
-                    emath::pos2(min_x as f32 * inv_w, min_y as f32 * inv_h),
-                    emath::pos2(max_x as f32 * inv_w, max_y as f32 * inv_h),
+                    pos2(min_x as f32 * inv_w, min_y as f32 * inv_h),
+                    pos2(max_x as f32 * inv_w, max_y as f32 * inv_h),
                 );
                 PreparedDisc { r, w: w as f32, uv }
             })

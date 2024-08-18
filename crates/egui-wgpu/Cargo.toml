@@ -48,6 +48,7 @@ x11 = ["winit?/x11"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }
+emath.workspace = true
 epaint = { workspace = true, default-features = false, features = ["bytemuck"] }
 
 ahash.workspace = true

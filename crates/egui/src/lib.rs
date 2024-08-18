@@ -416,9 +416,9 @@ pub use accesskit;
 
 pub use ahash;
 
+pub use ecolor;
+pub use emath;
 pub use epaint;
-pub use epaint::ecolor;
-pub use epaint::emath;
 
 #[cfg(feature = "color-hex")]
 pub use ecolor::hex_color;

@@ -79,6 +79,7 @@ unity = ["epaint/unity"]
 
 
 [dependencies]
+ecolor = { workspace = true, default-features = false }
 emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 

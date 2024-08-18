@@ -2,7 +2,7 @@
 
 use std::{fmt::Debug, sync::Arc};
 
-use super::{Color32, ColorMode, Pos2, Rect, emath};
+use super::{Color32, ColorMode, Pos2, Rect};
 
 /// Describes the width and color of a line.
 ///

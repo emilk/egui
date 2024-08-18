@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    emath::NumExt, mutex::RwLock, textures::TextureOptions, ImageData, ImageDelta, TextureId,
-    TextureManager,
+    mutex::RwLock, textures::TextureOptions, ImageData, ImageDelta, TextureId, TextureManager,
 };
+use emath::NumExt;
 
 /// Used to paint images.
 ///

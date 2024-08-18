@@ -2,7 +2,8 @@
 //! are sometimes painted behind or in front of other things.
 
 use crate::{Id, *};
-use epaint::{emath::TSTransform, ClippedShape, Shape};
+use emath::TSTransform;
+use epaint::{ClippedShape, Shape};
 
 /// Different layer categories
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]

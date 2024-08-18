@@ -1,11 +1,11 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
 use ahash::{HashMap, HashSet};
-use epaint::emath::TSTransform;
+use emath::{vec2, Pos2, Rect, TSTransform, Vec2};
 
 use crate::{
-    area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
-    ViewportId, ViewportIdMap, ViewportIdSet,
+    area, EventFilter, Id, IdMap, LayerId, Order, Rangef, RawInput, Style, ViewportId,
+    ViewportIdMap, ViewportIdSet,
 };
 
 mod theme;

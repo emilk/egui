@@ -3,7 +3,8 @@
 use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
 use ahash::HashMap;
-use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
+use emath::NumExt;
+use epaint::{PaintCallbackInfo, Primitive, Vertex};
 
 use wgpu::util::DeviceExt as _;
 
@@ -20,7 +21,7 @@ pub struct Callback(Box<dyn CallbackTrait>);
 impl Callback {
     /// Creates a new [`epaint::PaintCallback`] from a callback trait instance.
     pub fn new_paint_callback(
-        rect: epaint::emath::Rect,
+        rect: emath::Rect,
         callback: impl CallbackTrait + 'static,
     ) -> epaint::PaintCallback {
         epaint::PaintCallback {
