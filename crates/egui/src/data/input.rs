@@ -1,8 +1,9 @@
 //! The input needed by egui.
 
+use emath::{Pos2, Rect, Vec2};
 use epaint::ColorImage;
 
-use crate::{emath::*, Key, Theme, ViewportId, ViewportIdMap};
+use crate::{Key, Theme, ViewportId, ViewportIdMap};
 
 /// What the integrations provides to egui at the start of each frame.
 ///

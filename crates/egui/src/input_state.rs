@@ -1,13 +1,14 @@
 mod touch_state;
 
 use crate::data::input::*;
-use crate::{emath::*, util::History};
+use crate::util::History;
 use std::{
     collections::{BTreeMap, HashSet},
     time::Duration,
 };
 
 pub use crate::Key;
+use emath::{vec2, NumExt, Pos2, Rect, Vec2};
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
@@ -299,7 +300,7 @@ impl InputState {
 
         {
             let dt = stable_dt.at_most(0.1);
-            let t = crate::emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
+            let t = emath::exponential_smooth_factor(0.90, 0.1, dt); // reach _% in _ seconds. TODO(emilk): parameterize
 
             if unprocessed_scroll_delta != Vec2::ZERO {
                 for d in 0..2 {

@@ -3,11 +3,10 @@
 
 use std::{any::Any, hash::Hash, sync::Arc};
 
-use epaint::mutex::RwLock;
+use epaint::{mutex::RwLock, Fonts, Hsva};
 
 use crate::{
-    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    util::IdTypeMap, widgets::*, *,
+    containers::*, layout::*, menu::MenuState, placer::Placer, util::IdTypeMap, widgets::*, *,
 };
 // ----------------------------------------------------------------------------
 

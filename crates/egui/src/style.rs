@@ -4,12 +4,10 @@
 
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
-use epaint::{Rounding, Shadow, Stroke};
+use emath::{pos2, vec2, Rangef, Rect, Vec2};
+use epaint::{Color32, FontFamily, FontId, Margin, Rounding, Shadow, Stroke};
 
-use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, WidgetText,
-};
+use crate::{ComboBox, CursorIcon, Grid, Response, RichText, WidgetText};
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
 #[derive(Clone)]

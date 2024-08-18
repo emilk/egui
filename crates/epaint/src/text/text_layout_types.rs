@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use super::{cursor::*, font::UvRect};
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::*;
+use emath::{pos2, vec2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -191,7 +191,7 @@ impl std::hash::Hash for LayoutJob {
         text.hash(state);
         sections.hash(state);
         wrap.hash(state);
-        emath::OrderedFloat(*first_row_min_height).hash(state);
+        OrderedFloat(*first_row_min_height).hash(state);
         break_on_newline.hash(state);
         halign.hash(state);
         justify.hash(state);
@@ -300,9 +300,9 @@ impl std::hash::Hash for TextFormat {
             valign,
         } = self;
         font_id.hash(state);
-        emath::OrderedFloat(*extra_letter_spacing).hash(state);
+        OrderedFloat(*extra_letter_spacing).hash(state);
         if let Some(line_height) = *line_height {
-            emath::OrderedFloat(line_height).hash(state);
+            OrderedFloat(line_height).hash(state);
         }
         color.hash(state);
         background.hash(state);
@@ -400,7 +400,7 @@ impl std::hash::Hash for TextWrapping {
             break_anywhere,
             overflow_character,
         } = self;
-        emath::OrderedFloat(*max_width).hash(state);
+        OrderedFloat(*max_width).hash(state);
         max_rows.hash(state);
         break_anywhere.hash(state);
         overflow_character.hash(state);

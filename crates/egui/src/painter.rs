@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, Context, FontId,
 };
+use emath::{Align2, Pos2, Rangef, Rect, Rot2, Vec2};
 use epaint::{
     text::{Fonts, Galley, LayoutJob},
     CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke,
@@ -391,7 +391,6 @@ impl Painter {
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
     pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: impl Into<Stroke>) {
-        use crate::emath::*;
         let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
         let tip_length = vec.length() / 4.0;
         let tip = origin + vec;

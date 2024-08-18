@@ -1,10 +1,10 @@
 use std::{any::Any, sync::Arc};
 
 use crate::{
-    emath::{Align, Pos2, Rect, Vec2},
     frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
     Ui, WidgetRect, WidgetText,
 };
+use emath::{Align, Pos2, Rect, Vec2};
 // ----------------------------------------------------------------------------
 
 /// The result of adding a widget to a [`Ui`].

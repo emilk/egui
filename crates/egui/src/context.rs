@@ -3,9 +3,8 @@
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use containers::area::AreaState;
-use epaint::{
-    emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
-};
+use emath::{OrderedFloat, TSTransform};
+use epaint::{mutex::*, stats::*, *};
 
 use crate::{
     animation_manager::AnimationManager,
@@ -2364,7 +2363,7 @@ impl Context {
     #[deprecated = "Use `transform_layer_shapes` instead"]
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
-            let transform = emath::TSTransform::from_translation(delta);
+            let transform = TSTransform::from_translation(delta);
             self.transform_layer_shapes(layer_id, transform);
         }
     }

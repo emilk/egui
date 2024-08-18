@@ -1,5 +1,6 @@
+use emath::{Rot2, TSTransform};
+
 use crate::*;
-use emath::*;
 
 /// The 2D vertex type.
 ///

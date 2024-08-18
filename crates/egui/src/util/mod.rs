@@ -7,5 +7,5 @@ pub mod undoer;
 
 pub use id_type_map::IdTypeMap;
 
-pub use epaint::emath::History;
+pub use emath::History;
 pub use epaint::util::{hash, hash_with};
