@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use emath::*;
+use emath::{pos2, vec2, Align, NumExt, Pos2, Rect, Vec2};
 
 use crate::{stroke::PathStroke, text::font::Font, Color32, Mesh, Stroke, Vertex};
 
