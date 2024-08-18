@@ -414,6 +414,7 @@ mod callstack;
 #[cfg(feature = "accesskit")]
 pub use accesskit;
 
+#[deprecated = "Use the ahash crate directly."]
 pub use ahash;
 
 pub use epaint;
