@@ -4,8 +4,7 @@
 use std::ops::Range;
 
 use crate::{shape::Shape, Color32, PathShape, PathStroke};
-use emath::*;
-
+use emath::{Pos2, Rect, RectTransform};
 // ----------------------------------------------------------------------------
 
 /// A cubic [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
@@ -763,6 +762,7 @@ fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, p3: f
 #[cfg(test)]
 mod tests {
     use super::*;
+    use emath::pos2;
 
     #[test]
     fn test_quadratic_bounding_box() {

@@ -59,7 +59,7 @@ impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self { size, family } = self;
-        emath::OrderedFloat(*size).hash(state);
+        OrderedFloat(*size).hash(state);
         family.hash(state);
     }
 }

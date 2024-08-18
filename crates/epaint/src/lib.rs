@@ -78,7 +78,7 @@ pub use ecolor::hex_color;
 /// The default egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
 /// (so it doesn't do bilinear blending with bottom right corner).
-pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
+pub const WHITE_UV: Pos2 = pos2(0.0, 0.0);
 
 /// What texture to use in a [`Mesh`] mesh.
 ///
@@ -110,7 +110,7 @@ impl Default for TextureId {
 pub struct ClippedShape {
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.
-    pub clip_rect: emath::Rect,
+    pub clip_rect: Rect,
 
     /// The shape
     pub shape: Shape,
@@ -123,7 +123,7 @@ pub struct ClippedShape {
 pub struct ClippedPrimitive {
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Mesh`] that falls within this.
-    pub clip_rect: emath::Rect,
+    pub clip_rect: Rect,
 
     /// What to paint - either a [`Mesh`] or a [`PaintCallback`].
     pub primitive: Primitive,

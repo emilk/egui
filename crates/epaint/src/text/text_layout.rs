@@ -1,9 +1,8 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use emath::*;
-
 use crate::{stroke::PathStroke, text::font::Font, Color32, Mesh, Stroke, Vertex};
+use emath::{pos2, vec2, Align, NumExt, Pos2, Rect, Vec2};
 
 use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 

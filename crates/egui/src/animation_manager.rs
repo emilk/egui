@@ -1,7 +1,5 @@
-use crate::{
-    emath::{remap_clamp, NumExt as _},
-    Id, IdMap, InputState,
-};
+use crate::{Id, IdMap, InputState};
+use emath::{remap_clamp, NumExt as _};
 
 #[derive(Clone, Default)]
 pub(crate) struct AnimationManager {

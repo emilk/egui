@@ -7,7 +7,7 @@
 
 use crate::texture_atlas::PreparedDisc;
 use crate::*;
-use emath::*;
+use emath::{remap, NumExt, Rot2};
 
 use self::color::ColorMode;
 use self::stroke::PathStroke;
@@ -520,7 +520,7 @@ impl Path {
 pub mod path {
     //! Helpers for constructing paths
     use crate::shape::Rounding;
-    use emath::*;
+    use emath::{pos2, Pos2, Rect};
 
     /// overwrites existing points
     pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Rounding) {
