@@ -515,7 +515,7 @@ impl Fonts {
         &self,
         text: String,
         font_id: FontId,
-        color: crate::Color32,
+        color: ecolor::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, wrap_width);
@@ -529,7 +529,7 @@ impl Fonts {
         &self,
         text: String,
         font_id: FontId,
-        color: crate::Color32,
+        color: ecolor::Color32,
     ) -> Arc<Galley> {
         let job = LayoutJob::simple(text, font_id, color, f32::INFINITY);
         self.layout_job(job)
@@ -544,7 +544,7 @@ impl Fonts {
         font_id: FontId,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.layout(text, font_id, crate::Color32::PLACEHOLDER, wrap_width)
+        self.layout(text, font_id, ecolor::Color32::PLACEHOLDER, wrap_width)
     }
 }
 

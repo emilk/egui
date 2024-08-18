@@ -465,7 +465,7 @@ impl Painter {
         &self,
         text: String,
         font_id: FontId,
-        color: crate::Color32,
+        color: Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
         self.fonts(|f| f.layout(text, font_id, color, wrap_width))
@@ -476,12 +476,7 @@ impl Painter {
     /// Paint the results with [`Self::galley`].
     #[inline]
     #[must_use]
-    pub fn layout_no_wrap(
-        &self,
-        text: String,
-        font_id: FontId,
-        color: crate::Color32,
-    ) -> Arc<Galley> {
+    pub fn layout_no_wrap(&self, text: String, font_id: FontId, color: Color32) -> Arc<Galley> {
         self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))
     }
 

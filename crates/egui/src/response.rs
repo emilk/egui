@@ -1092,11 +1092,11 @@ impl Response {
         self.ctx.debug_painter().debug_rect(
             self.rect,
             if self.hovered {
-                crate::Color32::DARK_GREEN
+                ecolor::Color32::DARK_GREEN
             } else if self.enabled {
-                crate::Color32::BLUE
+                ecolor::Color32::BLUE
             } else {
-                crate::Color32::RED
+                ecolor::Color32::RED
             },
             format!("{:?}", self.id),
         );

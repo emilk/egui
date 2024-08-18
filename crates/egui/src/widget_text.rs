@@ -350,7 +350,7 @@ impl RichText {
         } = self;
 
         let line_color = text_color.unwrap_or_else(|| style.visuals.text_color());
-        let text_color = text_color.unwrap_or(crate::Color32::PLACEHOLDER);
+        let text_color = text_color.unwrap_or(Color32::PLACEHOLDER);
 
         let font_id = {
             let mut font_id = text_style
