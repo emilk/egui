@@ -1,6 +1,7 @@
 mod touch_state;
 
 use crate::data::input::*;
+use crate::Options;
 use crate::{emath::*, util::History};
 use std::{
     collections::{BTreeMap, HashSet},
@@ -10,20 +11,6 @@ use std::{
 pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
-
-/// If the pointer moves more than this, it won't become a click (but it is still a drag)
-const MAX_CLICK_DIST: f32 = 6.0; // TODO(emilk): move to settings
-
-/// If the pointer is down for longer than this it will no longer register as a click.
-///
-/// If a touch is held for this many seconds while still,
-/// then it will register as a "long-touch" which is equivalent to a secondary click.
-///
-/// This is to support "press and hold for context menu" on touch screens.
-const MAX_CLICK_DURATION: f64 = 0.8; // TODO(emilk): move to settings
-
-/// The new pointer press must come within this many seconds from previous pointer release
-const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
 
 /// Input state that egui updates each frame.
 ///
@@ -218,7 +205,7 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_frame(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.begin_frame(time, &new);
+        let pointer = self.pointer.begin_frame(time, &new, options);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
@@ -422,7 +409,7 @@ impl InputState {
     /// The [`crate::Context`] will call this at the end of each frame to see if we need a repaint.
     ///
     /// Returns how long to wait for a repaint.
-    pub fn wants_repaint_after(&self) -> Option<Duration> {
+    pub fn wants_repaint_after(&self, options: &Options) -> Option<Duration> {
         if self.pointer.wants_repaint()
             || self.unprocessed_scroll_delta.abs().max_elem() > 0.2
             || self.unprocessed_scroll_delta_for_zoom.abs() > 0.2
@@ -432,12 +419,12 @@ impl InputState {
             return Some(Duration::ZERO);
         }
 
-        if self.any_touches() && !self.pointer.is_decidedly_dragging() {
+        if self.any_touches() && !self.pointer.is_decidedly_dragging(options) {
             // We need to wake up and check for press-and-hold for the context menu.
             if let Some(press_start_time) = self.pointer.press_start_time {
                 let press_duration = self.time - press_start_time;
-                if press_duration < MAX_CLICK_DURATION {
-                    let secs_until_menu = MAX_CLICK_DURATION - press_duration;
+                if press_duration < options.max_click_duration {
+                    let secs_until_menu = options.max_click_duration - press_duration;
                     return Some(Duration::from_secs_f64(secs_until_menu));
                 }
             }
@@ -663,8 +650,8 @@ impl InputState {
     /// to trigger a secondary click (context menu).
     ///
     /// Returns `true` only on one frame.
-    pub(crate) fn is_long_touch(&self) -> bool {
-        self.any_touches() && self.pointer.is_long_press()
+    pub(crate) fn is_long_touch(&self, options: &Options) -> bool {
+        self.any_touches() && self.pointer.is_long_press(options)
     }
 }
 
@@ -822,8 +809,8 @@ impl Default for PointerState {
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> Self {
-        let was_decidedly_dragging = self.is_decidedly_dragging();
+    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput, options: &Options) -> Self {
+        let was_decidedly_dragging = self.is_decidedly_dragging(options);
 
         self.time = time;
 
@@ -845,7 +832,7 @@ impl PointerState {
 
                     if let Some(press_origin) = self.press_origin {
                         self.has_moved_too_much_for_a_click |=
-                            press_origin.distance(pos) > MAX_CLICK_DIST;
+                            press_origin.distance(pos) > options.max_click_dist;
                     }
 
                     self.pointer_events.push(PointerEvent::Moved(pos));
@@ -880,13 +867,13 @@ impl PointerState {
                         });
                     } else {
                         // Released
-                        let clicked = self.could_any_button_be_click();
+                        let clicked = self.could_any_button_be_click(options);
 
                         let click = if clicked {
                             let double_click =
-                                (time - self.last_click_time) < MAX_DOUBLE_CLICK_DELAY;
-                            let triple_click =
-                                (time - self.last_last_click_time) < (MAX_DOUBLE_CLICK_DELAY * 2.0);
+                                (time - self.last_click_time) < options.max_double_click_delay;
+                            let triple_click = (time - self.last_last_click_time)
+                                < (options.max_double_click_delay * 2.0);
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -955,7 +942,8 @@ impl PointerState {
 
         self.direction = self.pos_history.velocity().unwrap_or_default().normalized();
 
-        self.started_decidedly_dragging = self.is_decidedly_dragging() && !was_decidedly_dragging;
+        self.started_decidedly_dragging =
+            self.is_decidedly_dragging(options) && !was_decidedly_dragging;
 
         self
     }
@@ -1177,14 +1165,14 @@ impl PointerState {
     /// If the pointer button is down, will it register as a click when released?
     ///
     /// See also [`Self::is_decidedly_dragging`].
-    pub fn could_any_button_be_click(&self) -> bool {
+    pub fn could_any_button_be_click(&self, options: &Options) -> bool {
         if self.any_down() || self.any_released() {
             if self.has_moved_too_much_for_a_click {
                 return false;
             }
 
             if let Some(press_start_time) = self.press_start_time {
-                if self.time - press_start_time > MAX_CLICK_DURATION {
+                if self.time - press_start_time > options.max_click_duration {
                     return false;
                 }
             }
@@ -1204,10 +1192,10 @@ impl PointerState {
     /// but NOT on the first frame it was started.
     ///
     /// See also [`Self::could_any_button_be_click`].
-    pub fn is_decidedly_dragging(&self) -> bool {
+    pub fn is_decidedly_dragging(&self, options: &Options) -> bool {
         (self.any_down() || self.any_released())
             && !self.any_pressed()
-            && !self.could_any_button_be_click()
+            && !self.could_any_button_be_click(options)
             && !self.any_click()
     }
 
@@ -1215,12 +1203,12 @@ impl PointerState {
     /// to trigger a secondary click (context menu).
     ///
     /// Returns `true` only on one frame.
-    pub(crate) fn is_long_press(&self) -> bool {
+    pub(crate) fn is_long_press(&self, options: &Options) -> bool {
         self.started_decidedly_dragging
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)
             && self.press_start_time.map_or(false, |press_start_time| {
-                self.time - press_start_time > MAX_CLICK_DURATION
+                self.time - press_start_time > options.max_click_duration
             })
     }
 

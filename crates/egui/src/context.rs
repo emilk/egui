@@ -489,7 +489,11 @@ impl ContextImpl {
                 &viewport.prev_frame.widgets,
                 &viewport.hits,
                 &viewport.input,
-                self.memory.interaction_mut(),
+                self.memory
+                    .interactions
+                    .entry(self.memory.viewport_id)
+                    .or_default(),
+                &self.memory.options,
             );
         }
 
@@ -2046,7 +2050,7 @@ impl ContextImpl {
 
         if repaint_needed {
             self.request_repaint(ended_viewport_id, RepaintCause::new());
-        } else if let Some(delay) = viewport.input.wants_repaint_after() {
+        } else if let Some(delay) = viewport.input.wants_repaint_after(&self.memory.options) {
             self.request_repaint_after(delay, ended_viewport_id, RepaintCause::new());
         }
 

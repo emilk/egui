@@ -112,6 +112,7 @@ pub(crate) fn interact(
     hits: &WidgetHits,
     input: &InputState,
     interaction: &mut InteractionState,
+    options: &Options,
 ) -> InteractionSnapshot {
     crate::profile_function!();
 
@@ -140,7 +141,7 @@ pub(crate) fn interact(
         interaction.potential_drag_id = None;
     }
 
-    if input.is_long_touch() {
+    if input.is_long_touch(options) {
         // We implement "press-and-hold for context menu" on touch screens here
         if let Some(widget) = interaction
             .potential_click_id
@@ -172,7 +173,7 @@ pub(crate) fn interact(
             }
 
             PointerEvent::Released { click, button: _ } => {
-                if click.is_some() && !input.pointer.is_decidedly_dragging() {
+                if click.is_some() && !input.pointer.is_decidedly_dragging(options) {
                     if let Some(widget) = interaction
                         .potential_click_id
                         .and_then(|id| widgets.get(id))
@@ -196,7 +197,7 @@ pub(crate) fn interact(
                     // This widget is sensitive to both clicks and drags.
                     // When the mouse first is pressed, it could be either,
                     // so we postpone the decision until we know.
-                    input.pointer.is_decidedly_dragging()
+                    input.pointer.is_decidedly_dragging(options)
                 } else {
                     // This widget is just sensitive to drags, so we can mark it as dragged right away:
                     widget.sense.drag
@@ -209,7 +210,7 @@ pub(crate) fn interact(
         }
     }
 
-    if !input.pointer.could_any_button_be_click() {
+    if !input.pointer.could_any_button_be_click(options) {
         interaction.potential_click_id = None;
     }
 

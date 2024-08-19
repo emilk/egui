@@ -266,6 +266,20 @@ pub struct Options {
     ///
     /// Default is `false`.
     pub reduce_texture_memory: bool,
+
+    /// If the pointer moves more than this, it won't become a click (but it is still a drag)
+    pub max_click_dist: f32,
+
+    /// If the pointer is down for longer than this it will no longer register as a click.
+    ///
+    /// If a touch is held for this many seconds while still,
+    /// then it will register as a "long-touch" which is equivalent to a secondary click.
+    ///
+    /// This is to support "press and hold for context menu" on touch screens.
+    pub max_click_duration: f64,
+
+    /// The new pointer press must come within this many seconds from previous pointer release
+    pub max_double_click_delay: f64,
 }
 
 impl Default for Options {
@@ -295,6 +309,10 @@ impl Default for Options {
             line_scroll_speed,
             scroll_zoom_speed: 1.0 / 200.0,
             reduce_texture_memory: false,
+
+            max_click_dist: 6.0,
+            max_click_duration: 0.8,
+            max_double_click_delay: 0.3,
         }
     }
 }
@@ -339,6 +357,10 @@ impl Options {
             line_scroll_speed,
             scroll_zoom_speed,
             reduce_texture_memory,
+
+            max_click_dist,
+            max_click_duration,
+            max_double_click_delay,
         } = self;
 
         use crate::Widget as _;
@@ -396,6 +418,35 @@ impl Options {
                     )
                     .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
                 });
+
+                ui.horizontal(|ui| {
+                    ui.label("Max click distance");
+                    ui.add(
+                        crate::DragValue::new(max_click_dist)
+                            .range(0.0..=f32::INFINITY)
+                            .speed(1.0),
+                    )
+                    .on_hover_text("If the pointer moves more than this, it won't become a click (but it is still a drag)");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Max click duration");
+                    ui.add(
+                        crate::DragValue::new(max_click_duration)
+                            .range(0.0..=f32::INFINITY)
+                            .speed(0.1),
+                    )
+                    .on_hover_text("If the pointer is down for longer than this it will no longer register as a click");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Max double click delay");
+                    ui.add(
+                        crate::DragValue::new(max_double_click_delay)
+                            .range(0.0..=f32::INFINITY)
+                            .speed(0.1),
+                    )
+                    .on_hover_text("The new pointer press must come within this many seconds from previous pointer release");
+                });
+
             });
 
         ui.vertical_centered(|ui| crate::reset_button(ui, self, "Reset all"));
