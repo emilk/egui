@@ -220,3 +220,167 @@ impl eframe::App for MyApp {
             });
     }
 }
+
+/// Demo of a widget that highlights its background all the way to the edge of its container when
+/// hovered.
+fn full_span_widget(ui: &mut egui::Ui, permanent: bool) {
+    let bg_shape_idx = ui.painter().add(Shape::Noop);
+    let response = ui.label("Full span test");
+    let ui_stack = ui.stack();
+
+    let rect = egui::Rect::from_x_y_ranges(
+        full_span_horizontal_range(ui_stack),
+        response.rect.y_range(),
+    );
+
+    if permanent || response.hovered() {
+        ui.painter().set(
+            bg_shape_idx,
+            Shape::rect_filled(rect, 0.0, ui.visuals().selection.bg_fill),
+        );
+    }
+}
+
+/// Find the horizontal range of the enclosing container.
+fn full_span_horizontal_range(ui_stack: &egui::UiStack) -> Rangef {
+    for node in ui_stack.iter() {
+        if node.has_visible_frame()
+            || node.is_panel_ui()
+            || node.is_root_ui()
+            || node.kind() == Some(UiKind::TableCell)
+        {
+            return (node.max_rect + node.frame().inner_margin).x_range();
+        }
+    }
+
+    // should never happen
+    Rangef::EVERYTHING
+}
+
+fn stack_ui(ui: &mut egui::Ui) {
+    let ui_stack = ui.stack().clone();
+    ui.scope(|ui| {
+        stack_ui_impl(ui, &ui_stack);
+    });
+}
+
+fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
+    egui::Frame {
+        stroke: ui.style().noninteractive().fg_stroke,
+        inner_margin: egui::Margin::same(4.0),
+        ..Default::default()
+    }
+    .show(ui, |ui| {
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+
+        egui_extras::TableBuilder::new(ui)
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong("id");
+                });
+                header.col(|ui| {
+                    ui.strong("kind");
+                });
+                header.col(|ui| {
+                    ui.strong("stroke");
+                });
+                header.col(|ui| {
+                    ui.strong("inner");
+                });
+                header.col(|ui| {
+                    ui.strong("outer");
+                });
+                header.col(|ui| {
+                    ui.strong("direction");
+                });
+            })
+            .body(|mut body| {
+                for node in stack.iter() {
+                    body.row(20.0, |mut row| {
+                        row.col(|ui| {
+                            if ui.label(format!("{:?}", node.id)).hovered() {
+                                ui.ctx().debug_painter().debug_rect(
+                                    node.max_rect,
+                                    egui::Color32::GREEN,
+                                    "max",
+                                );
+                                ui.ctx().debug_painter().circle_filled(
+                                    node.min_rect.min,
+                                    2.0,
+                                    egui::Color32::RED,
+                                );
+                            }
+                        });
+                        row.col(|ui| {
+                            let s = if let Some(kind) = node.kind() {
+                                format!("{kind:?}")
+                            } else {
+                                "-".to_owned()
+                            };
+
+                            ui.label(s);
+                        });
+                        row.col(|ui| {
+                            let frame = node.frame();
+                            if frame.stroke == egui::Stroke::NONE {
+                                ui.label("-");
+                            } else {
+                                let mut layout_job = egui::text::LayoutJob::default();
+                                layout_job.append(
+                                    "⬛ ",
+                                    0.0,
+                                    egui::TextFormat::simple(
+                                        egui::TextStyle::Body.resolve(ui.style()),
+                                        frame.stroke.color,
+                                    ),
+                                );
+                                layout_job.append(
+                                    format!("{}px", frame.stroke.width).as_str(),
+                                    0.0,
+                                    egui::TextFormat::simple(
+                                        egui::TextStyle::Body.resolve(ui.style()),
+                                        ui.style().visuals.text_color(),
+                                    ),
+                                );
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                                ui.label(layout_job);
+                            }
+                        });
+                        row.col(|ui| {
+                            ui.label(print_margin(&node.frame().inner_margin));
+                        });
+                        row.col(|ui| {
+                            ui.label(print_margin(&node.frame().outer_margin));
+                        });
+                        row.col(|ui| {
+                            ui.label(format!("{:?}", node.layout_direction));
+                        });
+                    });
+                }
+            });
+    });
+}
+
+fn print_margin(margin: &egui::Margin) -> String {
+    if margin.is_same() {
+        format!("{}px", margin.left)
+    } else {
+        let s1 = if margin.left == margin.right {
+            format!("H: {}px", margin.left)
+        } else {
+            format!("L: {}px R: {}px", margin.left, margin.right)
+        };
+        let s2 = if margin.top == margin.bottom {
+            format!("V: {}px", margin.top)
+        } else {
+            format!("T: {}px B: {}px", margin.top, margin.bottom)
+        };
+        format!("{s1} / {s2}")
+    }
+}
