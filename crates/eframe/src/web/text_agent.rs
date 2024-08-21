@@ -189,19 +189,7 @@ impl Drop for TextAgent {
     }
 }
 
-/// Returns `true` if the app is likely running on a mobile device.
-fn is_mobile() -> bool {
-    fn try_is_mobile() -> Option<bool> {
-        const MOBILE_DEVICE: [&str; 6] =
-            ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
-
-        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-        let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
-        Some(is_mobile)
-    }
-    try_is_mobile().unwrap_or(false)
-}
-
+/// Returns `true` if the app is likely running on a mobile device on navigator Safari.
 fn is_mobile_safari() -> bool {
     (|| {
         let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
