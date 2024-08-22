@@ -73,10 +73,18 @@ impl eframe::App for ImageViewer {
         egui::SidePanel::new(Side::Left, "controls").show(ctx, |ui| {
             // uv
             ui.label("UV");
-            ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));
-            ui.add(Slider::new(&mut self.image_options.uv.min.y, 0.0..=1.0).text("min y"));
-            ui.add(Slider::new(&mut self.image_options.uv.max.x, 0.0..=1.0).text("max x"));
-            ui.add(Slider::new(&mut self.image_options.uv.max.y, 0.0..=1.0).text("max y"));
+            ui.horizontal(|ui| {
+                ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));
+            });
+            ui.horizontal(|ui| {
+                ui.add(Slider::new(&mut self.image_options.uv.min.y, 0.0..=1.0).text("min y"));
+            });
+            ui.horizontal(|ui| {
+                ui.add(Slider::new(&mut self.image_options.uv.max.x, 0.0..=1.0).text("max x"));
+            });
+            ui.horizontal(|ui| {
+                ui.add(Slider::new(&mut self.image_options.uv.max.y, 0.0..=1.0).text("max y"));
+            });
 
             // rotation
             ui.add_space(2.0);
@@ -99,8 +107,12 @@ impl eframe::App for ImageViewer {
                 ui.drag_angle(&mut angle);
                 *rot = Rot2::from_angle(angle);
 
-                ui.add(Slider::new(&mut origin.x, 0.0..=1.0).text("origin x"));
-                ui.add(Slider::new(&mut origin.y, 0.0..=1.0).text("origin y"));
+                ui.horizontal(|ui| {
+                    ui.add(Slider::new(&mut origin.x, 0.0..=1.0).text("origin x"));
+                });
+                ui.horizontal(|ui| {
+                    ui.add(Slider::new(&mut origin.y, 0.0..=1.0).text("origin y"));
+                });
             }
 
             // bg_fill
@@ -150,8 +162,12 @@ impl eframe::App for ImageViewer {
                     let ImageFit::Exact(size) = &mut self.fit else {
                         unreachable!()
                     };
-                    ui.add(Slider::new(&mut size.x, 0.0..=2048.0).text("width"));
-                    ui.add(Slider::new(&mut size.y, 0.0..=2048.0).text("height"));
+                    ui.horizontal(|ui| {
+                        ui.add(Slider::new(&mut size.x, 0.0..=2048.0).text("width"));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(Slider::new(&mut size.y, 0.0..=2048.0).text("height"));
+                    });
                 }
                 ChosenFit::Fraction => {
                     if !matches!(self.fit, ImageFit::Fraction(_)) {
@@ -160,8 +176,12 @@ impl eframe::App for ImageViewer {
                     let ImageFit::Fraction(fract) = &mut self.fit else {
                         unreachable!()
                     };
-                    ui.add(Slider::new(&mut fract.x, 0.0..=1.0).text("width"));
-                    ui.add(Slider::new(&mut fract.y, 0.0..=1.0).text("height"));
+                    ui.horizontal(|ui| {
+                        ui.add(Slider::new(&mut fract.x, 0.0..=1.0).text("width"));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(Slider::new(&mut fract.y, 0.0..=1.0).text("height"));
+                    });
                 }
                 ChosenFit::OriginalSize => {
                     if !matches!(self.fit, ImageFit::Original { .. }) {
@@ -170,15 +190,21 @@ impl eframe::App for ImageViewer {
                     let ImageFit::Original { scale } = &mut self.fit else {
                         unreachable!()
                     };
-                    ui.add(Slider::new(scale, 0.1..=4.0).text("scale"));
+                    ui.horizontal(|ui| {
+                        ui.add(Slider::new(scale, 0.1..=4.0).text("scale"));
+                    });
                 }
             }
 
             // max size
             ui.add_space(5.0);
             ui.label("The calculated size will not exceed the maximum size");
-            ui.add(Slider::new(&mut self.max_size.x, 0.0..=2048.0).text("width"));
-            ui.add(Slider::new(&mut self.max_size.y, 0.0..=2048.0).text("height"));
+            ui.horizontal(|ui| {
+                ui.add(Slider::new(&mut self.max_size.x, 0.0..=2048.0).text("width"));
+            });
+            ui.horizontal(|ui| {
+                ui.add(Slider::new(&mut self.max_size.y, 0.0..=2048.0).text("height"));
+            });
 
             // aspect ratio
             ui.add_space(5.0);
