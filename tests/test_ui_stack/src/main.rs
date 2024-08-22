@@ -96,20 +96,6 @@ impl eframe::App for MyApp {
             });
         });
 
-        egui::TopBottomPanel::bottom("bottom_panel")
-            .resizable(true)
-            .show(ctx, |ui| {
-                egui::ScrollArea::vertical()
-                    .auto_shrink(false)
-                    .show(ui, |ui| {
-                        stack_ui(ui);
-
-                        // full span test
-                        ui.add_space(20.0);
-                        full_span_widget(ui, false);
-                    });
-            });
-
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.label("stack here:");
@@ -189,6 +175,20 @@ impl eframe::App for MyApp {
                 }
             });
         });
+
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .auto_shrink(false)
+                    .show(ui, |ui| {
+                        stack_ui(ui);
+
+                        // full span test
+                        ui.add_space(20.0);
+                        full_span_widget(ui, false);
+                    });
+            });
 
         egui::Window::new("Window")
             .pivot(egui::Align2::RIGHT_TOP)
