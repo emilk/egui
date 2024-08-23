@@ -8,7 +8,7 @@ use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, WidgetText,
+    RichText, WidgetText, TextWrapMode,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
