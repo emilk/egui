@@ -8,7 +8,7 @@ use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, WidgetText, TextWrapMode,
+    RichText, TextWrapMode, WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -1565,15 +1565,14 @@ impl Style {
             crate::ComboBox::from_id_source("text_wrap_mode")
                 .selected_text(format!("{wrap_mode:?}"))
                 .show_ui(ui, |ui| {
-                    let all_wrap_mode: Vec<Option<TextWrapMode>> = vec![              
+                    let all_wrap_mode: Vec<Option<TextWrapMode>> = vec![
                         None,
                         Some(TextWrapMode::Extend),
                         Some(TextWrapMode::Wrap),
                         Some(TextWrapMode::Truncate),
                     ];
                     for style in all_wrap_mode {
-                        let text =
-                            crate::RichText::new(format!("{style:?}"));
+                        let text = crate::RichText::new(format!("{style:?}"));
                         ui.selectable_value(wrap_mode, style, text);
                     }
                 });
