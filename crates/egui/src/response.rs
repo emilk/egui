@@ -3,7 +3,7 @@ use std::{any::Any, sync::Arc};
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
     frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
-    Ui, WidgetRect, WidgetText,
+    Ui, WidgetInfo, WidgetRect, WidgetText, WidgetType,
 };
 // ----------------------------------------------------------------------------
 
@@ -913,7 +913,7 @@ impl Response {
     /// For accessibility.
     ///
     /// Call after interacting and potential calls to [`Self::mark_changed`].
-    pub fn widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
+    pub fn widget_info(&self, make_info: impl Fn() -> WidgetInfo) {
         use crate::output::OutputEvent;
 
         let event = if self.clicked() {
@@ -933,7 +933,6 @@ impl Response {
         if let Some(event) = event {
             self.output_event(event);
         } else {
-            #[cfg(feature = "accesskit")]
             self.ctx.accesskit_node_builder(self.id, |builder| {
                 self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
@@ -943,7 +942,6 @@ impl Response {
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
@@ -954,7 +952,6 @@ impl Response {
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
-    #[cfg(feature = "accesskit")]
     pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::NodeBuilder) {
         if !self.enabled {
             builder.set_disabled();
@@ -973,13 +970,11 @@ impl Response {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
         builder: &mut accesskit::NodeBuilder,
-        info: crate::WidgetInfo,
+        info: WidgetInfo,
     ) {
-        use crate::WidgetType;
         use accesskit::{Role, Toggled};
 
         self.fill_accesskit_node_common(builder);
@@ -1038,14 +1033,9 @@ impl Response {
     /// # });
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
-        #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_builder(self.id, |builder| {
             builder.push_labelled_by(id.accesskit_id());
         });
-        #[cfg(not(feature = "accesskit"))]
-        {
-            let _ = id;
-        }
 
         self
     }

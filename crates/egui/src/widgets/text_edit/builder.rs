@@ -776,25 +776,22 @@ impl<'t> TextEdit<'t> {
             });
         }
 
-        #[cfg(feature = "accesskit")]
-        {
-            let role = if password {
-                accesskit::Role::PasswordInput
-            } else if multiline {
-                accesskit::Role::MultilineTextInput
-            } else {
-                accesskit::Role::TextInput
-            };
+        let role = if password {
+            accesskit::Role::PasswordInput
+        } else if multiline {
+            accesskit::Role::MultilineTextInput
+        } else {
+            accesskit::Role::TextInput
+        };
 
-            crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
-                ui.ctx(),
-                id,
-                cursor_range,
-                role,
-                galley_pos,
-                &galley,
-            );
-        }
+        crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
+            ui.ctx(),
+            id,
+            cursor_range,
+            role,
+            galley_pos,
+            &galley,
+        );
 
         TextEditOutput {
             response,

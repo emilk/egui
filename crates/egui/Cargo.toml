@@ -25,10 +25,6 @@ all-features = true
 [features]
 default = ["default_fonts"]
 
-## Exposes detailed accessibility implementation required by platform
-## accessibility APIs. Also requires support in the egui integration.
-accesskit = ["dep:accesskit"]
-
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 
@@ -72,7 +68,7 @@ puffin = ["dep:puffin", "epaint/puffin"]
 rayon = ["epaint/rayon"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
+serde = ["dep:serde", "epaint/serde", "accesskit/serde"]
 
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
@@ -82,12 +78,11 @@ unity = ["epaint/unity"]
 emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
+accesskit = "0.16"
 ahash.workspace = true
 nohash-hasher.workspace = true
 
 #! ### Optional dependencies
-accesskit = { version = "0.16", optional = true }
-
 backtrace = { workspace = true, optional = true }
 
 ## Enable this when generating docs.

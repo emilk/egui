@@ -2,6 +2,8 @@
 
 use std::ops::RangeInclusive;
 
+use accesskit::{Action, ActionData};
+
 use crate::{style::HandleShape, *};
 
 // ----------------------------------------------------------------------------
@@ -627,14 +629,10 @@ impl<'a> Slider<'a> {
             });
         }
 
-        #[cfg(feature = "accesskit")]
-        {
-            use accesskit::Action;
-            ui.input(|input| {
-                decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
-                increment += input.num_accesskit_action_requests(response.id, Action::Increment);
-            });
-        }
+        ui.input(|input| {
+            decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
+            increment += input.num_accesskit_action_requests(response.id, Action::Increment);
+        });
 
         let kb_step = increment as f32 - decrement as f32;
 
@@ -657,17 +655,13 @@ impl<'a> Slider<'a> {
             self.set_value(new_value);
         }
 
-        #[cfg(feature = "accesskit")]
-        {
-            use accesskit::{Action, ActionData};
-            ui.input(|input| {
-                for request in input.accesskit_action_requests(response.id, Action::SetValue) {
-                    if let Some(ActionData::NumericValue(new_value)) = request.data {
-                        self.set_value(new_value);
-                    }
+        ui.input(|input| {
+            for request in input.accesskit_action_requests(response.id, Action::SetValue) {
+                if let Some(ActionData::NumericValue(new_value)) = request.data {
+                    self.set_value(new_value);
                 }
-            });
-        }
+            }
+        });
 
         // Paint it:
         if ui.is_rect_visible(response.rect) {
@@ -855,9 +849,7 @@ impl<'a> Slider<'a> {
         response.changed = value != old_value;
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
-        #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {
-            use accesskit::Action;
             builder.set_min_numeric_value(*self.range.start());
             builder.set_max_numeric_value(*self.range.end());
             if let Some(step) = self.step {

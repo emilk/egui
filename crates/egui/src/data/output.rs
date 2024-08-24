@@ -121,7 +121,6 @@ pub struct PlatformOutput {
     /// The difference in the widget tree since last frame.
     ///
     /// NOTE: this needs to be per-viewport.
-    #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
 
@@ -153,7 +152,6 @@ impl PlatformOutput {
             mut events,
             mutable_text_under_cursor,
             ime,
-            #[cfg(feature = "accesskit")]
             accesskit_update,
         } = newer;
 
@@ -168,12 +166,9 @@ impl PlatformOutput {
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
 
-        #[cfg(feature = "accesskit")]
-        {
-            // egui produces a complete AccessKit tree for each frame,
-            // so overwrite rather than appending.
-            self.accesskit_update = accesskit_update;
-        }
+        // egui produces a complete AccessKit tree for each frame,
+        // so overwrite rather than appending.
+        self.accesskit_update = accesskit_update;
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)

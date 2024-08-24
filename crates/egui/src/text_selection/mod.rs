@@ -1,6 +1,5 @@
 //! Helpers regarding text selection for labels and text edit.
 
-#[cfg(feature = "accesskit")]
 pub mod accesskit_text;
 
 mod cursor_range;
