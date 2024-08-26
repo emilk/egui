@@ -68,7 +68,10 @@ pub fn viewport_builder(
     #[cfg(not(target_os = "ios"))]
     if native_options.centered {
         crate::profile_scope!("center");
-        if let Some(monitor) = event_loop.available_monitors().next() {
+        if let Some(monitor) = event_loop
+            .primary_monitor()
+            .or_else(|| event_loop.available_monitors().next())
+        {
             let monitor_size = monitor
                 .size()
                 .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
