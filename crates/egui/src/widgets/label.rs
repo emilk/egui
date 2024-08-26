@@ -80,7 +80,7 @@ impl Label {
 
     /// Sets the horizontal alignment of the Label to the given `Align` value.
     ///
-    /// Set [`Self::align`] to [`Align`].
+    /// Set [`Self::halign`] to [`Align`].
     #[inline]
     pub fn halign(mut self, align: Align) -> Self {
         self.halign = Some(align);
