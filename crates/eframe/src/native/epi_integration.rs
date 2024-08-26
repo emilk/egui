@@ -7,11 +7,12 @@ use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
-use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
+use egui::{DeferredViewportUiCallback, ViewportBuilder, ViewportId};
 use egui_winit::{EventResponse, WindowSettings};
 
 use crate::epi;
 
+#[cfg_attr(target_os = "ios", allow(dead_code, unused_variables, unused_mut))]
 pub fn viewport_builder(
     egui_zoom_factor: f32,
     event_loop: &ActiveEventLoop,
@@ -53,8 +54,10 @@ pub fn viewport_builder(
 
         if clamp_size_to_monitor_size {
             if let Some(initial_window_size) = viewport_builder.inner_size {
-                let initial_window_size = initial_window_size
-                    .at_most(largest_monitor_point_size(egui_zoom_factor, event_loop));
+                let initial_window_size = egui::NumExt::at_most(
+                    initial_window_size,
+                    largest_monitor_point_size(egui_zoom_factor, event_loop),
+                );
                 viewport_builder = viewport_builder.with_inner_size(initial_window_size);
             }
         }
@@ -95,6 +98,7 @@ pub fn apply_window_settings(
     }
 }
 
+#[cfg(not(target_os = "ios"))]
 fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
     crate::profile_function!();
 
