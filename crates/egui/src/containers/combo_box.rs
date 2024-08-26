@@ -425,7 +425,7 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let inner_rect = outer_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout(), None);
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
     add_contents(&mut content_ui);
 
     let mut outer_rect = content_ui.min_rect().expand2(margin);

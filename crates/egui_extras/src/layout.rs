@@ -1,4 +1,4 @@
-use egui::{Id, Pos2, Rect, Response, Sense, Ui};
+use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -197,11 +197,12 @@ impl<'l> StripLayout<'l> {
         child_ui_id_source: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
-        let mut child_ui = self.ui.child_ui_with_id_source(
-            max_rect,
-            self.cell_layout,
-            child_ui_id_source,
-            Some(egui::UiStackInfo::new(egui::UiKind::TableCell)),
+        let mut child_ui = self.ui.new_child(
+            UiBuilder::new()
+                .id_source(child_ui_id_source)
+                .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
+                .max_rect(max_rect)
+                .layout(self.cell_layout),
         );
 
         if flags.clip {

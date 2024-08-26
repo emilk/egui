@@ -75,20 +75,34 @@ impl Ui {
     // ------------------------------------------------------------------------
     // Creation:
 
-    /// Create a new [`Ui`].
+    /// Create a new top-level [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(
-        ctx: Context,
-        layer_id: LayerId,
-        id: Id,
-        max_rect: Rect,
-        clip_rect: Rect,
-        ui_stack_info: UiStackInfo,
-    ) -> Self {
-        let style = ctx.style();
-        let layout = Layout::default();
+    pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
+        let UiBuilder {
+            id_source,
+            ui_stack_info,
+            max_rect,
+            layout,
+            disabled,
+            invisible,
+            sizing_pass,
+            style,
+        } = ui_builder;
+
+        debug_assert!(
+            id_source.is_none(),
+            "Top-level Ui:s should not have an id_source"
+        );
+
+        let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
+        let clip_rect = max_rect;
+        let layout = layout.unwrap_or_default();
+        let invisible = invisible || sizing_pass;
+        let disabled = disabled || invisible || sizing_pass;
+        let style = style.unwrap_or_else(|| ctx.style());
+
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
             id,
@@ -98,7 +112,7 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
-        let ui = Ui {
+        let mut ui = Ui {
             id,
             next_auto_id_source: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
@@ -121,6 +135,16 @@ impl Ui {
             enabled: ui.enabled,
         });
 
+        if disabled {
+            ui.disable();
+        }
+        if invisible {
+            ui.set_invisible();
+        }
+        if sizing_pass {
+            ui.set_sizing_pass();
+        }
+
         ui
     }
 
@@ -130,25 +154,67 @@ impl Ui {
     /// [`Self::scope`] if needed.
     ///
     /// When in doubt, use `None` for the `UiStackInfo` argument.
+    #[deprecated = "Use ui.new_child() instead"]
     pub fn child_ui(
         &mut self,
         max_rect: Rect,
         layout: Layout,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
-        self.child_ui_with_id_source(max_rect, layout, "child", ui_stack_info)
+        self.new_child(
+            UiBuilder::new()
+                .max_rect(max_rect)
+                .layout(layout)
+                .ui_stack_info(ui_stack_info.unwrap_or_default()),
+        )
     }
 
     /// Create a new [`Ui`] at a specific region with a specific id.
     ///
     /// When in doubt, use `None` for the `UiStackInfo` argument.
+    #[deprecated = "Use ui.new_child() instead"]
     pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
-        mut layout: Layout,
+        layout: Layout,
         id_source: impl Hash,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
+        self.new_child(
+            UiBuilder::new()
+                .id_source(id_source)
+                .max_rect(max_rect)
+                .layout(layout)
+                .ui_stack_info(ui_stack_info.unwrap_or_default()),
+        )
+    }
+
+    /// Create a child `Ui` with the properties of the given builder.
+    pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
+        let UiBuilder {
+            id_source,
+            ui_stack_info,
+            max_rect,
+            layout,
+            disabled,
+            invisible,
+            sizing_pass,
+            style,
+        } = ui_builder;
+
+        let mut painter = self.painter.clone();
+
+        let id_source = id_source.unwrap_or_else(|| Id::from("child"));
+        let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
+        let mut layout = layout.unwrap_or(*self.layout());
+        let invisible = invisible || sizing_pass;
+        let enabled = self.enabled && !disabled && !invisible && !sizing_pass;
+        if invisible {
+            painter.set_invisible();
+        }
+        let sizing_pass = self.sizing_pass || sizing_pass;
+        let style = style.unwrap_or_else(|| self.style.clone());
+
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
             // so that we measure the only the space we _need_.
@@ -167,7 +233,7 @@ impl Ui {
         let ui_stack = UiStack {
             id: new_id,
             layout_direction: layout.main_dir,
-            info: ui_stack_info.unwrap_or_default(),
+            info: ui_stack_info,
             parent: Some(self.stack.clone()),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
@@ -175,11 +241,11 @@ impl Ui {
         let child_ui = Ui {
             id: new_id,
             next_auto_id_source,
-            painter: self.painter.clone(),
-            style: self.style.clone(),
+            painter,
+            style,
             placer,
-            enabled: self.enabled,
-            sizing_pass: self.sizing_pass,
+            enabled,
+            sizing_pass,
             menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
         };
@@ -1130,16 +1196,10 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
         let child_rect = self.placer.justify_and_align(frame_rect, desired_size);
-
-        let mut child_ui = self.child_ui(child_rect, layout, None);
-        let ret = add_contents(&mut child_ui);
-        let final_child_rect = child_ui.min_rect();
-
-        self.placer
-            .advance_after_rects(final_child_rect, final_child_rect, item_spacing);
-
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
-        InnerResponse::new(ret, response)
+        self.allocate_new_ui(
+            UiBuilder::new().max_rect(child_rect).layout(layout),
+            add_contents,
+        )
     }
 
     /// Allocated the given rectangle and then adds content to that rectangle.
@@ -1147,24 +1207,40 @@ impl Ui {
     /// If the contents overflow, more space will be allocated.
     /// When finished, the amount of space actually used (`min_rect`) will be allocated.
     /// So you can request a lot of space and then use less.
+    #[deprecated = "Use `allocate_new_ui` instead"]
     pub fn allocate_ui_at_rect<R>(
         &mut self,
         max_rect: Rect,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        debug_assert!(max_rect.is_finite());
-        let mut child_ui = self.child_ui(max_rect, *self.layout(), None);
-        let ret = add_contents(&mut child_ui);
-        let final_child_rect = child_ui.min_rect();
+        self.allocate_new_ui(UiBuilder::new().max_rect(max_rect), add_contents)
+    }
 
-        self.placer.advance_after_rects(
-            final_child_rect,
-            final_child_rect,
-            self.spacing().item_spacing,
-        );
+    /// Allocated space (`UiBuilder::max_rect`) and then add content to it.
+    ///
+    /// If the contents overflow, more space will be allocated.
+    /// When finished, the amount of space actually used (`min_rect`) will be allocated in the parent.
+    /// So you can request a lot of space and then use less.
+    pub fn allocate_new_ui<R>(
+        &mut self,
+        ui_builder: UiBuilder,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        self.allocate_new_ui_dyn(ui_builder, Box::new(add_contents))
+    }
 
-        let response = self.interact(final_child_rect, child_ui.id, Sense::hover());
-        InnerResponse::new(ret, response)
+    fn allocate_new_ui_dyn<'c, R>(
+        &mut self,
+        ui_builder: UiBuilder,
+        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
+    ) -> InnerResponse<R> {
+        let mut child_ui = self.new_child(ui_builder);
+        let inner = add_contents(&mut child_ui);
+        let rect = child_ui.min_rect();
+        let item_spacing = self.spacing().item_spacing;
+        self.placer.advance_after_rects(rect, rect, item_spacing);
+        let response = self.interact(rect, child_ui.id, Sense::hover());
+        InnerResponse::new(inner, response)
     }
 
     /// Convenience function to get a region to paint on.
@@ -1194,7 +1270,10 @@ impl Ui {
         let painter = self.painter().with_clip_rect(clip_rect);
         (response, painter)
     }
+}
 
+/// # Scrolling
+impl Ui {
     /// Adjust the scroll position of any parent [`ScrollArea`] so that the given [`Rect`] becomes visible.
     ///
     /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
@@ -1367,9 +1446,12 @@ impl Ui {
     ///
     /// See also [`Self::add`] and [`Self::add_sized`].
     pub fn put(&mut self, max_rect: Rect, widget: impl Widget) -> Response {
-        self.allocate_ui_at_rect(max_rect, |ui| {
-            ui.centered_and_justified(|ui| ui.add(widget)).inner
-        })
+        self.allocate_new_ui(
+            UiBuilder::new()
+                .max_rect(max_rect)
+                .layout(Layout::centered_and_justified(Direction::TopDown)),
+            |ui| ui.add(widget),
+        )
         .inner
     }
 
@@ -1481,17 +1563,17 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use 'ui.scope_builder' instead"]
     pub fn add_visible_ui<R>(
         &mut self,
         visible: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope(|ui| {
-            if !visible {
-                ui.set_invisible();
-            }
-            add_contents(ui)
-        })
+        let mut ui_builder = UiBuilder::new();
+        if !visible {
+            ui_builder = ui_builder.invisible();
+        }
+        self.scope_builder(ui_builder, add_contents)
     }
 
     /// Add extra space before the next widget.
@@ -1986,21 +2068,24 @@ impl Ui {
         id_source: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new(id_source), None)
+        self.scope_dyn(
+            UiBuilder::new().id_source(id_source),
+            Box::new(add_contents),
+        )
     }
 
     /// Push another level onto the [`UiStack`].
     ///
     /// You can use this, for instance, to tag a group of widgets.
+    #[deprecated = "Use 'ui.scope_builder' instead"]
     pub fn push_stack_info<R>(
         &mut self,
         ui_stack_info: UiStackInfo,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         self.scope_dyn(
+            UiBuilder::new().ui_stack_info(ui_stack_info),
             Box::new(add_contents),
-            Id::new("child"),
-            Some(ui_stack_info),
         )
     }
 
@@ -2017,19 +2102,26 @@ impl Ui {
     /// # });
     /// ```
     pub fn scope<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.scope_dyn(Box::new(add_contents), Id::new("child"), None)
+        self.scope_dyn(UiBuilder::new(), Box::new(add_contents))
     }
 
-    fn scope_dyn<'c, R>(
+    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
+    pub fn scope_builder<R>(
         &mut self,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-        id_source: Id,
-        ui_stack_info: Option<UiStackInfo>,
+        ui_builder: UiBuilder,
+        add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        let child_rect = self.available_rect_before_wrap();
+        self.scope_dyn(ui_builder, Box::new(add_contents))
+    }
+
+    /// Create a child, add content to it, and then allocate only what was used in the parent `Ui`.
+    pub fn scope_dyn<'c, R>(
+        &mut self,
+        ui_builder: UiBuilder,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+    ) -> InnerResponse<R> {
         let next_auto_id_source = self.next_auto_id_source;
-        let mut child_ui =
-            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, ui_stack_info);
+        let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -2089,7 +2181,7 @@ impl Ui {
         child_rect.min.x += indent;
 
         let mut child_ui =
-            self.child_ui_with_id_source(child_rect, *self.layout(), id_source, None);
+            self.new_child(UiBuilder::new().id_source(id_source).max_rect(child_rect));
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;
@@ -2240,7 +2332,10 @@ impl Ui {
     /// See also [`Self::with_layout`] for more options.
     #[inline]
     pub fn vertical<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
-        self.with_layout_dyn(Layout::top_down(Align::Min), Box::new(add_contents))
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::top_down(Align::Min)),
+            add_contents,
+        )
     }
 
     /// Start a ui with vertical layout.
@@ -2259,7 +2354,10 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(Layout::top_down(Align::Center), Box::new(add_contents))
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::top_down(Align::Center)),
+            add_contents,
+        )
     }
 
     /// Start a ui with vertical layout.
@@ -2277,9 +2375,9 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(
-            Layout::top_down(Align::Center).with_cross_justify(true),
-            Box::new(add_contents),
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::top_down(Align::Center).with_cross_justify(true)),
+            add_contents,
         )
     }
 
@@ -2303,21 +2401,7 @@ impl Ui {
         layout: Layout,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(layout, Box::new(add_contents))
-    }
-
-    fn with_layout_dyn<'c, R>(
-        &mut self,
-        layout: Layout,
-        add_contents: Box<dyn FnOnce(&mut Self) -> R + 'c>,
-    ) -> InnerResponse<R> {
-        let mut child_ui = self.child_ui(self.available_rect_before_wrap(), layout, None);
-        let inner = add_contents(&mut child_ui);
-        let rect = child_ui.min_rect();
-        let item_spacing = self.spacing().item_spacing;
-        self.placer.advance_after_rects(rect, rect, item_spacing);
-
-        InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
+        self.allocate_new_ui(UiBuilder::new().layout(layout), add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
@@ -2327,9 +2411,9 @@ impl Ui {
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.with_layout_dyn(
-            Layout::centered_and_justified(Direction::TopDown),
-            Box::new(add_contents),
+        self.allocate_new_ui(
+            UiBuilder::new().layout(Layout::centered_and_justified(Direction::TopDown)),
+            add_contents,
         )
     }
 
@@ -2394,8 +2478,11 @@ impl Ui {
                     pos,
                     pos2(pos.x + column_width, self.max_rect().right_bottom().y),
                 );
-                let mut column_ui =
-                    self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
+                let mut column_ui = self.new_child(
+                    UiBuilder::new()
+                        .max_rect(child_rect)
+                        .layout(Layout::top_down_justified(Align::LEFT)),
+                );
                 column_ui.set_width(column_width);
                 column_ui
             })
@@ -2448,8 +2535,11 @@ impl Ui {
                 pos,
                 pos2(pos.x + column_width, self.max_rect().right_bottom().y),
             );
-            let mut column_ui =
-                self.child_ui(child_rect, Layout::top_down_justified(Align::LEFT), None);
+            let mut column_ui = self.new_child(
+                UiBuilder::new()
+                    .max_rect(child_rect)
+                    .layout(Layout::top_down_justified(Align::LEFT)),
+            );
             column_ui.set_width(column_width);
             column_ui
         });
@@ -2574,7 +2664,10 @@ impl Ui {
 
         (InnerResponse { inner, response }, payload)
     }
+}
 
+/// # Menus
+impl Ui {
     /// Close the menu we are in (including submenus), if any.
     ///
     /// See also: [`Self::menu_button`] and [`Response::context_menu`].
