@@ -261,14 +261,15 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(
-            panel_rect,
-            Layout::top_down(Align::Min),
-            id,
-            Some(UiStackInfo::new(match side {
-                Side::Left => UiKind::LeftPanel,
-                Side::Right => UiKind::RightPanel,
-            })),
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .id_source(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    Side::Left => UiKind::LeftPanel,
+                    Side::Right => UiKind::RightPanel,
+                }))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
@@ -367,15 +368,13 @@ impl SidePanel {
         let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
-        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             layer_id,
             self.id,
-            available_rect,
-            clip_rect,
-            UiStackInfo::default(),
+            UiBuilder::new().max_rect(available_rect),
         );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -750,14 +749,15 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(
-            panel_rect,
-            Layout::top_down(Align::Min),
-            id,
-            Some(UiStackInfo::new(match side {
-                TopBottomSide::Top => UiKind::TopPanel,
-                TopBottomSide::Bottom => UiKind::BottomPanel,
-            })),
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .id_source(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    TopBottomSide::Top => UiKind::TopPanel,
+                    TopBottomSide::Bottom => UiKind::BottomPanel,
+                }))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
@@ -857,15 +857,13 @@ impl TopBottomPanel {
         let available_rect = ctx.available_rect();
         let side = self.side;
 
-        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             layer_id,
             self.id,
-            available_rect,
-            clip_rect,
-            UiStackInfo::default(), // set by show_inside_dyn
+            UiBuilder::new().max_rect(available_rect),
         );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
@@ -1091,10 +1089,11 @@ impl CentralPanel {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let mut panel_ui = ui.child_ui(
-            panel_rect,
-            Layout::top_down(Align::Min),
-            Some(UiStackInfo::new(UiKind::CentralPanel)),
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::CentralPanel))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
@@ -1124,15 +1123,13 @@ impl CentralPanel {
         let layer_id = LayerId::background();
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
-        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             layer_id,
             id,
-            available_rect,
-            clip_rect,
-            UiStackInfo::default(), // set by show_inside_dyn
+            UiBuilder::new().max_rect(available_rect),
         );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
