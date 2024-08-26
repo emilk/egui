@@ -8,7 +8,7 @@ use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, WidgetText,
+    RichText, TextWrapMode, WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -1501,7 +1501,7 @@ impl Style {
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
             wrap: _,
-            wrap_mode: _,
+            wrap_mode,
             spacing,
             interaction,
             visuals,
@@ -1557,6 +1557,23 @@ impl Style {
                         let text =
                             crate::RichText::new(style.to_string()).text_style(style.clone());
                         ui.selectable_value(drag_value_text_style, style, text);
+                    }
+                });
+            ui.end_row();
+
+            ui.label("Text Wrap Mode");
+            crate::ComboBox::from_id_source("text_wrap_mode")
+                .selected_text(format!("{wrap_mode:?}"))
+                .show_ui(ui, |ui| {
+                    let all_wrap_mode: Vec<Option<TextWrapMode>> = vec![
+                        None,
+                        Some(TextWrapMode::Extend),
+                        Some(TextWrapMode::Wrap),
+                        Some(TextWrapMode::Truncate),
+                    ];
+                    for style in all_wrap_mode {
+                        let text = crate::RichText::new(format!("{style:?}"));
+                        ui.selectable_value(wrap_mode, style, text);
                     }
                 });
             ui.end_row();
