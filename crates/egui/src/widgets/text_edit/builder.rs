@@ -576,7 +576,7 @@ impl<'t> TextEdit<'t> {
                     is_being_dragged,
                 );
 
-                if did_interact {
+                if did_interact || response.clicked() {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
                 }
             }
