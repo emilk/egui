@@ -2,11 +2,13 @@ use std::hash::Hash;
 
 use crate::*;
 use epaint::Shape;
+use window::WindowAction;
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct InnerState {
-    open: bool,
+    expanded: bool,
+    shown: bool,
 
     /// Height of the region when open. Used for animations
     #[cfg_attr(feature = "serde", serde(default))]
@@ -48,22 +50,51 @@ impl CollapsingState {
         Self::load(ctx, id).unwrap_or(Self {
             id,
             state: InnerState {
-                open: default_open,
+                expanded: default_open,
+                shown: true,
                 open_height: None,
             },
         })
     }
 
+    #[deprecated = "Renamed to `is_expanded` function"]
     pub fn is_open(&self) -> bool {
-        self.state.open
+        self.state.expanded
     }
 
-    pub fn set_open(&mut self, open: bool) {
-        self.state.open = open;
+    pub fn set_action(&mut self, action: &WindowAction) {
+        match action {
+            WindowAction::Show => self.state.shown = true,
+            WindowAction::Hide => self.state.shown = false,
+            WindowAction::Expand => self.state.expanded = true,
+            WindowAction::Collapse => self.state.expanded = false,
+            WindowAction::ToggleShow => {
+                self.state.shown = !self.state.shown;
+            }
+            WindowAction::ToggleExpand => {
+                self.state.expanded = !self.state.expanded;
+            }
+        }
+    }
+
+    pub fn set_expanded(&mut self, expanded: bool) {
+        self.state.expanded = expanded;
+    }
+
+    pub fn is_expanded(&self) -> bool {
+        self.state.expanded
+    }
+
+    pub fn set_shown(&mut self, shown: bool) {
+        self.state.shown = shown;
+    }
+
+    pub fn is_shown(&mut self) -> bool {
+        self.state.shown
     }
 
     pub fn toggle(&mut self, ui: &Ui) {
-        self.state.open = !self.state.open;
+        self.state.expanded = !self.state.expanded;
         ui.ctx().request_repaint();
     }
 
@@ -72,7 +103,7 @@ impl CollapsingState {
         if ctx.memory(|mem| mem.everything_is_visible()) {
             1.0
         } else {
-            ctx.animate_bool_responsive(self.id, self.state.open)
+            ctx.animate_bool_responsive(self.id, self.state.expanded)
         }
     }
 
@@ -196,7 +227,7 @@ impl CollapsingState {
             None
         } else if openness < 1.0 {
             Some(ui.scope(|child_ui| {
-                let max_height = if self.state.open && self.state.open_height.is_none() {
+                let max_height = if self.state.expanded && self.state.open_height.is_none() {
                     // First frame of expansion.
                     // We don't know full height yet, but we will next frame.
                     // Just use a placeholder value that shows some movement:
@@ -272,12 +303,17 @@ pub struct HeaderResponse<'ui, HeaderRet> {
 }
 
 impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
+    #[deprecated = "Use the `HeaderResponse::is_expanded` instead"]
     pub fn is_open(&self) -> bool {
-        self.state.is_open()
+        self.is_expanded()
+    }
+
+    pub fn is_expanded(&self) -> bool {
+        self.state.is_expanded()
     }
 
     pub fn set_open(&mut self, open: bool) {
-        self.state.set_open(open);
+        self.state.set_expanded(open);
     }
 
     pub fn toggle(&mut self) {
@@ -530,8 +566,8 @@ impl CollapsingHeader {
         );
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
-        if let Some(open) = open {
-            if open != state.is_open() {
+        if let Some(is_shown) = open {
+            if is_shown != state.is_shown() {
                 state.toggle(ui);
                 header_response.mark_changed();
             }
