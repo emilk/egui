@@ -90,7 +90,7 @@ thiserror = "1.0.37"
 web-time = "1.1.0" # Timekeeping for native and web
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = "0.3.58"
+web-sys = "0.3.70"
 wgpu = { version = "22.1.0", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
