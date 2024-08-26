@@ -45,8 +45,6 @@ use web_sys::MediaQueryList;
 
 use input::*;
 
-use crate::Theme;
-
 // ----------------------------------------------------------------------------
 
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
@@ -103,7 +101,7 @@ pub fn native_pixels_per_point() -> f32 {
 /// Ask the browser about the preferred system theme.
 ///
 /// `None` means unknown.
-pub fn system_theme() -> Option<Theme> {
+pub fn system_theme() -> Option<egui::Theme> {
     let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
         .ok()??
         .matches();
@@ -114,23 +112,12 @@ fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQue
     window.match_media("(prefers-color-scheme: dark)")
 }
 
-fn theme_from_dark_mode(dark_mode: bool) -> Theme {
+fn theme_from_dark_mode(dark_mode: bool) -> egui::Theme {
     if dark_mode {
-        Theme::Dark
+        egui::Theme::Dark
     } else {
-        Theme::Light
+        egui::Theme::Light
     }
-}
-
-fn get_canvas_element_by_id(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
-    let document = web_sys::window()?.document()?;
-    let canvas = document.get_element_by_id(canvas_id)?;
-    canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
-}
-
-fn get_canvas_element_by_id_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
-    get_canvas_element_by_id(canvas_id)
-        .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
 /// Returns the canvas in client coordinates.
@@ -181,26 +168,16 @@ fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
 }
 
 /// Set the clipboard text.
-#[cfg(web_sys_unstable_apis)]
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
-        if let Some(clipboard) = window.navigator().clipboard() {
-            let promise = clipboard.write_text(s);
-            let future = wasm_bindgen_futures::JsFuture::from(promise);
-            let future = async move {
-                if let Err(err) = future.await {
-                    log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
-                }
-            };
-            wasm_bindgen_futures::spawn_local(future);
-        } else {
-            let is_secure_context = window.is_secure_context();
-            if is_secure_context {
-                log::warn!("window.navigator.clipboard is null; can't copy text");
-            } else {
-                log::warn!("window.navigator.clipboard is null; can't copy text, probably because we're not in a secure context. See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts");
+        let promise = window.navigator().clipboard().write_text(s);
+        let future = wasm_bindgen_futures::JsFuture::from(promise);
+        let future = async move {
+            if let Err(err) = future.await {
+                log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
             }
-        }
+        };
+        wasm_bindgen_futures::spawn_local(future);
     }
 }
 
@@ -274,4 +251,17 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
+}
+
+/// Returns `true` if the app is likely running on a mobile device.
+pub(crate) fn is_mobile() -> bool {
+    fn try_is_mobile() -> Option<bool> {
+        const MOBILE_DEVICE: [&str; 6] =
+            ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
+
+        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
+        let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
+        Some(is_mobile)
+    }
+    try_is_mobile().unwrap_or(false)
 }

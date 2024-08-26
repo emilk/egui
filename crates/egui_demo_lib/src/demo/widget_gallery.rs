@@ -61,10 +61,15 @@ impl crate::Demo for WidgetGallery {
 
 impl crate::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.add_enabled_ui(self.enabled, |ui| {
-            if !self.visible {
-                ui.set_invisible();
-            }
+        let mut ui_builder = egui::UiBuilder::new();
+        if !self.enabled {
+            ui_builder = ui_builder.disabled();
+        }
+        if !self.visible {
+            ui_builder = ui_builder.invisible();
+        }
+
+        ui.scope_builder(ui_builder, |ui| {
             ui.multiply_opacity(self.opacity);
 
             egui::Grid::new("my_grid")
@@ -248,10 +253,6 @@ impl WidgetGallery {
         });
         ui.end_row();
 
-        ui.add(doc_link_label_with_crate("egui_plot", "Plot", "plot"));
-        example_plot(ui);
-        ui.end_row();
-
         ui.hyperlink_to(
             "Custom widget:",
             super::toggle_switch::url_to_file_source_code(),
@@ -262,25 +263,6 @@ impl WidgetGallery {
         );
         ui.end_row();
     }
-}
-
-fn example_plot(ui: &mut egui::Ui) -> egui::Response {
-    use egui_plot::{Line, PlotPoints};
-    let n = 128;
-    let line_points: PlotPoints = (0..=n)
-        .map(|i| {
-            use std::f64::consts::TAU;
-            let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
-            [x, x.sin()]
-        })
-        .collect();
-    let line = Line::new(line_points);
-    egui_plot::Plot::new("example_plot")
-        .height(32.0)
-        .show_axes(false)
-        .data_aspect(1.0)
-        .show(ui, |plot_ui| plot_ui.line(line))
-        .response
 }
 
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {

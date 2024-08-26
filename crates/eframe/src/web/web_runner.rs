@@ -35,11 +35,6 @@ impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        #[cfg(not(web_sys_unstable_apis))]
-        log::warn!(
-            "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
-        );
-
         let panic_handler = PanicHandler::install();
 
         Self {
@@ -57,17 +52,15 @@ impl WebRunner {
     /// Failing to initialize graphics, or failure to create app.
     pub async fn start(
         &self,
-        canvas_id: &str,
+        canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
         app_creator: epi::AppCreator,
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let follow_system_theme = web_options.follow_system_theme;
-
         let text_agent = TextAgent::attach(self)?;
 
-        let runner = AppRunner::new(canvas_id, web_options, app_creator, text_agent).await?;
+        let runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
 
         {
             // Make sure the canvas can be given focus.
@@ -82,10 +75,6 @@ impl WebRunner {
 
         {
             events::install_event_handlers(self)?;
-
-            if follow_system_theme {
-                events::install_color_scheme_change_event(self)?;
-            }
 
             // The resize observer handles calling `request_animation_frame` to start the render loop.
             events::install_resize_observer(self)?;

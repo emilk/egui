@@ -77,11 +77,11 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     // so we check if we have focus inside of the handler.
     install_copy_cut_paste(runner_ref, &document)?;
 
-    install_mousedown(runner_ref, &canvas)?;
     // Use `document` here to notice if the user releases a drag outside of the canvas:
     // See https://github.com/emilk/egui/issues/3157
     install_mousemove(runner_ref, &document)?;
-    install_mouseup(runner_ref, &document)?;
+    install_pointerup(runner_ref, &document)?;
+    install_pointerdown(runner_ref, &canvas)?;
     install_mouseleave(runner_ref, &canvas)?;
 
     install_touchstart(runner_ref, &canvas)?;
@@ -94,6 +94,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_wheel(runner_ref, &canvas)?;
     install_drag_and_drop(runner_ref, &canvas)?;
     install_window_events(runner_ref, &window)?;
+    install_color_scheme_change_event(runner_ref, &window)?;
     Ok(())
 }
 
@@ -278,7 +279,6 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 }
 
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "paste", |event: web_sys::ClipboardEvent, runner| {
         if let Some(data) = event.clipboard_data() {
             if let Ok(text) = data.get_data("text") {
@@ -293,7 +293,6 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         }
     })?;
 
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "cut", |event: web_sys::ClipboardEvent, runner| {
         if runner.input.raw.focused {
             runner.input.raw.events.push(egui::Event::Cut);
@@ -310,7 +309,6 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         event.prevent_default();
     })?;
 
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "copy", |event: web_sys::ClipboardEvent, runner| {
         if runner.input.raw.focused {
             runner.input.raw.events.push(egui::Event::Copy);
@@ -353,17 +351,17 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
     Ok(())
 }
 
-pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
-
-    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
+fn install_color_scheme_change_event(
+    runner_ref: &WebRunner,
+    window: &web_sys::Window,
+) -> Result<(), JsValue> {
+    if let Some(media_query_list) = prefers_color_scheme_dark(window)? {
         runner_ref.add_event_listener::<web_sys::MediaQueryListEvent>(
             &media_query_list,
             "change",
             |event, runner| {
                 let theme = theme_from_dark_mode(event.matches());
-                runner.frame.info.system_theme = Some(theme);
-                runner.egui_ctx().set_visuals(theme.egui_visuals());
+                runner.input.raw.system_theme = Some(theme);
                 runner.needs_repaint.repaint_asap();
             },
         )?;
@@ -390,11 +388,11 @@ fn prevent_default_and_stop_propagation(
     Ok(())
 }
 
-fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
+fn install_pointerdown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     runner_ref.add_event_listener(
         target,
-        "mousedown",
-        |event: web_sys::MouseEvent, runner: &mut AppRunner| {
+        "pointerdown",
+        |event: web_sys::PointerEvent, runner: &mut AppRunner| {
             let modifiers = modifiers_from_mouse_event(&event);
             runner.input.raw.modifiers = modifiers;
             if let Some(button) = button_from_mouse_event(&event) {
@@ -416,6 +414,53 @@ fn install_mousedown(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             }
             event.stop_propagation();
             // Note: prevent_default breaks VSCode tab focusing, hence why we don't call it here.
+        },
+    )
+}
+
+fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
+    runner_ref.add_event_listener(
+        target,
+        "pointerup",
+        |event: web_sys::PointerEvent, runner| {
+            let modifiers = modifiers_from_mouse_event(&event);
+            runner.input.raw.modifiers = modifiers;
+
+            let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
+
+            if is_interested_in_pointer_event(
+                runner,
+                egui::pos2(event.client_x() as f32, event.client_y() as f32),
+            ) {
+                if let Some(button) = button_from_mouse_event(&event) {
+                    let modifiers = runner.input.raw.modifiers;
+                    runner.input.raw.events.push(egui::Event::PointerButton {
+                        pos,
+                        button,
+                        pressed: false,
+                        modifiers,
+                    });
+
+                    // Previously on iOS, the canvas would not receive focus on
+                    // any touch event, which resulted in the on-screen keyboard
+                    // not working when focusing on a text field in an egui app.
+                    // This attempts to fix that by forcing the focus on any
+                    // click on the canvas.
+                    runner.canvas().focus().ok();
+
+                    // In Safari we are only allowed to do certain things
+                    // (like playing audio, start a download, etc)
+                    // on user action, such as a click.
+                    // So we need to run the app logic here and now:
+                    runner.logic();
+
+                    // Make sure we paint the output of the above logic call asap:
+                    runner.needs_repaint.repaint_asap();
+
+                    event.prevent_default();
+                    event.stop_propagation();
+                }
+            }
         },
     )
 }
@@ -449,42 +494,6 @@ fn install_mousemove(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
-        }
-    })
-}
-
-fn install_mouseup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    runner_ref.add_event_listener(target, "mouseup", |event: web_sys::MouseEvent, runner| {
-        let modifiers = modifiers_from_mouse_event(&event);
-        runner.input.raw.modifiers = modifiers;
-
-        let pos = pos_from_mouse_event(runner.canvas(), &event, runner.egui_ctx());
-
-        if is_interested_in_pointer_event(
-            runner,
-            egui::pos2(event.client_x() as f32, event.client_y() as f32),
-        ) {
-            if let Some(button) = button_from_mouse_event(&event) {
-                let modifiers = runner.input.raw.modifiers;
-                runner.input.raw.events.push(egui::Event::PointerButton {
-                    pos,
-                    button,
-                    pressed: false,
-                    modifiers,
-                });
-
-                // In Safari we are only allowed to do certain things
-                // (like playing audio, start a download, etc)
-                // on user action, such as a click.
-                // So we need to run the app logic here and now:
-                runner.logic();
-
-                // Make sure we paint the output of the above logic call asap:
-                runner.needs_repaint.repaint_asap();
-
-                event.prevent_default();
-                event.stop_propagation();
-            }
         }
     })
 }
@@ -755,8 +764,8 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
     }) as Box<dyn FnMut(js_sys::Array)>);
 
     let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
-    let mut options = web_sys::ResizeObserverOptions::new();
-    options.box_(web_sys::ResizeObserverBoxOptions::ContentBox);
+    let options = web_sys::ResizeObserverOptions::new();
+    options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
     if let Some(runner_lock) = runner_ref.try_lock() {
         observer.observe_with_options(runner_lock.canvas(), &options);
         drop(runner_lock);

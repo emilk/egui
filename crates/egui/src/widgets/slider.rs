@@ -279,6 +279,12 @@ impl<'a> Slider<'a> {
         self
     }
 
+    #[inline]
+    pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
+        self.max_decimals = max_decimals;
+        self
+    }
+
     /// Set an exact number of decimals to display.
     ///
     /// Values will also be rounded to this number of decimals.
@@ -536,12 +542,12 @@ impl<'a> Slider<'a> {
             let end = *self.range.end();
             value = value.clamp(start.min(end), start.max(end));
         }
-        if let Some(max_decimals) = self.max_decimals {
-            value = emath::round_to_decimals(value, max_decimals);
-        }
         if let Some(step) = self.step {
             let start = *self.range.start();
             value = start + ((value - start) / step).round() * step;
+        }
+        if let Some(max_decimals) = self.max_decimals {
+            value = emath::round_to_decimals(value, max_decimals);
         }
         set(&mut self.get_set_value, value);
     }

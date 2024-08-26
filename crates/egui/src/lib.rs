@@ -270,7 +270,7 @@
 //!
 //! ## Widget interaction
 //! Each widget has a [`Sense`], which defines whether or not the widget
-//! is sensitive to clickicking and/or drags.
+//! is sensitive to clicking and/or drags.
 //!
 //! For instance, a [`Button`] only has a [`Sense::click`] (by default).
 //! This means if you drag a button it will not respond with [`Response::dragged`].
@@ -400,6 +400,7 @@ mod sense;
 pub mod style;
 pub mod text_selection;
 mod ui;
+mod ui_builder;
 mod ui_stack;
 pub mod util;
 pub mod viewport;
@@ -414,6 +415,7 @@ mod callstack;
 #[cfg(feature = "accesskit")]
 pub use accesskit;
 
+#[deprecated = "Use the ahash crate directly."]
 pub use ahash;
 
 pub use epaint;
@@ -442,7 +444,7 @@ pub mod text {
     };
 }
 
-pub use {
+pub use self::{
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
@@ -460,13 +462,14 @@ pub use {
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options},
+    memory::{Memory, Options, Theme},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
     style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    ui_builder::UiBuilder,
     ui_stack::*,
     viewport::*,
     widget_rect::{WidgetRect, WidgetRects},

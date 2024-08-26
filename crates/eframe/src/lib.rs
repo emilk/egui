@@ -10,9 +10,6 @@
 //! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
 //!
 //! ## Compiling for web
-//! To get copy-paste working on web, you need to compile with
-//! `export RUSTFLAGS=--cfg=web_sys_unstable_apis`.
-//!
 //! You need to install the `wasm32` target with `rustup target add wasm32-unknown-unknown`.
 //!
 //! Build the `.wasm` using `cargo build --target wasm32-unknown-unknown`
@@ -85,10 +82,10 @@
 //!
 //!     /// Call this once from JavaScript to start your app.
 //!     #[wasm_bindgen]
-//!     pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
+//!     pub async fn start(&self, canvas: web_sys::HtmlCanvasElement) -> Result<(), wasm_bindgen::JsValue> {
 //!         self.runner
 //!             .start(
-//!                 canvas_id,
+//!                 canvas,
 //!                 eframe::WebOptions::default(),
 //!                 Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc))),)
 //!             )
@@ -274,7 +271,9 @@ pub fn run_native(
 
 /// The simplest way to get started when writing a native app.
 ///
-/// This does NOT support persistence. For that you need to use [`run_native`].
+/// This does NOT support persistence of custom user data. For that you need to use [`run_native`].
+/// However, it DOES support persistence of egui data (window positions and sizes, how far the user has scrolled in a
+/// [`ScrollArea`](egui::ScrollArea), etc.) if the persistence feature is enabled.
 ///
 /// # Example
 /// ``` no_run

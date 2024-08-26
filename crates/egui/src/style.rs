@@ -8,7 +8,7 @@ use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, WidgetText,
+    RichText, TextWrapMode, WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -280,6 +280,9 @@ pub struct Style {
 
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
+
+    /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [Ui::scroll_to_rect].
+    pub scroll_animation: ScrollAnimation,
 }
 
 #[test]
@@ -687,6 +690,88 @@ impl ScrollStyle {
                 ui.label("Inner margin");
             });
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
+/// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollAnimation {
+    /// With what speed should we scroll? (Default: 1000.0)
+    pub points_per_second: f32,
+
+    /// The min / max scroll duration.
+    pub duration: Rangef,
+}
+
+impl Default for ScrollAnimation {
+    fn default() -> Self {
+        Self {
+            points_per_second: 1000.0,
+            duration: Rangef::new(0.1, 0.3),
+        }
+    }
+}
+
+impl ScrollAnimation {
+    /// New scroll animation
+    pub fn new(points_per_second: f32, duration: Rangef) -> Self {
+        Self {
+            points_per_second,
+            duration,
+        }
+    }
+
+    /// No animation, scroll instantly.
+    pub fn none() -> Self {
+        Self {
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(0.0, 0.0),
+        }
+    }
+
+    /// Scroll with a fixed duration, regardless of distance.
+    pub fn duration(t: f32) -> Self {
+        Self {
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(t, t),
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        crate::Grid::new("scroll_animation").show(ui, |ui| {
+            ui.label("Scroll animation:");
+            ui.add(
+                DragValue::new(&mut self.points_per_second)
+                    .speed(100.0)
+                    .range(0.0..=5000.0),
+            );
+            ui.label("points/second");
+            ui.end_row();
+
+            ui.label("Min duration:");
+            ui.add(
+                DragValue::new(&mut self.duration.min)
+                    .speed(0.01)
+                    .range(0.0..=self.duration.max),
+            );
+            ui.label("seconds");
+            ui.end_row();
+
+            ui.label("Max duration:");
+            ui.add(
+                DragValue::new(&mut self.duration.max)
+                    .speed(0.01)
+                    .range(0.0..=1.0),
+            );
+            ui.label("seconds");
+            ui.end_row();
+        });
     }
 }
 
@@ -1129,6 +1214,7 @@ impl Default for Style {
             explanation_tooltips: false,
             url_in_tooltip: false,
             always_scroll_the_only_direction: false,
+            scroll_animation: ScrollAnimation::default(),
         }
     }
 }
@@ -1415,7 +1501,7 @@ impl Style {
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
             wrap: _,
-            wrap_mode: _,
+            wrap_mode,
             spacing,
             interaction,
             visuals,
@@ -1425,6 +1511,7 @@ impl Style {
             explanation_tooltips,
             url_in_tooltip,
             always_scroll_the_only_direction,
+            scroll_animation,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -1474,6 +1561,23 @@ impl Style {
                 });
             ui.end_row();
 
+            ui.label("Text Wrap Mode");
+            crate::ComboBox::from_id_source("text_wrap_mode")
+                .selected_text(format!("{wrap_mode:?}"))
+                .show_ui(ui, |ui| {
+                    let all_wrap_mode: Vec<Option<TextWrapMode>> = vec![
+                        None,
+                        Some(TextWrapMode::Extend),
+                        Some(TextWrapMode::Wrap),
+                        Some(TextWrapMode::Truncate),
+                    ];
+                    for style in all_wrap_mode {
+                        let text = crate::RichText::new(format!("{style:?}"));
+                        ui.selectable_value(wrap_mode, style, text);
+                    }
+                });
+            ui.end_row();
+
             ui.label("Animation duration");
             ui.add(
                 DragValue::new(animation_time)
@@ -1488,6 +1592,7 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
+        ui.collapsing("🔄 Scroll Animation", |ui| scroll_animation.ui(ui));
 
         #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
@@ -2222,7 +2327,7 @@ impl Widget for &mut Margin {
                 ui.checkbox(&mut same, "same");
 
                 let mut value = self.left;
-                ui.add(DragValue::new(&mut value));
+                ui.add(DragValue::new(&mut value).range(0.0..=100.0));
                 *self = Margin::same(value);
             })
             .response
@@ -2232,19 +2337,19 @@ impl Widget for &mut Margin {
 
                 crate::Grid::new("margin").num_columns(2).show(ui, |ui| {
                     ui.label("Left");
-                    ui.add(DragValue::new(&mut self.left));
+                    ui.add(DragValue::new(&mut self.left).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Right");
-                    ui.add(DragValue::new(&mut self.right));
+                    ui.add(DragValue::new(&mut self.right).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Top");
-                    ui.add(DragValue::new(&mut self.top));
+                    ui.add(DragValue::new(&mut self.top).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Bottom");
-                    ui.add(DragValue::new(&mut self.bottom));
+                    ui.add(DragValue::new(&mut self.bottom).range(0.0..=100.0));
                     ui.end_row();
                 });
             })
@@ -2396,7 +2501,8 @@ impl Widget for &mut crate::Frame {
                 ui.end_row();
 
                 ui.label("Outer margin");
-                ui.add(outer_margin);
+                // Push Id to avoid clashes in the Margin widget's Grid
+                ui.push_id("outer", |ui| ui.add(outer_margin));
                 ui.end_row();
 
                 ui.label("Rounding");

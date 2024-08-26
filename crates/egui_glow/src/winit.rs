@@ -22,13 +22,14 @@ pub struct EguiGlow {
 
 impl EguiGlow {
     /// For automatic shader version detection set `shader_version` to `None`.
-    pub fn new<E>(
-        event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
+    pub fn new(
+        event_loop: &winit::event_loop::ActiveEventLoop,
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
+        dithering: bool,
     ) -> Self {
-        let painter = crate::Painter::new(gl, "", shader_version)
+        let painter = crate::Painter::new(gl, "", shader_version, dithering)
             .map_err(|err| {
                 log::error!("error occurred in initializing painter:\n{err}");
             })
@@ -41,6 +42,7 @@ impl EguiGlow {
             ViewportId::ROOT,
             event_loop,
             native_pixels_per_point,
+            event_loop.system_theme(),
             Some(painter.max_texture_side()),
         );
 
