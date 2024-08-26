@@ -1666,6 +1666,15 @@ pub fn create_winit_window_attributes(
             pixels_per_point * pos.y,
         ));
     }
+    #[cfg(target_os = "ios")]
+    {
+        // Unused:
+        _ = pixels_per_point;
+        _ = position;
+        _ = inner_size;
+        _ = min_inner_size;
+        _ = max_inner_size;
+    }
 
     if let Some(icon) = icon {
         let winit_icon = to_winit_icon(&icon);
