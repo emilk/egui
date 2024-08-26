@@ -44,9 +44,9 @@ impl eframe::App for MyApp {
                 highlighting. Hover to see them in action!",
             );
             ui.add_space(10.0);
-            ui.checkbox(&mut self.settings, "🔧 Settings");
-            ui.checkbox(&mut self.inspection, "🔍 Inspection");
-            ui.checkbox(&mut self.memory, "📝 Memory");
+            ui.checkbox(&mut self.show_settings, "🔧 Settings");
+            ui.checkbox(&mut self.show_inspection, "🔍 Inspection");
+            ui.checkbox(&mut self.show_memory, "📝 Memory");
             ui.add_space(10.0);
             if ui.button("Reset egui memory").clicked() {
                 ctx.memory_mut(|mem| *mem = Default::default());
@@ -199,21 +199,21 @@ impl eframe::App for MyApp {
             });
 
         egui::Window::new("🔧 Settings")
-            .open(&mut self.settings)
+            .open(&mut self.show_settings)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.settings_ui(ui);
             });
 
         egui::Window::new("🔍 Inspection")
-            .open(&mut self.inspection)
+            .open(&mut self.show_inspection)
             .vscroll(true)
             .show(ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
 
         egui::Window::new("📝 Memory")
-            .open(&mut self.memory)
+            .open(&mut self.show_memory)
             .resizable(false)
             .show(ctx, |ui| {
                 ctx.memory_ui(ui);
