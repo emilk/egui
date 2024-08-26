@@ -25,9 +25,9 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct MyApp {
-    settings: bool,
-    inspection: bool,
-    memory: bool,
+    show_settings: bool,
+    show_inspection: bool,
+    show_memory: bool,
 }
 
 impl eframe::App for MyApp {
