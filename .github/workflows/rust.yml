@@ -3,11 +3,7 @@ on: [ push, pull_request ]
 name: Rust
 
 env:
-  # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
-  # as well as by the wasm32-backend of the wgpu crate.
-  # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
-  # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
-  RUSTFLAGS: --cfg=web_sys_unstable_apis -D warnings
+  RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
 
 jobs:

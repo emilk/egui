@@ -168,7 +168,6 @@ fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
 }
 
 /// Set the clipboard text.
-#[cfg(web_sys_unstable_apis)]
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
         let promise = window.navigator().clipboard().write_text(s);

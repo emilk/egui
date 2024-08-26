@@ -276,13 +276,9 @@ impl AppRunner {
             super::open_url(&open.url, open.new_tab);
         }
 
-        #[cfg(web_sys_unstable_apis)]
         if !copied_text.is_empty() {
             super::set_clipboard_text(&copied_text);
         }
-
-        #[cfg(not(web_sys_unstable_apis))]
-        let _ = copied_text;
 
         if self.has_focus() {
             // The eframe app has focus.
