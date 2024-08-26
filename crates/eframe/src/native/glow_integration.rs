@@ -1548,7 +1548,7 @@ fn save_screenshot_and_exit(
     .unwrap_or_else(|err| {
         panic!("Failed to save screenshot to {path:?}: {err}");
     });
-    eprintln!("Screenshot saved to {path:?}.");
+    log::info!("Screenshot saved to {path:?}.");
 
     #[allow(clippy::exit)]
     std::process::exit(0);

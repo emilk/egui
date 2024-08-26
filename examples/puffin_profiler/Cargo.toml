@@ -27,3 +27,4 @@ env_logger = { version = "0.10", default-features = false, features = [
 ] }
 puffin = "0.19"
 puffin_http = "0.16"
+log = { workspace = true }
