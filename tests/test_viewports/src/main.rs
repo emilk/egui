@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use egui::{mutex::RwLock, Id, InnerResponse, ViewportBuilder, ViewportId};
+use egui::{mutex::RwLock, Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId};
 
 // Drag-and-drop between windows is not yet implemented, but if you wanna work on it, enable this:
 pub const DRAG_AND_DROP_TEST: bool = false;
@@ -460,7 +460,7 @@ fn drop_target<R>(
 
     let available_rect = ui.available_rect_before_wrap();
     let inner_rect = available_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout(), None);
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
     let ret = body(&mut content_ui);
 
     let outer_rect =

@@ -400,6 +400,7 @@ mod sense;
 pub mod style;
 pub mod text_selection;
 mod ui;
+mod ui_builder;
 mod ui_stack;
 pub mod util;
 pub mod viewport;
@@ -442,7 +443,7 @@ pub mod text {
     };
 }
 
-pub use {
+pub use self::{
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
@@ -467,6 +468,7 @@ pub use {
     style::{FontSelection, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    ui_builder::UiBuilder,
     ui_stack::*,
     viewport::*,
     widget_rect::{WidgetRect, WidgetRects},
