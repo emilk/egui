@@ -2501,7 +2501,8 @@ impl Widget for &mut crate::Frame {
                 ui.end_row();
 
                 ui.label("Outer margin");
-                ui.add(outer_margin);
+                // Push Id to avoid clashes in the Margin widget's Grid
+                ui.push_id("outer", |ui| ui.add(outer_margin));
                 ui.end_row();
 
                 ui.label("Rounding");
