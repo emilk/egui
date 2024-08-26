@@ -279,7 +279,6 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 }
 
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "paste", |event: web_sys::ClipboardEvent, runner| {
         if let Some(data) = event.clipboard_data() {
             if let Ok(text) = data.get_data("text") {
@@ -294,7 +293,6 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         }
     })?;
 
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "cut", |event: web_sys::ClipboardEvent, runner| {
         if runner.input.raw.focused {
             runner.input.raw.events.push(egui::Event::Cut);
@@ -311,7 +309,6 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         event.prevent_default();
     })?;
 
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "copy", |event: web_sys::ClipboardEvent, runner| {
         if runner.input.raw.focused {
             runner.input.raw.events.push(egui::Event::Copy);

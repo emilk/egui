@@ -35,11 +35,6 @@ impl WebRunner {
     /// Will install a panic handler that will catch and log any panics
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        #[cfg(not(web_sys_unstable_apis))]
-        log::warn!(
-            "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
-        );
-
         let panic_handler = PanicHandler::install();
 
         Self {
