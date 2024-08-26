@@ -239,13 +239,13 @@ impl EpiIntegration {
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
-        match event {
-            WindowEvent::MouseInput {
-                button: MouseButton::Left,
-                state: ElementState::Pressed,
-                ..
-            } => self.can_drag_window = true,
-            _ => {}
+        if let WindowEvent::MouseInput {
+            button: MouseButton::Left,
+            state: ElementState::Pressed,
+            ..
+        } = event
+        {
+            self.can_drag_window = true;
         }
 
         egui_winit.on_window_event(window, event)
