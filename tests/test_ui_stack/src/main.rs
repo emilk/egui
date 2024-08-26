@@ -24,12 +24,17 @@ fn main() -> eframe::Result {
 }
 
 #[derive(Default)]
-struct MyApp {}
+struct MyApp {
+    show_settings: bool,
+    show_inspection: bool,
+    show_memory: bool,
+}
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.style_mut(|style| style.interaction.tooltip_delay = 0.0);
-        egui::SidePanel::right("side_panel").show(ctx, |ui| {
+
+        egui::SidePanel::left("side_panel_left").show(ctx, |ui| {
             ui.heading("Information");
             ui.label(
                 "This is a demo/test environment of the `UiStack` feature. The tables display \
@@ -38,6 +43,10 @@ impl eframe::App for MyApp {
                 The \"Full span test\" labels showcase an implementation of full-span \
                 highlighting. Hover to see them in action!",
             );
+            ui.add_space(10.0);
+            ui.checkbox(&mut self.show_settings, "🔧 Settings");
+            ui.checkbox(&mut self.show_inspection, "🔍 Inspection");
+            ui.checkbox(&mut self.show_memory, "📝 Memory");
             ui.add_space(10.0);
             if ui.button("Reset egui memory").clicked() {
                 ctx.memory_mut(|mem| *mem = Default::default());
@@ -77,6 +86,96 @@ impl eframe::App for MyApp {
             });
         });
 
+        egui::SidePanel::right("side_panel_right").show(ctx, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+                stack_ui(ui);
+
+                // full span test
+                ui.add_space(20.0);
+                full_span_widget(ui, false);
+            });
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
+                ui.label("stack here:");
+                stack_ui(ui);
+
+                // full span test
+                ui.add_space(20.0);
+                full_span_widget(ui, false);
+
+                // tooltip test
+                ui.add_space(20.0);
+                ui.label("Hover me").on_hover_ui(|ui| {
+                    full_span_widget(ui, true);
+                    ui.add_space(20.0);
+                    stack_ui(ui);
+                });
+
+                // combobox test
+                ui.add_space(20.0);
+                egui::ComboBox::from_id_source("combo_box")
+                    .selected_text("click me")
+                    .show_ui(ui, |ui| {
+                        full_span_widget(ui, true);
+                        ui.add_space(20.0);
+                        stack_ui(ui);
+                    });
+
+                // Ui nesting test
+                ui.add_space(20.0);
+                ui.label("UI nesting test:");
+                egui::Frame {
+                    stroke: ui.visuals().noninteractive().bg_stroke,
+                    inner_margin: egui::Margin::same(4.0),
+                    ..Default::default()
+                }
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            ui.scope(stack_ui);
+                        });
+                    });
+                });
+
+                // table test
+                let mut cell_stack = None;
+                ui.add_space(20.0);
+                ui.label("Table test:");
+
+                egui_extras::TableBuilder::new(ui)
+                    .vscroll(false)
+                    .column(Column::auto())
+                    .column(Column::auto())
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.strong("column 1");
+                        });
+                        header.col(|ui| {
+                            ui.strong("column 2");
+                        });
+                    })
+                    .body(|mut body| {
+                        body.row(20.0, |mut row| {
+                            row.col(|ui| {
+                                full_span_widget(ui, false);
+                            });
+                            row.col(|ui| {
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                                ui.label("See stack below");
+                                cell_stack = Some(ui.stack().clone());
+                            });
+                        });
+                    });
+
+                if let Some(cell_stack) = cell_stack {
+                    ui.label("Cell's stack:");
+                    stack_ui_impl(ui, &cell_stack);
+                }
+            });
+        });
+
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
             .show(ctx, |ui| {
@@ -91,94 +190,33 @@ impl eframe::App for MyApp {
                     });
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical()
-                .auto_shrink(false)
-                .show(ui, |ui| {
-                    ui.label("stack here:");
-                    stack_ui(ui);
-
-                    // full span test
-                    ui.add_space(20.0);
-                    full_span_widget(ui, false);
-
-                    // tooltip test
-                    ui.add_space(20.0);
-                    ui.label("Hover me").on_hover_ui(|ui| {
-                        full_span_widget(ui, true);
-                        ui.add_space(20.0);
-                        stack_ui(ui);
-                    });
-
-                    // combobox test
-                    ui.add_space(20.0);
-                    egui::ComboBox::from_id_source("combo_box")
-                        .selected_text("click me")
-                        .show_ui(ui, |ui| {
-                            full_span_widget(ui, true);
-                            ui.add_space(20.0);
-                            stack_ui(ui);
-                        });
-
-                    // Ui nesting test
-                    ui.add_space(20.0);
-                    ui.label("UI nesting test:");
-                    egui::Frame {
-                        stroke: ui.visuals().noninteractive().bg_stroke,
-                        inner_margin: egui::Margin::same(4.0),
-                        ..Default::default()
-                    }
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.vertical(|ui| {
-                                ui.scope(stack_ui);
-                            });
-                        });
-                    });
-
-                    // table test
-                    let mut cell_stack = None;
-                    ui.add_space(20.0);
-                    ui.label("Table test:");
-
-                    egui_extras::TableBuilder::new(ui)
-                        .vscroll(false)
-                        .column(Column::auto())
-                        .column(Column::auto())
-                        .header(20.0, |mut header| {
-                            header.col(|ui| {
-                                ui.strong("column 1");
-                            });
-                            header.col(|ui| {
-                                ui.strong("column 2");
-                            });
-                        })
-                        .body(|mut body| {
-                            body.row(20.0, |mut row| {
-                                row.col(|ui| {
-                                    full_span_widget(ui, false);
-                                });
-                                row.col(|ui| {
-                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-                                    ui.label("See stack below");
-                                    cell_stack = Some(ui.stack().clone());
-                                });
-                            });
-                        });
-
-                    if let Some(cell_stack) = cell_stack {
-                        ui.label("Cell's stack:");
-                        stack_ui_impl(ui, &cell_stack);
-                    }
-                });
-        });
-
         egui::Window::new("Window")
             .pivot(egui::Align2::RIGHT_TOP)
             .show(ctx, |ui| {
                 full_span_widget(ui, false);
                 ui.add_space(20.0);
                 stack_ui(ui);
+            });
+
+        egui::Window::new("🔧 Settings")
+            .open(&mut self.show_settings)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                ctx.settings_ui(ui);
+            });
+
+        egui::Window::new("🔍 Inspection")
+            .open(&mut self.show_inspection)
+            .vscroll(true)
+            .show(ctx, |ui| {
+                ctx.inspection_ui(ui);
+            });
+
+        egui::Window::new("📝 Memory")
+            .open(&mut self.show_memory)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ctx.memory_ui(ui);
             });
     }
 }
