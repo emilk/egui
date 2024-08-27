@@ -1,0 +1,15 @@
+[package]
+name = "test_egui_extras_compilation"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.76"
+publish = false
+
+[lints]
+workspace = true
+
+
+[dependencies]
+eframe = { workspace = true, features = ["default", "persistence"] }
+egui_extras = { workspace = true }

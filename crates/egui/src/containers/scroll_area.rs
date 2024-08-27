@@ -572,10 +572,8 @@ impl ScrollArea {
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if scroll_enabled[d] {
-                    if state.content_is_too_large[d] {
-                        content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                        content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
-                    }
+                    content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
+                    content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
