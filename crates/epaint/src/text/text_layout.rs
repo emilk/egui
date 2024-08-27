@@ -703,6 +703,7 @@ fn tessellate_row(
         add_row_backgrounds(job, row, &mut mesh);
     }
 
+    let glyph_index_start = mesh.indices.len();
     let glyph_vertex_start = mesh.vertices.len();
     tessellate_glyphs(point_scale, job, row, &mut mesh);
     let glyph_vertex_end = mesh.vertices.len();
@@ -730,6 +731,7 @@ fn tessellate_row(
     RowVisuals {
         mesh,
         mesh_bounds,
+        glyph_index_start,
         glyph_vertex_range: glyph_vertex_start..glyph_vertex_end,
     }
 }

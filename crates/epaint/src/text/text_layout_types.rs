@@ -554,6 +554,12 @@ pub struct RowVisuals {
     /// Does NOT include leading or trailing whitespace glyphs!!
     pub mesh_bounds: Rect,
 
+    /// The number of triangle indices added before the first glyph triangle.
+    ///
+    /// This can be used to insert more triangles after the background but before the glyphs,
+    /// i.e. for text selection visualization.
+    pub glyph_index_start: usize,
+
     /// The range of vertices in the mesh that contain glyphs (as opposed to background, underlines, strikethorugh, etc).
     ///
     /// The glyph vertices comes after backgrounds (if any), but before any underlines and strikethrough.
@@ -565,6 +571,7 @@ impl Default for RowVisuals {
         Self {
             mesh: Default::default(),
             mesh_bounds: Rect::NOTHING,
+            glyph_index_start: 0,
             glyph_vertex_range: 0..0,
         }
     }
