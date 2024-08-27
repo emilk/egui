@@ -292,7 +292,10 @@ impl AppRunner {
             }
         }
 
-        if let Err(err) = self.text_agent.move_to(ime, self.canvas()) {
+        if let Err(err) = self
+            .text_agent
+            .move_to(ime, self.canvas(), self.egui_ctx.zoom_factor())
+        {
             log::error!(
                 "failed to update text agent position: {}",
                 super::string_from_js_value(&err)
