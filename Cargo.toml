@@ -207,6 +207,7 @@ negative_feature_names = "warn"
 nonstandard_macro_braces = "warn"
 option_option = "warn"
 path_buf_push_overwrite = "warn"
+print_stderr = "warn"
 ptr_as_ptr = "warn"
 ptr_cast_constness = "warn"
 pub_without_shorthand = "warn"
@@ -249,7 +250,7 @@ useless_transmute = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
 zero_sized_map_values = "warn"
-print_stderr = "warn"
+
 
 # TODO(emilk): enable more of these lints:
 iter_over_hash_type = "allow"
