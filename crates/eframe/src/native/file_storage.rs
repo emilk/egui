@@ -223,7 +223,9 @@ mod tests {
     #[test]
     fn naive_path_matches_directories() {
         use super::{directories_storage_dir, naive_storage_dir};
-        for app_id in ["MyApp", "My App", "my_app", "my-app"] {
+        for app_id in [
+            "MyApp", "My App", "my_app", "my-app", "My.App", "my/app", "my:app", r"my\app",
+        ] {
             assert_eq!(directories_storage_dir(app_id), naive_storage_dir(app_id));
         }
     }
