@@ -394,7 +394,6 @@ struct ContextImpl {
 
     embed_viewports: bool,
 
-    #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
 
     loaders: Arc<Loaders>,
@@ -505,7 +504,6 @@ impl ContextImpl {
             },
         );
 
-        #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
             crate::profile_scope!("accesskit");
             use crate::frame_state::AccessKitFrameState;
@@ -573,7 +571,6 @@ impl ContextImpl {
         }
     }
 
-    #[cfg(feature = "accesskit")]
     fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::NodeBuilder {
         let state = self.viewport().this_frame.accesskit_state.as_mut().unwrap();
         let builders = &mut state.node_builders;
@@ -1061,7 +1058,6 @@ impl Context {
         #[allow(clippy::let_and_return)]
         let res = self.get_response(w);
 
-        #[cfg(feature = "accesskit")]
         if w.sense.focusable {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
@@ -1150,7 +1146,6 @@ impl Context {
                 res.fake_primary_click = true;
             }
 
-            #[cfg(feature = "accesskit")]
             if enabled
                 && sense.click
                 && input.has_accesskit_action_request(id, accesskit::Action::Default)
@@ -2001,32 +1996,28 @@ impl ContextImpl {
         // Inform the backend of all textures that have been updated (including font atlas).
         let textures_delta = self.tex_manager.0.write().take_delta();
 
-        #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
         let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
-        #[cfg(feature = "accesskit")]
-        {
-            crate::profile_scope!("accesskit");
-            let state = viewport.this_frame.accesskit_state.take();
-            if let Some(state) = state {
-                let root_id = crate::accesskit_root_id().accesskit_id();
-                let nodes = {
-                    state
-                        .node_builders
-                        .into_iter()
-                        .map(|(id, builder)| (id.accesskit_id(), builder.build()))
-                        .collect()
-                };
-                let focus_id = self
-                    .memory
-                    .focused()
-                    .map_or(root_id, |id| id.accesskit_id());
-                platform_output.accesskit_update = Some(accesskit::TreeUpdate {
-                    nodes,
-                    tree: Some(accesskit::Tree::new(root_id)),
-                    focus: focus_id,
-                });
-            }
+        crate::profile_scope!("accesskit");
+        let state = viewport.this_frame.accesskit_state.take();
+        if let Some(state) = state {
+            let root_id = crate::accesskit_root_id().accesskit_id();
+            let nodes = {
+                state
+                    .node_builders
+                    .into_iter()
+                    .map(|(id, builder)| (id.accesskit_id(), builder.build()))
+                    .collect()
+            };
+            let focus_id = self
+                .memory
+                .focused()
+                .map_or(root_id, |id| id.accesskit_id());
+            platform_output.accesskit_update = Some(accesskit::TreeUpdate {
+                nodes,
+                tree: Some(accesskit::Tree::new(root_id)),
+                focus: focus_id,
+            });
         }
 
         let shapes = viewport
@@ -2859,7 +2850,6 @@ impl Context {
     #[inline]
     pub fn with_accessibility_parent(&self, _id: Id, f: impl FnOnce()) {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
-        #[cfg(feature = "accesskit")]
         self.frame_state_mut(|fs| {
             if let Some(state) = fs.accesskit_state.as_mut() {
                 state.parent_stack.push(_id);
@@ -2868,7 +2858,6 @@ impl Context {
 
         f();
 
-        #[cfg(feature = "accesskit")]
         self.frame_state_mut(|fs| {
             if let Some(state) = fs.accesskit_state.as_mut() {
                 assert_eq!(state.parent_stack.pop(), Some(_id));
@@ -2885,7 +2874,6 @@ impl Context {
     ///
     /// Returns `None` if acesskit is off.
     // TODO(emilk): consider making both read-only and read-write versions
-    #[cfg(feature = "accesskit")]
     pub fn accesskit_node_builder<R>(
         &self,
         id: Id,
@@ -2902,13 +2890,11 @@ impl Context {
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.
-    #[cfg(feature = "accesskit")]
     pub fn enable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
     }
 
     /// Disable generation of AccessKit tree updates in all future frames.
-    #[cfg(feature = "accesskit")]
     pub fn disable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = false);
     }

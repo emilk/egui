@@ -2,6 +2,8 @@
 
 use std::{cmp::Ordering, ops::RangeInclusive};
 
+use accesskit::{Action, ActionData};
+
 use crate::*;
 
 // ----------------------------------------------------------------------------
@@ -445,27 +447,19 @@ impl<'a> Widget for DragValue<'a> {
                     - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
             }
 
-            #[cfg(feature = "accesskit")]
-            {
-                use accesskit::Action;
-                change += input.num_accesskit_action_requests(id, Action::Increment) as f64
-                    - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
-            }
+            change += input.num_accesskit_action_requests(id, Action::Increment) as f64
+                - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
 
             change
         });
 
-        #[cfg(feature = "accesskit")]
-        {
-            use accesskit::{Action, ActionData};
-            ui.input(|input| {
-                for request in input.accesskit_action_requests(id, Action::SetValue) {
-                    if let Some(ActionData::NumericValue(new_value)) = request.data {
-                        value = new_value;
-                    }
+        ui.input(|input| {
+            for request in input.accesskit_action_requests(id, Action::SetValue) {
+                if let Some(ActionData::NumericValue(new_value)) = request.data {
+                    value = new_value;
                 }
-            });
-        }
+            }
+        });
 
         if clamp_to_range {
             value = clamp_value_to_range(value, range.clone());
@@ -623,9 +617,7 @@ impl<'a> Widget for DragValue<'a> {
 
         response.widget_info(|| WidgetInfo::drag_value(ui.is_enabled(), value));
 
-        #[cfg(feature = "accesskit")]
         ui.ctx().accesskit_node_builder(response.id, |builder| {
-            use accesskit::Action;
             // If either end of the range is unbounded, it's better
             // to leave the corresponding AccessKit field set to None,
             // to allow for platform-specific default behavior.

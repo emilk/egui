@@ -33,7 +33,6 @@ fn paint_selection(
         );
     }
 
-    #[cfg(feature = "accesskit")]
     super::accesskit_text::update_accesskit_for_text_widget(
         ui.ctx(),
         _response.id,

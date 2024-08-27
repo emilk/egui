@@ -64,7 +64,6 @@ impl ScrollTarget {
     }
 }
 
-#[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitFrameState {
     pub node_builders: IdMap<accesskit::NodeBuilder>,
@@ -209,7 +208,6 @@ pub struct FrameState {
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
-    #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitFrameState>,
 
     /// Highlight these widgets the next frame.
@@ -231,7 +229,6 @@ impl Default for FrameState {
             used_by_panels: Rect::NAN,
             scroll_target: [None, None],
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
-            #[cfg(feature = "accesskit")]
             accesskit_state: None,
             highlight_next_frame: Default::default(),
 
@@ -254,7 +251,6 @@ impl FrameState {
             used_by_panels,
             scroll_target,
             scroll_delta,
-            #[cfg(feature = "accesskit")]
             accesskit_state,
             highlight_next_frame,
 
@@ -277,10 +273,7 @@ impl FrameState {
             *debug_rect = None;
         }
 
-        #[cfg(feature = "accesskit")]
-        {
-            *accesskit_state = None;
-        }
+        *accesskit_state = None;
 
         highlight_next_frame.clear();
     }

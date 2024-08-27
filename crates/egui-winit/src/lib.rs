@@ -821,8 +821,7 @@ impl State {
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             ime,
-            #[cfg(feature = "accesskit")]
-            accesskit_update,
+            ..
         } = platform_output;
 
         self.set_cursor_icon(window, cursor_icon);
@@ -867,7 +866,7 @@ impl State {
 
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_mut() {
-            if let Some(update) = accesskit_update {
+            if let Some(update) = platform_output.accesskit_update {
                 crate::profile_scope!("accesskit");
                 accesskit.update_if_active(|| update);
             }
