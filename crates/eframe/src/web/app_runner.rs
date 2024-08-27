@@ -38,18 +38,11 @@ impl AppRunner {
     ) -> Result<Self, String> {
         let painter = super::ActiveWebPainter::new(canvas, &web_options).await?;
 
-        let system_theme = if web_options.follow_system_theme {
-            super::system_theme()
-        } else {
-            None
-        };
-
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
                 user_agent: super::user_agent().unwrap_or_default(),
                 location: super::web_location(),
             },
-            system_theme,
             cpu_usage: None,
         };
         let storage = LocalStorage::default();
@@ -67,9 +60,6 @@ impl AppRunner {
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
         });
-
-        let theme = system_theme.unwrap_or(web_options.default_theme);
-        egui_ctx.set_visuals(theme.egui_visuals());
 
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
@@ -132,6 +122,7 @@ impl AppRunner {
             .entry(egui::ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner.input.raw.system_theme = super::system_theme();
 
         Ok(runner)
     }
@@ -285,13 +276,9 @@ impl AppRunner {
             super::open_url(&open.url, open.new_tab);
         }
 
-        #[cfg(web_sys_unstable_apis)]
         if !copied_text.is_empty() {
             super::set_clipboard_text(&copied_text);
         }
-
-        #[cfg(not(web_sys_unstable_apis))]
-        let _ = copied_text;
 
         if self.has_focus() {
             // The eframe app has focus.

@@ -270,10 +270,10 @@ impl Resize {
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
-        let mut content_ui = ui.child_ui(
-            inner_rect,
-            *ui.layout(),
-            Some(UiStackInfo::new(UiKind::Resize)),
+        let mut content_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::Resize))
+                .max_rect(inner_rect),
         );
         content_ui.set_clip_rect(content_clip_rect);
 

@@ -560,10 +560,10 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
-        let mut content_ui = ui.child_ui(
-            content_max_rect,
-            *ui.layout(),
-            Some(UiStackInfo::new(UiKind::ScrollArea)),
+        let mut content_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
+                .max_rect(content_max_rect),
         );
 
         {
@@ -732,7 +732,7 @@ impl ScrollArea {
 
             let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 
-            ui.allocate_ui_at_rect(rect, |viewport_ui| {
+            ui.allocate_new_ui(UiBuilder::new().max_rect(rect), |viewport_ui| {
                 viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
                 add_contents(viewport_ui, min_row..max_row)
             })
