@@ -654,6 +654,10 @@ impl ContextImpl {
 impl ContextImpl {
     /// Updates the memory from the snapshot.
     fn apply_memory_snapshot(&mut self, snapshot: MemorySnapshot) {
+        self.memory.data.insert_temp(
+            Id::new(snapshot.viewport_id),
+            crate::text_selection::LabelSelectionState::from(snapshot.label_selection_state),
+        );
         self.memory.new_font_definitions = snapshot.new_font_definitions;
         self.memory.viewport_id = snapshot.viewport_id;
         self.memory.popup = snapshot.popup;
@@ -1683,11 +1687,6 @@ impl Context {
             ctx.apply_viewport_snapshots(value.viewports);
             ctx.snapshot_deltas = value.deltas;
         });
-
-        if new_frame {
-            self.read(|ctx| ctx.plugins.clone()).on_end_frame(self);
-            self.read(|ctx| ctx.plugins.clone()).on_begin_frame(self);
-        }
     }
 
     /// Gets a structure describing the state of this context. This

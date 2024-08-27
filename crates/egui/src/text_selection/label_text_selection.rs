@@ -46,6 +46,7 @@ fn paint_selection(
 
 /// One end of a text selection, inside any widget.
 #[derive(Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct WidgetTextCursor {
     widget_id: Id,
     ccursor: CCursor,
@@ -80,6 +81,7 @@ impl std::fmt::Debug for WidgetTextCursor {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct CurrentSelection {
     /// The selection is in this layer.
     ///
@@ -100,6 +102,7 @@ struct CurrentSelection {
 ///
 /// One state for all labels, because we only support text selection in one label at a time.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LabelSelectionState {
     /// The current selection, if any.
     selection: Option<CurrentSelection>,

@@ -4,6 +4,7 @@ use epaint::text::FontDefinitions;
 use serde::ser::{SerializeMap, SerializeSeq, SerializeTuple};
 
 use crate::style::Style;
+use crate::text_selection::LabelSelectionState;
 use crate::{AreaState, Options, PlatformOutput, ViewportCommand};
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -95,6 +96,8 @@ impl ContextSnapshot {
 /// between two separate contexts.
 #[derive(Clone)]
 pub(super) struct MemorySnapshot {
+    /// The `LabelSelectionState` object stored in `Memory::data`
+    pub label_selection_state: LabelSelectionState,
     /// The `Memory::new_font_definitions` field.
     pub new_font_definitions: Option<epaint::text::FontDefinitions>,
     /// The `Memory::viewport_id` field.
@@ -115,7 +118,7 @@ pub(super) struct MemorySnapshot {
 
 impl MemorySnapshot {
     /// The number of fields that this struct has.
-    const FIELDS: usize = 8;
+    const FIELDS: usize = 9;
 }
 
 /// Holds the instantaneous state of an `Options` for synchronizing
@@ -240,6 +243,13 @@ pub struct SnapshotSerialize<'a, T>(&'a T);
 impl<'a> serde::Serialize for SnapshotSerialize<'a, Memory> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut serialize_tuple = serializer.serialize_tuple(MemorySnapshot::FIELDS)?;
+        serialize_tuple.serialize_element(
+            &self
+                .0
+                .data
+                .get_temp::<LabelSelectionState>(Id::new(self.0.viewport_id))
+                .unwrap_or_default(),
+        )?;
         serialize_tuple.serialize_element(&self.0.new_font_definitions)?;
         serialize_tuple.serialize_element(&self.0.viewport_id)?;
         serialize_tuple.serialize_element(&self.0.popup)?;
@@ -567,33 +577,37 @@ impl<'de> serde::de::Visitor<'de> for SnapshotDeserializeVisitor<MemorySnapshot>
     }
 
     fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-        let new_font_definitions = seq
+        let label_selection_state = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let viewport_id = seq
+        let new_font_definitions = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        let popup = seq
+        let viewport_id = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-        let everything_is_visible = seq
+        let popup = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
-        let layer_transforms = seq
+        let everything_is_visible = seq
             .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
+        let layer_transforms = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?;
         let areas = seq
             .next_element::<SnapshotDeserialize<ViewportIdMap<Areas>>>()?
-            .ok_or_else(|| serde::de::Error::invalid_length(5, &self))?
+            .ok_or_else(|| serde::de::Error::invalid_length(6, &self))?
             .0;
         let interactions = seq
             .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(6, &self))?;
+            .ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
         let focus = seq
             .next_element()?
-            .ok_or_else(|| serde::de::Error::invalid_length(7, &self))?;
+            .ok_or_else(|| serde::de::Error::invalid_length(8, &self))?;
 
         Ok(SnapshotDeserialize(MemorySnapshot {
+            label_selection_state,
             new_font_definitions,
             viewport_id,
             popup,

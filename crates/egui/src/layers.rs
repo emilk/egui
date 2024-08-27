@@ -114,6 +114,7 @@ impl LayerId {
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ShapeIdx(pub usize);
 
 /// A list of [`Shape`]s paired with a clip rectangle.
