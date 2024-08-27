@@ -30,8 +30,10 @@ use super::{
 pub struct ContextSnapshotDeltas {
     /// The number of times that the font definitions have changed.
     pub(super) font_definitions_count: u64,
+
     /// The number of frames that have elapsed.
     pub(super) frame_count: u64,
+
     /// The number of times that the style has changed.
     pub(super) style_count: u64,
 }
@@ -51,16 +53,22 @@ impl Default for ContextSnapshotDeltas {
 pub struct ContextSnapshotBorrow<'a> {
     /// The deltas describing the current context state.
     pub(super) deltas: &'a ContextSnapshotDeltas,
+
     /// The `ContextImpl::font_definitions` field.
     pub(super) font_definitions: Option<&'a FontDefinitions>,
+
     /// The `ContextImpl::memory` field.
     pub(super) memory: &'a Memory,
+
     /// The context's style.
     pub(super) style: Option<Arc<Style>>,
+
     /// The `ContextImpl::new_zoom_factor` field.
     pub(super) new_zoom_factor: &'a Option<f32>,
+
     /// The `ContextImpl::last_viewport` field.
     pub(super) last_viewport: &'a ViewportId,
+
     /// The `ContextImpl::viewports` field.
     pub(super) viewports: &'a ViewportIdMap<ViewportState>,
 }
@@ -71,18 +79,25 @@ pub struct ContextSnapshotBorrow<'a> {
 pub struct ContextSnapshot {
     /// The deltas describing the current context state.
     pub(super) deltas: ContextSnapshotDeltas,
+
     /// The `ContextImpl::font_definitions` field.
     pub(super) font_definitions: Option<FontDefinitions>,
+
     /// The `ContextImpl::memory` field.
     pub(super) memory: MemorySnapshot,
+
     /// The `Memory::options` field.
     pub(super) options: OptionsSnapshot,
+
     /// The context's style.
     pub(super) style: Option<Arc<Style>>,
+
     /// The `ContextImpl::new_zoom_factor` field.
     pub(super) new_zoom_factor: Option<f32>,
+
     /// The `ContextImpl::last_viewport` field.
     pub(super) last_viewport: ViewportId,
+
     /// The `ContextImpl::viewports` field.
     pub(super) viewports: ViewportIdMap<ViewportStateSnapshot>,
 }
@@ -98,20 +113,28 @@ impl ContextSnapshot {
 pub(super) struct MemorySnapshot {
     /// The `LabelSelectionState` object stored in `Memory::data`
     pub label_selection_state: LabelSelectionState,
+
     /// The `Memory::new_font_definitions` field.
     pub new_font_definitions: Option<epaint::text::FontDefinitions>,
+
     /// The `Memory::viewport_id` field.
     pub viewport_id: ViewportId,
+
     /// The `Memory::popup` field.
     pub popup: Option<Id>,
+
     /// The `Memory::everything_is_visible` field.
     pub everything_is_visible: bool,
+
     /// The `Memory::layer_transforms` field.
     pub layer_transforms: HashMap<LayerId, TSTransform>,
+
     /// The `Memory::areas` field.
     pub areas: ViewportIdMap<Areas>,
+
     /// The `Memory::interactions` field.
     pub interactions: ViewportIdMap<InteractionState>,
+
     /// The `Memory::focus` field.
     pub focus: ViewportIdMap<Focus>,
 }
@@ -127,22 +150,31 @@ impl MemorySnapshot {
 pub struct OptionsSnapshot {
     /// The `Options::everything_is_visible` field.
     pub zoom_factor: f32,
+
     /// The `Options::zoom_with_keyboard` field.
     pub zoom_with_keyboard: bool,
+
     /// The `Options::tessellation_options` field.
     pub tessellation_options: epaint::TessellationOptions,
+
     /// The `Options::repaint_on_widget_change` field.
     pub repaint_on_widget_change: bool,
+
     /// The `Options::screen_reader` field.
     pub screen_reader: bool,
+
     /// The `Options::preload_font_glyphs` field.
     pub preload_font_glyphs: bool,
+
     /// The `Options::warn_on_id_clash` field.
     pub warn_on_id_clash: bool,
+
     /// The `Options::line_scroll_speed` field.
     pub line_scroll_speed: f32,
+
     /// The `Options::scroll_zoom_speed` field.
     pub scroll_zoom_speed: f32,
+
     /// The `Options::reduce_texture_memory` field.
     pub reduce_texture_memory: bool,
 }
@@ -159,10 +191,13 @@ impl OptionsSnapshot {
 struct TextWrappingSnapshot {
     /// The `TextWrapping::max_width` field.
     pub max_width: f32,
+
     /// The `TextWrapping::max_rows` field.
     pub max_rows: u64,
+
     /// The `TextWrapping::break_anywhere` field.
     pub break_anywhere: bool,
+
     /// The `TextWrapping::overflow_character` field.
     pub overflow_character: Option<char>,
 }
@@ -195,24 +230,34 @@ impl From<TextWrappingSnapshot> for epaint::text::TextWrapping {
 pub(super) struct ViewportStateSnapshot {
     /// The `ViewportState::class` field.
     pub class: ViewportClass,
+
     /// The `ViewportState::builder` field.
     pub builder: ViewportBuilder,
+
     /// The `ViewportState::input` field.
     pub input: InputState,
+
     /// The `ViewportState::this_frame` field.
     pub this_frame: FrameState,
+
     /// The `ViewportState::prev_frame` field.
     pub prev_frame: FrameState,
+
     /// The `ViewportState::used` field.
     pub used: bool,
+
     /// The `ViewportState::hits` field.
     pub hits: WidgetHits,
+
     /// The `ViewportState::interact_widgets` field.
     pub interact_widgets: InteractionSnapshot,
+
     /// The `ViewportState::graphics` field.
     pub graphics: GraphicLayers,
+
     /// The `ViewportState::output` field.
     pub output: PlatformOutput,
+
     /// The `ViewportState::commands` field.
     pub commands: Vec<ViewportCommand>,
 }
