@@ -61,10 +61,15 @@ impl crate::Demo for WidgetGallery {
 
 impl crate::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.add_enabled_ui(self.enabled, |ui| {
-            if !self.visible {
-                ui.set_invisible();
-            }
+        let mut ui_builder = egui::UiBuilder::new();
+        if !self.enabled {
+            ui_builder = ui_builder.disabled();
+        }
+        if !self.visible {
+            ui_builder = ui_builder.invisible();
+        }
+
+        ui.scope_builder(ui_builder, |ui| {
             ui.multiply_opacity(self.opacity);
 
             egui::Grid::new("my_grid")

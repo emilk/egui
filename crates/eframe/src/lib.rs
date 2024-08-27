@@ -10,9 +10,6 @@
 //! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
 //!
 //! ## Compiling for web
-//! To get copy-paste working on web, you need to compile with
-//! `export RUSTFLAGS=--cfg=web_sys_unstable_apis`.
-//!
 //! You need to install the `wasm32` target with `rustup target add wasm32-unknown-unknown`.
 //!
 //! Build the `.wasm` using `cargo build --target wasm32-unknown-unknown`

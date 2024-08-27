@@ -21,7 +21,6 @@ include = [
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg=web_sys_unstable_apis"]
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [lints]

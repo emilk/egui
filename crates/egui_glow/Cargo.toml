@@ -69,7 +69,7 @@ document-features = { workspace = true, optional = true }
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 puffin = { workspace = true, optional = true }
-winit = { workspace = true, optional = true, default-features = false }
+winit = { workspace = true, optional = true, default-features = false, features = ["rwh_06"] }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

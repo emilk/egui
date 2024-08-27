@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use egui::{mutex::RwLock, Id, InnerResponse, ViewportBuilder, ViewportId};
+use egui::{mutex::RwLock, Id, InnerResponse, UiBuilder, ViewportBuilder, ViewportId};
 
 // Drag-and-drop between windows is not yet implemented, but if you wanna work on it, enable this:
 pub const DRAG_AND_DROP_TEST: bool = false;
@@ -61,7 +61,7 @@ impl ViewportState {
         }))
     }
 
-    pub fn show(vp_state: Arc<RwLock<Self>>, ctx: &egui::Context) {
+    pub fn show(vp_state: Arc<RwLock<Self>>, ctx: &egui::Context, close_button: bool) {
         if !vp_state.read().visible {
             return;
         }
@@ -71,6 +71,7 @@ impl ViewportState {
 
         let viewport = ViewportBuilder::default()
             .with_title(&title)
+            .with_close_button(close_button)
             .with_inner_size([500.0, 500.0]);
 
         if immediate {
@@ -80,7 +81,7 @@ impl ViewportState {
                     vp_state.visible = false;
                 }
                 show_as_popup(ctx, class, &title, vp_id.into(), |ui: &mut egui::Ui| {
-                    generic_child_ui(ui, &mut vp_state);
+                    generic_child_ui(ui, &mut vp_state, close_button);
                 });
             });
         } else {
@@ -101,7 +102,7 @@ impl ViewportState {
                         ui.label(format!("Callback has been reused {current_count} times"));
                         *count.write() += 1;
 
-                        generic_child_ui(ui, &mut vp_state);
+                        generic_child_ui(ui, &mut vp_state, close_button);
                     },
                 );
             });
@@ -118,6 +119,7 @@ impl ViewportState {
 
 pub struct App {
     top: Vec<Arc<RwLock<ViewportState>>>,
+    close_button: bool,
 }
 
 impl Default for App {
@@ -151,6 +153,7 @@ impl Default for App {
                     ],
                 ),
             ],
+            close_button: true,
         }
     }
 }
@@ -169,8 +172,8 @@ impl eframe::App for App {
                 }
                 ctx.set_embed_viewports(embed_viewports);
             }
-
-            generic_ui(ui, &self.top);
+            ui.checkbox(&mut self.close_button, "with close button");
+            generic_ui(ui, &self.top, self.close_button);
         });
     }
 }
@@ -191,7 +194,7 @@ fn show_as_popup(
     }
 }
 
-fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState) {
+fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState, close_button: bool) {
     ui.horizontal(|ui| {
         ui.label("Title:");
         if ui.text_edit_singleline(&mut vp_state.title).changed() {
@@ -203,10 +206,10 @@ fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState) {
         }
     });
 
-    generic_ui(ui, &vp_state.children);
+    generic_ui(ui, &vp_state.children, close_button);
 }
 
-fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
+fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_button: bool) {
     let container_id = ui.id();
 
     let ctx = ui.ctx().clone();
@@ -290,7 +293,7 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
                 *visible
             };
             if visible {
-                ViewportState::show(child.clone(), &ctx);
+                ViewportState::show(child.clone(), &ctx, close_button);
             }
         }
     }
@@ -457,7 +460,7 @@ fn drop_target<R>(
 
     let available_rect = ui.available_rect_before_wrap();
     let inner_rect = available_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout(), None);
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
     let ret = body(&mut content_ui);
 
     let outer_rect =

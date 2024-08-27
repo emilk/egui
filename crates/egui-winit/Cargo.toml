@@ -80,7 +80,7 @@ serde = { workspace = true, optional = true }
 webbrowser = { version = "1.0.0", optional = true }
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
-smithay-clipboard = { version = "0.7.0", optional = true }
+smithay-clipboard = { version = "0.7.2", optional = true }
 
 # The wayland-cursor normally selected doesn't properly enable all the features it uses
 # and thus doesn't compile as it is used in egui-winit. This is fixed upstream, so force

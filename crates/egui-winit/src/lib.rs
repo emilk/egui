@@ -14,7 +14,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
+use egui::{Pos2, Rect, Theme, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
 pub mod clipboard;
@@ -111,6 +111,7 @@ impl State {
         viewport_id: ViewportId,
         display_target: &dyn HasDisplayHandle,
         native_pixels_per_point: Option<f32>,
+        theme: Option<winit::window::Theme>,
         max_texture_side: Option<usize>,
     ) -> Self {
         crate::profile_function!();
@@ -150,6 +151,7 @@ impl State {
             .entry(ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = native_pixels_per_point;
+        slf.egui_input.system_theme = theme.map(to_egui_theme);
 
         if let Some(max_texture_side) = max_texture_side {
             slf.set_max_texture_side(max_texture_side);
@@ -341,8 +343,7 @@ impl State {
                 // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
-                    winit::event::Ime::Enabled => {}
-                    winit::event::Ime::Preedit(_, None) => {
+                    winit::event::Ime::Enabled => {
                         self.ime_event_enable();
                     }
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
@@ -357,7 +358,7 @@ impl State {
                             .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
                         self.ime_event_disable();
                     }
-                    winit::event::Ime::Disabled => {
+                    winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
                         self.ime_event_disable();
                     }
                 };
@@ -399,6 +400,13 @@ impl State {
                 self.egui_input
                     .events
                     .push(egui::Event::WindowFocused(*focused));
+                EventResponse {
+                    repaint: true,
+                    consumed: false,
+                }
+            }
+            WindowEvent::ThemeChanged(winit_theme) => {
+                self.egui_input.system_theme = Some(to_egui_theme(*winit_theme));
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -463,7 +471,6 @@ impl State {
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::Moved(_)
-            | WindowEvent::ThemeChanged(_)
             | WindowEvent::TouchpadPressure { .. }
             | WindowEvent::CloseRequested => EventResponse {
                 repaint: true,
@@ -888,6 +895,13 @@ impl State {
             // Remember to set the cursor again once the cursor returns to the screen:
             self.current_cursor_icon = None;
         }
+    }
+}
+
+fn to_egui_theme(theme: winit::window::Theme) -> Theme {
+    match theme {
+        winit::window::Theme::Dark => Theme::Dark,
+        winit::window::Theme::Light => Theme::Light,
     }
 }
 
@@ -1593,7 +1607,11 @@ pub fn create_winit_window_attributes(
         .with_decorations(decorations.unwrap_or(true))
         .with_resizable(resizable.unwrap_or(true))
         .with_visible(visible.unwrap_or(true))
-        .with_maximized(maximized.unwrap_or(false))
+        .with_maximized(if cfg!(target_os = "ios") {
+            true
+        } else {
+            maximized.unwrap_or(false)
+        })
         .with_window_level(match window_level.unwrap_or_default() {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
@@ -1617,6 +1635,7 @@ pub fn create_winit_window_attributes(
         })
         .with_active(active.unwrap_or(true));
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = inner_size {
         window_attributes = window_attributes.with_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1624,6 +1643,7 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = min_inner_size {
         window_attributes = window_attributes.with_min_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1631,6 +1651,7 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(size) = max_inner_size {
         window_attributes = window_attributes.with_max_inner_size(PhysicalSize::new(
             pixels_per_point * size.x,
@@ -1638,11 +1659,21 @@ pub fn create_winit_window_attributes(
         ));
     }
 
+    #[cfg(not(target_os = "ios"))]
     if let Some(pos) = position {
         window_attributes = window_attributes.with_position(PhysicalPosition::new(
             pixels_per_point * pos.x,
             pixels_per_point * pos.y,
         ));
+    }
+    #[cfg(target_os = "ios")]
+    {
+        // Unused:
+        _ = pixels_per_point;
+        _ = position;
+        _ = inner_size;
+        _ = min_inner_size;
+        _ = max_inner_size;
     }
 
     if let Some(icon) = icon {

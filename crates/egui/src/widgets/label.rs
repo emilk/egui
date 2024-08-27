@@ -26,6 +26,7 @@ pub struct Label {
     wrap_mode: Option<TextWrapMode>,
     sense: Option<Sense>,
     selectable: Option<bool>,
+    halign: Option<Align>,
 }
 
 impl Label {
@@ -35,6 +36,7 @@ impl Label {
             wrap_mode: None,
             sense: None,
             selectable: None,
+            halign: None,
         }
     }
 
@@ -73,6 +75,13 @@ impl Label {
     #[inline]
     pub fn extend(mut self) -> Self {
         self.wrap_mode = Some(TextWrapMode::Extend);
+        self
+    }
+
+    /// Sets the horizontal alignment of the Label to the given `Align` value.
+    #[inline]
+    pub fn halign(mut self, align: Align) -> Self {
+        self.halign = Some(align);
         self
     }
 
@@ -211,7 +220,7 @@ impl Label {
                 layout_job.halign = Align::LEFT;
                 layout_job.justify = false;
             } else {
-                layout_job.halign = ui.layout().horizontal_placement();
+                layout_job.halign = self.halign.unwrap_or(ui.layout().horizontal_placement());
                 layout_job.justify = ui.layout().horizontal_justify();
             };
 

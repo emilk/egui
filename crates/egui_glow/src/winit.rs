@@ -42,6 +42,7 @@ impl EguiGlow {
             ViewportId::ROOT,
             event_loop,
             native_pixels_per_point,
+            event_loop.system_theme(),
             Some(painter.max_texture_side()),
         );
 

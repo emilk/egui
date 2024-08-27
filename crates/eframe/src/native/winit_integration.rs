@@ -118,16 +118,6 @@ pub enum EventResult {
     Exit,
 }
 
-pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<crate::Theme> {
-    if options.follow_system_theme {
-        window
-            .theme()
-            .map(super::epi_integration::theme_from_winit_theme)
-    } else {
-        None
-    }
-}
-
 #[cfg(feature = "accesskit")]
 pub(crate) fn on_accesskit_window_event(
     egui_winit: &mut egui_winit::State,

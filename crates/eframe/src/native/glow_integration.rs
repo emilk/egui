@@ -228,14 +228,11 @@ impl GlowWinitApp {
             }
         }
 
-        let system_theme =
-            winit_integration::system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
         let painter = Rc::new(RefCell::new(painter));
 
         let integration = EpiIntegration::new(
             egui_ctx,
             &glutin.window(ViewportId::ROOT),
-            system_theme,
             &self.app_name,
             &self.native_options,
             storage,
@@ -280,9 +277,6 @@ impl GlowWinitApp {
                 egui_winit.init_accesskit(window, event_loop_proxy);
             }
         }
-
-        let theme = system_theme.unwrap_or(self.native_options.default_theme);
-        integration.egui_ctx.set_visuals(theme.egui_visuals());
 
         if self
             .native_options
@@ -809,6 +803,18 @@ impl GlowWinitRunning {
                 }
             }
 
+            winit::event::WindowEvent::Destroyed => {
+                log::debug!(
+                    "Received WindowEvent::Destroyed for viewport {:?}",
+                    viewport_id
+                );
+                if viewport_id == Some(ViewportId::ROOT) {
+                    return EventResult::Exit;
+                } else {
+                    return EventResult::Wait;
+                }
+            }
+
             _ => {}
         }
 
@@ -1120,6 +1126,7 @@ impl GlutinWindowContext {
                 viewport_id,
                 event_loop,
                 Some(window.scale_factor() as f32),
+                event_loop.system_theme(),
                 self.max_texture_side,
             )
         });
@@ -1365,6 +1372,7 @@ fn initialize_or_update_viewport(
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
+                viewport.gl_surface = None;
             }
 
             viewport.deferred_commands.append(&mut delta_commands);
