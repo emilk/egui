@@ -746,7 +746,7 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        // IME-related processing when focus is gained or lost in IME enabled state.
+        // Ensures correct IME behavior when the text input area gains or loses focus.
         if state.ime_enabled && (response.gained_focus() || response.lost_focus()) {
             state.ime_enabled = false;
             if let Some(mut ccursor_range) = state.cursor.char_range() {
