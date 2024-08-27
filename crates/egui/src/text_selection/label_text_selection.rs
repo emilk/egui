@@ -477,7 +477,7 @@ impl LabelSelectionState {
         }
     }
 
-    /// Returns indices of new vertices in the galley, if any.
+    /// Returns the painted selections, if any.
     fn on_label(
         &mut self,
         ui: &Ui,
