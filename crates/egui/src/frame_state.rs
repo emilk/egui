@@ -1,9 +1,9 @@
 use ahash::{HashMap, HashSet};
 
-use crate::{
-    id::IdSet, pos2, style, Align, Align2, Color32, FontId, Id, IdMap, LayerId, NumExt, Painter,
-    Rangef, Rect, Vec2, WidgetRects,
-};
+use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
+
+#[cfg(debug_assertions)]
+use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]

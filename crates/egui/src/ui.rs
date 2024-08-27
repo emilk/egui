@@ -24,9 +24,11 @@ use crate::{
     },
     Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
     Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
-    Stroke, Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect,
-    WidgetText,
+    Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect, WidgetText,
 };
+
+#[cfg(debug_assertions)]
+use crate::Stroke;
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
