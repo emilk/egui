@@ -57,6 +57,10 @@ jobs:
       - name: check epaint --no-default-features
         run: cargo check --locked --no-default-features --lib -p epaint
 
+      # Regression test for https://github.com/emilk/egui/issues/4771
+      - name: cargo check -p test_egui_extras_compilation
+        run: cargo check -p test_egui_extras_compilation
+
       - name: Test doc-tests
         run: cargo test --doc --all-features
 

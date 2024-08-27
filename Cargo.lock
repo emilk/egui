@@ -3805,6 +3805,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_egui_extras_compilation"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+]
+
+[[package]]
 name = "test_inline_glow_paint"
 version = "0.1.0"
 dependencies = [
