@@ -475,7 +475,7 @@ pub use {
 };
 
 #[cfg(feature = "snapshot")]
-pub use context::{ContextShapshotBorrow, ContextSnapshot, ContextSnapshotDeltas};
+pub use context::{ContextSnapshot, ContextSnapshotBorrow, ContextSnapshotDeltas};
 
 // ----------------------------------------------------------------------------
 

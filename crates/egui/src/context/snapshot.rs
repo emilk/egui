@@ -48,7 +48,7 @@ impl Default for ContextSnapshotDeltas {
 
 /// A borrowed version of a `ContextSnapshot`. May be serialized and
 /// then deserialized to get an owned `ContextSnapshot`.
-pub struct ContextShapshotBorrow<'a> {
+pub struct ContextSnapshotBorrow<'a> {
     /// The deltas describing the current context state.
     pub(super) deltas: &'a ContextSnapshotDeltas,
     /// The `ContextImpl::font_definitions` field.
@@ -222,7 +222,7 @@ impl ViewportStateSnapshot {
     const FIELDS: usize = 11;
 }
 
-impl<'a> serde::Serialize for ContextShapshotBorrow<'a> {
+impl<'a> serde::Serialize for ContextSnapshotBorrow<'a> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut seq = serializer.serialize_tuple(ContextSnapshot::FIELDS)?;
         seq.serialize_element(self.deltas)?;

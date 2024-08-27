@@ -28,7 +28,7 @@ use crate::{
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
 #[cfg(feature = "snapshot")]
-pub use self::snapshot::{ContextShapshotBorrow, ContextSnapshot, ContextSnapshotDeltas};
+pub use self::snapshot::{ContextSnapshotBorrow, ContextSnapshot, ContextSnapshotDeltas};
 
 #[cfg(feature = "snapshot")]
 mod snapshot;
@@ -1695,13 +1695,13 @@ impl Context {
         self.read(|ctx| ctx.snapshot_deltas)
     }
 
-    /// Gets a `ContextShapshotBorrow` that may serialized and used to synchronize
+    /// Gets a `ContextSnapshotBorrow` that may serialized and used to synchronize
     /// another context. The data included for synchronization will be based upon
     /// the provided `deltas`, which should describe the state of the other context.
     pub fn snapshot_for<R>(
         &self,
         deltas: &ContextSnapshotDeltas,
-        reader: impl FnOnce(&ContextShapshotBorrow<'_>) -> R,
+        reader: impl FnOnce(&ContextSnapshotBorrow<'_>) -> R,
     ) -> R {
         self.read(|ctx| {
             let style = (deltas.style_count != ctx.snapshot_deltas.style_count)
@@ -1711,7 +1711,7 @@ impl Context {
                 != ctx.snapshot_deltas.font_definitions_count)
                 .then_some(&ctx.font_definitions);
 
-            let borrow = ContextShapshotBorrow {
+            let borrow = ContextSnapshotBorrow {
                 deltas: &ctx.snapshot_deltas,
                 font_definitions,
                 memory: &ctx.memory,
