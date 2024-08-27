@@ -1,14 +1,15 @@
+use std::sync::Arc;
+
 use crate::*;
 
 use self::layers::ShapeIdx;
 
 use super::CursorRange;
 
+/// Adds text selection rectangles to the galley.
 pub fn paint_text_selection(
-    painter: &Painter,
+    galley: &mut Arc<Galley>,
     visuals: &Visuals,
-    galley_pos: Pos2,
-    galley: &Galley,
     cursor_range: &CursorRange,
     mut out_shaped_idx: Option<&mut Vec<ShapeIdx>>,
 ) {
@@ -16,14 +17,17 @@ pub fn paint_text_selection(
         return;
     }
 
-    // We paint the cursor selection on top of the text, so make it transparent:
-    let color = visuals.selection.bg_fill.linear_multiply(0.5);
+    // We need to modify the galley (add text selection painting to it),
+    // and so we need to clone it if it is shared:
+    let galley: &mut Galley = Arc::make_mut(galley);
+
+    let color = visuals.selection.bg_fill;
     let [min, max] = cursor_range.sorted_cursors();
     let min = min.rcursor;
     let max = max.rcursor;
 
     for ri in min.row..=max.row {
-        let row = &galley.rows[ri];
+        let row = &mut galley.rows[ri];
         let left = if ri == min.row {
             row.x_offset(min.column)
         } else {
@@ -39,13 +43,40 @@ pub fn paint_text_selection(
             };
             row.rect.right() + newline_size
         };
-        let rect = Rect::from_min_max(
-            galley_pos + vec2(left, row.min_y()),
-            galley_pos + vec2(right, row.max_y()),
-        );
-        let shape_idx = painter.rect_filled(rect, 0.0, color);
+
+        let rect = Rect::from_min_max(pos2(left, row.min_y()), pos2(right, row.max_y()));
+        let mesh = &mut row.visuals.mesh;
+
+        // Time to insert the selection rectangle into the row mesh.
+        // It should be on top (after) of any background in the galley,
+        // but behind (before) any glyphs. The row visuals has this information:
+        let glyph_index_start = row.visuals.glyph_index_start;
+
+        // Start by appending the selection rectangle to end of the mesh, as two triangles (= 6 indices):
+        let num_indices_before = mesh.indices.len();
+        mesh.add_colored_rect(rect, color);
+        assert_eq!(num_indices_before + 6, mesh.indices.len());
+
+        // Copy out the new triangles:
+        let selection_triangles = [
+            mesh.indices[num_indices_before],
+            mesh.indices[num_indices_before + 1],
+            mesh.indices[num_indices_before + 2],
+            mesh.indices[num_indices_before + 3],
+            mesh.indices[num_indices_before + 4],
+            mesh.indices[num_indices_before + 5],
+        ];
+
+        // Move every old triangle forwards by 6 indices to make room for the new triangle:
+        for i in (glyph_index_start..num_indices_before).rev() {
+            mesh.indices.swap(i, i + 6);
+        }
+        // Put the new triangle in place:
+        mesh.indices[glyph_index_start..glyph_index_start + 6]
+            .clone_from_slice(&selection_triangles);
+
         if let Some(out_shaped_idx) = &mut out_shaped_idx {
-            out_shaped_idx.push(shape_idx);
+            // TODO
         }
     }
 }

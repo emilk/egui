@@ -245,7 +245,7 @@ impl Widget for Label {
 
         let selectable = self.selectable;
 
-        let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
+        let (galley_pos, mut galley, mut response) = self.layout_in_ui(ui);
         response
             .widget_info(|| WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), galley.text()));
 
@@ -267,15 +267,15 @@ impl Widget for Label {
                 Stroke::NONE
             };
 
-            ui.painter().add(
-                epaint::TextShape::new(galley_pos, galley.clone(), response_color)
-                    .with_underline(underline),
-            );
-
             let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {
-                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &galley);
+                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &mut galley);
             }
+
+            ui.painter().add(
+                epaint::TextShape::new(galley_pos, galley, response_color)
+                    .with_underline(underline),
+            );
         }
 
         response

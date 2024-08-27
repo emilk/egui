@@ -662,8 +662,6 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(galley_pos, galley.clone(), text_color);
-
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
@@ -689,19 +687,19 @@ impl<'t> TextEdit<'t> {
                 painter.galley(galley_pos, galley, hint_text_color);
             }
 
-            if ui.memory(|mem| mem.has_focus(id)) {
-                if let Some(cursor_range) = state.cursor.range(&galley) {
-                    // We paint the cursor on top of the text, in case
-                    // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-                    paint_text_selection(
-                        &painter,
-                        ui.visuals(),
-                        galley_pos,
-                        &galley,
-                        &cursor_range,
-                        None,
-                    );
+            let has_focus = ui.memory(|mem| mem.has_focus(id));
 
+            if has_focus {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
+                    // Add text selection rectangles to the galley:
+                    paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
+                }
+            }
+
+            painter.galley(galley_pos, galley.clone(), text_color);
+
+            if has_focus {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
@@ -721,7 +719,8 @@ impl<'t> TextEdit<'t> {
                         // This is for two reasons:
                         // * Don't give the impression that the user can type into a window without focus
                         // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
-                        if ui.ctx().input(|i| i.focused) {
+                        let viewport_has_focus = ui.ctx().input(|i| i.focused);
+                        if viewport_has_focus {
                             text_selection::visuals::paint_text_cursor(
                                 ui,
                                 &painter,

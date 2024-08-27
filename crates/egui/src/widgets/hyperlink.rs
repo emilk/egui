@@ -36,7 +36,7 @@ impl Widget for Link {
         let Self { text } = self;
         let label = Label::new(text).sense(Sense::click());
 
-        let (galley_pos, galley, response) = label.layout_in_ui(ui);
+        let (galley_pos, mut galley, response) = label.layout_in_ui(ui);
         response
             .widget_info(|| WidgetInfo::labeled(WidgetType::Link, ui.is_enabled(), galley.text()));
 
@@ -50,14 +50,13 @@ impl Widget for Link {
                 Stroke::NONE
             };
 
-            ui.painter().add(
-                epaint::TextShape::new(galley_pos, galley.clone(), color).with_underline(underline),
-            );
-
             let selectable = ui.style().interaction.selectable_labels;
             if selectable {
-                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &galley);
+                LabelSelectionState::label_text_selection(ui, &response, galley_pos, &mut galley);
             }
+
+            ui.painter()
+                .add(epaint::TextShape::new(galley_pos, galley, color).with_underline(underline));
 
             if response.hovered() {
                 ui.ctx().set_cursor_icon(CursorIcon::PointingHand);

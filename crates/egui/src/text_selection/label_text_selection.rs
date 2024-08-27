@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     layers::ShapeIdx, text::CCursor, text_selection::CCursorRange, Context, CursorIcon, Event,
     Galley, Id, LayerId, Pos2, Rect, Response, Ui,
@@ -9,40 +11,6 @@ use super::{
 
 /// Turn on to help debug this
 const DEBUG: bool = false; // Don't merge `true`!
-
-fn paint_selection(
-    ui: &Ui,
-    _response: &Response,
-    galley_pos: Pos2,
-    galley: &Galley,
-    cursor_state: &TextCursorState,
-    painted_shape_idx: &mut Vec<ShapeIdx>,
-) {
-    let cursor_range = cursor_state.range(galley);
-
-    if let Some(cursor_range) = cursor_range {
-        // We paint the cursor on top of the text, in case
-        // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-        paint_text_selection(
-            ui.painter(),
-            ui.visuals(),
-            galley_pos,
-            galley,
-            &cursor_range,
-            Some(painted_shape_idx),
-        );
-    }
-
-    #[cfg(feature = "accesskit")]
-    super::accesskit_text::update_accesskit_for_text_widget(
-        ui.ctx(),
-        _response.id,
-        cursor_range,
-        accesskit::Role::Label,
-        galley_pos,
-        galley,
-    );
-}
 
 /// One end of a text selection, inside any widget.
 #[derive(Clone, Copy)]
@@ -292,9 +260,14 @@ impl LabelSelectionState {
     ///
     /// Make sure the widget senses clicks and drags.
     ///
-    /// This should be called after painting the text, because this will also
-    /// paint the text cursor/selection on top.
-    pub fn label_text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, galley: &Galley) {
+    /// This should be called before painting the text, because this will
+    /// add the text selection (if any) to the galley.
+    pub fn label_text_selection(
+        ui: &Ui,
+        response: &Response,
+        galley_pos: Pos2,
+        galley: &mut Arc<Galley>,
+    ) {
         let mut state = Self::load(ui.ctx());
         state.on_label(ui, response, galley_pos, galley);
         state.store(ui.ctx());
@@ -470,7 +443,13 @@ impl LabelSelectionState {
         }
     }
 
-    fn on_label(&mut self, ui: &Ui, response: &Response, galley_pos: Pos2, galley: &Galley) {
+    fn on_label(
+        &mut self,
+        ui: &Ui,
+        response: &Response,
+        galley_pos: Pos2,
+        galley: &mut Arc<Galley>,
+    ) {
         let widget_id = response.id;
 
         if response.hovered {
@@ -576,13 +555,25 @@ impl LabelSelectionState {
             }
         }
 
-        paint_selection(
-            ui,
-            response,
+        let cursor_range = cursor_state.range(galley);
+
+        if let Some(cursor_range) = cursor_range {
+            paint_text_selection(
+                galley,
+                ui.visuals(),
+                &cursor_range,
+                Some(&mut self.painted_shape_idx),
+            );
+        }
+
+        #[cfg(feature = "accesskit")]
+        super::accesskit_text::update_accesskit_for_text_widget(
+            ui.ctx(),
+            response.id,
+            cursor_range,
+            accesskit::Role::Label,
             galley_pos,
             galley,
-            &cursor_state,
-            &mut self.painted_shape_idx,
         );
     }
 }
