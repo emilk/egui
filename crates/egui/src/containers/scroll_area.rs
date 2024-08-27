@@ -160,7 +160,7 @@ impl ScrollBarVisibility {
 /// # });
 /// ```
 ///
-/// You can scroll to an element using [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
+/// You can scroll to an element using [`crate::Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
@@ -370,7 +370,7 @@ impl ScrollArea {
     /// * If `false`, the scroll area will not respond to user scrolling.
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is typing text in a [`TextEdit`] widget contained within the scroll area.
+    /// is typing text in a [`crate::TextEdit`] widget contained within the scroll area.
     ///
     /// This controls both scrolling directions.
     #[inline]

@@ -154,7 +154,7 @@ impl ComboBox {
 
     /// Controls the wrap mode used for the selected text.
     ///
-    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
+    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`crate::Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]

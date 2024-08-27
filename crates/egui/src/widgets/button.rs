@@ -75,7 +75,7 @@ impl<'a> Button<'a> {
 
     /// Set the wrap mode for the text.
     ///
-    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
+    /// By default, [`crate::Ui::wrap_mode`] will be used, which can be overridden with [`crate::Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
@@ -160,7 +160,7 @@ impl<'a> Button<'a> {
     ///
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
     ///
-    /// The text can be created with [`Context::format_shortcut`].
+    /// The text can be created with [`crate::Context::format_shortcut`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl Into<WidgetText>) -> Self {
         self.shortcut_text = shortcut_text.into();

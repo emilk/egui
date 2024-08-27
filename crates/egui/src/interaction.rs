@@ -28,7 +28,7 @@ pub struct InteractionSnapshot {
     /// Set the same frame a drag starts,
     /// but unset the frame a drag ends.
     ///
-    /// NOTE: this may not have a corresponding [`WidgetRect`],
+    /// NOTE: this may not have a corresponding [`crate::WidgetRect`],
     /// if this for instance is a drag-and-drop widget which
     /// isn't painted whilst being dragged
     pub dragged: Option<Id>,

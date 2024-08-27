@@ -67,7 +67,7 @@ impl Order {
 }
 
 /// An identifier for a paint layer.
-/// Also acts as an identifier for [`Area`]:s.
+/// Also acts as an identifier for [`crate::Area`]:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayerId {

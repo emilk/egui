@@ -1,4 +1,4 @@
-//! Note that this file contains code very similar to [`wgpu_integration`].
+//! Note that this file contains code very similar to [`super::wgpu_integration`].
 //! When making changes to one you often also want to apply it to the other.
 //!
 //! This is also very complex code, and not very pretty.

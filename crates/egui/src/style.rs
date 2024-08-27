@@ -363,7 +363,7 @@ pub struct Spacing {
     /// Default (minimum) width of a [`ComboBox`].
     pub combo_width: f32,
 
-    /// Default width of a [`TextEdit`].
+    /// Default width of a [`crate::TextEdit`].
     pub text_edit_width: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
@@ -889,7 +889,7 @@ pub struct Visuals {
 
     pub selection: Selection,
 
-    /// The color used for [`Hyperlink`],
+    /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.

@@ -187,12 +187,12 @@ pub struct FrameState {
     pub tooltips: TooltipFrameState,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`CentralPanel`] does not change this.
+    /// The [`crate::CentralPanel`] does not change this.
     /// This is the area available to Window's.
     pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`CentralPanel`] retracts from this.
+    /// The [`crate::CentralPanel`] retracts from this.
     pub unused_rect: Rect,
 
     /// How much space is used by panels.

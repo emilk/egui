@@ -1175,7 +1175,7 @@ pub struct Tessellator {
     options: TessellationOptions,
     font_tex_size: [usize; 2],
 
-    /// See [`TextureAtlas::prepared_discs`].
+    /// See [`crate::TextureAtlas::prepared_discs`].
     prepared_discs: Vec<PreparedDisc>,
 
     /// size of feathering in points. normally the size of a physical pixel. 0.0 if disabled
@@ -1195,7 +1195,7 @@ impl Tessellator {
     /// * `options`: tessellation quality
     /// * `shapes`: what to tessellate
     /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
-    /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
+    /// * `prepared_discs`: What [`crate::TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
     pub fn new(
         pixels_per_point: f32,
         options: TessellationOptions,
@@ -1906,7 +1906,7 @@ impl Tessellator {
     /// * `options`: tessellation quality
     /// * `shapes`: what to tessellate
     /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
-    /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
+    /// * `prepared_discs`: What [`crate::TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
     ///
     /// The implementation uses a [`Tessellator`].
     ///

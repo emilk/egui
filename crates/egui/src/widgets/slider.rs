@@ -303,10 +303,10 @@ impl<'a> Slider<'a> {
 
     /// Display trailing color behind the slider's circle. Default is OFF.
     ///
-    /// This setting can be enabled globally for all sliders with [`Visuals::slider_trailing_fill`].
+    /// This setting can be enabled globally for all sliders with [`crate::Visuals::slider_trailing_fill`].
     /// Toggling it here will override the above setting ONLY for this individual slider.
     ///
-    /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
+    /// The fill color will be taken from `selection.bg_fill` in your [`crate::Visuals`], the same as a [`crate::ProgressBar`].
     #[inline]
     pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
         self.trailing_fill = Some(trailing_fill);
@@ -315,7 +315,7 @@ impl<'a> Slider<'a> {
 
     /// Change the shape of the slider handle
     ///
-    /// This setting can be enabled globally for all sliders with [`Visuals::handle_shape`].
+    /// This setting can be enabled globally for all sliders with [`crate::Visuals::handle_shape`].
     /// Changing it here will override the above setting ONLY for this individual slider.
     #[inline]
     pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
@@ -328,7 +328,7 @@ impl<'a> Slider<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
-    /// The default formatter is [`Style::number_formatter`].
+    /// The default formatter is [`crate::Style::number_formatter`].
     ///
     /// See also: [`Slider::custom_parser`]
     ///

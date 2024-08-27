@@ -91,7 +91,7 @@ impl Resize {
     /// Preferred / suggested height. Actual height will depend on contents.
     ///
     /// Examples:
-    /// * if the contents is a [`ScrollArea`] then this decides the maximum size.
+    /// * if the contents is a [`crate::ScrollArea`] then this decides the maximum size.
     /// * if the contents is a canvas, this decides the height of it,
     /// * if the contents is text and buttons, then the `default_height` is ignored
     ///   and the height is picked automatically..

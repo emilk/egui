@@ -82,8 +82,8 @@ fn set_menu_style(style: &mut Style) {
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
 }
 
-/// The menu bar goes well in a [`TopBottomPanel::top`],
-/// but can also be placed in a [`Window`].
+/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {

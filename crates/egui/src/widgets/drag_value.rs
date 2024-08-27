@@ -26,7 +26,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
 }
 
-/// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
+/// A numeric value that you can change by dragging the number. More compact than a [`crate::Slider`].
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -93,7 +93,7 @@ impl<'a> DragValue<'a> {
     /// Sets valid range for the value.
     ///
     /// By default all values are clamped to this range, even when not interacted with.
-    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+    /// You can change this behavior by passing `false` to [`crate::Slider::clamp_to_range`].
     #[deprecated = "Use `range` instead"]
     #[inline]
     pub fn clamp_range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
@@ -104,7 +104,7 @@ impl<'a> DragValue<'a> {
     /// Sets valid range for dragging the value.
     ///
     /// By default all values are clamped to this range, even when not interacted with.
-    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+    /// You can change this behavior by passing `false` to [`crate::Slider::clamp_to_range`].
     #[inline]
     pub fn range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
         self.range = range.start().to_f64()..=range.end().to_f64();
@@ -179,7 +179,7 @@ impl<'a> DragValue<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
-    /// The default formatter is [`Style::number_formatter`].
+    /// The default formatter is [`crate::Style::number_formatter`].
     ///
     /// See also: [`DragValue::custom_parser`]
     ///

@@ -59,7 +59,7 @@ use super::{TextEditOutput, TextEditState};
 /// See [`TextEdit::show`].
 ///
 /// ## Other
-/// The background color of a [`TextEdit`] is [`Visuals::extreme_bg_color`].
+/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
@@ -209,7 +209,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Pick a [`FontId`] or [`TextStyle`].
+    /// Pick a [`crate::FontId`] or [`TextStyle`].
     #[inline]
     pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
         self.font_selection = font_selection.into();
