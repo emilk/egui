@@ -1,4 +1,4 @@
-use super::*;
+use super::{Color32, Margin, Rect, RectShape, Rounding, Vec2};
 
 /// The color and fuzziness of a fuzzy shape.
 ///

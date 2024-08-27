@@ -1,6 +1,9 @@
 use std::hash::Hash;
 
-use crate::*;
+use crate::{
+    emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt, Rect,
+    Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType,
+};
 use epaint::Shape;
 
 #[derive(Clone, Copy, Debug)]

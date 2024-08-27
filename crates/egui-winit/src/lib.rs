@@ -26,7 +26,7 @@ use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
 #[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;
+pub(crate) use profiling_scopes::{profile_function, profile_scope};
 
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},

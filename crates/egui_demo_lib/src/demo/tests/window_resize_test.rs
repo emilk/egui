@@ -16,7 +16,7 @@ impl crate::Demo for WindowResizeTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        use egui::*;
+        use egui::{Resize, ScrollArea, TextEdit, Window};
 
         Window::new("↔ auto-sized")
             .open(open)

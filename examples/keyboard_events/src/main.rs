@@ -2,7 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
-use egui::*;
+use egui::{Key, ScrollArea};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).

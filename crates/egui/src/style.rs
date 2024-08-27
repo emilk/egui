@@ -7,8 +7,10 @@ use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, TextWrapMode, WidgetText,
+    ecolor::Color32,
+    emath::{pos2, vec2, Rangef, Rect, Vec2},
+    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
+    WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -1489,7 +1491,10 @@ impl Default for Widgets {
 
 // ----------------------------------------------------------------------------
 
-use crate::{widgets::*, Ui};
+use crate::{
+    widgets::{reset_button, Button, DragValue, Slider, Widget},
+    Ui,
+};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {

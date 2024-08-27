@@ -1,8 +1,11 @@
 //! Text cursor changes/interaction, without modifying the text.
 
-use epaint::text::{cursor::*, Galley};
+use epaint::text::{
+    cursor::{CCursor, Cursor},
+    Galley,
+};
 
-use crate::*;
+use crate::{epaint, NumExt, Pos2, Rect, Response, Ui};
 
 use super::{CCursorRange, CursorRange};
 

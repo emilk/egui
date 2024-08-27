@@ -391,7 +391,7 @@ impl Painter {
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
     pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: impl Into<Stroke>) {
-        use crate::emath::*;
+        use crate::emath::Rot2;
         let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
         let tip_length = vec.length() / 4.0;
         let tip = origin + vec;

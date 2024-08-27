@@ -2,7 +2,10 @@
 
 use std::{cmp::Ordering, ops::RangeInclusive};
 
-use crate::*;
+use crate::{
+    emath, text, Button, CursorIcon, Key, Modifiers, NumExt, Response, RichText, Sense, TextEdit,
+    TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+};
 
 // ----------------------------------------------------------------------------
 

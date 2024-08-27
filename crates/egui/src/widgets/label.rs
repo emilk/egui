@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::*;
+use crate::{
+    epaint, pos2, text_selection, vec2, Align, Direction, FontSelection, Galley, Pos2, Response,
+    Sense, Stroke, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+};
 
 use self::text_selection::LabelSelectionState;
 

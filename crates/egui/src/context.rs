@@ -4,23 +4,39 @@ use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration
 
 use containers::area::AreaState;
 use epaint::{
-    emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
+    emath, emath::TSTransform, mutex::RwLock, pos2, stats::PaintStats, tessellator, text::Fonts,
+    util::OrderedFloat, vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2,
+    Rect, TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
 
 use crate::{
     animation_manager::AnimationManager,
+    containers,
     data::output::PlatformOutput,
+    epaint,
     frame_state::FrameState,
-    input_state::*,
+    hit_test,
+    input_state::{InputState, MultiTouchInfo, PointerEvent},
+    interaction,
     layers::GraphicLayers,
+    load,
     load::{Bytes, Loaders, SizedTexture},
     memory::Options,
+    menu,
     os::OperatingSystem,
     output::FullOutput,
+    resize, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
-    TextureHandle, ViewportCommand, *,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
+    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
+    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense, Style,
+    TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect, WidgetText,
 };
+
+#[cfg(feature = "accesskit")]
+use crate::IdMap;
 
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
@@ -2582,7 +2598,7 @@ impl Context {
 
     /// Show the state of egui, including its input and output.
     pub fn inspection_ui(&self, ui: &mut Ui) {
-        use crate::containers::*;
+        use crate::containers::CollapsingHeader;
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(

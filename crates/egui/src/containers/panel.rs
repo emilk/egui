@@ -15,7 +15,10 @@
 //!
 //! Add your [`Window`]:s after any top-level panels.
 
-use crate::*;
+use crate::{
+    lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
+    Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
+};
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
     ctx.animate_bool_responsive(id, is_expanded)

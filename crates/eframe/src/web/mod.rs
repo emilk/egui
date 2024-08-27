@@ -43,7 +43,11 @@ pub use backend::*;
 use wasm_bindgen::prelude::*;
 use web_sys::MediaQueryList;
 
-use input::*;
+use input::{
+    button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
+    modifiers_from_wheel_event, pos_from_mouse_event, primary_touch_pos, push_touches,
+    text_from_keyboard_event, translate_key,
+};
 
 // ----------------------------------------------------------------------------
 

@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    epaint, text_selection, CursorIcon, Label, Response, Sense, Stroke, Ui, Widget, WidgetInfo,
+    WidgetText, WidgetType,
+};
 
 use self::text_selection::LabelSelectionState;
 

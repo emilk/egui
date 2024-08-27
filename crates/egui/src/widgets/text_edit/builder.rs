@@ -1,14 +1,18 @@
 use std::sync::Arc;
 
-use epaint::text::{cursor::*, Galley, LayoutJob};
+use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
+    epaint,
     os::OperatingSystem,
     output::OutputEvent,
+    text_selection,
     text_selection::{
         text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange, CursorRange,
     },
-    *,
+    vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
+    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt, Response, Sense, Shape, TextBuffer,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
 };
 
 use super::{TextEditOutput, TextEditState};

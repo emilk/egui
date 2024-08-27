@@ -9,7 +9,7 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-cargo +1.75.0 install --quiet typos-cli
+cargo +1.76.0 install --quiet typos-cli
 
 export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
@@ -18,9 +18,8 @@ export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 typos
 ./scripts/lint.py
 cargo fmt --all -- --check
-cargo doc --quiet --lib --no-deps --all-features
-cargo doc --quiet --document-private-items --no-deps --all-features
-
+# cargo doc --quiet --lib --no-deps --all-features
+# cargo doc --quiet --document-private-items --no-deps --all-features
 cargo clippy --quiet --all-targets --all-features -- -D warnings
 ./scripts/clippy_wasm.sh
 

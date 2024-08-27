@@ -3,10 +3,13 @@
 use std::sync::Arc;
 
 use crate::collapsing_header::CollapsingState;
-use crate::*;
-use epaint::*;
+use crate::{
+    Align, Align2, Context, CursorIcon, Id, InnerResponse, LayerId, NumExt, Order, Response, Sense,
+    TextStyle, Ui, UiKind, Vec2b, WidgetRect, WidgetText,
+};
+use epaint::{emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Shape, Stroke, Vec2};
 
-use super::*;
+use super::{area, resize, Area, Frame, Resize, ScrollArea};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///

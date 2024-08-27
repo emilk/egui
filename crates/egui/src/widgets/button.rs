@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    widgets, Align, Color32, Image, NumExt, Rect, Response, Rounding, Sense, Stroke, TextStyle,
+    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+};
 
 /// Clickable button with text.
 ///

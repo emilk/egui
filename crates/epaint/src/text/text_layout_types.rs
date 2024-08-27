@@ -4,9 +4,12 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{cursor::*, font::UvRect};
+use super::{
+    cursor::{CCursor, Cursor, PCursor, RCursor},
+    font::UvRect,
+};
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::*;
+use emath::{pos2, vec2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
 ///

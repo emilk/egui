@@ -1,7 +1,10 @@
 //! Frame container
 
-use crate::{layers::ShapeIdx, *};
-use epaint::*;
+use crate::{
+    epaint, layers::ShapeIdx, InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind,
+    UiStackInfo,
+};
+use epaint::{Color32, Margin, Rect, Rounding, Shadow, Shape, Stroke};
 
 /// Add a background, frame and/or margin to a rectangular background of a [`Ui`].
 ///

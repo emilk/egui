@@ -6,8 +6,26 @@ use std::{any::Any, hash::Hash, sync::Arc};
 use epaint::mutex::RwLock;
 
 use crate::{
-    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    util::IdTypeMap, widgets::*, *,
+    containers::{CollapsingHeader, CollapsingResponse, Frame},
+    ecolor::Hsva,
+    emath, epaint,
+    epaint::text::Fonts,
+    frame_state, grid,
+    layout::{Direction, Layout},
+    menu,
+    menu::MenuState,
+    placer::Placer,
+    pos2, style,
+    util::IdTypeMap,
+    vec2, widgets,
+    widgets::{
+        color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
+        RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
+    },
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
+    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
+    Stroke, Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect,
+    WidgetText,
 };
 // ----------------------------------------------------------------------------
 

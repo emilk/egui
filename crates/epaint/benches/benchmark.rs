@@ -1,6 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use epaint::{tessellator::Path, *};
+use epaint::{
+    pos2, tessellator::Path, ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke,
+    TessellationOptions, Tessellator, TextureAtlas, Vec2,
+};
 
 fn single_dashed_lines(c: &mut Criterion) {
     c.bench_function("single_dashed_lines", move |b| {

@@ -1,6 +1,6 @@
 use ahash::HashMap;
 
-use crate::*;
+use crate::{Id, IdMap, LayerId, Rect, Sense, WidgetInfo};
 
 /// Used to store each widget's [Id], [Rect] and [Sense] each frame.
 ///

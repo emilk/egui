@@ -2,7 +2,11 @@
 
 use frame_state::PerWidgetTooltipState;
 
-use crate::*;
+use crate::{
+    frame_state, vec2, AboveOrBelow, Align, Align2, Area, AreaState, Context, Frame, Id,
+    InnerResponse, Key, LayerId, Layout, Order, Pos2, Rect, Response, Sense, Ui, UiKind, Vec2,
+    Widget, WidgetText,
+};
 
 // ----------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 //! One- and two-dimensional alignment ([`Align::Center`], [`Align2::LEFT_TOP`] etc).
 
-use crate::*;
+use crate::{pos2, vec2, Pos2, Rangef, Rect, Vec2};
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]

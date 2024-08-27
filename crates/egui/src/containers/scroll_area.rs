@@ -1,6 +1,9 @@
 #![allow(clippy::needless_range_loop)]
 
-use crate::*;
+use crate::{
+    emath, epaint, frame_state, lerp, pos2, remap, remap_clamp, vec2, Context, Id, NumExt, Pos2,
+    Rangef, Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

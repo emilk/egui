@@ -2,7 +2,10 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use crate::*;
+use crate::{
+    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, NumExt, Order, Pos2, Rect, Response,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+};
 
 /// State of an [`Area`] that is persisted between frames.
 ///
