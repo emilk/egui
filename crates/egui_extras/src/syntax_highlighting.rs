@@ -153,16 +153,22 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn from_memory(ctx: &egui::Context) -> Self {
-        if ctx.style().visuals.dark_mode {
-            ctx.data_mut(|d| {
-                d.get_persisted(egui::Id::new("dark"))
-                    .unwrap_or_else(Self::dark)
-            })
+        #![allow(clippy::needless_return)]
+
+        let (id, default) = if ctx.style().visuals.dark_mode {
+            (egui::Id::new("dark"), Self::dark as fn() -> Self)
         } else {
-            ctx.data_mut(|d| {
-                d.get_persisted(egui::Id::new("light"))
-                    .unwrap_or_else(Self::light)
-            })
+            (egui::Id::new("light"), Self::light as fn() -> Self)
+        };
+
+        #[cfg(feature = "serde")]
+        {
+            return ctx.data_mut(|d| d.get_persisted(id).unwrap_or_else(default));
+        }
+
+        #[cfg(not(feature = "serde"))]
+        {
+            return ctx.data_mut(|d| d.get_temp(id).unwrap_or_else(default));
         }
     }
 
@@ -170,11 +176,17 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
-        if self.dark_mode {
-            ctx.data_mut(|d| d.insert_persisted(egui::Id::new("dark"), self));
+        let id = if ctx.style().visuals.dark_mode {
+            egui::Id::new("dark")
         } else {
-            ctx.data_mut(|d| d.insert_persisted(egui::Id::new("light"), self));
-        }
+            egui::Id::new("light")
+        };
+
+        #[cfg(feature = "serde")]
+        ctx.data_mut(|d| d.insert_persisted(id, self));
+
+        #[cfg(not(feature = "serde"))]
+        ctx.data_mut(|d| d.insert_temp(id, self));
     }
 }
 
@@ -245,8 +257,14 @@ impl CodeTheme {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
             let selected_id = egui::Id::NULL;
+
+            #[cfg(feature = "serde")]
             let mut selected_tt: TokenType =
                 ui.data_mut(|d| *d.get_persisted_mut_or(selected_id, TokenType::Comment));
+
+            #[cfg(not(feature = "serde"))]
+            let mut selected_tt: TokenType =
+                ui.data_mut(|d| *d.get_temp_mut_or(selected_id, TokenType::Comment));
 
             ui.vertical(|ui| {
                 ui.set_width(150.0);
@@ -288,7 +306,10 @@ impl CodeTheme {
 
             ui.add_space(16.0);
 
+            #[cfg(feature = "serde")]
             ui.data_mut(|d| d.insert_persisted(selected_id, selected_tt));
+            #[cfg(not(feature = "serde"))]
+            ui.data_mut(|d| d.insert_temp(selected_id, selected_tt));
 
             egui::Frame::group(ui.style())
                 .inner_margin(egui::Vec2::splat(2.0))

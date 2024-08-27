@@ -27,7 +27,7 @@ all-features = true
 
 
 [features]
-default = ["dep:mime_guess2", "serde"]
+default = ["dep:mime_guess2"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
 all_loaders = ["file", "http", "image", "svg", "gif"]

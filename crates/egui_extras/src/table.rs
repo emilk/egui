@@ -543,12 +543,13 @@ impl TableState {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
-        let state = ui
-            .data_mut(|d| d.get_persisted::<Self>(state_id))
-            .filter(|state| {
-                // make sure that the stored widths aren't out-dated
-                state.column_widths.len() == columns.len()
-            });
+        #[cfg(feature = "serde")]
+        let state = ui.data_mut(|d| d.get_persisted::<Self>(state_id));
+        #[cfg(not(feature = "serde"))]
+        let state = ui.data_mut(|d| d.get_temp::<Self>(state_id));
+
+        // Make sure that the stored widths aren't out-dated:
+        let state = state.filter(|state| state.column_widths.len() == columns.len());
 
         let is_sizing_pass =
             ui.is_sizing_pass() || state.is_none() && columns.iter().any(|c| c.is_auto());
@@ -597,7 +598,15 @@ impl TableState {
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
-        ui.data_mut(|d| d.insert_persisted(state_id, self));
+        #![allow(clippy::needless_return)]
+        #[cfg(feature = "serde")]
+        {
+            return ui.data_mut(|d| d.insert_persisted(state_id, self));
+        }
+        #[cfg(not(feature = "serde"))]
+        {
+            return ui.data_mut(|d| d.insert_temp(state_id, self));
+        }
     }
 
     fn reset(ui: &egui::Ui, state_id: egui::Id) {
