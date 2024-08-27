@@ -34,7 +34,7 @@ pub fn ask_to_run(mut cmd: Command, ask: bool, reason: &str) -> Result<(), DynEr
             a => return Err(format!("Invalid answer `{a}`").into()),
         };
     } else {
-        log::info!("Running `{cmd:?}` to {reason}.");
+        println!("Running `{cmd:?}` to {reason}.");
     }
 
     let status = cmd.status()?;

@@ -11,7 +11,7 @@ type DynError = Box<dyn std::error::Error>;
 
 fn main() {
     if let Err(e) = try_main() {
-        log::error!("{e}");
+        eprintln!("{e}");
         std::process::exit(-1);
     }
 }
