@@ -2,16 +2,20 @@ use std::sync::Arc;
 
 use crate::*;
 
-use self::layers::ShapeIdx;
-
 use super::CursorRange;
+
+#[derive(Clone, Debug)]
+pub struct RowVertexIndices {
+    pub row: usize,
+    pub vertex_indices: [u32; 6],
+}
 
 /// Adds text selection rectangles to the galley.
 pub fn paint_text_selection(
     galley: &mut Arc<Galley>,
     visuals: &Visuals,
     cursor_range: &CursorRange,
-    mut out_shaped_idx: Option<&mut Vec<ShapeIdx>>,
+    mut new_vertex_indices: Option<&mut Vec<RowVertexIndices>>,
 ) {
     if cursor_range.is_empty() {
         return;
@@ -75,8 +79,11 @@ pub fn paint_text_selection(
         mesh.indices[glyph_index_start..glyph_index_start + 6]
             .clone_from_slice(&selection_triangles);
 
-        if let Some(out_shaped_idx) = &mut out_shaped_idx {
-            // TODO
+        if let Some(new_vertex_indices) = &mut new_vertex_indices {
+            new_vertex_indices.push(RowVertexIndices {
+                row: ri,
+                vertex_indices: selection_triangles,
+            });
         }
     }
 }

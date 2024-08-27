@@ -158,6 +158,11 @@ impl PaintList {
         self.0[idx.0].shape = Shape::Noop;
     }
 
+    /// Mutate the shape at the given index, if any.
+    pub fn mutate_shape(&mut self, idx: ShapeIdx, f: impl FnOnce(&mut ClippedShape)) {
+        self.0.get_mut(idx.0).map(f);
+    }
+
     /// Transform each [`Shape`] and clip rectangle by this much, in-place
     pub fn transform(&mut self, transform: TSTransform) {
         for ClippedShape { clip_rect, shape } in &mut self.0 {
