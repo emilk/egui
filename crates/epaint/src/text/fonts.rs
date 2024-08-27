@@ -153,6 +153,7 @@ impl FontData {
 
 /// Serializes a `Cow<'static, [u8]>` as a single byte array rather than an element
 /// at a time, increasing efficiency.
+#[cfg(feature = "serde")]
 fn serialize_cow_u8<S: serde::Serializer>(
     #[allow(clippy::ptr_arg)] value: &std::borrow::Cow<'static, [u8]>,
     serializer: S,
@@ -162,6 +163,7 @@ fn serialize_cow_u8<S: serde::Serializer>(
 
 /// Deserializes a `Cow<'static, [u8]>` as a single byte array rather than an element
 /// at a time, increasing efficiency.
+#[cfg(feature = "serde")]
 fn deserialize_cow_u8<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<std::borrow::Cow<'static, [u8]>, D::Error> {

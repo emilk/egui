@@ -28,7 +28,7 @@ use crate::{
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
 #[cfg(feature = "snapshot")]
-pub use self::snapshot::{ContextSnapshotBorrow, ContextSnapshot, ContextSnapshotDeltas};
+pub use self::snapshot::{ContextSnapshot, ContextSnapshotBorrow, ContextSnapshotDeltas};
 
 #[cfg(feature = "snapshot")]
 mod snapshot;
