@@ -446,10 +446,11 @@ impl<'a> TableBuilder<'a> {
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
-        ui.scope(|ui| {
-            if is_sizing_pass {
-                ui.set_sizing_pass();
-            }
+        let mut ui_builder = egui::UiBuilder::new();
+        if is_sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+        ui.scope_builder(ui_builder, |ui| {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
@@ -718,11 +719,11 @@ impl<'a> Table<'a> {
 
             let clip_rect = ui.clip_rect();
 
-            ui.scope(|ui| {
-                if is_sizing_pass {
-                    ui.set_sizing_pass();
-                }
-
+            let mut ui_builder = egui::UiBuilder::new();
+            if is_sizing_pass {
+                ui_builder = ui_builder.sizing_pass();
+            }
+            ui.scope_builder(ui_builder, |ui| {
                 let hovered_row_index_id = self.state_id.with("__table_hovered_row");
                 let hovered_row_index =
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
