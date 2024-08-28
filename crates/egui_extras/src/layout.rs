@@ -216,6 +216,11 @@ impl<'l> StripLayout<'l> {
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = max_rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
+
+            if !child_ui.is_sizing_pass() {
+                // Better to truncate (if we can), rather than hard clipping:
+                child_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+            }
         }
 
         if flags.selected {
