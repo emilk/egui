@@ -736,8 +736,7 @@ impl<'a> Table<'a> {
                     max_used_widths: max_used_widths_ref,
                     striped,
                     row_index: 0,
-                    start_y: clip_rect.top(),
-                    end_y: clip_rect.bottom(),
+                    y_range: clip_rect.y_range(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
                     hovered_row_index,
@@ -884,8 +883,7 @@ pub struct TableBody<'a> {
 
     striped: bool,
     row_index: usize,
-    start_y: f32,
-    end_y: f32,
+    y_range: Rangef,
 
     /// Look for this row to scroll to.
     scroll_to_row: Option<usize>,
@@ -916,7 +914,7 @@ impl<'a> TableBody<'a> {
     }
 
     fn scroll_offset_y(&self) -> f32 {
-        self.start_y - self.layout.rect.top()
+        self.y_range.min - self.layout.rect.top()
     }
 
     /// Return a vector containing all column widths for this table body.
@@ -1002,7 +1000,7 @@ impl<'a> TableBody<'a> {
         let scroll_offset_y = self
             .scroll_offset_y()
             .min(total_rows as f32 * row_height_with_spacing);
-        let max_height = self.end_y - self.start_y;
+        let max_height = self.y_range.span();
         let mut min_row = 0;
 
         if scroll_offset_y > 0.0 {
@@ -1074,7 +1072,7 @@ impl<'a> TableBody<'a> {
         let spacing = self.layout.ui.spacing().item_spacing;
         let mut enumerated_heights = heights.enumerate();
 
-        let max_height = self.end_y - self.start_y;
+        let max_height = self.y_range.span();
         let scroll_offset_y = self.scroll_offset_y() as f64;
 
         let scroll_to_y_range_offset = self.layout.cursor.y as f64;
