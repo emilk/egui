@@ -6,8 +6,12 @@
 #![allow(clippy::identity_op)]
 
 use crate::texture_atlas::PreparedDisc;
-use crate::*;
-use emath::*;
+use crate::{
+    color, emath, stroke, CircleShape, ClippedPrimitive, ClippedShape, Color32, CubicBezierShape,
+    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Rounding, Shape,
+    Stroke, TextShape, TextureId, Vertex, WHITE_UV,
+};
+use emath::{pos2, remap, vec2, NumExt, Pos2, Rect, Rot2, Vec2};
 
 use self::color::ColorMode;
 use self::stroke::PathStroke;
@@ -338,7 +342,7 @@ impl Path {
     }
 
     pub fn add_circle(&mut self, center: Pos2, radius: f32) {
-        use precomputed_vertices::*;
+        use precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle_quadrant
@@ -520,7 +524,7 @@ impl Path {
 pub mod path {
     //! Helpers for constructing paths
     use crate::shape::Rounding;
-    use emath::*;
+    use emath::{pos2, Pos2, Rect};
 
     /// overwrites existing points
     pub fn rounded_rectangle(path: &mut Vec<Pos2>, rect: Rect, rounding: Rounding) {
@@ -589,7 +593,7 @@ pub mod path {
     //   - quadrant 3: right top
     // * angle 4 * TAU / 4 = right
     pub fn add_circle_quadrant(path: &mut Vec<Pos2>, center: Pos2, radius: f32, quadrant: f32) {
-        use super::precomputed_vertices::*;
+        use super::precomputed_vertices::{CIRCLE_128, CIRCLE_16, CIRCLE_32, CIRCLE_64, CIRCLE_8};
 
         // These cutoffs are based on a high-dpi display. TODO(emilk): use pixels_per_point here?
         // same cutoffs as in add_circle
@@ -1171,7 +1175,7 @@ pub struct Tessellator {
     options: TessellationOptions,
     font_tex_size: [usize; 2],
 
-    /// See [`TextureAtlas::prepared_discs`].
+    /// See [`crate::TextureAtlas::prepared_discs`].
     prepared_discs: Vec<PreparedDisc>,
 
     /// size of feathering in points. normally the size of a physical pixel. 0.0 if disabled
@@ -1191,7 +1195,7 @@ impl Tessellator {
     /// * `options`: tessellation quality
     /// * `shapes`: what to tessellate
     /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
-    /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
+    /// * `prepared_discs`: What [`crate::TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
     pub fn new(
         pixels_per_point: f32,
         options: TessellationOptions,
@@ -1902,7 +1906,7 @@ impl Tessellator {
     /// * `options`: tessellation quality
     /// * `shapes`: what to tessellate
     /// * `font_tex_size`: size of the font texture. Required to normalize glyph uv rectangles when tessellating text.
-    /// * `prepared_discs`: What [`TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
+    /// * `prepared_discs`: What [`crate::TextureAtlas::prepared_discs`] returns. Can safely be set to an empty vec.
     ///
     /// The implementation uses a [`Tessellator`].
     ///

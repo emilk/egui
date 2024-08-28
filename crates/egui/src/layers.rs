@@ -1,7 +1,7 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{Id, *};
+use crate::{ahash, epaint, Id, IdMap, Rect};
 use epaint::{emath::TSTransform, ClippedShape, Shape};
 
 /// Different layer categories
@@ -67,7 +67,7 @@ impl Order {
 }
 
 /// An identifier for a paint layer.
-/// Also acts as an identifier for [`Area`]:s.
+/// Also acts as an identifier for [`crate::Area`]:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayerId {

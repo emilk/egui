@@ -1,4 +1,10 @@
-use crate::*;
+use crate::{
+    vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
+    UiBuilder, Vec2,
+};
+
+#[cfg(debug_assertions)]
+use crate::Stroke;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct State {
@@ -382,7 +388,7 @@ impl Grid {
     }
 
     /// Change which row number the grid starts on.
-    /// This can be useful when you have a large [`Grid`] inside of [`ScrollArea::show_rows`].
+    /// This can be useful when you have a large [`crate::Grid`] inside of [`crate::ScrollArea::show_rows`].
     #[inline]
     pub fn start_row(mut self, start_row: usize) -> Self {
         self.start_row = start_row;

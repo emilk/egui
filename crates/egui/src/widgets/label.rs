@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::*;
+use crate::{
+    epaint, pos2, text_selection, vec2, Align, Direction, FontSelection, Galley, Pos2, Response,
+    Sense, Stroke, TextWrapMode, Ui, Widget, WidgetInfo, WidgetText, WidgetType,
+};
 
 use self::text_selection::LabelSelectionState;
 
@@ -46,7 +49,7 @@ impl Label {
 
     /// Set the wrap mode for the text.
     ///
-    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
+    /// By default, [`crate::Ui::wrap_mode`] will be used, which can be overridden with [`crate::Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]

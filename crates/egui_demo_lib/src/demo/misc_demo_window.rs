@@ -1,6 +1,9 @@
-use super::*;
+use super::{Demo, View};
 
-use egui::*;
+use egui::{
+    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Frame, Resize, RichText,
+    Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

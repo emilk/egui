@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    lerp, vec2, Color32, NumExt, Pos2, Rect, Response, Rgba, Rounding, Sense, Shape, Stroke,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+};
 
 enum ProgressBarText {
     Custom(WidgetText),

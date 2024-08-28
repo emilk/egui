@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BytesLoader, Context, HashMap, ImagePoll, Mutex, SizeHint, SizedTexture, TextureHandle,
+    TextureLoadResult, TextureLoader, TextureOptions, TexturePoll,
+};
 
 #[derive(Default)]
 pub struct DefaultTextureLoader {

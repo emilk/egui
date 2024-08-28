@@ -118,6 +118,7 @@ unused_qualifications = "allow"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_crate_level_docs = "warn"
+broken_intra_doc_links = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
@@ -248,6 +249,7 @@ use_self = "warn"
 useless_transmute = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
+wildcard_imports = "warn"
 zero_sized_map_values = "warn"
 
 # TODO(emilk): enable more of these lints:
@@ -262,4 +264,3 @@ unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on thi
 manual_range_contains = "allow"       # this one is just worse imho
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
-wildcard_imports = "allow"            # we do this a lot in egui

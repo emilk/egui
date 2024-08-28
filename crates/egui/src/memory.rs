@@ -361,7 +361,7 @@ impl Options {
                 ui.checkbox(reduce_texture_memory, "Reduce texture memory");
             });
 
-        use crate::containers::*;
+        use crate::containers::CollapsingHeader;
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {

@@ -7,8 +7,10 @@ use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, TextWrapMode, WidgetText,
+    ecolor::Color32,
+    emath::{pos2, vec2, Rangef, Rect, Vec2},
+    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
+    WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -361,7 +363,7 @@ pub struct Spacing {
     /// Default (minimum) width of a [`ComboBox`].
     pub combo_width: f32,
 
-    /// Default width of a [`TextEdit`].
+    /// Default width of a [`crate::TextEdit`].
     pub text_edit_width: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
@@ -887,7 +889,7 @@ pub struct Visuals {
 
     pub selection: Selection,
 
-    /// The color used for [`Hyperlink`],
+    /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.
@@ -1489,7 +1491,10 @@ impl Default for Widgets {
 
 // ----------------------------------------------------------------------------
 
-use crate::{widgets::*, Ui};
+use crate::{
+    widgets::{reset_button, Button, DragValue, Slider, Widget},
+    Ui,
+};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {

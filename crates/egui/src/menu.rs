@@ -19,7 +19,12 @@ use super::{
     style::WidgetVisuals, Align, Context, Id, InnerResponse, PointerState, Pos2, Rect, Response,
     Sense, TextStyle, Ui, Vec2,
 };
-use crate::{widgets::*, *};
+use crate::{
+    epaint, vec2,
+    widgets::{Button, ImageButton},
+    Align2, Area, Color32, Frame, Key, LayerId, Layout, NumExt, Order, Stroke, Style, TextWrapMode,
+    UiKind, WidgetText,
+};
 use epaint::mutex::RwLock;
 use std::sync::Arc;
 
@@ -77,8 +82,8 @@ fn set_menu_style(style: &mut Style) {
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
 }
 
-/// The menu bar goes well in a [`TopBottomPanel::top`],
-/// but can also be placed in a [`Window`].
+/// The menu bar goes well in a [`crate::TopBottomPanel::top`],
+/// but can also be placed in a [`crate::Window`].
 /// In the latter case you may want to wrap it in [`Frame`].
 pub fn bar<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
     ui.horizontal(|ui| {

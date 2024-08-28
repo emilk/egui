@@ -1,14 +1,18 @@
 use std::sync::Arc;
 
-use epaint::text::{cursor::*, Galley, LayoutJob};
+use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
+    epaint,
     os::OperatingSystem,
     output::OutputEvent,
+    text_selection,
     text_selection::{
         text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange, CursorRange,
     },
-    *,
+    vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
+    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt, Response, Sense, Shape, TextBuffer,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -55,7 +59,7 @@ use super::{TextEditOutput, TextEditState};
 /// See [`TextEdit::show`].
 ///
 /// ## Other
-/// The background color of a [`TextEdit`] is [`Visuals::extreme_bg_color`].
+/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
@@ -205,7 +209,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Pick a [`FontId`] or [`TextStyle`].
+    /// Pick a [`crate::FontId`] or [`TextStyle`].
     #[inline]
     pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
         self.font_selection = font_selection.into();

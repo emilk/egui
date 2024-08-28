@@ -1,4 +1,4 @@
-//! Note that this file contains code very similar to [`wgpu_integration`].
+//! Note that this file contains code very similar to [`super::wgpu_integration`].
 //! When making changes to one you often also want to apply it to the other.
 //!
 //! This is also very complex code, and not very pretty.
@@ -36,13 +36,13 @@ use egui::{
 use egui_winit::accesskit_winit;
 
 use crate::{
-    native::{epi_integration::EpiIntegration, winit_integration::create_egui_context},
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::epi_integration::EpiIntegration, App, AppCreator, CreationContext, NativeOptions,
+    Result, Storage,
 };
 
 use super::{
-    winit_integration::{EventResult, UserEvent, WinitApp},
-    *,
+    epi_integration, event_loop_context,
+    winit_integration::{create_egui_context, EventResult, UserEvent, WinitApp},
 };
 
 // ----------------------------------------------------------------------------
@@ -462,6 +462,8 @@ impl WinitApp for GlowWinitApp {
 
     #[cfg(feature = "accesskit")]
     fn on_accesskit_event(&mut self, event: accesskit_winit::Event) -> crate::Result<EventResult> {
+        use super::winit_integration;
+
         if let Some(running) = &self.running {
             let mut glutin = running.glutin.borrow_mut();
             if let Some(viewport_id) = glutin.viewport_from_window.get(&event.window_id).copied() {

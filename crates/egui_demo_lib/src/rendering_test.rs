@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use egui::{widgets::color_picker::show_color, TextureOptions, *};
+use egui::{
+    epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2, Color32, FontId, Image,
+    Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke, TextureHandle,
+    TextureOptions, Ui, Vec2,
+};
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
 
@@ -265,7 +269,6 @@ impl ColorTest {
 }
 
 fn vertex_gradient(ui: &mut Ui, bg_fill: Color32, gradient: &Gradient) -> Response {
-    use egui::epaint::*;
     let (rect, response) = ui.allocate_at_least(GRADIENT_SIZE, Sense::hover());
     if bg_fill != Default::default() {
         let mut mesh = Mesh::default();

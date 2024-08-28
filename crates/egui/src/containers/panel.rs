@@ -3,7 +3,7 @@
 //! Panels can either be a child of a [`Ui`] (taking up a portion of the parent)
 //! or be top-level (taking up a portion of the whole screen).
 //!
-//! Together with [`Window`] and [`Area`]:s, top-level panels are
+//! Together with [`crate::Window`] and [`crate::Area`]:s, top-level panels are
 //! the only places where you can put you widgets.
 //!
 //! The order in which you add panels matter!
@@ -13,9 +13,12 @@
 //!
 //! ⚠ Always add any [`CentralPanel`] last.
 //!
-//! Add your [`Window`]:s after any top-level panels.
+//! Add your [`crate::Window`]:s after any top-level panels.
 
-use crate::*;
+use crate::{
+    lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
+    Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
+};
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
     ctx.animate_bool_responsive(id, is_expanded)
@@ -135,9 +138,9 @@ impl SidePanel {
     /// If you want your panel to be resizable you also need a widget in it that
     /// takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
-    /// * A [`ScrollArea`].
-    /// * A [`Separator`].
-    /// * A [`TextEdit`].
+    /// * A [`crate::ScrollArea`].
+    /// * A [`crate::Separator`].
+    /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -613,9 +616,9 @@ impl TopBottomPanel {
     /// If you want your panel to be resizable you also need a widget in it that
     /// takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
-    /// * A [`ScrollArea`].
-    /// * A [`Separator`].
-    /// * A [`TextEdit`].
+    /// * A [`crate::ScrollArea`].
+    /// * A [`crate::Separator`].
+    /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -633,7 +636,7 @@ impl TopBottomPanel {
     }
 
     /// The initial height of the [`TopBottomPanel`], including margins.
-    /// Defaults to [`style::Spacing::interact_size`].y, plus frame margins.
+    /// Defaults to [`crate::style::Spacing::interact_size`].y, plus frame margins.
     #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
@@ -1041,7 +1044,7 @@ impl TopBottomPanel {
 ///
 /// ⚠ [`CentralPanel`] must be added after all other panels!
 ///
-/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level [`CentralPanel`].
+/// NOTE: Any [`crate::Window`]s and [`crate::Area`]s will cover the top-level [`CentralPanel`].
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///

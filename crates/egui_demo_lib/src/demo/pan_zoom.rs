@@ -91,7 +91,7 @@ impl crate::View for PanZoom {
             (
                 egui::Pos2::new(60.0, 60.0),
                 Box::new(|ui, state| {
-                    use egui::epaint::*;
+                    use egui::epaint::{pos2, CircleShape, Color32, QuadraticBezierShape, Stroke};
                     // Smiley face.
                     let painter = ui.painter();
                     painter.add(CircleShape::filled(pos2(0.0, -10.0), 1.0, Color32::YELLOW));

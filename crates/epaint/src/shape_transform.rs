@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::*;
+use crate::{
+    color, CircleShape, Color32, ColorMode, CubicBezierShape, EllipseShape, Mesh, PathShape,
+    QuadraticBezierShape, RectShape, Shape, TextShape,
+};
 
 /// Remember to handle [`Color32::PLACEHOLDER`] specially!
 pub fn adjust_colors(

@@ -4,23 +4,39 @@ use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration
 
 use containers::area::AreaState;
 use epaint::{
-    emath::TSTransform, mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *,
+    emath, emath::TSTransform, mutex::RwLock, pos2, stats::PaintStats, tessellator, text::Fonts,
+    util::OrderedFloat, vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2,
+    Rect, TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
 
 use crate::{
     animation_manager::AnimationManager,
+    containers,
     data::output::PlatformOutput,
+    epaint,
     frame_state::FrameState,
-    input_state::*,
+    hit_test,
+    input_state::{InputState, MultiTouchInfo, PointerEvent},
+    interaction,
     layers::GraphicLayers,
+    load,
     load::{Bytes, Loaders, SizedTexture},
     memory::Options,
+    menu,
     os::OperatingSystem,
     output::FullOutput,
+    resize, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
-    TextureHandle, ViewportCommand, *,
+    Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
+    ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
+    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense, Style,
+    TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand, ViewportId,
+    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect, WidgetText,
 };
+
+#[cfg(feature = "accesskit")]
+use crate::IdMap;
 
 use self::{hit_test::WidgetHits, interaction::InteractionSnapshot};
 
@@ -723,7 +739,7 @@ impl Context {
 
     /// Run the ui code for one frame.
     ///
-    /// Put your widgets into a [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
+    /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
     /// This will modify the internal reference to point to a new generation of [`Context`].
     /// Any old clones of this [`Context`] will refer to the old [`Context`], which will not get new input.
@@ -1224,7 +1240,7 @@ impl Context {
 
     /// This is called by [`Response::widget_info`], but can also be called directly.
     ///
-    /// With some debug flags it will store the widget info in [`WidgetRects`] for later display.
+    /// With some debug flags it will store the widget info in [`crate::WidgetRects`] for later display.
     #[inline]
     pub fn register_widget_info(&self, id: Id, make_info: impl Fn() -> crate::WidgetInfo) {
         #[cfg(debug_assertions)]
@@ -1326,7 +1342,7 @@ impl Context {
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
-    /// Can be used to get the text for [`Button::shortcut_text`].
+    /// Can be used to get the text for [`crate::Button::shortcut_text`].
     pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
         let os = self.os();
 
@@ -1623,7 +1639,7 @@ impl Context {
         self.options_mut(|opt| opt.style = style.into());
     }
 
-    /// The [`Visuals`] used by all subsequent windows, panels etc.
+    /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
     ///
     /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
     ///
@@ -1656,7 +1672,7 @@ impl Context {
 
     /// The number of physical pixels for each logical point on this monitor.
     ///
-    /// This is given as input to egui via [`ViewportInfo::native_pixels_per_point`]
+    /// This is given as input to egui via [`crate::ViewportInfo::native_pixels_per_point`]
     /// and cannot be changed.
     #[inline(always)]
     pub fn native_pixels_per_point(&self) -> Option<f32> {
@@ -1744,7 +1760,7 @@ impl Context {
     ///
     /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
     ///
-    /// For how to load an image, see [`ImageData`] and [`ColorImage::from_rgba_unmultiplied`].
+    /// For how to load an image, see [`crate::ImageData`] and [`crate::ColorImage::from_rgba_unmultiplied`].
     ///
     /// ```
     /// struct MyImage {
@@ -2263,7 +2279,7 @@ impl Context {
 
     /// True if egui is currently interested in the pointer (mouse or touch).
     ///
-    /// Could be the pointer is hovering over a [`Window`] or the user is dragging a widget.
+    /// Could be the pointer is hovering over a [`crate::Window`] or the user is dragging a widget.
     /// If `false`, the pointer is outside of any egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
     /// Returns `false` if a drag started outside of egui and then moved over an egui area.
@@ -2279,7 +2295,7 @@ impl Context {
         self.memory(|m| m.interaction().is_using_pointer())
     }
 
-    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
+    /// If `true`, egui is currently listening on text input (e.g. typing text in a [`crate::TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
         self.memory(|m| m.focused().is_some())
     }
@@ -2320,7 +2336,7 @@ impl Context {
 
     /// If you detect a click or drag and wants to know where it happened, use this.
     ///
-    /// Latest position of the mouse, but ignoring any [`Event::PointerGone`]
+    /// Latest position of the mouse, but ignoring any [`crate::Event::PointerGone`]
     /// if there were interactions this frame.
     /// When tapping a touch screen, this will be the location of the touch.
     #[inline(always)]
@@ -2389,7 +2405,7 @@ impl Context {
 
     /// Moves the given area to the top in its [`Order`].
     ///
-    /// [`Area`]:s and [`Window`]:s also do this automatically when being clicked on or interacted with.
+    /// [`crate::Area`]:s and [`crate::Window`]:s also do this automatically when being clicked on or interacted with.
     pub fn move_to_top(&self, layer_id: LayerId) {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
@@ -2397,7 +2413,7 @@ impl Context {
     /// Mark the `child` layer as a sublayer of `parent`.
     ///
     /// Sublayers are moved directly above the parent layer at the end of the frame. This is mainly
-    /// intended for adding a new [`Area`] inside a [`Window`].
+    /// intended for adding a new [`crate::Area`] inside a [`crate::Window`].
     ///
     /// This currently only supports one level of nesting. If `parent` is a sublayer of another
     /// layer, the behavior is unspecified.
@@ -2582,7 +2598,7 @@ impl Context {
 
     /// Show the state of egui, including its input and output.
     pub fn inspection_ui(&self, ui: &mut Ui) {
-        use crate::containers::*;
+        use crate::containers::CollapsingHeader;
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(
@@ -2985,7 +3001,7 @@ impl Context {
         }
     }
 
-    /// Release all memory and textures related to images used in [`Ui::image`] or [`Image`].
+    /// Release all memory and textures related to images used in [`Ui::image`] or [`crate::Image`].
     ///
     /// If you attempt to load any images again, they will be reloaded from scratch.
     pub fn forget_all_images(&self) {

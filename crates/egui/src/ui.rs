@@ -6,9 +6,29 @@ use std::{any::Any, hash::Hash, sync::Arc};
 use epaint::mutex::RwLock;
 
 use crate::{
-    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    util::IdTypeMap, widgets::*, *,
+    containers::{CollapsingHeader, CollapsingResponse, Frame},
+    ecolor::Hsva,
+    emath, epaint,
+    epaint::text::Fonts,
+    frame_state, grid,
+    layout::{Direction, Layout},
+    menu,
+    menu::MenuState,
+    placer::Placer,
+    pos2, style,
+    util::IdTypeMap,
+    vec2, widgets,
+    widgets::{
+        color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
+        RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
+    },
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
+    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
+    Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect, WidgetText,
 };
+
+#[cfg(debug_assertions)]
+use crate::Stroke;
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -78,7 +98,7 @@ impl Ui {
     /// Create a new top-level [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
-    /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
+    /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_source,
@@ -1275,7 +1295,7 @@ impl Ui {
 
 /// # Scrolling
 impl Ui {
-    /// Adjust the scroll position of any parent [`ScrollArea`] so that the given [`Rect`] becomes visible.
+    /// Adjust the scroll position of any parent [`crate::ScrollArea`] so that the given [`Rect`] becomes visible.
     ///
     /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
@@ -1314,7 +1334,7 @@ impl Ui {
         }
     }
 
-    /// Adjust the scroll position of any parent [`ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
+    /// Adjust the scroll position of any parent [`crate::ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
     ///
     /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
@@ -1356,7 +1376,7 @@ impl Ui {
         }
     }
 
-    /// Scroll this many points in the given direction, in the parent [`ScrollArea`].
+    /// Scroll this many points in the given direction, in the parent [`crate::ScrollArea`].
     ///
     /// The delta dictates how the _content_ (i.e. this UI) should move.
     ///
@@ -1366,7 +1386,7 @@ impl Ui {
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     ///
-    /// If this is called multiple times per frame for the same [`ScrollArea`], the deltas will be summed.
+    /// If this is called multiple times per frame for the same [`crate::ScrollArea`], the deltas will be summed.
     ///
     /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
     ///
@@ -1935,7 +1955,7 @@ impl Ui {
     /// # });
     /// ```
     ///
-    /// Using [`include_image`] is often the most ergonomic, and the path
+    /// Using [`crate::include_image`] is often the most ergonomic, and the path
     /// will be resolved at compile-time and embedded in the binary.
     /// When using a "file://" url on the other hand, you need to make sure
     /// the files can be found in the right spot at runtime!

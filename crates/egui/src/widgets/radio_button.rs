@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    epaint, pos2, vec2, NumExt, Response, Sense, TextStyle, Ui, Vec2, Widget, WidgetInfo,
+    WidgetText, WidgetType,
+};
 
 /// One out of several alternatives, either selected or not.
 ///
