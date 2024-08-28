@@ -193,7 +193,7 @@ impl Ui {
     ///
     /// When in doubt, use `None` for the `UiStackInfo` argument.
     #[deprecated = "Use ui.new_child() instead"]
-    pub fn child_ui_with_id_salt(
+    pub fn child_ui_with_id_source(
         &mut self,
         max_rect: Rect,
         layout: Layout,

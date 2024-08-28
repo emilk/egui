@@ -39,6 +39,14 @@ impl<'a> DatePickerButton<'a> {
     /// Add id source.
     /// Must be set if multiple date picker buttons are in the same Ui.
     #[inline]
+    #[deprecated = "Renamed id_salt"]
+    pub fn id_source(self, id_salt: &'a str) -> Self {
+        self.id_salt(id_salt)
+    }
+
+    /// Add id source.
+    /// Must be set if multiple date picker buttons are in the same Ui.
+    #[inline]
     pub fn id_salt(mut self, id_salt: &'a str) -> Self {
         self.id_salt = Some(id_salt);
         self

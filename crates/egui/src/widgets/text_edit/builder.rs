@@ -160,6 +160,12 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// A source for the unique [`Id`], e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
+    #[inline]
+    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt(id_salt)
+    }
+
     /// A source for the unique [`Id`], e.g. `.id_salt("second_text_edit_field")` or `.id_salt(loop_index)`.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {

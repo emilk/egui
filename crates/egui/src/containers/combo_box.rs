@@ -88,6 +88,12 @@ impl ComboBox {
         }
     }
 
+    /// Without label.
+    #[deprecated = "Renamed id_salt"]
+    pub fn from_id_source(id_salt: impl std::hash::Hash) -> Self {
+        Self::from_id_salt(id_salt)
+    }
+
     /// Set the outer width of the button and menu.
     ///
     /// Default is [`Spacing::combo_width`].

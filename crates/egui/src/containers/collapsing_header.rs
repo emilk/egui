@@ -430,6 +430,15 @@ impl CollapsingHeader {
         self
     }
 
+    /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
+    /// This is useful if the title label is dynamic or not unique.
+    #[inline]
+    #[deprecated = "Renamed id_salt"]
+    pub fn id_source(mut self, id_salt: impl Hash) -> Self {
+        self.id_salt = Id::new(id_salt);
+        self
+    }
+
     /// If you set this to `false`, the [`CollapsingHeader`] will be grayed out and un-clickable.
     ///
     /// This is a convenience for [`Ui::disable`].

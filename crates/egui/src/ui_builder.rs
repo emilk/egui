@@ -29,6 +29,17 @@ impl UiBuilder {
         Self::default()
     }
 
+    /// Seed the child `Ui` with this `id_source`, which will be mixed
+    /// with the [`Ui::id`] of the parent.
+    ///
+    /// You should give each [`Ui`] an `id_source` that is unique
+    /// within the parent, or give it none at all.
+    #[deprecated = "Renamed id_salt"]
+    #[inline]
+    pub fn id_source(self, id_salt: impl Hash) -> Self {
+        self.id_salt(id_salt)
+    }
+
     /// Seed the child `Ui` with this `id_salt`, which will be mixed
     /// with the [`Ui::id`] of the parent.
     ///
