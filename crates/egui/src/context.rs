@@ -1022,7 +1022,7 @@ impl Context {
                         tooltip_pos,
                         format!("Widget is {} this text.\n\n\
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
-                             or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
+                             or when things like Plot and Grid:s aren't given unique id_salt:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
                          if below { "above" } else { "below" })
                     );

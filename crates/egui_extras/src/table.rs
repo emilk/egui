@@ -199,7 +199,7 @@ impl Default for TableScrollOptions {
 /// You must pre-allocate all columns with [`Self::column`]/[`Self::columns`].
 ///
 /// If you have multiple [`Table`]:s in the same [`Ui`]
-/// you will need to give them unique id:s by with [`Self::id_source`].
+/// you will need to give them unique id:s by with [`Self::id_salt`].
 ///
 /// ### Example
 /// ```
@@ -230,7 +230,7 @@ impl Default for TableScrollOptions {
 /// ```
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
-    id_source: Id,
+    id_salt: Id,
     columns: Vec<Column>,
     striped: Option<bool>,
     resizable: bool,
@@ -244,7 +244,7 @@ impl<'a> TableBuilder<'a> {
         let cell_layout = *ui.layout();
         Self {
             ui,
-            id_source: Id::new("__table_state"),
+            id_salt: Id::new("__table_state"),
             columns: Default::default(),
             striped: None,
             resizable: false,
@@ -258,8 +258,8 @@ impl<'a> TableBuilder<'a> {
     ///
     /// This is required if you have multiple tables in the same [`Ui`].
     #[inline]
-    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
-        self.id_source = Id::new(id_source);
+    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt = Id::new(id_salt);
         self
     }
 
@@ -417,7 +417,7 @@ impl<'a> TableBuilder<'a> {
 
     /// Reset all column widths.
     pub fn reset(&mut self) {
-        let state_id = self.ui.id().with(self.id_source);
+        let state_id = self.ui.id().with(self.id_salt);
         TableState::reset(self.ui, state_id);
     }
 
@@ -427,7 +427,7 @@ impl<'a> TableBuilder<'a> {
 
         let Self {
             ui,
-            id_source,
+            id_salt,
             columns,
             striped,
             resizable,
@@ -438,7 +438,7 @@ impl<'a> TableBuilder<'a> {
 
         let striped = striped.unwrap_or(ui.visuals().striped);
 
-        let state_id = ui.id().with(id_source);
+        let state_id = ui.id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
@@ -494,7 +494,7 @@ impl<'a> TableBuilder<'a> {
 
         let Self {
             ui,
-            id_source,
+            id_salt,
             columns,
             striped,
             resizable,
@@ -505,7 +505,7 @@ impl<'a> TableBuilder<'a> {
 
         let striped = striped.unwrap_or(ui.visuals().striped);
 
-        let state_id = ui.id().with(id_source);
+        let state_id = ui.id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);

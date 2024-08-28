@@ -66,7 +66,7 @@ pub struct TextEdit<'t> {
     hint_text: WidgetText,
     hint_text_font: Option<FontSelection>,
     id: Option<Id>,
-    id_source: Option<Id>,
+    id_salt: Option<Id>,
     font_selection: FontSelection,
     text_color: Option<Color32>,
     layouter: Option<&'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>>,
@@ -118,7 +118,7 @@ impl<'t> TextEdit<'t> {
             hint_text: Default::default(),
             hint_text_font: None,
             id: None,
-            id_source: None,
+            id_salt: None,
             font_selection: Default::default(),
             text_color: None,
             layouter: None,
@@ -160,10 +160,10 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
+    /// A source for the unique [`Id`], e.g. `.id_salt("second_text_edit_field")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
-        self.id_source = Some(Id::new(id_source));
+    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt = Some(Id::new(id_salt));
         self
     }
 
@@ -453,7 +453,7 @@ impl<'t> TextEdit<'t> {
             hint_text,
             hint_text_font,
             id,
-            id_source,
+            id_salt,
             font_selection,
             text_color,
             layouter,
@@ -518,8 +518,8 @@ impl<'t> TextEdit<'t> {
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
 
         let id = id.unwrap_or_else(|| {
-            if let Some(id_source) = id_source {
-                ui.make_persistent_id(id_source)
+            if let Some(id_salt) = id_salt {
+                ui.make_persistent_id(id_salt)
             } else {
                 auto_id // Since we are only storing the cursor a persistent Id is not super important
             }

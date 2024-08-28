@@ -171,7 +171,7 @@ pub struct ScrollArea {
     max_size: Vec2,
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
-    id_source: Option<Id>,
+    id_salt: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
 
@@ -223,7 +223,7 @@ impl ScrollArea {
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
             scroll_bar_visibility: Default::default(),
-            id_source: None,
+            id_salt: None,
             offset_x: None,
             offset_y: None,
             scrolling_enabled: true,
@@ -288,10 +288,10 @@ impl ScrollArea {
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
+    /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
     #[inline]
-    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
-        self.id_source = Some(Id::new(id_source));
+    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt = Some(Id::new(id_salt));
         self
     }
 
@@ -490,7 +490,7 @@ impl ScrollArea {
             max_size,
             min_scrolled_size,
             scroll_bar_visibility,
-            id_source,
+            id_salt,
             offset_x,
             offset_y,
             scrolling_enabled,
@@ -502,8 +502,8 @@ impl ScrollArea {
         let ctx = ui.ctx().clone();
         let scrolling_enabled = scrolling_enabled && ui.is_enabled();
 
-        let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
-        let id = ui.make_persistent_id(id_source);
+        let id_salt = id_salt.unwrap_or_else(|| Id::new("scroll_area"));
+        let id = ui.make_persistent_id(id_salt);
         ctx.check_for_id_clash(
             id,
             Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO),
