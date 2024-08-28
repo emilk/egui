@@ -1241,11 +1241,20 @@ impl Tessellator {
 
     #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
-        if self.options.round_text_to_pixels {
-            (point * self.pixels_per_point).round() / self.pixels_per_point
-        } else {
-            point
-        }
+        (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    #[inline(always)]
+    pub fn round_to_pixel_center(&self, point: f32) -> f32 {
+        ((point * self.pixels_per_point - 0.5).round() + 0.5) / self.pixels_per_point
+    }
+
+    #[inline(always)]
+    pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
+        pos2(
+            self.round_to_pixel_center(pos.x),
+            self.round_to_pixel_center(pos.y),
+        )
     }
 
     /// Tessellate a clipped shape into a list of primitives.
@@ -1723,10 +1732,14 @@ impl Tessellator {
 
         // The contents of the galley are already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
-        let galley_pos = pos2(
-            self.round_to_pixel(galley_pos.x),
-            self.round_to_pixel(galley_pos.y),
-        );
+        let galley_pos = if self.options.round_text_to_pixels {
+            pos2(
+                self.round_to_pixel(galley_pos.x),
+                self.round_to_pixel(galley_pos.y),
+            )
+        } else {
+            *galley_pos
+        };
 
         let uv_normalizer = vec2(
             1.0 / self.font_tex_size[0] as f32,
@@ -1802,13 +1815,12 @@ impl Tessellator {
 
             if *underline != Stroke::NONE {
                 self.scratchpad_path.clear();
+                self.scratchpad_path.add_line_segment([
+                    self.round_pos_to_pixel_center(row_rect.left_bottom()),
+                    self.round_pos_to_pixel_center(row_rect.right_bottom()),
+                ]);
                 self.scratchpad_path
-                    .add_line_segment([row_rect.left_bottom(), row_rect.right_bottom()]);
-                self.scratchpad_path.stroke_open(
-                    self.feathering,
-                    &PathStroke::from(*underline),
-                    out,
-                );
+                    .stroke_open(0.0, &PathStroke::from(*underline), out);
             }
         }
     }
