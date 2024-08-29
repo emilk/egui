@@ -4,8 +4,8 @@ use std::ops::RangeInclusive;
 
 use crate::{
     emath, epaint, lerp, pos2, remap, remap_clamp, style, style::HandleShape, vec2, Color32,
-    DragValue, EventFilter, Key, Label, NumExt, Pos2, Rangef, Rect, Response, Sense, TextStyle,
-    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
+    DragValue, EventFilter, Key, Label, NumExt, Pos2, Rangef, Rect, Response, Sense, TextWrapMode,
+    Ui, Vec2, Widget, WidgetInfo, WidgetText, MINUS_CHAR_STR,
 };
 
 // ----------------------------------------------------------------------------
@@ -560,6 +560,13 @@ impl<'a> Slider<'a> {
         self.range.clone()
     }
 
+    fn button_padding(&self, ui: &Ui) -> f32 {
+        match self.orientation {
+            SliderOrientation::Horizontal => ui.spacing().button_padding.y,
+            SliderOrientation::Vertical => ui.spacing().button_padding.x,
+        }
+    }
+
     /// For instance, `position` is the mouse position and `position_range` is the physical location of the slider on the screen.
     fn value_from_position(&self, position: f32, position_range: Rangef) -> f64 {
         let normalized = remap_clamp(position, position_range, 0.0..=1.0) as f64;
@@ -797,7 +804,7 @@ impl<'a> Slider<'a> {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        limit / 2.5
+        limit / 2.8
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
@@ -855,9 +862,12 @@ impl<'a> Slider<'a> {
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
+        let button_padding = self.button_padding(ui);
+
         let thickness = ui
-            .text_style_height(&TextStyle::Body)
-            .at_least(ui.spacing().interact_size.y);
+            .text_style_height(&ui.style().drag_value_text_style)
+            .at_least(ui.spacing().interact_size.y)
+            + (button_padding * 2.0);
         let mut response = self.allocate_slider_space(ui, thickness);
         self.slider_ui(ui, &response);
 
