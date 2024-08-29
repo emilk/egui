@@ -79,13 +79,19 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub fn from_x_y_ranges(x_range: impl Into<Rangef>, y_range: impl Into<Rangef>) -> Self {
-        let x_range = x_range.into();
-        let y_range = y_range.into();
+    pub const fn const_from_x_y_ranges(x_range: Rangef, y_range: Rangef) -> Self {
         Self {
             min: pos2(x_range.min, y_range.min),
             max: pos2(x_range.max, y_range.max),
         }
+    }
+
+    /// See [`Self::const_from_x_y_ranges`].
+    #[inline(always)]
+    pub fn from_x_y_ranges(x_range: impl Into<Rangef>, y_range: impl Into<Rangef>) -> Self {
+        let x_range = x_range.into();
+        let y_range = y_range.into();
+        Self::const_from_x_y_ranges(x_range, y_range)
     }
 
     /// Returns the bounding rectangle of the two points.

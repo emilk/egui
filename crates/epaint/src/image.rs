@@ -386,21 +386,33 @@ pub struct ImageDelta {
 
 impl ImageDelta {
     /// Update the whole texture.
-    pub fn full(image: impl Into<ImageData>, options: TextureOptions) -> Self {
+    pub const fn const_full(image: ImageData, options: TextureOptions) -> Self {
         Self {
-            image: image.into(),
+            image,
             options,
             pos: None,
         }
     }
 
+    /// See [`Self::const_full`].
+    pub fn full(image: impl Into<ImageData>, options: TextureOptions) -> Self {
+        let image = image.into();
+        Self::const_full(image, options)
+    }
+
     /// Update a sub-region of an existing texture.
-    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>, options: TextureOptions) -> Self {
+    pub const fn const_partial(pos: [usize; 2], image: ImageData, options: TextureOptions) -> Self {
         Self {
-            image: image.into(),
+            image,
             options,
             pos: Some(pos),
         }
+    }
+
+    /// See [`Self::const_partial`].
+    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>, options: TextureOptions) -> Self {
+        let image = image.into();
+        Self::const_partial(pos, image, options)
     }
 
     /// Is this affecting the whole texture?

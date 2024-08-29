@@ -92,29 +92,45 @@ impl Shape {
     /// A line between two points.
     /// More efficient than calling [`Self::line`].
     #[inline]
+    pub const fn const_line_segment(points: [Pos2; 2], stroke: PathStroke) -> Self {
+        Self::LineSegment { points, stroke }
+    }
+
+    /// See [`Self::const_line_segment`].
+    #[inline]
     pub fn line_segment(points: [Pos2; 2], stroke: impl Into<PathStroke>) -> Self {
-        Self::LineSegment {
-            points,
-            stroke: stroke.into(),
-        }
+        let stroke = stroke.into();
+        Self::const_line_segment(points, stroke)
     }
 
     /// A horizontal line.
-    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> Self {
-        let x = x.into();
+    pub const fn const_hline(x: Rangef, y: f32, stroke: PathStroke) -> Self {
         Self::LineSegment {
             points: [pos2(x.min, y), pos2(x.max, y)],
-            stroke: stroke.into(),
+            stroke,
         }
     }
 
+    /// See [`Self::const_hline`].
+    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> Self {
+        let x = x.into();
+        let stroke = stroke.into();
+        Self::const_hline(x, y, stroke)
+    }
+
     /// A vertical line.
-    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<PathStroke>) -> Self {
-        let y = y.into();
+    pub const fn const_vline(x: f32, y: Rangef, stroke: PathStroke) -> Self {
         Self::LineSegment {
             points: [pos2(x, y.min), pos2(x, y.max)],
-            stroke: stroke.into(),
+            stroke,
         }
+    }
+
+    /// See [`Self::const_vline`].
+    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<PathStroke>) -> Self {
+        let y = y.into();
+        let stroke = stroke.into();
+        Self::const_vline(x, y, stroke)
     }
 
     /// A line through many points.
@@ -600,41 +616,69 @@ impl PathShape {
     ///
     /// Use [`Shape::line_segment`] instead if your line only connects two points.
     #[inline]
-    pub fn line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
+    pub const fn const_line(points: Vec<Pos2>, stroke: PathStroke) -> Self {
         Self {
             points,
             closed: false,
-            fill: Default::default(),
-            stroke: stroke.into(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            fill: Color32::BLACK,
+            stroke,
         }
+    }
+
+    /// See [`Self::const_line`].
+    #[inline]
+    pub fn line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
+        let stroke = stroke.into();
+        Self::const_line(points, stroke)
     }
 
     /// A line that closes back to the start point again.
     #[inline]
-    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
+    pub const fn const_closed_line(points: Vec<Pos2>, stroke: PathStroke) -> Self {
         Self {
             points,
             closed: true,
-            fill: Default::default(),
-            stroke: stroke.into(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            fill: Color32::BLACK,
+            stroke,
         }
+    }
+
+    /// See [`Self::const_closed_line`].
+    #[inline]
+    pub fn closed_line(points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> Self {
+        let stroke = stroke.into();
+        Self::const_closed_line(points, stroke)
     }
 
     /// A convex polygon with a fill and optional stroke.
     ///
     /// The most performant winding order is clockwise.
     #[inline]
+    pub const fn const_convex_polygon(
+        points: Vec<Pos2>,
+        fill: Color32,
+        stroke: PathStroke,
+    ) -> Self {
+        Self {
+            points,
+            closed: true,
+            fill,
+            stroke,
+        }
+    }
+
+    /// See [`Self::const_convex_polygon`].
+    #[inline]
     pub fn convex_polygon(
         points: Vec<Pos2>,
         fill: impl Into<Color32>,
         stroke: impl Into<PathStroke>,
     ) -> Self {
-        Self {
-            points,
-            closed: true,
-            fill: fill.into(),
-            stroke: stroke.into(),
-        }
+        let fill = fill.into();
+        let stroke = stroke.into();
+        Self::const_convex_polygon(points, fill, stroke)
     }
 
     /// The visual bounding rectangle (includes stroke width)
@@ -696,51 +740,63 @@ pub struct RectShape {
 
 impl RectShape {
     #[inline]
+    pub const fn const_new(rect: Rect, rounding: Rounding, fill: Color32, stroke: Stroke) -> Self {
+        Self {
+            rect,
+            rounding,
+            fill,
+            stroke,
+            blur_width: 0.0,
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            fill_texture_id: TextureId::Managed(0),
+            uv: Rect::ZERO,
+        }
+    }
+
+    /// See [`Self::const_new`].
+    #[inline]
     pub fn new(
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) -> Self {
-        Self {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: stroke.into(),
-            blur_width: 0.0,
-            fill_texture_id: Default::default(),
-            uv: Rect::ZERO,
-        }
+        let rounding = rounding.into();
+        let fill = fill_color.into();
+        let stroke = stroke.into();
+        Self::const_new(rect, rounding, fill, stroke)
     }
 
+    #[inline]
+    pub const fn const_filled(rect: Rect, rounding: Rounding, fill: Color32) -> Self {
+        // TODO(BastiDood): Use `Stroke::default` when `const` traits stabilize.
+        Self::const_new(rect, rounding, fill, Stroke::NONE)
+    }
+
+    /// See [`Self::const_filled`].
     #[inline]
     pub fn filled(
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: Default::default(),
-            blur_width: 0.0,
-            fill_texture_id: Default::default(),
-            uv: Rect::ZERO,
-        }
+        let rounding = rounding.into();
+        let fill = fill_color.into();
+        Self::const_filled(rect, rounding, fill)
     }
 
     #[inline]
+    pub const fn const_stroke(rect: Rect, rounding: Rounding, stroke: Stroke) -> Self {
+        // TODO(BastiDood): Use `Color32::default` when `const` traits stabilize.
+        Self::const_new(rect, rounding, Color32::TRANSPARENT, stroke)
+    }
+
+    /// See [`Self::const_stroke`].
+    #[inline]
     pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
-        Self {
-            rect,
-            rounding: rounding.into(),
-            fill: Default::default(),
-            stroke: stroke.into(),
-            blur_width: 0.0,
-            fill_texture_id: Default::default(),
-            uv: Rect::ZERO,
-        }
+        let rounding = rounding.into();
+        let stroke = stroke.into();
+        Self::const_stroke(rect, rounding, stroke)
     }
 
     /// If larger than zero, the edges of the rectangle

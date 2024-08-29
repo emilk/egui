@@ -28,18 +28,29 @@ impl CubicBezierShape {
     ///
     /// The first point is the starting point and the last one is the ending point of the curve.
     /// The middle points are the control points.
+    pub const fn const_from_points_stroke(
+        points: [Pos2; 4],
+        closed: bool,
+        fill: Color32,
+        stroke: PathStroke,
+    ) -> Self {
+        Self {
+            points,
+            closed,
+            fill,
+            stroke,
+        }
+    }
+
+    /// See [`Self::const_from_points_stroke`].
     pub fn from_points_stroke(
         points: [Pos2; 4],
         closed: bool,
         fill: Color32,
         stroke: impl Into<PathStroke>,
     ) -> Self {
-        Self {
-            points,
-            closed,
-            fill,
-            stroke: stroke.into(),
-        }
+        let stroke = stroke.into();
+        Self::const_from_points_stroke(points, closed, fill, stroke)
     }
 
     /// Transform the curve with the given transform.
@@ -393,18 +404,29 @@ impl QuadraticBezierShape {
     /// The first point is the starting point and the last one is the ending point of the curve.
     /// The middle point is the control points.
     /// The points should be in the order [start, control, end]
+    pub const fn const_from_points_stroke(
+        points: [Pos2; 3],
+        closed: bool,
+        fill: Color32,
+        stroke: PathStroke,
+    ) -> Self {
+        Self {
+            points,
+            closed,
+            fill,
+            stroke,
+        }
+    }
+
+    /// See [`Self::const_from_points_stroke`].
     pub fn from_points_stroke(
         points: [Pos2; 3],
         closed: bool,
         fill: Color32,
         stroke: impl Into<PathStroke>,
     ) -> Self {
-        Self {
-            points,
-            closed,
-            fill,
-            stroke: stroke.into(),
-        }
+        let stroke = stroke.into();
+        Self::const_from_points_stroke(points, closed, fill, stroke)
     }
 
     /// Transform the curve with the given transform.

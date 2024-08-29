@@ -16,17 +16,19 @@ pub struct Stroke {
 
 impl Stroke {
     /// Same as [`Stroke::default`].
-    pub const NONE: Self = Self {
-        width: 0.0,
-        color: Color32::TRANSPARENT,
-    };
+    pub const NONE: Self = Self::const_new(0.0, Color32::TRANSPARENT);
 
     #[inline]
+    pub const fn const_new(width: f32, color: Color32) -> Self {
+        Self { width, color }
+    }
+
+    /// See [`Self::const_new`].
+    #[inline]
     pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
-        Self {
-            width: width.into(),
-            color: color.into(),
-        }
+        let width = width.into();
+        let color = color.into();
+        Self::const_new(width, color)
     }
 
     /// True if width is zero or color is transparent
@@ -73,11 +75,18 @@ impl PathStroke {
     };
 
     #[inline]
-    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
+    pub const fn const_new(width: f32, color: Color32) -> Self {
         Self {
-            width: width.into(),
-            color: ColorMode::Solid(color.into()),
+            width,
+            color: ColorMode::Solid(color),
         }
+    }
+
+    #[inline]
+    pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
+        let width = width.into();
+        let color = color.into();
+        Self::const_new(width, color)
     }
 
     /// Create a new `PathStroke` with a UV function
