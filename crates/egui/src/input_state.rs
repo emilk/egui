@@ -564,7 +564,7 @@ impl InputState {
     /// Size of a physical pixel in logical gui coordinates (points).
     #[inline(always)]
     pub fn physical_pixel_size(&self) -> f32 {
-        1.0 / self.pixels_per_point()
+        self.pixels_per_point().recip()
     }
 
     /// How imprecise do we expect the mouse/touch input to be?
