@@ -61,8 +61,10 @@ impl std::hash::Hash for Stroke {
 pub enum StrokeKind {
     /// The stroke should be painted entirely outside of the shape
     Outside,
+
     /// The stroke should be painted entirely inside of the shape
     Inside,
+
     /// The stroke should be painted right on the edge of the shape, half inside and half outside.
     Middle,
 }
