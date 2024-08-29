@@ -52,7 +52,7 @@ impl CursorRange {
     }
 
     /// The range of selected character indices.
-    pub const fn as_sorted_char_range(&self) -> std::ops::Range<usize> {
+    pub fn as_sorted_char_range(&self) -> std::ops::Range<usize> {
         let [start, end] = self.sorted_cursors();
         std::ops::Range {
             start: start.ccursor.index,
@@ -67,7 +67,7 @@ impl CursorRange {
     }
 
     /// Is `self` a super-set of the other range?
-    pub const fn contains(&self, other: &Self) -> bool {
+    pub fn contains(&self, other: &Self) -> bool {
         let [self_min, self_max] = self.sorted_cursors();
         let [other_min, other_max] = other.sorted_cursors();
         self_min.ccursor.index <= other_min.ccursor.index
