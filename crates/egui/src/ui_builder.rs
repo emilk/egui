@@ -11,7 +11,7 @@ use crate::Ui;
 /// except for `max_rect` which by default is set to
 /// the parent [`Ui::available_rect_before_wrap`].
 #[must_use]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct UiBuilder {
     pub id_source: Option<Id>,
     pub ui_stack_info: UiStackInfo,
