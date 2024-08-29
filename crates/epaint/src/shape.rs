@@ -812,12 +812,7 @@ impl From<f32> for Rounding {
 
 impl Rounding {
     /// No rounding on any corner.
-    pub const ZERO: Self = Self {
-        nw: 0.0,
-        ne: 0.0,
-        sw: 0.0,
-        se: 0.0,
-    };
+    pub const ZERO: Self = Self::same(0.0);
 
     #[inline]
     pub const fn same(radius: f32) -> Self {
@@ -1024,7 +1019,7 @@ impl TextShape {
     ///
     /// Any non-placeholder color in the galley takes precedence over this fallback color.
     #[inline]
-    pub fn new(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
+    pub const fn new(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
         Self {
             pos,
             galley,

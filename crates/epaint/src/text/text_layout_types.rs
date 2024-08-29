@@ -638,12 +638,12 @@ impl Row {
     }
 
     #[inline]
-    pub fn min_y(&self) -> f32 {
+    pub const fn min_y(&self) -> f32 {
         self.rect.top()
     }
 
     #[inline]
-    pub fn max_y(&self) -> f32 {
+    pub const fn max_y(&self) -> f32 {
         self.rect.bottom()
     }
 

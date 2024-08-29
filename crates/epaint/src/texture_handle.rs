@@ -56,12 +56,12 @@ impl std::hash::Hash for TextureHandle {
 
 impl TextureHandle {
     /// If you are using egui, use `egui::Context::load_texture` instead.
-    pub fn new(tex_mngr: Arc<RwLock<TextureManager>>, id: TextureId) -> Self {
+    pub const fn new(tex_mngr: Arc<RwLock<TextureManager>>, id: TextureId) -> Self {
         Self { tex_mngr, id }
     }
 
     #[inline]
-    pub fn id(&self) -> TextureId {
+    pub const fn id(&self) -> TextureId {
         self.id
     }
 

@@ -34,7 +34,7 @@ impl ImageData {
         self.size()[1]
     }
 
-    pub fn bytes_per_pixel(&self) -> usize {
+    pub const fn bytes_per_pixel(&self) -> usize {
         match self {
             Self::Color(_) | Self::Font(_) => 4,
         }
@@ -204,12 +204,12 @@ impl ColorImage {
     }
 
     #[inline]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.size[0]
     }
 
     #[inline]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.size[1]
     }
 }
@@ -285,12 +285,12 @@ impl FontImage {
     }
 
     #[inline]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.size[0]
     }
 
     #[inline]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.size[1]
     }
 
@@ -405,7 +405,7 @@ impl ImageDelta {
 
     /// Is this affecting the whole texture?
     /// If `false`, this is a partial (sub-region) update.
-    pub fn is_whole(&self) -> bool {
+    pub const fn is_whole(&self) -> bool {
         self.pos.is_none()
     }
 }

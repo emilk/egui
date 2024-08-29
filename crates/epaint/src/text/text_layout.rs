@@ -17,12 +17,12 @@ struct PointScale {
 
 impl PointScale {
     #[inline(always)]
-    pub fn new(pixels_per_point: f32) -> Self {
+    pub const fn new(pixels_per_point: f32) -> Self {
         Self { pixels_per_point }
     }
 
     #[inline(always)]
-    pub fn pixels_per_point(&self) -> f32 {
+    pub const fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
 
@@ -55,7 +55,7 @@ struct Paragraph {
 }
 
 impl Paragraph {
-    pub fn from_section_index(section_index_at_start: u32) -> Self {
+    pub const fn from_section_index(section_index_at_start: u32) -> Self {
         Self {
             cursor_x: 0.0,
             section_index_at_start,
@@ -1000,20 +1000,20 @@ impl RowBreakCandidates {
 }
 
 #[inline]
-fn is_cjk_ideograph(c: char) -> bool {
+const fn is_cjk_ideograph(c: char) -> bool {
     ('\u{4E00}' <= c && c <= '\u{9FFF}')
         || ('\u{3400}' <= c && c <= '\u{4DBF}')
         || ('\u{2B740}' <= c && c <= '\u{2B81F}')
 }
 
 #[inline]
-fn is_kana(c: char) -> bool {
+const fn is_kana(c: char) -> bool {
     ('\u{3040}' <= c && c <= '\u{309F}') // Hiragana block
         || ('\u{30A0}' <= c && c <= '\u{30FF}') // Katakana block
 }
 
 #[inline]
-fn is_cjk(c: char) -> bool {
+const fn is_cjk(c: char) -> bool {
     // TODO(bigfarts): Add support for Korean Hangul.
     is_cjk_ideograph(c) || is_kana(c)
 }
