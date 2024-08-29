@@ -746,8 +746,8 @@ fn fill_closed_path(
         return;
     }
 
-    // TODO: This bounding box is computed twice per shape: once here and another when tessellating the stroke, consider
-    // creataing a Scratchpad struct to extract and encapsulate that logic.
+    // TODO(juancampa): This bounding box is computed twice per shape: once here and another when tessellating the
+    // stroke, consider hoisting that logic to the tessellator/scratchpad.
     let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
         .expand((stroke.width / 2.0) + feathering);
 
