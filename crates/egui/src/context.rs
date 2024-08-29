@@ -1701,14 +1701,14 @@ impl Context {
         });
     }
 
-    /// Useful for pixel-perfect rendering of lines
+    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub(crate) fn round_to_pixel_center(&self, point: f32) -> f32 {
         let pixels_per_point = self.pixels_per_point();
         ((point * pixels_per_point - 0.5).round() + 0.5) / pixels_per_point
     }
 
-    /// Useful for pixel-perfect rendering of lines
+    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub(crate) fn round_pos_to_pixel_center(&self, point: Pos2) -> Pos2 {
         pos2(

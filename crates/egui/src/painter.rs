@@ -158,13 +158,13 @@ impl Painter {
         self.clip_rect = clip_rect;
     }
 
-    /// Useful for pixel-perfect rendering of strokes.
+    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub fn round_to_pixel_center(&self, point: f32) -> f32 {
         self.ctx().round_to_pixel_center(point)
     }
 
-    /// Useful for pixel-perfect rendering of strokes.
+    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
         self.ctx().round_pos_to_pixel_center(pos)

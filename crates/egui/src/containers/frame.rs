@@ -89,7 +89,6 @@ impl Frame {
         Self {
             inner_margin: Margin::symmetric(8.0, 2.0),
             fill: style.visuals.panel_fill,
-            // outer_margin: Margin::same(1.0),
             ..Default::default()
         }
     }

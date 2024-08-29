@@ -55,11 +55,15 @@ impl std::hash::Hash for Stroke {
     }
 }
 
+/// Describes how the stroke of a shape should be painted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) enum StrokeKind {
+pub enum StrokeKind {
+    /// The stroke should be painted entirely outside of the shape
     Outside,
+    /// The stroke should be painted entirely inside of the shape
     Inside,
+    /// The stroke should be painted right on the edge of the shape, half inside and half outside.
     Middle,
 }
 
@@ -77,7 +81,7 @@ impl Default for StrokeKind {
 pub struct PathStroke {
     pub width: f32,
     pub color: ColorMode,
-    pub(crate) kind: StrokeKind,
+    pub kind: StrokeKind,
 }
 
 impl PathStroke {
@@ -112,6 +116,7 @@ impl PathStroke {
         }
     }
 
+    /// Set the stroke to be painted right on the edge of the shape, half inside and half outside.
     pub fn middle(self) -> Self {
         Self {
             kind: StrokeKind::Middle,
@@ -119,6 +124,7 @@ impl PathStroke {
         }
     }
 
+    /// Set the stroke to be painted entirely outside of the shape
     pub fn outside(self) -> Self {
         Self {
             kind: StrokeKind::Outside,
@@ -126,6 +132,7 @@ impl PathStroke {
         }
     }
 
+    /// Set the stroke to be painted entirely inside of the shape
     pub fn inside(self) -> Self {
         Self {
             kind: StrokeKind::Inside,

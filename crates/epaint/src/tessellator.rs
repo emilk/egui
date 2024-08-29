@@ -299,7 +299,7 @@ mod precomputed_vertices {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct PathPoint {
     pos: Pos2,
 
@@ -474,23 +474,23 @@ impl Path {
     }
 
     /// Open-ended.
-    pub fn stroke_open(&self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
-        stroke_path(feathering, &self.0, PathType::Open, stroke, out);
+    pub fn stroke_open(&mut self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
+        stroke_path(feathering, &mut self.0, PathType::Open, stroke, out);
     }
 
     /// A closed path (returning to the first point).
-    pub fn stroke_closed(&self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
-        stroke_path(feathering, &self.0, PathType::Closed, stroke, out);
+    pub fn stroke_closed(&mut self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
+        stroke_path(feathering, &mut self.0, PathType::Closed, stroke, out);
     }
 
     pub fn stroke(
-        &self,
+        &mut self,
         feathering: f32,
         path_type: PathType,
         stroke: &PathStroke,
         out: &mut Mesh,
     ) {
-        stroke_path(feathering, &self.0, path_type, stroke, out);
+        stroke_path(feathering, &mut self.0, path_type, stroke, out);
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
@@ -866,25 +866,24 @@ fn fill_closed_path_with_uv(
     }
 }
 
-/// Translate a point according to the stroke kind.
-fn translate_stroke_point(p: &PathPoint, stroke: &PathStroke) -> PathPoint {
+/// Translate a point along their normals according to the stroke kind.
+#[inline(always)]
+fn translate_stroke_point(p: &mut PathPoint, stroke: &PathStroke) {
     match stroke.kind {
-        stroke::StrokeKind::Middle => p.clone(),
-        stroke::StrokeKind::Outside => PathPoint {
-            pos: p.pos + p.normal * stroke.width * 0.5,
-            normal: p.normal,
-        },
-        stroke::StrokeKind::Inside => PathPoint {
-            pos: p.pos - p.normal * stroke.width * 0.5,
-            normal: p.normal,
-        },
+        stroke::StrokeKind::Middle => { /* Nothingn to do */ }
+        stroke::StrokeKind::Outside => {
+            p.pos += p.normal * stroke.width * 0.5;
+        }
+        stroke::StrokeKind::Inside => {
+            p.pos -= p.normal * stroke.width * 0.5;
+        }
     }
 }
 
 /// Tessellate the given path as a stroke with thickness.
 fn stroke_path(
     feathering: f32,
-    path: &[PathPoint],
+    path: &mut [PathPoint],
     path_type: PathType,
     stroke: &PathStroke,
     out: &mut Mesh,
@@ -897,14 +896,15 @@ fn stroke_path(
 
     let idx = out.vertices.len() as u32;
 
+    // Translate the points along their normals if the stroke is outside or inside
+    if stroke.kind != stroke::StrokeKind::Middle {
+        path.iter_mut()
+            .for_each(|p| translate_stroke_point(p, stroke));
+    }
+
     // expand the bounding box to include the thickness of the path
-    let bbox = Rect::from_points(
-        &path
-            .iter()
-            .map(|p| translate_stroke_point(p, stroke).pos)
-            .collect::<Vec<Pos2>>(),
-    )
-    .expand((stroke.width / 2.0) + feathering);
+    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
+        .expand((stroke.width / 2.0) + feathering);
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
@@ -938,7 +938,7 @@ fn stroke_path(
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                let p1 = translate_stroke_point(&path[i1 as usize], stroke);
+                let p1 = path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
@@ -980,7 +980,7 @@ fn stroke_path(
 
                     let mut i0 = n - 1;
                     for i1 in 0..n {
-                        let p1 = translate_stroke_point(&path[i1 as usize], stroke);
+                        let p1 = path[i1 as usize];
                         let p = p1.pos;
                         let n = p1.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1025,7 +1025,7 @@ fn stroke_path(
                     out.reserve_vertices(4 * n as usize);
 
                     {
-                        let end = translate_stroke_point(&path[0], stroke);
+                        let end = path[0];
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = n.rot90() * feathering;
@@ -1046,7 +1046,7 @@ fn stroke_path(
 
                     let mut i0 = 0;
                     for i1 in 1..n - 1 {
-                        let point = translate_stroke_point(&path[i1 as usize], stroke);
+                        let point = path[i1 as usize];
                         let p = point.pos;
                         let n = point.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1074,7 +1074,7 @@ fn stroke_path(
 
                     {
                         let i1 = n - 1;
-                        let end = translate_stroke_point(&path[i1 as usize], stroke);
+                        let end = path[i1 as usize];
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = -n.rot90() * feathering;
@@ -1138,7 +1138,7 @@ fn stroke_path(
                     return;
                 }
             }
-            for p in path.iter().map(|p| translate_stroke_point(p, stroke)) {
+            for p in path {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
                     mul_color(
@@ -1156,7 +1156,7 @@ fn stroke_path(
             }
         } else {
             let radius = stroke.width / 2.0;
-            for p in path.iter().map(|p| translate_stroke_point(p, stroke)) {
+            for p in path {
                 out.colored_vertex(
                     p.pos + radius * p.normal,
                     get_color(&stroke.color, p.pos + radius * p.normal),

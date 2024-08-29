@@ -343,6 +343,8 @@ impl SidePanel {
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_x = side.opposite().side_x(rect);
+
+            // This makes it pixel-perfect for odd-sized strokes (width=1.0, width=3.0, etc)
             let resize_x = ui.painter().round_to_pixel_center(resize_x);
 
             // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
