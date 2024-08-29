@@ -109,26 +109,44 @@ pub struct SidePanel {
 
 impl SidePanel {
     /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
+    pub const fn const_left(id: Id) -> Self {
+        Self::const_new(Side::Left, id)
+    }
+
+    /// See [`Self::const_left`].
     pub fn left(id: impl Into<Id>) -> Self {
-        Self::new(Side::Left, id)
+        let id = id.into();
+        Self::const_left(id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
+    pub const fn const_right(id: Id) -> Self {
+        Self::const_new(Side::Right, id)
+    }
+
+    /// See [`Self::const_right`].
     pub fn right(id: impl Into<Id>) -> Self {
-        Self::new(Side::Right, id)
+        let id = id.into();
+        Self::const_right(id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    pub fn new(side: Side, id: impl Into<Id>) -> Self {
+    pub const fn const_new(side: Side, id: Id) -> Self {
         Self {
             side,
-            id: id.into(),
+            id,
             frame: None,
             resizable: true,
             show_separator_line: true,
             default_width: 200.0,
             width_range: Rangef::new(96.0, f32::INFINITY),
         }
+    }
+
+    /// See [`Self::const_new`].
+    pub fn new(side: Side, id: impl Into<Id>) -> Self {
+        let id = id.into();
+        Self::const_new(side, id)
     }
 
     /// Can panel be resized by dragging the edge of it?
@@ -587,26 +605,44 @@ pub struct TopBottomPanel {
 
 impl TopBottomPanel {
     /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
+    pub const fn const_top(id: Id) -> Self {
+        Self::const_new(TopBottomSide::Top, id)
+    }
+
+    /// See [`Self::const_top`].
     pub fn top(id: impl Into<Id>) -> Self {
-        Self::new(TopBottomSide::Top, id)
+        let id = id.into();
+        Self::const_top(id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
+    pub const fn const_bottom(id: Id) -> Self {
+        Self::const_new(TopBottomSide::Bottom, id)
+    }
+
+    /// See [`Self::const_bottom`].
     pub fn bottom(id: impl Into<Id>) -> Self {
-        Self::new(TopBottomSide::Bottom, id)
+        let id = id.into();
+        Self::const_bottom(id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    pub fn new(side: TopBottomSide, id: impl Into<Id>) -> Self {
+    pub const fn const_new(side: TopBottomSide, id: Id) -> Self {
         Self {
             side,
-            id: id.into(),
+            id,
             frame: None,
             resizable: false,
             show_separator_line: true,
             default_height: None,
             height_range: Rangef::new(20.0, f32::INFINITY),
         }
+    }
+
+    /// See [`Self::const_new`].
+    pub fn new(side: TopBottomSide, id: impl Into<Id>) -> Self {
+        let id = id.into();
+        Self::const_new(side, id)
     }
 
     /// Can panel be resized by dragging the edge of it?

@@ -242,9 +242,16 @@ impl RichText {
 
     /// Fill-color behind the text.
     #[inline]
-    pub fn background_color(mut self, background_color: impl Into<Color32>) -> Self {
-        self.background_color = background_color.into();
+    pub const fn const_background_color(mut self, background_color: Color32) -> Self {
+        self.background_color = background_color;
         self
+    }
+
+    /// See [`Self::const_background_color`].
+    #[inline]
+    pub fn background_color(self, background_color: impl Into<Color32>) -> Self {
+        let background_color = background_color.into();
+        self.const_background_color(background_color)
     }
 
     /// Override text color.
@@ -252,9 +259,16 @@ impl RichText {
     /// If not set, [`Color32::PLACEHOLDER`] will be used,
     /// which will be replaced with a color chosen by the widget that paints the text.
     #[inline]
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
-        self.text_color = Some(color.into());
+    pub const fn const_color(mut self, color: Color32) -> Self {
+        self.text_color = Some(color);
         self
+    }
+
+    /// See [`Self::const_color`].
+    #[inline]
+    pub fn color(self, color: impl Into<Color32>) -> Self {
+        let color = color.into();
+        self.const_color(color)
     }
 
     /// Read the font height of the selected text style.

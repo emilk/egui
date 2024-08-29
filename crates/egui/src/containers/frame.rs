@@ -169,29 +169,57 @@ impl Frame {
     }
 
     #[inline]
-    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
-        self.stroke = stroke.into();
+    pub const fn const_stroke(mut self, stroke: Stroke) -> Self {
+        self.stroke = stroke;
         self
     }
 
+    /// See [`Self::const_stroke`].
     #[inline]
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.rounding = rounding.into();
+    pub fn stroke(self, stroke: impl Into<Stroke>) -> Self {
+        let stroke = stroke.into();
+        self.const_stroke(stroke)
+    }
+
+    #[inline]
+    pub const fn const_rounding(mut self, rounding: Rounding) -> Self {
+        self.rounding = rounding;
         self
+    }
+
+    /// See [`Self::const_rounding`].
+    #[inline]
+    pub fn rounding(self, rounding: impl Into<Rounding>) -> Self {
+        let rounding = rounding.into();
+        self.const_rounding(rounding)
     }
 
     /// Margin within the painted frame.
     #[inline]
-    pub fn inner_margin(mut self, inner_margin: impl Into<Margin>) -> Self {
-        self.inner_margin = inner_margin.into();
+    pub const fn const_inner_margin(mut self, inner_margin: Margin) -> Self {
+        self.inner_margin = inner_margin;
         self
+    }
+
+    /// See [`Self::const_inner_margin`].
+    #[inline]
+    pub fn inner_margin(self, inner_margin: impl Into<Margin>) -> Self {
+        let inner_margin = inner_margin.into();
+        self.const_inner_margin(inner_margin)
     }
 
     /// Margin outside the painted frame.
     #[inline]
-    pub fn outer_margin(mut self, outer_margin: impl Into<Margin>) -> Self {
-        self.outer_margin = outer_margin.into();
+    pub const fn const_outer_margin(mut self, outer_margin: Margin) -> Self {
+        self.outer_margin = outer_margin;
         self
+    }
+
+    /// See [`Self::const_outer_margin`].
+    #[inline]
+    pub fn outer_margin(self, outer_margin: impl Into<Margin>) -> Self {
+        let outer_margin = outer_margin.into();
+        self.const_outer_margin(outer_margin)
     }
 
     #[inline]

@@ -386,11 +386,15 @@ pub struct SizedTexture {
 
 impl SizedTexture {
     /// Create a [`SizedTexture`] from a texture `id` with a specific `size`.
+    pub const fn const_new(id: TextureId, size: Vec2) -> Self {
+        Self { id, size }
+    }
+
+    /// See [`Self::const_new`].
     pub fn new(id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
-        Self {
-            id: id.into(),
-            size: size.into(),
-        }
+        let id = id.into();
+        let size = size.into();
+        Self::const_new(id, size)
     }
 
     /// Fetch the [id][`SizedTexture::id`] and [size][`SizedTexture::size`] from a [`TextureHandle`].

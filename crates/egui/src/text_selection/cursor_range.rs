@@ -237,11 +237,16 @@ impl CCursorRange {
     }
 
     #[inline]
+    pub const fn const_two(primary: CCursor, secondary: CCursor) -> Self {
+        Self { primary, secondary }
+    }
+
+    /// See [`Self::const_two`].
+    #[inline]
     pub fn two(min: impl Into<CCursor>, max: impl Into<CCursor>) -> Self {
-        Self {
-            primary: max.into(),
-            secondary: min.into(),
-        }
+        let min = min.into();
+        let max = max.into();
+        Self::const_two(min, max)
     }
 
     #[inline]

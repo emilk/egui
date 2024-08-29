@@ -194,38 +194,39 @@ pub struct ScrollArea {
 impl ScrollArea {
     /// Create a horizontal scroll area.
     #[inline]
-    pub fn horizontal() -> Self {
-        Self::new([true, false])
+    pub const fn horizontal() -> Self {
+        Self::const_new(Vec2b::new(true, false))
     }
 
     /// Create a vertical scroll area.
     #[inline]
-    pub fn vertical() -> Self {
-        Self::new([false, true])
+    pub const fn vertical() -> Self {
+        Self::const_new(Vec2b::new(false, true))
     }
 
     /// Create a bi-directional (horizontal and vertical) scroll area.
     #[inline]
-    pub fn both() -> Self {
-        Self::new([true, true])
+    pub const fn both() -> Self {
+        Self::const_new(Vec2b::TRUE)
     }
 
     /// Create a scroll area where both direction of scrolling is disabled.
     /// It's unclear why you would want to do this.
     #[inline]
-    pub fn neither() -> Self {
-        Self::new([false, false])
+    pub const fn neither() -> Self {
+        Self::const_new(Vec2b::FALSE)
     }
 
     /// Create a scroll area where you decide which axis has scrolling enabled.
     /// For instance, `ScrollArea::new([true, false])` enables horizontal scrolling.
-    pub fn new(scroll_enabled: impl Into<Vec2b>) -> Self {
+    pub const fn const_new(scroll_enabled: Vec2b) -> Self {
         Self {
-            scroll_enabled: scroll_enabled.into(),
+            scroll_enabled,
             auto_shrink: Vec2b::TRUE,
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
-            scroll_bar_visibility: Default::default(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            scroll_bar_visibility: ScrollBarVisibility::DEFAULT,
             id_source: None,
             offset_x: None,
             offset_y: None,
@@ -234,6 +235,12 @@ impl ScrollArea {
             stick_to_end: Vec2b::FALSE,
             animated: true,
         }
+    }
+
+    /// See [`Self::const_new`].
+    pub fn new(scroll_enabled: impl Into<Vec2b>) -> Self {
+        let scroll_enabled = scroll_enabled.into();
+        Self::const_new(scroll_enabled)
     }
 
     /// The maximum width of the outer frame of the scroll area.
@@ -354,20 +361,26 @@ impl ScrollArea {
     }
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
+    #[inline]
+    pub const fn const_scroll(mut self, scroll_enabled: Vec2b) -> Self {
+        self.scroll_enabled = scroll_enabled;
+        self
+    }
+
+    /// See [`Self::const_scroll`].
     ///
     /// You can pass in `false`, `true`, `[false, true]` etc.
     #[inline]
-    pub fn scroll(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
-        self.scroll_enabled = scroll_enabled.into();
-        self
+    pub fn scroll(self, scroll_enabled: impl Into<Vec2b>) -> Self {
+        let scroll_enabled = scroll_enabled.into();
+        self.const_scroll(scroll_enabled)
     }
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
     #[deprecated = "Renamed to `scroll`"]
     #[inline]
-    pub fn scroll2(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
-        self.scroll_enabled = scroll_enabled.into();
-        self
+    pub fn scroll2(self, scroll_enabled: impl Into<Vec2b>) -> Self {
+        self.scroll(scroll_enabled)
     }
 
     /// Control the scrolling behavior.

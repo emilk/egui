@@ -222,9 +222,16 @@ impl Area {
     }
 
     #[inline]
-    pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
-        self.default_pos = Some(default_pos.into());
+    pub const fn const_default_pos(mut self, default_pos: Pos2) -> Self {
+        self.default_pos = Some(default_pos);
         self
+    }
+
+    /// See [`Self::const_default_pos`].
+    #[inline]
+    pub fn default_pos(self, default_pos: impl Into<Pos2>) -> Self {
+        let default_pos = default_pos.into();
+        self.const_default_pos(default_pos)
     }
 
     /// The size used for the [`Ui::max_rect`] the first frame.
@@ -312,9 +319,16 @@ impl Area {
 
     /// Positions the window but you can still move it.
     #[inline]
-    pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
-        self.new_pos = Some(current_pos.into());
+    pub const fn const_current_pos(mut self, current_pos: Pos2) -> Self {
+        self.new_pos = Some(current_pos);
         self
+    }
+
+    /// See [`Self::const_current_pos`].
+    #[inline]
+    pub fn current_pos(self, current_pos: impl Into<Pos2>) -> Self {
+        let current_pos = current_pos.into();
+        self.const_current_pos(current_pos)
     }
 
     /// Set anchor and distance.
@@ -329,9 +343,16 @@ impl Area {
     ///
     /// It is an error to set both an anchor and a position.
     #[inline]
-    pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
-        self.anchor = Some((align, offset.into()));
+    pub const fn const_anchor(mut self, align: Align2, offset: Vec2) -> Self {
+        self.anchor = Some((align, offset));
         self.movable(false)
+    }
+
+    /// See [`Self::const_anchor`].
+    #[inline]
+    pub fn anchor(self, align: Align2, offset: impl Into<Vec2>) -> Self {
+        let offset = offset.into();
+        self.const_anchor(align, offset)
     }
 
     pub(crate) const fn get_pivot(&self) -> Align2 {

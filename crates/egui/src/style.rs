@@ -1277,7 +1277,7 @@ impl Visuals {
                 color: Color32::from_black_alpha(96),
             },
             window_fill: Color32::from_gray(27),
-            window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+            window_stroke: Stroke::const_new(1.0, Color32::from_gray(60)),
             window_highlight_topmost: true,
 
             menu_rounding: Rounding::same(6.0),
@@ -1334,7 +1334,7 @@ impl Visuals {
                 color: Color32::from_black_alpha(25),
             },
             window_fill: Color32::from_gray(248),
-            window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
+            window_stroke: Stroke::const_new(1.0, Color32::from_gray(190)),
 
             panel_fill: Color32::from_gray(248),
 
@@ -1363,17 +1363,17 @@ impl Default for Visuals {
 }
 
 impl Selection {
-    fn dark() -> Self {
+    const fn dark() -> Self {
         Self {
             bg_fill: Color32::from_rgb(0, 92, 128),
-            stroke: Stroke::new(1.0, Color32::from_rgb(192, 222, 255)),
+            stroke: Stroke::const_new(1.0, Color32::from_rgb(192, 222, 255)),
         }
     }
 
-    fn light() -> Self {
+    const fn light() -> Self {
         Self {
             bg_fill: Color32::from_rgb(144, 209, 255),
-            stroke: Stroke::new(1.0, Color32::from_rgb(0, 83, 125)),
+            stroke: Stroke::const_new(1.0, Color32::from_rgb(0, 83, 125)),
         }
     }
 }
@@ -1385,90 +1385,92 @@ impl Default for Selection {
 }
 
 impl Widgets {
-    pub fn dark() -> Self {
+    pub const fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(27),
                 bg_fill: Color32::from_gray(27),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
+                bg_stroke: Stroke::const_new(1.0, Color32::from_gray(60)), // separators, indentation lines
+                fg_stroke: Stroke::const_new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(60), // button background
                 bg_fill: Color32::from_gray(60),      // checkbox background
-                bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
+                // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+                bg_stroke: Stroke::NONE,
+                fg_stroke: Stroke::const_new(1.0, Color32::from_gray(180)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(70),
                 bg_fill: Color32::from_gray(70),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
-                fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
+                bg_stroke: Stroke::const_new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
+                fg_stroke: Stroke::const_new(1.5, Color32::from_gray(240)),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(55),
                 bg_fill: Color32::from_gray(55),
-                bg_stroke: Stroke::new(1.0, Color32::WHITE),
-                fg_stroke: Stroke::new(2.0, Color32::WHITE),
+                bg_stroke: Stroke::const_new(1.0, Color32::WHITE),
+                fg_stroke: Stroke::const_new(2.0, Color32::WHITE),
                 rounding: Rounding::same(2.0),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(45),
                 bg_fill: Color32::from_gray(27),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
+                bg_stroke: Stroke::const_new(1.0, Color32::from_gray(60)),
+                fg_stroke: Stroke::const_new(1.0, Color32::from_gray(210)),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
         }
     }
 
-    pub fn light() -> Self {
+    pub const fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(248),
                 bg_fill: Color32::from_gray(248),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
+                bg_stroke: Stroke::const_new(1.0, Color32::from_gray(190)), // separators, indentation lines
+                fg_stroke: Stroke::const_new(1.0, Color32::from_gray(80)),  // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(230), // button background
                 bg_fill: Color32::from_gray(230),      // checkbox background
-                bg_stroke: Default::default(),
-                fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
+                // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+                bg_stroke: Stroke::NONE,
+                fg_stroke: Stroke::const_new(1.0, Color32::from_gray(60)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
                 bg_fill: Color32::from_gray(220),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
-                fg_stroke: Stroke::new(1.5, Color32::BLACK),
+                bg_stroke: Stroke::const_new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
+                fg_stroke: Stroke::const_new(1.5, Color32::BLACK),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(165),
                 bg_fill: Color32::from_gray(165),
-                bg_stroke: Stroke::new(1.0, Color32::BLACK),
-                fg_stroke: Stroke::new(2.0, Color32::BLACK),
+                bg_stroke: Stroke::const_new(1.0, Color32::BLACK),
+                fg_stroke: Stroke::const_new(2.0, Color32::BLACK),
                 rounding: Rounding::same(2.0),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
                 bg_fill: Color32::from_gray(220),
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
-                fg_stroke: Stroke::new(1.0, Color32::BLACK),
+                bg_stroke: Stroke::const_new(1.0, Color32::from_gray(160)),
+                fg_stroke: Stroke::const_new(1.0, Color32::BLACK),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },

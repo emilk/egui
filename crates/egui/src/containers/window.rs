@@ -179,9 +179,16 @@ impl<'open> Window<'open> {
 
     /// Set minimum size of the window, equivalent to calling both `min_width` and `min_height`.
     #[inline]
-    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.min_size(min_size);
+    pub const fn const_min_size(mut self, min_size: Vec2) -> Self {
+        self.resize = self.resize.const_min_size(min_size);
         self
+    }
+
+    /// See [`Self::const_min_size`].
+    #[inline]
+    pub fn min_size(self, min_size: impl Into<Vec2>) -> Self {
+        let min_size = min_size.into();
+        self.const_min_size(min_size)
     }
 
     /// Set maximum width of the window.
@@ -200,31 +207,59 @@ impl<'open> Window<'open> {
 
     /// Set maximum size of the window, equivalent to calling both `max_width` and `max_height`.
     #[inline]
-    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.max_size(max_size);
+    pub const fn const_max_size(mut self, max_size: Vec2) -> Self {
+        self.resize = self.resize.const_max_size(max_size);
         self
+    }
+
+    /// See [`Self::const_max_size`].
+    #[inline]
+    pub fn max_size(self, max_size: impl Into<Vec2>) -> Self {
+        let max_size = max_size.into();
+        self.const_max_size(max_size)
     }
 
     /// Set current position of the window.
     /// If the window is movable it is up to you to keep track of where it moved to!
     #[inline]
-    pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.current_pos(current_pos);
+    pub const fn const_current_pos(mut self, current_pos: Pos2) -> Self {
+        self.area = self.area.const_current_pos(current_pos);
         self
+    }
+
+    /// See [`Self::const_current_pos`].
+    #[inline]
+    pub fn current_pos(self, current_pos: impl Into<Pos2>) -> Self {
+        let current_pos = current_pos.into();
+        self.const_current_pos(current_pos)
     }
 
     /// Set initial position of the window.
     #[inline]
-    pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.default_pos(default_pos);
+    pub const fn const_default_pos(mut self, default_pos: Pos2) -> Self {
+        self.area = self.area.const_default_pos(default_pos);
         self
+    }
+
+    /// See [`Self::const_default_pos`].
+    #[inline]
+    pub fn default_pos(self, default_pos: impl Into<Pos2>) -> Self {
+        let default_pos = default_pos.into();
+        self.const_default_pos(default_pos)
     }
 
     /// Sets the window position and prevents it from being dragged around.
     #[inline]
-    pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.fixed_pos(pos);
+    pub const fn const_fixed_pos(mut self, pos: Pos2) -> Self {
+        self.area = self.area.const_fixed_pos(pos);
         self
+    }
+
+    /// See [`Self::const_fixed_pos`].
+    #[inline]
+    pub fn fixed_pos(self, pos: impl Into<Pos2>) -> Self {
+        let pos = pos.into();
+        self.const_fixed_pos(pos)
     }
 
     /// Constrains this window to [`Context::screen_rect`].
@@ -272,9 +307,16 @@ impl<'open> Window<'open> {
     ///
     /// It is an error to set both an anchor and a position.
     #[inline]
-    pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
-        self.area = self.area.anchor(align, offset);
+    pub const fn const_anchor(mut self, align: Align2, offset: Vec2) -> Self {
+        self.area = self.area.const_anchor(align, offset);
         self
+    }
+
+    /// See [`Self::const_anchor`].
+    #[inline]
+    pub fn anchor(self, align: Align2, offset: impl Into<Vec2>) -> Self {
+        let offset = offset.into();
+        self.const_anchor(align, offset)
     }
 
     /// Set initial collapsed state of the window
@@ -286,9 +328,16 @@ impl<'open> Window<'open> {
 
     /// Set initial size of the window.
     #[inline]
-    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.default_size(default_size);
+    pub const fn const_default_size(mut self, default_size: Vec2) -> Self {
+        self.resize = self.resize.const_default_size(default_size);
         self
+    }
+
+    /// See [`Self::const_default_size`].
+    #[inline]
+    pub fn default_size(self, default_size: impl Into<Vec2>) -> Self {
+        let default_size = default_size.into();
+        self.const_default_size(default_size)
     }
 
     /// Set initial width of the window.
@@ -307,9 +356,16 @@ impl<'open> Window<'open> {
 
     /// Sets the window size and prevents it from being resized by dragging its edges.
     #[inline]
-    pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.fixed_size(size);
+    pub const fn const_fixed_size(mut self, size: Vec2) -> Self {
+        self.resize = self.resize.const_fixed_size(size);
         self
+    }
+
+    /// See [`Self::const_fixed_size`].
+    #[inline]
+    pub fn fixed_size(self, size: impl Into<Vec2>) -> Self {
+        let size = size.into();
+        self.const_fixed_size(size)
     }
 
     /// Set initial position and size of the window.
@@ -332,10 +388,16 @@ impl<'open> Window<'open> {
     ///
     /// Default is `true`.
     #[inline]
-    pub fn resizable(mut self, resizable: impl Into<Vec2b>) -> Self {
-        let resizable = resizable.into();
-        self.resize = self.resize.resizable(resizable);
+    pub const fn const_resizable(mut self, resizable: Vec2b) -> Self {
+        self.resize = self.resize.const_resizable(resizable);
         self
+    }
+
+    /// See [`Self::const_resizable`].
+    #[inline]
+    pub fn resizable(self, resizable: impl Into<Vec2b>) -> Self {
+        let resizable = resizable.into();
+        self.const_resizable(resizable)
     }
 
     /// Can the window be collapsed by clicking on its title?
@@ -364,20 +426,26 @@ impl<'open> Window<'open> {
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
+    #[inline]
+    pub const fn const_scroll(mut self, scroll: Vec2b) -> Self {
+        self.scroll = self.scroll.const_scroll(scroll);
+        self
+    }
+
+    /// See [`Self::const_scroll`].
     ///
     /// You can pass in `false`, `true`, `[false, true]` etc.
     #[inline]
-    pub fn scroll(mut self, scroll: impl Into<Vec2b>) -> Self {
-        self.scroll = self.scroll.scroll(scroll);
-        self
+    pub fn scroll(self, scroll: impl Into<Vec2b>) -> Self {
+        let scroll = scroll.into();
+        self.const_scroll(scroll)
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
     #[deprecated = "Renamed to `scroll`"]
     #[inline]
-    pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
-        self.scroll = self.scroll.scroll(scroll);
-        self
+    pub fn scroll2(self, scroll: impl Into<Vec2b>) -> Self {
+        self.scroll(scroll)
     }
 
     /// Enable/disable horizontal scrolling. `false` by default.

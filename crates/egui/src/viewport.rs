@@ -464,9 +464,16 @@ impl ViewportBuilder {
     /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
-    pub fn with_inner_size(mut self, size: impl Into<Vec2>) -> Self {
-        self.inner_size = Some(size.into());
+    pub const fn const_with_inner_size(mut self, size: Vec2) -> Self {
+        self.inner_size = Some(size);
         self
+    }
+
+    /// See [`Self::const_with_inner_size`].
+    #[inline]
+    pub fn with_inner_size(self, size: impl Into<Vec2>) -> Self {
+        let size = size.into();
+        self.const_with_inner_size(size)
     }
 
     /// Sets the minimum dimensions a window can have.
@@ -477,9 +484,16 @@ impl ViewportBuilder {
     /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
-    pub fn with_min_inner_size(mut self, size: impl Into<Vec2>) -> Self {
-        self.min_inner_size = Some(size.into());
+    pub const fn const_with_min_inner_size(mut self, size: Vec2) -> Self {
+        self.min_inner_size = Some(size);
         self
+    }
+
+    /// See [`Self::const_with_min_inner_size`].
+    #[inline]
+    pub fn with_min_inner_size(self, size: impl Into<Vec2>) -> Self {
+        let size = size.into();
+        self.const_with_min_inner_size(size)
     }
 
     /// Sets the maximum dimensions a window can have.
@@ -490,9 +504,16 @@ impl ViewportBuilder {
     /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
-    pub fn with_max_inner_size(mut self, size: impl Into<Vec2>) -> Self {
-        self.max_inner_size = Some(size.into());
+    pub const fn const_with_max_inner_size(mut self, size: Vec2) -> Self {
+        self.max_inner_size = Some(size);
         self
+    }
+
+    /// See [`Self::const_with_max_inner_size`].
+    #[inline]
+    pub fn with_max_inner_size(self, size: impl Into<Vec2>) -> Self {
+        let size = size.into();
+        self.const_with_max_inner_size(size)
     }
 
     /// Sets whether clamp the window's size to monitor's size. The default is `true` on linux, otherwise it is `false`.
@@ -541,9 +562,16 @@ impl ViewportBuilder {
     /// The initial "outer" position of the window,
     /// i.e. where the top-left corner of the frame/chrome should be.
     #[inline]
-    pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
-        self.position = Some(pos.into());
+    pub const fn const_with_position(mut self, pos: Pos2) -> Self {
+        self.position = Some(pos);
         self
+    }
+
+    /// See [`Self::const_with_position`].
+    #[inline]
+    pub fn with_position(self, pos: impl Into<Pos2>) -> Self {
+        let pos = pos.into();
+        self.const_with_position(pos)
     }
 
     /// ### On Wayland
