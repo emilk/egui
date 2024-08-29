@@ -27,21 +27,25 @@ impl Vec2b {
     }
 
     #[inline]
+    pub const fn const_and(&self, other: Self) -> Self {
+        Self::new(self.x && other.x, self.y && other.y)
+    }
+
+    #[inline]
     pub fn and(&self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        Self {
-            x: self.x && other.x,
-            y: self.y && other.y,
-        }
+        self.const_and(other)
+    }
+
+    #[inline]
+    pub const fn const_or(&self, other: Self) -> Self {
+        Self::new(self.x || other.x, self.y || other.y)
     }
 
     #[inline]
     pub fn or(&self, other: impl Into<Self>) -> Self {
         let other = other.into();
-        Self {
-            x: self.x || other.x,
-            y: self.y || other.y,
-        }
+        self.const_or(other)
     }
 }
 
