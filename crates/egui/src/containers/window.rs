@@ -437,8 +437,15 @@ impl<'open> Window<'open> {
         let header_color =
             frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
         let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+
         // Keep the original inner margin for later use
-        let window_margin = window_frame.inner_margin;
+        let original_window_margin = window_frame.inner_margin;
+
+        // We apply the inner margin inside any scroll area.
+        let innermost_margin = std::mem::take(&mut window_frame.inner_margin);
+
+        // The margin we use elsewhere is only half the border stroke width:
+
         let border_padding = window_frame.stroke.width / 2.0;
         // Add border padding to the inner margin to prevent it from covering the contents
         window_frame.inner_margin += border_padding;
@@ -470,15 +477,15 @@ impl<'open> Window<'open> {
         let mut area = area.begin(ctx);
 
         // Calculate roughly how much larger the window size is compared to the inner rect
-        let (title_bar_height, title_content_spacing) = if with_title_bar {
+        let title_bar_height = if with_title_bar {
             let style = ctx.style();
-            let spacing = window_margin.top + window_margin.bottom;
+            let spacing = original_window_margin.sum().y;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
             window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
             window_frame.rounding.nw = window_frame.rounding.nw.clamp(0.0, height / 2.0);
-            (height, spacing)
+            height
         } else {
-            (0.0, 0.0)
+            0.0
         };
 
         {
@@ -495,18 +502,18 @@ impl<'open> Window<'open> {
         let resize_interaction =
             resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
 
-        let margins = window_frame.outer_margin.sum()
-            + window_frame.inner_margin.sum()
-            + vec2(0.0, title_bar_height);
+        {
+            let margins = window_frame.total_margin().sum() + vec2(0.0, title_bar_height);
 
-        resize_response(
-            resize_interaction,
-            ctx,
-            margins,
-            area_layer_id,
-            &mut area,
-            resize_id,
-        );
+            resize_response(
+                resize_interaction,
+                ctx,
+                margins,
+                area_layer_id,
+                &mut area,
+                resize_id,
+            );
+        }
 
         let mut area_content_ui = area.content_ui(ctx);
         if is_open {
@@ -525,38 +532,43 @@ impl<'open> Window<'open> {
 
             let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
-            // Backup item spacing before the title bar
-            let item_spacing = frame.content_ui.spacing().item_spacing;
-            // Use title bar spacing as the item spacing before the content
-            frame.content_ui.spacing_mut().item_spacing.y = title_content_spacing;
+            // Backup item spacing
+            let old_item_spacing = frame.content_ui.spacing().item_spacing;
+
+            // We do manual spacing for a while
+            frame.content_ui.spacing_mut().item_spacing.y = 0.0;
+
+            let inner_frame = Frame {
+                inner_margin: innermost_margin,
+                ..Default::default()
+            };
 
             let title_bar = if with_title_bar {
-                let title_bar = TitleBar::new(
-                    &mut frame.content_ui,
-                    title,
-                    show_close_button,
-                    &mut collapsing,
-                    collapsible,
-                );
+                let title_bar = inner_frame
+                    .show(&mut frame.content_ui, |ui| {
+                        TitleBar::new(ui, title, show_close_button, &mut collapsing, collapsible)
+                    })
+                    .inner;
+
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+
                 Some(title_bar)
             } else {
                 None
             };
 
-            // Remove item spacing after the title bar
-            frame.content_ui.spacing_mut().item_spacing.y = 0.0;
-
             let (content_inner, mut content_response) = collapsing
                 .show_body_unindented(&mut frame.content_ui, |ui| {
                     // Restore item spacing for the content
-                    ui.spacing_mut().item_spacing.y = item_spacing.y;
+                    ui.spacing_mut().item_spacing = old_item_spacing;
 
                     resize.show(ui, |ui| {
                         if scroll.is_any_scroll_enabled() {
-                            scroll.show(ui, add_contents).inner
+                            scroll
+                                .show(ui, |ui| inner_frame.show(ui, add_contents).inner)
+                                .inner
                         } else {
-                            add_contents(ui)
+                            inner_frame.show(ui, add_contents).inner
                         }
                     })
                 })
@@ -609,6 +621,7 @@ impl<'open> Window<'open> {
                 title_bar.ui(
                     &mut area_content_ui,
                     title_rect,
+                    innermost_margin,
                     &content_response,
                     open,
                     &mut collapsing,
@@ -1044,6 +1057,7 @@ struct TitleBar {
 }
 
 impl TitleBar {
+    /// Only paints the collapse button - the rest is painted by [`TitleBar::ui`].
     fn new(
         ui: &mut Ui,
         title: WidgetText,
@@ -1111,10 +1125,12 @@ impl TitleBar {
     ///   title if `collapsible` is `true`
     /// - `collapsible`: if `true`, double click on the title bar will be handled for a change
     ///   of `collapsing` state
+    #[allow(clippy::too_many_arguments)]
     fn ui(
         mut self,
         ui: &mut Ui,
         outer_rect: Rect,
+        margin: Margin,
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
@@ -1127,7 +1143,7 @@ impl TitleBar {
 
         if let Some(open) = open {
             // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked() {
+            if self.close_button_ui(ui, margin).clicked() {
                 *open = false;
             }
         }
@@ -1144,7 +1160,7 @@ impl TitleBar {
         );
 
         if let Some(content_response) = &content_response {
-            // paint separator between title and content:
+            // Paint separator between title and content:
             let y = content_response.rect.top();
             // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
@@ -1171,12 +1187,12 @@ impl TitleBar {
     ///
     /// The button is square and its size is determined by the
     /// [`crate::style::Spacing::icon_width`] setting.
-    fn close_button_ui(&self, ui: &mut Ui) -> Response {
+    fn close_button_ui(&self, ui: &mut Ui, margin: Margin) -> Response {
         let button_size = Vec2::splat(ui.spacing().icon_width);
         let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
         let button_rect = Rect::from_min_size(
             pos2(
-                self.rect.right() - pad - button_size.x,
+                self.rect.right() - margin.right - pad - button_size.x,
                 self.rect.center().y - 0.5 * button_size.y,
             ),
             button_size,
