@@ -216,13 +216,13 @@ where
     /// Calculate a smooth velocity (per second) over the entire time span.
     /// Calculated as the last value minus the first value over the elapsed time between them.
     pub fn velocity(&self) -> Option<Vel> {
-        if let (Some(first), Some(last)) = (self.values.front(), self.values.back()) {
-            let dt = (last.0 - first.0) as f32;
-            if dt > 0.0 {
-                Some((last.1 - first.1) / dt)
-            } else {
-                None
-            }
+        let first = self.values.front();
+        let last = self.values.back();
+        let (first, last) = first.zip(last)?;
+
+        let dt = (last.0 - first.0) as f32;
+        if dt > 0.0 {
+            Some((last.1 - first.1) / dt)
         } else {
             None
         }
