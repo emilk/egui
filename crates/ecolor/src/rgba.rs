@@ -119,7 +119,7 @@ impl Rgba {
 
     /// Return an additive version of this color (alpha = 0)
     #[inline]
-    pub fn additive(self) -> Self {
+    pub const fn additive(self) -> Self {
         let [r, g, b, _] = self.0;
         Self([r, g, b, 0.0])
     }
@@ -142,22 +142,22 @@ impl Rgba {
     }
 
     #[inline]
-    pub fn r(&self) -> f32 {
+    pub const fn r(&self) -> f32 {
         self.0[0]
     }
 
     #[inline]
-    pub fn g(&self) -> f32 {
+    pub const fn g(&self) -> f32 {
         self.0[1]
     }
 
     #[inline]
-    pub fn b(&self) -> f32 {
+    pub const fn b(&self) -> f32 {
         self.0[2]
     }
 
     #[inline]
-    pub fn a(&self) -> f32 {
+    pub const fn a(&self) -> f32 {
         self.0[3]
     }
 
@@ -185,13 +185,13 @@ impl Rgba {
 
     /// Premultiplied RGBA
     #[inline]
-    pub fn to_array(&self) -> [f32; 4] {
+    pub const fn to_array(&self) -> [f32; 4] {
         [self.r(), self.g(), self.b(), self.a()]
     }
 
     /// Premultiplied RGBA
     #[inline]
-    pub fn to_tuple(&self) -> (f32, f32, f32, f32) {
+    pub const fn to_tuple(&self) -> (f32, f32, f32, f32) {
         (self.r(), self.g(), self.b(), self.a())
     }
 

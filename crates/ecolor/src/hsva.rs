@@ -22,7 +22,7 @@ pub struct Hsva {
 
 impl Hsva {
     #[inline]
-    pub fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
+    pub const fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
         Self { h, s, v, a }
     }
 
@@ -110,7 +110,7 @@ impl Hsva {
     // ------------------------------------------------------------------------
 
     #[inline]
-    pub fn to_opaque(self) -> Self {
+    pub const fn to_opaque(self) -> Self {
         Self { a: 1.0, ..self }
     }
 

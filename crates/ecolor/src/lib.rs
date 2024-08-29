@@ -137,7 +137,7 @@ pub fn gamma_from_linear(linear: f32) -> f32 {
 
 /// Cheap and ugly.
 /// Made for graying out disabled `Ui`s.
-pub fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
+pub const fn tint_color_towards(color: Color32, target: Color32) -> Color32 {
     let [mut r, mut g, mut b, mut a] = color.to_array();
 
     if a == 0 {
