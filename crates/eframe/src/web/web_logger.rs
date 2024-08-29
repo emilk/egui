@@ -12,7 +12,7 @@ impl WebLogger {
 
     /// Create a new [`WebLogger`] with the given filter,
     /// but don't install it.
-    pub fn new(filter: log::LevelFilter) -> Self {
+    pub const fn new(filter: log::LevelFilter) -> Self {
         Self { filter }
     }
 }

@@ -127,7 +127,7 @@ impl AppRunner {
         Ok(runner)
     }
 
-    pub fn egui_ctx(&self) -> &egui::Context {
+    pub const fn egui_ctx(&self) -> &egui::Context {
         &self.egui_ctx
     }
 
@@ -168,7 +168,7 @@ impl AppRunner {
         self.painter.destroy();
     }
 
-    pub fn has_outstanding_paint_data(&self) -> bool {
+    pub const fn has_outstanding_paint_data(&self) -> bool {
         self.clipped_primitives.is_some()
     }
 
