@@ -274,17 +274,7 @@ pub struct TextFormat {
 impl Default for TextFormat {
     #[inline]
     fn default() -> Self {
-        Self {
-            font_id: FontId::default(),
-            extra_letter_spacing: 0.0,
-            line_height: None,
-            color: Color32::GRAY,
-            background: Color32::TRANSPARENT,
-            italics: false,
-            underline: Stroke::NONE,
-            strikethrough: Stroke::NONE,
-            valign: Align::BOTTOM,
-        }
+        Self::DEFAULT
     }
 }
 
@@ -317,12 +307,25 @@ impl std::hash::Hash for TextFormat {
 }
 
 impl TextFormat {
+    /// Same as [`Self::default`].
+    pub const DEFAULT: Self = Self {
+        font_id: FontId::DEFAULT,
+        extra_letter_spacing: 0.0,
+        line_height: None,
+        color: Color32::GRAY,
+        background: Color32::TRANSPARENT,
+        italics: false,
+        underline: Stroke::NONE,
+        strikethrough: Stroke::NONE,
+        valign: Align::BOTTOM,
+    };
+
     #[inline]
-    pub fn simple(font_id: FontId, color: Color32) -> Self {
+    pub const fn simple(font_id: FontId, color: Color32) -> Self {
         Self {
             font_id,
             color,
-            ..Default::default()
+            ..Self::DEFAULT
         }
     }
 }
@@ -412,18 +415,21 @@ impl std::hash::Hash for TextWrapping {
 
 impl Default for TextWrapping {
     fn default() -> Self {
-        Self {
-            max_width: f32::INFINITY,
-            max_rows: usize::MAX,
-            break_anywhere: false,
-            overflow_character: Some('…'),
-        }
+        Self::DEFAULT
     }
 }
 
 impl TextWrapping {
+    /// Same as [`Self::default`].
+    pub const DEFAULT: Self = Self {
+        max_width: f32::INFINITY,
+        max_rows: usize::MAX,
+        break_anywhere: false,
+        overflow_character: Some('…'),
+    };
+
     /// Create a [`TextWrapping`] from a [`TextWrapMode`] and an available width.
-    pub fn from_wrap_mode_and_width(mode: TextWrapMode, max_width: f32) -> Self {
+    pub const fn from_wrap_mode_and_width(mode: TextWrapMode, max_width: f32) -> Self {
         match mode {
             TextWrapMode::Extend => Self::no_max_width(),
             TextWrapMode::Wrap => Self::wrap_at_width(max_width),
@@ -432,28 +438,28 @@ impl TextWrapping {
     }
 
     /// A row can be as long as it need to be.
-    pub fn no_max_width() -> Self {
+    pub const fn no_max_width() -> Self {
         Self {
             max_width: f32::INFINITY,
-            ..Default::default()
+            ..Self::DEFAULT
         }
     }
 
     /// A row can be at most `max_width` wide but can wrap in any number of lines.
-    pub fn wrap_at_width(max_width: f32) -> Self {
+    pub const fn wrap_at_width(max_width: f32) -> Self {
         Self {
             max_width,
-            ..Default::default()
+            ..Self::DEFAULT
         }
     }
 
     /// Elide text that doesn't fit within the given width, replaced with `…`.
-    pub fn truncate_at_width(max_width: f32) -> Self {
+    pub const fn truncate_at_width(max_width: f32) -> Self {
         Self {
             max_width,
             max_rows: 1,
             break_anywhere: true,
-            ..Default::default()
+            ..Self::DEFAULT
         }
     }
 }

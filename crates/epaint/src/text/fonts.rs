@@ -30,14 +30,17 @@ pub struct FontId {
 impl Default for FontId {
     #[inline]
     fn default() -> Self {
-        Self {
-            size: 14.0,
-            family: FontFamily::Proportional,
-        }
+        Self::DEFAULT
     }
 }
 
 impl FontId {
+    /// Same as [`Self::default`].
+    pub const DEFAULT: Self = Self {
+        size: 14.0,
+        family: FontFamily::Proportional,
+    };
+
     #[inline]
     pub const fn new(size: f32, family: FontFamily) -> Self {
         Self { size, family }
@@ -123,19 +126,21 @@ pub struct FontData {
 }
 
 impl FontData {
-    pub fn from_static(font: &'static [u8]) -> Self {
+    pub const fn from_static(font: &'static [u8]) -> Self {
         Self {
             font: std::borrow::Cow::Borrowed(font),
             index: 0,
-            tweak: Default::default(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            tweak: FontTweak::DEFAULT,
         }
     }
 
-    pub fn from_owned(font: Vec<u8>) -> Self {
+    pub const fn from_owned(font: Vec<u8>) -> Self {
         Self {
             font: std::borrow::Cow::Owned(font),
             index: 0,
-            tweak: Default::default(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            tweak: FontTweak::DEFAULT,
         }
     }
 
@@ -179,14 +184,18 @@ pub struct FontTweak {
     pub baseline_offset_factor: f32,
 }
 
+impl FontTweak {
+    pub const DEFAULT: Self = Self {
+        scale: 1.0,
+        y_offset_factor: 0.0,
+        y_offset: 0.0,
+        baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
+    };
+}
+
 impl Default for FontTweak {
     fn default() -> Self {
-        Self {
-            scale: 1.0,
-            y_offset_factor: 0.0,
-            y_offset: 0.0,
-            baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
-        }
+        Self::DEFAULT
     }
 }
 
