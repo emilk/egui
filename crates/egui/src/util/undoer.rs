@@ -106,6 +106,7 @@ where
 {
     /// Create a new [`Undoer`] with the given [`Settings`].
     pub fn with_settings(settings: Settings) -> Self {
+        // TODO(BastiDood): Use `const` when `const Default` stabilizes.
         Self {
             settings,
             ..Default::default()
@@ -126,7 +127,7 @@ where
     }
 
     /// Return true if the state is currently changing
-    pub fn is_in_flux(&self) -> bool {
+    pub const fn is_in_flux(&self) -> bool {
         self.flux.is_some()
     }
 

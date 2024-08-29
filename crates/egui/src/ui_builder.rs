@@ -26,6 +26,7 @@ pub struct UiBuilder {
 impl UiBuilder {
     #[inline]
     pub fn new() -> Self {
+        // TODO(BastiDood): Use `const Default` when it stabilizes.
         Self::default()
     }
 
@@ -60,7 +61,7 @@ impl UiBuilder {
     /// If not set, this will be set to the parent
     /// [`Ui::available_rect_before_wrap`].
     #[inline]
-    pub fn max_rect(mut self, max_rect: Rect) -> Self {
+    pub const fn max_rect(mut self, max_rect: Rect) -> Self {
         self.max_rect = Some(max_rect);
         self
     }
@@ -69,7 +70,7 @@ impl UiBuilder {
     ///
     /// Will otherwise be inherited from the parent.
     #[inline]
-    pub fn layout(mut self, layout: Layout) -> Self {
+    pub const fn layout(mut self, layout: Layout) -> Self {
         self.layout = Some(layout);
         self
     }
@@ -78,7 +79,7 @@ impl UiBuilder {
     ///
     /// Note that if the parent `Ui` is disabled, the child will always be disabled.
     #[inline]
-    pub fn disabled(mut self) -> Self {
+    pub const fn disabled(mut self) -> Self {
         self.disabled = true;
         self
     }
@@ -89,7 +90,7 @@ impl UiBuilder {
     ///
     /// If the parent `Ui` is invisible, the child will always be invisible.
     #[inline]
-    pub fn invisible(mut self) -> Self {
+    pub const fn invisible(mut self) -> Self {
         self.invisible = true;
         self.disabled = true;
         self
@@ -101,7 +102,7 @@ impl UiBuilder {
     /// If the `sizing_pass` flag is set on the parent,
     /// the child will inherit it automatically.
     #[inline]
-    pub fn sizing_pass(mut self) -> Self {
+    pub const fn sizing_pass(mut self) -> Self {
         self.sizing_pass = true;
         self.invisible = true;
         self.disabled = true;

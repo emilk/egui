@@ -11,7 +11,7 @@ pub enum Theme {
 
 impl Theme {
     /// Default visuals for this theme.
-    pub fn default_visuals(self) -> crate::Visuals {
+    pub const fn default_visuals(self) -> crate::Visuals {
         match self {
             Self::Dark => crate::Visuals::dark(),
             Self::Light => crate::Visuals::light(),
@@ -19,7 +19,7 @@ impl Theme {
     }
 
     /// Chooses between [`Self::Dark`] or [`Self::Light`] based on a boolean value.
-    pub fn from_dark_mode(dark_mode: bool) -> Self {
+    pub const fn from_dark_mode(dark_mode: bool) -> Self {
         if dark_mode {
             Self::Dark
         } else {

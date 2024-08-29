@@ -229,13 +229,10 @@ impl Default for ViewportIdPair {
 
 impl ViewportIdPair {
     /// The `ViewportIdPair` of the root viewport, which is its own parent.
-    pub const ROOT: Self = Self {
-        this: ViewportId::ROOT,
-        parent: ViewportId::ROOT,
-    };
+    pub const ROOT: Self = Self::from_self_and_parent(ViewportId::ROOT, ViewportId::ROOT);
 
     #[inline]
-    pub fn from_self_and_parent(this: ViewportId, parent: ViewportId) -> Self {
+    pub const fn from_self_and_parent(this: ViewportId, parent: ViewportId) -> Self {
         Self { this, parent }
     }
 }
@@ -327,7 +324,7 @@ impl ViewportBuilder {
     ///
     /// Look at winit for more details
     #[inline]
-    pub fn with_decorations(mut self, decorations: bool) -> Self {
+    pub const fn with_decorations(mut self, decorations: bool) -> Self {
         self.decorations = Some(decorations);
         self
     }
@@ -339,7 +336,7 @@ impl ViewportBuilder {
     /// Look at winit for more details
     /// This will use borderless
     #[inline]
-    pub fn with_fullscreen(mut self, fullscreen: bool) -> Self {
+    pub const fn with_fullscreen(mut self, fullscreen: bool) -> Self {
         self.fullscreen = Some(fullscreen);
         self
     }
@@ -350,7 +347,7 @@ impl ViewportBuilder {
     ///
     /// Look at winit for more details
     #[inline]
-    pub fn with_maximized(mut self, maximized: bool) -> Self {
+    pub const fn with_maximized(mut self, maximized: bool) -> Self {
         self.maximized = Some(maximized);
         self
     }
@@ -361,7 +358,7 @@ impl ViewportBuilder {
     ///
     /// Look at winit for more details
     #[inline]
-    pub fn with_resizable(mut self, resizable: bool) -> Self {
+    pub const fn with_resizable(mut self, resizable: bool) -> Self {
         self.resizable = Some(resizable);
         self
     }
@@ -381,7 +378,7 @@ impl ViewportBuilder {
     /// If this is not working, it's because the graphic context doesn't support transparency,
     /// you will need to set the transparency in the eframe!
     #[inline]
-    pub fn with_transparent(mut self, transparent: bool) -> Self {
+    pub const fn with_transparent(mut self, transparent: bool) -> Self {
         self.transparent = Some(transparent);
         self
     }
@@ -406,7 +403,7 @@ impl ViewportBuilder {
     ///
     /// Look at winit for more details
     #[inline]
-    pub fn with_active(mut self, active: bool) -> Self {
+    pub const fn with_active(mut self, active: bool) -> Self {
         self.active = Some(active);
         self
     }
@@ -417,7 +414,7 @@ impl ViewportBuilder {
     ///
     /// Look at winit for more details
     #[inline]
-    pub fn with_visible(mut self, visible: bool) -> Self {
+    pub const fn with_visible(mut self, visible: bool) -> Self {
         self.visible = Some(visible);
         self
     }
@@ -427,35 +424,35 @@ impl ViewportBuilder {
     /// You often want to combine this with [`Self::with_titlebar_shown`]
     /// and [`Self::with_title_shown`].
     #[inline]
-    pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
+    pub const fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
         self
     }
 
     /// macOS: Set to `false` to hide the window title.
     #[inline]
-    pub fn with_title_shown(mut self, title_shown: bool) -> Self {
+    pub const fn with_title_shown(mut self, title_shown: bool) -> Self {
         self.title_shown = Some(title_shown);
         self
     }
 
     /// macOS: Set to `false` to hide the titlebar button (close, minimize, maximize)
     #[inline]
-    pub fn with_titlebar_buttons_shown(mut self, titlebar_buttons_shown: bool) -> Self {
+    pub const fn with_titlebar_buttons_shown(mut self, titlebar_buttons_shown: bool) -> Self {
         self.titlebar_buttons_shown = Some(titlebar_buttons_shown);
         self
     }
 
     /// macOS: Set to `false` to make the titlebar transparent, allowing the content to appear behind it.
     #[inline]
-    pub fn with_titlebar_shown(mut self, shown: bool) -> Self {
+    pub const fn with_titlebar_shown(mut self, shown: bool) -> Self {
         self.titlebar_shown = Some(shown);
         self
     }
 
     /// windows: Whether show or hide the window icon in the taskbar.
     #[inline]
-    pub fn with_taskbar(mut self, show: bool) -> Self {
+    pub const fn with_taskbar(mut self, show: bool) -> Self {
         self.taskbar = Some(show);
         self
     }
@@ -502,28 +499,28 @@ impl ViewportBuilder {
     ///
     /// Note: On some Linux systems, a window size larger than the monitor causes crashes
     #[inline]
-    pub fn with_clamp_size_to_monitor_size(mut self, value: bool) -> Self {
+    pub const fn with_clamp_size_to_monitor_size(mut self, value: bool) -> Self {
         self.clamp_size_to_monitor_size = Some(value);
         self
     }
 
     /// Does not work on X11.
     #[inline]
-    pub fn with_close_button(mut self, value: bool) -> Self {
+    pub const fn with_close_button(mut self, value: bool) -> Self {
         self.close_button = Some(value);
         self
     }
 
     /// Does not work on X11.
     #[inline]
-    pub fn with_minimize_button(mut self, value: bool) -> Self {
+    pub const fn with_minimize_button(mut self, value: bool) -> Self {
         self.minimize_button = Some(value);
         self
     }
 
     /// Does not work on X11.
     #[inline]
-    pub fn with_maximize_button(mut self, value: bool) -> Self {
+    pub const fn with_maximize_button(mut self, value: bool) -> Self {
         self.maximize_button = Some(value);
         self
     }
@@ -536,7 +533,7 @@ impl ViewportBuilder {
     ///
     /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
     #[inline]
-    pub fn with_drag_and_drop(mut self, value: bool) -> Self {
+    pub const fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
         self
     }
@@ -579,14 +576,14 @@ impl ViewportBuilder {
 
     /// Control if window is always-on-top, always-on-bottom, or neither.
     #[inline]
-    pub fn with_window_level(mut self, level: WindowLevel) -> Self {
+    pub const fn with_window_level(mut self, level: WindowLevel) -> Self {
         self.window_level = Some(level);
         self
     }
 
     /// This window is always on top
     #[inline]
-    pub fn with_always_on_top(self) -> Self {
+    pub const fn with_always_on_top(self) -> Self {
         self.with_window_level(WindowLevel::AlwaysOnTop)
     }
 
@@ -595,7 +592,7 @@ impl ViewportBuilder {
     /// Generally you would use this in conjunction with [`Self::with_transparent`]
     /// and [`Self::with_always_on_top`].
     #[inline]
-    pub fn with_mouse_passthrough(mut self, value: bool) -> Self {
+    pub const fn with_mouse_passthrough(mut self, value: bool) -> Self {
         self.mouse_passthrough = Some(value);
         self
     }
@@ -604,7 +601,7 @@ impl ViewportBuilder {
     /// This sets the window type.
     /// Maps directly to [`_NET_WM_WINDOW_TYPE`](https://specifications.freedesktop.org/wm-spec/wm-spec-1.5.html).
     #[inline]
-    pub fn with_window_type(mut self, value: X11WindowType) -> Self {
+    pub const fn with_window_type(mut self, value: X11WindowType) -> Self {
         self.window_type = Some(value);
         self
     }

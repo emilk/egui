@@ -92,7 +92,7 @@ impl ComboBox {
     ///
     /// Default is [`Spacing::combo_width`].
     #[inline]
-    pub fn width(mut self, width: f32) -> Self {
+    pub const fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
         self
     }
@@ -101,7 +101,7 @@ impl ComboBox {
     ///
     /// Default is [`Spacing::combo_height`].
     #[inline]
-    pub fn height(mut self, height: f32) -> Self {
+    pub const fn height(mut self, height: f32) -> Self {
         self.height = Some(height);
         self
     }
@@ -158,24 +158,21 @@ impl ComboBox {
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
-    pub fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
+    pub const fn wrap_mode(mut self, wrap_mode: TextWrapMode) -> Self {
         self.wrap_mode = Some(wrap_mode);
         self
     }
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Wrap`].
     #[inline]
-    pub fn wrap(mut self) -> Self {
-        self.wrap_mode = Some(TextWrapMode::Wrap);
-
-        self
+    pub const fn wrap(self) -> Self {
+        self.wrap_mode(TextWrapMode::Wrap)
     }
 
     /// Set [`Self::wrap_mode`] to [`TextWrapMode::Truncate`].
     #[inline]
-    pub fn truncate(mut self) -> Self {
-        self.wrap_mode = Some(TextWrapMode::Truncate);
-        self
+    pub const fn truncate(self) -> Self {
+        self.wrap_mode(TextWrapMode::Truncate)
     }
 
     /// Show the combo box, with the given ui code for the menu contents.

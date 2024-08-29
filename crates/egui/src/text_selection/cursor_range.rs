@@ -24,7 +24,7 @@ pub struct CursorRange {
 impl CursorRange {
     /// The empty range.
     #[inline]
-    pub fn one(cursor: Cursor) -> Self {
+    pub const fn one(cursor: Cursor) -> Self {
         Self {
             primary: cursor,
             secondary: cursor,
@@ -32,7 +32,7 @@ impl CursorRange {
     }
 
     #[inline]
-    pub fn two(min: Cursor, max: Cursor) -> Self {
+    pub const fn two(min: Cursor, max: Cursor) -> Self {
         Self {
             primary: max,
             secondary: min,
@@ -44,7 +44,7 @@ impl CursorRange {
         Self::two(galley.begin(), galley.end())
     }
 
-    pub fn as_ccursor_range(&self) -> CCursorRange {
+    pub const fn as_ccursor_range(&self) -> CCursorRange {
         CCursorRange {
             primary: self.primary.ccursor,
             secondary: self.secondary.ccursor,
@@ -52,7 +52,7 @@ impl CursorRange {
     }
 
     /// The range of selected character indices.
-    pub fn as_sorted_char_range(&self) -> std::ops::Range<usize> {
+    pub const fn as_sorted_char_range(&self) -> std::ops::Range<usize> {
         let [start, end] = self.sorted_cursors();
         std::ops::Range {
             start: start.ccursor.index,
@@ -67,7 +67,7 @@ impl CursorRange {
     }
 
     /// Is `self` a super-set of the other range?
-    pub fn contains(&self, other: &Self) -> bool {
+    pub const fn contains(&self, other: &Self) -> bool {
         let [self_min, self_max] = self.sorted_cursors();
         let [other_min, other_max] = other.sorted_cursors();
         self_min.ccursor.index <= other_min.ccursor.index
@@ -229,7 +229,7 @@ pub struct CCursorRange {
 impl CCursorRange {
     /// The empty range.
     #[inline]
-    pub fn one(ccursor: CCursor) -> Self {
+    pub const fn one(ccursor: CCursor) -> Self {
         Self {
             primary: ccursor,
             secondary: ccursor,

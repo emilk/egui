@@ -150,10 +150,9 @@ enum FocusDirection {
 }
 
 impl FocusDirection {
-    fn is_cardinal(&self) -> bool {
+    const fn is_cardinal(&self) -> bool {
         match self {
             Self::Up | Self::Right | Self::Down | Self::Left => true,
-
             Self::Previous | Self::Next | Self::None => false,
         }
     }
@@ -465,17 +464,18 @@ struct FocusWidget {
 }
 
 impl FocusWidget {
-    pub fn new(id: Id) -> Self {
+    pub const fn new(id: Id) -> Self {
         Self {
             id,
-            filter: Default::default(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            filter: EventFilter::DEFAULT,
         }
     }
 }
 
 impl InteractionState {
     /// Are we currently clicking or dragging an egui widget?
-    pub fn is_using_pointer(&self) -> bool {
+    pub const fn is_using_pointer(&self) -> bool {
         self.potential_click_id.is_some() || self.potential_drag_id.is_some()
     }
 }

@@ -75,6 +75,7 @@ pub struct Frame {
 
 impl Frame {
     pub fn none() -> Self {
+        // TODO(BastiDood): Use `const` when `const Default` stabilizes.
         Self::default()
     }
 
@@ -162,7 +163,7 @@ impl Frame {
 
 impl Frame {
     #[inline]
-    pub fn fill(mut self, fill: Color32) -> Self {
+    pub const fn fill(mut self, fill: Color32) -> Self {
         self.fill = fill;
         self
     }
@@ -194,7 +195,7 @@ impl Frame {
     }
 
     #[inline]
-    pub fn shadow(mut self, shadow: Shadow) -> Self {
+    pub const fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = shadow;
         self
     }

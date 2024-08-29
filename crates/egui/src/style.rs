@@ -314,7 +314,7 @@ impl Style {
     }
 
     /// Style to use for non-interactive widgets.
-    pub fn noninteractive(&self) -> &WidgetVisuals {
+    pub const fn noninteractive(&self) -> &WidgetVisuals {
         &self.visuals.widgets.noninteractive
     }
 
@@ -525,7 +525,7 @@ impl Default for ScrollStyle {
 
 impl ScrollStyle {
     /// Solid scroll bars that always use up space
-    pub fn solid() -> Self {
+    pub const fn solid() -> Self {
         Self {
             floating: false,
             bar_width: 6.0,
@@ -548,7 +548,7 @@ impl ScrollStyle {
     }
 
     /// Thin scroll bars that expand on hover
-    pub fn thin() -> Self {
+    pub const fn thin() -> Self {
         Self {
             floating: true,
             bar_width: 10.0,
@@ -572,7 +572,7 @@ impl ScrollStyle {
     /// No scroll bars until you hover the scroll area,
     /// at which time they appear faintly, and then expand
     /// when you hover the scroll bars.
-    pub fn floating() -> Self {
+    pub const fn floating() -> Self {
         Self {
             floating: true,
             bar_width: 10.0,
@@ -713,16 +713,13 @@ pub struct ScrollAnimation {
 
 impl Default for ScrollAnimation {
     fn default() -> Self {
-        Self {
-            points_per_second: 1000.0,
-            duration: Rangef::new(0.1, 0.3),
-        }
+        Self::new(1000.0, Rangef::new(0.1, 0.3))
     }
 }
 
 impl ScrollAnimation {
     /// New scroll animation
-    pub fn new(points_per_second: f32, duration: Rangef) -> Self {
+    pub const fn new(points_per_second: f32, duration: Rangef) -> Self {
         Self {
             points_per_second,
             duration,
@@ -730,7 +727,7 @@ impl ScrollAnimation {
     }
 
     /// No animation, scroll instantly.
-    pub fn none() -> Self {
+    pub const fn none() -> Self {
         Self {
             points_per_second: f32::INFINITY,
             duration: Rangef::new(0.0, 0.0),
@@ -738,7 +735,7 @@ impl ScrollAnimation {
     }
 
     /// Scroll with a fixed duration, regardless of distance.
-    pub fn duration(t: f32) -> Self {
+    pub const fn duration(t: f32) -> Self {
         Self {
             points_per_second: f32::INFINITY,
             duration: Rangef::new(t, t),
@@ -842,13 +839,7 @@ pub struct TextCursorStyle {
 
 impl Default for TextCursorStyle {
     fn default() -> Self {
-        Self {
-            stroke: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)), // Dark mode
-            preview: false,
-            blink: true,
-            on_duration: 0.5,
-            off_duration: 0.5,
-        }
+        Self::DEFAULT
     }
 }
 
@@ -972,7 +963,7 @@ pub struct Visuals {
 
 impl Visuals {
     #[inline(always)]
-    pub fn noninteractive(&self) -> &WidgetVisuals {
+    pub const fn noninteractive(&self) -> &WidgetVisuals {
         &self.widgets.noninteractive
     }
 
@@ -993,19 +984,19 @@ impl Visuals {
 
     /// Window background color.
     #[inline(always)]
-    pub fn window_fill(&self) -> Color32 {
+    pub const fn window_fill(&self) -> Color32 {
         self.window_fill
     }
 
     #[inline(always)]
-    pub fn window_stroke(&self) -> Stroke {
+    pub const fn window_stroke(&self) -> Stroke {
         self.window_stroke
     }
 
     /// When fading out things, we fade the colors towards this.
     // TODO(emilk): replace with an alpha
     #[inline(always)]
-    pub fn fade_out_to_color(&self) -> Color32 {
+    pub const fn fade_out_to_color(&self) -> Color32 {
         self.widgets.noninteractive.weak_bg_fill
     }
 
@@ -1112,7 +1103,7 @@ pub struct WidgetVisuals {
 
 impl WidgetVisuals {
     #[inline(always)]
-    pub fn text_color(&self) -> Color32 {
+    pub const fn text_color(&self) -> Color32 {
         self.fg_stroke.color
     }
 }
@@ -1265,12 +1256,12 @@ impl Default for Interaction {
 
 impl Visuals {
     /// Default dark theme.
-    pub fn dark() -> Self {
+    pub const fn dark() -> Self {
         Self {
             dark_mode: true,
             override_text_color: None,
-            widgets: Widgets::default(),
-            selection: Selection::default(),
+            widgets: Widgets::dark(),
+            selection: Selection::dark(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
             faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
             extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
@@ -1302,7 +1293,8 @@ impl Visuals {
 
             resize_corner_size: 12.0,
 
-            text_cursor: Default::default(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            text_cursor: TextCursorStyle::DEFAULT,
 
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
@@ -1323,7 +1315,7 @@ impl Visuals {
     }
 
     /// Default light theme.
-    pub fn light() -> Self {
+    pub const fn light() -> Self {
         Self {
             dark_mode: false,
             widgets: Widgets::light(),
@@ -1354,8 +1346,9 @@ impl Visuals {
             },
 
             text_cursor: TextCursorStyle {
-                stroke: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
-                ..Default::default()
+                stroke: Stroke::const_new(2.0, Color32::from_rgb(0, 83, 125)),
+                // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+                ..TextCursorStyle::DEFAULT
             },
 
             ..Self::dark()
@@ -2141,6 +2134,14 @@ impl Visuals {
 }
 
 impl TextCursorStyle {
+    pub const DEFAULT: Self = Self {
+        stroke: Stroke::const_new(2.0, Color32::from_rgb(192, 222, 255)), // Dark mode
+        preview: false,
+        blink: true,
+        on_duration: 0.5,
+        off_duration: 0.5,
+    };
+
     fn ui(&mut self, ui: &mut Ui) {
         let Self {
             stroke,

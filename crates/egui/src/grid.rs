@@ -468,7 +468,7 @@ impl Grid {
     }
 }
 
-fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
+const fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
     if row % 2 == 1 {
         return Some(style.visuals.faint_bg_color);
     }

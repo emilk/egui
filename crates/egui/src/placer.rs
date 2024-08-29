@@ -32,32 +32,32 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn grid(&self) -> Option<&grid::GridLayout> {
+    pub(crate) const fn grid(&self) -> Option<&grid::GridLayout> {
         self.grid.as_ref()
     }
 
     #[inline(always)]
-    pub(crate) fn is_grid(&self) -> bool {
+    pub(crate) const fn is_grid(&self) -> bool {
         self.grid.is_some()
     }
 
     #[inline(always)]
-    pub(crate) fn layout(&self) -> &Layout {
+    pub(crate) const fn layout(&self) -> &Layout {
         &self.layout
     }
 
     #[inline(always)]
-    pub(crate) fn prefer_right_to_left(&self) -> bool {
+    pub(crate) const fn prefer_right_to_left(&self) -> bool {
         self.layout.prefer_right_to_left()
     }
 
     #[inline(always)]
-    pub(crate) fn min_rect(&self) -> Rect {
+    pub(crate) const fn min_rect(&self) -> Rect {
         self.region.min_rect
     }
 
     #[inline(always)]
-    pub(crate) fn max_rect(&self) -> Rect {
+    pub(crate) const fn max_rect(&self) -> Rect {
         self.region.max_rect
     }
 
@@ -67,7 +67,7 @@ impl Placer {
     }
 
     #[inline(always)]
-    pub(crate) fn cursor(&self) -> Rect {
+    pub(crate) const fn cursor(&self) -> Rect {
         self.region.cursor
     }
 

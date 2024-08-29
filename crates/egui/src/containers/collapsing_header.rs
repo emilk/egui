@@ -43,7 +43,7 @@ impl CollapsingState {
         ctx.data_mut(|d| d.remove::<InnerState>(self.id));
     }
 
-    pub fn id(&self) -> Id {
+    pub const fn id(&self) -> Id {
         self.id
     }
 
@@ -57,7 +57,7 @@ impl CollapsingState {
         })
     }
 
-    pub fn is_open(&self) -> bool {
+    pub const fn is_open(&self) -> bool {
         self.state.open
     }
 
@@ -275,7 +275,7 @@ pub struct HeaderResponse<'ui, HeaderRet> {
 }
 
 impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
-    pub fn is_open(&self) -> bool {
+    pub const fn is_open(&self) -> bool {
         self.state.is_open()
     }
 
@@ -406,7 +406,7 @@ impl CollapsingHeader {
     /// By default, the [`CollapsingHeader`] is collapsed.
     /// Call `.default_open(true)` to change this.
     #[inline]
-    pub fn default_open(mut self, open: bool) -> Self {
+    pub const fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
         self
     }
@@ -417,7 +417,7 @@ impl CollapsingHeader {
     ///
     /// Calling `.open(None)` has no effect (default).
     #[inline]
-    pub fn open(mut self, open: Option<bool>) -> Self {
+    pub const fn open(mut self, open: Option<bool>) -> Self {
         self.open = open;
         self
     }
@@ -425,16 +425,23 @@ impl CollapsingHeader {
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
-    pub fn id_source(mut self, id_source: impl Hash) -> Self {
-        self.id_source = Id::new(id_source);
+    pub const fn const_id_source(mut self, id: Id) -> Self {
+        self.id_source = id;
         self
+    }
+
+    /// See [`Self::const_id_source`].
+    #[inline]
+    pub fn id_source(self, id_source: impl Hash) -> Self {
+        let id = Id::new(id_source);
+        self.const_id_source(id)
     }
 
     /// If you set this to `false`, the [`CollapsingHeader`] will be grayed out and un-clickable.
     ///
     /// This is a convenience for [`Ui::disable`].
     #[inline]
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub const fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
@@ -448,7 +455,7 @@ impl CollapsingHeader {
     /// # });
     /// ```
     #[inline]
-    pub fn show_background(mut self, show_background: bool) -> Self {
+    pub const fn show_background(mut self, show_background: bool) -> Self {
         self.show_background = show_background;
         self
     }

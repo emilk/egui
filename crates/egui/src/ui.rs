@@ -301,7 +301,7 @@ impl Ui {
     /// Set to true in special cases where we do one frame
     /// where we size up the contents of the Ui, without actually showing it.
     #[inline]
-    pub fn is_sizing_pass(&self) -> bool {
+    pub const fn is_sizing_pass(&self) -> bool {
         self.sizing_pass
     }
 
@@ -309,7 +309,7 @@ impl Ui {
 
     /// A unique identity of this [`Ui`].
     #[inline]
-    pub fn id(&self) -> Id {
+    pub const fn id(&self) -> Id {
         self.id
     }
 
@@ -317,7 +317,7 @@ impl Ui {
     ///
     /// Note that this may be a different [`Style`] than that of [`Context::style`].
     #[inline]
-    pub fn style(&self) -> &Arc<Style> {
+    pub const fn style(&self) -> &Arc<Style> {
         &self.style
     }
 
@@ -392,26 +392,26 @@ impl Ui {
 
     /// Get a reference to this [`Ui`]'s [`UiStack`].
     #[inline]
-    pub fn stack(&self) -> &Arc<UiStack> {
+    pub const fn stack(&self) -> &Arc<UiStack> {
         &self.stack
     }
 
     /// Get a reference to the parent [`Context`].
     #[inline]
-    pub fn ctx(&self) -> &Context {
+    pub const fn ctx(&self) -> &Context {
         self.painter.ctx()
     }
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
-    pub fn painter(&self) -> &Painter {
+    pub const fn painter(&self) -> &Painter {
         &self.painter
     }
 
     /// If `false`, the [`Ui`] does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline]
-    pub fn is_enabled(&self) -> bool {
+    pub const fn is_enabled(&self) -> bool {
         self.enabled
     }
 
@@ -474,7 +474,7 @@ impl Ui {
 
     /// If `false`, any widgets added to the [`Ui`] will be invisible and non-interactive.
     #[inline]
-    pub fn is_visible(&self) -> bool {
+    pub const fn is_visible(&self) -> bool {
         self.painter.is_visible()
     }
 
@@ -568,13 +568,13 @@ impl Ui {
     ///
     /// See also: [`Self::set_opacity`] and [`Self::multiply_opacity`].
     #[inline]
-    pub fn opacity(&self) -> f32 {
+    pub const fn opacity(&self) -> f32 {
         self.painter.opacity()
     }
 
     /// Read the [`Layout`].
     #[inline]
-    pub fn layout(&self) -> &Layout {
+    pub const fn layout(&self) -> &Layout {
         self.placer.layout()
     }
 
@@ -627,7 +627,7 @@ impl Ui {
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
-    pub fn layer_id(&self) -> LayerId {
+    pub const fn layer_id(&self) -> LayerId {
         self.painter().layer_id()
     }
 
@@ -639,7 +639,7 @@ impl Ui {
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
     #[inline]
-    pub fn clip_rect(&self) -> Rect {
+    pub const fn clip_rect(&self) -> Rect {
         self.painter.clip_rect()
     }
 
@@ -746,7 +746,7 @@ impl Ui {
     /// No matter what, the final Ui will be at least this large.
     ///
     /// This will grow as new widgets are added, but never shrink.
-    pub fn min_rect(&self) -> Rect {
+    pub const fn min_rect(&self) -> Rect {
         self.placer.min_rect()
     }
 
@@ -762,7 +762,7 @@ impl Ui {
     ///
     /// If a new widget doesn't fit within the `max_rect` then the
     /// [`Ui`] will make room for it by expanding both `min_rect` and `max_rect`.
-    pub fn max_rect(&self) -> Rect {
+    pub const fn max_rect(&self) -> Rect {
         self.placer.max_rect()
     }
 
@@ -1153,7 +1153,7 @@ impl Ui {
         id
     }
 
-    pub(crate) fn placer(&self) -> &Placer {
+    pub(crate) const fn placer(&self) -> &Placer {
         &self.placer
     }
 
@@ -1167,7 +1167,7 @@ impl Ui {
     ///
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the `min_rect`.
-    pub fn cursor(&self) -> Rect {
+    pub const fn cursor(&self) -> Rect {
         self.placer.cursor()
     }
 

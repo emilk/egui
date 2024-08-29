@@ -1194,17 +1194,20 @@ pub struct EventFilter {
 #[allow(clippy::derivable_impls)] // let's be explicit
 impl Default for EventFilter {
     fn default() -> Self {
-        Self {
-            tab: false,
-            horizontal_arrows: false,
-            vertical_arrows: false,
-            escape: false,
-        }
+        Self::DEFAULT
     }
 }
 
 impl EventFilter {
-    pub fn matches(&self, event: &Event) -> bool {
+    /// Same as [`Self::default`].
+    pub const DEFAULT: Self = Self {
+        tab: false,
+        horizontal_arrows: false,
+        vertical_arrows: false,
+        escape: false,
+    };
+
+    pub const fn matches(&self, event: &Event) -> bool {
         if let Event::Key { key, .. } = event {
             match key {
                 crate::Key::Tab => self.tab,

@@ -45,7 +45,7 @@ impl From<CCursorRange> for TextCursorState {
 }
 
 impl TextCursorState {
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.cursor_range.is_none() && self.ccursor_range.is_none()
     }
 
@@ -290,11 +290,11 @@ fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usiz
     index
 }
 
-pub fn is_word_char(c: char) -> bool {
+pub const fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
-fn is_linebreak(c: char) -> bool {
+const fn is_linebreak(c: char) -> bool {
     c == '\r' || c == '\n'
 }
 

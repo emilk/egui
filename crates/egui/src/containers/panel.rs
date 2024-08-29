@@ -56,7 +56,7 @@ pub enum Side {
 }
 
 impl Side {
-    fn opposite(self) -> Self {
+    const fn opposite(self) -> Self {
         match self {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
@@ -70,7 +70,7 @@ impl Side {
         }
     }
 
-    fn side_x(self, rect: Rect) -> f32 {
+    const fn side_x(self, rect: Rect) -> f32 {
         match self {
             Self::Left => rect.left(),
             Self::Right => rect.right(),
@@ -143,7 +143,7 @@ impl SidePanel {
     /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub const fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
     }
@@ -152,7 +152,7 @@ impl SidePanel {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+    pub const fn show_separator_line(mut self, show_separator_line: bool) -> Self {
         self.show_separator_line = show_separator_line;
         self
     }
@@ -193,7 +193,7 @@ impl SidePanel {
 
     /// Enforce this exact width, including margins.
     #[inline]
-    pub fn exact_width(mut self, width: f32) -> Self {
+    pub const fn exact_width(mut self, width: f32) -> Self {
         self.default_width = width;
         self.width_range = Rangef::point(width);
         self
@@ -201,7 +201,7 @@ impl SidePanel {
 
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
@@ -534,7 +534,7 @@ pub enum TopBottomSide {
 }
 
 impl TopBottomSide {
-    fn opposite(self) -> Self {
+    const fn opposite(self) -> Self {
         match self {
             Self::Top => Self::Bottom,
             Self::Bottom => Self::Top,
@@ -548,7 +548,7 @@ impl TopBottomSide {
         }
     }
 
-    fn side_y(self, rect: Rect) -> f32 {
+    const fn side_y(self, rect: Rect) -> f32 {
         match self {
             Self::Top => rect.top(),
             Self::Bottom => rect.bottom(),
@@ -621,7 +621,7 @@ impl TopBottomPanel {
     /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
+    pub const fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
     }
@@ -630,7 +630,7 @@ impl TopBottomPanel {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+    pub const fn show_separator_line(mut self, show_separator_line: bool) -> Self {
         self.show_separator_line = show_separator_line;
         self
     }
@@ -674,7 +674,7 @@ impl TopBottomPanel {
 
     /// Enforce this exact height, including margins.
     #[inline]
-    pub fn exact_height(mut self, height: f32) -> Self {
+    pub const fn exact_height(mut self, height: f32) -> Self {
         self.default_height = Some(height);
         self.height_range = Rangef::point(height);
         self
@@ -682,7 +682,7 @@ impl TopBottomPanel {
 
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
@@ -1067,7 +1067,7 @@ pub struct CentralPanel {
 impl CentralPanel {
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }

@@ -64,7 +64,7 @@ impl Default for Resize {
 impl Resize {
     /// Assign an explicit and globally unique id.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
+    pub const fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
@@ -83,7 +83,7 @@ impl Resize {
     /// * if the contents is a canvas, this decides the width of it,
     /// * if the contents is some buttons, this is ignored and we will auto-size.
     #[inline]
-    pub fn default_width(mut self, width: f32) -> Self {
+    pub const fn default_width(mut self, width: f32) -> Self {
         self.default_size.x = width;
         self
     }
@@ -96,7 +96,7 @@ impl Resize {
     /// * if the contents is text and buttons, then the `default_height` is ignored
     ///   and the height is picked automatically..
     #[inline]
-    pub fn default_height(mut self, height: f32) -> Self {
+    pub const fn default_height(mut self, height: f32) -> Self {
         self.default_size.y = height;
         self
     }
@@ -116,14 +116,14 @@ impl Resize {
 
     /// Won't shrink to smaller than this
     #[inline]
-    pub fn min_width(mut self, min_width: f32) -> Self {
+    pub const fn min_width(mut self, min_width: f32) -> Self {
         self.min_size.x = min_width;
         self
     }
 
     /// Won't shrink to smaller than this
     #[inline]
-    pub fn min_height(mut self, min_height: f32) -> Self {
+    pub const fn min_height(mut self, min_height: f32) -> Self {
         self.min_size.y = min_height;
         self
     }
@@ -137,14 +137,14 @@ impl Resize {
 
     /// Won't expand to larger than this
     #[inline]
-    pub fn max_width(mut self, max_width: f32) -> Self {
+    pub const fn max_width(mut self, max_width: f32) -> Self {
         self.max_size.x = max_width;
         self
     }
 
     /// Won't expand to larger than this
     #[inline]
-    pub fn max_height(mut self, max_height: f32) -> Self {
+    pub const fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
         self
     }
@@ -161,7 +161,7 @@ impl Resize {
     }
 
     #[inline]
-    pub fn is_resizable(&self) -> Vec2b {
+    pub const fn is_resizable(&self) -> Vec2b {
         self.resizable
     }
 
@@ -184,7 +184,7 @@ impl Resize {
     }
 
     #[inline]
-    pub fn with_stroke(mut self, with_stroke: bool) -> Self {
+    pub const fn with_stroke(mut self, with_stroke: bool) -> Self {
         self.with_stroke = with_stroke;
         self
     }

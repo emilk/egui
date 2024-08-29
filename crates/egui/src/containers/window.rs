@@ -72,7 +72,7 @@ impl<'open> Window<'open> {
 
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
+    pub const fn id(mut self, id: Id) -> Self {
         self.area = self.area.id(id);
         self
     }
@@ -90,7 +90,7 @@ impl<'open> Window<'open> {
 
     /// If `false` the window will be grayed out and non-interactive.
     #[inline]
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub const fn enabled(mut self, enabled: bool) -> Self {
         self.area = self.area.enabled(enabled);
         self
     }
@@ -101,21 +101,21 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn interactable(mut self, interactable: bool) -> Self {
+    pub const fn interactable(mut self, interactable: bool) -> Self {
         self.area = self.area.interactable(interactable);
         self
     }
 
     /// If `false` the window will be immovable.
     #[inline]
-    pub fn movable(mut self, movable: bool) -> Self {
+    pub const fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
         self
     }
 
     /// `order(Order::Foreground)` for a Window that should always be on top
     #[inline]
-    pub fn order(mut self, order: Order) -> Self {
+    pub const fn order(mut self, order: Order) -> Self {
         self.area = self.area.order(order);
         self
     }
@@ -124,7 +124,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn fade_in(mut self, fade_in: bool) -> Self {
+    pub const fn fade_in(mut self, fade_in: bool) -> Self {
         self.area = self.area.fade_in(fade_in);
         self
     }
@@ -135,7 +135,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn fade_out(mut self, fade_out: bool) -> Self {
+    pub const fn fade_out(mut self, fade_out: bool) -> Self {
         self.fade_out = fade_out;
         self
     }
@@ -158,21 +158,21 @@ impl<'open> Window<'open> {
 
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
 
     /// Set minimum width of the window.
     #[inline]
-    pub fn min_width(mut self, min_width: f32) -> Self {
+    pub const fn min_width(mut self, min_width: f32) -> Self {
         self.resize = self.resize.min_width(min_width);
         self
     }
 
     /// Set minimum height of the window.
     #[inline]
-    pub fn min_height(mut self, min_height: f32) -> Self {
+    pub const fn min_height(mut self, min_height: f32) -> Self {
         self.resize = self.resize.min_height(min_height);
         self
     }
@@ -186,14 +186,14 @@ impl<'open> Window<'open> {
 
     /// Set maximum width of the window.
     #[inline]
-    pub fn max_width(mut self, max_width: f32) -> Self {
+    pub const fn max_width(mut self, max_width: f32) -> Self {
         self.resize = self.resize.max_width(max_width);
         self
     }
 
     /// Set maximum height of the window.
     #[inline]
-    pub fn max_height(mut self, max_height: f32) -> Self {
+    pub const fn max_height(mut self, max_height: f32) -> Self {
         self.resize = self.resize.max_height(max_height);
         self
     }
@@ -233,7 +233,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn constrain(mut self, constrain: bool) -> Self {
+    pub const fn constrain(mut self, constrain: bool) -> Self {
         self.area = self.area.constrain(constrain);
         self
     }
@@ -242,7 +242,7 @@ impl<'open> Window<'open> {
     ///
     /// For instance: `.constrain_to(ctx.screen_rect())`.
     #[inline]
-    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
+    pub const fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
         self
     }
@@ -255,7 +255,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: [`Align2::LEFT_TOP`].
     #[inline]
-    pub fn pivot(mut self, pivot: Align2) -> Self {
+    pub const fn pivot(mut self, pivot: Align2) -> Self {
         self.area = self.area.pivot(pivot);
         self
     }
@@ -279,7 +279,7 @@ impl<'open> Window<'open> {
 
     /// Set initial collapsed state of the window
     #[inline]
-    pub fn default_open(mut self, default_open: bool) -> Self {
+    pub const fn default_open(mut self, default_open: bool) -> Self {
         self.default_open = default_open;
         self
     }
@@ -293,14 +293,14 @@ impl<'open> Window<'open> {
 
     /// Set initial width of the window.
     #[inline]
-    pub fn default_width(mut self, default_width: f32) -> Self {
+    pub const fn default_width(mut self, default_width: f32) -> Self {
         self.resize = self.resize.default_width(default_width);
         self
     }
 
     /// Set initial height of the window.
     #[inline]
-    pub fn default_height(mut self, default_height: f32) -> Self {
+    pub const fn default_height(mut self, default_height: f32) -> Self {
         self.resize = self.resize.default_height(default_height);
         self
     }
@@ -340,7 +340,7 @@ impl<'open> Window<'open> {
 
     /// Can the window be collapsed by clicking on its title?
     #[inline]
-    pub fn collapsible(mut self, collapsible: bool) -> Self {
+    pub const fn collapsible(mut self, collapsible: bool) -> Self {
         self.collapsible = collapsible;
         self
     }
@@ -348,7 +348,7 @@ impl<'open> Window<'open> {
     /// Show title bar on top of the window?
     /// If `false`, the window will not be collapsible nor have a close-button.
     #[inline]
-    pub fn title_bar(mut self, title_bar: bool) -> Self {
+    pub const fn title_bar(mut self, title_bar: bool) -> Self {
         self.with_title_bar = title_bar;
         self
     }
@@ -357,7 +357,7 @@ impl<'open> Window<'open> {
     /// Also disabled scrolling.
     /// Text will not wrap, but will instead make your window width expand.
     #[inline]
-    pub fn auto_sized(mut self) -> Self {
+    pub const fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
         self
@@ -382,14 +382,14 @@ impl<'open> Window<'open> {
 
     /// Enable/disable horizontal scrolling. `false` by default.
     #[inline]
-    pub fn hscroll(mut self, hscroll: bool) -> Self {
+    pub const fn hscroll(mut self, hscroll: bool) -> Self {
         self.scroll = self.scroll.hscroll(hscroll);
         self
     }
 
     /// Enable/disable vertical scrolling. `false` by default.
     #[inline]
-    pub fn vscroll(mut self, vscroll: bool) -> Self {
+    pub const fn vscroll(mut self, vscroll: bool) -> Self {
         self.scroll = self.scroll.vscroll(vscroll);
         self
     }
@@ -398,7 +398,7 @@ impl<'open> Window<'open> {
     ///
     /// See [`ScrollArea::drag_to_scroll`] for more.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub const fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
         self
     }
@@ -708,7 +708,7 @@ impl PossibleInteractions {
         }
     }
 
-    pub fn resizable(&self) -> bool {
+    pub const fn resizable(&self) -> bool {
         self.resize_left || self.resize_right || self.resize_top || self.resize_bottom
     }
 }
@@ -731,7 +731,7 @@ struct SideResponse {
 }
 
 impl SideResponse {
-    pub fn any(&self) -> bool {
+    pub const fn any(&self) -> bool {
         self.hover || self.drag
     }
 }
@@ -764,11 +764,11 @@ impl ResizeInteraction {
         }
     }
 
-    pub fn any_hovered(&self) -> bool {
+    pub const fn any_hovered(&self) -> bool {
         self.left.hover || self.right.hover || self.top.hover || self.bottom.hover
     }
 
-    pub fn any_dragged(&self) -> bool {
+    pub const fn any_dragged(&self) -> bool {
         self.left.drag || self.right.drag || self.top.drag || self.bottom.drag
     }
 }

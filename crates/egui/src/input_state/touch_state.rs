@@ -126,10 +126,10 @@ struct ActiveTouch {
 }
 
 impl TouchState {
-    pub fn new(device_id: TouchDeviceId) -> Self {
+    pub const fn new(device_id: TouchDeviceId) -> Self {
         Self {
             device_id,
-            active_touches: Default::default(),
+            active_touches: BTreeMap::new(),
             gesture_state: None,
         }
     }
