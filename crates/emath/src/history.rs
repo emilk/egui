@@ -52,23 +52,23 @@ where
     /// history.add(now(), 44.0_f32);
     /// assert_eq!(history.average(), Some(42.0));
     /// ```
-    pub fn new(length_range: std::ops::Range<usize>, max_age: f32) -> Self {
+    pub const fn new(length_range: std::ops::Range<usize>, max_age: f32) -> Self {
         Self {
             min_len: length_range.start,
             max_len: length_range.end,
             max_age,
             total_count: 0,
-            values: Default::default(),
+            values: VecDeque::new(),
         }
     }
 
     #[inline]
-    pub fn max_len(&self) -> usize {
+    pub const fn max_len(&self) -> usize {
         self.max_len
     }
 
     #[inline]
-    pub fn max_age(&self) -> f32 {
+    pub const fn max_age(&self) -> f32 {
         self.max_age
     }
 
@@ -86,7 +86,7 @@ where
     /// Total number of values seen.
     /// Includes those that have been discarded due to `max_len` or `max_age`.
     #[inline]
-    pub fn total_count(&self) -> u64 {
+    pub const fn total_count(&self) -> u64 {
         self.total_count
     }
 

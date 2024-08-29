@@ -1,4 +1,3 @@
-use std::f32::INFINITY;
 use std::fmt;
 
 use crate::{lerp, pos2, vec2, Div, Mul, Pos2, Rangef, Rot2, Vec2};
@@ -32,10 +31,7 @@ pub struct Rect {
 
 impl Rect {
     /// Infinite rectangle that contains every point.
-    pub const EVERYTHING: Self = Self {
-        min: pos2(-INFINITY, -INFINITY),
-        max: pos2(INFINITY, INFINITY),
-    };
+    pub const EVERYTHING: Self = Self::from_min_max(Pos2::NEG_INFINITY, Pos2::INFINITY);
 
     /// The inverse of [`Self::EVERYTHING`]: stretches from positive infinity to negative infinity.
     /// Contains no points.
@@ -52,22 +48,13 @@ impl Rect {
     /// rect.extend_with(pos2(0.0, 3.0));
     /// assert_eq!(rect, Rect::from_min_max(pos2(0.0, 1.0), pos2(2.0, 3.0)))
     /// ```
-    pub const NOTHING: Self = Self {
-        min: pos2(INFINITY, INFINITY),
-        max: pos2(-INFINITY, -INFINITY),
-    };
+    pub const NOTHING: Self = Self::from_min_max(Pos2::INFINITY, Pos2::NEG_INFINITY);
 
     /// An invalid [`Rect`] filled with [`f32::NAN`].
-    pub const NAN: Self = Self {
-        min: pos2(f32::NAN, f32::NAN),
-        max: pos2(f32::NAN, f32::NAN),
-    };
+    pub const NAN: Self = Self::from_pos(Pos2::NAN);
 
     /// A [`Rect`] filled with zeroes.
-    pub const ZERO: Self = Self {
-        min: Pos2::ZERO,
-        max: Pos2::ZERO,
-    };
+    pub const ZERO: Self = Self::from_pos(Pos2::ZERO);
 
     #[inline(always)]
     pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
@@ -112,7 +99,7 @@ impl Rect {
 
     /// A zero-sized rect at a specific point.
     #[inline]
-    pub fn from_pos(point: Pos2) -> Self {
+    pub const fn from_pos(point: Pos2) -> Self {
         Self {
             min: point,
             max: point,
@@ -463,17 +450,17 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub fn x_range(&self) -> Rangef {
+    pub const fn x_range(&self) -> Rangef {
         Rangef::new(self.min.x, self.max.x)
     }
 
     #[inline(always)]
-    pub fn y_range(&self) -> Rangef {
+    pub const fn y_range(&self) -> Rangef {
         Rangef::new(self.min.y, self.max.y)
     }
 
     #[inline(always)]
-    pub fn bottom_up_range(&self) -> Rangef {
+    pub const fn bottom_up_range(&self) -> Rangef {
         Rangef::new(self.max.y, self.min.y)
     }
 
@@ -506,7 +493,7 @@ impl Rect {
 impl Rect {
     /// `min.x`
     #[inline(always)]
-    pub fn left(&self) -> f32 {
+    pub const fn left(&self) -> f32 {
         self.min.x
     }
 
@@ -524,7 +511,7 @@ impl Rect {
 
     /// `max.x`
     #[inline(always)]
-    pub fn right(&self) -> f32 {
+    pub const fn right(&self) -> f32 {
         self.max.x
     }
 
@@ -542,7 +529,7 @@ impl Rect {
 
     /// `min.y`
     #[inline(always)]
-    pub fn top(&self) -> f32 {
+    pub const fn top(&self) -> f32 {
         self.min.y
     }
 
@@ -560,7 +547,7 @@ impl Rect {
 
     /// `max.y`
     #[inline(always)]
-    pub fn bottom(&self) -> f32 {
+    pub const fn bottom(&self) -> f32 {
         self.max.y
     }
 
@@ -578,7 +565,7 @@ impl Rect {
 
     #[inline(always)]
     #[doc(alias = "top_left")]
-    pub fn left_top(&self) -> Pos2 {
+    pub const fn left_top(&self) -> Pos2 {
         pos2(self.left(), self.top())
     }
 
@@ -589,7 +576,7 @@ impl Rect {
 
     #[inline(always)]
     #[doc(alias = "top_right")]
-    pub fn right_top(&self) -> Pos2 {
+    pub const fn right_top(&self) -> Pos2 {
         pos2(self.right(), self.top())
     }
 
@@ -605,7 +592,7 @@ impl Rect {
 
     #[inline(always)]
     #[doc(alias = "bottom_left")]
-    pub fn left_bottom(&self) -> Pos2 {
+    pub const fn left_bottom(&self) -> Pos2 {
         pos2(self.left(), self.bottom())
     }
 
@@ -616,7 +603,7 @@ impl Rect {
 
     #[inline(always)]
     #[doc(alias = "bottom_right")]
-    pub fn right_bottom(&self) -> Pos2 {
+    pub const fn right_bottom(&self) -> Pos2 {
         pos2(self.right(), self.bottom())
     }
 
@@ -626,7 +613,7 @@ impl Rect {
     }
 
     /// Split rectangle in left and right halves at the given `x` coordinate.
-    pub fn split_left_right_at_x(&self, split_x: f32) -> (Self, Self) {
+    pub const fn split_left_right_at_x(&self, split_x: f32) -> (Self, Self) {
         let left = Self::from_min_max(self.min, Pos2::new(split_x, self.max.y));
         let right = Self::from_min_max(Pos2::new(split_x, self.min.y), self.max);
         (left, right)
@@ -638,7 +625,7 @@ impl Rect {
     }
 
     /// Split rectangle in top and bottom halves at the given `y` coordinate.
-    pub fn split_top_bottom_at_y(&self, split_y: f32) -> (Self, Self) {
+    pub const fn split_top_bottom_at_y(&self, split_y: f32) -> (Self, Self) {
         let top = Self::from_min_max(self.min, Pos2::new(self.max.x, split_y));
         let bottom = Self::from_min_max(Pos2::new(self.min.x, split_y), self.max);
         (top, bottom)

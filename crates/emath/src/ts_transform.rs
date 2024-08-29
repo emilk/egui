@@ -26,15 +26,12 @@ impl Default for TSTransform {
 }
 
 impl TSTransform {
-    pub const IDENTITY: Self = Self {
-        translation: Vec2::ZERO,
-        scaling: 1.0,
-    };
+    pub const IDENTITY: Self = Self::new(Vec2::ZERO, 1.0);
 
     #[inline]
     /// Creates a new translation that first scales points around
     /// `(0, 0)`, then translates them.  
-    pub fn new(translation: Vec2, scaling: f32) -> Self {
+    pub const fn new(translation: Vec2, scaling: f32) -> Self {
         Self {
             translation,
             scaling,
@@ -42,12 +39,12 @@ impl TSTransform {
     }
 
     #[inline]
-    pub fn from_translation(translation: Vec2) -> Self {
+    pub const fn from_translation(translation: Vec2) -> Self {
         Self::new(translation, 1.0)
     }
 
     #[inline]
-    pub fn from_scaling(scaling: f32) -> Self {
+    pub const fn from_scaling(scaling: f32) -> Self {
         Self::new(Vec2::ZERO, scaling)
     }
 

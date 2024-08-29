@@ -7,22 +7,22 @@ pub struct Vec2b {
 }
 
 impl Vec2b {
-    pub const FALSE: Self = Self { x: false, y: false };
-    pub const TRUE: Self = Self { x: true, y: true };
+    pub const FALSE: Self = Self::new(false, false);
+    pub const TRUE: Self = Self::new(true, true);
 
     #[inline]
-    pub fn new(x: bool, y: bool) -> Self {
+    pub const fn new(x: bool, y: bool) -> Self {
         Self { x, y }
     }
 
     #[inline]
-    pub fn any(&self) -> bool {
+    pub const fn any(&self) -> bool {
         self.x || self.y
     }
 
     /// Are both `x` and `y` true?
     #[inline]
-    pub fn all(&self) -> bool {
+    pub const fn all(&self) -> bool {
         self.x && self.y
     }
 
@@ -48,14 +48,14 @@ impl Vec2b {
 impl From<bool> for Vec2b {
     #[inline]
     fn from(val: bool) -> Self {
-        Self { x: val, y: val }
+        Self::new(val, val)
     }
 }
 
 impl From<[bool; 2]> for Vec2b {
     #[inline]
     fn from([x, y]: [bool; 2]) -> Self {
-        Self { x, y }
+        Self::new(x, y)
     }
 }
 
@@ -88,9 +88,6 @@ impl std::ops::Not for Vec2b {
 
     #[inline]
     fn not(self) -> Self::Output {
-        Self {
-            x: !self.x,
-            y: !self.y,
-        }
+        Self::new(!self.x, !self.y)
     }
 }
