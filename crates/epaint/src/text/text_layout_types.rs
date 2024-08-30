@@ -175,6 +175,38 @@ impl LayoutJob {
         }
         max_height
     }
+
+    /// Get a new `LayoutJob` containing only the text and sections for the given slice. Needs to
+    /// know the number of rows before to calculate text wrapping.
+    pub fn slice(&self, range: Range<usize>, rows_before: usize) -> Option<Self> {
+        if range.is_empty()
+            || range.start >= self.text.len()
+            || range.end > self.text.len()
+            || rows_before > self.wrap.max_rows
+        {
+            return None;
+        }
+        Some(Self {
+            text: self.text[range.clone()].to_owned(),
+            sections: self
+                .sections
+                .iter()
+                .filter_map(|section| {
+                    let new_range = range.start.max(section.byte_range.start)
+                        ..range.end.min(section.byte_range.end);
+                    (!new_range.is_empty()).then(|| LayoutSection {
+                        byte_range: new_range.start - range.start..new_range.end - range.start,
+                        ..section.clone()
+                    })
+                })
+                .collect(),
+            wrap: TextWrapping {
+                max_rows: self.wrap.max_rows - rows_before,
+                ..self.wrap
+            },
+            ..self.clone()
+        })
+    }
 }
 
 impl std::hash::Hash for LayoutJob {

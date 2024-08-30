@@ -684,6 +684,91 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
+                // Optimize by splitting the job into paragraphs, if possible.
+                if job.break_on_newline {
+                    // let mut newlines = job.text.match_indices('\n').peekable();
+                    // if newlines.peek().filter(|(i, _)| *i != job.text.len() - 1).is_some() {
+                    //     let mut galleys = newlines.map(|(i, _)| Some(i + 1)).chain(std::iter::once(None)).scan(0, |last, i| {
+                    //         let i = i.unwrap_or(job.text.len());
+                    //         // Get the relevant part of the job. Should return None if last ==
+                    //         // job.text.len()
+                    //         let new_job = job.slice(*last..i);
+                    //         *last = i;
+                    //         new_job
+                    //     }).map(|job| self.layout(fonts, job));
+                    //
+                    //     let first_galley = galleys.next().expect("there should be at least one galley");
+                    //     let galley = galleys.try_fold((*first_galley).clone(), |acc_galley, galley| {
+                    //         acc_galley.rows.extend(galley.rows);
+                    //         acc_galley.elided =
+                    //     })
+                    //     self.cache.insert(hash, CachedGalley {
+                    //         last_used: self.generation,
+                    //         galley: first_galley.clone(),
+                    //     });
+                    //     return first_galley;
+                    //
+                    //
+                    // }
+                    let mut newlines = job.text.match_indices('\n').map(|(i, _)| i + 1);
+                    if let Some(first_i) = newlines.next().filter(|i| *i != job.text.len()) {
+                        // TODO(dacid44): remove this .expect()
+                        let mut galley = self
+                            .layout(
+                                fonts,
+                                job.slice(0..first_i, 0)
+                                    .expect("we just ensured that 1 <= i < job.text.len()"),
+                            )
+                            .as_ref()
+                            .clone();
+                        let mut last = first_i;
+                        let mut paragraph_endings = newlines.chain(std::iter::once(job.text.len()));
+                        while let Some(i) = paragraph_endings.next().filter(|_| !galley.elided) {
+                            // job.slice() should return None if lest == job.text.len().
+                            let Some(next_job) = job.slice(last..i, galley.rows.len()) else {
+                                break;
+                            };
+                            let next_galley = self.layout(fonts, next_job);
+                            let offset = emath::vec2(0.0, galley.rect.height());
+                            galley.rows.extend(next_galley.rows.iter().map(|row| {
+                                crate::text::Row {
+                                    rect: row.rect.translate(offset),
+                                    visuals: crate::text::RowVisuals {
+                                        mesh_bounds: row.visuals.mesh_bounds.translate(offset),
+                                        ..row.visuals.clone()
+                                    },
+                                    glyphs: row
+                                        .glyphs
+                                        .iter()
+                                        .map(|glyph| crate::text::Glyph {
+                                            pos: glyph.pos + offset,
+                                            ..*glyph
+                                        })
+                                        .collect(),
+                                    ..row.clone()
+                                }
+                            }));
+                            galley.elided |= next_galley.elided;
+                            galley.rect = galley.rect.union(next_galley.rect.translate(offset));
+                            galley.mesh_bounds = galley
+                                .mesh_bounds
+                                .union(next_galley.mesh_bounds.translate(offset));
+                            galley.num_vertices += next_galley.num_vertices;
+                            galley.num_indices += next_galley.num_indices;
+                            last = i;
+                        }
+                        galley.job = job.into();
+                        let galley = Arc::new(galley);
+                        self.cache.insert(
+                            hash,
+                            CachedGalley {
+                                last_used: self.generation,
+                                galley: galley.clone(),
+                            },
+                        );
+                        return galley;
+                    }
+                }
                 let galley = super::layout(fonts, job.into());
                 let galley = Arc::new(galley);
                 entry.insert(CachedGalley {
