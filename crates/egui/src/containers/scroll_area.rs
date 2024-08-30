@@ -418,7 +418,7 @@ impl ScrollArea {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn const_auto_shrink(mut self, auto_shrink: Vec2b) -> Self {
+    pub const fn const_auto_shrink(mut self, auto_shrink: Vec2b) -> Self {
         self.auto_shrink = auto_shrink;
         self
     }
