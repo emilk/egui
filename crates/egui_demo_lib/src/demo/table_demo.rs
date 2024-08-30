@@ -20,6 +20,7 @@ pub struct TableDemo {
     scroll_to_row: Option<usize>,
     selection: std::collections::HashSet<usize>,
     checked: bool,
+    reversed: bool,
 }
 
 impl Default for TableDemo {
@@ -34,6 +35,7 @@ impl Default for TableDemo {
             scroll_to_row: None,
             selection: Default::default(),
             checked: false,
+            reversed: false,
         }
     }
 }
@@ -173,7 +175,16 @@ impl TableDemo {
         table
             .header(20.0, |mut header| {
                 header.col(|ui| {
-                    ui.strong("Row");
+                    egui::Sides::new().show(
+                        ui,
+                        |ui| {
+                            ui.strong("Row");
+                        },
+                        |ui| {
+                            self.reversed ^=
+                                ui.button(if self.reversed { "⬆" } else { "⬇" }).clicked();
+                        },
+                    );
                 });
                 header.col(|ui| {
                     ui.strong("Clipped text");
@@ -191,6 +202,12 @@ impl TableDemo {
             .body(|mut body| match self.demo {
                 DemoType::Manual => {
                     for row_index in 0..NUM_MANUAL_ROWS {
+                        let row_index = if self.reversed {
+                            NUM_MANUAL_ROWS - 1 - row_index
+                        } else {
+                            row_index
+                        };
+
                         let is_thick = thick_row(row_index);
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
@@ -223,7 +240,12 @@ impl TableDemo {
                 }
                 DemoType::ManyHomogeneous => {
                     body.rows(text_height, self.num_rows, |mut row| {
-                        let row_index = row.index();
+                        let row_index = if self.reversed {
+                            self.num_rows - 1 - row.index()
+                        } else {
+                            row.index()
+                        };
+
                         row.set_selected(self.selection.contains(&row_index));
 
                         row.col(|ui| {
@@ -251,7 +273,12 @@ impl TableDemo {
                 DemoType::ManyHeterogenous => {
                     let row_height = |i: usize| if thick_row(i) { 30.0 } else { 18.0 };
                     body.heterogeneous_rows((0..self.num_rows).map(row_height), |mut row| {
-                        let row_index = row.index();
+                        let row_index = if self.reversed {
+                            self.num_rows - 1 - row.index()
+                        } else {
+                            row.index()
+                        };
+
                         row.set_selected(self.selection.contains(&row_index));
 
                         row.col(|ui| {
