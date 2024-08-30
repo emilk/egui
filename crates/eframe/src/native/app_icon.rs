@@ -80,7 +80,8 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
 #[allow(unsafe_code)]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     use crate::icon_data::IconDataExt as _;
-    use winapi::um::winuser;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse;
+    use windows_sys::Win32::UI::WindowsAndMessaging;
 
     // We would get fairly far already with winit's `set_window_icon` (which is exposed to eframe) actually!
     // However, it only sets ICON_SMALL, i.e. doesn't allow us to set a higher resolution icon for the task bar.
@@ -91,9 +92,9 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     //      * Querying for an owning window and setting icon there (there doesn't seem to be an owning window)
     //      * using undocumented SetConsoleIcon method (successfully queried via GetProcAddress)
 
-    // SAFETY: WinApi function without side-effects.
-    let window_handle = unsafe { winuser::GetActiveWindow() };
-    if window_handle.is_null() {
+    // SAFETY: Windows API function without side-effects.
+    let window_handle = unsafe { KeyboardAndMouse::GetActiveWindow() };
+    if window_handle == 0 {
         // The Window isn't available yet. Try again later!
         return AppIconStatus::NotSetTryAgain;
     }
@@ -101,7 +102,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     fn create_hicon_with_scale(
         unscaled_image: &image::RgbaImage,
         target_size: i32,
-    ) -> winapi::shared::windef::HICON {
+    ) -> WindowsAndMessaging::HICON {
         let image_scaled = image::imageops::resize(
             unscaled_image,
             target_size as _,
@@ -109,7 +110,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
             image::imageops::Lanczos3,
         );
 
-        // Creating transparent icons with WinApi is a huge mess.
+        // Creating transparent icons with Windows API is a huge mess.
         // We'd need to go through CreateIconIndirect's ICONINFO struct which then
         // takes a mask HBITMAP and a color HBITMAP and creating each of these is pain.
         // Instead we workaround this by creating a png which CreateIconFromResourceEx magically understands.
@@ -122,19 +123,19 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
             )
             .is_err()
         {
-            return std::ptr::null_mut();
+            return 0;
         }
 
         // SAFETY: Creating an HICON which should be readonly on our data.
         unsafe {
-            winuser::CreateIconFromResourceEx(
+            WindowsAndMessaging::CreateIconFromResourceEx(
                 image_scaled_bytes.as_mut_ptr(),
                 image_scaled_bytes.len() as u32,
                 1,           // Means this is an icon, not a cursor.
                 0x00030000,  // Version number of the HICON
                 target_size, // Note that this method can scale, but it does so *very* poorly. So let's avoid that!
                 target_size,
-                winuser::LR_DEFAULTCOLOR,
+                WindowsAndMessaging::LR_DEFAULTCOLOR,
             )
         }
     }
@@ -154,39 +155,41 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     //
     // Note that ICON_SMALL may be used even if we don't render a title bar as it may be used in alt+tab!
     {
-        // SAFETY: WinAPI getter function with no known side effects.
-        let icon_size_big = unsafe { winuser::GetSystemMetrics(winuser::SM_CXICON) };
+        // SAFETY: Windows API getter function with no known side effects.
+        let icon_size_big =
+            unsafe { WindowsAndMessaging::GetSystemMetrics(WindowsAndMessaging::SM_CXICON) };
         let icon_big = create_hicon_with_scale(&unscaled_image, icon_size_big);
-        if icon_big.is_null() {
+        if icon_big == 0 {
             log::warn!("Failed to create HICON (for big icon) from embedded png data.");
             return AppIconStatus::NotSetIgnored; // We could try independently with the small icon but what's the point, it would look bad!
         } else {
-            // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
+            // SAFETY: Unsafe Windows API function, takes objects previously created with Windows API, all checked for null prior.
             unsafe {
-                winuser::SendMessageW(
+                WindowsAndMessaging::SendMessageW(
                     window_handle,
-                    winuser::WM_SETICON,
-                    winuser::ICON_BIG as usize,
-                    icon_big as isize,
+                    WindowsAndMessaging::WM_SETICON,
+                    WindowsAndMessaging::ICON_BIG as usize,
+                    icon_big,
                 );
             }
         }
     }
     {
-        // SAFETY: WinAPI getter function with no known side effects.
-        let icon_size_small = unsafe { winuser::GetSystemMetrics(winuser::SM_CXSMICON) };
+        // SAFETY: Windows API getter function with no known side effects.
+        let icon_size_small =
+            unsafe { WindowsAndMessaging::GetSystemMetrics(WindowsAndMessaging::SM_CXSMICON) };
         let icon_small = create_hicon_with_scale(&unscaled_image, icon_size_small);
-        if icon_small.is_null() {
+        if icon_small == 0 {
             log::warn!("Failed to create HICON (for small icon) from embedded png data.");
             return AppIconStatus::NotSetIgnored;
         } else {
-            // SAFETY: Unsafe WinApi function, takes objects previously created with WinAPI, all checked for null prior.
+            // SAFETY: Unsafe Windows API function, takes objects previously created with Windows API, all checked for null prior.
             unsafe {
-                winuser::SendMessageW(
+                WindowsAndMessaging::SendMessageW(
                     window_handle,
-                    winuser::WM_SETICON,
-                    winuser::ICON_SMALL as usize,
-                    icon_small as isize,
+                    WindowsAndMessaging::WM_SETICON,
+                    WindowsAndMessaging::ICON_SMALL as usize,
+                    icon_small,
                 );
             }
         }
