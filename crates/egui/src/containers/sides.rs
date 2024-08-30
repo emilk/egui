@@ -5,7 +5,7 @@ use crate::{Layout, Ui, UiBuilder};
 /// Put some widgets on the left and right side of the ui.
 ///
 /// The result will look like this:
-/// ```
+/// ```text
 ///  ________________________________________________
 /// | left widgets -> |    gap    | <- right widgets |
 /// ```
@@ -16,7 +16,7 @@ use crate::{Layout, Ui, UiBuilder};
 /// Then the right widgets are added, right-to-left.
 ///
 /// ```
-/// # let ui = &mut egui::Ui::__test();
+/// # egui::__run_test_ui(|ui| {
 /// egui::containers::Sides::new().show(ui,
 ///     |ui| {
 ///         ui.label("Left");
@@ -25,6 +25,7 @@ use crate::{Layout, Ui, UiBuilder};
 ///         ui.label("Right");
 ///     }
 /// );
+/// # });
 /// ```
 #[must_use = "You should call sides.show()"]
 #[derive(Clone, Copy, Debug, Default)]
