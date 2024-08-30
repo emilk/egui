@@ -625,6 +625,20 @@ impl Ui {
         self.painter().with_clip_rect(rect)
     }
 
+    /// Draws a "Dbg" rectangle in `warn_fg_color` for debugging purposes to visualize a given `Rect`.
+    pub fn dbg_rect(&self, rect: Rect) {
+        self.dbg_rect_text(rect, "Dbg");
+    }
+
+    /// Draws a rectangle with the given text using `warn_fg_color` for debugging purposes.
+    pub fn dbg_rect_text(&self, rect: Rect, text: impl ToString) {
+        self.painter().debug_rect(
+            rect.expand2(vec2(1.0, 1.0)),
+            self.visuals().warn_fg_color,
+            text,
+        );
+    }
+
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
     pub fn layer_id(&self) -> LayerId {
