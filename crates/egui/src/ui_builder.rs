@@ -112,7 +112,8 @@ impl UiBuilder {
     /// Override the style.
     ///
     /// Otherwise will inherit the style of the parent.
-    pub fn const_style(mut self, style: Arc<Style>) -> Self {
+    #[inline]
+    pub const fn const_style(mut self, style: Arc<Style>) -> Self {
         self.style = Some(style);
         self
     }
