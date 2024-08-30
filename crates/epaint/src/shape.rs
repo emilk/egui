@@ -7,7 +7,7 @@ use crate::{
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke, TextureId,
 };
-use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
+use emath::{pos2, vec2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 pub use crate::{CubicBezierShape, QuadraticBezierShape};
 

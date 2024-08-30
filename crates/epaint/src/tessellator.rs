@@ -7,9 +7,9 @@
 
 use crate::texture_atlas::PreparedDisc;
 use crate::{
-    color, emath, stroke, CircleShape, ClippedPrimitive, ClippedShape, Color32, CubicBezierShape,
-    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Rounding, Shape,
-    Stroke, TextShape, TextureId, Vertex, WHITE_UV,
+    color, emath, stroke, ArcPieShape, CircleShape, ClippedPrimitive, ClippedShape, Color32,
+    CubicBezierShape, EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape,
+    Rounding, Shape, Stroke, TextShape, TextureId, Vertex, WHITE_UV,
 };
 use emath::{pos2, remap, vec2, NumExt, Pos2, Rect, Rot2, Vec2};
 
@@ -1519,7 +1519,8 @@ impl Tessellator {
         if closed {
             self.scratchpad_path
                 .add_pie(center, radius, start_angle, end_angle);
-            self.scratchpad_path.fill(self.feathering, fill, out);
+            self.scratchpad_path
+                .fill(self.feathering, fill, &stroke, out);
             self.scratchpad_path
                 .stroke_closed(self.feathering, &stroke, out);
         } else {
