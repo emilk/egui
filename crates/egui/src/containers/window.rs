@@ -439,9 +439,6 @@ impl<'open> Window<'open> {
         let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
         // Keep the original inner margin for later use
         let window_margin = window_frame.inner_margin;
-        let border_padding = window_frame.stroke.width / 2.0;
-        // Add border padding to the inner margin to prevent it from covering the contents
-        window_frame.inner_margin += border_padding;
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -575,9 +572,9 @@ impl<'open> Window<'open> {
 
             if let Some(title_bar) = title_bar {
                 let mut title_rect = Rect::from_min_size(
-                    outer_rect.min + vec2(border_padding, border_padding),
+                    outer_rect.min,
                     Vec2 {
-                        x: outer_rect.size().x - border_padding * 2.0,
+                        x: outer_rect.size().x,
                         y: title_bar_height,
                     },
                 );
@@ -586,9 +583,6 @@ impl<'open> Window<'open> {
 
                 if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let mut round = window_frame.rounding;
-
-                    // Eliminate the rounding gap between the title bar and the window frame
-                    round -= border_padding;
 
                     if !is_collapsed {
                         round.se = 0.0;
@@ -603,7 +597,7 @@ impl<'open> Window<'open> {
 
                 // Fix title bar separator line position
                 if let Some(response) = &mut content_response {
-                    response.rect.min.y = outer_rect.min.y + title_bar_height + border_padding;
+                    response.rect.min.y = outer_rect.min.y + title_bar_height;
                 }
 
                 title_bar.ui(
@@ -667,14 +661,10 @@ fn paint_resize_corner(
         }
     };
 
-    // Adjust the corner offset to accommodate the stroke width and window rounding
-    let offset = if radius <= 2.0 && stroke.width < 2.0 {
-        2.0
-    } else {
-        // The corner offset is calculated to make the corner appear to be in the correct position
-        (2.0_f32.sqrt() * (1.0 + radius + stroke.width / 2.0) - radius)
-            * 45.0_f32.to_radians().cos()
-    };
+    // Adjust the corner offset to accommodate for window rounding
+    let offset =
+        ((2.0_f32.sqrt() * (1.0 + radius) - radius) * 45.0_f32.to_radians().cos()).max(2.0);
+
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
     let corner_rect = corner_rect.translate(-offset * corner.to_sign()); // move away from corner
@@ -1136,7 +1126,6 @@ impl TitleBar {
         let text_pos =
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
         let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
-        let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
         ui.painter().galley(
             text_pos,
             self.title_galley.clone(),
@@ -1150,6 +1139,7 @@ impl TitleBar {
             let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
             // Workaround: To prevent border infringement,
             // the 0.1 value should ideally be calculated using TessellationOptions::feathering_size_in_pixels
+            // or we could support selectively disabling feathering on line caps
             let x_range = outer_rect.x_range().shrink(0.1);
             ui.painter().hline(x_range, y, stroke);
         }

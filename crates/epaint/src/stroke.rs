@@ -55,6 +55,26 @@ impl std::hash::Hash for Stroke {
     }
 }
 
+/// Describes how the stroke of a shape should be painted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum StrokeKind {
+    /// The stroke should be painted entirely outside of the shape
+    Outside,
+
+    /// The stroke should be painted entirely inside of the shape
+    Inside,
+
+    /// The stroke should be painted right on the edge of the shape, half inside and half outside.
+    Middle,
+}
+
+impl Default for StrokeKind {
+    fn default() -> Self {
+        Self::Middle
+    }
+}
+
 /// Describes the width and color of paths. The color can either be solid or provided by a callback. For more information, see [`ColorMode`]
 ///
 /// The default stroke is the same as [`Stroke::NONE`].
@@ -63,6 +83,7 @@ impl std::hash::Hash for Stroke {
 pub struct PathStroke {
     pub width: f32,
     pub color: ColorMode,
+    pub kind: StrokeKind,
 }
 
 impl PathStroke {
@@ -70,6 +91,7 @@ impl PathStroke {
     pub const NONE: Self = Self {
         width: 0.0,
         color: ColorMode::TRANSPARENT,
+        kind: StrokeKind::Middle,
     };
 
     #[inline]
@@ -77,6 +99,7 @@ impl PathStroke {
         Self {
             width: width.into(),
             color: ColorMode::Solid(color.into()),
+            kind: StrokeKind::default(),
         }
     }
 
@@ -91,6 +114,31 @@ impl PathStroke {
         Self {
             width: width.into(),
             color: ColorMode::UV(Arc::new(callback)),
+            kind: StrokeKind::default(),
+        }
+    }
+
+    /// Set the stroke to be painted right on the edge of the shape, half inside and half outside.
+    pub fn middle(self) -> Self {
+        Self {
+            kind: StrokeKind::Middle,
+            ..self
+        }
+    }
+
+    /// Set the stroke to be painted entirely outside of the shape
+    pub fn outside(self) -> Self {
+        Self {
+            kind: StrokeKind::Outside,
+            ..self
+        }
+    }
+
+    /// Set the stroke to be painted entirely inside of the shape
+    pub fn inside(self) -> Self {
+        Self {
+            kind: StrokeKind::Inside,
+            ..self
         }
     }
 
@@ -116,6 +164,7 @@ impl From<Stroke> for PathStroke {
         Self {
             width: value.width,
             color: ColorMode::Solid(value.color),
+            kind: StrokeKind::default(),
         }
     }
 }

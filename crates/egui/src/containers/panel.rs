@@ -329,6 +329,9 @@ impl SidePanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
+        // Keep this rect snapped so that panel content can be pixel-perfect
+        let rect = ui.painter().round_rect_to_pixels(rect);
+
         PanelState { rect }.store(ui.ctx(), id);
 
         {
@@ -343,10 +346,14 @@ impl SidePanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_x = side.opposite().side_x(rect.shrink(1.0));
-            let resize_x = ui.painter().round_to_pixel(resize_x);
+            let resize_x = side.opposite().side_x(rect);
+
+            // This makes it pixel-perfect for odd-sized strokes (width=1.0, width=3.0, etc)
+            let resize_x = ui.painter().round_to_pixel_center(resize_x);
+
+            // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
+            // left-side panels
+            let resize_x = resize_x - if side == Side::Left { 1.0 } else { 0.0 };
             ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
@@ -817,6 +824,9 @@ impl TopBottomPanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
+        // Keep this rect snapped so that panel content can be pixel-perfect
+        let rect = ui.painter().round_rect_to_pixels(rect);
+
         PanelState { rect }.store(ui.ctx(), id);
 
         {
@@ -831,10 +841,12 @@ impl TopBottomPanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_y = side.opposite().side_y(rect.shrink(1.0));
-            let resize_y = ui.painter().round_to_pixel(resize_y);
+            let resize_y = side.opposite().side_y(rect);
+            let resize_y = ui.painter().round_to_pixel_center(resize_y);
+
+            // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
+            // top-side panels
+            let resize_y = resize_y - if side == TopBottomSide::Top { 1.0 } else { 0.0 };
             ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 

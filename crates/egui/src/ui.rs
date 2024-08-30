@@ -2215,9 +2215,9 @@ impl Ui {
 
             let stroke = self.visuals().widgets.noninteractive.bg_stroke;
             let left_top = child_rect.min - 0.5 * indent * Vec2::X;
-            let left_top = self.painter().round_pos_to_pixels(left_top);
+            let left_top = self.painter().round_pos_to_pixel_center(left_top);
             let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
-            let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
+            let left_bottom = self.painter().round_pos_to_pixel_center(left_bottom);
 
             if left_vline {
                 // draw a faint line on the left to mark the indented section

@@ -2477,8 +2477,12 @@ impl Widget for &mut Stroke {
 
             // stroke preview:
             let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-            let left = stroke_rect.left_center();
-            let right = stroke_rect.right_center();
+            let left = ui
+                .painter()
+                .round_pos_to_pixel_center(stroke_rect.left_center());
+            let right = ui
+                .painter()
+                .round_pos_to_pixel_center(stroke_rect.right_center());
             ui.painter().line_segment([left, right], (*width, *color));
         })
         .response
