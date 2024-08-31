@@ -277,6 +277,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
+                    // For minimize CPU usage, remove any remaining repaint time and then repaint.
                     self.windows_next_repaint_times.remove(&window_id);
                     self.winit_app.run_ui_and_paint(event_loop, window_id)
                 }
