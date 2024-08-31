@@ -1216,7 +1216,6 @@ impl Ui {
         debug_assert!(desired_size.x >= 0.0 && desired_size.y >= 0.0);
         let item_spacing = self.spacing().item_spacing;
         let frame_rect = self.placer.next_space(desired_size, item_spacing);
-        let _child_rect = self.placer.justify_and_align(frame_rect, desired_size);
         self.allocate_new_ui(
             UiBuilder::new().max_rect(frame_rect).layout(layout),
             add_contents,
