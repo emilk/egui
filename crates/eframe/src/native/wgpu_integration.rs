@@ -704,11 +704,6 @@ impl WgpuWinitRunning {
             viewport_from_window,
         );
 
-        // Prune dead viewports:
-        viewports.retain(|id, _| active_viewports_ids.contains(id));
-        viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
-        painter.gc_viewports(&active_viewports_ids);
-
         let window = viewport_from_window
             .get(&window_id)
             .and_then(|id| viewports.get(id))
