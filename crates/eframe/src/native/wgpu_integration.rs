@@ -694,8 +694,6 @@ impl WgpuWinitRunning {
 
         integration.post_rendering(window);
 
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
         handle_viewport_output(
             &integration.egui_ctx,
             &viewport_output,
