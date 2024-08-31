@@ -1,4 +1,4 @@
-on: [ push, pull_request ]
+on: [push, pull_request]
 
 name: Rust
 
@@ -7,6 +7,23 @@ env:
   RUSTDOCFLAGS: -D warnings
 
 jobs:
+  cargo-hack-test:
+    name: cargo-hack test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.76.0
+
+      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
+
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run cargo-hack
+        run: ./scripts/hack.sh
+
   fmt-crank-check-test:
     name: Format + check + test
     runs-on: ubuntu-22.04
