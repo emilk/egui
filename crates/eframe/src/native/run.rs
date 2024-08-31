@@ -162,11 +162,10 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                 if let Some(window) = self.winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
                     window.request_redraw();
-                    true
                 } else {
                     log::trace!("No window found for {window_id:?}");
-                    false
                 }
+                false
             });
 
         if let Some(next_repaint_time) = next_repaint_time {
@@ -277,8 +276,6 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
-                    // For minimize CPU usage, remove any remaining repaint time and then repaint.
-                    self.windows_next_repaint_times.remove(&window_id);
                     self.winit_app.run_ui_and_paint(event_loop, window_id)
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
