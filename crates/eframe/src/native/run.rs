@@ -92,7 +92,6 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
                     if cfg!(target_os = "windows") {
                         // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                        self.windows_next_repaint_times.remove(&window_id);
                         self.winit_app.run_ui_and_paint(event_loop, window_id)
                     } else {
                         // Fix for https://github.com/emilk/egui/issues/2425
@@ -148,32 +147,26 @@ impl<T: WinitApp> WinitAppWrapper<T> {
     }
 
     fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
-        let mut next_repaint_time = self.windows_next_repaint_times.values().min().copied();
+        let now = Instant::now();
 
         self.windows_next_repaint_times
             .retain(|window_id, repaint_time| {
-                if Instant::now() < *repaint_time {
+                if now < *repaint_time {
                     return true; // not yet ready
                 };
 
-                next_repaint_time = None;
                 event_loop.set_control_flow(ControlFlow::Poll);
 
                 if let Some(window) = self.winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
-                    let is_minimized = window.is_minimized().unwrap_or(false);
-                    if is_minimized {
-                        false
-                    } else {
-                        window.request_redraw();
-                        true
-                    }
+                    window.request_redraw();
                 } else {
                     log::trace!("No window found for {window_id:?}");
-                    false
                 }
+                false
             });
 
+        let next_repaint_time = self.windows_next_repaint_times.values().min().copied();
         if let Some(next_repaint_time) = next_repaint_time {
             event_loop.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
@@ -282,7 +275,6 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
                 winit::event::WindowEvent::RedrawRequested => {
-                    self.windows_next_repaint_times.remove(&window_id);
                     self.winit_app.run_ui_and_paint(event_loop, window_id)
                 }
                 _ => self.winit_app.window_event(event_loop, window_id, event),
