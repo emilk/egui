@@ -96,17 +96,6 @@ pub struct Painter {
     surfaces: ViewportIdMap<SurfaceState>,
 }
 
-impl Drop for Painter {
-    fn drop(&mut self) {
-        // Drop surfaces before dropping the render state.
-        //
-        // This is a workaround for a bug in wgpu 22.0.0.
-        // Fixed in https://github.com/gfx-rs/wgpu/pull/6052
-        // Remove with wgpu 22.1.0 update!
-        self.surfaces.clear();
-    }
-}
-
 impl Painter {
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///

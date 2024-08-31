@@ -1,5 +1,8 @@
 //! Showing UI:s for egui/epaint types.
-use crate::*;
+use crate::{
+    epaint, memory, pos2, remap_clamp, vec2, Color32, CursorIcon, FontFamily, FontId, Label, Mesh,
+    NumExt, Rect, Response, Sense, Shape, Slider, TextStyle, TextWrapMode, Ui, Widget,
+};
 
 pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
     let families = ui.fonts(|f| f.families());

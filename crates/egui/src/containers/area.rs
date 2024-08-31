@@ -2,7 +2,10 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use crate::*;
+use crate::{
+    emath, pos2, Align2, Context, Id, InnerResponse, LayerId, NumExt, Order, Pos2, Rect, Response,
+    Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
+};
 
 /// State of an [`Area`] that is persisted between frames.
 ///
@@ -21,8 +24,8 @@ pub struct AreaState {
     ///
     /// Area size is intentionally NOT persisted between sessions,
     /// so that a bad tooltip or menu size won't be remembered forever.
-    /// A resizable [`Window`] remembers the size the user picked using
-    /// the state in the [`Resize`] container.
+    /// A resizable [`crate::Window`] remembers the size the user picked using
+    /// the state in the [`crate::Resize`] container.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub size: Option<Vec2>,
 
@@ -83,7 +86,7 @@ impl AreaState {
 
 /// An area on the screen that can be moved by dragging.
 ///
-/// This forms the base of the [`Window`] container.
+/// This forms the base of the [`crate::Window`] container.
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
@@ -232,7 +235,7 @@ impl Area {
     /// If the contents are smaller than this size, the area will shrink to fit the contents.
     /// If the contents overflow, the area will grow.
     ///
-    /// If not set, [`style::Spacing::default_area_size`] will be used.
+    /// If not set, [`crate::style::Spacing::default_area_size`] will be used.
     #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.default_size = default_size.into();
@@ -532,16 +535,19 @@ impl Prepared {
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
         let max_rect = self.state.rect();
 
-        let clip_rect = self.constrain_rect; // Don't paint outside our bounds
+        let mut ui_builder = UiBuilder::new()
+            .ui_stack_info(UiStackInfo::new(self.kind))
+            .max_rect(max_rect);
 
-        let mut ui = Ui::new(
-            ctx.clone(),
-            self.layer_id,
-            self.layer_id.id,
-            max_rect,
-            clip_rect,
-            UiStackInfo::new(self.kind),
-        );
+        if !self.enabled {
+            ui_builder = ui_builder.disabled();
+        }
+        if self.sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+
+        let mut ui = Ui::new(ctx.clone(), self.layer_id, self.layer_id.id, ui_builder);
+        ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
         if self.fade_in {
             if let Some(last_became_visible_at) = self.state.last_became_visible_at {
@@ -556,12 +562,6 @@ impl Prepared {
             }
         }
 
-        if !self.enabled {
-            ui.disable();
-        }
-        if self.sizing_pass {
-            ui.set_sizing_pass();
-        }
         ui
     }
 

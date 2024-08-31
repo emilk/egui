@@ -1,6 +1,10 @@
 use epaint::Shape;
 
-use crate::{style::WidgetVisuals, *};
+use crate::{
+    epaint, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse, NumExt, Painter,
+    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+};
 
 #[allow(unused_imports)] // Documentation
 use crate::style::Spacing;
@@ -150,7 +154,7 @@ impl ComboBox {
 
     /// Controls the wrap mode used for the selected text.
     ///
-    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
+    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`crate::Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
@@ -425,7 +429,7 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let inner_rect = outer_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout(), None);
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
     add_contents(&mut content_ui);
 
     let mut outer_rect = content_ui.min_rect().expand2(margin);

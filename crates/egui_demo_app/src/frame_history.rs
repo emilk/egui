@@ -53,7 +53,7 @@ impl FrameHistory {
     }
 
     fn graph(&mut self, ui: &mut egui::Ui) -> egui::Response {
-        use egui::*;
+        use egui::{emath, epaint, pos2, vec2, Pos2, Rect, Sense, Shape, Stroke, TextStyle};
 
         ui.label("egui CPU usage history");
 

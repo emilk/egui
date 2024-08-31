@@ -92,7 +92,7 @@ impl FontImpl {
         assert!(scale_in_pixels > 0.0);
         assert!(pixels_per_point > 0.0);
 
-        use ab_glyph::*;
+        use ab_glyph::{Font, ScaleFont};
         let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
         let ascent = scaled.ascent() / pixels_per_point;
         let descent = scaled.descent() / pixels_per_point;

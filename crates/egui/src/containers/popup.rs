@@ -2,7 +2,11 @@
 
 use frame_state::PerWidgetTooltipState;
 
-use crate::*;
+use crate::{
+    frame_state, vec2, AboveOrBelow, Align, Align2, Area, AreaState, Context, Frame, Id,
+    InnerResponse, Key, LayerId, Layout, Order, Pos2, Rect, Response, Sense, Ui, UiKind, Vec2,
+    Widget, WidgetText,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -322,14 +326,14 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
 pub enum PopupCloseBehavior {
     /// Popup will be closed on click anywhere, inside or outside the popup.
     ///
-    /// It is used in [`ComboBox`].
+    /// It is used in [`crate::ComboBox`].
     CloseOnClick,
 
     /// Popup will be closed if the click happened somewhere else
     /// but in the popup's body
     CloseOnClickOutside,
 
-    /// Clicks will be ignored. Popup might be closed manually by calling [`Memory::close_popup`]
+    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_popup`]
     /// or by pressing the escape button
     IgnoreClicks,
 }
@@ -358,7 +362,7 @@ pub fn popup_below_widget<R>(
 ///
 /// The opened popup will have a minimum width matching its parent.
 ///
-/// You must open the popup with [`Memory::open_popup`] or  [`Memory::toggle_popup`].
+/// You must open the popup with [`crate::Memory::open_popup`] or  [`crate::Memory::toggle_popup`].
 ///
 /// Returns `None` if the popup is not open.
 ///

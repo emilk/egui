@@ -1,6 +1,9 @@
 #![allow(clippy::needless_range_loop)]
 
-use crate::*;
+use crate::{
+    emath, epaint, frame_state, lerp, pos2, remap, remap_clamp, vec2, Context, Id, NumExt, Pos2,
+    Rangef, Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -157,7 +160,7 @@ impl ScrollBarVisibility {
 /// # });
 /// ```
 ///
-/// You can scroll to an element using [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
+/// You can scroll to an element using [`crate::Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
@@ -367,7 +370,7 @@ impl ScrollArea {
     /// * If `false`, the scroll area will not respond to user scrolling.
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is typing text in a [`TextEdit`] widget contained within the scroll area.
+    /// is typing text in a [`crate::TextEdit`] widget contained within the scroll area.
     ///
     /// This controls both scrolling directions.
     #[inline]
@@ -560,10 +563,10 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
-        let mut content_ui = ui.child_ui(
-            content_max_rect,
-            *ui.layout(),
-            Some(UiStackInfo::new(UiKind::ScrollArea)),
+        let mut content_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
+                .max_rect(content_max_rect),
         );
 
         {
@@ -572,10 +575,8 @@ impl ScrollArea {
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if scroll_enabled[d] {
-                    if state.content_is_too_large[d] {
-                        content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                        content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
-                    }
+                    content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
+                    content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
@@ -732,7 +733,7 @@ impl ScrollArea {
 
             let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 
-            ui.allocate_ui_at_rect(rect, |viewport_ui| {
+            ui.allocate_new_ui(UiBuilder::new().max_rect(rect), |viewport_ui| {
                 viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
                 add_contents(viewport_ui, min_row..max_row)
             })

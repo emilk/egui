@@ -1,4 +1,4 @@
-use egui::*;
+use egui::{vec2, Align, Direction, Layout, Resize, Slider, Ui};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

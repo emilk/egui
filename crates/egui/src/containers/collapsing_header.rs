@@ -1,6 +1,9 @@
 use std::hash::Hash;
 
-use crate::*;
+use crate::{
+    emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt, Rect,
+    Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType,
+};
 use epaint::Shape;
 
 #[derive(Clone, Copy, Debug)]
@@ -15,7 +18,7 @@ pub(crate) struct InnerState {
 
 /// This is a a building block for building collapsing regions.
 ///
-/// It is used by [`CollapsingHeader`] and [`Window`], but can also be used on its own.
+/// It is used by [`CollapsingHeader`] and [`crate::Window`], but can also be used on its own.
 ///
 /// See [`CollapsingState::show_header`] for how to show a collapsing header with a custom header.
 #[derive(Clone, Debug)]

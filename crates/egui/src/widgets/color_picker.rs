@@ -1,8 +1,14 @@
 //! Color picker widgets.
 
 use crate::util::fixed_cache::FixedCache;
-use crate::*;
-use epaint::{ecolor::*, *};
+use crate::{
+    epaint, lerp, remap_clamp, Area, Context, DragValue, Frame, Id, Key, Order, Painter, Response,
+    Sense, Ui, UiKind, Widget, WidgetInfo, WidgetType,
+};
+use epaint::{
+    ecolor::{Color32, Hsva, HsvaGamma, Rgba},
+    pos2, vec2, Mesh, Rect, Shape, Stroke, Vec2,
+};
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     if color.into().intensity() < 0.5 {

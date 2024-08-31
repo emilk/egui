@@ -1,7 +1,7 @@
 use std::f32::INFINITY;
 use std::fmt;
 
-use crate::*;
+use crate::{lerp, pos2, vec2, Div, Mul, Pos2, Rangef, Rot2, Vec2};
 
 /// A rectangular region of space.
 ///

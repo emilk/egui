@@ -1,7 +1,13 @@
 mod touch_state;
 
-use crate::data::input::*;
-use crate::{emath::*, util::History};
+use crate::data::input::{
+    Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, PointerButton, RawInput,
+    TouchDeviceId, ViewportInfo, NUM_POINTER_BUTTONS,
+};
+use crate::{
+    emath::{vec2, NumExt, Pos2, Rect, Vec2},
+    util::History,
+};
 use std::{
     collections::{BTreeMap, HashSet},
     time::Duration,

@@ -9,11 +9,9 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-cargo +1.75.0 install --quiet typos-cli
+cargo +1.76.0 install --quiet typos-cli
 
-# web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
-# as well as by the wasm32-backend of the wgpu crate.
-export RUSTFLAGS="--cfg=web_sys_unstable_apis -D warnings"
+export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 
 # Fast checks first:
@@ -22,8 +20,9 @@ typos
 cargo fmt --all -- --check
 cargo doc --quiet --lib --no-deps --all-features
 cargo doc --quiet --document-private-items --no-deps --all-features
-
 cargo clippy --quiet --all-targets --all-features -- -D warnings
+cargo clippy --all-targets --all-features --release -- -D warnings # we need to check release mode too
+
 ./scripts/clippy_wasm.sh
 
 cargo check --quiet  --all-targets

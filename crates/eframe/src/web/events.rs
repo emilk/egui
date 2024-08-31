@@ -1,4 +1,9 @@
-use super::*;
+use super::{
+    button_from_mouse_event, location_hash, modifiers_from_kb_event, modifiers_from_mouse_event,
+    modifiers_from_wheel_event, pos_from_mouse_event, prefers_color_scheme_dark, primary_touch_pos,
+    push_touches, text_from_keyboard_event, theme_from_dark_mode, translate_key, AppRunner,
+    Closure, JsCast, JsValue, WebRunner,
+};
 use web_sys::EventTarget;
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagaton`
@@ -94,6 +99,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     install_wheel(runner_ref, &canvas)?;
     install_drag_and_drop(runner_ref, &canvas)?;
     install_window_events(runner_ref, &window)?;
+    install_color_scheme_change_event(runner_ref, &window)?;
     Ok(())
 }
 
@@ -278,7 +284,6 @@ pub(crate) fn on_keyup(event: web_sys::KeyboardEvent, runner: &mut AppRunner) {
 }
 
 fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "paste", |event: web_sys::ClipboardEvent, runner| {
         if let Some(data) = event.clipboard_data() {
             if let Ok(text) = data.get_data("text") {
@@ -293,7 +298,6 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         }
     })?;
 
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "cut", |event: web_sys::ClipboardEvent, runner| {
         if runner.input.raw.focused {
             runner.input.raw.events.push(egui::Event::Cut);
@@ -310,7 +314,6 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
         event.prevent_default();
     })?;
 
-    #[cfg(web_sys_unstable_apis)]
     runner_ref.add_event_listener(target, "copy", |event: web_sys::ClipboardEvent, runner| {
         if runner.input.raw.focused {
             runner.input.raw.events.push(egui::Event::Copy);
@@ -353,17 +356,17 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
     Ok(())
 }
 
-pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
-
-    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
+fn install_color_scheme_change_event(
+    runner_ref: &WebRunner,
+    window: &web_sys::Window,
+) -> Result<(), JsValue> {
+    if let Some(media_query_list) = prefers_color_scheme_dark(window)? {
         runner_ref.add_event_listener::<web_sys::MediaQueryListEvent>(
             &media_query_list,
             "change",
             |event, runner| {
                 let theme = theme_from_dark_mode(event.matches());
-                runner.frame.info.system_theme = Some(theme);
-                runner.egui_ctx().set_visuals(theme.egui_visuals());
+                runner.input.raw.system_theme = Some(theme);
                 runner.needs_repaint.repaint_asap();
             },
         )?;
@@ -575,6 +578,13 @@ fn install_touchend(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), 
                 runner.needs_repaint.repaint_asap();
                 event.stop_propagation();
                 event.prevent_default();
+
+                // Fix virtual keyboard IOS
+                // Need call focus at the same time of event
+                if runner.text_agent.has_focus() {
+                    runner.text_agent.set_focus(false);
+                    runner.text_agent.set_focus(true);
+                }
             }
         }
     })
@@ -766,8 +776,8 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
     }) as Box<dyn FnMut(js_sys::Array)>);
 
     let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
-    let mut options = web_sys::ResizeObserverOptions::new();
-    options.box_(web_sys::ResizeObserverBoxOptions::ContentBox);
+    let options = web_sys::ResizeObserverOptions::new();
+    options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
     if let Some(runner_lock) = runner_ref.try_lock() {
         observer.observe_with_options(runner_lock.canvas(), &options);
         drop(runner_lock);

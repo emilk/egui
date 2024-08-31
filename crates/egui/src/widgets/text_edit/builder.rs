@@ -1,14 +1,18 @@
 use std::sync::Arc;
 
-use epaint::text::{cursor::*, Galley, LayoutJob};
+use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
+    epaint,
     os::OperatingSystem,
     output::OutputEvent,
+    text_selection,
     text_selection::{
         text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange, CursorRange,
     },
-    *,
+    vec2, Align, Align2, Color32, Context, CursorIcon, Event, EventFilter, FontSelection, Id,
+    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt, Response, Sense, Shape, TextBuffer,
+    TextStyle, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetWithState,
 };
 
 use super::{TextEditOutput, TextEditState};
@@ -55,7 +59,7 @@ use super::{TextEditOutput, TextEditState};
 /// See [`TextEdit::show`].
 ///
 /// ## Other
-/// The background color of a [`TextEdit`] is [`Visuals::extreme_bg_color`].
+/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
@@ -205,7 +209,7 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Pick a [`FontId`] or [`TextStyle`].
+    /// Pick a [`crate::FontId`] or [`TextStyle`].
     #[inline]
     pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
         self.font_selection = font_selection.into();
@@ -576,7 +580,7 @@ impl<'t> TextEdit<'t> {
                     is_being_dragged,
                 );
 
-                if did_interact {
+                if did_interact || response.clicked() {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
                 }
             }
@@ -662,8 +666,6 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(galley_pos, galley.clone(), text_color);
-
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
                 let hint_text_font_id = hint_text_font.unwrap_or(font_id.into());
@@ -689,19 +691,19 @@ impl<'t> TextEdit<'t> {
                 painter.galley(galley_pos, galley, hint_text_color);
             }
 
-            if ui.memory(|mem| mem.has_focus(id)) {
-                if let Some(cursor_range) = state.cursor.range(&galley) {
-                    // We paint the cursor on top of the text, in case
-                    // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-                    paint_text_selection(
-                        &painter,
-                        ui.visuals(),
-                        galley_pos,
-                        &galley,
-                        &cursor_range,
-                        None,
-                    );
+            let has_focus = ui.memory(|mem| mem.has_focus(id));
 
+            if has_focus {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
+                    // Add text selection rectangles to the galley:
+                    paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
+                }
+            }
+
+            painter.galley(galley_pos, galley.clone(), text_color);
+
+            if has_focus {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
@@ -721,7 +723,8 @@ impl<'t> TextEdit<'t> {
                         // This is for two reasons:
                         // * Don't give the impression that the user can type into a window without focus
                         // * Don't repaint the ui because of a blinking cursor in an app that is not in focus
-                        if ui.ctx().input(|i| i.focused) {
+                        let viewport_has_focus = ui.ctx().input(|i| i.focused);
+                        if viewport_has_focus {
                             text_selection::visuals::paint_text_cursor(
                                 ui,
                                 &painter,
@@ -744,6 +747,16 @@ impl<'t> TextEdit<'t> {
                     }
                 }
             }
+        }
+
+        // Ensures correct IME behavior when the text input area gains or loses focus.
+        if state.ime_enabled && (response.gained_focus() || response.lost_focus()) {
+            state.ime_enabled = false;
+            if let Some(mut ccursor_range) = state.cursor.char_range() {
+                ccursor_range.secondary.index = ccursor_range.primary.index;
+                state.cursor.set_char_range(Some(ccursor_range));
+            }
+            ui.input_mut(|i| i.events.retain(|e| !matches!(e, Event::Ime(_))));
         }
 
         state.clone().store(ui.ctx(), id);

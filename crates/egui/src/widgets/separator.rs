@@ -1,6 +1,6 @@
-use crate::*;
+use crate::{vec2, Response, Sense, Ui, Vec2, Widget};
 
-/// A visual separator. A horizontal or vertical line (depending on [`Layout`]).
+/// A visual separator. A horizontal or vertical line (depending on [`crate::Layout`]).
 ///
 /// Usually you'd use the shorter version [`Ui::separator`].
 ///
@@ -116,12 +116,12 @@ impl Widget for Separator {
             if is_horizontal_line {
                 painter.hline(
                     (rect.left() - grow)..=(rect.right() + grow),
-                    painter.round_to_pixel(rect.center().y),
+                    painter.round_to_pixel_center(rect.center().y),
                     stroke,
                 );
             } else {
                 painter.vline(
-                    painter.round_to_pixel(rect.center().x),
+                    painter.round_to_pixel_center(rect.center().x),
                     (rect.top() - grow)..=(rect.bottom() + grow),
                     stroke,
                 );

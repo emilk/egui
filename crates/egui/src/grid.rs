@@ -1,4 +1,10 @@
-use crate::*;
+use crate::{
+    vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
+    UiBuilder, Vec2,
+};
+
+#[cfg(debug_assertions)]
+use crate::Stroke;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct State {
@@ -382,7 +388,7 @@ impl Grid {
     }
 
     /// Change which row number the grid starts on.
-    /// This can be useful when you have a large [`Grid`] inside of [`ScrollArea::show_rows`].
+    /// This can be useful when you have a large [`crate::Grid`] inside of [`crate::ScrollArea::show_rows`].
     #[inline]
     pub fn start_row(mut self, start_row: usize) -> Self {
         self.start_row = start_row;
@@ -425,11 +431,14 @@ impl Grid {
         // then we should pick a default layout that matches that alignment,
         // which we do here:
         let max_rect = ui.cursor().intersect(ui.max_rect());
-        ui.allocate_ui_at_rect(max_rect, |ui| {
-            if prev_state.is_none() {
-                // Hide the ui this frame, and make things as narrow as possible.
-                ui.set_sizing_pass();
-            }
+
+        let mut ui_builder = UiBuilder::new().max_rect(max_rect);
+        if prev_state.is_none() {
+            // Hide the ui this frame, and make things as narrow as possible.
+            ui_builder = ui_builder.sizing_pass();
+        }
+
+        ui.allocate_new_ui(ui_builder, |ui| {
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
                 let mut grid = GridLayout {

@@ -1,4 +1,7 @@
-use crate::{emath::*, Align};
+use crate::{
+    emath::{pos2, vec2, Align2, NumExt, Pos2, Rect, Vec2},
+    Align,
+};
 use std::f32::INFINITY;
 
 // ----------------------------------------------------------------------------
