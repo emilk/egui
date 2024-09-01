@@ -70,6 +70,14 @@ impl Rect {
     };
 
     #[inline(always)]
+    pub const fn new(min_x: f32, min_y: f32, max_x: f32, max_y: f32) -> Self {
+        Self {
+            min: pos2(min_x, min_y),
+            max: pos2(max_x, max_y),
+        }
+    }
+
+    #[inline(always)]
     pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Self { min, max }
     }
