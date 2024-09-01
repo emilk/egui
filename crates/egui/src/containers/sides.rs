@@ -2,15 +2,23 @@ use emath::Align;
 
 use crate::{Layout, Ui, UiBuilder};
 
-/// Put some widgets on the left and right side of the ui.
+/// Put some widgets on the left and right sides of a ui.
 ///
 /// The result will look like this:
 /// ```text
-///  ________________________________________________
-/// | left widgets -> |    gap    | <- right widgets |
+///                        parent Ui
+///  ______________________________________________________
+/// |                    |           |                     |  ^
+/// | -> left widgets -> |    gap    | <- right widgets <- |  | height
+/// |____________________|           |_____________________|  v
+/// |                                                      |
+/// |                                                      |
 /// ```
 ///
-/// The gap will be as small as possible, but will grow if the left and right widgets overlap.
+/// The width of the gap is dynamic, based on the max width of the parent [`Ui`].
+/// When the parent is being auto-sized ([`Ui::is_sizing_pass`]) the gap will be as small as possible.
+///
+/// If the parent is not wide enough to fit all widgets, the parent will be expanded to the right.
 ///
 /// The left widgets are first added to the ui, left-to-right.
 /// Then the right widgets are added, right-to-left.
