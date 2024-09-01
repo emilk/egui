@@ -119,6 +119,7 @@ impl UiBuilder {
     }
 
     /// Sense of the Ui. Should be the same as the one passed to [`Ui::interact_bg`]
+    #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);
         self

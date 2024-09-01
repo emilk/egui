@@ -89,6 +89,10 @@ pub struct Ui {
 
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
+
+    /// The sense for the ui background.
+    /// It will be used for [Ui::interact_bg].
+    sense: Sense,
 }
 
 impl Ui {
@@ -123,6 +127,7 @@ impl Ui {
         let invisible = invisible || sizing_pass;
         let disabled = disabled || invisible || sizing_pass;
         let style = style.unwrap_or_else(|| ctx.style());
+        let sense = sense.unwrap_or(Sense::hover());
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -143,6 +148,7 @@ impl Ui {
             sizing_pass: false,
             menu_state: None,
             stack: Arc::new(ui_stack),
+            sense,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -153,7 +159,7 @@ impl Ui {
                 layer_id: ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
-                sense: sense.unwrap_or(Sense::hover()),
+                sense,
                 enabled: ui.enabled,
             },
             false,
@@ -239,6 +245,7 @@ impl Ui {
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
         let style = style.unwrap_or_else(|| self.style.clone());
+        let sense = sense.unwrap_or(Sense::hover());
 
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -274,6 +281,7 @@ impl Ui {
             sizing_pass,
             menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
+            sense,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -284,7 +292,7 @@ impl Ui {
                 layer_id: child_ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
-                sense: sense.unwrap_or(Sense::hover()),
+                sense,
                 enabled: child_ui.enabled,
             },
             false,
@@ -985,7 +993,8 @@ impl Ui {
     /// i.e. behind all the widgets.
     ///
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
-    pub fn interact_bg(&self, sense: Sense) -> Response {
+    /// You can customize the [`Sense`] via [`UiBuilder::sense`].
+    pub fn interact_bg(&self) -> Response {
         // We remove the id from used_ids to prevent a duplicate id warning from showing
         // when the ui was created with `UiBuilder::sense`.
         // This is a bit hacky, is there a better way?
@@ -999,7 +1008,7 @@ impl Ui {
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),
-                sense,
+                sense: self.sense,
                 enabled: self.enabled,
             },
             true,
@@ -2709,8 +2718,8 @@ impl Ui {
         (InnerResponse { inner, response }, payload)
     }
 
-    /// Create a child ui scope and pass in its response.
-    /// You can use this e.g. to create interactive containers or custom buttons.
+    /// Create a child ui scope and pass its response to the closure.
+    /// You can use this to easily create interactive containers or custom buttons.
     ///
     /// This basically does three things:
     /// 1. Read [`Ui`]s response via [`Context::read_response`].
@@ -2719,17 +2728,18 @@ impl Ui {
     pub fn interact_scope<R>(
         &mut self,
         sense: Sense,
+        builder: UiBuilder,
         content: impl FnOnce(&mut Self, Option<Response>) -> R,
     ) -> InnerResponse<R> {
-        let id_source = "interact_ui";
+        let id_source = builder.id_source.unwrap_or(Id::new("interact_scope"));
         let id = self.id.with(Id::new(id_source));
         let response = self.ctx().read_response(id);
 
         self.scope_dyn(
-            UiBuilder::new().sense(sense).id_source(id_source),
+            builder.sense(sense).id_source(id_source),
             Box::new(|ui| {
                 let inner = content(ui, response);
-                let response = ui.interact_bg(sense);
+                let response = ui.interact_bg();
                 InnerResponse::new(inner, response)
             }),
         )
