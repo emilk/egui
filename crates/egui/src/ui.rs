@@ -109,6 +109,7 @@ impl Ui {
             invisible,
             sizing_pass,
             style,
+            sense,
         } = ui_builder;
 
         debug_assert!(
@@ -146,14 +147,17 @@ impl Ui {
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
-        ui.ctx().create_widget(WidgetRect {
-            id: ui.id,
-            layer_id: ui.layer_id(),
-            rect: start_rect,
-            interact_rect: start_rect,
-            sense: Sense::hover(),
-            enabled: ui.enabled,
-        });
+        ui.ctx().create_widget(
+            WidgetRect {
+                id: ui.id,
+                layer_id: ui.layer_id(),
+                rect: start_rect,
+                interact_rect: start_rect,
+                sense: sense.unwrap_or(Sense::hover()),
+                enabled: ui.enabled,
+            },
+            false,
+        );
 
         if disabled {
             ui.disable();
@@ -220,6 +224,7 @@ impl Ui {
             invisible,
             sizing_pass,
             style,
+            sense,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -273,14 +278,17 @@ impl Ui {
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
-        child_ui.ctx().create_widget(WidgetRect {
-            id: child_ui.id,
-            layer_id: child_ui.layer_id(),
-            rect: start_rect,
-            interact_rect: start_rect,
-            sense: Sense::hover(),
-            enabled: child_ui.enabled,
-        });
+        child_ui.ctx().create_widget(
+            WidgetRect {
+                id: child_ui.id,
+                layer_id: child_ui.layer_id(),
+                rect: start_rect,
+                interact_rect: start_rect,
+                sense: sense.unwrap_or(Sense::hover()),
+                enabled: child_ui.enabled,
+            },
+            false,
+        );
 
         child_ui
     }
@@ -948,14 +956,17 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().create_widget(WidgetRect {
-            id,
-            layer_id: self.layer_id(),
-            rect,
-            interact_rect: self.clip_rect().intersect(rect),
-            sense,
-            enabled: self.enabled,
-        })
+        self.ctx().create_widget(
+            WidgetRect {
+                id,
+                layer_id: self.layer_id(),
+                rect,
+                interact_rect: self.clip_rect().intersect(rect),
+                sense,
+                enabled: self.enabled,
+            },
+            false,
+        )
     }
 
     /// Deprecated: use [`Self::interact`] instead.
@@ -975,8 +986,24 @@ impl Ui {
     ///
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
     pub fn interact_bg(&self, sense: Sense) -> Response {
+        // We remove the id from used_ids to prevent a duplicate id warning from showing
+        // when the ui was created with `UiBuilder::sense`.
+        // This is a bit hacky, is there a better way?
+        self.ctx().frame_state_mut(|fs| {
+            fs.used_ids.remove(&self.id);
+        });
         // This will update the WidgetRect that was first created in `Ui::new`.
-        self.interact(self.min_rect(), self.id, sense)
+        self.ctx().create_widget(
+            WidgetRect {
+                id: self.id,
+                layer_id: self.layer_id(),
+                rect: self.min_rect(),
+                interact_rect: self.clip_rect().intersect(self.min_rect()),
+                sense,
+                enabled: self.enabled,
+            },
+            true,
+        )
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -2680,6 +2707,33 @@ impl Ui {
         let payload = response.dnd_release_payload::<Payload>();
 
         (InnerResponse { inner, response }, payload)
+    }
+
+    /// Create a child ui scope and pass in its response.
+    /// You can use this e.g. to create interactive containers or custom buttons.
+    ///
+    /// This basically does three things:
+    /// 1. Read [`Ui`]s response via [`Context::read_response`].
+    /// 2. Create a child ui scope and call the content fn
+    /// 3. Call [`Ui::interact_bg`] to set the right [`WidgetRect`]
+    pub fn interact_scope<R>(
+        &mut self,
+        sense: Sense,
+        content: impl FnOnce(&mut Self, Option<Response>) -> R,
+    ) -> InnerResponse<R> {
+        let id_source = "interact_ui";
+        let id = self.id.with(Id::new(id_source));
+        let response = self.ctx().read_response(id);
+
+        self.scope_dyn(
+            UiBuilder::new().sense(sense).id_source(id_source),
+            Box::new(|ui| {
+                let inner = content(ui, response);
+                let response = ui.interact_bg(sense);
+                InnerResponse::new(inner, response)
+            }),
+        )
+        .inner
     }
 }
 

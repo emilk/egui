@@ -1050,7 +1050,7 @@ impl Context {
     ///
     /// If the widget already exists, its state (sense, Rect, etc) will be updated.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn create_widget(&self, w: WidgetRect) -> Response {
+    pub(crate) fn create_widget(&self, w: WidgetRect, ignore_focus: bool) -> Response {
         // Remember this widget
         self.write(|ctx| {
             let viewport = ctx.viewport();
@@ -1060,12 +1060,12 @@ impl Context {
             // but also to know when we have reached the widget we are checking for cover.
             viewport.this_frame.widgets.insert(w.layer_id, w);
 
-            if w.sense.focusable {
+            if w.sense.focusable && !ignore_focus {
                 ctx.memory.interested_in_focus(w.id);
             }
         });
 
-        if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() {
+        if !w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction() && !ignore_focus {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
@@ -1078,7 +1078,7 @@ impl Context {
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
-        if w.sense.focusable {
+        if w.sense.focusable && !ignore_focus {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.

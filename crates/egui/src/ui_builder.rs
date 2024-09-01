@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{Id, Layout, Rect, Style, UiStackInfo};
+use crate::{Id, Layout, Rect, Sense, Style, UiStackInfo};
 
 #[allow(unused_imports)] // Used for doclinks
 use crate::Ui;
@@ -21,6 +21,7 @@ pub struct UiBuilder {
     pub invisible: bool,
     pub sizing_pass: bool,
     pub style: Option<Arc<Style>>,
+    pub sense: Option<Sense>,
 }
 
 impl UiBuilder {
@@ -114,6 +115,12 @@ impl UiBuilder {
     #[inline]
     pub fn style(mut self, style: impl Into<Arc<Style>>) -> Self {
         self.style = Some(style.into());
+        self
+    }
+
+    /// Sense of the Ui. Should be the same as the one passed to [`Ui::interact_bg`]
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = Some(sense);
         self
     }
 }
