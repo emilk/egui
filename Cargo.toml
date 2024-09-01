@@ -77,6 +77,7 @@ document-features = " 0.2.8"
 glow = "0.13"
 glutin = "0.32.0"
 glutin-winit = "0.5.0"
+home = "0.5.9"
 image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
@@ -95,6 +96,7 @@ wgpu = { version = "22.1.0", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
 ] }
+windows-sys = "0.52"
 winit = { version = "0.30.5", default-features = false }
 
 [workspace.lints.rust]

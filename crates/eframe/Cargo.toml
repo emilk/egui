@@ -63,7 +63,7 @@ glow = ["dep:egui_glow", "dep:glow", "dep:glutin-winit", "dep:glutin"]
 
 ## Enable saving app state to disk.
 persistence = [
-  "directories",
+  "dep:home",
   "egui-winit/serde",
   "egui/persistence",
   "ron",
@@ -148,7 +148,6 @@ image = { workspace = true, features = ["png"] } # Needed for app icon
 winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
-directories = { version = "5", optional = true }
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
@@ -158,6 +157,7 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 # this can be done at the same time we expose x11/wayland features of winit crate.
 glutin = { workspace = true, optional = true }
 glutin-winit = { workspace = true, optional = true }
+home = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = [
   # Let's enable some backends so that users can use `eframe` out-of-the-box
@@ -185,6 +185,7 @@ objc2-app-kit = { version = "0.2.0", features = [
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser"] }
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Com"] }
 
 # -------------------------------------------
 # web:
@@ -253,3 +254,7 @@ wgpu = { workspace = true, optional = true, features = [
   # without having to explicitly opt-in to backends
   "webgpu",
 ] }
+
+# Native dev dependencies for testing
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+directories = "5"
