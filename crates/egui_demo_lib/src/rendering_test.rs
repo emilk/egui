@@ -415,6 +415,49 @@ pub fn pixel_test(ui: &mut Ui) {
     ui.add_space(4.0);
 
     pixel_test_squares(ui);
+
+    ui.add_space(4.0);
+
+    pixel_test_strokes(ui);
+}
+
+fn pixel_test_strokes(ui: &mut Ui) {
+    ui.label("The strokes should align to the physical pixel grid.");
+    let color = if ui.style().visuals.dark_mode {
+        egui::Color32::WHITE
+    } else {
+        egui::Color32::BLACK
+    };
+
+    let pixels_per_point = ui.ctx().pixels_per_point();
+
+    for thickness_pixels in 1..=3 {
+        let thickness_pixels = thickness_pixels as f32;
+        let thickness_points = thickness_pixels / pixels_per_point;
+        let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
+        let size_pixels = vec2(
+            ui.available_width(),
+            num_squares as f32 + thickness_pixels * 2.0,
+        );
+        let size_points = size_pixels / pixels_per_point + Vec2::splat(2.0);
+        let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
+
+        let mut cursor_pixel = Pos2::new(
+            response.rect.min.x * pixels_per_point + thickness_pixels,
+            response.rect.min.y * pixels_per_point + thickness_pixels,
+        )
+        .ceil();
+
+        let stroke = Stroke::new(thickness_points, color);
+        for size in 1..=num_squares {
+            let rect_points = Rect::from_min_size(
+                Pos2::new(cursor_pixel.x, cursor_pixel.y),
+                Vec2::splat(size as f32),
+            );
+            painter.rect_stroke(rect_points / pixels_per_point, 0.0, stroke);
+            cursor_pixel.x += (1 + size) as f32 + thickness_pixels * 2.0;
+        }
+    }
 }
 
 fn pixel_test_squares(ui: &mut Ui) {

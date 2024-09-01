@@ -303,7 +303,7 @@ mod precomputed_vertices {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct PathPoint {
     pos: Pos2,
 
@@ -478,23 +478,23 @@ impl Path {
     }
 
     /// Open-ended.
-    pub fn stroke_open(&self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
-        stroke_path(feathering, &self.0, PathType::Open, stroke, out);
+    pub fn stroke_open(&mut self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
+        stroke_path(feathering, &mut self.0, PathType::Open, stroke, out);
     }
 
     /// A closed path (returning to the first point).
-    pub fn stroke_closed(&self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
-        stroke_path(feathering, &self.0, PathType::Closed, stroke, out);
+    pub fn stroke_closed(&mut self, feathering: f32, stroke: &PathStroke, out: &mut Mesh) {
+        stroke_path(feathering, &mut self.0, PathType::Closed, stroke, out);
     }
 
     pub fn stroke(
-        &self,
+        &mut self,
         feathering: f32,
         path_type: PathType,
         stroke: &PathStroke,
         out: &mut Mesh,
     ) {
-        stroke_path(feathering, &self.0, path_type, stroke, out);
+        stroke_path(feathering, &mut self.0, path_type, stroke, out);
     }
 
     /// The path is taken to be closed (i.e. returning to the start again).
@@ -502,8 +502,8 @@ impl Path {
     /// Calling this may reverse the vertices in the path if they are wrong winding order.
     ///
     /// The preferred winding order is clockwise.
-    pub fn fill(&mut self, feathering: f32, color: Color32, out: &mut Mesh) {
-        fill_closed_path(feathering, &mut self.0, color, out);
+    pub fn fill(&mut self, feathering: f32, color: Color32, stroke: &PathStroke, out: &mut Mesh) {
+        fill_closed_path(feathering, &mut self.0, color, stroke, out);
     }
 
     /// Like [`Self::fill`] but with texturing.
@@ -536,8 +536,6 @@ pub mod path {
         let r = clamp_rounding(rounding, rect);
 
         if r == Rounding::ZERO {
-            let min = rect.min;
-            let max = rect.max;
             path.reserve(4);
             path.push(pos2(min.x, min.y)); // left top
             path.push(pos2(max.x, min.y)); // right top
@@ -738,10 +736,30 @@ fn cw_signed_area(path: &[PathPoint]) -> f64 {
 /// Calling this may reverse the vertices in the path if they are wrong winding order.
 ///
 /// The preferred winding order is clockwise.
-fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out: &mut Mesh) {
+///
+/// A stroke is required so that the fill's feathering can fade to the right color. You can pass `&PathStroke::NONE` if
+/// this path won't be stroked.
+fn fill_closed_path(
+    feathering: f32,
+    path: &mut [PathPoint],
+    color: Color32,
+    stroke: &PathStroke,
+    out: &mut Mesh,
+) {
     if color == Color32::TRANSPARENT {
         return;
     }
+
+    // TODO(juancampa): This bounding box is computed twice per shape: once here and another when tessellating the
+    // stroke, consider hoisting that logic to the tessellator/scratchpad.
+    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
+        .expand((stroke.width / 2.0) + feathering);
+
+    let stroke_color = &stroke.color;
+    let get_stroke_color: Box<dyn Fn(Pos2) -> Color32> = match stroke_color {
+        ColorMode::Solid(col) => Box::new(|_pos: Pos2| *col),
+        ColorMode::UV(fun) => Box::new(|pos: Pos2| fun(bbox, pos)),
+    };
 
     let n = path.len() as u32;
     if feathering > 0.0 {
@@ -755,7 +773,6 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
 
         out.reserve_triangles(3 * n as usize);
         out.reserve_vertices(2 * n as usize);
-        let color_outer = Color32::TRANSPARENT;
         let idx_inner = out.vertices.len() as u32;
         let idx_outer = idx_inner + 1;
 
@@ -769,8 +786,13 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
         for i1 in 0..n {
             let p1 = &path[i1 as usize];
             let dm = 0.5 * feathering * p1.normal;
-            out.colored_vertex(p1.pos - dm, color);
-            out.colored_vertex(p1.pos + dm, color_outer);
+
+            let pos_inner = p1.pos - dm;
+            let pos_outer = p1.pos + dm;
+            let color_outer = get_stroke_color(pos_outer);
+
+            out.colored_vertex(pos_inner, color);
+            out.colored_vertex(pos_outer, color_outer);
             out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
             out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
             i0 = i1;
@@ -872,10 +894,24 @@ fn fill_closed_path_with_uv(
     }
 }
 
+/// Translate a point along their normals according to the stroke kind.
+#[inline(always)]
+fn translate_stroke_point(p: &mut PathPoint, stroke: &PathStroke) {
+    match stroke.kind {
+        stroke::StrokeKind::Middle => { /* Nothingn to do */ }
+        stroke::StrokeKind::Outside => {
+            p.pos += p.normal * stroke.width * 0.5;
+        }
+        stroke::StrokeKind::Inside => {
+            p.pos -= p.normal * stroke.width * 0.5;
+        }
+    }
+}
+
 /// Tessellate the given path as a stroke with thickness.
 fn stroke_path(
     feathering: f32,
-    path: &[PathPoint],
+    path: &mut [PathPoint],
     path_type: PathType,
     stroke: &PathStroke,
     out: &mut Mesh,
@@ -887,6 +923,12 @@ fn stroke_path(
     }
 
     let idx = out.vertices.len() as u32;
+
+    // Translate the points along their normals if the stroke is outside or inside
+    if stroke.kind != stroke::StrokeKind::Middle {
+        path.iter_mut()
+            .for_each(|p| translate_stroke_point(p, stroke));
+    }
 
     // expand the bounding box to include the thickness of the path
     let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
@@ -924,7 +966,7 @@ fn stroke_path(
             let mut i0 = n - 1;
             for i1 in 0..n {
                 let connect_with_previous = path_type == PathType::Closed || i1 > 0;
-                let p1 = &path[i1 as usize];
+                let p1 = path[i1 as usize];
                 let p = p1.pos;
                 let n = p1.normal;
                 out.colored_vertex(p + n * feathering, color_outer);
@@ -966,7 +1008,7 @@ fn stroke_path(
 
                     let mut i0 = n - 1;
                     for i1 in 0..n {
-                        let p1 = &path[i1 as usize];
+                        let p1 = path[i1 as usize];
                         let p = p1.pos;
                         let n = p1.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1011,7 +1053,7 @@ fn stroke_path(
                     out.reserve_vertices(4 * n as usize);
 
                     {
-                        let end = &path[0];
+                        let end = path[0];
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = n.rot90() * feathering;
@@ -1032,7 +1074,7 @@ fn stroke_path(
 
                     let mut i0 = 0;
                     for i1 in 1..n - 1 {
-                        let point = &path[i1 as usize];
+                        let point = path[i1 as usize];
                         let p = point.pos;
                         let n = point.normal;
                         out.colored_vertex(p + n * outer_rad, color_outer);
@@ -1060,7 +1102,7 @@ fn stroke_path(
 
                     {
                         let i1 = n - 1;
-                        let end = &path[i1 as usize];
+                        let end = path[i1 as usize];
                         let p = end.pos;
                         let n = end.normal;
                         let back_extrude = -n.rot90() * feathering;
@@ -1227,11 +1269,20 @@ impl Tessellator {
 
     #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
-        if self.options.round_text_to_pixels {
-            (point * self.pixels_per_point).round() / self.pixels_per_point
-        } else {
-            point
-        }
+        (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    #[inline(always)]
+    pub fn round_to_pixel_center(&self, point: f32) -> f32 {
+        ((point * self.pixels_per_point - 0.5).round() + 0.5) / self.pixels_per_point
+    }
+
+    #[inline(always)]
+    pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
+        pos2(
+            self.round_to_pixel_center(pos.x),
+            self.round_to_pixel_center(pos.y),
+        )
     }
 
     /// Tessellate a clipped shape into a list of primitives.
@@ -1404,11 +1455,13 @@ impl Tessellator {
             }
         }
 
+        let path_stroke = PathStroke::from(stroke).outside();
         self.scratchpad_path.clear();
         self.scratchpad_path.add_circle(center, radius);
-        self.scratchpad_path.fill(self.feathering, fill, out);
         self.scratchpad_path
-            .stroke_closed(self.feathering, &stroke.into(), out);
+            .fill(self.feathering, fill, &path_stroke, out);
+        self.scratchpad_path
+            .stroke_closed(self.feathering, &path_stroke, out);
     }
 
     /// Tessellate a single [`EllipseShape`] into a [`Mesh`].
@@ -1471,11 +1524,13 @@ impl Tessellator {
         points.push(center + Vec2::new(0.0, -radius.y));
         points.extend(quarter.iter().rev().map(|p| center + Vec2::new(p.x, -p.y)));
 
+        let path_stroke = PathStroke::from(stroke).outside();
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_loop(&points);
-        self.scratchpad_path.fill(self.feathering, fill, out);
         self.scratchpad_path
-            .stroke_closed(self.feathering, &stroke.into(), out);
+            .fill(self.feathering, fill, &path_stroke, out);
+        self.scratchpad_path
+            .stroke_closed(self.feathering, &path_stroke, out);
     }
 
     /// Tessellate a single [`Mesh`] into a [`Mesh`].
@@ -1562,7 +1617,8 @@ impl Tessellator {
                 closed,
                 "You asked to fill a path that is not closed. That makes no sense."
             );
-            self.scratchpad_path.fill(self.feathering, *fill, out);
+            self.scratchpad_path
+                .fill(self.feathering, *fill, stroke, out);
         }
         let typ = if *closed {
             PathType::Closed
@@ -1650,7 +1706,7 @@ impl Tessellator {
             path.clear();
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
             path.add_line_loop(&self.scratchpad_points);
-
+            let path_stroke = PathStroke::from(stroke).outside();
             if uv.is_positive() {
                 // Textured
                 let uv_from_pos = |p: Pos2| {
@@ -1662,10 +1718,9 @@ impl Tessellator {
                 path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
             } else {
                 // Untextured
-                path.fill(self.feathering, fill, out);
+                path.fill(self.feathering, fill, &path_stroke, out);
             }
-
-            path.stroke_closed(self.feathering, &stroke.into(), out);
+            path.stroke_closed(self.feathering, &path_stroke, out);
         }
 
         self.feathering = old_feathering; // restore
@@ -1701,12 +1756,16 @@ impl Tessellator {
         out.vertices.reserve(galley.num_vertices);
         out.indices.reserve(galley.num_indices);
 
-        // The contents of the galley is already snapped to pixel coordinates,
+        // The contents of the galley are already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
-        let galley_pos = pos2(
-            self.round_to_pixel(galley_pos.x),
-            self.round_to_pixel(galley_pos.y),
-        );
+        let galley_pos = if self.options.round_text_to_pixels {
+            pos2(
+                self.round_to_pixel(galley_pos.x),
+                self.round_to_pixel(galley_pos.y),
+            )
+        } else {
+            *galley_pos
+        };
 
         let uv_normalizer = vec2(
             1.0 / self.font_tex_size[0] as f32,
@@ -1782,13 +1841,12 @@ impl Tessellator {
 
             if *underline != Stroke::NONE {
                 self.scratchpad_path.clear();
+                self.scratchpad_path.add_line_segment([
+                    self.round_pos_to_pixel_center(row_rect.left_bottom()),
+                    self.round_pos_to_pixel_center(row_rect.right_bottom()),
+                ]);
                 self.scratchpad_path
-                    .add_line_segment([row_rect.left_bottom(), row_rect.right_bottom()]);
-                self.scratchpad_path.stroke_open(
-                    self.feathering,
-                    &PathStroke::from(*underline),
-                    out,
-                );
+                    .stroke_open(0.0, &PathStroke::from(*underline), out);
             }
         }
     }
@@ -1872,7 +1930,8 @@ impl Tessellator {
                 closed,
                 "You asked to fill a path that is not closed. That makes no sense."
             );
-            self.scratchpad_path.fill(self.feathering, fill, out);
+            self.scratchpad_path
+                .fill(self.feathering, fill, stroke, out);
         }
         let typ = if closed {
             PathType::Closed
