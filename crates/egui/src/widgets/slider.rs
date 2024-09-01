@@ -70,7 +70,6 @@ pub struct Slider<'a> {
     range: RangeInclusive<f64>,
     spec: SliderSpec,
     clamp_to_range: bool,
-    clamp_to_range_on_value_drag: bool,
     smart_aim: bool,
     show_value: bool,
     orientation: SliderOrientation,
@@ -121,7 +120,6 @@ impl<'a> Slider<'a> {
                 largest_finite: f64::INFINITY,
             },
             clamp_to_range: true,
-            clamp_to_range_on_value_drag: true,
             smart_aim: true,
             show_value: true,
             orientation: SliderOrientation::Horizontal,
@@ -221,19 +219,6 @@ impl<'a> Slider<'a> {
     #[inline]
     pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
-        self
-    }
-
-    /// If set to `true`, the value, when dragged will be clamped to the slider range.
-    ///
-    /// If set to `false`, the value, when dragged will not be clamped
-    /// to the slider range (if [`Self::clamp_to_range`] is also
-    /// `false`).
-    ///
-    /// Default: `true`.
-    #[inline]
-    pub fn clamp_to_range_on_value_drag(mut self, clamp_to_range_on_value_drag: bool) -> Self {
-        self.clamp_to_range_on_value_drag = clamp_to_range_on_value_drag;
         self
     }
 
@@ -828,7 +813,6 @@ impl<'a> Slider<'a> {
                 .speed(speed)
                 .range(self.range.clone())
                 .clamp_to_range(self.clamp_to_range)
-                .clamp_to_range_on_drag(self.clamp_to_range_on_value_drag)
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
