@@ -11,7 +11,7 @@ pub struct Shadow {
     /// Move the shadow by this much.
     ///
     /// For instance, a value of `[1.0, 2.0]` will move the shadow 1 point to the right and 2 points down,
-    /// causing a drop-shadow effet.
+    /// causing a drop-shadow effect.
     pub offset: Vec2,
 
     /// The width of the blur, i.e. the width of the fuzzy penumbra.
