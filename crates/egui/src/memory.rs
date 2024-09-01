@@ -18,7 +18,7 @@ pub use theme::Theme;
 /// This includes window positions and sizes,
 /// how far the user has scrolled in a [`ScrollArea`](crate::ScrollArea) etc.
 ///
-/// If you want this to persist when closing your app you should serialize [`Memory`] and store it.
+/// If you want this to persist when closing your app, you should serialize [`Memory`] and store it.
 /// For this you need to enable the `persistence`.
 ///
 /// If you want to store data for your widgets, you should look at [`Memory::data`]
@@ -31,13 +31,13 @@ pub struct Memory {
 
     /// This map stores some superficial state for all widgets with custom [`Id`]s.
     ///
-    /// This includes storing if a [`crate::CollapsingHeader`] is open, how far scrolled a
+    /// This includes storing whether a [`crate::CollapsingHeader`] is open, how far scrolled a
     /// [`crate::ScrollArea`] is, where the cursor in a [`crate::TextEdit`] is, etc.
     ///
     /// This is NOT meant to store any important data. Store that in your own structures!
     ///
     /// Each read clones the data, so keep your values cheap to clone.
-    /// If you want to store a lot of data you should wrap it in `Arc<Mutex<…>>` so it is cheap to clone.
+    /// If you want to store a lot of data, you should wrap it in `Arc<Mutex<…>>` so it is cheap to clone.
     ///
     /// This will be saved between different program runs if you use the `persistence` feature.
     ///
@@ -47,8 +47,8 @@ pub struct Memory {
     // ------------------------------------------
     /// Can be used to cache computations from one frame to another.
     ///
-    /// This is for saving CPU when you have something that may take 1-100ms to compute.
-    /// Things that are very slow (>100ms) should instead be done async (i.e. in another thread)
+    /// This is for saving CPU time when you have something that may take 1-100ms to compute.
+    /// Very slow operations (>100ms) should instead be done async (i.e. in another thread)
     /// so as not to lock the UI thread.
     ///
     /// ```
@@ -82,7 +82,7 @@ pub struct Memory {
     pub(crate) viewport_id: ViewportId,
 
     /// Which popup-window is open (if any)?
-    /// Could be a combo box, color picker, menu etc.
+    /// Could be a combo box, color picker, menu, etc.
     #[cfg_attr(feature = "persistence", serde(skip))]
     popup: Option<Id>,
 
@@ -172,7 +172,7 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
 
-    /// Whether to update the visuals according to the system theme or not.
+    /// Whether to update the visuals according to the system theme.
     ///
     /// Default: `true`.
     pub follow_system_theme: bool,
@@ -183,7 +183,7 @@ pub struct Options {
     /// Default: [`crate::Theme::Dark`].
     pub fallback_theme: Theme,
 
-    /// Used to detect changes in system theme
+    /// Used to detect a change of the system theme.
     #[cfg_attr(feature = "serde", serde(skip))]
     system_theme: Option<Theme>,
 
@@ -192,10 +192,9 @@ pub struct Options {
     /// This is used to calculate the `pixels_per_point`
     /// for the UI as `pixels_per_point = zoom_fator * native_pixels_per_point`.
     ///
-    /// The default is 1.0.
-    /// Make larger to make everything larger.
+    /// The default is 1.0. Increase it to make all UI elements larger.
     ///
-    /// Please call [`crate::Context::set_zoom_factor`]
+    /// You should call [`crate::Context::set_zoom_factor`]
     /// instead of modifying this directly!
     pub zoom_factor: f32,
 
@@ -217,8 +216,8 @@ pub struct Options {
 
     /// If any widget moves or changes id, repaint everything.
     ///
-    /// It is recommended you keep this OFF, because
-    /// it is know to cause endless repaints, for unknown reasons
+    /// It is recommended you keep this OFF, as it may
+    /// lead to endless repaints for an unknown reason. See
     /// (<https://github.com/rerun-io/rerun/issues/5018>).
     pub repaint_on_widget_change: bool,
 
@@ -226,11 +225,11 @@ pub struct Options {
     ///
     /// The only change to egui is that labels can be focused by pressing tab.
     ///
-    /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    /// Screen readers are an experimental feature of egui, and not supported on all platforms.
+    /// `eframe` only supports it on web.
     ///
-    /// `eframe` supports it only on web,
-    /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
-    /// which `eframe` supports.
+    /// Consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
+    /// which is supported by `eframe`.
     pub screen_reader: bool,
 
     /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
@@ -238,7 +237,7 @@ pub struct Options {
     /// Only the fonts in [`Style::text_styles`] will be pre-cached.
     ///
     /// This can lead to fewer texture operations, but may use up the texture atlas quicker
-    /// if you are changing [`Style::text_styles`], of have a lot of text styles.
+    /// if you are changing [`Style::text_styles`], or have a lot of text styles.
     pub preload_font_glyphs: bool,
 
     /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
@@ -410,10 +409,10 @@ impl Options {
 /// Say there is a button in a scroll area.
 /// If the user clicks the button, the button should click.
 /// If the user drags the button we should scroll the scroll area.
-/// So what we do is that when the mouse is pressed we register both the button
+/// Therefore, when the mouse is pressed, we register both the button
 /// and the scroll area (as `click_id`/`drag_id`).
-/// If the user releases the button without moving the mouse we register it as a click on `click_id`.
-/// If the cursor moves too much we clear the `click_id` and start passing move events to `drag_id`.
+/// If the user releases the button without moving the mouse, we register it as a click on `click_id`.
+/// If the cursor moves too much, we clear the `click_id` and start passing move events to `drag_id`.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct InteractionState {
     /// A widget interested in clicks that has a mouse press on it.
@@ -422,7 +421,7 @@ pub(crate) struct InteractionState {
     /// A widget interested in drags that has a mouse press on it.
     ///
     /// Note that this is set as soon as the mouse is pressed,
-    /// so the widget may not yet be marked as "dragged",
+    /// so the widget may not yet be marked as "dragged"
     /// as that can only happen after the mouse has moved a bit
     /// (at least if the widget is interesated in both clicks and drags).
     pub potential_drag_id: Option<Id>,
@@ -434,10 +433,10 @@ pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
     focused_widget: Option<FocusWidget>,
 
-    /// What had keyboard focus previous frame?
+    /// The ID of a widget that had keyboard focus during the previous frame.
     id_previous_frame: Option<Id>,
 
-    /// Give focus to this widget next frame
+    /// The ID of a widget to give the focus to in the next frame.
     id_next_frame: Option<Id>,
 
     #[cfg(feature = "accesskit")]
@@ -450,10 +449,10 @@ pub(crate) struct Focus {
     /// The last widget interested in focus.
     last_interested: Option<Id>,
 
-    /// Set when looking for widget with navigational keys like arrows, tab, shift+tab
+    /// Set when looking for widget with navigational keys like arrows, tab, shift+tab.
     focus_direction: FocusDirection,
 
-    /// A cache of widget ids that are interested in focus with their corresponding rectangles.
+    /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
 }
 
@@ -745,7 +744,7 @@ impl Memory {
         self.areas().layer_id_at(pos, &self.layer_transforms)
     }
 
-    /// An iterator over all layers. Back-to-front. Top is last.
+    /// An iterator over all layers. Back-to-front, top is last.
     pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
         self.areas().order().iter().copied()
     }
@@ -756,13 +755,13 @@ impl Memory {
         self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
-    /// Check if the layer lost focus last frame
+    /// Check if the layer lost focus last frame.
     /// returns `true` if the layer lost focus last frame, but not this one.
     pub(crate) fn lost_focus(&self, id: Id) -> bool {
         self.had_focus_last_frame(id) && !self.has_focus(id)
     }
 
-    /// Check if the layer gained focus this frame
+    /// Check if the layer gained focus this frame.
     /// returns `true` if the layer gained focus this frame, but not last one.
     pub(crate) fn gained_focus(&self, id: Id) -> bool {
         !self.had_focus_last_frame(id) && self.has_focus(id)
@@ -772,8 +771,8 @@ impl Memory {
     ///
     /// This function does not consider whether the UI as a whole (e.g. window)
     /// has the keyboard focus. That makes this function suitable for deciding
-    /// widget state that should not be disrupted if the user moves away
-    /// from the window and back.
+    /// widget state that should not be disrupted if the user moves away from
+    /// the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
         self.focused() == Some(id)
@@ -829,7 +828,7 @@ impl Memory {
         self.focus_mut().interested_in_focus(id);
     }
 
-    /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
+    /// Stop editing the active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
         self.focus_mut().focused_widget = None;
@@ -843,8 +842,6 @@ impl Memory {
     }
 
     /// Is this specific widget being dragged?
-    ///
-    /// Usually it is better to use [`crate::Response::dragged`].
     ///
     /// A widget that sense both clicks and drags is only marked as "dragged"
     /// when the mouse has moved a bit, but `is_being_dragged` will return true immediately.
@@ -936,7 +933,7 @@ impl Memory {
         self.popup.is_some() || self.everything_is_visible()
     }
 
-    /// Open the given popup, and close all other.
+    /// Open the given popup and close all others.
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popup = Some(popup_id);
     }
@@ -948,7 +945,7 @@ impl Memory {
 
     /// Toggle the given popup between closed and open.
     ///
-    /// Note: at most one popup can be open at one time.
+    /// Note: At most, only one popup can be open at a time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.close_popup();
@@ -957,7 +954,7 @@ impl Memory {
         }
     }
 
-    /// If true, all windows, menus, tooltips etc are to be visible at once.
+    /// If true, all windows, menus, tooltips, etc., will be visible at once.
     ///
     /// This is useful for testing, benchmarking, pre-caching, etc.
     ///
@@ -987,20 +984,20 @@ impl Memory {
 pub struct Areas {
     areas: IdMap<area::AreaState>,
 
-    /// Back-to-front. Top is last.
+    /// Back-to-front,  top is last.
     order: Vec<LayerId>,
 
     visible_last_frame: ahash::HashSet<LayerId>,
     visible_current_frame: ahash::HashSet<LayerId>,
 
-    /// When an area want to be on top, it is put in here.
-    /// At the end of the frame, this is used to reorder the layers.
-    /// This means if several layers want to be on top, they will keep their relative order.
-    /// So if you close three windows and then reopen them all in one frame,
-    /// they will all be sent to the top, but keep their previous internal order.
+    /// When an area wants to be on top, it is assigned here.
+    /// This is used to reorder the layers at the end of the frame.
+    /// If several layers want to be on top, they will keep their relative order.
+    /// This means closing three windows and then reopening them all in one frame
+    /// results in them being sent to the top and keeping their previous internal order.
     wants_to_be_on_top: ahash::HashSet<LayerId>,
 
-    /// List of sublayers for each layer
+    /// List of sublayers for each layer.
     ///
     /// When a layer has sublayers, they are moved directly above it in the ordering.
     sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
@@ -1015,12 +1012,12 @@ impl Areas {
         self.areas.get(&id)
     }
 
-    /// Back-to-front. Top is last.
+    /// Back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
     }
 
-    /// For each layer, which order is it in [`Self::order`]?
+    /// For each layer, which [`Self::order`] is it in?
     pub(crate) fn order_map(&self) -> HashMap<LayerId, usize> {
         self.order
             .iter()
