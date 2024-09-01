@@ -201,7 +201,7 @@ impl<'l> StripLayout<'l> {
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
         let mut ui_builder = UiBuilder::new()
-            .id_salt(child_ui_id_source)
+            .id_salt(child_ui_id_salt)
             .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
             .max_rect(max_rect)
             .layout(self.cell_layout);
