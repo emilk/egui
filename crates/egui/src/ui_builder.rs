@@ -113,15 +113,8 @@ impl UiBuilder {
     ///
     /// Otherwise will inherit the style of the parent.
     #[inline]
-    pub const fn const_style(mut self, style: Arc<Style>) -> Self {
-        self.style = Some(style);
+    pub fn style(mut self, style: impl Into<Arc<Style>>) -> Self {
+        self.style = Some(style.into());
         self
-    }
-
-    /// See [`Self::const_style`].
-    #[inline]
-    pub fn style(self, style: impl Into<Arc<Style>>) -> Self {
-        let style = style.into();
-        self.const_style(style)
     }
 }
