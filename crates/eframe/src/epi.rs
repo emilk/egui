@@ -456,6 +456,10 @@ pub struct WebOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
+
+    /// If the web event corresponding to an egui event should be propagated
+    /// to the rest of the web page.
+    pub should_propagate_event: Box<dyn Fn(&egui::Event) -> bool>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -471,6 +475,8 @@ impl Default for WebOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             dithering: true,
+
+            should_propagate_event: Box::new(|_| false),
         }
     }
 }

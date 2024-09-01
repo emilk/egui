@@ -6,7 +6,7 @@ use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint
 
 pub struct AppRunner {
     #[allow(dead_code)]
-    web_options: crate::WebOptions,
+    pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: super::ActiveWebPainter,
