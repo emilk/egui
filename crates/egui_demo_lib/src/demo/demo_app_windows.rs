@@ -259,7 +259,8 @@ impl DemoWindows {
     fn desktop_ui(&mut self, ctx: &Context) {
         egui::SidePanel::right("egui_demo_panel")
             .resizable(false)
-            .default_width(150.0)
+            .default_width(160.0)
+            .min_width(160.0)
             .show(ctx, |ui| {
                 ui.add_space(4.0);
                 ui.vertical_centered(|ui| {

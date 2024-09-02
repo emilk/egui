@@ -17,6 +17,7 @@ impl crate::Demo for InteractiveContainerDemo {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
+            .default_width(250.0)
             .show(ctx, |ui| {
                 use crate::View as _;
                 self.ui(ui);
@@ -30,7 +31,12 @@ impl crate::View for InteractiveContainerDemo {
             ui.add(crate::egui_github_link_file!());
         });
 
-        ui.label("This demo showcases how to use Ui::read_response to create interactive container widgets that may contain other widgets.");
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("This demo showcases how to use ");
+            ui.code("Ui::read_response");
+            ui.label(" to create interactive container widgets that may contain other widgets.");
+        });
 
         let response = ui
             .scope_builder(
