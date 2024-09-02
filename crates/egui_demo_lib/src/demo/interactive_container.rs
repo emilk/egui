@@ -10,7 +10,7 @@ pub struct InteractiveContainerDemo {
 
 impl crate::Demo for InteractiveContainerDemo {
     fn name(&self) -> &'static str {
-        "\u{20E3}TextEdit"
+        "\u{20E3} Interactive Container"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
