@@ -1117,7 +1117,7 @@ impl Context {
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.
-    fn get_response(&self, widget_rect: WidgetRect) -> Response {
+    pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
         let WidgetRect {
             id,
             layer_id,

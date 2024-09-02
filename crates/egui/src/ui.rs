@@ -93,6 +93,9 @@ pub struct Ui {
     /// The sense for the ui background.
     /// It will be used for [Ui::interact_bg].
     sense: Sense,
+
+    /// Whether [`Ui::interact_bg`] should be called when the [`Ui`] is dropped.
+    should_interact_bg_on_drop: bool,
 }
 
 impl Ui {
@@ -149,6 +152,7 @@ impl Ui {
             menu_state: None,
             stack: Arc::new(ui_stack),
             sense,
+            should_interact_bg_on_drop: true,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -282,6 +286,7 @@ impl Ui {
             menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
             sense,
+            should_interact_bg_on_drop: true,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -989,11 +994,40 @@ impl Ui {
         self.interact(rect, id, sense)
     }
 
+    /// Read the [`Ui`]s background [`Response`].
+    /// It's [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
+    ///
+    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`]
+    /// of the last frame.
+    ///
+    /// On the first frame, when the [`Ui`] is created, this will return a [`Response`] with a
+    /// [`Rect`] of [`Rect::NOTHING`].
+    pub fn read_response(&self) -> Response {
+        // This is the inverse of Context::read_response. We prefer a response
+        // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
+        // Ui::interact_bg is called or the Ui is dropped.
+        self.ctx()
+            .viewport(|viewport| {
+                viewport
+                    .prev_frame
+                    .widgets
+                    .get(self.id)
+                    .or_else(|| viewport.this_frame.widgets.get(self.id))
+                    .copied()
+            })
+            .map(|widget_rect| self.ctx().get_response(widget_rect))
+            .expect(
+                "Since we always call Context::create_widget in Ui::new, this should never be None",
+            )
+    }
+
     /// Interact with the background of this [`Ui`],
     /// i.e. behind all the widgets.
     ///
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
     /// You can customize the [`Sense`] via [`UiBuilder::sense`].
+    // This is marked as deprecated for public use but still makes sense to use internally.
+    #[deprecated = "Use Ui::read_response instead"]
     pub fn interact_bg(&self) -> Response {
         // We remove the id from used_ids to prevent a duplicate id warning from showing
         // when the ui was created with `UiBuilder::sense`.
@@ -2178,7 +2212,10 @@ impl Ui {
         let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
-        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        #[allow(deprecated)]
+        let response = child_ui.interact_bg();
+        child_ui.should_interact_bg_on_drop = false;
+        self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
     }
 
@@ -2717,34 +2754,6 @@ impl Ui {
 
         (InnerResponse { inner, response }, payload)
     }
-
-    /// Create a child ui scope and pass its response to the closure.
-    /// You can use this to easily create interactive containers or custom buttons.
-    ///
-    /// This basically does three things:
-    /// 1. Read [`Ui`]s response via [`Context::read_response`].
-    /// 2. Create a child ui scope and call the content fn
-    /// 3. Call [`Ui::interact_bg`] to set the right [`WidgetRect`]
-    pub fn interact_scope<R>(
-        &mut self,
-        sense: Sense,
-        builder: UiBuilder,
-        content: impl FnOnce(&mut Self, Option<Response>) -> R,
-    ) -> InnerResponse<R> {
-        let id_salt = builder.id_salt.unwrap_or(Id::new("interact_scope"));
-        let id = self.id.with(Id::new(id_salt));
-        let response = self.ctx().read_response(id);
-
-        self.scope_dyn(
-            builder.sense(sense).id_salt(id_salt),
-            Box::new(|ui| {
-                let inner = content(ui, response);
-                let response = ui.interact_bg();
-                InnerResponse::new(inner, response)
-            }),
-        )
-        .inner
-    }
 }
 
 /// # Menus
@@ -2875,6 +2884,10 @@ impl Ui {
 #[cfg(debug_assertions)]
 impl Drop for Ui {
     fn drop(&mut self) {
+        if self.should_interact_bg_on_drop {
+            #[allow(deprecated)]
+            self.interact_bg();
+        }
         register_rect(self, self.min_rect());
     }
 }
