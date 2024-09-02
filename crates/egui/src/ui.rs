@@ -2686,13 +2686,13 @@ impl Ui {
         (InnerResponse { inner, response }, payload)
     }
 
-    /// Create a new Scope and transform its contents via a [`TSTransform`].
+    /// Create a new Scope and transform its contents via a [`emath::TSTransform`].
     /// This only affects visuals, inputs will not be transformed. So this is mostly useful
     /// to create visual effects on interactions, e.g. scaling a button on hover / click.
     ///
     /// Check out [`Context::set_transform_layer`] for a persistent transform that also affects
     /// inputs.
-    pub fn with_transform<R>(
+    pub fn with_visual_transform<R>(
         &mut self,
         transform: emath::TSTransform,
         add_contents: impl FnOnce(&mut Self) -> R,
