@@ -31,6 +31,7 @@ impl Default for Demos {
             Box::<super::font_book::FontBook>::default(),
             Box::<super::frame_demo::FrameDemo>::default(),
             Box::<super::highlighting::Highlighting>::default(),
+            Box::<super::interactive_container::InteractiveContainerDemo>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
