@@ -459,6 +459,10 @@ pub struct WebOptions {
 
     /// If the web event corresponding to an egui event should be propagated
     /// to the rest of the web page.
+    ///
+    /// The default is `false`, meaning
+    /// [`stopPropagation`](https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation)
+    /// is called on every event.
     pub should_propagate_event: Box<dyn Fn(&egui::Event) -> bool>,
 }
 
