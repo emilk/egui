@@ -43,7 +43,7 @@ impl FullOutput {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewport_output: viewports,
+            viewport_output,
         } = newer;
 
         self.platform_output.append(platform_output);
@@ -51,7 +51,7 @@ impl FullOutput {
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
 
-        for (id, new_viewport) in viewports {
+        for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {
                 std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(new_viewport);
@@ -123,6 +123,8 @@ pub struct PlatformOutput {
     /// NOTE: this needs to be per-viewport.
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
+
+    pub skip_frame: bool, // TODO: document
 }
 
 impl PlatformOutput {
@@ -155,6 +157,7 @@ impl PlatformOutput {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            skip_frame,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -167,6 +170,7 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
+        self.skip_frame |= skip_frame;
 
         #[cfg(feature = "accesskit")]
         {

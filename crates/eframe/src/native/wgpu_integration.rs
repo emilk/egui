@@ -916,7 +916,7 @@ fn render_immediate_viewport(
     let ImmediateViewport {
         ids,
         builder,
-        viewport_ui_cb,
+        mut viewport_ui_cb,
     } = immediate_viewport;
 
     let input = {

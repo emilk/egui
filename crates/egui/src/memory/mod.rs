@@ -228,6 +228,8 @@ pub struct Options {
     /// (<https://github.com/rerun-io/rerun/issues/5018>).
     pub repaint_on_widget_change: bool,
 
+    pub max_extra_passes: usize, // TODO: document
+
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     ///
     /// The only change to egui is that labels can be focused by pressing tab.
@@ -297,6 +299,7 @@ impl Default for Options {
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
+            max_extra_passes: 1, // TODO: is this a good default?
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
@@ -352,6 +355,7 @@ impl Options {
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
+            max_extra_passes,
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
@@ -371,6 +375,11 @@ impl Options {
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
                 );
+
+                ui.horizontal(|ui| {
+                    ui.label("Max extra passes:");
+                    ui.add(crate::DragValue::new(max_extra_passes).range(0..=10));
+                });
 
                 ui.checkbox(
                     zoom_with_keyboard,

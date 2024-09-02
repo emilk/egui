@@ -823,6 +823,7 @@ impl State {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            skip_frame: _, // `egui::Context::run` handles this
         } = platform_output;
 
         self.set_cursor_icon(window, cursor_icon);

@@ -741,10 +741,7 @@ impl Context {
     ///
     /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
-    /// This will modify the internal reference to point to a new generation of [`Context`].
-    /// Any old clones of this [`Context`] will refer to the old [`Context`], which will not get new input.
-    ///
-    /// You can alternatively run [`Self::begin_frame`] and [`Context::end_frame`].
+    /// You can alternatively use [`Self::begin_frame`] and [`Context::end_frame`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -760,12 +757,30 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
-    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Self)) -> FullOutput {
+    pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
         crate::profile_function!();
 
-        self.begin_frame(new_input);
-        run_ui(self);
-        self.end_frame()
+        let max_extra_passes = self.options(|o| o.max_extra_passes);
+
+        let mut output = FullOutput::default();
+
+        let mut pass_idx = 0;
+        while pass_idx < 1 + max_extra_passes {
+            crate::profile_scope!("pass", pass_idx.to_string());
+
+            self.begin_frame(new_input.take());
+            run_ui(self);
+            output.append(self.end_frame());
+
+            pass_idx += 1;
+
+            let skip_frame = std::mem::take(&mut output.platform_output.skip_frame);
+            if !skip_frame {
+                break;
+            }
+        }
+
+        output
     }
 
     /// An alternative to calling [`Self::run`].
@@ -1552,6 +1567,11 @@ impl Context {
     ) {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
+    }
+
+    // TODO: document
+    pub fn skip_frame(&self) {
+        self.output_mut(|o| o.skip_frame = true);
     }
 }
 
@@ -3421,7 +3441,7 @@ impl Context {
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
-        viewport_ui_cb: impl FnOnce(&Self, ViewportClass) -> T,
+        mut viewport_ui_cb: impl FnMut(&Self, ViewportClass) -> T,
     ) -> T {
         crate::profile_function!();
 

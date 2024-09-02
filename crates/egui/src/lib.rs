@@ -655,7 +655,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 }
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
+pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
     let _ = ctx.run(Default::default(), |ctx| {
