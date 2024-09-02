@@ -44,8 +44,11 @@ pub struct Sides {
 
 impl Sides {
     #[inline]
-    pub fn new() -> Self {
-        Default::default()
+    pub const fn new() -> Self {
+        Self {
+            height: None,
+            spacing: None,
+        }
     }
 
     /// The minimum height of the sides.
@@ -53,7 +56,7 @@ impl Sides {
     /// The content will be centered vertically within this height.
     /// The default height is [`crate::Spacing::interact_size`]`.y`.
     #[inline]
-    pub fn height(mut self, height: f32) -> Self {
+    pub const fn height(mut self, height: f32) -> Self {
         self.height = Some(height);
         self
     }
@@ -63,7 +66,7 @@ impl Sides {
     /// This is the minimum gap.
     /// The default is [`crate::Spacing::item_spacing`]`.x`.
     #[inline]
-    pub fn spacing(mut self, spacing: f32) -> Self {
+    pub const fn spacing(mut self, spacing: f32) -> Self {
         self.spacing = Some(spacing);
         self
     }
