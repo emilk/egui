@@ -466,7 +466,7 @@ pub use self::{
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Style, TextStyle, Visuals},
+    style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     ui_builder::UiBuilder,

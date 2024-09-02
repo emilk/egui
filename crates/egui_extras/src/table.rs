@@ -451,13 +451,22 @@ impl<'a> TableBuilder<'a> {
         let Self {
             ui,
             id_salt,
-            columns,
+            mut columns,
             striped,
             resizable,
             cell_layout,
             scroll_options,
             sense,
         } = self;
+
+        for (i, column) in columns.iter_mut().enumerate() {
+            let column_resize_id = ui.id().with("resize_column").with(i);
+            if let Some(response) = ui.ctx().read_response(column_resize_id) {
+                if response.double_clicked() {
+                    column.auto_size_this_frame = true;
+                }
+            }
+        }
 
         let striped = striped.unwrap_or(ui.visuals().striped);
 
@@ -695,7 +704,7 @@ impl<'a> Table<'a> {
             ui,
             table_top,
             state_id,
-            mut columns,
+            columns,
             resizable,
             mut available_width,
             mut state,
@@ -718,15 +727,6 @@ impl<'a> Table<'a> {
             auto_shrink,
             scroll_bar_visibility,
         } = scroll_options;
-
-        for (i, column) in columns.iter_mut().enumerate() {
-            let column_resize_id = ui.id().with("resize_column").with(i);
-            if let Some(response) = ui.ctx().read_response(column_resize_id) {
-                if response.double_clicked() {
-                    column.auto_size_this_frame = true;
-                }
-            }
-        }
 
         let cursor_position = ui.cursor().min;
 
