@@ -91,7 +91,7 @@ fn main() -> eframe::Result {
                 |i| alternatives[i],
             );
 
-            egui::ComboBox::from_id_source("combo")
+            egui::ComboBox::from_id_salt("combo")
                 .selected_text("ComboBox")
                 .width(100.0)
                 .show_ui(ui, |ui| {

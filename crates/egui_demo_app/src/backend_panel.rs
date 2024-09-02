@@ -297,7 +297,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             }
 
             let mut size = None;
-            egui::ComboBox::from_id_source("viewport-size-combo")
+            egui::ComboBox::from_id_salt("viewport-size-combo")
                 .selected_text("Resize to…")
                 .show_ui(ui, |ui| {
                     ui.selectable_value(

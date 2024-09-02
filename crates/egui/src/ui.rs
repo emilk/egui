@@ -63,7 +63,7 @@ pub struct Ui {
     /// and the value is increment with each added child widget.
     /// This works as an Id source only as long as new widgets aren't added or removed.
     /// They are therefore only good for Id:s that has no state.
-    next_auto_id_source: u64,
+    next_auto_id_salt: u64,
 
     /// Specifies paint layer, clip rectangle and a reference to [`Context`].
     painter: Painter,
@@ -101,7 +101,7 @@ impl Ui {
     /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_source,
+            id_salt,
             ui_stack_info,
             max_rect,
             layout,
@@ -112,8 +112,8 @@ impl Ui {
         } = ui_builder;
 
         debug_assert!(
-            id_source.is_none(),
-            "Top-level Ui:s should not have an id_source"
+            id_salt.is_none(),
+            "Top-level Ui:s should not have an id_salt"
         );
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
@@ -134,7 +134,7 @@ impl Ui {
         };
         let mut ui = Ui {
             id,
-            next_auto_id_source: id.with("auto").value(),
+            next_auto_id_salt: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
@@ -197,12 +197,12 @@ impl Ui {
         &mut self,
         max_rect: Rect,
         layout: Layout,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.new_child(
             UiBuilder::new()
-                .id_source(id_source)
+                .id_salt(id_salt)
                 .max_rect(max_rect)
                 .layout(layout)
                 .ui_stack_info(ui_stack_info.unwrap_or_default()),
@@ -212,7 +212,7 @@ impl Ui {
     /// Create a child `Ui` with the properties of the given builder.
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_source,
+            id_salt,
             ui_stack_info,
             max_rect,
             layout,
@@ -224,7 +224,7 @@ impl Ui {
 
         let mut painter = self.painter.clone();
 
-        let id_source = id_source.unwrap_or_else(|| Id::from("child"));
+        let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
         let invisible = invisible || sizing_pass;
@@ -245,10 +245,10 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan());
-        let new_id = self.id.with(id_source);
-        let next_auto_id_source = new_id.with(self.next_auto_id_source).value();
+        let new_id = self.id.with(id_salt);
+        let next_auto_id_salt = new_id.with(self.next_auto_id_salt).value();
 
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -261,7 +261,7 @@ impl Ui {
         };
         let child_ui = Ui {
             id: new_id,
-            next_auto_id_source,
+            next_auto_id_salt,
             painter,
             style,
             placer,
@@ -918,29 +918,29 @@ impl Ui {
 /// # [`Id`] creation
 impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
-    pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
+    pub fn make_persistent_id<IdSource>(&self, id_salt: IdSource) -> Id
     where
         IdSource: Hash,
     {
-        self.id.with(&id_source)
+        self.id.with(&id_salt)
     }
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
     pub fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_source)
+        Id::new(self.next_auto_id_salt)
     }
 
-    /// Same as `ui.next_auto_id().with(id_source)`
-    pub fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
+    /// Same as `ui.next_auto_id().with(id_salt)`
+    pub fn auto_id_with<IdSource>(&self, id_salt: IdSource) -> Id
     where
         IdSource: Hash,
     {
-        Id::new(self.next_auto_id_source).with(id_source)
+        Id::new(self.next_auto_id_salt).with(id_salt)
     }
 
     /// Pretend like `count` widgets have been allocated.
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(count as u64);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(count as u64);
     }
 }
 
@@ -1110,8 +1110,8 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id_source);
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        let id = Id::new(self.next_auto_id_salt);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         (id, rect)
     }
@@ -1148,8 +1148,8 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        let id = Id::new(self.next_auto_id_source);
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        let id = Id::new(self.next_auto_id_salt);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
         id
     }
 
@@ -2086,13 +2086,10 @@ impl Ui {
     /// ```
     pub fn push_id<R>(
         &mut self,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope_dyn(
-            UiBuilder::new().id_source(id_source),
-            Box::new(add_contents),
-        )
+        self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
     }
 
     /// Push another level onto the [`UiStack`].
@@ -2141,9 +2138,9 @@ impl Ui {
         ui_builder: UiBuilder,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let next_auto_id_source = self.next_auto_id_source;
+        let next_auto_id_salt = self.next_auto_id_salt;
         let mut child_ui = self.new_child(ui_builder);
-        self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
+        self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
@@ -2164,7 +2161,7 @@ impl Ui {
     /// A [`CollapsingHeader`] that starts out collapsed.
     ///
     /// The name must be unique within the current parent,
-    /// or you need to use [`CollapsingHeader::id_source`].
+    /// or you need to use [`CollapsingHeader::id_salt`].
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<WidgetText>,
@@ -2175,20 +2172,20 @@ impl Ui {
 
     /// Create a child ui which is indented to the right.
     ///
-    /// The `id_source` here be anything at all.
-    // TODO(emilk): remove `id_source` argument?
+    /// The `id_salt` here be anything at all.
+    // TODO(emilk): remove `id_salt` argument?
     #[inline]
     pub fn indent<R>(
         &mut self,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.indent_dyn(id_source, Box::new(add_contents))
+        self.indent_dyn(id_salt, Box::new(add_contents))
     }
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(
@@ -2201,8 +2198,7 @@ impl Ui {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
-        let mut child_ui =
-            self.new_child(UiBuilder::new().id_source(id_source).max_rect(child_rect));
+        let mut child_ui = self.new_child(UiBuilder::new().id_salt(id_salt).max_rect(child_rect));
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;
