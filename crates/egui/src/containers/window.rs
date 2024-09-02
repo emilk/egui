@@ -842,7 +842,7 @@ fn resize_interaction(
                 sense: Sense::drag(),
                 enabled: true,
             },
-            false,
+            true,
         );
         SideResponse {
             hover: response.hovered(),

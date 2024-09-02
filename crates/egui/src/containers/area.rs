@@ -471,7 +471,7 @@ impl Area {
                     sense,
                     enabled,
                 },
-                false,
+                true,
             );
 
             if movable && move_response.dragged() {

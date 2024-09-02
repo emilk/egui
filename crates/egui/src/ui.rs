@@ -162,7 +162,7 @@ impl Ui {
                 sense,
                 enabled: ui.enabled,
             },
-            false,
+            true,
         );
 
         if disabled {
@@ -295,7 +295,7 @@ impl Ui {
                 sense,
                 enabled: child_ui.enabled,
             },
-            false,
+            true,
         );
 
         child_ui
@@ -973,7 +973,7 @@ impl Ui {
                 sense,
                 enabled: self.enabled,
             },
-            false,
+            true,
         )
     }
 
@@ -1011,7 +1011,7 @@ impl Ui {
                 sense: self.sense,
                 enabled: self.enabled,
             },
-            true,
+            false,
         )
     }
 

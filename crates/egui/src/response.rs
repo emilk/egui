@@ -866,7 +866,7 @@ impl Response {
                 sense: self.sense | sense,
                 enabled: self.enabled,
             },
-            false,
+            true,
         )
     }
 
