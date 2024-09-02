@@ -123,7 +123,7 @@ impl RawInput {
                 .collect(),
             screen_rect: self.screen_rect.take(),
             max_texture_side: self.max_texture_side.take(),
-            time: self.time.take(),
+            time: self.time,
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
