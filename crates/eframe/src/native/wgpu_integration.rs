@@ -143,7 +143,7 @@ impl<'a> WgpuWinitApp<'a> {
     }
 
     #[cfg(target_os = "android")]
-    fn recreate_window(&self, event_loop: &ActiveEventLoop, running: &WgpuWinitRunning) {
+    fn recreate_window(&self, event_loop: &ActiveEventLoop, running: &WgpuWinitRunning<'a>) {
         let SharedState {
             egui_ctx,
             viewports,
