@@ -621,7 +621,7 @@ impl PathShape {
             points,
             closed: false,
             // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
-            fill: Color32::BLACK,
+            fill: Color32::TRANSPARENT,
             stroke,
         }
     }
