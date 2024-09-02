@@ -372,7 +372,7 @@ pub struct CollapsingHeader {
     text: WidgetText,
     default_open: bool,
     open: Option<bool>,
-    id_source: Id,
+    id_salt: Id,
     enabled: bool,
     selectable: bool,
     selected: bool,
@@ -386,15 +386,15 @@ impl CollapsingHeader {
     /// The label is used as an [`Id`] source.
     /// If the label is unique and static this is fine,
     /// but if it changes or there are several [`CollapsingHeader`] with the same title
-    /// you need to provide a unique id source with [`Self::id_source`].
+    /// you need to provide a unique id source with [`Self::id_salt`].
     pub fn new(text: impl Into<WidgetText>) -> Self {
         let text = text.into();
-        let id_source = Id::new(text.text());
+        let id_salt = Id::new(text.text());
         Self {
             text,
             default_open: false,
             open: None,
-            id_source,
+            id_salt,
             enabled: true,
             selectable: false,
             selected: false,
@@ -425,16 +425,23 @@ impl CollapsingHeader {
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
     #[inline]
-    pub const fn const_id_source(mut self, id: Id) -> Self {
-        self.id_source = id;
+    pub const fn const_id_salt(mut self, id: Id) -> Self {
+        self.id_salt = id;
         self
     }
 
-    /// See [`Self::const_id_source`].
+    /// See [`Self::const_id_salt`].
     #[inline]
-    pub fn id_source(self, id_source: impl Hash) -> Self {
-        let id = Id::new(id_source);
-        self.const_id_source(id)
+    pub fn id_salt(self, id_salt: impl Hash) -> Self {
+        self.const_id_salt(Id::new(id_salt))
+    }
+
+    /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
+    /// This is useful if the title label is dynamic or not unique.
+    #[deprecated = "Renamed id_salt"]
+    #[inline]
+    pub fn id_source(self, id_salt: impl Hash) -> Self {
+        self.id_salt(id_salt)
     }
 
     /// If you set this to `false`, the [`CollapsingHeader`] will be grayed out and un-clickable.
@@ -501,7 +508,7 @@ impl CollapsingHeader {
             text,
             default_open,
             open,
-            id_source,
+            id_salt,
             enabled: _,
             selectable,
             selected,
@@ -510,7 +517,7 @@ impl CollapsingHeader {
 
         // TODO(emilk): horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
-        let id = ui.make_persistent_id(id_source);
+        let id = ui.make_persistent_id(id_salt);
         let button_padding = ui.spacing().button_padding;
 
         let available = ui.available_rect_before_wrap();

@@ -284,7 +284,7 @@ impl SidePanel {
 
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
-                .id_source(id)
+                .id_salt(id)
                 .ui_stack_info(UiStackInfo::new(match side {
                     Side::Left => UiKind::LeftPanel,
                     Side::Right => UiKind::RightPanel,
@@ -797,7 +797,7 @@ impl TopBottomPanel {
 
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
-                .id_source(id)
+                .id_salt(id)
                 .ui_stack_info(UiStackInfo::new(match side {
                     TopBottomSide::Top => UiKind::TopPanel,
                     TopBottomSide::Bottom => UiKind::BottomPanel,

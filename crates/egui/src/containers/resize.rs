@@ -34,7 +34,7 @@ impl State {
 #[must_use = "You should call .show()"]
 pub struct Resize {
     id: Option<Id>,
-    id_source: Option<Id>,
+    id_salt: Option<Id>,
 
     /// If false, we are no enabled
     resizable: Vec2b,
@@ -51,7 +51,7 @@ impl Default for Resize {
     fn default() -> Self {
         Self {
             id: None,
-            id_source: None,
+            id_salt: None,
             resizable: Vec2b::TRUE,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
@@ -69,18 +69,23 @@ impl Resize {
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
+    /// A source for the unique [`Id`], e.g. `.const_id_salt("second_resize_area")` or `.const_id_salt(loop_index)`.
     #[inline]
-    pub const fn const_id_source(mut self, id: Id) -> Self {
-        self.id_source = Some(id);
+    pub const fn const_id_salt(mut self, id: Id) -> Self {
+        self.id_salt = Some(id);
         self
     }
 
-    /// See [`Self::const_id_source`].
+    /// See [`Self::const_id_salt`].
     #[inline]
-    pub fn id_source(self, id_source: impl std::hash::Hash) -> Self {
-        let id = Id::new(id_source);
-        self.const_id_source(id)
+    pub fn id_salt(self, id_salt: impl std::hash::Hash) -> Self {
+        self.const_id_salt(Id::new(id_salt))
+    }
+
+    #[deprecated = "Renamed id_salt"]
+    #[inline]
+    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt(id_salt)
     }
 
     /// Preferred / suggested width. Actual width will depend on contents.
@@ -242,8 +247,8 @@ impl Resize {
     fn begin(&mut self, ui: &mut Ui) -> Prepared {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
-            let id_source = self.id_source.unwrap_or_else(|| Id::new("resize"));
-            ui.make_persistent_id(id_source)
+            let id_salt = self.id_salt.unwrap_or_else(|| Id::new("resize"));
+            ui.make_persistent_id(id_salt)
         });
 
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {

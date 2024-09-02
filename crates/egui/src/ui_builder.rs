@@ -13,7 +13,7 @@ use crate::Ui;
 #[must_use]
 #[derive(Clone, Default)]
 pub struct UiBuilder {
-    pub id_source: Option<Id>,
+    pub id_salt: Option<Id>,
     pub ui_stack_info: UiStackInfo,
     pub max_rect: Option<Rect>,
     pub layout: Option<Layout>,
@@ -30,14 +30,14 @@ impl UiBuilder {
         Self::default()
     }
 
-    /// Seed the child `Ui` with this `id_source`, which will be mixed
+    /// Seed the child `Ui` with this `id_salt`, which will be mixed
     /// with the [`Ui::id`] of the parent.
     ///
-    /// You should give each [`Ui`] an `id_source` that is unique
+    /// You should give each [`Ui`] an `id_salt` that is unique
     /// within the parent, or give it none at all.
     #[inline]
-    pub fn id_source(mut self, id_source: impl Hash) -> Self {
-        self.id_source = Some(Id::new(id_source));
+    pub fn id_salt(mut self, id_salt: impl Hash) -> Self {
+        self.id_salt = Some(Id::new(id_salt));
         self
     }
 

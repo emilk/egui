@@ -1532,7 +1532,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Override text style");
-            crate::ComboBox::from_id_source("Override text style")
+            crate::ComboBox::from_id_salt("Override text style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
                     Some(override_text_style) => override_text_style.to_string(),
@@ -1549,7 +1549,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Text style of DragValue");
-            crate::ComboBox::from_id_source("drag_value_text_style")
+            crate::ComboBox::from_id_salt("drag_value_text_style")
                 .selected_text(drag_value_text_style.to_string())
                 .show_ui(ui, |ui| {
                     let all_text_styles = ui.style().text_styles();
@@ -1562,7 +1562,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Text Wrap Mode");
-            crate::ComboBox::from_id_source("text_wrap_mode")
+            crate::ComboBox::from_id_salt("text_wrap_mode")
                 .selected_text(format!("{wrap_mode:?}"))
                 .show_ui(ui, |ui| {
                     let all_wrap_mode: Vec<Option<TextWrapMode>> = vec![
