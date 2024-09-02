@@ -34,26 +34,26 @@ use super::{epi_integration, event_loop_context, winit_integration, winit_integr
 // ----------------------------------------------------------------------------
 // Types:
 
-pub struct WgpuWinitApp {
+pub struct WgpuWinitApp<'a> {
     repaint_proxy: Arc<Mutex<EventLoopProxy<UserEvent>>>,
     app_name: String,
     native_options: NativeOptions,
 
     /// Set at initialization, then taken and set to `None` in `init_run_state`.
-    app_creator: Option<AppCreator>,
+    app_creator: Option<AppCreator<'a>>,
 
     /// Set when we are actually up and running.
-    running: Option<WgpuWinitRunning>,
+    running: Option<WgpuWinitRunning<'a>>,
 }
 
 /// State that is initialized when the application is first starts running via
 /// a Resumed event. On Android this ensures that any graphics state is only
 /// initialized once the application has an associated `SurfaceView`.
-struct WgpuWinitRunning {
+struct WgpuWinitRunning<'a> {
     integration: EpiIntegration,
 
     /// The users application.
-    app: Box<dyn App>,
+    app: Box<dyn 'a + App>,
 
     /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
     shared: Rc<RefCell<SharedState>>,
@@ -95,12 +95,12 @@ pub struct Viewport {
 
 // ----------------------------------------------------------------------------
 
-impl WgpuWinitApp {
+impl<'a> WgpuWinitApp<'a> {
     pub fn new(
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
-        app_creator: AppCreator,
+        app_creator: AppCreator<'a>,
     ) -> Self {
         crate::profile_function!();
 
@@ -180,7 +180,7 @@ impl WgpuWinitApp {
         storage: Option<Box<dyn Storage>>,
         window: Window,
         builder: ViewportBuilder,
-    ) -> crate::Result<&mut WgpuWinitRunning> {
+    ) -> crate::Result<&mut WgpuWinitRunning<'a>> {
         crate::profile_function!();
 
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
@@ -323,7 +323,7 @@ impl WgpuWinitApp {
     }
 }
 
-impl WinitApp for WgpuWinitApp {
+impl<'a> WinitApp for WgpuWinitApp<'a> {
     fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
         self.running
             .as_ref()
@@ -489,7 +489,7 @@ impl WinitApp for WgpuWinitApp {
     }
 }
 
-impl WgpuWinitRunning {
+impl<'a> WgpuWinitRunning<'a> {
     fn save_and_destroy(&mut self) {
         crate::profile_function!();
 
