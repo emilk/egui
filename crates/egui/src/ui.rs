@@ -2731,12 +2731,12 @@ impl Ui {
         builder: UiBuilder,
         content: impl FnOnce(&mut Self, Option<Response>) -> R,
     ) -> InnerResponse<R> {
-        let id_source = builder.id_source.unwrap_or(Id::new("interact_scope"));
-        let id = self.id.with(Id::new(id_source));
+        let id_salt = builder.id_salt.unwrap_or(Id::new("interact_scope"));
+        let id = self.id.with(Id::new(id_salt));
         let response = self.ctx().read_response(id);
 
         self.scope_dyn(
-            builder.sense(sense).id_source(id_source),
+            builder.sense(sense).id_salt(id_salt),
             Box::new(|ui| {
                 let inner = content(ui, response);
                 let response = ui.interact_bg();
