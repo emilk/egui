@@ -110,7 +110,7 @@ impl State {
                 let available_width = ctx.screen_rect().max.x - pos.x;
                 let galley = text.into_galley_impl(
                     ctx,
-                    &ctx.style(),
+                    &ctx.active_style(),
                     text::TextWrapping::wrap_at_width(available_width),
                     font_id.clone().into(),
                     Align::TOP,

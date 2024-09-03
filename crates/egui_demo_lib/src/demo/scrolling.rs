@@ -119,7 +119,7 @@ impl ScrollAppearance {
             visibility,
         } = self;
 
-        let mut scroll = ui.ctx().style().spacing.scroll;
+        let mut scroll = ui.ctx().active_style().spacing.scroll;
 
         scroll.ui(ui);
 
@@ -135,7 +135,7 @@ impl ScrollAppearance {
 
         ui.add_space(8.0);
 
-        ui.ctx().style_mut(|s| s.spacing.scroll = scroll);
+        ui.ctx().styles_mut(|s| s.spacing.scroll = scroll);
 
         ui.separator();
 

@@ -198,7 +198,7 @@ fn show_tooltip_at_dyn<'c, R>(
         .order(Order::Tooltip)
         .pivot(pivot)
         .fixed_pos(anchor)
-        .default_width(ctx.style().spacing.tooltip_width)
+        .default_width(ctx.active_style().spacing.tooltip_width)
         .sense(Sense::hover()) // don't click to bring to front
         .show(ctx, |ui| {
             // By default the text in tooltips aren't selectable.
@@ -208,7 +208,9 @@ fn show_tooltip_at_dyn<'c, R>(
             // will stick around when you try to click them.
             ui.style_mut().interaction.selectable_labels = false;
 
-            Frame::popup(&ctx.style()).show_dyn(ui, add_contents).inner
+            Frame::popup(&ctx.active_style())
+                .show_dyn(ui, add_contents)
+                .inner
         });
 
     state.tooltip_count += 1;

@@ -2,7 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui::{
-    self, global_theme_preference_buttons, style::Selection, Color32, Stroke, Style,
+    self, global_theme_preference_buttons, style::Selection, Color32, Stroke, Style, Theme,
 };
 use egui_demo_lib::{View, WidgetGallery};
 
@@ -20,8 +20,8 @@ fn main() -> eframe::Result {
 }
 
 fn setup_custom_style(ctx: &egui::Context) {
-    ctx.light_style_mut(use_light_green_accent);
-    ctx.dark_style_mut(use_dark_purple_accent);
+    ctx.style_mut(Theme::Light, use_light_green_accent);
+    ctx.style_mut(Theme::Dark, use_dark_purple_accent);
 }
 
 fn use_light_green_accent(style: &mut Style) {

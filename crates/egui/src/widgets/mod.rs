@@ -149,11 +149,11 @@ pub fn global_theme_preference_buttons(ui: &mut Ui) {
 /// Show a small button to switch to/from dark/light mode (globally).
 #[deprecated = "Use global_theme_preference_switch instead"]
 pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    global_theme_preference_switch(ui)
+    global_theme_preference_switch(ui);
 }
 
 /// Show larger buttons for switching between light and dark mode (globally).
 #[deprecated = "Use global_theme_preference_buttons instead"]
 pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
-    global_theme_preference_buttons(ui)
+    global_theme_preference_buttons(ui);
 }

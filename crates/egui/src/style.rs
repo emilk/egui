@@ -176,7 +176,7 @@ impl From<TextStyle> for FontSelection {
 /// Specifies the look and feel of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
-/// and of everything with [`crate::Context::set_dark_style`] and [`crate::Context::set_light_style`].
+/// and of everything with [`crate::Context::set_style`].
 /// To choose between dark and light style, use [`crate::Context::set_theme`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
@@ -220,8 +220,8 @@ pub struct Style {
     ///   (Small, FontId::new(10.0, Proportional)),
     /// ].into();
     ///
-    /// // Mutate global style with new text styles
-    /// ctx.style_mut(move |style| style.text_styles = text_styles.clone());
+    /// // Mutate global styles with new text styles
+    /// ctx.styles_mut(move |style| style.text_styles = text_styles.clone());
     /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
@@ -854,7 +854,7 @@ impl Default for TextCursorStyle {
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
-/// and of everything with [`crate::Context::set_dark_visuals`] and [`crate::Context::set_light_visuals`].
+/// and of everything with [`crate::Context::set_visuals`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]

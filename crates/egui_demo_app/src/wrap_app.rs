@@ -43,7 +43,7 @@ pub struct FractalClockApp {
 impl eframe::App for FractalClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
-            .frame(egui::Frame::dark_canvas(&ctx.style()))
+            .frame(egui::Frame::dark_canvas(&ctx.active_style()))
             .show(ctx, |ui| {
                 self.fractal_clock
                     .ui(ui, Some(crate::seconds_since_midnight()));
@@ -391,7 +391,7 @@ impl WrapApp {
 
         if is_mobile(ui.ctx()) {
             ui.menu_button("💻 Backend", |ui| {
-                ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
+                ui.set_style(ui.ctx().active_style()); // ignore the "menu" style set by `menu_button`.
                 self.backend_panel_contents(ui, frame, cmd);
             });
         } else {
@@ -459,7 +459,7 @@ impl WrapApp {
                 screen_rect.center(),
                 Align2::CENTER_CENTER,
                 text,
-                TextStyle::Heading.resolve(&ctx.style()),
+                TextStyle::Heading.resolve(&ctx.active_style()),
                 Color32::WHITE,
             );
         }

@@ -181,7 +181,7 @@ impl Keypad {
 
         let mut is_first_show = false;
         if ctx.wants_keyboard_input() && state.focus != focus {
-            let y = ctx.style().spacing.interact_size.y * 1.25;
+            let y = ctx.active_style().spacing.interact_size.y * 1.25;
             state.open = true;
             state.start_pos = ctx.input(|i| {
                 i.pointer

@@ -284,7 +284,7 @@ impl Painter {
     }
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
-        let color = self.ctx.style().visuals.error_fg_color;
+        let color = self.ctx.active_style().visuals.error_fg_color;
         self.debug_text(pos, Align2::LEFT_TOP, color, format!("🔥 {text}"))
     }
 

@@ -434,9 +434,11 @@ impl<'open> Window<'open> {
             fade_out,
         } = self;
 
-        let header_color =
-            frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
-        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
+        let header_color = frame.map_or_else(
+            || ctx.active_style().visuals.widgets.open.weak_bg_fill,
+            |f| f.fill,
+        );
+        let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.active_style()));
         // Keep the original inner margin for later use
         let window_margin = window_frame.inner_margin;
 
@@ -468,7 +470,7 @@ impl<'open> Window<'open> {
 
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
-            let style = ctx.style();
+            let style = ctx.active_style();
             let spacing = window_margin.top + window_margin.bottom;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
             window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
@@ -849,8 +851,8 @@ fn resize_interaction(
 
     let id = Id::new(layer_id).with("edge_drag");
 
-    let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
-    let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
+    let side_grab_radius = ctx.active_style().interaction.resize_grab_radius_side;
+    let corner_grab_radius = ctx.active_style().interaction.resize_grab_radius_corner;
 
     let corner_rect =
         |center: Pos2| Rect::from_center_size(center, Vec2::splat(2.0 * corner_grab_radius));
