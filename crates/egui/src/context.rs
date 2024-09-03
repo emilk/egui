@@ -1612,6 +1612,12 @@ impl Context {
         }
     }
 
+    /// Does the OS use dark or light mode?
+    /// This is used when the theme preference is set to [`crate::ThemePreference::System`].
+    pub fn system_theme(&self) -> Option<crate::Theme> {
+        self.memory(|mem| mem.options.system_theme)
+    }
+
     /// The [`crate::Theme`] used to select the appropriate [`Style`] (dark or light)
     /// used by all subsequent windows, panels etc.
     pub fn theme(&self) -> crate::Theme {
