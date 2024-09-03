@@ -378,7 +378,7 @@ impl Ui {
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_dark_visuals`] and `Context::set_light_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_dark_visuals`] and [`Context::set_light_visuals`].
     ///
     /// Example:
     /// ```
