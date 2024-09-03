@@ -46,7 +46,8 @@ type DynError = Box<dyn std::error::Error + Send + Sync>;
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
-pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Result<Box<dyn App>, DynError>>;
+pub type AppCreator<'app> =
+    Box<dyn 'app + FnOnce(&CreationContext<'_>) -> Result<Box<dyn 'app + App>, DynError>>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
 pub struct CreationContext<'s> {
@@ -351,8 +352,8 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
-    /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
-    /// from [directories].
+    /// The folder where `eframe` will store the app state. If not set, eframe will use a default
+    /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
 
     /// Controls whether to apply dithering to minimize banding artifacts.

@@ -48,24 +48,24 @@ use super::{
 // ----------------------------------------------------------------------------
 // Types:
 
-pub struct GlowWinitApp {
+pub struct GlowWinitApp<'app> {
     repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
     app_name: String,
     native_options: NativeOptions,
-    running: Option<GlowWinitRunning>,
+    running: Option<GlowWinitRunning<'app>>,
 
     // Note that since this `AppCreator` is FnOnce we are currently unable to support
     // re-initializing the `GlowWinitRunning` state on Android if the application
     // suspends and resumes.
-    app_creator: Option<AppCreator>,
+    app_creator: Option<AppCreator<'app>>,
 }
 
 /// State that is initialized when the application is first starts running via
 /// a Resumed event. On Android this ensures that any graphics state is only
 /// initialized once the application has an associated `SurfaceView`.
-struct GlowWinitRunning {
+struct GlowWinitRunning<'app> {
     integration: EpiIntegration,
-    app: Box<dyn App>,
+    app: Box<dyn 'app + App>,
 
     // These needs to be shared with the immediate viewport renderer, hence the Rc/Arc/RefCells:
     glutin: Rc<RefCell<GlutinWindowContext>>,
@@ -126,12 +126,12 @@ struct Viewport {
 
 // ----------------------------------------------------------------------------
 
-impl GlowWinitApp {
+impl<'app> GlowWinitApp<'app> {
     pub fn new(
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
-        app_creator: AppCreator,
+        app_creator: AppCreator<'app>,
     ) -> Self {
         crate::profile_function!();
         Self {
@@ -195,7 +195,10 @@ impl GlowWinitApp {
         Ok((glutin_window_context, painter))
     }
 
-    fn init_run_state(&mut self, event_loop: &ActiveEventLoop) -> Result<&mut GlowWinitRunning> {
+    fn init_run_state(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<&mut GlowWinitRunning<'app>> {
         crate::profile_function!();
 
         let storage = if let Some(file) = &self.native_options.persistence_path {
@@ -292,7 +295,7 @@ impl GlowWinitApp {
         let app_creator = std::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
 
-        let app = {
+        let app: Box<dyn 'app + App> = {
             // Use latest raw_window_handle for eframe compatibility
             use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
@@ -346,7 +349,7 @@ impl GlowWinitApp {
     }
 }
 
-impl WinitApp for GlowWinitApp {
+impl<'app> WinitApp for GlowWinitApp<'app> {
     fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
         self.running
             .as_ref()
@@ -483,7 +486,7 @@ impl WinitApp for GlowWinitApp {
     }
 }
 
-impl GlowWinitRunning {
+impl<'app> GlowWinitRunning<'app> {
     fn run_ui_and_paint(
         &mut self,
         event_loop: &ActiveEventLoop,
