@@ -145,3 +145,15 @@ pub fn global_theme_preference_buttons(ui: &mut Ui) {
     theme_preference.radio_buttons(ui);
     ui.ctx().set_theme(theme_preference);
 }
+
+/// Show a small button to switch to/from dark/light mode (globally).
+#[deprecated = "Use global_theme_preference_switch instead"]
+pub fn global_dark_light_mode_switch(ui: &mut Ui) {
+    global_theme_preference_switch(ui)
+}
+
+/// Show larger buttons for switching between light and dark mode (globally).
+#[deprecated = "Use global_theme_preference_buttons instead"]
+pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
+    global_theme_preference_buttons(ui)
+}
