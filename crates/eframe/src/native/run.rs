@@ -78,6 +78,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         event_result: Result<EventResult>,
     ) {
         let mut exit = false;
+        let now = Instant::now();
 
         log::trace!("event_result: {event_result:?}");
 
@@ -92,18 +93,22 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
                     if cfg!(target_os = "windows") {
                         // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                        self.winit_app.run_ui_and_paint(event_loop, window_id)
+                        let event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
+                        if let Ok(result) = event_result {
+                            if result != EventResult::Wait {
+                                self.windows_next_repaint_times.insert(window_id, now);
+                            }
+                        }
+                        event_result
                     } else {
                         // Fix for https://github.com/emilk/egui/issues/2425
-                        self.windows_next_repaint_times
-                            .insert(window_id, Instant::now());
+                        self.windows_next_repaint_times.insert(window_id, now);
                         Ok(event_result)
                     }
                 }
                 EventResult::RepaintNext(window_id) => {
                     log::trace!("RepaintNext of {window_id:?}",);
-                    self.windows_next_repaint_times
-                        .insert(window_id, Instant::now());
+                    self.windows_next_repaint_times.insert(window_id, now);
                     Ok(event_result)
                 }
                 EventResult::RepaintAt(window_id, repaint_time) => {
@@ -143,12 +148,10 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             }
         }
 
-        self.check_redraw_requests(event_loop);
+        self.check_redraw_requests(event_loop, now);
     }
 
-    fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop) {
-        let now = Instant::now();
-
+    fn check_redraw_requests(&mut self, event_loop: &ActiveEventLoop, now: Instant) {
         self.windows_next_repaint_times
             .retain(|window_id, repaint_time| {
                 if now < *repaint_time {
@@ -260,7 +263,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
             log::trace!("Woke up to check next_repaint_time");
         }
 
-        self.check_redraw_requests(event_loop);
+        self.check_redraw_requests(event_loop, Instant::now());
     }
 
     fn window_event(
