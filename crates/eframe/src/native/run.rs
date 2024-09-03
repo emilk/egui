@@ -95,7 +95,9 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                         // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                         let event_result = self.winit_app.run_ui_and_paint(event_loop, window_id);
                         if let Ok(result) = event_result {
-                            if result != EventResult::Wait {
+                            if result == EventResult::Wait {
+                                event_loop.set_control_flow(ControlFlow::Wait);
+                            } else {
                                 self.windows_next_repaint_times.insert(window_id, now);
                             }
                         }
