@@ -229,7 +229,7 @@ pub mod icon_data;
 pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,
-    app_creator: AppCreator,
+    app_creator: AppCreator<'_>,
 ) -> Result {
     #[cfg(not(feature = "__screenshot"))]
     assert!(

@@ -33,7 +33,7 @@ impl AppRunner {
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
-        app_creator: epi::AppCreator,
+        app_creator: epi::AppCreator<'static>,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let painter = super::ActiveWebPainter::new(canvas, &web_options).await?;
