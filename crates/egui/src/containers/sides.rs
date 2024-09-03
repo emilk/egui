@@ -68,18 +68,21 @@ impl Sides {
         self
     }
 
-    pub fn show(
+    pub fn show<RetL, RetR>(
         self,
         ui: &mut Ui,
-        add_left: impl FnOnce(&mut Ui),
-        add_right: impl FnOnce(&mut Ui),
-    ) {
+        add_left: impl FnOnce(&mut Ui) -> RetL,
+        add_right: impl FnOnce(&mut Ui) -> RetR,
+    ) -> (RetL, RetR) {
         let Self { height, spacing } = self;
         let height = height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing.x);
 
         let mut top_rect = ui.max_rect();
         top_rect.max.y = top_rect.min.y + height;
+
+        let result_left;
+        let result_right;
 
         let left_rect = {
             let left_max_rect = top_rect;
@@ -88,7 +91,7 @@ impl Sides {
                     .max_rect(left_max_rect)
                     .layout(Layout::left_to_right(Align::Center)),
             );
-            add_left(&mut left_ui);
+            result_left = add_left(&mut left_ui);
             left_ui.min_rect()
         };
 
@@ -99,7 +102,7 @@ impl Sides {
                     .max_rect(right_max_rect)
                     .layout(Layout::right_to_left(Align::Center)),
             );
-            add_right(&mut right_ui);
+            result_right = add_right(&mut right_ui);
             right_ui.min_rect()
         };
 
@@ -116,5 +119,7 @@ impl Sides {
         }
 
         ui.advance_cursor_after_rect(final_rect);
+
+        (result_left, result_right)
     }
 }
