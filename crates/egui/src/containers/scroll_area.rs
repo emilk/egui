@@ -171,6 +171,7 @@ pub struct ScrollArea {
     max_size: Vec2,
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
+    scroll_bar_rect: Option<Rect>,
     id_salt: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
@@ -223,6 +224,7 @@ impl ScrollArea {
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
             scroll_bar_visibility: Default::default(),
+            scroll_bar_rect: None,
             id_salt: None,
             offset_x: None,
             offset_y: None,
@@ -285,6 +287,16 @@ impl ScrollArea {
     #[inline]
     pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
         self.scroll_bar_visibility = scroll_bar_visibility;
+        self
+    }
+
+    /// Specify within which screen-space rectangle to show the scroll bars.
+    ///
+    /// This can be used to move the scroll bars to a smaller region of the `ScrollArea`,
+    /// for instance if you are painting a sticky header on top of it.
+    #[inline]
+    pub fn scroll_bar_rect(mut self, scroll_bar_rect: Rect) -> Self {
+        self.scroll_bar_rect = Some(scroll_bar_rect);
         self
     }
 
@@ -474,6 +486,7 @@ struct Prepared {
     current_bar_use: Vec2,
 
     scroll_bar_visibility: ScrollBarVisibility,
+    scroll_bar_rect: Option<Rect>,
 
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
@@ -497,6 +510,7 @@ impl ScrollArea {
             max_size,
             min_scrolled_size,
             scroll_bar_visibility,
+            scroll_bar_rect,
             id_salt,
             offset_x,
             offset_y,
@@ -679,6 +693,7 @@ impl ScrollArea {
             show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
+            scroll_bar_rect,
             inner_rect,
             content_ui,
             viewport,
@@ -792,6 +807,7 @@ impl Prepared {
             mut show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
+            scroll_bar_rect,
             content_ui,
             viewport: _,
             scrolling_enabled,
@@ -957,6 +973,7 @@ impl Prepared {
         let scroll_style = ui.spacing().scroll;
 
         // Paint the bars:
+        let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
         for d in 0..2 {
             // maybe force increase in offset to keep scroll stuck to end position
             if stick_to_end[d] && state.scroll_stuck_to_end[d] {
@@ -971,7 +988,7 @@ impl Prepared {
 
             // left/right of a horizontal scroll (d==1)
             // top/bottom of vertical scroll (d == 1)
-            let main_range = Rangef::new(inner_rect.min[d], inner_rect.max[d]);
+            let main_range = Rangef::new(scroll_bar_rect.min[d], scroll_bar_rect.max[d]);
 
             // Margin on either side of the scroll bar:
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
@@ -1028,13 +1045,13 @@ impl Prepared {
 
             let outer_scroll_rect = if d == 0 {
                 Rect::from_min_max(
-                    pos2(inner_rect.left(), cross.min),
-                    pos2(inner_rect.right(), cross.max),
+                    pos2(scroll_bar_rect.left(), cross.min),
+                    pos2(scroll_bar_rect.right(), cross.max),
                 )
             } else {
                 Rect::from_min_max(
-                    pos2(cross.min, inner_rect.top()),
-                    pos2(cross.max, inner_rect.bottom()),
+                    pos2(cross.min, scroll_bar_rect.top()),
+                    pos2(cross.max, scroll_bar_rect.bottom()),
                 )
             };
 
@@ -1043,14 +1060,17 @@ impl Prepared {
             let handle_rect = if d == 0 {
                 Rect::from_min_max(
                     pos2(from_content(state.offset.x), cross.min),
-                    pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
+                    pos2(
+                        from_content(state.offset.x + scroll_bar_rect.width()),
+                        cross.max,
+                    ),
                 )
             } else {
                 Rect::from_min_max(
                     pos2(cross.min, from_content(state.offset.y)),
                     pos2(
                         cross.max,
-                        from_content(state.offset.y + inner_rect.height()),
+                        from_content(state.offset.y + scroll_bar_rect.height()),
                     ),
                 )
             };
@@ -1102,14 +1122,17 @@ impl Prepared {
                 let mut handle_rect = if d == 0 {
                     Rect::from_min_max(
                         pos2(from_content(state.offset.x), cross.min),
-                        pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
+                        pos2(
+                            from_content(state.offset.x + scroll_bar_rect.width()),
+                            cross.max,
+                        ),
                     )
                 } else {
                     Rect::from_min_max(
                         pos2(cross.min, from_content(state.offset.y)),
                         pos2(
                             cross.max,
-                            from_content(state.offset.y + inner_rect.height()),
+                            from_content(state.offset.y + scroll_bar_rect.height()),
                         ),
                     )
                 };
