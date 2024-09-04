@@ -55,8 +55,7 @@ impl InputOptions {
             max_click_duration,
             max_double_click_delay,
         } = self;
-        use crate::containers::*;
-        CollapsingHeader::new("InputOptions")
+        crate::containers::CollapsingHeader::new("InputOptions")
             .default_open(false)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -226,6 +225,8 @@ pub struct InputState {
     pub events: Vec<Event>,
 
     /// Input state management configuration.
+    ///
+    /// This gets copied from `egui::Options` at the start of each frame for convenience.
     input_options: InputOptions,
 }
 
@@ -428,7 +429,7 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
-            input_options: self.input_options,
+            input_options: options.input_options.clone(),
         }
     }
 
@@ -867,6 +868,8 @@ pub struct PointerState {
     pub(crate) pointer_events: Vec<PointerEvent>,
 
     /// Input state management configuration.
+    ///
+    /// This gets copied from `egui::Options` at the start of each frame for convenience.
     input_options: InputOptions,
 }
 
