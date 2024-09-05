@@ -522,7 +522,8 @@ impl<'t> TextEdit<'t> {
         });
         let mut state = TextEditState::load(ui.ctx(), id).unwrap_or_default();
 
-        if !ui.input(|i| i.focused) {
+        let viewport_has_focus = ui.input(|i| i.focused);
+        if !viewport_has_focus {
             ui.memory_mut(|mem| mem.surrender_focus(id));
         }
 
