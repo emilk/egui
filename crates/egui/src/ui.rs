@@ -223,7 +223,6 @@ impl Ui {
         let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
-        let invisible = invisible;
         let enabled = self.enabled && !disabled && !invisible;
         if invisible {
             painter.set_invisible();
