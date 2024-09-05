@@ -1029,12 +1029,12 @@ impl Prepared {
             let outer_scroll_bar_rect = if d == 0 {
                 Rect::from_min_max(
                     pos2(scroll_bar_rect.left(), cross.min),
-                    pos2(inner_rect.right(), cross.max + outer_margin),
+                    pos2(scroll_bar_rect.right(), cross.max + outer_margin),
                 )
             } else {
                 Rect::from_min_max(
                     pos2(cross.min, scroll_bar_rect.top()),
-                    pos2(cross.max + outer_margin, inner_rect.bottom()),
+                    pos2(cross.max + outer_margin, scroll_bar_rect.bottom()),
                 )
             };
 
