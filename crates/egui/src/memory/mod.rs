@@ -254,6 +254,9 @@ pub struct Options {
     /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
     pub scroll_zoom_speed: f32,
 
+    /// Options related to input state handling.
+    pub input_options: crate::input_state::InputOptions,
+
     /// If `true`, `egui` will discard the loaded image data after
     /// the texture is loaded onto the GPU to reduce memory usage.
     ///
@@ -294,6 +297,7 @@ impl Default for Options {
             // Input:
             line_scroll_speed,
             scroll_zoom_speed: 1.0 / 200.0,
+            input_options: Default::default(),
             reduce_texture_memory: false,
         }
     }
@@ -338,6 +342,7 @@ impl Options {
 
             line_scroll_speed,
             scroll_zoom_speed,
+            input_options,
             reduce_texture_memory,
         } = self;
 
@@ -396,6 +401,7 @@ impl Options {
                     )
                     .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
                 });
+                input_options.ui(ui);
             });
 
         ui.vertical_centered(|ui| crate::reset_button(ui, self, "Reset all"));
