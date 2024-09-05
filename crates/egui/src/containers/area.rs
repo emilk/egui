@@ -543,7 +543,7 @@ impl Prepared {
             ui_builder = ui_builder.disabled();
         }
         if self.sizing_pass {
-            ui_builder = ui_builder.sizing_pass();
+            ui_builder = ui_builder.sizing_pass().invisible();
         }
 
         let mut ui = Ui::new(ctx.clone(), self.layer_id, self.layer_id.id, ui_builder);

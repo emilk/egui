@@ -435,7 +435,7 @@ impl Grid {
         let mut ui_builder = UiBuilder::new().max_rect(max_rect);
         if prev_state.is_none() {
             // Hide the ui this frame, and make things as narrow as possible.
-            ui_builder = ui_builder.sizing_pass();
+            ui_builder = ui_builder.sizing_pass().invisible();
         }
 
         ui.allocate_new_ui(ui_builder, |ui| {
