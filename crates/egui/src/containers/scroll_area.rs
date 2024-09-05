@@ -986,10 +986,6 @@ impl Prepared {
                 continue;
             }
 
-            // left/right of a horizontal scroll (d==1)
-            // top/bottom of vertical scroll (d == 1)
-            let main_range = Rangef::new(scroll_bar_rect.min[d], scroll_bar_rect.max[d]);
-
             // Margin on either side of the scroll bar:
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
             let outer_margin = show_factor * scroll_style.bar_outer_margin;
@@ -1043,7 +1039,7 @@ impl Prepared {
                 cross.min = cross.max - width;
             }
 
-            let outer_scroll_rect = if d == 0 {
+            let outer_scroll_bar_rect = if d == 0 {
                 Rect::from_min_max(
                     pos2(scroll_bar_rect.left(), cross.min),
                     pos2(scroll_bar_rect.right(), cross.max),
@@ -1055,22 +1051,25 @@ impl Prepared {
                 )
             };
 
-            let from_content = |content| remap_clamp(content, 0.0..=content_size[d], main_range);
+            let from_content = |content| {
+                remap_clamp(
+                    content,
+                    0.0..=content_size[d],
+                    scroll_bar_rect.min[d]..=scroll_bar_rect.max[d],
+                )
+            };
 
             let handle_rect = if d == 0 {
                 Rect::from_min_max(
                     pos2(from_content(state.offset.x), cross.min),
-                    pos2(
-                        from_content(state.offset.x + scroll_bar_rect.width()),
-                        cross.max,
-                    ),
+                    pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
                 )
             } else {
                 Rect::from_min_max(
                     pos2(cross.min, from_content(state.offset.y)),
                     pos2(
                         cross.max,
-                        from_content(state.offset.y + scroll_bar_rect.height()),
+                        from_content(state.offset.y + inner_rect.height()),
                     ),
                 )
             };
@@ -1081,7 +1080,7 @@ impl Prepared {
             } else {
                 Sense::hover()
             };
-            let response = ui.interact(outer_scroll_rect, interact_id, sense);
+            let response = ui.interact(outer_scroll_bar_rect, interact_id, sense);
 
             state.scroll_bar_interaction[d] = response.hovered() || response.dragged();
 
@@ -1091,16 +1090,21 @@ impl Prepared {
                         if handle_rect.contains(pointer_pos) {
                             pointer_pos[d] - handle_rect.min[d]
                         } else {
-                            let handle_top_pos_at_bottom = main_range.max - handle_rect.size()[d];
+                            let handle_top_pos_at_bottom =
+                                scroll_bar_rect.max[d] - handle_rect.size()[d];
                             // Calculate the new handle top position, centering the handle on the mouse.
                             let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
-                                .clamp(main_range.min, handle_top_pos_at_bottom);
+                                .clamp(scroll_bar_rect.min[d], handle_top_pos_at_bottom);
                             pointer_pos[d] - new_handle_top_pos
                         }
                     });
 
                 let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
-                state.offset[d] = remap(new_handle_top, main_range, 0.0..=content_size[d]);
+                state.offset[d] = remap(
+                    new_handle_top,
+                    scroll_bar_rect.min[d]..=scroll_bar_rect.max[d],
+                    0.0..=content_size[d],
+                );
 
                 // some manual action taken, scroll not stuck
                 state.scroll_stuck_to_end[d] = false;
@@ -1117,22 +1121,19 @@ impl Prepared {
                 state.vel[d] = 0.0;
             }
 
-            if ui.is_rect_visible(outer_scroll_rect) {
+            if ui.is_rect_visible(outer_scroll_bar_rect) {
                 // Avoid frame-delay by calculating a new handle rect:
                 let mut handle_rect = if d == 0 {
                     Rect::from_min_max(
                         pos2(from_content(state.offset.x), cross.min),
-                        pos2(
-                            from_content(state.offset.x + scroll_bar_rect.width()),
-                            cross.max,
-                        ),
+                        pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
                     )
                 } else {
                     Rect::from_min_max(
                         pos2(cross.min, from_content(state.offset.y)),
                         pos2(
                             cross.max,
-                            from_content(state.offset.y + scroll_bar_rect.height()),
+                            from_content(state.offset.y + inner_rect.height()),
                         ),
                     )
                 };
@@ -1207,7 +1208,7 @@ impl Prepared {
 
                 // Background:
                 ui.painter().add(epaint::Shape::rect_filled(
-                    outer_scroll_rect,
+                    outer_scroll_bar_rect,
                     visuals.rounding,
                     ui.visuals()
                         .extreme_bg_color
