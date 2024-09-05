@@ -103,8 +103,6 @@ impl UiBuilder {
     #[inline]
     pub fn sizing_pass(mut self) -> Self {
         self.sizing_pass = true;
-        self.invisible = true;
-        self.disabled = true;
         self
     }
 

@@ -119,8 +119,7 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
-        let invisible = invisible || sizing_pass;
-        let disabled = disabled || invisible || sizing_pass;
+        let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.style());
 
         let placer = Placer::new(max_rect, layout);
@@ -139,7 +138,7 @@ impl Ui {
             style,
             placer,
             enabled: true,
-            sizing_pass: false,
+            sizing_pass,
             menu_state: None,
             stack: Arc::new(ui_stack),
         };
@@ -160,9 +159,6 @@ impl Ui {
         }
         if invisible {
             ui.set_invisible();
-        }
-        if sizing_pass {
-            ui.set_sizing_pass();
         }
 
         ui
@@ -227,8 +223,7 @@ impl Ui {
         let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
-        let invisible = invisible || sizing_pass;
-        let enabled = self.enabled && !disabled && !invisible && !sizing_pass;
+        let enabled = self.enabled && !disabled && !invisible;
         if invisible {
             painter.set_invisible();
         }
@@ -293,6 +288,7 @@ impl Ui {
     /// This will also turn the Ui invisible.
     /// Should be called right after [`Self::new`], if at all.
     #[inline]
+    #[deprecated = "Use UiBuilder.sizing_pass().invisible()"]
     pub fn set_sizing_pass(&mut self) {
         self.sizing_pass = true;
         self.set_invisible();
