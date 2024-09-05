@@ -6,7 +6,7 @@ use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint
 
 pub struct AppRunner {
     #[allow(dead_code)]
-    web_options: crate::WebOptions,
+    pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: super::ActiveWebPainter,
@@ -33,7 +33,7 @@ impl AppRunner {
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
-        app_creator: epi::AppCreator,
+        app_creator: epi::AppCreator<'static>,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let painter = super::ActiveWebPainter::new(canvas, &web_options).await?;

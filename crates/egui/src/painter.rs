@@ -151,8 +151,21 @@ impl Painter {
         self.clip_rect
     }
 
+    /// Constrain the rectangle in which we can paint.
+    ///
+    /// Short for `painter.set_clip_rect(painter.clip_rect().intersect(new_clip_rect))`.
+    ///
+    /// See also: [`Self::clip_rect`] and [`Self::set_clip_rect`].
+    #[inline]
+    pub fn shrink_clip_rect(&mut self, new_clip_rect: Rect) {
+        self.clip_rect = self.clip_rect.intersect(new_clip_rect);
+    }
+
     /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
+    ///
+    /// Warning: growing the clip rect might cause unexpected results!
+    /// When in doubt, use [`Self::shrink_clip_rect`] instead.
     #[inline]
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.clip_rect = clip_rect;

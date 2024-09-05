@@ -643,8 +643,21 @@ impl Ui {
         self.painter.clip_rect()
     }
 
+    /// Constrain the rectangle in which we can paint.
+    ///
+    /// Short for `ui.set_clip_rect(ui.clip_rect().intersect(new_clip_rect))`.
+    ///
+    /// See also: [`Self::clip_rect`] and [`Self::set_clip_rect`].
+    #[inline]
+    pub fn shrink_clip_rect(&mut self, new_clip_rect: Rect) {
+        self.painter.shrink_clip_rect(new_clip_rect);
+    }
+
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
+    ///
+    /// Warning: growing the clip rect might cause unexpected results!
+    /// When in doubt, use [`Self::shrink_clip_rect`] instead.
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.painter.set_clip_rect(clip_rect);
     }

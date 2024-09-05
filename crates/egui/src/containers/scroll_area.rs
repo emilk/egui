@@ -174,6 +174,7 @@ pub struct ScrollArea {
     max_size: Vec2,
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
+    scroll_bar_rect: Option<Rect>,
     id_salt: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
@@ -227,6 +228,7 @@ impl ScrollArea {
             min_scrolled_size: Vec2::splat(64.0),
             // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
             scroll_bar_visibility: ScrollBarVisibility::DEFAULT,
+            scroll_bar_rect: None,
             id_salt: None,
             offset_x: None,
             offset_y: None,
@@ -319,6 +321,16 @@ impl ScrollArea {
     #[deprecated = "Renamed id_salt"]
     pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
         self.id_salt(id_salt)
+    }
+
+    /// Specify within which screen-space rectangle to show the scroll bars.
+    ///
+    /// This can be used to move the scroll bars to a smaller region of the `ScrollArea`,
+    /// for instance if you are painting a sticky header on top of it.
+    #[inline]
+    pub const fn scroll_bar_rect(mut self, scroll_bar_rect: Rect) -> Self {
+        self.scroll_bar_rect = Some(scroll_bar_rect);
+        self
     }
 
     /// Set the horizontal and vertical scroll offset position.
@@ -506,6 +518,7 @@ struct Prepared {
     current_bar_use: Vec2,
 
     scroll_bar_visibility: ScrollBarVisibility,
+    scroll_bar_rect: Option<Rect>,
 
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
@@ -529,6 +542,7 @@ impl ScrollArea {
             max_size,
             min_scrolled_size,
             scroll_bar_visibility,
+            scroll_bar_rect,
             id_salt,
             offset_x,
             offset_y,
@@ -711,6 +725,7 @@ impl ScrollArea {
             show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
+            scroll_bar_rect,
             inner_rect,
             content_ui,
             viewport,
@@ -824,6 +839,7 @@ impl Prepared {
             mut show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
+            scroll_bar_rect,
             content_ui,
             viewport: _,
             scrolling_enabled,
@@ -989,6 +1005,7 @@ impl Prepared {
         let scroll_style = ui.spacing().scroll;
 
         // Paint the bars:
+        let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
         for d in 0..2 {
             // maybe force increase in offset to keep scroll stuck to end position
             if stick_to_end[d] && state.scroll_stuck_to_end[d] {
@@ -1000,10 +1017,6 @@ impl Prepared {
                 state.scroll_bar_interaction[d] = false;
                 continue;
             }
-
-            // left/right of a horizontal scroll (d==1)
-            // top/bottom of vertical scroll (d == 1)
-            let main_range = Rangef::new(inner_rect.min[d], inner_rect.max[d]);
 
             // Margin on either side of the scroll bar:
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
@@ -1058,19 +1071,25 @@ impl Prepared {
                 cross.min = cross.max - width;
             }
 
-            let outer_scroll_rect = if d == 0 {
+            let outer_scroll_bar_rect = if d == 0 {
                 Rect::from_min_max(
-                    pos2(inner_rect.left(), cross.min),
-                    pos2(inner_rect.right(), cross.max),
+                    pos2(scroll_bar_rect.left(), cross.min),
+                    pos2(scroll_bar_rect.right(), cross.max),
                 )
             } else {
                 Rect::from_min_max(
-                    pos2(cross.min, inner_rect.top()),
-                    pos2(cross.max, inner_rect.bottom()),
+                    pos2(cross.min, scroll_bar_rect.top()),
+                    pos2(cross.max, scroll_bar_rect.bottom()),
                 )
             };
 
-            let from_content = |content| remap_clamp(content, 0.0..=content_size[d], main_range);
+            let from_content = |content| {
+                remap_clamp(
+                    content,
+                    0.0..=content_size[d],
+                    scroll_bar_rect.min[d]..=scroll_bar_rect.max[d],
+                )
+            };
 
             let handle_rect = if d == 0 {
                 Rect::from_min_max(
@@ -1093,7 +1112,7 @@ impl Prepared {
             } else {
                 Sense::hover()
             };
-            let response = ui.interact(outer_scroll_rect, interact_id, sense);
+            let response = ui.interact(outer_scroll_bar_rect, interact_id, sense);
 
             state.scroll_bar_interaction[d] = response.hovered() || response.dragged();
 
@@ -1103,16 +1122,21 @@ impl Prepared {
                         if handle_rect.contains(pointer_pos) {
                             pointer_pos[d] - handle_rect.min[d]
                         } else {
-                            let handle_top_pos_at_bottom = main_range.max - handle_rect.size()[d];
+                            let handle_top_pos_at_bottom =
+                                scroll_bar_rect.max[d] - handle_rect.size()[d];
                             // Calculate the new handle top position, centering the handle on the mouse.
                             let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
-                                .clamp(main_range.min, handle_top_pos_at_bottom);
+                                .clamp(scroll_bar_rect.min[d], handle_top_pos_at_bottom);
                             pointer_pos[d] - new_handle_top_pos
                         }
                     });
 
                 let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
-                state.offset[d] = remap(new_handle_top, main_range, 0.0..=content_size[d]);
+                state.offset[d] = remap(
+                    new_handle_top,
+                    scroll_bar_rect.min[d]..=scroll_bar_rect.max[d],
+                    0.0..=content_size[d],
+                );
 
                 // some manual action taken, scroll not stuck
                 state.scroll_stuck_to_end[d] = false;
@@ -1129,7 +1153,7 @@ impl Prepared {
                 state.vel[d] = 0.0;
             }
 
-            if ui.is_rect_visible(outer_scroll_rect) {
+            if ui.is_rect_visible(outer_scroll_bar_rect) {
                 // Avoid frame-delay by calculating a new handle rect:
                 let mut handle_rect = if d == 0 {
                     Rect::from_min_max(
@@ -1216,7 +1240,7 @@ impl Prepared {
 
                 // Background:
                 ui.painter().add(epaint::Shape::rect_filled(
-                    outer_scroll_rect,
+                    outer_scroll_bar_rect,
                     visuals.rounding,
                     ui.visuals()
                         .extreme_bg_color

@@ -46,7 +46,8 @@ type DynError = Box<dyn std::error::Error + Send + Sync>;
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
-pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Result<Box<dyn App>, DynError>>;
+pub type AppCreator<'app> =
+    Box<dyn 'app + FnOnce(&CreationContext<'_>) -> Result<Box<dyn 'app + App>, DynError>>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
 pub struct CreationContext<'s> {
@@ -456,6 +457,14 @@ pub struct WebOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
+
+    /// If the web event corresponding to an egui event should be propagated
+    /// to the rest of the web page.
+    ///
+    /// The default is `false`, meaning
+    /// [`stopPropagation`](https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation)
+    /// is called on every event.
+    pub should_propagate_event: Box<dyn Fn(&egui::Event) -> bool>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -471,6 +480,8 @@ impl Default for WebOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             dithering: true,
+
+            should_propagate_event: Box::new(|_| false),
         }
     }
 }
