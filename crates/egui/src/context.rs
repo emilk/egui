@@ -1652,7 +1652,7 @@ impl Context {
     /// });
     /// ```
     pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
-        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(opt.style_mut())));
+        self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
     }
 
     /// The currently active [`Style`] used by all new windows, panels etc.
@@ -1662,7 +1662,7 @@ impl Context {
     /// You can also change this using [`Self::style_mut`].
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
-    pub fn set_style(&self, style: impl Into<std::sync::Arc<crate::Style>>) {
+    pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| *opt.style_mut() = style.into());
     }
 
@@ -1677,8 +1677,8 @@ impl Context {
     /// ```
     pub fn all_styles_mut(&self, mut mutate_style: impl FnMut(&mut Style)) {
         self.options_mut(|opt| {
-            mutate_style(std::sync::Arc::make_mut(&mut opt.dark_style));
-            mutate_style(std::sync::Arc::make_mut(&mut opt.light_style));
+            mutate_style(Arc::make_mut(&mut opt.dark_style));
+            mutate_style(Arc::make_mut(&mut opt.light_style));
         });
     }
 
@@ -1701,8 +1701,8 @@ impl Context {
     /// ```
     pub fn style_mut_of(&self, theme: Theme, mutate_style: impl FnOnce(&mut Style)) {
         self.options_mut(|opt| match theme {
-            Theme::Dark => mutate_style(std::sync::Arc::make_mut(&mut opt.dark_style)),
-            Theme::Light => mutate_style(std::sync::Arc::make_mut(&mut opt.light_style)),
+            Theme::Dark => mutate_style(Arc::make_mut(&mut opt.dark_style)),
+            Theme::Light => mutate_style(Arc::make_mut(&mut opt.light_style)),
         });
     }
 
@@ -1712,7 +1712,7 @@ impl Context {
     /// You can also change this using [`Self::style_mut_of`].
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
-    pub fn set_style_of(&self, theme: Theme, style: impl Into<std::sync::Arc<crate::Style>>) {
+    pub fn set_style_of(&self, theme: Theme, style: impl Into<Arc<Style>>) {
         let style = style.into();
         self.options_mut(|opt| match theme {
             Theme::Dark => opt.dark_style = style,
