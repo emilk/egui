@@ -221,7 +221,7 @@ pub struct Style {
     /// ].into();
     ///
     /// // Mutate global styles with new text styles
-    /// ctx.styles_mut(move |style| style.text_styles = text_styles.clone());
+    /// ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());
     /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 

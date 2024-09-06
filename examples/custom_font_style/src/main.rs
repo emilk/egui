@@ -39,7 +39,7 @@ fn configure_text_styles(ctx: &egui::Context) {
         (TextStyle::Small, FontId::new(8.0, Proportional)),
     ]
     .into();
-    ctx.styles_mut(move |style| style.text_styles = text_styles.clone());
+    ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());
 }
 
 fn content(ui: &mut egui::Ui) {

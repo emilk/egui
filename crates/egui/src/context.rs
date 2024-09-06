@@ -1646,11 +1646,11 @@ impl Context {
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// ctx.styles_mut(|style| {
+    /// ctx.all_styles_mut(|style| {
     ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// });
     /// ```
-    pub fn styles_mut(&self, mut mutate_style: impl FnMut(&mut Style)) {
+    pub fn all_styles_mut(&self, mut mutate_style: impl FnMut(&mut Style)) {
         self.options_mut(|opt| {
             mutate_style(std::sync::Arc::make_mut(&mut opt.dark_style));
             mutate_style(std::sync::Arc::make_mut(&mut opt.light_style));
@@ -2543,7 +2543,7 @@ impl Context {
     /// Turn on/off whether or not to debug widget layout on hover.
     #[cfg(debug_assertions)]
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        self.styles_mut(|style| style.debug.debug_on_hover = debug_on_hover);
+        self.all_styles_mut(|style| style.debug.debug_on_hover = debug_on_hover);
     }
 }
 
