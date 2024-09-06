@@ -98,6 +98,9 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     if elided {
         if let Some(last_row) = rows.last_mut() {
             replace_last_glyph_with_overflow_character(fonts, &job, last_row);
+            if let Some(last) = last_row.glyphs.last() {
+                last_row.rect.max.x = last.max_x();
+            }
         }
     }
 
@@ -1114,5 +1117,22 @@ mod tests {
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglish", "の混在した文章"]
         );
+    }
+
+    #[test]
+    fn test_truncate_width() {
+        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut layout_job =
+            LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
+        layout_job.wrap.max_width = f32::INFINITY;
+        layout_job.wrap.max_rows = 1;
+        let galley = layout(&mut fonts, layout_job.into());
+        assert!(galley.elided);
+        assert_eq!(
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
+            vec!["# DNA…"]
+        );
+        let row = &galley.rows[0];
+        assert_eq!(row.rect.max.x, row.glyphs.last().unwrap().max_x());
     }
 }
