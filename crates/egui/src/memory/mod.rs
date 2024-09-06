@@ -187,7 +187,8 @@ pub struct Options {
     /// Default: [`crate::Theme::Dark`].
     pub fallback_theme: Theme,
 
-    /// Used to detect changes in system theme
+    /// The current system theme, used to choose between
+    /// dark and light style in case [`Self::theme_preference`] is [`ThemePreference::System`].
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) system_theme: Option<Theme>,
 
