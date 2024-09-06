@@ -175,6 +175,18 @@ impl LayoutJob {
         }
         max_height
     }
+
+    /// The wrap with, with a small margin in some cases.
+    pub fn effective_wrap_width(&self) -> f32 {
+        if self.round_output_size_to_nearest_ui_point {
+            // On a previous pass we may have rounded down by at most 0.5 and reported that as a width.
+            // egui may then set that width as the max width for subsequent frames, and it is important
+            // that we then don't wrap earlier.
+            self.wrap.max_width + 0.5
+        } else {
+            self.wrap.max_width
+        }
+    }
 }
 
 impl std::hash::Hash for LayoutJob {
