@@ -618,6 +618,9 @@ pub enum WidgetType {
 
     RadioButton,
 
+    /// A group of radio buttons.
+    RadioGroup,
+
     SelectableLabel,
 
     ComboBox,
