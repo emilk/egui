@@ -418,7 +418,7 @@ impl Area {
             // during the sizing pass we will use this as the max size
             let mut size = default_size;
 
-            let default_area_size = ctx.active_style().spacing.default_area_size;
+            let default_area_size = ctx.style().spacing.default_area_size;
             if size.x.is_nan() {
                 size.x = default_area_size.x;
             }
@@ -553,8 +553,7 @@ impl Prepared {
             if let Some(last_became_visible_at) = self.state.last_became_visible_at {
                 let age =
                     ctx.input(|i| (i.time - last_became_visible_at) as f32 + i.predicted_dt / 2.0);
-                let opacity =
-                    crate::remap_clamp(age, 0.0..=ctx.active_style().animation_time, 0.0..=1.0);
+                let opacity = crate::remap_clamp(age, 0.0..=ctx.style().animation_time, 0.0..=1.0);
                 let opacity = emath::easing::quadratic_out(opacity); // slow fade-out = quick fade-in
                 ui.multiply_opacity(opacity);
                 if opacity < 1.0 {

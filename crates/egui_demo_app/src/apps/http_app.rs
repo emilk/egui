@@ -222,7 +222,7 @@ fn syntax_highlighting(
 ) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
     let extension = extension_and_rest.first()?;
-    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.active_style());
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
     Some(ColoredText(egui_extras::syntax_highlighting::highlight(
         ctx, &theme, text, extension,
     )))

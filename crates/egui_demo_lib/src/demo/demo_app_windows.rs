@@ -233,7 +233,7 @@ impl DemoWindows {
                 let font_size = 16.5;
 
                 ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
-                    ui.set_style(ui.ctx().active_style()); // ignore the "menu" style set by `menu_button`.
+                    ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
                     self.demo_list_ui(ui);
                     if ui.ui_contains_pointer() && ui.input(|i| i.pointer.any_click()) {
                         ui.close_menu();

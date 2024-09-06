@@ -918,7 +918,7 @@ impl TopBottomPanel {
             let expanded_height = PanelState::load(ctx, self.id)
                 .map(|state| state.rect.height())
                 .or(self.default_height)
-                .unwrap_or_else(|| ctx.active_style().spacing.interact_size.y);
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
             let fake_height = how_expanded * expanded_height;
             Self {
                 id: self.id.with("animating_panel"),
@@ -986,12 +986,12 @@ impl TopBottomPanel {
             let collapsed_height = PanelState::load(ctx, collapsed_panel.id)
                 .map(|state| state.rect.height())
                 .or(collapsed_panel.default_height)
-                .unwrap_or_else(|| ctx.active_style().spacing.interact_size.y);
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
 
             let expanded_height = PanelState::load(ctx, expanded_panel.id)
                 .map(|state| state.rect.height())
                 .or(expanded_panel.default_height)
-                .unwrap_or_else(|| ctx.active_style().spacing.interact_size.y);
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
 
             let fake_height = lerp(collapsed_height..=expanded_height, how_expanded);
             Self {

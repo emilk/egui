@@ -155,7 +155,7 @@ impl CodeTheme {
     pub fn from_memory(ctx: &egui::Context) -> Self {
         #![allow(clippy::needless_return)]
 
-        let (id, default) = if ctx.active_style().visuals.dark_mode {
+        let (id, default) = if ctx.style().visuals.dark_mode {
             (egui::Id::new("dark"), Self::dark as fn() -> Self)
         } else {
             (egui::Id::new("light"), Self::light as fn() -> Self)
@@ -176,7 +176,7 @@ impl CodeTheme {
     ///
     /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
-        let id = if ctx.active_style().visuals.dark_mode {
+        let id = if ctx.style().visuals.dark_mode {
             egui::Id::new("dark")
         } else {
             egui::Id::new("light")

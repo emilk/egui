@@ -610,7 +610,7 @@ impl Response {
             return false;
         }
 
-        let style = self.ctx.active_style();
+        let style = self.ctx.style();
 
         let tooltip_delay = style.interaction.tooltip_delay;
         let tooltip_grace_time = style.interaction.tooltip_grace_time;
@@ -887,7 +887,7 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
-        self.scroll_to_me_animation(align, self.ctx.active_style().scroll_animation);
+        self.scroll_to_me_animation(align, self.ctx.style().scroll_animation);
     }
 
     /// Like [`Self::scroll_to_me`], but allows you to specify the [`crate::style::ScrollAnimation`].

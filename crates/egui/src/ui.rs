@@ -121,7 +121,7 @@ impl Ui {
         let layout = layout.unwrap_or_default();
         let invisible = invisible || sizing_pass;
         let disabled = disabled || invisible || sizing_pass;
-        let style = style.unwrap_or_else(|| ctx.active_style());
+        let style = style.unwrap_or_else(|| ctx.style());
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -324,7 +324,7 @@ impl Ui {
     /// Mutably borrow internal [`Style`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all [`Ui`]:s, use [`Context::set_style`].
+    /// To set the style of all [`Ui`]:s, use [`Context::set_style_of`].
     ///
     /// Example:
     /// ```
@@ -338,14 +338,14 @@ impl Ui {
 
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
 
     /// Reset to the default style set in [`Context`].
     pub fn reset_style(&mut self) {
-        self.style = self.ctx().active_style();
+        self.style = self.ctx().style();
     }
 
     /// The current spacing options for this [`Ui`].
@@ -378,7 +378,7 @@ impl Ui {
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
     ///
     /// Example:
     /// ```

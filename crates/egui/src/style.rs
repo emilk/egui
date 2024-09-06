@@ -176,7 +176,7 @@ impl From<TextStyle> for FontSelection {
 /// Specifies the look and feel of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
-/// and of everything with [`crate::Context::set_style`].
+/// and of everything with [`crate::Context::set_style_of`].
 /// To choose between dark and light style, use [`crate::Context::set_theme`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
@@ -854,7 +854,7 @@ impl Default for TextCursorStyle {
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
-/// and of everything with [`crate::Context::set_visuals`].
+/// and of everything with [`crate::Context::set_visuals_of`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]

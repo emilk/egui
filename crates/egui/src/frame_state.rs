@@ -96,7 +96,7 @@ impl DebugRect {
         // Paint rectangle around widget:
         {
             // Print width and height:
-            let text_color = if ctx.active_style().visuals.dark_mode {
+            let text_color = if ctx.style().visuals.dark_mode {
                 Color32::WHITE
             } else {
                 Color32::BLACK

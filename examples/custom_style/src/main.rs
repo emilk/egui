@@ -20,8 +20,8 @@ fn main() -> eframe::Result {
 }
 
 fn setup_custom_style(ctx: &egui::Context) {
-    ctx.style_mut(Theme::Light, use_light_green_accent);
-    ctx.style_mut(Theme::Dark, use_dark_purple_accent);
+    ctx.style_mut_of(Theme::Light, use_light_green_accent);
+    ctx.style_mut_of(Theme::Dark, use_dark_purple_accent);
 }
 
 fn use_light_green_accent(style: &mut Style) {

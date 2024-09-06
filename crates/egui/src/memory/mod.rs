@@ -324,6 +324,13 @@ impl Options {
             Theme::Light => &self.light_style,
         }
     }
+
+    pub(crate) fn style_mut(&mut self) -> &mut std::sync::Arc<Style> {
+        match self.theme() {
+            Theme::Dark => &mut self.dark_style,
+            Theme::Light => &mut self.light_style,
+        }
+    }
 }
 
 impl Options {

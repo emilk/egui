@@ -240,7 +240,7 @@ impl AppRunner {
 
         if let Some(clipped_primitives) = clipped_primitives {
             if let Err(err) = self.painter.paint_and_update_textures(
-                self.app.clear_color(&self.egui_ctx.active_style().visuals),
+                self.app.clear_color(&self.egui_ctx.style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
                 &textures_delta,

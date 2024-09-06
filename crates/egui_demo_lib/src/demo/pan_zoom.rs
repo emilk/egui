@@ -119,7 +119,7 @@ impl crate::View for PanZoom {
                     egui::Frame::default()
                         .rounding(egui::Rounding::same(4.0))
                         .inner_margin(egui::Margin::same(8.0))
-                        .stroke(ui.ctx().active_style().visuals.window_stroke)
+                        .stroke(ui.ctx().style().visuals.window_stroke)
                         .fill(ui.style().visuals.panel_fill)
                         .show(ui, |ui| {
                             ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);

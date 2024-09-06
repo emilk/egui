@@ -988,7 +988,7 @@ impl Context {
             let screen_rect = self.screen_rect();
 
             let text = format!("🔥 {text}");
-            let color = self.active_style().visuals.error_fg_color;
+            let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color));
 
@@ -1357,7 +1357,7 @@ impl Context {
                 ..
             } = ModifierNames::SYMBOLS;
 
-            let font_id = TextStyle::Body.resolve(&self.active_style());
+            let font_id = TextStyle::Body.resolve(&self.style());
             self.fonts(|f| {
                 let mut lock = f.lock();
                 let font = lock.fonts.font(&font_id);
@@ -1636,9 +1636,23 @@ impl Context {
         self.options_mut(|opt| opt.theme_preference = theme_preference.into());
     }
 
-    /// The [`Style`] used by all subsequent windows, panels etc.
-    pub fn active_style(&self) -> Arc<Style> {
+    /// The currently active [`Style`] used by all subsequent windows, panels etc.
+    pub fn style(&self) -> Arc<Style> {
         self.options(|opt| opt.style().clone())
+    }
+
+    /// Mutate the currently active [`Style`] used by all subsequent windows, panels etc.
+    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.style_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
+    /// ```
+    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(opt.style_mut())));
     }
 
     /// Mutate the [`Style`]s used by all subsequent windows, panels etc. in both dark and light mode.
@@ -1658,23 +1672,23 @@ impl Context {
     }
 
     /// The [`Style`] used by all subsequent windows, panels etc.
-    pub fn style(&self, theme: Theme) -> Arc<Style> {
+    pub fn style_of(&self, theme: Theme) -> Arc<Style> {
         self.options(|opt| match theme {
             Theme::Dark => opt.dark_style.clone(),
             Theme::Light => opt.light_style.clone(),
         })
     }
 
-    /// Mutate the [`Style`] used by all subsequent windows, panels etc in dark mode.
+    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
     ///
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// ctx.style_mut(egui::Theme::Dark, |style| {
+    /// ctx.style_mut_of(egui::Theme::Dark, |style| {
     ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
     /// });
     /// ```
-    pub fn style_mut(&self, theme: Theme, mutate_style: impl FnOnce(&mut Style)) {
+    pub fn style_mut_of(&self, theme: Theme, mutate_style: impl FnOnce(&mut Style)) {
         self.options_mut(|opt| match theme {
             Theme::Dark => mutate_style(std::sync::Arc::make_mut(&mut opt.dark_style)),
             Theme::Light => mutate_style(std::sync::Arc::make_mut(&mut opt.light_style)),
@@ -1684,10 +1698,10 @@ impl Context {
     /// The [`Style`] used by all new windows, panels etc.
     /// Use [`Self::set_theme`] to choose between dark and light mode.
     ///
-    /// You can also change this using [`Self::style_mut`].
+    /// You can also change this using [`Self::style_mut_of`].
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
-    pub fn set_style(&self, theme: Theme, style: impl Into<std::sync::Arc<crate::Style>>) {
+    pub fn set_style_of(&self, theme: Theme, style: impl Into<std::sync::Arc<crate::Style>>) {
         let style = style.into();
         self.options_mut(|opt| match theme {
             Theme::Dark => opt.dark_style = style,
@@ -1702,10 +1716,10 @@ impl Context {
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// ctx.set_visuals(egui::Theme::Dark, egui::Visuals { panel_fill: egui::Color32::RED, ..Default::default() });
+    /// ctx.set_visuals_of(egui::Theme::Dark, egui::Visuals { panel_fill: egui::Color32::RED, ..Default::default() });
     /// ```
-    pub fn set_visuals(&self, theme: Theme, visuals: crate::Visuals) {
-        self.style_mut(theme, |style| style.visuals = visuals);
+    pub fn set_visuals_of(&self, theme: Theme, visuals: crate::Visuals) {
+        self.style_mut_of(theme, |style| style.visuals = visuals);
     }
 
     /// The number of physical pixels for each logical point.
@@ -1947,7 +1961,7 @@ impl Context {
             }
         };
 
-        if self.active_style().debug.show_interactive_widgets {
+        if self.style().debug.show_interactive_widgets {
             // Show all interactive widgets:
             let rects = self.write(|ctx| ctx.viewport().this_frame.widgets.clone());
             for (layer_id, rects) in rects.layers() {
@@ -2023,7 +2037,7 @@ impl Context {
             }
         }
 
-        if self.active_style().debug.show_widget_hits {
+        if self.style().debug.show_widget_hits {
             let hits = self.write(|ctx| ctx.viewport().hits.clone());
             let WidgetHits {
                 contains_pointer,
@@ -2560,7 +2574,7 @@ impl Context {
     /// The animation time is taken from [`Style::animation_time`].
     #[track_caller] // To track repaint cause
     pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
-        let animation_time = self.active_style().animation_time;
+        let animation_time = self.style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, emath::easing::linear)
     }
 
@@ -2576,7 +2590,7 @@ impl Context {
     /// Like [`Self::animate_bool`] but allows you to control the easing function.
     #[track_caller] // To track repaint cause
     pub fn animate_bool_with_easing(&self, id: Id, value: bool, easing: fn(f32) -> f32) -> f32 {
-        let animation_time = self.active_style().animation_time;
+        let animation_time = self.style().animation_time;
         self.animate_bool_with_time_and_easing(id, value, animation_time, easing)
     }
 
@@ -2929,9 +2943,9 @@ impl Context {
 impl Context {
     /// Edit the [`Style`].
     pub fn style_ui(&self, ui: &mut Ui, theme: Theme) {
-        let mut style: Style = (*self.style(theme)).clone();
+        let mut style: Style = (*self.style_of(theme)).clone();
         style.ui(ui);
-        self.set_style(theme, style);
+        self.set_style_of(theme, style);
     }
 }
 
