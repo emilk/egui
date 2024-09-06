@@ -118,6 +118,11 @@ pub struct Response {
     /// Always `false` for something like a [`Button`](crate::Button).
     #[doc(hidden)]
     pub changed: bool,
+
+    /// The intrinsic / desired size of the widget.
+    /// For a button, this will be the size of the label + the frames padding,
+    /// even if the button is laid out in a justified layout and the actual size will be larger.
+    pub intrinsic_size: Option<Vec2>,
 }
 
 impl Response {
@@ -1137,6 +1142,7 @@ impl Response {
                 || other.is_pointer_button_down_on,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             changed: self.changed || other.changed,
+            intrinsic_size: None,
         }
     }
 }
