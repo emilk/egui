@@ -852,6 +852,22 @@ impl Default for TextCursorStyle {
     }
 }
 
+/// Defines the style and behavior of a TextEdit component.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct TextEditStyle {
+    /// Indicates whether to provide assistance for IME input.
+    /// Such as backspace and arrow keys handling.
+    pub ime_support: bool,
+}
+
+impl Default for TextEditStyle {
+    fn default() -> Self {
+        Self { ime_support: true }
+    }
+}
+
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
@@ -929,6 +945,9 @@ pub struct Visuals {
 
     /// How the text cursor acts.
     pub text_cursor: TextCursorStyle,
+
+    /// Defines the style and behavior of a TextEdit.
+    pub text_edit: TextEditStyle,
 
     /// Allow child widgets to be just on the border and still have a stroke with some thickness
     pub clip_rect_margin: f32,
@@ -1303,6 +1322,7 @@ impl Visuals {
             resize_corner_size: 12.0,
 
             text_cursor: Default::default(),
+            text_edit: Default::default(),
 
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
@@ -1991,6 +2011,7 @@ impl Visuals {
             resize_corner_size,
 
             text_cursor,
+            text_edit,
 
             clip_rect_margin,
             button_frame,
@@ -2048,6 +2069,10 @@ impl Visuals {
 
         ui.collapsing("Text cursor", |ui| {
             text_cursor.ui(ui);
+        });
+
+        ui.collapsing("Text Edit", |ui| {
+            text_edit.ui(ui);
         });
 
         ui.collapsing("Window", |ui| {
@@ -2180,6 +2205,14 @@ impl TextCursorStyle {
                 ui.end_row();
             });
         }
+    }
+}
+
+impl TextEditStyle {
+    fn ui(&mut self, ui: &mut Ui) {
+        let Self { ime_support } = self;
+
+        ui.checkbox(ime_support, "IME Support");
     }
 }
 
