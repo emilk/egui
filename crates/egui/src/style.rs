@@ -853,7 +853,7 @@ impl Default for TextCursorStyle {
 }
 
 /// Defines the style and behavior of a `TextEdit`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextEditStyle {
