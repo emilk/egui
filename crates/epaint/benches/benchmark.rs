@@ -223,6 +223,36 @@ fn thin_large_line_uv(c: &mut Criterion) {
     });
 }
 
+fn from_rgba_unmultiplied_0(c: &mut Criterion) {
+    c.bench_function("from_rgba_unmultiplied_0", move |b| {
+        let [r, g, bl, a] = black_box([20u8, 20, 20, 0]);
+        b.iter(|| {
+            let color = ecolor::Color32::from_rgba_unmultiplied(r, g, bl, a);
+            black_box(color);
+        });
+    });
+}
+
+fn from_rgba_unmultiplied_100(c: &mut Criterion) {
+    c.bench_function("from_rgba_unmultiplied_100", move |b| {
+        let [r, g, bl, a] = black_box([20u8, 20, 20, 100]);
+        b.iter(|| {
+            let color = ecolor::Color32::from_rgba_unmultiplied(r, g, bl, a);
+            black_box(color);
+        });
+    });
+}
+
+fn from_rgba_unmultiplied_255(c: &mut Criterion) {
+    c.bench_function("from_rgba_unmultiplied_255", move |b| {
+        let [r, g, bl, a] = black_box([20u8, 20, 20, 255]);
+        b.iter(|| {
+            let color = ecolor::Color32::from_rgba_unmultiplied(r, g, bl, a);
+            black_box(color);
+        });
+    });
+}
+
 criterion_group!(
     benches,
     single_dashed_lines,
@@ -235,6 +265,9 @@ criterion_group!(
     thick_line_uv,
     thick_large_line_uv,
     thin_line_uv,
-    thin_large_line_uv
+    thin_large_line_uv,
+    from_rgba_unmultiplied_0,
+    from_rgba_unmultiplied_100,
+    from_rgba_unmultiplied_255,
 );
 criterion_main!(benches);
