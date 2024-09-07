@@ -1,6 +1,7 @@
-use crate::{
-    fast_round, gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba,
-};
+use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
+
+static FROM_UNMULTIPLIED_LUT: &[u8; 256 * 256] =
+    include_bytes!("../data/color32_from_unmultiplied_lookup_table");
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -95,21 +96,17 @@ impl Color32 {
     /// From `sRGBA` WITHOUT premultiplied alpha.
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
-        if a == 255 {
-            Self::from_rgb(r, g, b) // common-case optimization
-        } else if a == 0 {
-            Self::TRANSPARENT // common-case optimization
-        } else {
-            let r_lin = linear_f32_from_gamma_u8(r);
-            let g_lin = linear_f32_from_gamma_u8(g);
-            let b_lin = linear_f32_from_gamma_u8(b);
-            let a_lin = linear_f32_from_linear_u8(a);
-
-            let r = gamma_u8_from_linear_f32(r_lin * a_lin);
-            let g = gamma_u8_from_linear_f32(g_lin * a_lin);
-            let b = gamma_u8_from_linear_f32(b_lin * a_lin);
-
-            Self::from_rgba_premultiplied(r, g, b, a)
+        match a {
+            // common-case optimization
+            0 => Self::TRANSPARENT,
+            // common-case optimization
+            255 => Self::from_rgb(r, g, b),
+            a => {
+                let [r, g, b] = [r, g, b].map(|value| {
+                    FROM_UNMULTIPLIED_LUT[usize::from(u16::from_be_bytes([value, a]))]
+                });
+                Self::from_rgba_premultiplied(r, g, b, a)
+            }
         }
     }
 
@@ -248,5 +245,26 @@ impl Color32 {
             fast_round(lerp((self[2] as f32)..=(other[2] as f32), t)),
             fast_round(lerp((self[3] as f32)..=(other[3] as f32), t)),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn from_unmultiplied_lookup_table_check() {
+        use crate::{
+            gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8,
+        };
+        for value in 0..=255u8 {
+            for alpha in 0..=255u8 {
+                let value_lin = linear_f32_from_gamma_u8(value);
+                let alpha_lin = linear_f32_from_linear_u8(alpha);
+
+                let calculated = gamma_u8_from_linear_f32(value_lin * alpha_lin);
+                let lut = FROM_UNMULTIPLIED_LUT[usize::from(u16::from_be_bytes([value, alpha]))];
+                assert_eq!(calculated, lut);
+            }
+        }
     }
 }
