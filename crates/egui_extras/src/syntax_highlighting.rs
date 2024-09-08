@@ -5,7 +5,6 @@
 
 #![allow(clippy::mem_forget)] // False positive from enum_map macro
 
-use egui::emath::OrderedFloat;
 use egui::text::LayoutJob;
 use egui::TextStyle;
 
@@ -24,24 +23,29 @@ pub fn code_view_ui(
 ///
 /// The results are memoized, so you can call this every frame without performance penalty.
 pub fn highlight(ui: &egui::Ui, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
-    impl egui::util::cache::ComputerMut<(OrderedFloat<f32>, &CodeTheme, &str, &str), LayoutJob>
+    impl egui::util::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob>
         for Highlighter
     {
         fn compute(
             &mut self,
-            (size, theme, code, lang): (OrderedFloat<f32>, &CodeTheme, &str, &str),
+            (font_id, theme, code, lang): (&egui::FontId, &CodeTheme, &str, &str),
         ) -> LayoutJob {
-            self.highlight(size.into_inner(), theme, code, lang)
+            self.highlight(font_id.clone(), theme, code, lang)
         }
     }
 
     type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
-    let font_size = monospace_font_size(ui.style());
+    let font_id = ui
+        .style()
+        .override_font_id
+        .clone()
+        .unwrap_or_else(|| TextStyle::Monospace.resolve(ui.style()));
+
     ui.ctx().memory_mut(|mem| {
         mem.caches
             .cache::<HighlightCache>()
-            .get((font_size.into(), theme, code, language))
+            .get((&font_id, theme, code, language))
     })
 }
 
@@ -141,7 +145,7 @@ pub struct CodeTheme {
     #[cfg(feature = "syntect")]
     syntect_theme: SyntectTheme,
     #[cfg(feature = "syntect")]
-    font_size: OrderedFloat<f32>,
+    font_id: egui::FontId,
 
     #[cfg(not(feature = "syntect"))]
     formats: enum_map::EnumMap<TokenType, egui::TextFormat>,
@@ -149,18 +153,47 @@ pub struct CodeTheme {
 
 impl Default for CodeTheme {
     fn default() -> Self {
-        Self::dark(10.0)
+        Self::dark(12.0)
     }
 }
 
 impl CodeTheme {
     /// Selects either dark or light theme based on the given style.
     pub fn from_style(style: &egui::Style) -> Self {
+        let font_id = style
+            .override_font_id
+            .clone()
+            .unwrap_or_else(|| TextStyle::Monospace.resolve(style));
+
         if style.visuals.dark_mode {
-            Self::dark(monospace_font_size(style))
+            Self::dark_with_font_id(font_id)
         } else {
-            Self::light(monospace_font_size(style))
+            Self::light_with_font_id(font_id)
         }
+    }
+
+    /// ### Example
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_extras::syntax_highlighting::CodeTheme;
+    /// let theme = CodeTheme::dark(12.0);
+    /// # });
+    /// ```
+    pub fn dark(font_size: f32) -> Self {
+        Self::dark_with_font_id(egui::FontId::monospace(font_size))
+    }
+
+    /// ### Example
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_extras::syntax_highlighting::CodeTheme;
+    /// let theme = CodeTheme::light(12.0);
+    /// # });
+    /// ```
+    pub fn light(font_size: f32) -> Self {
+        Self::light_with_font_id(egui::FontId::monospace(font_size))
     }
 
     /// Load code theme from egui memory.
@@ -212,19 +245,19 @@ impl CodeTheme {
 
 #[cfg(feature = "syntect")]
 impl CodeTheme {
-    pub fn dark(font_size: f32) -> Self {
+    fn dark_with_font_id(font_id: egui::FontId) -> Self {
         Self {
             dark_mode: true,
             syntect_theme: SyntectTheme::Base16MochaDark,
-            font_size: font_size.into(),
+            font_id,
         }
     }
 
-    pub fn light(font_size: f32) -> Self {
+    fn light_with_font_id(font_id: egui::FontId) -> Self {
         Self {
             dark_mode: false,
             syntect_theme: SyntectTheme::SolarizedLight,
-            font_size: font_size.into(),
+            font_id,
         }
     }
 
@@ -242,8 +275,10 @@ impl CodeTheme {
 
 #[cfg(not(feature = "syntect"))]
 impl CodeTheme {
-    pub fn dark(font_size: f32) -> Self {
-        let font_id = egui::FontId::monospace(font_size);
+    // The syntect version takes it by value. This could be avoided by specializing the from_style
+    // function, but at the cost of more code duplication.
+    #[allow(clippy::needless_pass_by_value)]
+    fn dark_with_font_id(font_id: egui::FontId) -> Self {
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: true,
@@ -258,8 +293,9 @@ impl CodeTheme {
         }
     }
 
-    pub fn light(font_size: f32) -> Self {
-        let font_id = egui::FontId::monospace(font_size);
+    // The syntect version takes it by value
+    #[allow(clippy::needless_pass_by_value)]
+    fn light_with_font_id(font_id: egui::FontId) -> Self {
         use egui::{Color32, TextFormat};
         Self {
             dark_mode: false,
@@ -370,12 +406,18 @@ impl Default for Highlighter {
 
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
-    fn highlight(&self, font_size: f32, theme: &CodeTheme, code: &str, lang: &str) -> LayoutJob {
+    fn highlight(
+        &self,
+        font_id: egui::FontId,
+        theme: &CodeTheme,
+        code: &str,
+        lang: &str,
+    ) -> LayoutJob {
         self.highlight_impl(theme, code, lang).unwrap_or_else(|| {
             // Fallback:
             LayoutJob::simple(
                 code.into(),
-                egui::FontId::monospace(font_size),
+                font_id,
                 if theme.dark_mode {
                     egui::Color32::LIGHT_GRAY
                 } else {
@@ -424,7 +466,7 @@ impl Highlighter {
                     leading_space: 0.0,
                     byte_range: as_byte_range(text, range),
                     format: TextFormat {
-                        font_id: egui::FontId::monospace(theme.font_size.into_inner()),
+                        font_id: theme.font_id.clone(),
                         color: text_color,
                         italics,
                         underline,
