@@ -15,14 +15,24 @@ pub fn code_view_ui(
     code: &str,
     language: &str,
 ) -> egui::Response {
-    let layout_job = highlight(ui, theme, code, language);
+    let layout_job = highlight(ui.ctx(), ui.style(), theme, code, language);
     ui.add(egui::Label::new(layout_job).selectable(true))
 }
 
 /// Add syntax highlighting to a code string.
 ///
 /// The results are memoized, so you can call this every frame without performance penalty.
-pub fn highlight(ui: &egui::Ui, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
+pub fn highlight(
+    ctx: &egui::Context,
+    style: &egui::Style,
+    theme: &CodeTheme,
+    code: &str,
+    language: &str,
+) -> LayoutJob {
+    // We take in both context and style so that in situations where ui is not available such as when
+    // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
+    // (ui.ctx(), ui.style()) can be used
+
     impl egui::util::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob>
         for Highlighter
     {
@@ -36,13 +46,12 @@ pub fn highlight(ui: &egui::Ui, theme: &CodeTheme, code: &str, language: &str) -
 
     type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
 
-    let font_id = ui
-        .style()
+    let font_id = style
         .override_font_id
         .clone()
-        .unwrap_or_else(|| TextStyle::Monospace.resolve(ui.style()));
+        .unwrap_or_else(|| TextStyle::Monospace.resolve(style));
 
-    ui.ctx().memory_mut(|mem| {
+    ctx.memory_mut(|mem| {
         mem.caches
             .cache::<HighlightCache>()
             .get((&font_id, theme, code, language))
@@ -199,10 +208,10 @@ impl CodeTheme {
     /// Load code theme from egui memory.
     ///
     /// There is one dark and one light theme stored at any one time.
-    pub fn from_memory(ui: &egui::Ui) -> Self {
+    pub fn from_memory(ctx: &egui::Context, style: &egui::Style) -> Self {
         #![allow(clippy::needless_return)]
 
-        let (id, default) = if ui.style().visuals.dark_mode {
+        let (id, default) = if style.visuals.dark_mode {
             (egui::Id::new("dark"), Self::dark as fn(f32) -> Self)
         } else {
             (egui::Id::new("light"), Self::light as fn(f32) -> Self)
@@ -210,17 +219,17 @@ impl CodeTheme {
 
         #[cfg(feature = "serde")]
         {
-            return ui.ctx().data_mut(|d| {
+            return ctx.data_mut(|d| {
                 d.get_persisted(id)
-                    .unwrap_or_else(|| default(monospace_font_size(ui.style())))
+                    .unwrap_or_else(|| default(monospace_font_size(style)))
             });
         }
 
         #[cfg(not(feature = "serde"))]
         {
-            return ui.ctx().data_mut(|d| {
+            return ctx.data_mut(|d| {
                 d.get_temp(id)
-                    .unwrap_or_else(|| default(monospace_font_size(ui.style())))
+                    .unwrap_or_else(|| default(monospace_font_size(style)))
             });
         }
     }
