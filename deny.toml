@@ -59,6 +59,8 @@ skip = [
   { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
   { name = "windows-core" },   # old version via accesskit_windows
   { name = "windows" },        # old version via accesskit_windows
+  { name = "glow" },           # ignore glow. See #4952
+
 ]
 skip-tree = [
   { name = "criterion" },     # dev-dependency
