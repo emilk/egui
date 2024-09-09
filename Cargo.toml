@@ -81,7 +81,6 @@ home = "0.5.9"
 image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
-once_cell = "1.19.0"
 parking_lot = "0.12"
 puffin = "0.19"
 puffin_http = "0.16"

@@ -32,7 +32,6 @@ default = []
 
 [dependencies]
 emath.workspace = true
-once_cell.workspace = true
 
 #! ### Optional dependencies
 

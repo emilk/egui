@@ -1162,7 +1162,6 @@ dependencies = [
  "color-hex",
  "document-features",
  "emath",
- "once_cell",
  "serde",
 ]
 

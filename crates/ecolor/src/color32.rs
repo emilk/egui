@@ -1,5 +1,3 @@
-use once_cell::sync::Lazy;
-
 use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 
 /// This format is used for space-efficient color representation (32 bits).
@@ -95,13 +93,15 @@ impl Color32 {
     /// From `sRGBA` WITHOUT premultiplied alpha.
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
+        use std::sync::OnceLock;
         match a {
             // common-case optimization
             0 => Self::TRANSPARENT,
             // common-case optimization
             255 => Self::from_rgb(r, g, b),
             a => {
-                static LOOKUP_TABLE: Lazy<[u8; 256 * 256]> = Lazy::new(|| {
+                static LOOKUP_TABLE: OnceLock<[u8; 256 * 256]> = OnceLock::new();
+                let lut = LOOKUP_TABLE.get_or_init(|| {
                     use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
                     core::array::from_fn(|i| {
                         let [value, alpha] = (i as u16).to_ne_bytes();
@@ -111,8 +111,8 @@ impl Color32 {
                     })
                 });
 
-                let [r, g, b] = [r, g, b]
-                    .map(|value| LOOKUP_TABLE[usize::from(u16::from_ne_bytes([value, a]))]);
+                let [r, g, b] =
+                    [r, g, b].map(|value| lut[usize::from(u16::from_ne_bytes([value, a]))]);
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
