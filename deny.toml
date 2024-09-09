@@ -59,7 +59,7 @@ skip = [
   { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
   { name = "windows-core" },   # old version via accesskit_windows
   { name = "windows" },        # old version via accesskit_windows
-  { name = "glow" },           # ignore glow. See #4952
+  { name = "glow" },           # wgpu uses an old `glow`, but realistically no one uses _both_ `egui_wgpu` and `egui_glow`, so we won't get a duplicate dependency
 
 ]
 skip-tree = [
