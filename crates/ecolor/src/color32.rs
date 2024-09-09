@@ -2,16 +2,6 @@ use once_cell::sync::Lazy;
 
 use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 
-static FROM_UNMULTIPLIED_LUT: Lazy<[u8; 256 * 256]> = Lazy::new(|| {
-    use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
-    core::array::from_fn(|i| {
-        let [value, alpha] = (i as u16).to_be_bytes();
-        let value_lin = linear_f32_from_gamma_u8(value);
-        let alpha_lin = linear_f32_from_linear_u8(alpha);
-        gamma_u8_from_linear_f32(value_lin * alpha_lin)
-    })
-});
-
 /// This format is used for space-efficient color representation (32 bits).
 ///
 /// Instead of manipulating this directly it is often better
@@ -111,9 +101,18 @@ impl Color32 {
             // common-case optimization
             255 => Self::from_rgb(r, g, b),
             a => {
-                let [r, g, b] = [r, g, b].map(|value| {
-                    FROM_UNMULTIPLIED_LUT[usize::from(u16::from_be_bytes([value, a]))]
+                static LOOKUP_TABLE: Lazy<[u8; 256 * 256]> = Lazy::new(|| {
+                    use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
+                    core::array::from_fn(|i| {
+                        let [value, alpha] = (i as u16).to_be_bytes();
+                        let value_lin = linear_f32_from_gamma_u8(value);
+                        let alpha_lin = linear_f32_from_linear_u8(alpha);
+                        gamma_u8_from_linear_f32(value_lin * alpha_lin)
+                    })
                 });
+
+                let [r, g, b] = [r, g, b]
+                    .map(|value| LOOKUP_TABLE[usize::from(u16::from_be_bytes([value, a]))]);
                 Self::from_rgba_premultiplied(r, g, b, a)
             }
         }
