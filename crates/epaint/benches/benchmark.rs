@@ -223,32 +223,42 @@ fn thin_large_line_uv(c: &mut Criterion) {
     });
 }
 
+fn rgba_values() -> [[u8; 4]; 1000] {
+    core::array::from_fn(|i| [5, 7, 11, 13].map(|m| (i * m) as u8))
+}
+
 fn from_rgba_unmultiplied_0(c: &mut Criterion) {
     c.bench_function("from_rgba_unmultiplied_0", move |b| {
-        let [r, g, bl, a] = black_box([20u8, 20, 20, 0]);
+        let values = black_box(rgba_values().map(|[r, g, b, _]| [r, g, b, 0]));
         b.iter(|| {
-            let color = ecolor::Color32::from_rgba_unmultiplied(r, g, bl, a);
-            black_box(color);
+            for [r, g, b, a] in values {
+                let color = ecolor::Color32::from_rgba_unmultiplied(r, g, b, a);
+                black_box(color);
+            }
         });
     });
 }
 
-fn from_rgba_unmultiplied_100(c: &mut Criterion) {
-    c.bench_function("from_rgba_unmultiplied_100", move |b| {
-        let [r, g, bl, a] = black_box([20u8, 20, 20, 100]);
+fn from_rgba_unmultiplied_other(c: &mut Criterion) {
+    c.bench_function("from_rgba_unmultiplied_other", move |b| {
+        let values = black_box(rgba_values().map(|[r, g, b, a]| [r, g, b, a.clamp(1, 254)]));
         b.iter(|| {
-            let color = ecolor::Color32::from_rgba_unmultiplied(r, g, bl, a);
-            black_box(color);
+            for [r, g, b, a] in values {
+                let color = ecolor::Color32::from_rgba_unmultiplied(r, g, b, a);
+                black_box(color);
+            }
         });
     });
 }
 
 fn from_rgba_unmultiplied_255(c: &mut Criterion) {
     c.bench_function("from_rgba_unmultiplied_255", move |b| {
-        let [r, g, bl, a] = black_box([20u8, 20, 20, 255]);
+        let values = black_box(rgba_values().map(|[r, g, b, _]| [r, g, b, 255]));
         b.iter(|| {
-            let color = ecolor::Color32::from_rgba_unmultiplied(r, g, bl, a);
-            black_box(color);
+            for [r, g, b, a] in values {
+                let color = ecolor::Color32::from_rgba_unmultiplied(r, g, b, a);
+                black_box(color);
+            }
         });
     });
 }
@@ -267,7 +277,7 @@ criterion_group!(
     thin_line_uv,
     thin_large_line_uv,
     from_rgba_unmultiplied_0,
-    from_rgba_unmultiplied_100,
+    from_rgba_unmultiplied_other,
     from_rgba_unmultiplied_255,
 );
 criterion_main!(benches);
