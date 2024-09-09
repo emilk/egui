@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    widgets, Color32, Image, Rect, Response, Rounding, Sense, Ui, Vec2, Widget, WidgetInfo,
+    WidgetType,
+};
 
 /// A clickable image within a frame.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]

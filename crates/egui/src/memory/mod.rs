@@ -254,6 +254,9 @@ pub struct Options {
     /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
     pub scroll_zoom_speed: f32,
 
+    /// Options related to input state handling.
+    pub input_options: crate::input_state::InputOptions,
+
     /// If `true`, `egui` will discard the loaded image data after
     /// the texture is loaded onto the GPU to reduce memory usage.
     ///
@@ -294,6 +297,7 @@ impl Default for Options {
             // Input:
             line_scroll_speed,
             scroll_zoom_speed: 1.0 / 200.0,
+            input_options: Default::default(),
             reduce_texture_memory: false,
         }
     }
@@ -338,6 +342,7 @@ impl Options {
 
             line_scroll_speed,
             scroll_zoom_speed,
+            input_options,
             reduce_texture_memory,
         } = self;
 
@@ -361,7 +366,7 @@ impl Options {
                 ui.checkbox(reduce_texture_memory, "Reduce texture memory");
             });
 
-        use crate::containers::*;
+        use crate::containers::CollapsingHeader;
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
@@ -396,6 +401,7 @@ impl Options {
                     )
                     .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
                 });
+                input_options.ui(ui);
             });
 
         ui.vertical_centered(|ui| crate::reset_button(ui, self, "Reset all"));
@@ -750,16 +756,20 @@ impl Memory {
         self.areas().order().iter().copied()
     }
 
-    pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
+    /// Check if the layer had focus last frame.
+    /// returns `true` if the layer had focus last frame, but not this one.
+    pub fn had_focus_last_frame(&self, id: Id) -> bool {
         self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
-    /// True if the given widget had keyboard focus last frame, but not this one.
+    /// Check if the layer lost focus last frame
+    /// returns `true` if the layer lost focus last frame, but not this one.
     pub(crate) fn lost_focus(&self, id: Id) -> bool {
         self.had_focus_last_frame(id) && !self.has_focus(id)
     }
 
-    /// True if the given widget has keyboard focus this frame, but didn't last frame.
+    /// Check if the layer gained focus this frame
+    /// returns `true` if the layer gained focus this frame, but not last one.
     pub(crate) fn gained_focus(&self, id: Id) -> bool {
         !self.had_focus_last_frame(id) && self.has_focus(id)
     }

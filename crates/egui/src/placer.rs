@@ -1,7 +1,10 @@
-use crate::*;
+use crate::{grid, vec2, Layout, Painter, Pos2, Rect, Region, Vec2};
+
+#[cfg(debug_assertions)]
+use crate::{Align2, Color32, Stroke};
 
 pub(crate) struct Placer {
-    /// If set this will take precedence over [`layout`].
+    /// If set this will take precedence over [`crate::layout`].
     grid: Option<grid::GridLayout>,
     layout: Layout,
     region: Region,

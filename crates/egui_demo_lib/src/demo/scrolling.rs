@@ -1,4 +1,7 @@
-use egui::{scroll_area::ScrollBarVisibility, *};
+use egui::{
+    pos2, scroll_area::ScrollBarVisibility, Align, Align2, Color32, DragValue, NumExt, Rect,
+    ScrollArea, Sense, Slider, Style, TextStyle, TextWrapMode, Ui, Vec2, Widget,
+};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, PartialEq)]

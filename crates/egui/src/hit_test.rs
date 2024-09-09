@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::*;
+use crate::{ahash, emath, LayerId, Pos2, WidgetRect, WidgetRects};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -333,6 +333,10 @@ fn find_closest(widgets: impl Iterator<Item = WidgetRect>, pos: Pos2) -> Option<
 
 #[cfg(test)]
 mod tests {
+    use emath::{pos2, vec2, Rect};
+
+    use crate::{Id, Sense};
+
     use super::*;
 
     fn wr(id: Id, sense: Sense, rect: Rect) -> WidgetRect {

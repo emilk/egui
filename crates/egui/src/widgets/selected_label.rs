@@ -1,8 +1,8 @@
-use crate::*;
+use crate::{NumExt, Response, Sense, TextStyle, Ui, Widget, WidgetInfo, WidgetText, WidgetType};
 
 /// One out of several alternatives, either selected or not.
 /// Will mark selected items with a different background color.
-/// An alternative to [`RadioButton`] and [`Checkbox`].
+/// An alternative to [`crate::RadioButton`] and [`crate::Checkbox`].
 ///
 /// Usually you'd use [`Ui::selectable_value`] or [`Ui::selectable_label`] instead.
 ///

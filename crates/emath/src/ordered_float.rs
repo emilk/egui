@@ -101,7 +101,7 @@ impl Float for f64 {
 
 // Keep this trait in private module, to avoid exposing its methods as extensions in user code
 mod private {
-    use super::*;
+    use super::{Hash, Hasher};
 
     pub trait FloatImpl {
         fn is_nan(&self) -> bool;

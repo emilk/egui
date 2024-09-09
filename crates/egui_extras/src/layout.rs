@@ -1,4 +1,4 @@
-use egui::{Id, Pos2, Rect, Response, Sense, Ui};
+use egui::{Id, Pos2, Rect, Response, Sense, Ui, UiBuilder};
 
 #[derive(Clone, Copy)]
 pub(crate) enum CellSize {
@@ -33,6 +33,9 @@ pub(crate) struct StripLayoutFlags {
     pub(crate) striped: bool,
     pub(crate) hovered: bool,
     pub(crate) selected: bool,
+
+    /// Used when we want to accruately measure the size of this cell.
+    pub(crate) sizing_pass: bool,
 }
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
@@ -113,7 +116,7 @@ impl<'l> StripLayout<'l> {
         flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
-        child_ui_id_source: Id,
+        child_ui_id_salt: Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
@@ -146,7 +149,7 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let child_ui = self.cell(flags, max_rect, child_ui_id_source, add_cell_contents);
+        let child_ui = self.cell(flags, max_rect, child_ui_id_salt, add_cell_contents);
 
         let used_rect = child_ui.min_rect();
 
@@ -194,21 +197,30 @@ impl<'l> StripLayout<'l> {
         &mut self,
         flags: StripLayoutFlags,
         max_rect: Rect,
-        child_ui_id_source: egui::Id,
+        child_ui_id_salt: egui::Id,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> Ui {
-        let mut child_ui = self.ui.child_ui_with_id_source(
-            max_rect,
-            self.cell_layout,
-            child_ui_id_source,
-            Some(egui::UiStackInfo::new(egui::UiKind::TableCell)),
-        );
+        let mut ui_builder = UiBuilder::new()
+            .id_salt(child_ui_id_salt)
+            .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
+            .max_rect(max_rect)
+            .layout(self.cell_layout);
+        if flags.sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+
+        let mut child_ui = self.ui.new_child(ui_builder);
 
         if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = max_rect.expand2(margin);
-            child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
+            child_ui.shrink_clip_rect(clip_rect);
+
+            if !child_ui.is_sizing_pass() {
+                // Better to truncate (if we can), rather than hard clipping:
+                child_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+            }
         }
 
         if flags.selected {

@@ -7,11 +7,12 @@ use winit::event_loop::ActiveEventLoop;
 
 use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
-use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
+use egui::{DeferredViewportUiCallback, ViewportBuilder, ViewportId};
 use egui_winit::{EventResponse, WindowSettings};
 
 use crate::epi;
 
+#[cfg_attr(target_os = "ios", allow(dead_code, unused_variables, unused_mut))]
 pub fn viewport_builder(
     egui_zoom_factor: f32,
     event_loop: &ActiveEventLoop,
@@ -53,8 +54,10 @@ pub fn viewport_builder(
 
         if clamp_size_to_monitor_size {
             if let Some(initial_window_size) = viewport_builder.inner_size {
-                let initial_window_size = initial_window_size
-                    .at_most(largest_monitor_point_size(egui_zoom_factor, event_loop));
+                let initial_window_size = egui::NumExt::at_most(
+                    initial_window_size,
+                    largest_monitor_point_size(egui_zoom_factor, event_loop),
+                );
                 viewport_builder = viewport_builder.with_inner_size(initial_window_size);
             }
         }
@@ -65,7 +68,10 @@ pub fn viewport_builder(
     #[cfg(not(target_os = "ios"))]
     if native_options.centered {
         crate::profile_scope!("center");
-        if let Some(monitor) = event_loop.available_monitors().next() {
+        if let Some(monitor) = event_loop
+            .primary_monitor()
+            .or_else(|| event_loop.available_monitors().next())
+        {
             let monitor_size = monitor
                 .size()
                 .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
@@ -95,6 +101,7 @@ pub fn apply_window_settings(
     }
 }
 
+#[cfg(not(target_os = "ios"))]
 fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
     crate::profile_function!();
 
@@ -235,17 +242,13 @@ impl EpiIntegration {
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
-        match event {
-            WindowEvent::Destroyed => {
-                log::debug!("Received WindowEvent::Destroyed");
-                self.close = true;
-            }
-            WindowEvent::MouseInput {
-                button: MouseButton::Left,
-                state: ElementState::Pressed,
-                ..
-            } => self.can_drag_window = true,
-            _ => {}
+        if let WindowEvent::MouseInput {
+            button: MouseButton::Left,
+            state: ElementState::Pressed,
+            ..
+        } = event
+        {
+            self.can_drag_window = true;
         }
 
         egui_winit.on_window_event(window, event)

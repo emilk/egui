@@ -151,14 +151,39 @@ impl Painter {
         self.clip_rect
     }
 
+    /// Constrain the rectangle in which we can paint.
+    ///
+    /// Short for `painter.set_clip_rect(painter.clip_rect().intersect(new_clip_rect))`.
+    ///
+    /// See also: [`Self::clip_rect`] and [`Self::set_clip_rect`].
+    #[inline]
+    pub fn shrink_clip_rect(&mut self, new_clip_rect: Rect) {
+        self.clip_rect = self.clip_rect.intersect(new_clip_rect);
+    }
+
     /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
+    ///
+    /// Warning: growing the clip rect might cause unexpected results!
+    /// When in doubt, use [`Self::shrink_clip_rect`] instead.
     #[inline]
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.clip_rect = clip_rect;
     }
 
-    /// Useful for pixel-perfect rendering.
+    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
+    #[inline]
+    pub fn round_to_pixel_center(&self, point: f32) -> f32 {
+        self.ctx().round_to_pixel_center(point)
+    }
+
+    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
+    #[inline]
+    pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
+        self.ctx().round_pos_to_pixel_center(pos)
+    }
+
+    /// Useful for pixel-perfect rendering of filled shapes.
     #[inline]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         self.ctx().round_to_pixel(point)
@@ -391,7 +416,7 @@ impl Painter {
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.
     pub fn arrow(&self, origin: Pos2, vec: Vec2, stroke: impl Into<Stroke>) {
-        use crate::emath::*;
+        use crate::emath::Rot2;
         let rot = Rot2::from_angle(std::f32::consts::TAU / 10.0);
         let tip_length = vec.length() / 4.0;
         let tip = origin + vec;

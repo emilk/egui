@@ -1,4 +1,4 @@
-//! Note that this file contains code very similar to [`glow_integration`].
+//! Note that this file contains code very similar to [`super::glow_integration`].
 //! When making changes to one you often also want to apply it to the other.
 //!
 //! This is also very complex code, and not very pretty.
@@ -29,31 +29,31 @@ use crate::{
     App, AppCreator, CreationContext, NativeOptions, Result, Storage,
 };
 
-use super::{winit_integration::WinitApp, *};
+use super::{epi_integration, event_loop_context, winit_integration, winit_integration::WinitApp};
 
 // ----------------------------------------------------------------------------
 // Types:
 
-pub struct WgpuWinitApp {
+pub struct WgpuWinitApp<'app> {
     repaint_proxy: Arc<Mutex<EventLoopProxy<UserEvent>>>,
     app_name: String,
     native_options: NativeOptions,
 
     /// Set at initialization, then taken and set to `None` in `init_run_state`.
-    app_creator: Option<AppCreator>,
+    app_creator: Option<AppCreator<'app>>,
 
     /// Set when we are actually up and running.
-    running: Option<WgpuWinitRunning>,
+    running: Option<WgpuWinitRunning<'app>>,
 }
 
 /// State that is initialized when the application is first starts running via
 /// a Resumed event. On Android this ensures that any graphics state is only
 /// initialized once the application has an associated `SurfaceView`.
-struct WgpuWinitRunning {
+struct WgpuWinitRunning<'app> {
     integration: EpiIntegration,
 
     /// The users application.
-    app: Box<dyn App>,
+    app: Box<dyn 'app + App>,
 
     /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
     shared: Rc<RefCell<SharedState>>,
@@ -95,12 +95,12 @@ pub struct Viewport {
 
 // ----------------------------------------------------------------------------
 
-impl WgpuWinitApp {
+impl<'app> WgpuWinitApp<'app> {
     pub fn new(
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
-        app_creator: AppCreator,
+        app_creator: AppCreator<'app>,
     ) -> Self {
         crate::profile_function!();
 
@@ -143,7 +143,7 @@ impl WgpuWinitApp {
     }
 
     #[cfg(target_os = "android")]
-    fn recreate_window(&self, event_loop: &ActiveEventLoop, running: &WgpuWinitRunning) {
+    fn recreate_window(&self, event_loop: &ActiveEventLoop, running: &WgpuWinitRunning<'app>) {
         let SharedState {
             egui_ctx,
             viewports,
@@ -158,6 +158,7 @@ impl WgpuWinitApp {
             ViewportClass::Root,
             self.native_options.viewport.clone(),
             None,
+            painter,
         )
         .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
     }
@@ -179,7 +180,7 @@ impl WgpuWinitApp {
         storage: Option<Box<dyn Storage>>,
         window: Window,
         builder: ViewportBuilder,
-    ) -> crate::Result<&mut WgpuWinitRunning> {
+    ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         crate::profile_function!();
 
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
@@ -322,7 +323,7 @@ impl WgpuWinitApp {
     }
 }
 
-impl WinitApp for WgpuWinitApp {
+impl<'app> WinitApp for WgpuWinitApp<'app> {
     fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
         self.running
             .as_ref()
@@ -488,7 +489,7 @@ impl WinitApp for WgpuWinitApp {
     }
 }
 
-impl WgpuWinitRunning {
+impl<'app> WgpuWinitRunning<'app> {
     fn save_and_destroy(&mut self) {
         crate::profile_function!();
 
@@ -927,8 +928,14 @@ fn render_immediate_viewport(
             ..
         } = &mut *shared.borrow_mut();
 
-        let viewport =
-            initialize_or_update_viewport(viewports, ids, ViewportClass::Immediate, builder, None);
+        let viewport = initialize_or_update_viewport(
+            viewports,
+            ids,
+            ViewportClass::Immediate,
+            builder,
+            None,
+            painter,
+        );
         if viewport.window.is_none() {
             event_loop_context::with_current_event_loop(|event_loop| {
                 viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
@@ -1051,7 +1058,7 @@ fn handle_viewport_output(
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
         let viewport =
-            initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb);
+            initialize_or_update_viewport(viewports, ids, class, builder, viewport_ui_cb, painter);
 
         if let Some(window) = viewport.window.as_ref() {
             let old_inner_size = window.inner_size();
@@ -1084,13 +1091,14 @@ fn handle_viewport_output(
     remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
 }
 
-fn initialize_or_update_viewport(
-    viewports: &mut Viewports,
+fn initialize_or_update_viewport<'a>(
+    viewports: &'a mut Viewports,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
-) -> &mut Viewport {
+    painter: &mut egui_wgpu::winit::Painter,
+) -> &'a mut Viewport {
     crate::profile_function!();
 
     if builder.icon.is_none() {
@@ -1135,6 +1143,12 @@ fn initialize_or_update_viewport(
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
+                if let Err(err) = pollster::block_on(painter.set_window(viewport.ids.this, None)) {
+                    log::error!(
+                        "when rendering viewport_id={:?}, set_window Error {err}",
+                        viewport.ids.this
+                    );
+                }
             }
 
             viewport.deferred_commands.append(&mut delta_commands);

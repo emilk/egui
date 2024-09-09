@@ -1,7 +1,7 @@
 //! Handles paint layers, i.e. how things
 //! are sometimes painted behind or in front of other things.
 
-use crate::{Id, *};
+use crate::{ahash, epaint, Id, IdMap, Rect};
 use epaint::{emath::TSTransform, ClippedShape, Shape};
 
 /// Different layer categories
@@ -67,7 +67,7 @@ impl Order {
 }
 
 /// An identifier for a paint layer.
-/// Also acts as an identifier for [`Area`]:s.
+/// Also acts as an identifier for [`crate::Area`]:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayerId {
@@ -156,6 +156,11 @@ impl PaintList {
     #[inline(always)]
     pub fn reset_shape(&mut self, idx: ShapeIdx) {
         self.0[idx.0].shape = Shape::Noop;
+    }
+
+    /// Mutate the shape at the given index, if any.
+    pub fn mutate_shape(&mut self, idx: ShapeIdx, f: impl FnOnce(&mut ClippedShape)) {
+        self.0.get_mut(idx.0).map(f);
     }
 
     /// Transform each [`Shape`] and clip rectangle by this much, in-place

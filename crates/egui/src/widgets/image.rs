@@ -5,7 +5,8 @@ use epaint::RectShape;
 
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    *,
+    pos2, Align2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape,
+    Spinner, Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget,
 };
 
 /// A widget which displays an image.
@@ -13,11 +14,11 @@ use crate::{
 /// The task of actually loading the image is deferred to when the `Image` is added to the [`Ui`],
 /// and how it is loaded depends on the provided [`ImageSource`]:
 ///
-/// - [`ImageSource::Uri`] will load the image using the [asynchronous loading process][`load`].
-/// - [`ImageSource::Bytes`] will also load the image using the [asynchronous loading process][`load`], but with lower latency.
+/// - [`ImageSource::Uri`] will load the image using the [asynchronous loading process][`crate::load`].
+/// - [`ImageSource::Bytes`] will also load the image using the [asynchronous loading process][`crate::load`], but with lower latency.
 /// - [`ImageSource::Texture`] will use the provided texture.
 ///
-/// See [`load`] for more information.
+/// See [`crate::load`] for more information.
 ///
 /// ### Examples
 /// // Using it in a layout:
@@ -248,7 +249,7 @@ impl<'a> Image<'a> {
 
     /// Show a spinner when the image is loading.
     ///
-    /// By default this uses the value of [`Visuals::image_loading_spinners`].
+    /// By default this uses the value of [`crate::Visuals::image_loading_spinners`].
     #[inline]
     pub fn show_loading_spinner(mut self, show: bool) -> Self {
         self.show_loading_spinner = Some(show);
@@ -519,7 +520,7 @@ pub enum ImageSource<'a> {
     /// Load the image from an existing texture.
     ///
     /// The user is responsible for loading the texture, determining its size,
-    /// and allocating a [`TextureId`] for it.
+    /// and allocating a [`crate::TextureId`] for it.
     Texture(SizedTexture),
 
     /// Load the image from some raw bytes.
@@ -530,7 +531,7 @@ pub enum ImageSource<'a> {
     ///
     /// This instructs the [`Ui`] to cache the raw bytes, which are then further processed by any registered loaders.
     ///
-    /// See also [`include_image`] for an easy way to load and display static images.
+    /// See also [`crate::include_image`] for an easy way to load and display static images.
     ///
     /// See [`crate::load`] for more information.
     Bytes {
