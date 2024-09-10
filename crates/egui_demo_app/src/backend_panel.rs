@@ -84,6 +84,16 @@ impl BackendPanel {
 
         self.run_mode_ui(ui);
 
+        ui.horizontal(|ui| {
+            if ui.button("Request discard").clicked() {
+                ui.ctx().request_discard();
+
+                if !ui.ctx().will_discard() {
+                    ui.label("Discard denied!");
+                }
+            }
+        });
+
         ui.separator();
 
         self.frame_history.ui(ui);

@@ -25,6 +25,11 @@ pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Contex
 
     egui_ctx.set_embed_viewports(!IS_DESKTOP);
 
+    egui_ctx.options_mut(|o| {
+        // eframe supports multi-pass (Context::request_discard).
+        o.max_extra_passes = 1;
+    });
+
     let memory = crate::native::epi_integration::load_egui_memory(storage).unwrap_or_default();
     egui_ctx.memory_mut(|mem| *mem = memory);
 

@@ -124,7 +124,7 @@ pub struct PlatformOutput {
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 
-    pub skip_frame: bool, // TODO: document
+    pub requested_discard: bool, // TODO: document
 }
 
 impl PlatformOutput {
@@ -157,7 +157,7 @@ impl PlatformOutput {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
-            skip_frame,
+            requested_discard: skip_frame,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -170,7 +170,7 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
-        self.skip_frame |= skip_frame;
+        self.requested_discard |= skip_frame;
 
         #[cfg(feature = "accesskit")]
         {

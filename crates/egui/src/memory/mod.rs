@@ -228,7 +228,15 @@ pub struct Options {
     /// (<https://github.com/rerun-io/rerun/issues/5018>).
     pub repaint_on_widget_change: bool,
 
-    pub max_extra_passes: usize, // TODO: document
+    /// How many times [`Context::request_discard`] will be heeded in a single frame.
+    ///
+    /// If this is zero, egui will be pure single-pass immediate mode.
+    /// If this is greater than zero, egui can support multi-pass immediate mode,
+    /// where widget sizes from previous passes are stores and used in the layouting
+    /// of subsequent passes.
+    ///
+    /// Multi-pass is supported by [`Context::run`].
+    pub max_extra_passes: usize, // TODO: maybe `pub max_passes: NonZeroUsize` ?
 
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     ///

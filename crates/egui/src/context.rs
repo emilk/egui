@@ -255,6 +255,11 @@ pub struct ViewportState {
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
 
+    /// Each _frame_ can consist of multiple _passes_.
+    ///
+    /// See [`Context::request_discard`].
+    pub pass_idx: usize,
+
     // ----------------------
     // Updated at the start of the frame:
     //
@@ -739,6 +744,12 @@ impl Context {
 
     /// Run the ui code for one frame.
     ///
+    /// This can sometimes result in multiple passes, i.e. multiple calls to `run_ui`.
+    /// That happens if [`Options::max_extra_passes`] is non-zero
+    /// and something calls [`Context::request_discard`].
+    ///
+    /// At most [`Options::max_extra_passes`] `+ 1` calls will be issued to `run_ui`.
+    ///
     /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
     /// You can alternatively use [`Self::begin_frame`] and [`Context::end_frame`].
@@ -760,30 +771,48 @@ impl Context {
     pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
         crate::profile_function!();
 
-        let max_extra_passes = self.options(|o| o.max_extra_passes);
-
-        let mut output = FullOutput::default();
+        let viewport_id = new_input.viewport_id;
+        let max_extra_passes = self.write(|ctx| {
+            ctx.viewport_for(viewport_id).pass_idx = 0;
+            ctx.memory.options.max_extra_passes
+        });
 
         let mut pass_idx = 0;
-        while pass_idx < 1 + max_extra_passes {
+        let mut output = FullOutput::default();
+
+        loop {
             crate::profile_scope!("pass", pass_idx.to_string());
 
             self.begin_frame(new_input.take());
             run_ui(self);
             output.append(self.end_frame());
 
-            pass_idx += 1;
-
-            let skip_frame = std::mem::take(&mut output.platform_output.skip_frame);
-            if !skip_frame {
-                break;
+            let requested_discard = std::mem::take(&mut output.platform_output.requested_discard);
+            if !requested_discard {
+                break; // no need for another pass
             }
+
+            if max_extra_passes <= pass_idx {
+                #[cfg(fearture = "log")]
+                log::debug!("Ignoring request to discard frame, because max_extra_passes={max_extra_passes}");
+                break; // new pass not allowed
+            }
+
+            // Start a new pass:
+            pass_idx = self.write(|ctx| {
+                let viewport = ctx.viewport_for(viewport_id);
+                viewport.pass_idx += 1;
+                viewport.pass_idx
+            });
         }
 
         output
     }
 
     /// An alternative to calling [`Self::run`].
+    ///
+    /// It is usually better to use [`Self::run`], because
+    /// `run` supports multi-pass layout using [`Self::request_discard`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -1569,9 +1598,43 @@ impl Context {
         self.write(|ctx| ctx.request_repaint_callback = Some(callback));
     }
 
-    // TODO: document
-    pub fn skip_frame(&self) {
-        self.output_mut(|o| o.skip_frame = true);
+    /// Request to discard the visual output of this pass,
+    /// and to immediately do another one.
+    ///
+    /// This can be called to cover up visual glitches during a "sizing pass".
+    /// For instance, when a [`crate::Grid`] is first shown we don't yet know the
+    /// width and heights of its columns and rows. egui will do a best guess,
+    /// but it will likely be wrong. Next frame it can read the sizes from the previous
+    /// frame, and from there on the widths will be stable.
+    /// This means the first frame will look glitchy, and ideally should not be shown to the user.
+    /// So [`crate::Grid`] calls [`Self::request_discard`] to cover up this glitchs.
+    ///
+    /// There is a limit to how many times you can discard a frame,
+    /// set by [`Options::max_extra_passes`].
+    /// Therefore, the request might be declined.
+    ///
+    /// You can check if the current frame will be discarded with
+    /// [`Self::will_discard`].
+    ///
+    /// You should be very conservative with when you call [`Self::request_discard`],
+    /// ass it will cause an extra ui pass, potentially leading to extra CPU use and frame judder.
+    pub fn request_discard(&self) {
+        self.output_mut(|o| o.requested_discard = true);
+
+        #[cfg(feature = "log")]
+        log::debug!("request_discard"); // TODO: trace level?
+    }
+
+    /// Will the visual output of this frame be discarded?
+    ///
+    /// If true, you can early-out from expensive graphics operations.
+    ///
+    /// See [`Self::request_discard`] for more.
+    pub fn will_discard(&self) -> bool {
+        self.write(|ctx| {
+            let vp = ctx.viewport();
+            vp.output.requested_discard && vp.pass_idx + 1 < ctx.memory.options.max_extra_passes
+        })
     }
 }
 

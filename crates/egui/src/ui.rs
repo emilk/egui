@@ -469,6 +469,9 @@ impl Ui {
     }
 
     /// If `false`, any widgets added to the [`Ui`] will be invisible and non-interactive.
+    ///
+    /// This is `false` if any parent had [`UiBuilder::invisible`]
+    /// or if [`Context::will_discard`].
     #[inline]
     pub fn is_visible(&self) -> bool {
         self.painter.is_visible()
@@ -659,6 +662,9 @@ impl Ui {
     }
 
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
+    ///
+    /// This is false if the whole `Ui` is invisible (see [`UiBuilder::invisible`])
+    /// or if [`Context::will_discard`] is true.
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
