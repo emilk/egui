@@ -2690,6 +2690,33 @@ impl Ui {
 
         (InnerResponse { inner, response }, payload)
     }
+
+    /// Create a new Scope and transform its contents via a [`emath::TSTransform`].
+    /// This only affects visuals, inputs will not be transformed. So this is mostly useful
+    /// to create visual effects on interactions, e.g. scaling a button on hover / click.
+    ///
+    /// Check out [`Context::set_transform_layer`] for a persistent transform that also affects
+    /// inputs.
+    pub fn with_visual_transform<R>(
+        &mut self,
+        transform: emath::TSTransform,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        let start_idx = self.ctx().graphics(|gx| {
+            gx.get(self.layer_id())
+                .map_or(crate::layers::ShapeIdx(0), |l| l.next_idx())
+        });
+
+        let r = self.scope_dyn(UiBuilder::new(), Box::new(add_contents));
+
+        self.ctx().graphics_mut(|g| {
+            let list = g.entry(self.layer_id());
+            let end_idx = list.next_idx();
+            list.transform_range(start_idx, end_idx, transform);
+        });
+
+        r
+    }
 }
 
 /// # Menus
