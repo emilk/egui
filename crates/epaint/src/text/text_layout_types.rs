@@ -182,7 +182,7 @@ impl LayoutJob {
             // On a previous pass we may have rounded down by at most 0.5 and reported that as a width.
             // egui may then set that width as the max width for subsequent frames, and it is important
             // that we then don't wrap earlier.
-            self.wrap.max_width + 2.0
+            self.wrap.max_width + 16.0
         } else {
             self.wrap.max_width
         }
