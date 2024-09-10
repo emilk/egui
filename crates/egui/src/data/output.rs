@@ -127,7 +127,10 @@ pub struct PlatformOutput {
     /// How many ui passes is this the sum of?
     ///
     /// See [`Context::request_discard`] for details.
-    pub num_passes: usize,
+    ///
+    /// This is incremented at the END of each frame,
+    /// so this will be `0` for the first pass.
+    pub num_completed_passes: usize,
 
     /// Was [`Context::request_discard`] called during the latest pass?
     pub requested_discard: bool,
@@ -163,7 +166,7 @@ impl PlatformOutput {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
-            num_passes,
+            num_completed_passes,
             requested_discard,
         } = newer;
 
@@ -177,7 +180,7 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
-        self.num_passes += num_passes;
+        self.num_completed_passes += num_completed_passes;
         self.requested_discard |= requested_discard;
 
         #[cfg(feature = "accesskit")]

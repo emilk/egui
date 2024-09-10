@@ -768,29 +768,33 @@ impl Context {
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
-        debug_assert_eq!(output.platform_output.num_passes, 0);
+        debug_assert_eq!(output.platform_output.num_completed_passes, 0);
 
         loop {
-            crate::profile_scope!("pass", output.platform_output.num_passes.to_string());
+            crate::profile_scope!(
+                "pass",
+                output.platform_output.num_completed_passes.to_string()
+            );
 
             // We must move the `num_passes` (back) to the viewport output so that [`Self::will_discard`]
             // has access to the latest pass count.
             self.write(|ctx| {
                 let viewport = ctx.viewport_for(viewport_id);
-                viewport.output.num_passes = std::mem::take(&mut output.platform_output.num_passes);
+                viewport.output.num_completed_passes =
+                    std::mem::take(&mut output.platform_output.num_completed_passes);
                 output.platform_output.requested_discard = false;
             });
 
             self.begin_frame(new_input.take());
             run_ui(self);
             output.append(self.end_frame());
-            debug_assert!(0 < output.platform_output.num_passes);
+            debug_assert!(0 < output.platform_output.num_completed_passes);
 
             if !output.platform_output.requested_discard {
                 break; // no need for another pass
             }
 
-            if max_passes <= output.platform_output.num_passes {
+            if max_passes <= output.platform_output.num_completed_passes {
                 #[cfg(feature = "log")]
                 log::debug!("Ignoring request to discard frame, because max_passes={max_passes}");
 
@@ -1637,7 +1641,7 @@ impl Context {
             let vp = ctx.viewport();
             // NOTE: `num_passes` is incremented
             vp.output.requested_discard
-                && vp.output.num_passes + 1 < ctx.memory.options.max_passes.get()
+                && vp.output.num_completed_passes + 1 < ctx.memory.options.max_passes.get()
         })
     }
 }
@@ -2352,7 +2356,7 @@ impl ContextImpl {
             }
         });
 
-        platform_output.num_passes += 1;
+        platform_output.num_completed_passes += 1;
 
         FullOutput {
             platform_output,
@@ -3660,12 +3664,12 @@ mod test {
             let mut num_calls = 0;
             let output = ctx.run(Default::default(), |ctx| {
                 num_calls += 1;
-                assert_eq!(ctx.output(|o| o.num_passes), 0);
+                assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
                 assert!(!ctx.output(|o| o.requested_discard));
                 assert!(!ctx.will_discard());
             });
             assert_eq!(num_calls, 1);
-            assert_eq!(output.platform_output.num_passes, 1);
+            assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard);
         }
 
@@ -3678,7 +3682,7 @@ mod test {
                 assert!(!ctx.will_discard(), "The request should have been denied");
             });
             assert_eq!(num_calls, 1);
-            assert_eq!(output.platform_output.num_passes, 1);
+            assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(
                 output.platform_output.requested_discard,
                 "The request should be reported"
@@ -3695,13 +3699,13 @@ mod test {
         {
             let mut num_calls = 0;
             let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_passes), 0);
+                assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
                 assert!(!ctx.output(|o| o.requested_discard));
                 assert!(!ctx.will_discard());
                 num_calls += 1;
             });
             assert_eq!(num_calls, 1);
-            assert_eq!(output.platform_output.num_passes, 1);
+            assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(!output.platform_output.requested_discard);
         }
 
@@ -3709,7 +3713,7 @@ mod test {
         {
             let mut num_calls = 0;
             let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_passes), num_calls);
+                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
 
                 assert!(!ctx.will_discard());
                 if num_calls == 0 {
@@ -3720,7 +3724,7 @@ mod test {
                 num_calls += 1;
             });
             assert_eq!(num_calls, 2);
-            assert_eq!(output.platform_output.num_passes, 2);
+            assert_eq!(output.platform_output.num_completed_passes, 2);
             assert!(
                 !output.platform_output.requested_discard,
                 "The request should have been cleared when fulfilled"
@@ -3731,7 +3735,7 @@ mod test {
         {
             let mut num_calls = 0;
             let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_passes), num_calls);
+                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
 
                 assert!(!ctx.will_discard());
                 ctx.request_discard();
@@ -3744,7 +3748,7 @@ mod test {
                 num_calls += 1;
             });
             assert_eq!(num_calls, 2);
-            assert_eq!(output.platform_output.num_passes, 2);
+            assert_eq!(output.platform_output.num_completed_passes, 2);
             assert!(
                 output.platform_output.requested_discard,
                 "The unfulfilled request should be reported"
@@ -3761,7 +3765,7 @@ mod test {
         {
             let mut num_calls = 0;
             let output = ctx.run(Default::default(), |ctx| {
-                assert_eq!(ctx.output(|o| o.num_passes), num_calls);
+                assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
 
                 assert!(!ctx.will_discard());
                 if num_calls <= 2 {
@@ -3772,7 +3776,7 @@ mod test {
                 num_calls += 1;
             });
             assert_eq!(num_calls, 4);
-            assert_eq!(output.platform_output.num_passes, 4);
+            assert_eq!(output.platform_output.num_completed_passes, 4);
             assert!(
                 !output.platform_output.requested_discard,
                 "The request should have been cleared when fulfilled"
