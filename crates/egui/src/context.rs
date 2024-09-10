@@ -740,7 +740,7 @@ impl Context {
     /// Run the ui code for one frame.
     ///
     /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
-    /// and only on the rare occation that [`Context::request_discard`] is called.
+    /// and only on the rare occasion that [`Context::request_discard`] is called.
     /// Usually, it `run_ui` will only be called once.
     ///
     /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
