@@ -388,15 +388,15 @@ impl Options {
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
             .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Max passes:");
+                    ui.add(crate::DragValue::new(max_passes).range(0..=10));
+                });
+
                 ui.checkbox(
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
                 );
-
-                ui.horizontal(|ui| {
-                    ui.label("Max extra passes:");
-                    ui.add(crate::DragValue::new(max_passes).range(0..=10));
-                });
 
                 ui.checkbox(
                     zoom_with_keyboard,
