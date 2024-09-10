@@ -1,6 +1,6 @@
 use egui::{Frame, Label, RichText, Sense, UiBuilder, Widget};
 
-/// Showcase [`egui::Ui::read_response`].
+/// Showcase [`egui::Ui::response`].
 #[derive(PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -34,7 +34,7 @@ impl crate::View for InteractiveContainerDemo {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("This demo showcases how to use ");
-            ui.code("Ui::read_response");
+            ui.code("Ui::response");
             ui.label(" to create interactive container widgets that may contain other widgets.");
         });
 
@@ -44,7 +44,7 @@ impl crate::View for InteractiveContainerDemo {
                     .id_salt("interactive_container")
                     .sense(Sense::click()),
                 |ui| {
-                    let response = ui.read_response();
+                    let response = ui.response();
                     let visuals = ui.style().interact(&response);
                     let text_color = visuals.text_color();
 

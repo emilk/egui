@@ -118,7 +118,9 @@ impl UiBuilder {
         self
     }
 
-    /// Sense of the Ui. Should be the same as the one passed to [`Ui::interact_bg`]
+    /// Set if you want sense clicks and/or drags.
+    ///
+    /// The response can be read with [`Ui::response`].
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);

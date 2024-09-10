@@ -1002,7 +1002,7 @@ impl Ui {
     ///
     /// On the first frame, when the [`Ui`] is created, this will return a [`Response`] with a
     /// [`Rect`] of [`Rect::NOTHING`].
-    pub fn read_response(&self) -> Response {
+    pub fn response(&self) -> Response {
         // This is the inverse of Context::read_response. We prefer a response
         // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
         // Ui::interact_bg is called or the Ui is dropped.
@@ -1027,7 +1027,7 @@ impl Ui {
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
     /// You can customize the [`Sense`] via [`UiBuilder::sense`].
     // This is marked as deprecated for public use but still makes sense to use internally.
-    #[deprecated = "Use Ui::read_response instead"]
+    #[deprecated = "Use Uibuilder::sense with Ui::response instead"]
     pub fn interact_bg(&self) -> Response {
         // We remove the id from used_ids to prevent a duplicate id warning from showing
         // when the ui was created with `UiBuilder::sense`.
@@ -2886,6 +2886,7 @@ impl Drop for Ui {
     fn drop(&mut self) {
         if self.should_interact_bg_on_drop {
             #[allow(deprecated)]
+            // Register our final `min_rect`
             self.interact_bg();
         }
         register_rect(self, self.min_rect());
