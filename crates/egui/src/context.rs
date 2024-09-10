@@ -1607,7 +1607,7 @@ impl Context {
     /// but it will likely be wrong. Next frame it can read the sizes from the previous
     /// frame, and from there on the widths will be stable.
     /// This means the first frame will look glitchy, and ideally should not be shown to the user.
-    /// So [`crate::Grid`] calls [`Self::request_discard`] to cover up this glitchs.
+    /// So [`crate::Grid`] calls [`Self::request_discard`] to cover up this glitches.
     ///
     /// There is a limit to how many times you can discard a frame,
     /// set by [`Options::max_extra_passes`].
