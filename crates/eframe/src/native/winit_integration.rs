@@ -27,7 +27,7 @@ pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Contex
 
     egui_ctx.options_mut(|o| {
         // eframe supports multi-pass (Context::request_discard).
-        o.max_extra_passes = 1;
+        o.max_passes = 2.try_into().unwrap();
     });
 
     let memory = crate::native::epi_integration::load_egui_memory(storage).unwrap_or_default();

@@ -823,6 +823,7 @@ impl State {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            num_passes: _,        // `egui::Context::run` handles this
             requested_discard: _, // `egui::Context::run` handles this
         } = platform_output;
 

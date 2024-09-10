@@ -255,11 +255,6 @@ pub struct ViewportState {
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
 
-    /// Each _frame_ can consist of multiple _passes_.
-    ///
-    /// See [`Context::request_discard`].
-    pub pass_idx: usize,
-
     // ----------------------
     // Updated at the start of the frame:
     //
@@ -744,15 +739,13 @@ impl Context {
 
     /// Run the ui code for one frame.
     ///
-    /// This can sometimes result in multiple passes, i.e. multiple calls to `run_ui`.
-    /// That happens if [`Options::max_extra_passes`] is non-zero
-    /// and something calls [`Context::request_discard`].
-    ///
-    /// At most [`Options::max_extra_passes`] `+ 1` calls will be issued to `run_ui`.
+    /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
+    /// and only on the rare occation that [`Context::request_discard`] is called.
+    /// Usually, it `run_ui` will only be called once.
     ///
     /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
-    /// You can alternatively use [`Self::begin_frame`] and [`Context::end_frame`].
+    /// Instead of calling `run`, you can alternatively use [`Self::begin_frame`] and [`Context::end_frame`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -772,38 +765,37 @@ impl Context {
         crate::profile_function!();
 
         let viewport_id = new_input.viewport_id;
-        let max_extra_passes = self.write(|ctx| {
-            ctx.viewport_for(viewport_id).pass_idx = 0;
-            ctx.memory.options.max_extra_passes
-        });
+        let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
-        let mut pass_idx = 0;
         let mut output = FullOutput::default();
+        debug_assert_eq!(output.platform_output.num_passes, 0);
 
         loop {
-            crate::profile_scope!("pass", pass_idx.to_string());
+            crate::profile_scope!("pass", output.platform_output.num_passes.to_string());
+
+            // We must move the `num_passes` (back) to the viewport output so that [`Self::will_discard`]
+            // has access to the latest pass count.
+            self.write(|ctx| {
+                let viewport = ctx.viewport_for(viewport_id);
+                viewport.output.num_passes = std::mem::take(&mut output.platform_output.num_passes);
+                output.platform_output.requested_discard = false;
+            });
 
             self.begin_frame(new_input.take());
             run_ui(self);
             output.append(self.end_frame());
+            debug_assert!(0 < output.platform_output.num_passes);
 
-            let requested_discard = std::mem::take(&mut output.platform_output.requested_discard);
-            if !requested_discard {
+            if !output.platform_output.requested_discard {
                 break; // no need for another pass
             }
 
-            if max_extra_passes <= pass_idx {
-                #[cfg(fearture = "log")]
-                log::debug!("Ignoring request to discard frame, because max_extra_passes={max_extra_passes}");
-                break; // new pass not allowed
-            }
+            if max_passes <= output.platform_output.num_passes {
+                #[cfg(feature = "log")]
+                log::debug!("Ignoring request to discard frame, because max_passes={max_passes}");
 
-            // Start a new pass:
-            pass_idx = self.write(|ctx| {
-                let viewport = ctx.viewport_for(viewport_id);
-                viewport.pass_idx += 1;
-                viewport.pass_idx
-            });
+                break;
+            }
         }
 
         output
@@ -1610,7 +1602,7 @@ impl Context {
     /// So [`crate::Grid`] calls [`Self::request_discard`] to cover up this glitches.
     ///
     /// There is a limit to how many times you can discard a frame,
-    /// set by [`Options::max_extra_passes`].
+    /// set by [`Options::max_passes`].
     /// Therefore, the request might be declined.
     ///
     /// You can check if the current frame will be discarded with
@@ -1643,7 +1635,9 @@ impl Context {
     pub fn will_discard(&self) -> bool {
         self.write(|ctx| {
             let vp = ctx.viewport();
-            vp.output.requested_discard && vp.pass_idx + 1 < ctx.memory.options.max_extra_passes
+            // NOTE: `num_passes` is incremented
+            vp.output.requested_discard
+                && vp.output.num_passes + 1 < ctx.memory.options.max_passes.get()
         })
     }
 }
@@ -2357,6 +2351,8 @@ impl ContextImpl {
                 false
             }
         });
+
+        platform_output.num_passes += 1;
 
         FullOutput {
             platform_output,
@@ -3648,4 +3644,139 @@ impl Context {
 fn context_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
+}
+
+#[cfg(test)]
+mod test {
+    use super::Context;
+
+    #[test]
+    fn test_single_pass() {
+        let ctx = Context::default();
+        ctx.options_mut(|o| o.max_passes = 1.try_into().unwrap());
+
+        // A single call, no request to discard:
+        {
+            let mut num_calls = 0;
+            let output = ctx.run(Default::default(), |ctx| {
+                num_calls += 1;
+                assert_eq!(ctx.output(|o| o.num_passes), 0);
+                assert!(!ctx.output(|o| o.requested_discard));
+                assert!(!ctx.will_discard());
+            });
+            assert_eq!(num_calls, 1);
+            assert_eq!(output.platform_output.num_passes, 1);
+            assert!(!output.platform_output.requested_discard);
+        }
+
+        // A single call, with a denied request to discard:
+        {
+            let mut num_calls = 0;
+            let output = ctx.run(Default::default(), |ctx| {
+                num_calls += 1;
+                ctx.request_discard();
+                assert!(!ctx.will_discard(), "The request should have been denied");
+            });
+            assert_eq!(num_calls, 1);
+            assert_eq!(output.platform_output.num_passes, 1);
+            assert!(
+                output.platform_output.requested_discard,
+                "The request should be reported"
+            );
+        }
+    }
+
+    #[test]
+    fn test_dual_pass() {
+        let ctx = Context::default();
+        ctx.options_mut(|o| o.max_passes = 2.try_into().unwrap());
+
+        // Normal single pass:
+        {
+            let mut num_calls = 0;
+            let output = ctx.run(Default::default(), |ctx| {
+                assert_eq!(ctx.output(|o| o.num_passes), 0);
+                assert!(!ctx.output(|o| o.requested_discard));
+                assert!(!ctx.will_discard());
+                num_calls += 1;
+            });
+            assert_eq!(num_calls, 1);
+            assert_eq!(output.platform_output.num_passes, 1);
+            assert!(!output.platform_output.requested_discard);
+        }
+
+        // Request discard once:
+        {
+            let mut num_calls = 0;
+            let output = ctx.run(Default::default(), |ctx| {
+                assert_eq!(ctx.output(|o| o.num_passes), num_calls);
+
+                assert!(!ctx.will_discard());
+                if num_calls == 0 {
+                    ctx.request_discard();
+                    assert!(ctx.will_discard());
+                }
+
+                num_calls += 1;
+            });
+            assert_eq!(num_calls, 2);
+            assert_eq!(output.platform_output.num_passes, 2);
+            assert!(
+                !output.platform_output.requested_discard,
+                "The request should have been cleared when fulfilled"
+            );
+        }
+
+        // Request discard twice:
+        {
+            let mut num_calls = 0;
+            let output = ctx.run(Default::default(), |ctx| {
+                assert_eq!(ctx.output(|o| o.num_passes), num_calls);
+
+                assert!(!ctx.will_discard());
+                ctx.request_discard();
+                if num_calls == 0 {
+                    assert!(ctx.will_discard(), "First request granted");
+                } else {
+                    assert!(!ctx.will_discard(), "Second request should be denied");
+                }
+
+                num_calls += 1;
+            });
+            assert_eq!(num_calls, 2);
+            assert_eq!(output.platform_output.num_passes, 2);
+            assert!(
+                output.platform_output.requested_discard,
+                "The unfulfilled request should be reported"
+            );
+        }
+    }
+
+    #[test]
+    fn test_multi_pass() {
+        let ctx = Context::default();
+        ctx.options_mut(|o| o.max_passes = 10.try_into().unwrap());
+
+        // Request discard three times:
+        {
+            let mut num_calls = 0;
+            let output = ctx.run(Default::default(), |ctx| {
+                assert_eq!(ctx.output(|o| o.num_passes), num_calls);
+
+                assert!(!ctx.will_discard());
+                if num_calls <= 2 {
+                    ctx.request_discard();
+                    assert!(ctx.will_discard());
+                }
+
+                num_calls += 1;
+            });
+            assert_eq!(num_calls, 4);
+            assert_eq!(output.platform_output.num_passes, 4);
+            assert!(
+                !output.platform_output.requested_discard,
+                "The request should have been cleared when fulfilled"
+            );
+        }
+    }
 }

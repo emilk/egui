@@ -124,7 +124,13 @@ pub struct PlatformOutput {
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 
-    pub requested_discard: bool, // TODO: document
+    /// How many ui passes is this the sum of?
+    ///
+    /// See [`Context::request_discard`] for details.
+    pub num_passes: usize,
+
+    /// Was [`Context::request_discard`] called during the latest pass?
+    pub requested_discard: bool,
 }
 
 impl PlatformOutput {
@@ -157,7 +163,8 @@ impl PlatformOutput {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
-            requested_discard: skip_frame,
+            num_passes,
+            requested_discard,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -170,7 +177,8 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
-        self.requested_discard |= skip_frame;
+        self.num_passes += num_passes;
+        self.requested_discard |= requested_discard;
 
         #[cfg(feature = "accesskit")]
         {

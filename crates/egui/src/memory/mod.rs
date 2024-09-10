@@ -1,5 +1,7 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
+use std::num::NonZeroUsize;
+
 use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
@@ -228,15 +230,22 @@ pub struct Options {
     /// (<https://github.com/rerun-io/rerun/issues/5018>).
     pub repaint_on_widget_change: bool,
 
-    /// How many times [`Context::request_discard`] will be heeded in a single frame.
+    /// Maximum number of passes to run in one frame.
     ///
-    /// If this is zero, egui will be pure single-pass immediate mode.
-    /// If this is greater than zero, egui can support multi-pass immediate mode,
-    /// where widget sizes from previous passes are stores and used in the layouting
-    /// of subsequent passes.
+    /// Set to `1` for pure single-pass immediate mode.
+    /// Set to something larger than `1` to allow multi-pass when needed.
+    ///
+    /// Default is `2`. This means sometimes a frame will cost twice as much,
+    /// but usually only rarely (e.g. when showing a new panel for the first time).
+    ///
+    /// egui will usually only ever run one pass, even if `max_passes` is large.
+    ///
+    /// If this is `1`, [`Context::request_discard`] will be ignored.
     ///
     /// Multi-pass is supported by [`Context::run`].
-    pub max_extra_passes: usize, // TODO: maybe `pub max_passes: NonZeroUsize` ?
+    ///
+    /// See [`Context::request_discard`] for more.
+    pub max_passes: NonZeroUsize,
 
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     ///
@@ -307,7 +316,7 @@ impl Default for Options {
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
-            max_extra_passes: 1, // TODO: is this a good default?
+            max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
@@ -363,7 +372,7 @@ impl Options {
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
-            max_extra_passes,
+            max_passes,
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
@@ -386,7 +395,7 @@ impl Options {
 
                 ui.horizontal(|ui| {
                     ui.label("Max extra passes:");
-                    ui.add(crate::DragValue::new(max_extra_passes).range(0..=10));
+                    ui.add(crate::DragValue::new(max_passes).range(0..=10));
                 });
 
                 ui.checkbox(
