@@ -1,7 +1,13 @@
 mod touch_state;
 
-use crate::data::input::*;
-use crate::{emath::*, util::History};
+use crate::data::input::{
+    Event, EventFilter, KeyboardShortcut, Modifiers, MouseWheelUnit, PointerButton, RawInput,
+    TouchDeviceId, ViewportInfo, NUM_POINTER_BUTTONS,
+};
+use crate::{
+    emath::{vec2, NumExt, Pos2, Rect, Vec2},
+    util::History,
+};
 use std::{
     collections::{BTreeMap, HashSet},
     time::Duration,
@@ -11,19 +17,76 @@ pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
-/// If the pointer moves more than this, it won't become a click (but it is still a drag)
-const MAX_CLICK_DIST: f32 = 6.0; // TODO(emilk): move to settings
+/// Options for input state handling.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct InputOptions {
+    /// After a pointer-down event, if the pointer moves more than this, it won't become a click.
+    pub max_click_dist: f32,
 
-/// If the pointer is down for longer than this it will no longer register as a click.
-///
-/// If a touch is held for this many seconds while still,
-/// then it will register as a "long-touch" which is equivalent to a secondary click.
-///
-/// This is to support "press and hold for context menu" on touch screens.
-const MAX_CLICK_DURATION: f64 = 0.8; // TODO(emilk): move to settings
+    /// If the pointer is down for longer than this it will no longer register as a click.
+    ///
+    /// If a touch is held for this many seconds while still, then it will register as a
+    /// "long-touch" which is equivalent to a secondary click.
+    ///
+    /// This is to support "press and hold for context menu" on touch screens.
+    pub max_click_duration: f64,
 
-/// The new pointer press must come within this many seconds from previous pointer release
-const MAX_DOUBLE_CLICK_DELAY: f64 = 0.3; // TODO(emilk): move to settings
+    /// The new pointer press must come within this many seconds from previous pointer release
+    /// for double click (or when this value is doubled, triple click) to count.
+    pub max_double_click_delay: f64,
+}
+
+impl Default for InputOptions {
+    fn default() -> Self {
+        Self {
+            max_click_dist: 6.0,
+            max_click_duration: 0.8,
+            max_double_click_delay: 0.3,
+        }
+    }
+}
+
+impl InputOptions {
+    /// Show the options in the ui.
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        let Self {
+            max_click_dist,
+            max_click_duration,
+            max_double_click_delay,
+        } = self;
+        crate::containers::CollapsingHeader::new("InputOptions")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Max click distance");
+                    ui.add(
+                        crate::DragValue::new(max_click_dist)
+                            .range(0.0..=f32::INFINITY)
+                    )
+                    .on_hover_text("If the pointer moves more than this, it won't become a click");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Max click duration");
+                    ui.add(
+                        crate::DragValue::new(max_click_duration)
+                            .range(0.1..=f64::INFINITY)
+                            .speed(0.1),
+                    )
+                    .on_hover_text("If the pointer is down for longer than this it will no longer register as a click");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Max double click delay");
+                    ui.add(
+                        crate::DragValue::new(max_double_click_delay)
+                            .range(0.01..=f64::INFINITY)
+                            .speed(0.1),
+                    )
+                    .on_hover_text("Max time interval for double click to count");
+                });
+            });
+    }
+}
 
 /// Input state that egui updates each frame.
 ///
@@ -160,6 +223,11 @@ pub struct InputState {
 
     /// In-order events received this frame
     pub events: Vec<Event>,
+
+    /// Input state management configuration.
+    ///
+    /// This gets copied from `egui::Options` at the start of each frame for convenience.
+    input_options: InputOptions,
 }
 
 impl Default for InputState {
@@ -187,6 +255,7 @@ impl Default for InputState {
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
+            input_options: Default::default(),
         }
     }
 }
@@ -218,7 +287,7 @@ impl InputState {
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_frame(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.begin_frame(time, &new);
+        let pointer = self.pointer.begin_frame(time, &new, options);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
@@ -360,6 +429,7 @@ impl InputState {
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
+            input_options: options.input_options.clone(),
         }
     }
 
@@ -436,8 +506,10 @@ impl InputState {
             // We need to wake up and check for press-and-hold for the context menu.
             if let Some(press_start_time) = self.pointer.press_start_time {
                 let press_duration = self.time - press_start_time;
-                if press_duration < MAX_CLICK_DURATION {
-                    let secs_until_menu = MAX_CLICK_DURATION - press_duration;
+                if self.input_options.max_click_duration.is_finite()
+                    && press_duration < self.input_options.max_click_duration
+                {
+                    let secs_until_menu = self.input_options.max_click_duration - press_duration;
                     return Some(Duration::from_secs_f64(secs_until_menu));
                 }
             }
@@ -794,6 +866,11 @@ pub struct PointerState {
 
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
+
+    /// Input state management configuration.
+    ///
+    /// This gets copied from `egui::Options` at the start of each frame for convenience.
+    input_options: InputOptions,
 }
 
 impl Default for PointerState {
@@ -816,16 +893,23 @@ impl Default for PointerState {
             last_last_click_time: std::f64::NEG_INFINITY,
             last_move_time: std::f64::NEG_INFINITY,
             pointer_events: vec![],
+            input_options: Default::default(),
         }
     }
 }
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> Self {
+    pub(crate) fn begin_frame(
+        mut self,
+        time: f64,
+        new: &RawInput,
+        options: &crate::Options,
+    ) -> Self {
         let was_decidedly_dragging = self.is_decidedly_dragging();
 
         self.time = time;
+        self.input_options = options.input_options.clone();
 
         self.pointer_events.clear();
 
@@ -845,7 +929,7 @@ impl PointerState {
 
                     if let Some(press_origin) = self.press_origin {
                         self.has_moved_too_much_for_a_click |=
-                            press_origin.distance(pos) > MAX_CLICK_DIST;
+                            press_origin.distance(pos) > self.input_options.max_click_dist;
                     }
 
                     self.pointer_events.push(PointerEvent::Moved(pos));
@@ -883,10 +967,10 @@ impl PointerState {
                         let clicked = self.could_any_button_be_click();
 
                         let click = if clicked {
-                            let double_click =
-                                (time - self.last_click_time) < MAX_DOUBLE_CLICK_DELAY;
-                            let triple_click =
-                                (time - self.last_last_click_time) < (MAX_DOUBLE_CLICK_DELAY * 2.0);
+                            let double_click = (time - self.last_click_time)
+                                < self.input_options.max_double_click_delay;
+                            let triple_click = (time - self.last_last_click_time)
+                                < (self.input_options.max_double_click_delay * 2.0);
                             let count = if triple_click {
                                 3
                             } else if double_click {
@@ -1184,7 +1268,7 @@ impl PointerState {
             }
 
             if let Some(press_start_time) = self.press_start_time {
-                if self.time - press_start_time > MAX_CLICK_DURATION {
+                if self.time - press_start_time > self.input_options.max_click_duration {
                     return false;
                 }
             }
@@ -1220,7 +1304,7 @@ impl PointerState {
             && !self.has_moved_too_much_for_a_click
             && self.button_down(PointerButton::Primary)
             && self.press_start_time.map_or(false, |press_start_time| {
-                self.time - press_start_time > MAX_CLICK_DURATION
+                self.time - press_start_time > self.input_options.max_click_duration
             })
     }
 
@@ -1268,6 +1352,7 @@ impl InputState {
             modifiers,
             keys_down,
             events,
+            input_options: _,
         } = self;
 
         ui.style_mut()
@@ -1353,6 +1438,7 @@ impl PointerState {
             last_last_click_time,
             pointer_events,
             last_move_time,
+            input_options: _,
         } = self;
 
         ui.label(format!("latest_pos: {latest_pos:?}"));

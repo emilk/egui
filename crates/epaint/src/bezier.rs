@@ -4,7 +4,7 @@
 use std::ops::Range;
 
 use crate::{shape::Shape, Color32, PathShape, PathStroke};
-use emath::*;
+use emath::{Pos2, Rect, RectTransform};
 
 // ----------------------------------------------------------------------------
 
@@ -762,6 +762,8 @@ fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, p3: f
 
 #[cfg(test)]
 mod tests {
+    use emath::pos2;
+
     use super::*;
 
     #[test]

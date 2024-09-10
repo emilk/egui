@@ -43,7 +43,11 @@ pub use backend::*;
 use wasm_bindgen::prelude::*;
 use web_sys::MediaQueryList;
 
-use input::*;
+use input::{
+    button_from_mouse_event, modifiers_from_kb_event, modifiers_from_mouse_event,
+    modifiers_from_wheel_event, pos_from_mouse_event, primary_touch_pos, push_touches,
+    text_from_keyboard_event, translate_key,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -251,17 +255,4 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
-}
-
-/// Returns `true` if the app is likely running on a mobile device.
-pub(crate) fn is_mobile() -> bool {
-    fn try_is_mobile() -> Option<bool> {
-        const MOBILE_DEVICE: [&str; 6] =
-            ["Android", "iPhone", "iPad", "iPod", "webOS", "BlackBerry"];
-
-        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
-        let is_mobile = MOBILE_DEVICE.iter().any(|&name| user_agent.contains(name));
-        Some(is_mobile)
-    }
-    try_is_mobile().unwrap_or(false)
 }

@@ -74,9 +74,10 @@ backtrace = "0.3"
 bytemuck = "1.7.2"
 criterion = { version = "0.5.1", default-features = false }
 document-features = " 0.2.8"
-glow = "0.13"
+glow = "0.14"
 glutin = "0.32.0"
 glutin-winit = "0.5.0"
+home = "0.5.9"
 image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
@@ -95,6 +96,7 @@ wgpu = { version = "22.1.0", default-features = false, features = [
     # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
     "fragile-send-sync-non-atomic-wasm",
 ] }
+windows-sys = "0.52"
 winit = { version = "0.30.5", default-features = false }
 
 [workspace.lints.rust]
@@ -118,6 +120,7 @@ unused_qualifications = "allow"
 [workspace.lints.rustdoc]
 all = "warn"
 missing_crate_level_docs = "warn"
+broken_intra_doc_links = "warn"
 
 # See also clippy.toml
 [workspace.lints.clippy]
@@ -249,6 +252,7 @@ use_self = "warn"
 useless_transmute = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
+wildcard_imports = "warn"
 zero_sized_map_values = "warn"
 
 
@@ -263,4 +267,3 @@ unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on thi
 manual_range_contains = "allow"       # this one is just worse imho
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
-wildcard_imports = "allow"            # we do this a lot in egui

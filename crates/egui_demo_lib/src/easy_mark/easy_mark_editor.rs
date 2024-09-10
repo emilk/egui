@@ -1,4 +1,6 @@
-use egui::{text::CCursorRange, *};
+use egui::{
+    text::CCursorRange, Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui,
+};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -56,10 +58,10 @@ impl EasyMarkEditor {
         if self.show_rendered {
             ui.columns(2, |columns| {
                 ScrollArea::vertical()
-                    .id_source("source")
+                    .id_salt("source")
                     .show(&mut columns[0], |ui| self.editor_ui(ui));
                 ScrollArea::vertical()
-                    .id_source("rendered")
+                    .id_salt("rendered")
                     .show(&mut columns[1], |ui| {
                         // TODO(emilk): we can save some more CPU by caching the rendered output.
                         crate::easy_mark::easy_mark(ui, &self.code);
@@ -67,7 +69,7 @@ impl EasyMarkEditor {
             });
         } else {
             ScrollArea::vertical()
-                .id_source("source")
+                .id_salt("source")
                 .show(ui, |ui| self.editor_ui(ui));
         }
     }

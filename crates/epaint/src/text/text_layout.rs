@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use emath::*;
+use emath::{pos2, vec2, Align, NumExt, Pos2, Rect, Vec2};
 
 use crate::{stroke::PathStroke, text::font::Font, Color32, Mesh, Stroke, Vertex};
 
@@ -98,6 +98,9 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     if elided {
         if let Some(last_row) = rows.last_mut() {
             replace_last_glyph_with_overflow_character(fonts, &job, last_row);
+            if let Some(last) = last_row.glyphs.last() {
+                last_row.rect.max.x = last.max_x();
+            }
         }
     }
 
@@ -217,7 +220,7 @@ fn rows_from_paragraphs(
             });
         } else {
             let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
-            if paragraph_max_x <= job.wrap.max_width {
+            if paragraph_max_x <= job.effective_wrap_width() {
                 // Early-out optimization: the whole paragraph fits on one row.
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
                 rows.push(Row {
@@ -238,11 +241,7 @@ fn rows_from_paragraphs(
 }
 
 fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, elided: &mut bool) {
-    let wrap_width_margin = if job.round_output_size_to_nearest_ui_point {
-        0.5
-    } else {
-        0.0
-    };
+    let wrap_width = job.effective_wrap_width();
 
     // Keeps track of good places to insert row break if we exceed `wrap_width`.
     let mut row_break_candidates = RowBreakCandidates::default();
@@ -259,7 +258,7 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
 
         let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
 
-        if job.wrap.max_width + wrap_width_margin < potential_row_width {
+        if wrap_width < potential_row_width {
             // Row break:
 
             if first_row_indentation > 0.0
@@ -417,7 +416,7 @@ fn replace_last_glyph_with_overflow_character(
         });
     }
 
-    if row_width(row) <= job.wrap.max_width || row.glyphs.len() == 1 {
+    if row_width(row) <= job.effective_wrap_width() || row.glyphs.len() == 1 {
         return; // we are done
     }
 
@@ -464,7 +463,7 @@ fn replace_last_glyph_with_overflow_character(
             }
 
             // Check if we're within width budget:
-            if row_width(row) <= job.wrap.max_width || row.glyphs.len() == 1 {
+            if row_width(row) <= job.effective_wrap_width() || row.glyphs.len() == 1 {
                 return; // We are done
             }
 
@@ -650,8 +649,8 @@ fn galley_from_rows(
             // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
             // we should let the user know.
         } else {
-            // Make sure we don't over the max wrap width the user picked:
-            rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width);
+            // Make sure we don't go over the max wrap width the user picked:
+            rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width).floor();
         }
     }
 
@@ -703,6 +702,7 @@ fn tessellate_row(
         add_row_backgrounds(job, row, &mut mesh);
     }
 
+    let glyph_index_start = mesh.indices.len();
     let glyph_vertex_start = mesh.vertices.len();
     tessellate_glyphs(point_scale, job, row, &mut mesh);
     let glyph_vertex_end = mesh.vertices.len();
@@ -730,6 +730,7 @@ fn tessellate_row(
     RowVisuals {
         mesh,
         mesh_bounds,
+        glyph_index_start,
         glyph_vertex_range: glyph_vertex_start..glyph_vertex_end,
     }
 }
@@ -1112,5 +1113,22 @@ mod tests {
             galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
             vec!["日本語とEnglish", "の混在した文章"]
         );
+    }
+
+    #[test]
+    fn test_truncate_width() {
+        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut layout_job =
+            LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
+        layout_job.wrap.max_width = f32::INFINITY;
+        layout_job.wrap.max_rows = 1;
+        let galley = layout(&mut fonts, layout_job.into());
+        assert!(galley.elided);
+        assert_eq!(
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
+            vec!["# DNA…"]
+        );
+        let row = &galley.rows[0];
+        assert_eq!(row.rect.max.x, row.glyphs.last().unwrap().max_x());
     }
 }

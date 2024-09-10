@@ -5,7 +5,9 @@
 //! The plugin registers itself onto a specific [`Context`]
 //! to get callbacks on certain events ([`Context::on_begin_frame`], [`Context::on_end_frame`]).
 
-use crate::*;
+use crate::{
+    text, Align, Align2, Color32, Context, FontFamily, FontId, Id, Rect, Shape, Vec2, WidgetText,
+};
 
 /// Register this plugin on the given egui context,
 /// so that it will be called every frame.

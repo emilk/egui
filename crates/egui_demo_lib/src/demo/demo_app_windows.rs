@@ -260,6 +260,7 @@ impl DemoWindows {
             .resizable(false)
             .default_width(150.0)
             .show(ctx, |ui| {
+                ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("✒ egui demos");
                 });

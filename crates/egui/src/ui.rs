@@ -6,9 +6,29 @@ use std::{any::Any, hash::Hash, sync::Arc};
 use epaint::mutex::RwLock;
 
 use crate::{
-    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    util::IdTypeMap, widgets::*, *,
+    containers::{CollapsingHeader, CollapsingResponse, Frame},
+    ecolor::Hsva,
+    emath, epaint,
+    epaint::text::Fonts,
+    frame_state, grid,
+    layout::{Direction, Layout},
+    menu,
+    menu::MenuState,
+    placer::Placer,
+    pos2, style,
+    util::IdTypeMap,
+    vec2, widgets,
+    widgets::{
+        color_picker, Button, Checkbox, DragValue, Hyperlink, Image, ImageSource, Label, Link,
+        RadioButton, SelectableLabel, Separator, Spinner, TextEdit, Widget,
+    },
+    Align, Color32, Context, CursorIcon, DragAndDrop, Id, InnerResponse, InputState, LayerId,
+    Memory, Order, Painter, PlatformOutput, Pos2, Rangef, Rect, Response, Rgba, RichText, Sense,
+    Style, TextStyle, TextWrapMode, UiBuilder, UiStack, UiStackInfo, Vec2, WidgetRect, WidgetText,
 };
+
+#[cfg(debug_assertions)]
+use crate::Stroke;
 // ----------------------------------------------------------------------------
 
 /// This is what you use to place widgets.
@@ -43,7 +63,7 @@ pub struct Ui {
     /// and the value is increment with each added child widget.
     /// This works as an Id source only as long as new widgets aren't added or removed.
     /// They are therefore only good for Id:s that has no state.
-    next_auto_id_source: u64,
+    next_auto_id_salt: u64,
 
     /// Specifies paint layer, clip rectangle and a reference to [`Context`].
     painter: Painter,
@@ -78,10 +98,10 @@ impl Ui {
     /// Create a new top-level [`Ui`].
     ///
     /// Normally you would not use this directly, but instead use
-    /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
+    /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_source,
+            id_salt,
             ui_stack_info,
             max_rect,
             layout,
@@ -92,15 +112,14 @@ impl Ui {
         } = ui_builder;
 
         debug_assert!(
-            id_source.is_none(),
-            "Top-level Ui:s should not have an id_source"
+            id_salt.is_none(),
+            "Top-level Ui:s should not have an id_salt"
         );
 
         let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
-        let invisible = invisible || sizing_pass;
-        let disabled = disabled || invisible || sizing_pass;
+        let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.style());
 
         let placer = Placer::new(max_rect, layout);
@@ -114,12 +133,12 @@ impl Ui {
         };
         let mut ui = Ui {
             id,
-            next_auto_id_source: id.with("auto").value(),
+            next_auto_id_salt: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
             placer,
             enabled: true,
-            sizing_pass: false,
+            sizing_pass,
             menu_state: None,
             stack: Arc::new(ui_stack),
         };
@@ -140,9 +159,6 @@ impl Ui {
         }
         if invisible {
             ui.set_invisible();
-        }
-        if sizing_pass {
-            ui.set_sizing_pass();
         }
 
         ui
@@ -177,12 +193,12 @@ impl Ui {
         &mut self,
         max_rect: Rect,
         layout: Layout,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         ui_stack_info: Option<UiStackInfo>,
     ) -> Self {
         self.new_child(
             UiBuilder::new()
-                .id_source(id_source)
+                .id_salt(id_salt)
                 .max_rect(max_rect)
                 .layout(layout)
                 .ui_stack_info(ui_stack_info.unwrap_or_default()),
@@ -192,7 +208,7 @@ impl Ui {
     /// Create a child `Ui` with the properties of the given builder.
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
-            id_source,
+            id_salt,
             ui_stack_info,
             max_rect,
             layout,
@@ -204,11 +220,10 @@ impl Ui {
 
         let mut painter = self.painter.clone();
 
-        let id_source = id_source.unwrap_or_else(|| Id::from("child"));
+        let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
-        let invisible = invisible || sizing_pass;
-        let enabled = self.enabled && !disabled && !invisible && !sizing_pass;
+        let enabled = self.enabled && !disabled && !invisible;
         if invisible {
             painter.set_invisible();
         }
@@ -225,10 +240,11 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan());
-        let next_auto_id_source = Id::new(self.next_auto_id_source).with("child").value();
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        let new_id = self.id.with(id_salt);
+        let next_auto_id_salt = new_id.with(self.next_auto_id_salt).value();
 
-        let new_id = self.id.with(id_source);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
+
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
             id: new_id,
@@ -240,7 +256,7 @@ impl Ui {
         };
         let child_ui = Ui {
             id: new_id,
-            next_auto_id_source,
+            next_auto_id_salt,
             painter,
             style,
             placer,
@@ -272,6 +288,7 @@ impl Ui {
     /// This will also turn the Ui invisible.
     /// Should be called right after [`Self::new`], if at all.
     #[inline]
+    #[deprecated = "Use UiBuilder.sizing_pass().invisible()"]
     pub fn set_sizing_pass(&mut self) {
         self.sizing_pass = true;
         self.set_invisible();
@@ -622,8 +639,21 @@ impl Ui {
         self.painter.clip_rect()
     }
 
+    /// Constrain the rectangle in which we can paint.
+    ///
+    /// Short for `ui.set_clip_rect(ui.clip_rect().intersect(new_clip_rect))`.
+    ///
+    /// See also: [`Self::clip_rect`] and [`Self::set_clip_rect`].
+    #[inline]
+    pub fn shrink_clip_rect(&mut self, new_clip_rect: Rect) {
+        self.painter.shrink_clip_rect(new_clip_rect);
+    }
+
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
+    ///
+    /// Warning: growing the clip rect might cause unexpected results!
+    /// When in doubt, use [`Self::shrink_clip_rect`] instead.
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.painter.set_clip_rect(clip_rect);
     }
@@ -897,29 +927,29 @@ impl Ui {
 /// # [`Id`] creation
 impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
-    pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
+    pub fn make_persistent_id<IdSource>(&self, id_salt: IdSource) -> Id
     where
         IdSource: Hash,
     {
-        self.id.with(&id_source)
+        self.id.with(&id_salt)
     }
 
     /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
     pub fn next_auto_id(&self) -> Id {
-        Id::new(self.next_auto_id_source)
+        Id::new(self.next_auto_id_salt)
     }
 
-    /// Same as `ui.next_auto_id().with(id_source)`
-    pub fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
+    /// Same as `ui.next_auto_id().with(id_salt)`
+    pub fn auto_id_with<IdSource>(&self, id_salt: IdSource) -> Id
     where
         IdSource: Hash,
     {
-        Id::new(self.next_auto_id_source).with(id_source)
+        Id::new(self.next_auto_id_salt).with(id_salt)
     }
 
     /// Pretend like `count` widgets have been allocated.
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(count as u64);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(count as u64);
     }
 }
 
@@ -1089,8 +1119,8 @@ impl Ui {
             }
         }
 
-        let id = Id::new(self.next_auto_id_source);
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        let id = Id::new(self.next_auto_id_salt);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         (id, rect)
     }
@@ -1127,8 +1157,8 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
 
-        let id = Id::new(self.next_auto_id_source);
-        self.next_auto_id_source = self.next_auto_id_source.wrapping_add(1);
+        let id = Id::new(self.next_auto_id_salt);
+        self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
         id
     }
 
@@ -1274,7 +1304,7 @@ impl Ui {
 
 /// # Scrolling
 impl Ui {
-    /// Adjust the scroll position of any parent [`ScrollArea`] so that the given [`Rect`] becomes visible.
+    /// Adjust the scroll position of any parent [`crate::ScrollArea`] so that the given [`Rect`] becomes visible.
     ///
     /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is `None`, it'll scroll enough to bring the cursor into view.
@@ -1313,7 +1343,7 @@ impl Ui {
         }
     }
 
-    /// Adjust the scroll position of any parent [`ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
+    /// Adjust the scroll position of any parent [`crate::ScrollArea`] so that the cursor (where the next widget goes) becomes visible.
     ///
     /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
     /// If `align` is not provided, it'll scroll enough to bring the cursor into view.
@@ -1355,7 +1385,7 @@ impl Ui {
         }
     }
 
-    /// Scroll this many points in the given direction, in the parent [`ScrollArea`].
+    /// Scroll this many points in the given direction, in the parent [`crate::ScrollArea`].
     ///
     /// The delta dictates how the _content_ (i.e. this UI) should move.
     ///
@@ -1365,7 +1395,7 @@ impl Ui {
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
     ///
-    /// If this is called multiple times per frame for the same [`ScrollArea`], the deltas will be summed.
+    /// If this is called multiple times per frame for the same [`crate::ScrollArea`], the deltas will be summed.
     ///
     /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
     ///
@@ -1934,7 +1964,7 @@ impl Ui {
     /// # });
     /// ```
     ///
-    /// Using [`include_image`] is often the most ergonomic, and the path
+    /// Using [`crate::include_image`] is often the most ergonomic, and the path
     /// will be resolved at compile-time and embedded in the binary.
     /// When using a "file://" url on the other hand, you need to make sure
     /// the files can be found in the right spot at runtime!
@@ -2065,13 +2095,10 @@ impl Ui {
     /// ```
     pub fn push_id<R>(
         &mut self,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.scope_dyn(
-            UiBuilder::new().id_source(id_source),
-            Box::new(add_contents),
-        )
+        self.scope_dyn(UiBuilder::new().id_salt(id_salt), Box::new(add_contents))
     }
 
     /// Push another level onto the [`UiStack`].
@@ -2120,9 +2147,9 @@ impl Ui {
         ui_builder: UiBuilder,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let next_auto_id_source = self.next_auto_id_source;
+        let next_auto_id_salt = self.next_auto_id_salt;
         let mut child_ui = self.new_child(ui_builder);
-        self.next_auto_id_source = next_auto_id_source; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
+        self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
@@ -2143,7 +2170,7 @@ impl Ui {
     /// A [`CollapsingHeader`] that starts out collapsed.
     ///
     /// The name must be unique within the current parent,
-    /// or you need to use [`CollapsingHeader::id_source`].
+    /// or you need to use [`CollapsingHeader::id_salt`].
     pub fn collapsing<R>(
         &mut self,
         heading: impl Into<WidgetText>,
@@ -2154,20 +2181,20 @@ impl Ui {
 
     /// Create a child ui which is indented to the right.
     ///
-    /// The `id_source` here be anything at all.
-    // TODO(emilk): remove `id_source` argument?
+    /// The `id_salt` here be anything at all.
+    // TODO(emilk): remove `id_salt` argument?
     #[inline]
     pub fn indent<R>(
         &mut self,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
-        self.indent_dyn(id_source, Box::new(add_contents))
+        self.indent_dyn(id_salt, Box::new(add_contents))
     }
 
     fn indent_dyn<'c, R>(
         &mut self,
-        id_source: impl Hash,
+        id_salt: impl Hash,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         assert!(
@@ -2180,8 +2207,7 @@ impl Ui {
         let mut child_rect = self.placer.available_rect_before_wrap();
         child_rect.min.x += indent;
 
-        let mut child_ui =
-            self.new_child(UiBuilder::new().id_source(id_source).max_rect(child_rect));
+        let mut child_ui = self.new_child(UiBuilder::new().id_salt(id_salt).max_rect(child_rect));
         let ret = add_contents(&mut child_ui);
 
         let left_vline = self.visuals().indent_has_left_vline;
@@ -2194,9 +2220,9 @@ impl Ui {
 
             let stroke = self.visuals().widgets.noninteractive.bg_stroke;
             let left_top = child_rect.min - 0.5 * indent * Vec2::X;
-            let left_top = self.painter().round_pos_to_pixels(left_top);
+            let left_top = self.painter().round_pos_to_pixel_center(left_top);
             let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
-            let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
+            let left_bottom = self.painter().round_pos_to_pixel_center(left_bottom);
 
             if left_vline {
                 // draw a faint line on the left to mark the indented section
@@ -2663,6 +2689,33 @@ impl Ui {
         let payload = response.dnd_release_payload::<Payload>();
 
         (InnerResponse { inner, response }, payload)
+    }
+
+    /// Create a new Scope and transform its contents via a [`emath::TSTransform`].
+    /// This only affects visuals, inputs will not be transformed. So this is mostly useful
+    /// to create visual effects on interactions, e.g. scaling a button on hover / click.
+    ///
+    /// Check out [`Context::set_transform_layer`] for a persistent transform that also affects
+    /// inputs.
+    pub fn with_visual_transform<R>(
+        &mut self,
+        transform: emath::TSTransform,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        let start_idx = self.ctx().graphics(|gx| {
+            gx.get(self.layer_id())
+                .map_or(crate::layers::ShapeIdx(0), |l| l.next_idx())
+        });
+
+        let r = self.scope_dyn(UiBuilder::new(), Box::new(add_contents));
+
+        self.ctx().graphics_mut(|g| {
+            let list = g.entry(self.layer_id());
+            let end_idx = list.next_idx();
+            list.transform_range(start_idx, end_idx, transform);
+        });
+
+        r
     }
 }
 

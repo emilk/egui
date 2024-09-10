@@ -1,6 +1,6 @@
 //! How mouse and touch interzcts with widgets.
 
-use crate::*;
+use crate::{hit_test, id, input_state, memory, Id, InputState, Key, WidgetRects};
 
 use self::{hit_test::WidgetHits, id::IdSet, input_state::PointerEvent, memory::InteractionState};
 
@@ -28,7 +28,7 @@ pub struct InteractionSnapshot {
     /// Set the same frame a drag starts,
     /// but unset the frame a drag ends.
     ///
-    /// NOTE: this may not have a corresponding [`WidgetRect`],
+    /// NOTE: this may not have a corresponding [`crate::WidgetRect`],
     /// if this for instance is a drag-and-drop widget which
     /// isn't painted whilst being dragged
     pub dragged: Option<Id>,

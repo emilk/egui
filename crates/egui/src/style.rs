@@ -7,8 +7,10 @@ use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, TextWrapMode, WidgetText,
+    ecolor::Color32,
+    emath::{pos2, vec2, Rangef, Rect, Vec2},
+    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
+    WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -361,7 +363,7 @@ pub struct Spacing {
     /// Default (minimum) width of a [`ComboBox`].
     pub combo_width: f32,
 
-    /// Default width of a [`TextEdit`].
+    /// Default width of a [`crate::TextEdit`].
     pub text_edit_width: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
@@ -887,7 +889,7 @@ pub struct Visuals {
 
     pub selection: Selection,
 
-    /// The color used for [`Hyperlink`],
+    /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.
@@ -1489,7 +1491,10 @@ impl Default for Widgets {
 
 // ----------------------------------------------------------------------------
 
-use crate::{widgets::*, Ui};
+use crate::{
+    widgets::{reset_button, Button, DragValue, Slider, Widget},
+    Ui,
+};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
@@ -1532,7 +1537,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Override text style");
-            crate::ComboBox::from_id_source("Override text style")
+            crate::ComboBox::from_id_salt("Override text style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
                     Some(override_text_style) => override_text_style.to_string(),
@@ -1549,7 +1554,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Text style of DragValue");
-            crate::ComboBox::from_id_source("drag_value_text_style")
+            crate::ComboBox::from_id_salt("drag_value_text_style")
                 .selected_text(drag_value_text_style.to_string())
                 .show_ui(ui, |ui| {
                     let all_text_styles = ui.style().text_styles();
@@ -1562,7 +1567,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Text Wrap Mode");
-            crate::ComboBox::from_id_source("text_wrap_mode")
+            crate::ComboBox::from_id_salt("text_wrap_mode")
                 .selected_text(format!("{wrap_mode:?}"))
                 .show_ui(ui, |ui| {
                     let all_wrap_mode: Vec<Option<TextWrapMode>> = vec![
@@ -2472,8 +2477,12 @@ impl Widget for &mut Stroke {
 
             // stroke preview:
             let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-            let left = stroke_rect.left_center();
-            let right = stroke_rect.right_center();
+            let left = ui
+                .painter()
+                .round_pos_to_pixel_center(stroke_rect.left_center());
+            let right = ui
+                .painter()
+                .round_pos_to_pixel_center(stroke_rect.right_center());
             ui.painter().line_segment([left, right], (*width, *color));
         })
         .response

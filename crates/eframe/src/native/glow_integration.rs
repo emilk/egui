@@ -1,14 +1,10 @@
-//! Note that this file contains code very similar to [`wgpu_integration`].
+//! Note that this file contains code very similar to [`super::wgpu_integration`].
 //! When making changes to one you often also want to apply it to the other.
 //!
 //! This is also very complex code, and not very pretty.
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-// `clippy::arc_with_non_send_sync`: `glow::Context` was accidentally non-Sync in glow 0.13,
-// but that will be fixed in future releases of glow.
-// https://github.com/grovesNL/glow/commit/c4a5f7151b9b4bbb380faa06ec27415235d1bf7e
-#![allow(clippy::arc_with_non_send_sync)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
@@ -36,36 +32,36 @@ use egui::{
 use egui_winit::accesskit_winit;
 
 use crate::{
-    native::{epi_integration::EpiIntegration, winit_integration::create_egui_context},
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::epi_integration::EpiIntegration, App, AppCreator, CreationContext, NativeOptions,
+    Result, Storage,
 };
 
 use super::{
-    winit_integration::{EventResult, UserEvent, WinitApp},
-    *,
+    epi_integration, event_loop_context,
+    winit_integration::{create_egui_context, EventResult, UserEvent, WinitApp},
 };
 
 // ----------------------------------------------------------------------------
 // Types:
 
-pub struct GlowWinitApp {
+pub struct GlowWinitApp<'app> {
     repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
     app_name: String,
     native_options: NativeOptions,
-    running: Option<GlowWinitRunning>,
+    running: Option<GlowWinitRunning<'app>>,
 
     // Note that since this `AppCreator` is FnOnce we are currently unable to support
     // re-initializing the `GlowWinitRunning` state on Android if the application
     // suspends and resumes.
-    app_creator: Option<AppCreator>,
+    app_creator: Option<AppCreator<'app>>,
 }
 
 /// State that is initialized when the application is first starts running via
 /// a Resumed event. On Android this ensures that any graphics state is only
 /// initialized once the application has an associated `SurfaceView`.
-struct GlowWinitRunning {
+struct GlowWinitRunning<'app> {
     integration: EpiIntegration,
-    app: Box<dyn App>,
+    app: Box<dyn 'app + App>,
 
     // These needs to be shared with the immediate viewport renderer, hence the Rc/Arc/RefCells:
     glutin: Rc<RefCell<GlutinWindowContext>>,
@@ -126,12 +122,12 @@ struct Viewport {
 
 // ----------------------------------------------------------------------------
 
-impl GlowWinitApp {
+impl<'app> GlowWinitApp<'app> {
     pub fn new(
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
-        app_creator: AppCreator,
+        app_creator: AppCreator<'app>,
     ) -> Self {
         crate::profile_function!();
         Self {
@@ -195,7 +191,10 @@ impl GlowWinitApp {
         Ok((glutin_window_context, painter))
     }
 
-    fn init_run_state(&mut self, event_loop: &ActiveEventLoop) -> Result<&mut GlowWinitRunning> {
+    fn init_run_state(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<&mut GlowWinitRunning<'app>> {
         crate::profile_function!();
 
         let storage = if let Some(file) = &self.native_options.persistence_path {
@@ -292,7 +291,7 @@ impl GlowWinitApp {
         let app_creator = std::mem::take(&mut self.app_creator)
             .expect("Single-use AppCreator has unexpectedly already been taken");
 
-        let app = {
+        let app: Box<dyn 'app + App> = {
             // Use latest raw_window_handle for eframe compatibility
             use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
@@ -346,7 +345,7 @@ impl GlowWinitApp {
     }
 }
 
-impl WinitApp for GlowWinitApp {
+impl<'app> WinitApp for GlowWinitApp<'app> {
     fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
         self.running
             .as_ref()
@@ -462,6 +461,8 @@ impl WinitApp for GlowWinitApp {
 
     #[cfg(feature = "accesskit")]
     fn on_accesskit_event(&mut self, event: accesskit_winit::Event) -> crate::Result<EventResult> {
+        use super::winit_integration;
+
         if let Some(running) = &self.running {
             let mut glutin = running.glutin.borrow_mut();
             if let Some(viewport_id) = glutin.viewport_from_window.get(&event.window_id).copied() {
@@ -481,7 +482,7 @@ impl WinitApp for GlowWinitApp {
     }
 }
 
-impl GlowWinitRunning {
+impl<'app> GlowWinitRunning<'app> {
     fn run_ui_and_paint(
         &mut self,
         event_loop: &ActiveEventLoop,

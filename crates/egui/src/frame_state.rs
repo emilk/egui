@@ -1,6 +1,9 @@
 use ahash::{HashMap, HashSet};
 
-use crate::{id::IdSet, *};
+use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
+
+#[cfg(debug_assertions)]
+use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
@@ -184,12 +187,12 @@ pub struct FrameState {
     pub tooltips: TooltipFrameState,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`CentralPanel`] does not change this.
+    /// The [`crate::CentralPanel`] does not change this.
     /// This is the area available to Window's.
     pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`CentralPanel`] retracts from this.
+    /// The [`crate::CentralPanel`] retracts from this.
     pub unused_rect: Rect,
 
     /// How much space is used by panels.

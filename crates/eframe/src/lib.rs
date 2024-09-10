@@ -229,7 +229,7 @@ pub mod icon_data;
 pub fn run_native(
     app_name: &str,
     mut native_options: NativeOptions,
-    app_creator: AppCreator,
+    app_creator: AppCreator<'_>,
 ) -> Result {
     #[cfg(not(feature = "__screenshot"))]
     assert!(
@@ -474,4 +474,4 @@ mod profiling_scopes {
 }
 
 #[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;
+pub(crate) use profiling_scopes::{profile_function, profile_scope};

@@ -1,6 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use epaint::{tessellator::Path, *};
+use epaint::{
+    pos2, tessellator::Path, ClippedShape, Color32, Mesh, PathStroke, Pos2, Rect, Shape, Stroke,
+    TessellationOptions, Tessellator, TextureAtlas, Vec2,
+};
 
 fn single_dashed_lines(c: &mut Criterion) {
     c.bench_function("single_dashed_lines", move |b| {
@@ -220,6 +223,46 @@ fn thin_large_line_uv(c: &mut Criterion) {
     });
 }
 
+fn rgba_values() -> [[u8; 4]; 1000] {
+    core::array::from_fn(|i| [5, 7, 11, 13].map(|m| (i * m) as u8))
+}
+
+fn from_rgba_unmultiplied_0(c: &mut Criterion) {
+    c.bench_function("from_rgba_unmultiplied_0", move |b| {
+        let values = black_box(rgba_values().map(|[r, g, b, _]| [r, g, b, 0]));
+        b.iter(|| {
+            for [r, g, b, a] in values {
+                let color = ecolor::Color32::from_rgba_unmultiplied(r, g, b, a);
+                black_box(color);
+            }
+        });
+    });
+}
+
+fn from_rgba_unmultiplied_other(c: &mut Criterion) {
+    c.bench_function("from_rgba_unmultiplied_other", move |b| {
+        let values = black_box(rgba_values().map(|[r, g, b, a]| [r, g, b, a.clamp(1, 254)]));
+        b.iter(|| {
+            for [r, g, b, a] in values {
+                let color = ecolor::Color32::from_rgba_unmultiplied(r, g, b, a);
+                black_box(color);
+            }
+        });
+    });
+}
+
+fn from_rgba_unmultiplied_255(c: &mut Criterion) {
+    c.bench_function("from_rgba_unmultiplied_255", move |b| {
+        let values = black_box(rgba_values().map(|[r, g, b, _]| [r, g, b, 255]));
+        b.iter(|| {
+            for [r, g, b, a] in values {
+                let color = ecolor::Color32::from_rgba_unmultiplied(r, g, b, a);
+                black_box(color);
+            }
+        });
+    });
+}
+
 criterion_group!(
     benches,
     single_dashed_lines,
@@ -232,6 +275,9 @@ criterion_group!(
     thick_line_uv,
     thick_large_line_uv,
     thin_line_uv,
-    thin_large_line_uv
+    thin_large_line_uv,
+    from_rgba_unmultiplied_0,
+    from_rgba_unmultiplied_other,
+    from_rgba_unmultiplied_255,
 );
 criterion_main!(benches);

@@ -4,9 +4,12 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::{cursor::*, font::UvRect};
+use super::{
+    cursor::{CCursor, Cursor, PCursor, RCursor},
+    font::UvRect,
+};
 use crate::{Color32, FontId, Mesh, Stroke};
-use emath::*;
+use emath::{pos2, vec2, Align, NumExt, OrderedFloat, Pos2, Rect, Vec2};
 
 /// Describes the task of laying out text.
 ///
@@ -171,6 +174,18 @@ impl LayoutJob {
             max_height = max_height.max(fonts.row_height(&section.format.font_id));
         }
         max_height
+    }
+
+    /// The wrap with, with a small margin in some cases.
+    pub fn effective_wrap_width(&self) -> f32 {
+        if self.round_output_size_to_nearest_ui_point {
+            // On a previous pass we may have rounded down by at most 0.5 and reported that as a width.
+            // egui may then set that width as the max width for subsequent frames, and it is important
+            // that we then don't wrap earlier.
+            self.wrap.max_width + 0.5
+        } else {
+            self.wrap.max_width
+        }
     }
 }
 
@@ -554,6 +569,12 @@ pub struct RowVisuals {
     /// Does NOT include leading or trailing whitespace glyphs!!
     pub mesh_bounds: Rect,
 
+    /// The number of triangle indices added before the first glyph triangle.
+    ///
+    /// This can be used to insert more triangles after the background but before the glyphs,
+    /// i.e. for text selection visualization.
+    pub glyph_index_start: usize,
+
     /// The range of vertices in the mesh that contain glyphs (as opposed to background, underlines, strikethorugh, etc).
     ///
     /// The glyph vertices comes after backgrounds (if any), but before any underlines and strikethrough.
@@ -565,6 +586,7 @@ impl Default for RowVisuals {
         Self {
             mesh: Default::default(),
             mesh_bounds: Rect::NOTHING,
+            glyph_index_start: 0,
             glyph_vertex_range: 0..0,
         }
     }

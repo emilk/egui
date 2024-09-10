@@ -466,7 +466,7 @@ pub use self::{
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Style, TextStyle, Visuals},
+    style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     ui_builder::UiBuilder,
@@ -618,6 +618,9 @@ pub enum WidgetType {
 
     RadioButton,
 
+    /// A group of radio buttons.
+    RadioGroup,
+
     SelectableLabel,
 
     ComboBox,
@@ -695,4 +698,4 @@ mod profiling_scopes {
 }
 
 #[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;
+pub(crate) use profiling_scopes::{profile_function, profile_scope};

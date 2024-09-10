@@ -1,4 +1,7 @@
-use epaint::{text::cursor::*, Galley};
+use epaint::{
+    text::cursor::{CCursor, Cursor, PCursor},
+    Galley,
+};
 
 use crate::{os::OperatingSystem, Event, Id, Key, Modifiers};
 

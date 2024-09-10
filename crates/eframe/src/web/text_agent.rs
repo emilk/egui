@@ -5,7 +5,7 @@ use std::cell::Cell;
 
 use wasm_bindgen::prelude::*;
 
-use super::{is_mobile, AppRunner, WebRunner};
+use super::{AppRunner, WebRunner};
 
 pub struct TextAgent {
     input: web_sys::HtmlInputElement,
@@ -22,12 +22,17 @@ impl TextAgent {
             .create_element("input")?
             .dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
+        input.set_autofocus(true);
+        input.set_attribute("autocapitalize", "off")?;
 
         // append it to `<body>` and hide it outside of the viewport
         let style = input.style();
-        style.set_property("opacity", "0")?;
+        style.set_property("background-color", "transparent")?;
+        style.set_property("border", "none")?;
+        style.set_property("outline", "none")?;
         style.set_property("width", "1px")?;
         style.set_property("height", "1px")?;
+        style.set_property("caret-color", "transparent")?;
         style.set_property("position", "absolute")?;
         style.set_property("top", "0")?;
         style.set_property("left", "0")?;
@@ -39,6 +44,12 @@ impl TextAgent {
             let input = input.clone();
             move |event: web_sys::InputEvent, runner: &mut AppRunner| {
                 let text = input.value();
+                // Fix android virtual keyboard Gboard
+                // This removes the virtual keyboard's suggestion.
+                if !event.is_composing() {
+                    input.blur().ok();
+                    input.focus().ok();
+                }
                 // if `is_composing` is true, then user is using IME, for example: emoji, pinyin, kanji, hangul, etc.
                 // In that case, the browser emits both `input` and `compositionupdate` events,
                 // and we need to ignore the `input` event.
@@ -103,14 +114,8 @@ impl TextAgent {
         &self,
         ime: Option<egui::output::IMEOutput>,
         canvas: &web_sys::HtmlCanvasElement,
+        zoom_factor: f32,
     ) -> Result<(), JsValue> {
-        // Mobile keyboards don't follow the text input it's writing to,
-        // instead typically being fixed in place on the bottom of the screen,
-        // so don't bother moving the text agent on mobile.
-        if is_mobile() {
-            return Ok(());
-        }
-
         // Don't move the text agent unless the position actually changed:
         if self.prev_ime_output.get() == ime {
             return Ok(());
@@ -119,14 +124,24 @@ impl TextAgent {
 
         let Some(ime) = ime else { return Ok(()) };
 
-        let canvas_rect = super::canvas_content_rect(canvas);
+        let mut canvas_rect = super::canvas_content_rect(canvas);
+        // Fix for safari with virtual keyboard flapping position
+        if is_mobile_safari() {
+            canvas_rect.min.y = canvas.offset_top() as f32;
+        }
         let cursor_rect = ime.cursor_rect.translate(canvas_rect.min.to_vec2());
 
         let style = self.input.style();
 
         // This is where the IME input will point to:
-        style.set_property("left", &format!("{}px", cursor_rect.center().x))?;
-        style.set_property("top", &format!("{}px", cursor_rect.center().y))?;
+        style.set_property(
+            "left",
+            &format!("{}px", cursor_rect.center().x * zoom_factor),
+        )?;
+        style.set_property(
+            "top",
+            &format!("{}px", cursor_rect.center().y * zoom_factor),
+        )?;
 
         Ok(())
     }
@@ -172,4 +187,17 @@ impl Drop for TextAgent {
     fn drop(&mut self) {
         self.input.remove();
     }
+}
+
+/// Returns `true` if the app is likely running on a mobile device on navigator Safari.
+fn is_mobile_safari() -> bool {
+    (|| {
+        let user_agent = web_sys::window()?.navigator().user_agent().ok()?;
+        let is_ios = user_agent.contains("iPhone")
+            || user_agent.contains("iPad")
+            || user_agent.contains("iPod");
+        let is_safari = user_agent.contains("Safari");
+        Some(is_ios && is_safari)
+    })()
+    .unwrap_or(false)
 }

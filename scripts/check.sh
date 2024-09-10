@@ -20,8 +20,9 @@ typos
 cargo fmt --all -- --check
 cargo doc --quiet --lib --no-deps --all-features
 cargo doc --quiet --document-private-items --no-deps --all-features
-
 cargo clippy --quiet --all-targets --all-features -- -D warnings
+cargo clippy --quiet --all-targets --all-features --release -- -D warnings # we need to check release mode too
+
 ./scripts/clippy_wasm.sh
 
 cargo check --quiet  --all-targets

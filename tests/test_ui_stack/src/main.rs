@@ -115,7 +115,7 @@ impl eframe::App for MyApp {
 
                 // combobox test
                 ui.add_space(20.0);
-                egui::ComboBox::from_id_source("combo_box")
+                egui::ComboBox::from_id_salt("combo_box")
                     .selected_text("click me")
                     .show_ui(ui, |ui| {
                         full_span_widget(ui, true);
