@@ -1,6 +1,4 @@
-use crate::{
-    fast_round, gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_linear_u8, Rgba,
-};
+use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 
 /// This format is used for space-efficient color representation (32 bits).
 ///
@@ -95,21 +93,28 @@ impl Color32 {
     /// From `sRGBA` WITHOUT premultiplied alpha.
     #[inline]
     pub fn from_rgba_unmultiplied(r: u8, g: u8, b: u8, a: u8) -> Self {
-        if a == 255 {
-            Self::from_rgb(r, g, b) // common-case optimization
-        } else if a == 0 {
-            Self::TRANSPARENT // common-case optimization
-        } else {
-            let r_lin = linear_f32_from_gamma_u8(r);
-            let g_lin = linear_f32_from_gamma_u8(g);
-            let b_lin = linear_f32_from_gamma_u8(b);
-            let a_lin = linear_f32_from_linear_u8(a);
+        use std::sync::OnceLock;
+        match a {
+            // common-case optimization
+            0 => Self::TRANSPARENT,
+            // common-case optimization
+            255 => Self::from_rgb(r, g, b),
+            a => {
+                static LOOKUP_TABLE: OnceLock<[u8; 256 * 256]> = OnceLock::new();
+                let lut = LOOKUP_TABLE.get_or_init(|| {
+                    use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
+                    core::array::from_fn(|i| {
+                        let [value, alpha] = (i as u16).to_ne_bytes();
+                        let value_lin = linear_f32_from_gamma_u8(value);
+                        let alpha_lin = linear_f32_from_linear_u8(alpha);
+                        gamma_u8_from_linear_f32(value_lin * alpha_lin)
+                    })
+                });
 
-            let r = gamma_u8_from_linear_f32(r_lin * a_lin);
-            let g = gamma_u8_from_linear_f32(g_lin * a_lin);
-            let b = gamma_u8_from_linear_f32(b_lin * a_lin);
-
-            Self::from_rgba_premultiplied(r, g, b, a)
+                let [r, g, b] =
+                    [r, g, b].map(|value| lut[usize::from(u16::from_ne_bytes([value, a]))]);
+                Self::from_rgba_premultiplied(r, g, b, a)
+            }
         }
     }
 
