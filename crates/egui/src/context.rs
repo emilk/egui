@@ -1051,7 +1051,7 @@ impl Context {
     /// If the widget already exists, its state (sense, Rect, etc) will be updated.
     ///
     /// `allow_focus` should usually be true, unless you call this function multiple times with the
-    /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::interact_bg`] (false)).
+    /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
         // Remember this widget

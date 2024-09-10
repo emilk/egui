@@ -91,11 +91,12 @@ pub struct Ui {
     stack: Arc<UiStack>,
 
     /// The sense for the ui background.
-    /// It will be used for [Ui::interact_bg].
     sense: Sense,
 
-    /// Whether [`Ui::interact_bg`] should be called when the [`Ui`] is dropped.
-    should_interact_bg_on_drop: bool,
+    /// Whether [`Ui::remember_min_rect`] should be called when the [`Ui`] is dropped.
+    /// This is an optimization, so we don't call [`Ui::remember_min_rect`] multiple times at the
+    /// end of a [`Ui::scope`].
+    min_rect_already_remembered: bool,
 }
 
 impl Ui {
@@ -152,7 +153,7 @@ impl Ui {
             menu_state: None,
             stack: Arc::new(ui_stack),
             sense,
-            should_interact_bg_on_drop: true,
+            min_rect_already_remembered: false,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -286,7 +287,7 @@ impl Ui {
             menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
             sense,
-            should_interact_bg_on_drop: true,
+            min_rect_already_remembered: false,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
@@ -1021,14 +1022,10 @@ impl Ui {
             )
     }
 
-    /// Interact with the background of this [`Ui`],
-    /// i.e. behind all the widgets.
-    ///
-    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
-    /// You can customize the [`Sense`] via [`UiBuilder::sense`].
-    // This is marked as deprecated for public use but still makes sense to use internally.
-    #[deprecated = "Use Uibuilder::sense with Ui::response instead"]
-    pub fn interact_bg(&self) -> Response {
+    /// Update the [`WidgetRect`] created in [`Ui::new`] or [`Ui::new_child`] with the current
+    /// [`Ui::min_rect`].
+    fn remember_min_rect(&mut self) -> Response {
+        self.min_rect_already_remembered = true;
         // We remove the id from used_ids to prevent a duplicate id warning from showing
         // when the ui was created with `UiBuilder::sense`.
         // This is a bit hacky, is there a better way?
@@ -1049,6 +1046,16 @@ impl Ui {
         )
     }
 
+    /// Interact with the background of this [`Ui`],
+    /// i.e. behind all the widgets.
+    ///
+    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
+    #[deprecated = "Use UiBuilder::sense with Ui::response instead"]
+    pub fn interact_bg(&self, sense: Sense) -> Response {
+        // This will update the WidgetRect that was first created in `Ui::new`.
+        self.interact(self.min_rect(), self.id, sense)
+    }
+
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
     ///
     /// The `clip_rect` and layer of this [`Ui`] will be respected, so, for instance,
@@ -1066,7 +1073,7 @@ impl Ui {
     ///
     /// Note that this tests against the _current_ [`Ui::min_rect`].
     /// If you want to test against the final `min_rect`,
-    /// use [`Self::interact_bg`] instead.
+    /// use [`Self::response`] instead.
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
     }
@@ -2212,9 +2219,7 @@ impl Ui {
         let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
-        #[allow(deprecated)]
-        let response = child_ui.interact_bg();
-        child_ui.should_interact_bg_on_drop = false;
+        let response = child_ui.remember_min_rect();
         self.allocate_rect(child_ui.min_rect(), Sense::hover());
         InnerResponse::new(ret, response)
     }
@@ -2881,14 +2886,13 @@ impl Ui {
     }
 }
 
-#[cfg(debug_assertions)]
 impl Drop for Ui {
     fn drop(&mut self) {
-        if self.should_interact_bg_on_drop {
-            #[allow(deprecated)]
+        if !self.min_rect_already_remembered {
             // Register our final `min_rect`
-            self.interact_bg();
+            self.remember_min_rect();
         }
+        #[cfg(debug_assertions)]
         register_rect(self, self.min_rect());
     }
 }

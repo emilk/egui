@@ -118,9 +118,12 @@ impl UiBuilder {
         self
     }
 
-    /// Set if you want sense clicks and/or drags.
+    /// Set if you want sense clicks and/or drags. Default is [`Sense::hover`].
+    /// The sense will be registered below the Senses of any widgets contained in this [`Ui`], so
+    /// if the user clicks a button contained within this [`Ui`], that button will receive the click
+    /// instead.
     ///
-    /// The response can be read with [`Ui::response`].
+    /// The response can be read early with [`Ui::response`].
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);
