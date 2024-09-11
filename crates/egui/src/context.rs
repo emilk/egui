@@ -21,7 +21,7 @@ use crate::{
     layers::GraphicLayers,
     load,
     load::{Bytes, Loaders, SizedTexture},
-    memory::Options,
+    memory::{Options, Theme},
     menu,
     os::OperatingSystem,
     output::FullOutput,
@@ -487,7 +487,7 @@ impl ContextImpl {
             });
 
             viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
-                let interact_radius = self.memory.options.style.interaction.interact_radius;
+                let interact_radius = self.memory.options.style().interaction.interact_radius;
 
                 crate::hit_test::hit_test(
                     &viewport.prev_frame.widgets,
@@ -583,7 +583,7 @@ impl ContextImpl {
             crate::profile_scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
-            for font_id in self.memory.options.style.text_styles.values() {
+            for font_id in self.memory.options.style().text_styles.values() {
                 fonts.lock().fonts.font(font_id).preload_common_characters();
             }
         }
@@ -1245,7 +1245,7 @@ impl Context {
     pub fn register_widget_info(&self, id: Id, make_info: impl Fn() -> crate::WidgetInfo) {
         #[cfg(debug_assertions)]
         self.write(|ctx| {
-            if ctx.memory.options.style.debug.show_interactive_widgets {
+            if ctx.memory.options.style().debug.show_interactive_widgets {
                 ctx.viewport().this_frame.widgets.set_info(id, make_info());
             }
         });
@@ -1612,12 +1612,37 @@ impl Context {
         }
     }
 
-    /// The [`Style`] used by all subsequent windows, panels etc.
-    pub fn style(&self) -> Arc<Style> {
-        self.options(|opt| opt.style.clone())
+    /// Does the OS use dark or light mode?
+    /// This is used when the theme preference is set to [`crate::ThemePreference::System`].
+    pub fn system_theme(&self) -> Option<Theme> {
+        self.memory(|mem| mem.options.system_theme)
     }
 
-    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
+    /// The [`Theme`] used to select the appropriate [`Style`] (dark or light)
+    /// used by all subsequent windows, panels etc.
+    pub fn theme(&self) -> Theme {
+        self.options(|opt| opt.theme())
+    }
+
+    /// The [`Theme`] used to select between dark and light [`Self::style`]
+    /// as the active style used by all subsequent windows, panels etc.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_theme(egui::Theme::Light); // Switch to light mode
+    /// ```
+    pub fn set_theme(&self, theme_preference: impl Into<crate::ThemePreference>) {
+        self.options_mut(|opt| opt.theme_preference = theme_preference.into());
+    }
+
+    /// The currently active [`Style`] used by all subsequent windows, panels etc.
+    pub fn style(&self) -> Arc<Style> {
+        self.options(|opt| opt.style().clone())
+    }
+
+    /// Mutate the currently active [`Style`] used by all subsequent windows, panels etc.
+    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
     ///
     /// Example:
     /// ```
@@ -1627,16 +1652,72 @@ impl Context {
     /// });
     /// ```
     pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
-        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(&mut opt.style)));
+        self.options_mut(|opt| mutate_style(Arc::make_mut(opt.style_mut())));
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
+    /// The currently active [`Style`] used by all new windows, panels etc.
     ///
-    /// You can also change this using [`Self::style_mut`]
+    /// Use [`Self::all_styles_mut`] to mutate both dark and light mode styles.
+    ///
+    /// You can also change this using [`Self::style_mut`].
     ///
     /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
-        self.options_mut(|opt| opt.style = style.into());
+        self.options_mut(|opt| *opt.style_mut() = style.into());
+    }
+
+    /// Mutate the [`Style`]s used by all subsequent windows, panels etc. in both dark and light mode.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.all_styles_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
+    /// ```
+    pub fn all_styles_mut(&self, mut mutate_style: impl FnMut(&mut Style)) {
+        self.options_mut(|opt| {
+            mutate_style(Arc::make_mut(&mut opt.dark_style));
+            mutate_style(Arc::make_mut(&mut opt.light_style));
+        });
+    }
+
+    /// The [`Style`] used by all subsequent windows, panels etc.
+    pub fn style_of(&self, theme: Theme) -> Arc<Style> {
+        self.options(|opt| match theme {
+            Theme::Dark => opt.dark_style.clone(),
+            Theme::Light => opt.light_style.clone(),
+        })
+    }
+
+    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.style_mut_of(egui::Theme::Dark, |style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
+    /// ```
+    pub fn style_mut_of(&self, theme: Theme, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| match theme {
+            Theme::Dark => mutate_style(Arc::make_mut(&mut opt.dark_style)),
+            Theme::Light => mutate_style(Arc::make_mut(&mut opt.light_style)),
+        });
+    }
+
+    /// The [`Style`] used by all new windows, panels etc.
+    /// Use [`Self::set_theme`] to choose between dark and light mode.
+    ///
+    /// You can also change this using [`Self::style_mut_of`].
+    ///
+    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    pub fn set_style_of(&self, theme: Theme, style: impl Into<Arc<Style>>) {
+        let style = style.into();
+        self.options_mut(|opt| match theme {
+            Theme::Dark => opt.dark_style = style,
+            Theme::Light => opt.light_style = style,
+        });
     }
 
     /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
@@ -1646,10 +1727,10 @@ impl Context {
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// ctx.set_visuals(egui::Visuals::light()); // Switch to light mode
+    /// ctx.set_visuals_of(egui::Theme::Dark, egui::Visuals { panel_fill: egui::Color32::RED, ..Default::default() });
     /// ```
-    pub fn set_visuals(&self, visuals: crate::Visuals) {
-        self.options_mut(|opt| std::sync::Arc::make_mut(&mut opt.style).visuals = visuals);
+    pub fn set_visuals_of(&self, theme: Theme, visuals: crate::Visuals) {
+        self.style_mut_of(theme, |style| style.visuals = visuals);
     }
 
     /// The number of physical pixels for each logical point.
@@ -2481,13 +2562,13 @@ impl Context {
     /// Whether or not to debug widget layout on hover.
     #[cfg(debug_assertions)]
     pub fn debug_on_hover(&self) -> bool {
-        self.options(|opt| opt.style.debug.debug_on_hover)
+        self.options(|opt| opt.style().debug.debug_on_hover)
     }
 
     /// Turn on/off whether or not to debug widget layout on hover.
     #[cfg(debug_assertions)]
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        self.style_mut(|style| style.debug.debug_on_hover = debug_on_hover);
+        self.all_styles_mut(|style| style.debug.debug_on_hover = debug_on_hover);
     }
 }
 
@@ -2871,11 +2952,11 @@ impl Context {
 }
 
 impl Context {
-    /// Edit the active [`Style`].
-    pub fn style_ui(&self, ui: &mut Ui) {
-        let mut style: Style = (*self.style()).clone();
+    /// Edit the [`Style`].
+    pub fn style_ui(&self, ui: &mut Ui, theme: Theme) {
+        let mut style: Style = (*self.style_of(theme)).clone();
         style.ui(ui);
-        self.set_style(style);
+        self.set_style_of(theme, style);
     }
 }
 

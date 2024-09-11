@@ -9,7 +9,7 @@ use crate::{
 };
 
 mod theme;
-pub use theme::Theme;
+pub use theme::{Theme, ThemePreference};
 
 // ----------------------------------------------------------------------------
 
@@ -168,24 +168,30 @@ impl FocusDirection {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
-    /// The default style for new [`Ui`](crate::Ui):s.
+    /// The default style for new [`Ui`](crate::Ui):s in dark mode.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) style: std::sync::Arc<Style>,
+    pub dark_style: std::sync::Arc<Style>,
 
-    /// Whether to update the visuals according to the system theme or not.
+    /// The default style for new [`Ui`](crate::Ui):s in light mode.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub light_style: std::sync::Arc<Style>,
+
+    /// A preference for how to select between dark and light [`crate::Context::style`]
+    /// as the active style used by all subsequent windows, panels etc.
     ///
-    /// Default: `true`.
-    pub follow_system_theme: bool,
+    /// Default: `ThemePreference::System`.
+    pub theme_preference: ThemePreference,
 
-    /// Which theme to use in case [`Self::follow_system_theme`] is set
+    /// Which theme to use in case [`Self::theme_preference`] is [`ThemePreference::System`]
     /// and egui fails to detect the system theme.
     ///
     /// Default: [`crate::Theme::Dark`].
     pub fallback_theme: Theme,
 
-    /// Used to detect changes in system theme
+    /// The current system theme, used to choose between
+    /// dark and light style in case [`Self::theme_preference`] is [`ThemePreference::System`].
     #[cfg_attr(feature = "serde", serde(skip))]
-    system_theme: Option<Theme>,
+    pub(crate) system_theme: Option<Theme>,
 
     /// Global zoom factor of the UI.
     ///
@@ -282,8 +288,9 @@ impl Default for Options {
         };
 
         Self {
-            style: Default::default(),
-            follow_system_theme: true,
+            dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
+            light_style: std::sync::Arc::new(Theme::Light.default_style()),
+            theme_preference: ThemePreference::System,
             fallback_theme: Theme::Dark,
             system_theme: None,
             zoom_factor: 1.0,
@@ -305,21 +312,29 @@ impl Default for Options {
 
 impl Options {
     pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput) {
-        if self.follow_system_theme {
-            let theme_from_visuals = Theme::from_dark_mode(self.style.visuals.dark_mode);
-            let current_system_theme = self.system_theme.unwrap_or(theme_from_visuals);
-            let new_system_theme = new_raw_input.system_theme.unwrap_or(self.fallback_theme);
+        self.system_theme = new_raw_input.system_theme;
+    }
 
-            // Only update the visuals if the system theme has changed.
-            // This allows users to change the visuals without them
-            // getting reset on the next frame.
-            if current_system_theme != new_system_theme || self.system_theme.is_none() {
-                self.system_theme = Some(new_system_theme);
-                if theme_from_visuals != new_system_theme {
-                    let visuals = new_system_theme.default_visuals();
-                    std::sync::Arc::make_mut(&mut self.style).visuals = visuals;
-                }
-            }
+    /// The currently active theme (may depend on the system theme).
+    pub(crate) fn theme(&self) -> Theme {
+        match self.theme_preference {
+            ThemePreference::Dark => Theme::Dark,
+            ThemePreference::Light => Theme::Light,
+            ThemePreference::System => self.system_theme.unwrap_or(self.fallback_theme),
+        }
+    }
+
+    pub(crate) fn style(&self) -> &std::sync::Arc<Style> {
+        match self.theme() {
+            Theme::Dark => &self.dark_style,
+            Theme::Light => &self.light_style,
+        }
+    }
+
+    pub(crate) fn style_mut(&mut self) -> &mut std::sync::Arc<Style> {
+        match self.theme() {
+            Theme::Dark => &mut self.dark_style,
+            Theme::Light => &mut self.light_style,
         }
     }
 }
@@ -328,8 +343,9 @@ impl Options {
     /// Show the options in the ui.
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            style, // covered above
-            follow_system_theme: _,
+            dark_style, // covered above
+            light_style,
+            theme_preference,
             fallback_theme: _,
             system_theme: _,
             zoom_factor: _, // TODO(emilk)
@@ -370,7 +386,14 @@ impl Options {
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                std::sync::Arc::make_mut(style).ui(ui);
+                theme_preference.radio_buttons(ui);
+
+                CollapsingHeader::new("Dark")
+                    .default_open(true)
+                    .show(ui, |ui| std::sync::Arc::make_mut(dark_style).ui(ui));
+                CollapsingHeader::new("Light")
+                    .default_open(true)
+                    .show(ui, |ui| std::sync::Arc::make_mut(light_style).ui(ui));
             });
 
         CollapsingHeader::new("✒ Painting")

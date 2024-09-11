@@ -272,7 +272,7 @@ impl CodeTheme {
 
     /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        egui::widgets::global_dark_light_mode_buttons(ui);
+        egui::widgets::global_theme_preference_buttons(ui);
 
         for theme in SyntectTheme::all() {
             if theme.is_dark() == self.dark_mode {
@@ -335,7 +335,7 @@ impl CodeTheme {
 
             ui.vertical(|ui| {
                 ui.set_width(150.0);
-                egui::widgets::global_dark_light_mode_buttons(ui);
+                egui::widgets::global_theme_preference_buttons(ui);
 
                 ui.add_space(8.0);
                 ui.separator();
