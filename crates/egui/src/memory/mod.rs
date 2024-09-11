@@ -170,11 +170,11 @@ impl FocusDirection {
 pub struct Options {
     /// The default style for new [`Ui`](crate::Ui):s in dark mode.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) dark_style: std::sync::Arc<Style>,
+    pub dark_style: std::sync::Arc<Style>,
 
     /// The default style for new [`Ui`](crate::Ui):s in light mode.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) light_style: std::sync::Arc<Style>,
+    pub light_style: std::sync::Arc<Style>,
 
     /// A preference for how to select between dark and light [`crate::Context::style`]
     /// as the active style used by all subsequent windows, panels etc.
