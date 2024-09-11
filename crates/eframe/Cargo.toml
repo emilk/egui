@@ -39,7 +39,7 @@ default = [
   "web_screen_reader",
   "winit/default",
   "x11",
-  "egui-wgpu?/wasm-fake-send-sync",
+  "egui-wgpu?/fragile-send-sync-non-atomic-wasm",
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
