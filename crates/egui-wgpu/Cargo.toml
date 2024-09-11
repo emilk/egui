@@ -31,7 +31,7 @@ all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
-default = []
+default = ["wasm-fake-send-sync"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin"]
@@ -45,6 +45,12 @@ wayland = ["winit?/wayland"]
 ## Enables x11 support for winit.
 x11 = ["winit?/x11"]
 
+## Make the renderer `Sync` on wasm, exploiting that by default wasm isn't multithreaded.
+## It may make code easier, expecially when targeting both native and web.
+## On native most wgpu objects are send and sync, on the web they are not (by nature of the WebGPU specification).
+## This is not supported in [shared-memory multithreaded WASM](https://github.com/gfx-rs/wgpu/issues/2652).
+## Thus that usage is guarded against with compiler errors.
+wasm-fake-send-sync = ["wgpu/fragile-send-sync-non-atomic-wasm"]
 
 [dependencies]
 egui = { workspace = true, default-features = false }

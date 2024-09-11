@@ -39,6 +39,7 @@ default = [
   "web_screen_reader",
   "winit/default",
   "x11",
+  "egui-wgpu?/wasm-fake-send-sync",
 ]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
@@ -185,7 +186,11 @@ objc2-app-kit = { version = "0.2.0", features = [
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser"] }
-windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Com"] }
+windows-sys = { workspace = true, features = [
+  "Win32_Foundation",
+  "Win32_UI_Shell",
+  "Win32_System_Com",
+] }
 
 # -------------------------------------------
 # web:

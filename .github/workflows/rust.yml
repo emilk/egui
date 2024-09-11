@@ -103,6 +103,9 @@ jobs:
       - name: Check wasm32 eframe
         run: cargo check -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
 
+      - name: Check wasm32+atomics eframe with wgpu
+        run: RUSTFLAGS='-C target-feature=+atomics' cargo +nightly check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
+
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
