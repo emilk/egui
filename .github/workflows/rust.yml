@@ -103,9 +103,6 @@ jobs:
       - name: Check wasm32 eframe
         run: cargo check -p eframe --lib --no-default-features --features glow,persistence --target wasm32-unknown-unknown
 
-      - name: Check wasm32+atomics eframe with wgpu
-        run: RUSTFLAGS='-C target-feature=+atomics' cargo +nightly check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
-
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
@@ -115,6 +112,25 @@ jobs:
 
       - name: clippy wasm32
         run: ./scripts/clippy_wasm.sh
+
+  # requires a different toolchain from the other checks (nightly)
+  check_wasm_atomics:
+    name: Check wasm32+atomics
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
+
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: wasm32-unknown-unknown
+          components: rust-src
+
+      - name: Check wasm32+atomics eframe with wgpu
+        run: RUSTFLAGS='-C target-feature=+atomics' cargo +nightly check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
 
   # ---------------------------------------------------------------------------
 
