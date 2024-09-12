@@ -420,7 +420,7 @@ struct ContextImpl {
 }
 
 impl ContextImpl {
-    fn begin_pass_mut(&mut self, mut new_raw_input: RawInput) {
+    fn begin_pass(&mut self, mut new_raw_input: RawInput) {
         let viewport_id = new_raw_input.viewport_id;
         let parent_id = new_raw_input
             .viewports
@@ -748,7 +748,7 @@ impl Context {
     ///
     /// Put your widgets into a [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
     ///
-    /// Instead of calling `run`, you can alternatively use [`Self::begin_frame`] and [`Context::end_frame`].
+    /// Instead of calling `run`, you can alternatively use [`Self::begin_pass`] and [`Context::end_pass`].
     ///
     /// ```
     /// // One egui context that you keep reusing:
@@ -788,9 +788,9 @@ impl Context {
                 output.platform_output.requested_discard = false;
             });
 
-            self.begin_frame(new_input.take());
+            self.begin_pass(new_input.take());
             run_ui(self);
-            output.append(self.end_frame());
+            output.append(self.end_pass());
             debug_assert!(0 < output.platform_output.num_completed_passes);
 
             if !output.platform_output.requested_discard {
@@ -829,22 +829,28 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// ctx.begin_frame(input);
+    /// ctx.begin_pass(input);
     ///
     /// egui::CentralPanel::default().show(&ctx, |ui| {
     ///     ui.label("Hello egui!");
     /// });
     ///
-    /// let full_output = ctx.end_frame();
+    /// let full_output = ctx.end_pass();
     /// // handle full_output
     /// ```
-    pub fn begin_frame(&self, new_input: RawInput) {
+    pub fn begin_pass(&self, new_input: RawInput) {
         crate::profile_function!();
 
-        self.write(|ctx| ctx.begin_pass_mut(new_input));
+        self.write(|ctx| ctx.begin_pass(new_input));
 
         // Plugins run just after the frame has started:
         self.read(|ctx| ctx.plugins.clone()).on_begin_pass(self);
+    }
+
+    /// See [`Self::begin_pass`].
+    #[deprecated = "Renamed begin_pass"]
+    pub fn begin_frame(&self, new_input: RawInput) {
+        self.begin_pass(new_input);
     }
 }
 
@@ -946,7 +952,7 @@ impl Context {
 
     /// Read-only access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_frame`] and [`Self::end_frame`]).
+    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state<R>(&self, reader: impl FnOnce(&PassState) -> R) -> R {
         self.write(move |ctx| reader(&ctx.viewport().this_pass))
@@ -954,7 +960,7 @@ impl Context {
 
     /// Read-write access to [`PassState`].
     ///
-    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_frame`] and [`Self::end_frame`]).
+    /// This is only valid during the call to [`Self::run`] (between [`Self::begin_pass`] and [`Self::end_pass`]).
     #[inline]
     pub(crate) fn pass_state_mut<R>(&self, writer: impl FnOnce(&mut PassState) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.viewport().this_pass))
@@ -1430,7 +1436,7 @@ impl Context {
 
     /// The current frame number for the current viewport.
     ///
-    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_frame`].
+    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_pass`].
     ///
     /// Between calls to [`Self::run`], this is the frame number of the coming frame.
     pub fn frame_nr(&self) -> u64 {
@@ -1439,7 +1445,7 @@ impl Context {
 
     /// The current frame number.
     ///
-    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_frame`].
+    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_pass`].
     ///
     /// Between calls to [`Self::run`], this is the frame number of the coming frame.
     pub fn frame_nr_for(&self, id: ViewportId) -> u64 {
@@ -2032,9 +2038,9 @@ impl Context {
 }
 
 impl Context {
-    /// Call at the end of each frame if you called [`Context::begin_frame`].
+    /// Call at the end of each frame if you called [`Context::begin_pass`].
     #[must_use]
-    pub fn end_frame(&self) -> FullOutput {
+    pub fn end_pass(&self) -> FullOutput {
         crate::profile_function!();
 
         if self.options(|o| o.zoom_with_keyboard) {
@@ -2048,6 +2054,13 @@ impl Context {
         self.debug_painting();
 
         self.write(|ctx| ctx.end_pass())
+    }
+
+    /// Call at the end of each frame if you called [`Context::begin_pass`].
+    #[must_use]
+    #[deprecated = "Renamed end_pass"]
+    pub fn end_frame(&self) -> FullOutput {
+        self.end_pass()
     }
 
     /// Called at the end of the pass.
@@ -3362,7 +3375,7 @@ impl Context {
     ///
     /// If this is the root viewport, this will return [`ViewportId::ROOT`].
     ///
-    /// Don't use this outside of `Self::run`, or after `Self::end_frame`.
+    /// Don't use this outside of `Self::run`, or after `Self::end_pass`.
     pub fn viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.viewport_id())
     }
@@ -3371,7 +3384,7 @@ impl Context {
     ///
     /// If this is the root viewport, this will return [`ViewportId::ROOT`].
     ///
-    /// Don't use this outside of `Self::run`, or after `Self::end_frame`.
+    /// Don't use this outside of `Self::run`, or after `Self::end_pass`.
     pub fn parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.parent_viewport_id())
     }
