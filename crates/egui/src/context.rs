@@ -273,6 +273,10 @@ pub struct ViewportState {
     // Most of the things in `PlatformOutput` are not actually viewport dependent.
     pub output: PlatformOutput,
     pub commands: Vec<ViewportCommand>,
+
+    // ----------------------
+    // Cross-frame statistics:
+    pub num_multipass_in_row: usize,
 }
 
 /// What called [`Context::request_repaint`]?
@@ -801,6 +805,16 @@ impl Context {
                 break;
             }
         }
+
+        self.write(|ctx| {
+            let did_multipass = 1 < output.platform_output.num_completed_passes;
+            let viewport = ctx.viewport_for(viewport_id);
+            if did_multipass {
+                viewport.num_multipass_in_row += 1;
+            } else {
+                viewport.num_multipass_in_row = 0;
+            }
+        });
 
         output
     }
@@ -2162,6 +2176,18 @@ impl Context {
 
         if let Some(debug_rect) = self.frame_state_mut(|fs| fs.debug_rect.take()) {
             debug_rect.paint(&self.debug_painter());
+        }
+
+        let num_multipass_in_row = self.viewport(|vp| vp.num_multipass_in_row);
+        if 3 <= num_multipass_in_row {
+            // If you see this message, it means we've been paying the cost of multi-pass for multiple frames in a row.
+            // This is likely a bug. `request_discard` should only be called in rare situations, when some layout changes.
+            self.debug_painter().debug_text(
+                Pos2::ZERO,
+                Align2::LEFT_TOP,
+                Color32::RED,
+                format!("egui PERF WARNING: request_discard has been called {num_multipass_in_row} frames in a row"),
+            );
         }
     }
 }
