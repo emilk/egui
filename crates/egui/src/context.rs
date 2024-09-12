@@ -2515,7 +2515,8 @@ impl Context {
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
     ///
-    /// The highlight takes on frame to take effect if you call this after the widget has been fully rendered.
+    /// If you call this after the widget has been fully rendered,
+    /// then it won't be highlighted until the next ui pass.
     ///
     /// See also [`Response::highlight`].
     pub fn highlight_widget(&self, id: Id) {

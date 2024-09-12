@@ -167,16 +167,18 @@ impl DebugRect {
     }
 }
 
-/// State that is collected during a frame, then saved for the next frame,
+/// State that is collected during a pass, then saved for the next pass,
 /// and then cleared.
+///
+/// (NOTE: we usually run only one pass per frame).
 ///
 /// One per viewport.
 #[derive(Clone)]
 pub struct FrameState {
-    /// All [`Id`]s that were used this frame.
+    /// All [`Id`]s that were used this pass.
     pub used_ids: IdMap<Rect>,
 
-    /// All widgets produced this frame.
+    /// All widgets produced this pass.
     pub widgets: WidgetRects,
 
     /// Per-layer state.
@@ -215,7 +217,7 @@ pub struct FrameState {
     #[cfg(feature = "accesskit")]
     pub accesskit_state: Option<AccessKitFrameState>,
 
-    /// Highlight these widgets the next frame.
+    /// Highlight these widgets the next pass.
     pub highlight_next_frame: IdSet,
 
     #[cfg(debug_assertions)]
