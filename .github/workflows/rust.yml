@@ -5,6 +5,7 @@ name: Rust
 env:
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
+  NIGHTLY_VERSION: nightly-2024-09-11
 
 jobs:
   fmt-crank-check-test:
@@ -125,12 +126,12 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
+          toolchain: ${{env.NIGHTLY_VERSION}}
           targets: wasm32-unknown-unknown
           components: rust-src
 
       - name: Check wasm32+atomics eframe with wgpu
-        run: RUSTFLAGS='-C target-feature=+atomics' cargo +nightly check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
+        run: RUSTFLAGS='-C target-feature=+atomics' cargo ${{env.NIGHTLY_VERSION}} check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
 
   # ---------------------------------------------------------------------------
 
