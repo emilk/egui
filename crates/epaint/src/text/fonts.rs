@@ -360,7 +360,7 @@ impl FontDefinitions {
 ///
 /// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
-/// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
+/// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
 #[derive(Clone)]
 pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
@@ -389,7 +389,7 @@ impl Fonts {
     ///
     /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
     /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_frame(&self, pixels_per_point: f32, max_texture_side: usize) {
+    pub fn begin_pass(&self, pixels_per_point: f32, max_texture_side: usize) {
         let mut fonts_and_cache = self.0.lock();
 
         let pixels_per_point_changed = fonts_and_cache.fonts.pixels_per_point != pixels_per_point;
@@ -503,7 +503,7 @@ impl Fonts {
     /// How full is the font atlas?
     ///
     /// This increases as new fonts and/or glyphs are used,
-    /// but can also decrease in a call to [`Self::begin_frame`].
+    /// but can also decrease in a call to [`Self::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
         self.lock().fonts.atlas.lock().fill_ratio()
     }

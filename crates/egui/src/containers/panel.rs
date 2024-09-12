@@ -390,10 +390,10 @@ impl SidePanel {
         let rect = inner_response.response.rect;
 
         match side {
-            Side::Left => ctx.frame_state_mut(|state| {
+            Side::Left => ctx.pass_state_mut(|state| {
                 state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
             }),
-            Side::Right => ctx.frame_state_mut(|state| {
+            Side::Right => ctx.pass_state_mut(|state| {
                 state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
             }),
         }
@@ -885,12 +885,12 @@ impl TopBottomPanel {
 
         match side {
             TopBottomSide::Top => {
-                ctx.frame_state_mut(|state| {
+                ctx.pass_state_mut(|state| {
                     state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
                 });
             }
             TopBottomSide::Bottom => {
-                ctx.frame_state_mut(|state| {
+                ctx.pass_state_mut(|state| {
                     state.allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
                 });
             }
@@ -1149,7 +1149,7 @@ impl CentralPanel {
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
-        ctx.frame_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
+        ctx.pass_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
 
         inner_response
     }

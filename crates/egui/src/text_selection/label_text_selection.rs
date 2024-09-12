@@ -118,11 +118,11 @@ impl Default for LabelSelectionState {
 
 impl LabelSelectionState {
     pub(crate) fn register(ctx: &Context) {
-        ctx.on_begin_frame(
+        ctx.on_begin_pass(
             "LabelSelectionState",
             std::sync::Arc::new(Self::begin_frame),
         );
-        ctx.on_end_frame("LabelSelectionState", std::sync::Arc::new(Self::end_frame));
+        ctx.on_end_pass("LabelSelectionState", std::sync::Arc::new(Self::end_frame));
     }
 
     pub fn load(ctx: &Context) -> Self {

@@ -23,7 +23,7 @@ pub struct DragAndDrop {
 
 impl DragAndDrop {
     pub(crate) fn register(ctx: &Context) {
-        ctx.on_end_frame("debug_text", std::sync::Arc::new(Self::end_frame));
+        ctx.on_end_pass("debug_text", std::sync::Arc::new(Self::end_frame));
     }
 
     fn end_frame(ctx: &Context) {

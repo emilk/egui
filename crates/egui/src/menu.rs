@@ -171,7 +171,7 @@ fn menu_popup<'c, R>(
 
     let area_id = menu_id.with("__menu");
 
-    ctx.frame_state_mut(|fs| {
+    ctx.pass_state_mut(|fs| {
         fs.layers
             .entry(parent_layer)
             .or_default()

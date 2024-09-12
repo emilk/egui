@@ -262,7 +262,7 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
-    pub fn begin_frame(
+    pub fn begin_pass(
         mut self,
         mut new: RawInput,
         requested_immediate_repaint_prev_frame: bool,

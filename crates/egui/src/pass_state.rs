@@ -7,13 +7,13 @@ use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
-pub struct TooltipFrameState {
+pub struct TooltipPassState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
     pub widget_tooltips: IdMap<PerWidgetTooltipState>,
 }
 
-impl TooltipFrameState {
+impl TooltipPassState {
     pub fn clear(&mut self) {
         let Self { widget_tooltips } = self;
         widget_tooltips.clear();
@@ -69,7 +69,7 @@ impl ScrollTarget {
 
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
-pub struct AccessKitFrameState {
+pub struct AccessKitPassState {
     pub node_builders: IdMap<accesskit::NodeBuilder>,
     pub parent_stack: Vec<Id>,
 }
@@ -174,7 +174,7 @@ impl DebugRect {
 ///
 /// One per viewport.
 #[derive(Clone)]
-pub struct FrameState {
+pub struct PassState {
     /// All [`Id`]s that were used this pass.
     pub used_ids: IdMap<Rect>,
 
@@ -186,7 +186,7 @@ pub struct FrameState {
     /// Not all layers registers themselves there though.
     pub layers: HashMap<LayerId, PerLayerState>,
 
-    pub tooltips: TooltipFrameState,
+    pub tooltips: TooltipPassState,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
     /// The [`crate::CentralPanel`] does not change this.
@@ -215,16 +215,16 @@ pub struct FrameState {
     pub scroll_delta: (Vec2, style::ScrollAnimation),
 
     #[cfg(feature = "accesskit")]
-    pub accesskit_state: Option<AccessKitFrameState>,
+    pub accesskit_state: Option<AccessKitPassState>,
 
     /// Highlight these widgets the next pass.
-    pub highlight_next_frame: IdSet,
+    pub highlight_next_pass: IdSet,
 
     #[cfg(debug_assertions)]
     pub debug_rect: Option<DebugRect>,
 }
 
-impl Default for FrameState {
+impl Default for PassState {
     fn default() -> Self {
         Self {
             used_ids: Default::default(),
@@ -238,7 +238,7 @@ impl Default for FrameState {
             scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
-            highlight_next_frame: Default::default(),
+            highlight_next_pass: Default::default(),
 
             #[cfg(debug_assertions)]
             debug_rect: None,
@@ -246,8 +246,8 @@ impl Default for FrameState {
     }
 }
 
-impl FrameState {
-    pub(crate) fn begin_frame(&mut self, screen_rect: Rect) {
+impl PassState {
+    pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
         crate::profile_function!();
         let Self {
             used_ids,
@@ -261,7 +261,7 @@ impl FrameState {
             scroll_delta,
             #[cfg(feature = "accesskit")]
             accesskit_state,
-            highlight_next_frame,
+            highlight_next_pass: highlight_next_frame,
 
             #[cfg(debug_assertions)]
             debug_rect,
