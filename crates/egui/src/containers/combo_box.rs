@@ -23,9 +23,9 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBe
 ///
 /// ```
 /// # #[derive(Debug, PartialEq)]
+/// # egui::__run_test_ui(|ui| {
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
-/// # egui::__run_test_ui(|ui| {
 /// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {
