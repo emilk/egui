@@ -16,7 +16,7 @@ fn main() -> eframe::Result {
         options,
         Box::new(|cc| {
             // Use the dark theme
-            cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            cc.egui_ctx.set_theme(egui::Theme::Dark);
             // This gives us image support:
             egui_extras::install_image_loaders(&cc.egui_ctx);
 

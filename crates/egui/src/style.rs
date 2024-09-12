@@ -176,7 +176,8 @@ impl From<TextStyle> for FontSelection {
 /// Specifies the look and feel of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
-/// and of everything with [`crate::Context::set_style`].
+/// and of everything with [`crate::Context::set_style_of`].
+/// To choose between dark and light style, use [`crate::Context::set_theme`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
@@ -206,12 +207,10 @@ pub struct Style {
     /// use egui::FontFamily::Proportional;
     /// use egui::FontId;
     /// use egui::TextStyle::*;
-    ///
-    /// // Get current context style
-    /// let mut style = (*ctx.style()).clone();
+    /// use std::collections::BTreeMap;
     ///
     /// // Redefine text_styles
-    /// style.text_styles = [
+    /// let text_styles: BTreeMap<_, _> = [
     ///   (Heading, FontId::new(30.0, Proportional)),
     ///   (Name("Heading2".into()), FontId::new(25.0, Proportional)),
     ///   (Name("Context".into()), FontId::new(23.0, Proportional)),
@@ -221,8 +220,8 @@ pub struct Style {
     ///   (Small, FontId::new(10.0, Proportional)),
     /// ].into();
     ///
-    /// // Mutate global style with above changes
-    /// ctx.set_style(style);
+    /// // Mutate global styles with new text styles
+    /// ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());
     /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
@@ -855,7 +854,7 @@ impl Default for TextCursorStyle {
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
-/// and of everything with [`crate::Context::set_visuals`].
+/// and of everything with [`crate::Context::set_visuals_of`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
@@ -1492,7 +1491,7 @@ impl Default for Widgets {
 // ----------------------------------------------------------------------------
 
 use crate::{
-    widgets::{reset_button, Button, DragValue, Slider, Widget},
+    widgets::{reset_button, DragValue, Slider, Widget},
     Ui,
 };
 
@@ -1518,8 +1517,6 @@ impl Style {
             always_scroll_the_only_direction,
             scroll_animation,
         } = self;
-
-        visuals.light_dark_radio_buttons(ui);
 
         crate::Grid::new("_options").show(ui, |ui| {
             ui.label("Override font id");
@@ -1931,38 +1928,6 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
-    /// Show radio-buttons to switch between light and dark mode.
-    pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui) {
-        ui.horizontal(|ui| {
-            ui.selectable_value(self, Self::light(), "☀ Light");
-            ui.selectable_value(self, Self::dark(), "🌙 Dark");
-        });
-    }
-
-    /// Show small toggle-button for light and dark mode.
-    #[must_use]
-    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_else_if)]
-        if self.dark_mode {
-            if ui
-                .add(Button::new("☀").frame(false))
-                .on_hover_text("Switch to light mode")
-                .clicked()
-            {
-                return Some(Self::light());
-            }
-        } else {
-            if ui
-                .add(Button::new("🌙").frame(false))
-                .on_hover_text("Switch to dark mode")
-                .clicked()
-            {
-                return Some(Self::dark());
-            }
-        }
-        None
-    }
-
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode: _,

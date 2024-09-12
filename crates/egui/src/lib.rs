@@ -462,7 +462,7 @@ pub use self::{
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options, Theme},
+    memory::{Memory, Options, Theme, ThemePreference},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
@@ -617,6 +617,9 @@ pub enum WidgetType {
     Checkbox,
 
     RadioButton,
+
+    /// A group of radio buttons.
+    RadioGroup,
 
     SelectableLabel,
 

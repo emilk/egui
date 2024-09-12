@@ -119,8 +119,7 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| ctx.screen_rect());
         let clip_rect = max_rect;
         let layout = layout.unwrap_or_default();
-        let invisible = invisible || sizing_pass;
-        let disabled = disabled || invisible || sizing_pass;
+        let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.style());
 
         let placer = Placer::new(max_rect, layout);
@@ -139,7 +138,7 @@ impl Ui {
             style,
             placer,
             enabled: true,
-            sizing_pass: false,
+            sizing_pass,
             menu_state: None,
             stack: Arc::new(ui_stack),
         };
@@ -160,9 +159,6 @@ impl Ui {
         }
         if invisible {
             ui.set_invisible();
-        }
-        if sizing_pass {
-            ui.set_sizing_pass();
         }
 
         ui
@@ -227,8 +223,7 @@ impl Ui {
         let id_salt = id_salt.unwrap_or_else(|| Id::from("child"));
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
-        let invisible = invisible || sizing_pass;
-        let enabled = self.enabled && !disabled && !invisible && !sizing_pass;
+        let enabled = self.enabled && !disabled && !invisible;
         if invisible {
             painter.set_invisible();
         }
@@ -293,6 +288,7 @@ impl Ui {
     /// This will also turn the Ui invisible.
     /// Should be called right after [`Self::new`], if at all.
     #[inline]
+    #[deprecated = "Use UiBuilder.sizing_pass().invisible()"]
     pub fn set_sizing_pass(&mut self) {
         self.sizing_pass = true;
         self.set_invisible();
@@ -324,7 +320,7 @@ impl Ui {
     /// Mutably borrow internal [`Style`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all [`Ui`]:s, use [`Context::set_style`].
+    /// To set the style of all [`Ui`]:s, use [`Context::set_style_of`].
     ///
     /// Example:
     /// ```
@@ -338,7 +334,7 @@ impl Ui {
 
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
@@ -378,7 +374,7 @@ impl Ui {
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
     ///
     /// Example:
     /// ```
@@ -643,8 +639,21 @@ impl Ui {
         self.painter.clip_rect()
     }
 
+    /// Constrain the rectangle in which we can paint.
+    ///
+    /// Short for `ui.set_clip_rect(ui.clip_rect().intersect(new_clip_rect))`.
+    ///
+    /// See also: [`Self::clip_rect`] and [`Self::set_clip_rect`].
+    #[inline]
+    pub fn shrink_clip_rect(&mut self, new_clip_rect: Rect) {
+        self.painter.shrink_clip_rect(new_clip_rect);
+    }
+
     /// Screen-space rectangle for clipping what we paint in this ui.
     /// This is used, for instance, to avoid painting outside a window that is smaller than its contents.
+    ///
+    /// Warning: growing the clip rect might cause unexpected results!
+    /// When in doubt, use [`Self::shrink_clip_rect`] instead.
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.painter.set_clip_rect(clip_rect);
     }
@@ -2680,6 +2689,33 @@ impl Ui {
         let payload = response.dnd_release_payload::<Payload>();
 
         (InnerResponse { inner, response }, payload)
+    }
+
+    /// Create a new Scope and transform its contents via a [`emath::TSTransform`].
+    /// This only affects visuals, inputs will not be transformed. So this is mostly useful
+    /// to create visual effects on interactions, e.g. scaling a button on hover / click.
+    ///
+    /// Check out [`Context::set_transform_layer`] for a persistent transform that also affects
+    /// inputs.
+    pub fn with_visual_transform<R>(
+        &mut self,
+        transform: emath::TSTransform,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        let start_idx = self.ctx().graphics(|gx| {
+            gx.get(self.layer_id())
+                .map_or(crate::layers::ShapeIdx(0), |l| l.next_idx())
+        });
+
+        let r = self.scope_dyn(UiBuilder::new(), Box::new(add_contents));
+
+        self.ctx().graphics_mut(|g| {
+            let list = g.entry(self.layer_id());
+            let end_idx = list.next_idx();
+            list.transform_range(start_idx, end_idx, transform);
+        });
+
+        r
     }
 }
 

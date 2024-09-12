@@ -54,7 +54,7 @@ impl WebRunner {
         &self,
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
-        app_creator: epi::AppCreator,
+        app_creator: epi::AppCreator<'static>,
     ) -> Result<(), JsValue> {
         self.destroy();
 

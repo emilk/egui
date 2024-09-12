@@ -1053,6 +1053,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_style"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_demo_lib",
+ "egui_extras",
+ "env_logger",
+ "image",
+]
+
+[[package]]
 name = "custom_window_frame"
 version = "0.1.0"
 dependencies = [
@@ -1177,7 +1188,7 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "egui_glow",
- "glow",
+ "glow 0.14.0",
  "glutin",
  "glutin-winit",
  "home",
@@ -1328,7 +1339,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui-winit",
- "glow",
+ "glow 0.14.0",
  "glutin",
  "glutin-winit",
  "log",
@@ -1824,6 +1835,18 @@ name = "glow"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd348e04c43b32574f2de31c8bb397d96c9fcfa1371bd4ca6d8bdc464ab121b1"
+dependencies = [
+ "js-sys",
+ "slotmap",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "glow"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f865cbd94bd355b89611211e49508da98a1fce0ad755c1e8448fb96711b24528"
 dependencies = [
  "js-sys",
  "slotmap",
@@ -4504,7 +4527,7 @@ dependencies = [
  "block",
  "cfg_aliases 0.1.1",
  "core-graphics-types",
- "glow",
+ "glow 0.13.1",
  "glutin_wgl_sys",
  "gpu-alloc",
  "gpu-allocator",

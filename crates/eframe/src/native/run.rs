@@ -297,7 +297,7 @@ fn run_and_return(event_loop: &mut EventLoop<UserEvent>, winit_app: impl WinitAp
     app.return_result
 }
 
-fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp + 'static) -> Result {
+fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp) -> Result {
     log::trace!("Entering the winit event loop (run_app)…");
 
     // When to repaint what window
@@ -314,7 +314,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp + 'st
 pub fn run_glow(
     app_name: &str,
     mut native_options: epi::NativeOptions,
-    app_creator: epi::AppCreator,
+    app_creator: epi::AppCreator<'_>,
 ) -> Result {
     #![allow(clippy::needless_return_with_question_mark)] // False positive
 
@@ -339,7 +339,7 @@ pub fn run_glow(
 pub fn run_wgpu(
     app_name: &str,
     mut native_options: epi::NativeOptions,
-    app_creator: epi::AppCreator,
+    app_creator: epi::AppCreator<'_>,
 ) -> Result {
     #![allow(clippy::needless_return_with_question_mark)] // False positive
 
