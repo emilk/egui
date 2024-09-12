@@ -2047,7 +2047,7 @@ impl Context {
         #[cfg(debug_assertions)]
         self.debug_painting();
 
-        self.write(|ctx| ctx.end_frame())
+        self.write(|ctx| ctx.end_pass())
     }
 
     /// Called at the end of the pass.
@@ -2185,14 +2185,14 @@ impl Context {
 }
 
 impl ContextImpl {
-    fn end_frame(&mut self) -> FullOutput {
+    fn end_pass(&mut self) -> FullOutput {
         let ended_viewport_id = self.viewport_id();
         let viewport = self.viewports.entry(ended_viewport_id).or_default();
         let pixels_per_point = viewport.input.pixels_per_point;
 
         viewport.repaint.pass_nr += 1;
 
-        self.memory.end_frame(&viewport.this_pass.used_ids);
+        self.memory.end_pass(&viewport.this_pass.used_ids);
 
         if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
             let tex_mngr = &mut self.tex_manager.0.write();

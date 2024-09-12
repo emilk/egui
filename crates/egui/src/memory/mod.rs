@@ -331,7 +331,7 @@ impl Default for Options {
 }
 
 impl Options {
-    pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput) {
+    pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput) {
         self.system_theme = new_raw_input.system_theme;
     }
 
@@ -541,7 +541,7 @@ impl Focus {
         self.focused_widget.as_ref().map(|w| w.id)
     }
 
-    fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
+    fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
         self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
             self.focused_widget = Some(FocusWidget::new(id));
@@ -602,7 +602,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
         if self.focus_direction.is_cardinal() {
             if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
                 self.focused_widget = Some(FocusWidget::new(found_widget));
@@ -765,18 +765,18 @@ impl Memory {
 
         // self.interactions  is handled elsewhere
 
-        self.options.begin_frame(new_raw_input);
+        self.options.begin_pass(new_raw_input);
 
         self.focus
             .entry(self.viewport_id)
             .or_default()
-            .begin_frame(new_raw_input);
+            .begin_pass(new_raw_input);
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
         self.caches.update();
-        self.areas_mut().end_frame();
-        self.focus_mut().end_frame(used_ids);
+        self.areas_mut().end_pass();
+        self.focus_mut().end_pass(used_ids);
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -1175,7 +1175,7 @@ impl Areas {
             .any(|(_, children)| children.contains(layer))
     }
 
-    pub(crate) fn end_frame(&mut self) {
+    pub(crate) fn end_pass(&mut self) {
         let Self {
             visible_last_frame,
             visible_current_frame,
