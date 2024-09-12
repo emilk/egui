@@ -1632,17 +1632,14 @@ impl Context {
         self.output_mut(|o| o.requested_discard = true);
 
         #[cfg(feature = "log")]
-        {
-            // TODO: trace level?
-            log::debug!(
-                "request_discard: {}",
-                if self.will_discard() {
-                    "allowed"
-                } else {
-                    "denied"
-                }
-            );
-        }
+        log::trace!(
+            "request_discard: {}",
+            if self.will_discard() {
+                "allowed"
+            } else {
+                "denied"
+            }
+        );
     }
 
     /// Will the visual output of this frame be discarded?

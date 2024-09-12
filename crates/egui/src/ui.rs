@@ -1462,8 +1462,8 @@ impl Ui {
     /// See also [`Self::add`] and [`Self::put`].
     ///
     /// ```
-    /// # let mut my_value = 42;
     /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_value = 42;
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
     /// # });
     /// ```

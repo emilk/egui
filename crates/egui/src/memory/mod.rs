@@ -240,11 +240,11 @@ pub struct Options {
     ///
     /// egui will usually only ever run one pass, even if `max_passes` is large.
     ///
-    /// If this is `1`, [`Context::request_discard`] will be ignored.
+    /// If this is `1`, [`crate::Context::request_discard`] will be ignored.
     ///
-    /// Multi-pass is supported by [`Context::run`].
+    /// Multi-pass is supported by [`crate::Context::run`].
     ///
-    /// See [`Context::request_discard`] for more.
+    /// See [`crate::Context::request_discard`] for more.
     pub max_passes: NonZeroUsize,
 
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.

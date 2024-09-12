@@ -126,13 +126,13 @@ pub struct PlatformOutput {
 
     /// How many ui passes is this the sum of?
     ///
-    /// See [`Context::request_discard`] for details.
+    /// See [`crate::Context::request_discard`] for details.
     ///
     /// This is incremented at the END of each frame,
     /// so this will be `0` for the first pass.
     pub num_completed_passes: usize,
 
-    /// Was [`Context::request_discard`] called during the latest pass?
+    /// Was [`crate::Context::request_discard`] called during the latest pass?
     pub requested_discard: bool,
 }
 

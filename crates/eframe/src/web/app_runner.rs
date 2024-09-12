@@ -269,6 +269,8 @@ impl AppRunner {
             ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
+            num_completed_passes: _, // handled by `Context::run`
+            requested_discard: _,    // handled by `Context::run`
         } = platform_output;
 
         super::set_cursor_icon(cursor_icon);
