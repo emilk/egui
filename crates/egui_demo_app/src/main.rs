@@ -24,7 +24,13 @@ fn main() -> eframe::Result {
 
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
-        let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
+        let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| {
+            if cfg!(debug_assertions) {
+                "debug".to_owned()
+            } else {
+                "info".to_owned()
+            }
+        });
         for loud_crate in ["naga", "wgpu_core", "wgpu_hal"] {
             if !rust_log.contains(&format!("{loud_crate}=")) {
                 rust_log += &format!(",{loud_crate}=warn");

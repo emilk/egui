@@ -43,7 +43,7 @@ impl FullOutput {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewport_output: viewports,
+            viewport_output,
         } = newer;
 
         self.platform_output.append(platform_output);
@@ -51,7 +51,7 @@ impl FullOutput {
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
 
-        for (id, new_viewport) in viewports {
+        for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {
                 std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(new_viewport);
@@ -123,6 +123,17 @@ pub struct PlatformOutput {
     /// NOTE: this needs to be per-viewport.
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
+
+    /// How many ui passes is this the sum of?
+    ///
+    /// See [`crate::Context::request_discard`] for details.
+    ///
+    /// This is incremented at the END of each frame,
+    /// so this will be `0` for the first pass.
+    pub num_completed_passes: usize,
+
+    /// Was [`crate::Context::request_discard`] called during the latest pass?
+    pub requested_discard: bool,
 }
 
 impl PlatformOutput {
@@ -155,6 +166,8 @@ impl PlatformOutput {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            num_completed_passes,
+            requested_discard,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -167,6 +180,8 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
+        self.num_completed_passes += num_completed_passes;
+        self.requested_discard |= requested_discard;
 
         #[cfg(feature = "accesskit")]
         {

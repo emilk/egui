@@ -2,8 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
-    Ui, WidgetRect, WidgetText,
+    menu, pass_state, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui,
+    WidgetRect, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -600,7 +600,7 @@ impl Response {
             return true;
         }
 
-        let any_open_popups = self.ctx.prev_frame_state(|fs| {
+        let any_open_popups = self.ctx.prev_pass_state(|fs| {
             fs.layers
                 .get(&self.layer_id)
                 .map_or(false, |layer| !layer.open_popups.is_empty())
@@ -648,7 +648,7 @@ impl Response {
             let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
-                vp.prev_frame
+                vp.prev_pass
                     .widgets
                     .get_layer(tooltip_layer_id)
                     .any(|w| w.enabled && w.sense.interactive())
@@ -696,7 +696,7 @@ impl Response {
             }
         }
 
-        let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
+        let is_other_tooltip_open = self.ctx.prev_pass_state(|fs| {
             if let Some(already_open_tooltip) = fs
                 .layers
                 .get(&self.layer_id)
@@ -896,13 +896,13 @@ impl Response {
         align: Option<Align>,
         animation: crate::style::ScrollAnimation,
     ) {
-        self.ctx.frame_state_mut(|state| {
-            state.scroll_target[0] = Some(frame_state::ScrollTarget::new(
+        self.ctx.pass_state_mut(|state| {
+            state.scroll_target[0] = Some(pass_state::ScrollTarget::new(
                 self.rect.x_range(),
                 align,
                 animation,
             ));
-            state.scroll_target[1] = Some(frame_state::ScrollTarget::new(
+            state.scroll_target[1] = Some(pass_state::ScrollTarget::new(
                 self.rect.y_range(),
                 align,
                 animation,

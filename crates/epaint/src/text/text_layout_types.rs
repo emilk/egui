@@ -479,7 +479,7 @@ impl TextWrapping {
 /// Needs to be recreated if the underlying font atlas texture changes, which
 /// happens under the following conditions:
 /// - `pixels_per_point` or `max_texture_size` change. These parameters are set
-///   in [`crate::text::Fonts::begin_frame`]. When using `egui` they are set
+///   in [`crate::text::Fonts::begin_pass`]. When using `egui` they are set
 ///   from `egui::InputState` and can change at any time.
 /// - The atlas has become full. This can happen any time a new glyph is added
 ///   to the atlas, which in turn can happen any time new text is laid out.

@@ -1,5 +1,7 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
+use std::num::NonZeroUsize;
+
 use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
@@ -228,6 +230,23 @@ pub struct Options {
     /// (<https://github.com/rerun-io/rerun/issues/5018>).
     pub repaint_on_widget_change: bool,
 
+    /// Maximum number of passes to run in one frame.
+    ///
+    /// Set to `1` for pure single-pass immediate mode.
+    /// Set to something larger than `1` to allow multi-pass when needed.
+    ///
+    /// Default is `2`. This means sometimes a frame will cost twice as much,
+    /// but usually only rarely (e.g. when showing a new panel for the first time).
+    ///
+    /// egui will usually only ever run one pass, even if `max_passes` is large.
+    ///
+    /// If this is `1`, [`crate::Context::request_discard`] will be ignored.
+    ///
+    /// Multi-pass is supported by [`crate::Context::run`].
+    ///
+    /// See [`crate::Context::request_discard`] for more.
+    pub max_passes: NonZeroUsize,
+
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     ///
     /// The only change to egui is that labels can be focused by pressing tab.
@@ -297,6 +316,7 @@ impl Default for Options {
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
+            max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
@@ -311,7 +331,7 @@ impl Default for Options {
 }
 
 impl Options {
-    pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput) {
+    pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput) {
         self.system_theme = new_raw_input.system_theme;
     }
 
@@ -352,6 +372,7 @@ impl Options {
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
+            max_passes,
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
@@ -367,6 +388,11 @@ impl Options {
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
             .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Max passes:");
+                    ui.add(crate::DragValue::new(max_passes).range(0..=10));
+                });
+
                 ui.checkbox(
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
@@ -515,7 +541,7 @@ impl Focus {
         self.focused_widget.as_ref().map(|w| w.id)
     }
 
-    fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
+    fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
         self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
             self.focused_widget = Some(FocusWidget::new(id));
@@ -576,7 +602,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
         if self.focus_direction.is_cardinal() {
             if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
                 self.focused_widget = Some(FocusWidget::new(found_widget));
@@ -726,7 +752,7 @@ impl Focus {
 }
 
 impl Memory {
-    pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
+    pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
         crate::profile_function!();
 
         self.viewport_id = new_raw_input.viewport_id;
@@ -739,18 +765,18 @@ impl Memory {
 
         // self.interactions  is handled elsewhere
 
-        self.options.begin_frame(new_raw_input);
+        self.options.begin_pass(new_raw_input);
 
         self.focus
             .entry(self.viewport_id)
             .or_default()
-            .begin_frame(new_raw_input);
+            .begin_pass(new_raw_input);
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
         self.caches.update();
-        self.areas_mut().end_frame();
-        self.focus_mut().end_frame(used_ids);
+        self.areas_mut().end_pass();
+        self.focus_mut().end_pass(used_ids);
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -1149,7 +1175,7 @@ impl Areas {
             .any(|(_, children)| children.contains(layer))
     }
 
-    pub(crate) fn end_frame(&mut self) {
+    pub(crate) fn end_pass(&mut self) {
         let Self {
             visible_last_frame,
             visible_current_frame,

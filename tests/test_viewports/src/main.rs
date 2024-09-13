@@ -215,7 +215,7 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>], close_
     let ctx = ui.ctx().clone();
     ui.label(format!(
         "Frame nr: {} (this increases when this viewport is being rendered)",
-        ctx.frame_nr()
+        ctx.cumulative_pass_nr()
     ));
     ui.horizontal(|ui| {
         let mut show_spinner =

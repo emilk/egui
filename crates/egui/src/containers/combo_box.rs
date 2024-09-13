@@ -22,10 +22,10 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBe
 /// A drop-down selection menu with a descriptive label.
 ///
 /// ```
+/// # egui::__run_test_ui(|ui| {
 /// # #[derive(Debug, PartialEq)]
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
-/// # egui::__run_test_ui(|ui| {
 /// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {

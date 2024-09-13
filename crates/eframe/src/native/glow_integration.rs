@@ -251,13 +251,13 @@ impl<'app> GlowWinitApp<'app> {
                 .set_request_repaint_callback(move |info| {
                     log::trace!("request_repaint_callback: {info:?}");
                     let when = Instant::now() + info.delay;
-                    let frame_nr = info.current_frame_nr;
+                    let cumulative_pass_nr = info.current_cumulative_pass_nr;
                     event_loop_proxy
                         .lock()
                         .send_event(UserEvent::RequestRepaint {
                             viewport_id: info.viewport_id,
                             when,
-                            frame_nr,
+                            cumulative_pass_nr,
                         })
                         .ok();
                 });
@@ -346,10 +346,8 @@ impl<'app> GlowWinitApp<'app> {
 }
 
 impl<'app> WinitApp for GlowWinitApp<'app> {
-    fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
-        self.running
-            .as_ref()
-            .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
+    fn egui_ctx(&self) -> Option<&egui::Context> {
+        self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
@@ -712,7 +710,7 @@ impl<'app> GlowWinitRunning<'app> {
 
         // give it time to settle:
         #[cfg(feature = "__screenshot")]
-        if integration.egui_ctx.frame_nr() == 2 {
+        if integration.egui_ctx.cumulative_pass_nr() == 2 {
             if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
                 save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
@@ -1397,7 +1395,7 @@ fn render_immediate_viewport(
     let ImmediateViewport {
         ids,
         builder,
-        viewport_ui_cb,
+        mut viewport_ui_cb,
     } = immediate_viewport;
 
     let viewport_id = ids.this;

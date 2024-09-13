@@ -262,7 +262,7 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
-    pub fn begin_frame(
+    pub fn begin_pass(
         mut self,
         mut new: RawInput,
         requested_immediate_repaint_prev_frame: bool,
@@ -285,9 +285,9 @@ impl InputState {
         let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
-            touch_state.begin_frame(time, &new, self.pointer.interact_pos);
+            touch_state.begin_pass(time, &new, self.pointer.interact_pos);
         }
-        let pointer = self.pointer.begin_frame(time, &new, options);
+        let pointer = self.pointer.begin_pass(time, &new, options);
 
         let mut keys_down = self.keys_down;
         let mut zoom_factor_delta = 1.0; // TODO(emilk): smoothing for zoom factor
@@ -900,7 +900,7 @@ impl Default for PointerState {
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_frame(
+    pub(crate) fn begin_pass(
         mut self,
         time: f64,
         new: &RawInput,

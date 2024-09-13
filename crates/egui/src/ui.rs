@@ -10,10 +10,11 @@ use crate::{
     ecolor::Hsva,
     emath, epaint,
     epaint::text::Fonts,
-    frame_state, grid,
+    grid,
     layout::{Direction, Layout},
     menu,
     menu::MenuState,
+    pass_state,
     placer::Placer,
     pos2, style,
     util::IdTypeMap,
@@ -469,6 +470,9 @@ impl Ui {
     }
 
     /// If `false`, any widgets added to the [`Ui`] will be invisible and non-interactive.
+    ///
+    /// This is `false` if any parent had [`UiBuilder::invisible`]
+    /// or if [`Context::will_discard`].
     #[inline]
     pub fn is_visible(&self) -> bool {
         self.painter.is_visible()
@@ -659,6 +663,9 @@ impl Ui {
     }
 
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
+    ///
+    /// This is false if the whole `Ui` is invisible (see [`UiBuilder::invisible`])
+    /// or if [`Context::will_discard`] is true.
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
@@ -1336,9 +1343,9 @@ impl Ui {
     ) {
         for d in 0..2 {
             let range = Rangef::new(rect.min[d], rect.max[d]);
-            self.ctx().frame_state_mut(|state| {
+            self.ctx().pass_state_mut(|state| {
                 state.scroll_target[d] =
-                    Some(frame_state::ScrollTarget::new(range, align, animation));
+                    Some(pass_state::ScrollTarget::new(range, align, animation));
             });
         }
     }
@@ -1378,9 +1385,9 @@ impl Ui {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = Rangef::point(target[d]);
-            self.ctx().frame_state_mut(|state| {
+            self.ctx().pass_state_mut(|state| {
                 state.scroll_target[d] =
-                    Some(frame_state::ScrollTarget::new(target, align, animation));
+                    Some(pass_state::ScrollTarget::new(target, align, animation));
             });
         }
     }
@@ -1420,7 +1427,7 @@ impl Ui {
 
     /// Same as [`Self::scroll_with_delta`], but allows you to specify the [`style::ScrollAnimation`].
     pub fn scroll_with_delta_animation(&self, delta: Vec2, animation: style::ScrollAnimation) {
-        self.ctx().frame_state_mut(|state| {
+        self.ctx().pass_state_mut(|state| {
             state.scroll_delta.0 += delta;
             state.scroll_delta.1 = animation;
         });
@@ -1456,8 +1463,8 @@ impl Ui {
     /// See also [`Self::add`] and [`Self::put`].
     ///
     /// ```
-    /// # let mut my_value = 42;
     /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_value = 42;
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
     /// # });
     /// ```
@@ -2876,14 +2883,14 @@ fn register_rect(ui: &Ui, rect: Rect) {
     let callstack = String::default();
 
     // We only show one debug rectangle, or things get confusing:
-    let debug_rect = frame_state::DebugRect {
+    let debug_rect = pass_state::DebugRect {
         rect,
         callstack,
         is_clicking,
     };
 
     let mut kept = false;
-    ui.ctx().frame_state_mut(|fs| {
+    ui.ctx().pass_state_mut(|fs| {
         if let Some(final_debug_rect) = &mut fs.debug_rect {
             // or maybe pick the one with deepest callstack?
             if final_debug_rect.rect.contains_rect(rect) {
