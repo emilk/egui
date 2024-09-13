@@ -84,16 +84,6 @@ impl BackendPanel {
 
         self.run_mode_ui(ui);
 
-        ui.horizontal(|ui| {
-            if ui.button("Request discard").clicked() {
-                ui.ctx().request_discard();
-
-                if !ui.ctx().will_discard() {
-                    ui.label("Discard denied!");
-                }
-            }
-        });
-
         ui.separator();
 
         self.frame_history.ui(ui);
@@ -157,7 +147,7 @@ impl BackendPanel {
             if cfg!(debug_assertions) {
                 ui.collapsing("More…", |ui| {
                     ui.horizontal(|ui| {
-                        ui.label("Frame number:");
+                        ui.label("Total ui passes:");
                         ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });
                     if ui
@@ -171,6 +161,16 @@ impl BackendPanel {
                             ctx.request_repaint_after(std::time::Duration::from_secs(3));
                         });
                     }
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Request discard").clicked() {
+                            ui.ctx().request_discard();
+
+                            if !ui.ctx().will_discard() {
+                                ui.label("Discard denied!");
+                            }
+                        }
+                    });
                 });
             }
         }
