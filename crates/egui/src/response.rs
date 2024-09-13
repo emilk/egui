@@ -599,6 +599,9 @@ impl Response {
         if self.ctx.memory(|mem| mem.everything_is_visible()) {
             return true;
         }
+        if !self.hovered() {
+            return false;
+        }
 
         let any_open_popups = self.ctx.prev_pass_state(|fs| {
             fs.layers
