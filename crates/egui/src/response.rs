@@ -678,7 +678,8 @@ impl Response {
 
         let clicked_more_recently_than_moved =
             time_since_last_click < time_since_last_pointer_movement + 0.1;
-        if clicked_more_recently_than_moved {
+        if clicked_more_recently_than_moved && (self.clicked() || self.is_pointer_button_down_on())
+        {
             // It is common to click a widget and then rest the mouse there.
             // It would be annoying to then see a tooltip for it immediately.
             // Similarly, clicking should hide the existing tooltip.
