@@ -5,6 +5,7 @@ name: Rust
 env:
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
+  NIGHTLY_VERSION: nightly-2024-09-11
 
 jobs:
   fmt-crank-check-test:
@@ -112,6 +113,25 @@ jobs:
 
       - name: clippy wasm32
         run: ./scripts/clippy_wasm.sh
+
+  # requires a different toolchain from the other checks (nightly)
+  check_wasm_atomics:
+    name: Check wasm32+atomics
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
+
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{env.NIGHTLY_VERSION}}
+          targets: wasm32-unknown-unknown
+          components: rust-src
+
+      - name: Check wasm32+atomics eframe with wgpu
+        run: RUSTFLAGS='-C target-feature=+atomics' cargo +${{env.NIGHTLY_VERSION}} check -p eframe --lib --no-default-features --features wgpu --target wasm32-unknown-unknown -Z build-std=std,panic_abort
 
   # ---------------------------------------------------------------------------
 

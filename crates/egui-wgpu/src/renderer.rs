@@ -7,8 +7,19 @@ use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
 
 use wgpu::util::DeviceExt as _;
 
+// Only implements Send + Sync on wasm32 in order to allow storing wgpu resources on the type map.
+#[cfg(not(all(
+    target_arch = "wasm32",
+    not(feature = "fragile-send-sync-non-atomic-wasm"),
+)))]
 /// You can use this for storage when implementing [`CallbackTrait`].
 pub type CallbackResources = type_map::concurrent::TypeMap;
+#[cfg(all(
+    target_arch = "wasm32",
+    not(feature = "fragile-send-sync-non-atomic-wasm"),
+))]
+/// You can use this for storage when implementing [`CallbackTrait`].
+pub type CallbackResources = type_map::TypeMap;
 
 /// You can use this to do custom [`wgpu`] rendering in an egui app.
 ///
@@ -1017,6 +1028,11 @@ impl ScissorRect {
     }
 }
 
+// Look at the feature flag for an explanation.
+#[cfg(not(all(
+    target_arch = "wasm32",
+    not(feature = "fragile-send-sync-non-atomic-wasm"),
+)))]
 #[test]
 fn renderer_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
