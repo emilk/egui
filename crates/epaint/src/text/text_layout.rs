@@ -650,7 +650,7 @@ fn galley_from_rows(
             // we should let the user know.
         } else {
             // Make sure we don't go over the max wrap width the user picked:
-            rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width).floor();
+            rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width).round();
         }
     }
 
