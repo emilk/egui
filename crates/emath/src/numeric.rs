@@ -60,6 +60,26 @@ macro_rules! impl_numeric_integer {
     };
 }
 
+macro_rules! impl_numeric_non_zero_unsigned {
+    ($t: path) => {
+        impl Numeric for $t {
+            const INTEGRAL: bool = true;
+            const MIN: Self = Self::MIN;
+            const MAX: Self = Self::MAX;
+
+            #[inline(always)]
+            fn to_f64(self) -> f64 {
+                self.get() as f64
+            }
+
+            #[inline(always)]
+            fn from_f64(num: f64) -> Self {
+                Self::new(num.round().max(1.0) as _).unwrap_or(Self::MIN)
+            }
+        }
+    };
+}
+
 impl_numeric_float!(f32);
 impl_numeric_float!(f64);
 impl_numeric_integer!(i8);
@@ -72,3 +92,9 @@ impl_numeric_integer!(i64);
 impl_numeric_integer!(u64);
 impl_numeric_integer!(isize);
 impl_numeric_integer!(usize);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU8);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU16);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU32);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU64);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroU128);
+impl_numeric_non_zero_unsigned!(std::num::NonZeroUsize);
