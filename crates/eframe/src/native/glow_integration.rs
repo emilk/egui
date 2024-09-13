@@ -346,10 +346,8 @@ impl<'app> GlowWinitApp<'app> {
 }
 
 impl<'app> WinitApp for GlowWinitApp<'app> {
-    fn cumulative_pass_nr(&self, viewport_id: ViewportId) -> u64 {
-        self.running.as_ref().map_or(0, |r| {
-            r.integration.egui_ctx.cumulative_pass_nr_for(viewport_id)
-        })
+    fn egui_ctx(&self) -> Option<&egui::Context> {
+        self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {

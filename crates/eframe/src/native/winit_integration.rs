@@ -64,8 +64,7 @@ impl From<accesskit_winit::Event> for UserEvent {
 }
 
 pub trait WinitApp {
-    /// The current frame number, as reported by egui.
-    fn cumulative_pass_nr(&self, viewport_id: ViewportId) -> u64;
+    fn egui_ctx(&self) -> Option<&egui::Context>;
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
 

@@ -231,7 +231,10 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
                     cumulative_pass_nr,
                     viewport_id,
                 } => {
-                    let current_pass_nr = self.winit_app.cumulative_pass_nr(viewport_id);
+                    let current_pass_nr = self
+                        .winit_app
+                        .egui_ctx()
+                        .map_or(0, |ctx| ctx.cumulative_pass_nr_for(viewport_id));
                     if current_pass_nr == cumulative_pass_nr
                         || current_pass_nr == cumulative_pass_nr + 1
                     {
