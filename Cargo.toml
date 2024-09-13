@@ -207,6 +207,7 @@ negative_feature_names = "warn"
 nonstandard_macro_braces = "warn"
 option_option = "warn"
 path_buf_push_overwrite = "warn"
+print_stderr = "warn"
 ptr_as_ptr = "warn"
 ptr_cast_constness = "warn"
 pub_without_shorthand = "warn"
@@ -251,11 +252,11 @@ wildcard_dependencies = "warn"
 wildcard_imports = "warn"
 zero_sized_map_values = "warn"
 
+
 # TODO(emilk): enable more of these lints:
 iter_over_hash_type = "allow"
 let_underscore_untyped = "allow"
 missing_assert_message = "allow"
-print_stderr = "allow"                # TODO(emilk): use `log` crate instead
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one

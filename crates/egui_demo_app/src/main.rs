@@ -64,7 +64,7 @@ fn start_puffin_server() {
 
     match puffin_http::Server::new("127.0.0.1:8585") {
         Ok(puffin_server) => {
-            eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
+            log::info!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
 
             std::process::Command::new("puffin_viewer")
                 .arg("--url")
@@ -78,7 +78,7 @@ fn start_puffin_server() {
             std::mem::forget(puffin_server);
         }
         Err(err) => {
-            eprintln!("Failed to start puffin server: {err}");
+            log::error!("Failed to start puffin server: {err}");
         }
     };
 }

@@ -9,6 +9,8 @@ use std::sync::{
 use eframe::egui;
 
 fn main() -> eframe::Result {
+    let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
+    std::env::set_var("RUST_LOG", rust_log);
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
 
@@ -153,7 +155,7 @@ fn start_puffin_server() {
 
     match puffin_http::Server::new("127.0.0.1:8585") {
         Ok(puffin_server) => {
-            eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
+            log::info!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
 
             std::process::Command::new("puffin_viewer")
                 .arg("--url")
@@ -167,7 +169,7 @@ fn start_puffin_server() {
             std::mem::forget(puffin_server);
         }
         Err(err) => {
-            eprintln!("Failed to start puffin server: {err}");
+            log::error!("Failed to start puffin server: {err}");
         }
     };
 }

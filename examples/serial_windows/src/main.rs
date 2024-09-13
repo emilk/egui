@@ -12,7 +12,7 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    eprintln!("Starting first window…");
+    log::info!("Starting first window…");
     eframe::run_native(
         "First Window",
         options.clone(),
@@ -21,7 +21,7 @@ fn main() -> eframe::Result {
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 
-    eprintln!("Starting second window…");
+    log::info!("Starting second window…");
     eframe::run_native(
         "Second Window",
         options.clone(),
@@ -30,7 +30,7 @@ fn main() -> eframe::Result {
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 
-    eprintln!("Starting third window…");
+    log::info!("Starting third window…");
     eframe::run_native(
         "Third Window",
         options,
@@ -53,7 +53,7 @@ impl eframe::App for MyApp {
             ui.label(label_text);
 
             if ui.button("Close").clicked() {
-                eprintln!("Pressed Close button");
+                log::info!("Pressed Close button");
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         });
