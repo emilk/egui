@@ -158,7 +158,7 @@ impl BackendPanel {
                 ui.collapsing("More…", |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Frame number:");
-                        ui.monospace(ui.ctx().frame_nr().to_string());
+                        ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });
                     if ui
                         .button("Wait 2s, then request repaint after another 3s")

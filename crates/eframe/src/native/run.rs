@@ -228,11 +228,13 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
             let event_result = match event {
                 UserEvent::RequestRepaint {
                     when,
-                    frame_nr,
+                    cumulative_pass_nr,
                     viewport_id,
                 } => {
-                    let current_frame_nr = self.winit_app.frame_nr(viewport_id);
-                    if current_frame_nr == frame_nr || current_frame_nr == frame_nr + 1 {
+                    let current_pass_nr = self.winit_app.cumulative_pass_nr(viewport_id);
+                    if current_pass_nr == cumulative_pass_nr
+                        || current_pass_nr == cumulative_pass_nr + 1
+                    {
                         log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
                         if let Some(window_id) =
                             self.winit_app.window_id_from_viewport_id(viewport_id)

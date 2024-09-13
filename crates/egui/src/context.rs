@@ -50,11 +50,11 @@ pub struct RequestRepaintInfo {
     /// Repaint after this duration. If zero, repaint as soon as possible.
     pub delay: Duration,
 
-    /// The current frame number.
+    /// The number of fully completed passes, of the entire lifetime of the [`Context`].
     ///
-    /// This can be compared to [`Context::frame_nr`] to see if we've already
-    /// triggered the painting of the next frame.
-    pub current_frame_nr: u64,
+    /// This can be compared to [`Context::cumulative_pass_nr`] to see if we we still
+    /// need another repaint (ui pass / frame), or if one has already happened.
+    pub current_cumulative_pass_nr: u64,
 }
 
 // ----------------------------------------------------------------------------
@@ -149,7 +149,7 @@ impl ContextImpl {
                 (callback)(RequestRepaintInfo {
                     viewport_id,
                     delay: Duration::ZERO,
-                    current_frame_nr: viewport.repaint.pass_nr,
+                    current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
                 });
             }
         }
@@ -195,17 +195,17 @@ impl ContextImpl {
                 (callback)(RequestRepaintInfo {
                     viewport_id,
                     delay,
-                    current_frame_nr: viewport.repaint.pass_nr,
+                    current_cumulative_pass_nr: viewport.repaint.cumulative_pass_nr,
                 });
             }
         }
     }
 
     #[must_use]
-    fn requested_immediate_repaint_prev_frame(&self, viewport_id: &ViewportId) -> bool {
-        self.viewports.get(viewport_id).map_or(false, |v| {
-            v.repaint.requested_immediate_repaint_prev_frame()
-        })
+    fn requested_immediate_repaint_prev_pass(&self, viewport_id: &ViewportId) -> bool {
+        self.viewports
+            .get(viewport_id)
+            .map_or(false, |v| v.repaint.requested_immediate_repaint_prev_pass())
     }
 
     #[must_use]
@@ -316,7 +316,7 @@ impl std::fmt::Display for RepaintCause {
 /// Per-viewport state related to repaint scheduling.
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
-    pass_nr: u64,
+    cumulative_pass_nr: u64,
 
     /// The duration which the backend will poll for new events
     /// before forcing another egui update, even if there's no new events.
@@ -346,7 +346,7 @@ struct ViewportRepaintInfo {
 impl Default for ViewportRepaintInfo {
     fn default() -> Self {
         Self {
-            pass_nr: 0,
+            cumulative_pass_nr: 0,
 
             // We haven't scheduled a repaint yet.
             repaint_delay: Duration::MAX,
@@ -363,7 +363,7 @@ impl Default for ViewportRepaintInfo {
 }
 
 impl ViewportRepaintInfo {
-    pub fn requested_immediate_repaint_prev_frame(&self) -> bool {
+    pub fn requested_immediate_repaint_prev_pass(&self) -> bool {
         self.prev_pass_paint_delay == Duration::ZERO
     }
 }
@@ -465,7 +465,7 @@ impl ContextImpl {
 
         viewport.input = std::mem::take(&mut viewport.input).begin_pass(
             new_raw_input,
-            viewport.repaint.requested_immediate_repaint_prev_frame(),
+            viewport.repaint.requested_immediate_repaint_prev_pass(),
             pixels_per_point,
             &self.memory.options,
         );
@@ -843,7 +843,7 @@ impl Context {
 
         self.write(|ctx| ctx.begin_pass(new_input));
 
-        // Plugins run just after the frame has started:
+        // Plugins run just after the pass starts:
         self.read(|ctx| ctx.plugins.clone()).on_begin_pass(self);
     }
 
@@ -1434,22 +1434,22 @@ impl Context {
         }
     }
 
-    /// The current frame number for the current viewport.
+    /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_pass`].
-    ///
-    /// Between calls to [`Self::run`], this is the frame number of the coming frame.
-    pub fn frame_nr(&self) -> u64 {
-        self.frame_nr_for(self.viewport_id())
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    pub fn cumulative_pass_nr(&self) -> u64 {
+        self.cumulative_pass_nr_for(self.viewport_id())
     }
 
-    /// The current frame number.
+    /// The total number of completed passes (usually there is one pass per rendered frame).
     ///
-    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_pass`].
-    ///
-    /// Between calls to [`Self::run`], this is the frame number of the coming frame.
-    pub fn frame_nr_for(&self, id: ViewportId) -> u64 {
-        self.read(|ctx| ctx.viewports.get(&id).map_or(0, |v| v.repaint.pass_nr))
+    /// Starts at zero, and is incremented for each completed pass inside of [`Self::run`] (usually once).
+    pub fn cumulative_pass_nr_for(&self, id: ViewportId) -> u64 {
+        self.read(|ctx| {
+            ctx.viewports
+                .get(&id)
+                .map_or(0, |v| v.repaint.cumulative_pass_nr)
+        })
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -1564,16 +1564,16 @@ impl Context {
         self.write(|ctx| ctx.request_repaint_after(duration, id, cause));
     }
 
-    /// Was a repaint requested last frame for the current viewport?
+    /// Was a repaint requested last pass for the current viewport?
     #[must_use]
-    pub fn requested_repaint_last_frame(&self) -> bool {
-        self.requested_repaint_last_frame_for(&self.viewport_id())
+    pub fn requested_repaint_last_pass(&self) -> bool {
+        self.requested_repaint_last_pass_for(&self.viewport_id())
     }
 
-    /// Was a repaint requested last frame for the given viewport?
+    /// Was a repaint requested last pass for the given viewport?
     #[must_use]
-    pub fn requested_repaint_last_frame_for(&self, viewport_id: &ViewportId) -> bool {
-        self.read(|ctx| ctx.requested_immediate_repaint_prev_frame(viewport_id))
+    pub fn requested_repaint_last_pass_for(&self, viewport_id: &ViewportId) -> bool {
+        self.read(|ctx| ctx.requested_immediate_repaint_prev_pass(viewport_id))
     }
 
     /// Has a repaint been requested for the current viewport?
@@ -1627,7 +1627,7 @@ impl Context {
     /// There is a limit to how many passes egui will perform, set by [`Options::max_passes`].
     /// Therefore, the request might be declined.
     ///
-    /// You can check if the current frame will be discarded with [`Self::will_discard`].
+    /// You can check if the current pass will be discarded with [`Self::will_discard`].
     ///
     /// You should be very conservative with when you call [`Self::request_discard`],
     /// as it will cause an extra ui pass, potentially leading to extra CPU use and frame judder.
@@ -2203,7 +2203,7 @@ impl ContextImpl {
         let viewport = self.viewports.entry(ended_viewport_id).or_default();
         let pixels_per_point = viewport.input.pixels_per_point;
 
-        viewport.repaint.pass_nr += 1;
+        viewport.repaint.cumulative_pass_nr += 1;
 
         self.memory.end_pass(&viewport.this_pass.used_ids);
 

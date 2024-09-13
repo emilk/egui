@@ -47,8 +47,8 @@ pub enum UserEvent {
         /// When to repaint.
         when: Instant,
 
-        /// What the frame number was when the repaint was _requested_.
-        frame_nr: u64,
+        /// What the cumulative pass number was when the repaint was _requested_.
+        cumulative_pass_nr: u64,
     },
 
     /// A request related to [`accesskit`](https://accesskit.dev/).
@@ -65,7 +65,7 @@ impl From<accesskit_winit::Event> for UserEvent {
 
 pub trait WinitApp {
     /// The current frame number, as reported by egui.
-    fn frame_nr(&self, viewport_id: ViewportId) -> u64;
+    fn cumulative_pass_nr(&self, viewport_id: ViewportId) -> u64;
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
 

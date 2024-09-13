@@ -223,13 +223,13 @@ impl<'app> WgpuWinitApp<'app> {
             egui_ctx.set_request_repaint_callback(move |info| {
                 log::trace!("request_repaint_callback: {info:?}");
                 let when = Instant::now() + info.delay;
-                let frame_nr = info.current_frame_nr;
+                let cumulative_pass_nr = info.current_cumulative_pass_nr;
 
                 event_loop_proxy
                     .lock()
                     .send_event(UserEvent::RequestRepaint {
                         when,
-                        frame_nr,
+                        cumulative_pass_nr,
                         viewport_id: info.viewport_id,
                     })
                     .ok();
@@ -324,10 +324,10 @@ impl<'app> WgpuWinitApp<'app> {
 }
 
 impl<'app> WinitApp for WgpuWinitApp<'app> {
-    fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
-        self.running
-            .as_ref()
-            .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
+    fn cumulative_pass_nr(&self, viewport_id: ViewportId) -> u64 {
+        self.running.as_ref().map_or(0, |r| {
+            r.integration.egui_ctx.cumulative_pass_nr_for(viewport_id)
+        })
     }
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
