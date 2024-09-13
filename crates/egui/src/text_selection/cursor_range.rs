@@ -24,7 +24,7 @@ pub struct CursorRange {
 impl CursorRange {
     /// The empty range.
     #[inline]
-    pub fn one(cursor: Cursor) -> Self {
+    pub const fn one(cursor: Cursor) -> Self {
         Self {
             primary: cursor,
             secondary: cursor,
@@ -32,7 +32,7 @@ impl CursorRange {
     }
 
     #[inline]
-    pub fn two(min: Cursor, max: Cursor) -> Self {
+    pub const fn two(min: Cursor, max: Cursor) -> Self {
         Self {
             primary: max,
             secondary: min,
@@ -44,7 +44,7 @@ impl CursorRange {
         Self::two(galley.begin(), galley.end())
     }
 
-    pub fn as_ccursor_range(&self) -> CCursorRange {
+    pub const fn as_ccursor_range(&self) -> CCursorRange {
         CCursorRange {
             primary: self.primary.ccursor,
             secondary: self.secondary.ccursor,
@@ -229,7 +229,7 @@ pub struct CCursorRange {
 impl CCursorRange {
     /// The empty range.
     #[inline]
-    pub fn one(ccursor: CCursor) -> Self {
+    pub const fn one(ccursor: CCursor) -> Self {
         Self {
             primary: ccursor,
             secondary: ccursor,
@@ -237,11 +237,16 @@ impl CCursorRange {
     }
 
     #[inline]
+    pub const fn const_two(primary: CCursor, secondary: CCursor) -> Self {
+        Self { primary, secondary }
+    }
+
+    /// See [`Self::const_two`].
+    #[inline]
     pub fn two(min: impl Into<CCursor>, max: impl Into<CCursor>) -> Self {
-        Self {
-            primary: max.into(),
-            secondary: min.into(),
-        }
+        let min = min.into();
+        let max = max.into();
+        Self::const_two(min, max)
     }
 
     #[inline]

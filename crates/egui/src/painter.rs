@@ -37,7 +37,7 @@ pub struct Painter {
 
 impl Painter {
     /// Create a painter to a specific layer within a certain clip rectangle.
-    pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
+    pub const fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
         Self {
             ctx,
             layer_id,
@@ -108,12 +108,12 @@ impl Painter {
     ///
     /// See also: [`Self::set_opacity`] and [`Self::multiply_opacity`].
     #[inline]
-    pub fn opacity(&self) -> f32 {
+    pub const fn opacity(&self) -> f32 {
         self.opacity_factor
     }
 
-    pub(crate) fn is_visible(&self) -> bool {
-        self.fade_to_color != Some(Color32::TRANSPARENT)
+    pub(crate) const fn is_visible(&self) -> bool {
+        !matches!(self.fade_to_color, Some(Color32::TRANSPARENT))
     }
 
     /// If `false`, nothing added to the painter will be visible
@@ -126,7 +126,7 @@ impl Painter {
 impl Painter {
     /// Get a reference to the parent [`Context`].
     #[inline]
-    pub fn ctx(&self) -> &Context {
+    pub const fn ctx(&self) -> &Context {
         &self.ctx
     }
 
@@ -140,14 +140,14 @@ impl Painter {
 
     /// Where we paint
     #[inline]
-    pub fn layer_id(&self) -> LayerId {
+    pub const fn layer_id(&self) -> LayerId {
         self.layer_id
     }
 
     /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
     #[inline]
-    pub fn clip_rect(&self) -> Rect {
+    pub const fn clip_rect(&self) -> Rect {
         self.clip_rect
     }
 

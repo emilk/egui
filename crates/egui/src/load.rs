@@ -386,19 +386,23 @@ pub struct SizedTexture {
 
 impl SizedTexture {
     /// Create a [`SizedTexture`] from a texture `id` with a specific `size`.
+    pub const fn const_new(id: TextureId, size: Vec2) -> Self {
+        Self { id, size }
+    }
+
+    /// See [`Self::const_new`].
     pub fn new(id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
-        Self {
-            id: id.into(),
-            size: size.into(),
-        }
+        let id = id.into();
+        let size = size.into();
+        Self::const_new(id, size)
     }
 
     /// Fetch the [id][`SizedTexture::id`] and [size][`SizedTexture::size`] from a [`TextureHandle`].
     pub fn from_handle(handle: &TextureHandle) -> Self {
-        let size = handle.size();
+        let [width, height] = handle.size();
         Self {
             id: handle.id(),
-            size: Vec2::new(size[0] as f32, size[1] as f32),
+            size: Vec2::new(width as f32, height as f32),
         }
     }
 }
@@ -436,7 +440,7 @@ pub enum TexturePoll {
 
 impl TexturePoll {
     #[inline]
-    pub fn size(&self) -> Option<Vec2> {
+    pub const fn size(&self) -> Option<Vec2> {
         match self {
             Self::Pending { size } => *size,
             Self::Ready { texture } => Some(texture.size),
@@ -444,7 +448,7 @@ impl TexturePoll {
     }
 
     #[inline]
-    pub fn texture_id(&self) -> Option<TextureId> {
+    pub const fn texture_id(&self) -> Option<TextureId> {
         match self {
             Self::Pending { .. } => None,
             Self::Ready { texture } => Some(texture.id),

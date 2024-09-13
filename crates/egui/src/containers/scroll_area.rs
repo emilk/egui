@@ -73,7 +73,7 @@ impl State {
     }
 
     /// Get the current kinetic scrolling velocity.
-    pub fn velocity(&self) -> Vec2 {
+    pub const fn velocity(&self) -> Vec2 {
         self.vel
     }
 }
@@ -121,11 +121,14 @@ pub enum ScrollBarVisibility {
 impl Default for ScrollBarVisibility {
     #[inline]
     fn default() -> Self {
-        Self::VisibleWhenNeeded
+        Self::DEFAULT
     }
 }
 
 impl ScrollBarVisibility {
+    /// Same as [`Self::default`].
+    pub const DEFAULT: Self = Self::VisibleWhenNeeded;
+
     pub const ALL: [Self; 3] = [
         Self::AlwaysHidden,
         Self::VisibleWhenNeeded,
@@ -192,38 +195,39 @@ pub struct ScrollArea {
 impl ScrollArea {
     /// Create a horizontal scroll area.
     #[inline]
-    pub fn horizontal() -> Self {
-        Self::new([true, false])
+    pub const fn horizontal() -> Self {
+        Self::const_new(Vec2b::new(true, false))
     }
 
     /// Create a vertical scroll area.
     #[inline]
-    pub fn vertical() -> Self {
-        Self::new([false, true])
+    pub const fn vertical() -> Self {
+        Self::const_new(Vec2b::new(false, true))
     }
 
     /// Create a bi-directional (horizontal and vertical) scroll area.
     #[inline]
-    pub fn both() -> Self {
-        Self::new([true, true])
+    pub const fn both() -> Self {
+        Self::const_new(Vec2b::TRUE)
     }
 
     /// Create a scroll area where both direction of scrolling is disabled.
     /// It's unclear why you would want to do this.
     #[inline]
-    pub fn neither() -> Self {
-        Self::new([false, false])
+    pub const fn neither() -> Self {
+        Self::const_new(Vec2b::FALSE)
     }
 
     /// Create a scroll area where you decide which axis has scrolling enabled.
     /// For instance, `ScrollArea::new([true, false])` enables horizontal scrolling.
-    pub fn new(scroll_enabled: impl Into<Vec2b>) -> Self {
+    pub const fn const_new(scroll_enabled: Vec2b) -> Self {
         Self {
-            scroll_enabled: scroll_enabled.into(),
+            scroll_enabled,
             auto_shrink: Vec2b::TRUE,
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
-            scroll_bar_visibility: Default::default(),
+            // TODO(BastiDood): Use `Default::default` when `const` traits stabilize.
+            scroll_bar_visibility: ScrollBarVisibility::DEFAULT,
             scroll_bar_rect: None,
             id_salt: None,
             offset_x: None,
@@ -235,13 +239,19 @@ impl ScrollArea {
         }
     }
 
+    /// See [`Self::const_new`].
+    pub fn new(scroll_enabled: impl Into<Vec2b>) -> Self {
+        let scroll_enabled = scroll_enabled.into();
+        Self::const_new(scroll_enabled)
+    }
+
     /// The maximum width of the outer frame of the scroll area.
     ///
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding [`Ui`] (default).
     ///
     /// See also [`Self::auto_shrink`].
     #[inline]
-    pub fn max_width(mut self, max_width: f32) -> Self {
+    pub const fn max_width(mut self, max_width: f32) -> Self {
         self.max_size.x = max_width;
         self
     }
@@ -252,7 +262,7 @@ impl ScrollArea {
     ///
     /// See also [`Self::auto_shrink`].
     #[inline]
-    pub fn max_height(mut self, max_height: f32) -> Self {
+    pub const fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
         self
     }
@@ -264,7 +274,7 @@ impl ScrollArea {
     ///
     /// Default: `64.0`.
     #[inline]
-    pub fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
+    pub const fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
         self.min_scrolled_size.x = min_scrolled_width;
         self
     }
@@ -276,7 +286,7 @@ impl ScrollArea {
     ///
     /// Default: `64.0`.
     #[inline]
-    pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
+    pub const fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
         self.min_scrolled_size.y = min_scrolled_height;
         self
     }
@@ -285,19 +295,25 @@ impl ScrollArea {
     ///
     /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
     #[inline]
-    pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
+    pub const fn scroll_bar_visibility(
+        mut self,
+        scroll_bar_visibility: ScrollBarVisibility,
+    ) -> Self {
         self.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
 
-    /// Specify within which screen-space rectangle to show the scroll bars.
-    ///
-    /// This can be used to move the scroll bars to a smaller region of the `ScrollArea`,
-    /// for instance if you are painting a sticky header on top of it.
+    /// A source for the unique [`Id`], e.g. `.const_id_salt("second_scroll_area")` or `.const_id_salt(loop_index)`.
     #[inline]
-    pub fn scroll_bar_rect(mut self, scroll_bar_rect: Rect) -> Self {
-        self.scroll_bar_rect = Some(scroll_bar_rect);
+    pub const fn const_id_salt(mut self, id_salt: Id) -> Self {
+        self.id_salt = Some(id_salt);
         self
+    }
+
+    /// See [`Self::const_id_salt`].
+    #[inline]
+    pub fn id_salt(self, id_salt: impl std::hash::Hash) -> Self {
+        self.const_id_salt(Id::new(id_salt))
     }
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
@@ -307,10 +323,13 @@ impl ScrollArea {
         self.id_salt(id_salt)
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
+    /// Specify within which screen-space rectangle to show the scroll bars.
+    ///
+    /// This can be used to move the scroll bars to a smaller region of the `ScrollArea`,
+    /// for instance if you are painting a sticky header on top of it.
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+    pub const fn scroll_bar_rect(mut self, scroll_bar_rect: Rect) -> Self {
+        self.scroll_bar_rect = Some(scroll_bar_rect);
         self
     }
 
@@ -322,7 +341,7 @@ impl ScrollArea {
     /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     #[inline]
-    pub fn scroll_offset(mut self, offset: Vec2) -> Self {
+    pub const fn scroll_offset(mut self, offset: Vec2) -> Self {
         self.offset_x = Some(offset.x);
         self.offset_y = Some(offset.y);
         self
@@ -335,7 +354,7 @@ impl ScrollArea {
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     #[inline]
-    pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
+    pub const fn vertical_scroll_offset(mut self, offset: f32) -> Self {
         self.offset_y = Some(offset);
         self
     }
@@ -347,40 +366,46 @@ impl ScrollArea {
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     #[inline]
-    pub fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
+    pub const fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
         self.offset_x = Some(offset);
         self
     }
 
     /// Turn on/off scrolling on the horizontal axis.
     #[inline]
-    pub fn hscroll(mut self, hscroll: bool) -> Self {
-        self.scroll_enabled[0] = hscroll;
+    pub const fn hscroll(mut self, hscroll: bool) -> Self {
+        self.scroll_enabled.x = hscroll;
         self
     }
 
     /// Turn on/off scrolling on the vertical axis.
     #[inline]
-    pub fn vscroll(mut self, vscroll: bool) -> Self {
-        self.scroll_enabled[1] = vscroll;
+    pub const fn vscroll(mut self, vscroll: bool) -> Self {
+        self.scroll_enabled.y = vscroll;
         self
     }
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
+    #[inline]
+    pub const fn const_scroll(mut self, scroll_enabled: Vec2b) -> Self {
+        self.scroll_enabled = scroll_enabled;
+        self
+    }
+
+    /// See [`Self::const_scroll`].
     ///
     /// You can pass in `false`, `true`, `[false, true]` etc.
     #[inline]
-    pub fn scroll(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
-        self.scroll_enabled = scroll_enabled.into();
-        self
+    pub fn scroll(self, scroll_enabled: impl Into<Vec2b>) -> Self {
+        let scroll_enabled = scroll_enabled.into();
+        self.const_scroll(scroll_enabled)
     }
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
     #[deprecated = "Renamed to `scroll`"]
     #[inline]
-    pub fn scroll2(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
-        self.scroll_enabled = scroll_enabled.into();
-        self
+    pub fn scroll2(self, scroll_enabled: impl Into<Vec2b>) -> Self {
+        self.scroll(scroll_enabled)
     }
 
     /// Control the scrolling behavior.
@@ -393,7 +418,7 @@ impl ScrollArea {
     ///
     /// This controls both scrolling directions.
     #[inline]
-    pub fn enable_scrolling(mut self, enable: bool) -> Self {
+    pub const fn enable_scrolling(mut self, enable: bool) -> Self {
         self.scrolling_enabled = enable;
         self
     }
@@ -406,7 +431,7 @@ impl ScrollArea {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub const fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.drag_to_scroll = drag_to_scroll;
         self
     }
@@ -418,23 +443,30 @@ impl ScrollArea {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
-        self.auto_shrink = auto_shrink.into();
+    pub const fn const_auto_shrink(mut self, auto_shrink: Vec2b) -> Self {
+        self.auto_shrink = auto_shrink;
         self
+    }
+
+    /// See [`Self::const_auto_shrink`].
+    #[inline]
+    pub fn auto_shrink(self, auto_shrink: impl Into<Vec2b>) -> Self {
+        let auto_shrink = auto_shrink.into();
+        self.const_auto_shrink(auto_shrink)
     }
 
     /// Should the scroll area animate `scroll_to_*` functions?
     ///
     /// Default: `true`.
     #[inline]
-    pub fn animated(mut self, animated: bool) -> Self {
+    pub const fn animated(mut self, animated: bool) -> Self {
         self.animated = animated;
         self
     }
 
     /// Is any scrolling enabled?
-    pub(crate) fn is_any_scroll_enabled(&self) -> bool {
-        self.scroll_enabled[0] || self.scroll_enabled[1]
+    pub(crate) const fn is_any_scroll_enabled(&self) -> bool {
+        self.scroll_enabled.any()
     }
 
     /// The scroll handle will stick to the rightmost position even while the content size
@@ -444,8 +476,8 @@ impl ScrollArea {
     /// handle is dragged all the way to the right it will again become stuck and remain there
     /// until manually pulled from the end position.
     #[inline]
-    pub fn stick_to_right(mut self, stick: bool) -> Self {
-        self.stick_to_end[0] = stick;
+    pub const fn stick_to_right(mut self, stick: bool) -> Self {
+        self.stick_to_end.x = stick;
         self
     }
 
@@ -456,8 +488,8 @@ impl ScrollArea {
     /// handle is dragged to the bottom it will again become stuck and remain there until manually
     /// pulled from the end position.
     #[inline]
-    pub fn stick_to_bottom(mut self, stick: bool) -> Self {
-        self.stick_to_end[1] = stick;
+    pub const fn stick_to_bottom(mut self, stick: bool) -> Self {
+        self.stick_to_end.y = stick;
         self
     }
 }

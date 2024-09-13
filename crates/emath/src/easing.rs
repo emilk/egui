@@ -14,7 +14,7 @@ fn powf(base: f32, exp: f32) -> f32 {
 
 /// No easing, just `y = x`
 #[inline]
-pub fn linear(t: f32) -> f32 {
+pub const fn linear(t: f32) -> f32 {
     t
 }
 

@@ -122,25 +122,27 @@ impl From<Vec2> for mint::Vector2<f32> {
 
 impl Vec2 {
     /// Right
-    pub const X: Self = Self { x: 1.0, y: 0.0 };
+    pub const X: Self = Self::new(1.0, 0.0);
 
     /// Down
-    pub const Y: Self = Self { x: 0.0, y: 1.0 };
+    pub const Y: Self = Self::new(0.0, 1.0);
 
     /// +X
-    pub const RIGHT: Self = Self { x: 1.0, y: 0.0 };
+    pub const RIGHT: Self = Self::new(1.0, 0.0);
 
     /// -X
-    pub const LEFT: Self = Self { x: -1.0, y: 0.0 };
+    pub const LEFT: Self = Self::new(-1.0, 0.0);
 
     /// -Y
-    pub const UP: Self = Self { x: 0.0, y: -1.0 };
+    pub const UP: Self = Self::new(0.0, -1.0);
 
     /// +Y
-    pub const DOWN: Self = Self { x: 0.0, y: 1.0 };
+    pub const DOWN: Self = Self::new(0.0, 1.0);
 
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+    pub const ZERO: Self = Self::splat(0.0);
+
     pub const INFINITY: Self = Self::splat(f32::INFINITY);
+
     pub const NAN: Self = Self::splat(f32::NAN);
 
     #[inline(always)]
@@ -157,7 +159,7 @@ impl Vec2 {
     /// Treat this vector as a position.
     /// `v.to_pos2()` is equivalent to `Pos2::default() + v`.
     #[inline(always)]
-    pub fn to_pos2(self) -> crate::Pos2 {
+    pub const fn to_pos2(self) -> crate::Pos2 {
         crate::Pos2 {
             x: self.x,
             y: self.y,
@@ -302,11 +304,8 @@ impl Vec2 {
     /// Swizzle the axes.
     #[inline]
     #[must_use]
-    pub fn yx(self) -> Self {
-        Self {
-            x: self.y,
-            y: self.x,
-        }
+    pub const fn yx(self) -> Self {
+        Self::new(self.y, self.x)
     }
 
     #[must_use]

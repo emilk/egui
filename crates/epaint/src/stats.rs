@@ -3,17 +3,12 @@
 use crate::{ClippedShape, Galley, Mesh, Primitive, Shape};
 
 /// Size of the elements in a vector/array.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq)]
 enum ElementSize {
+    #[default]
     Unknown,
     Homogeneous(usize),
     Heterogenous,
-}
-
-impl Default for ElementSize {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// Aggregate information about a bunch of allocations.
@@ -115,11 +110,11 @@ impl AllocInfo {
         self.num_elements
     }
 
-    pub fn num_allocs(&self) -> usize {
+    pub const fn num_allocs(&self) -> usize {
         self.num_allocs
     }
 
-    pub fn num_bytes(&self) -> usize {
+    pub const fn num_bytes(&self) -> usize {
         self.num_bytes
     }
 

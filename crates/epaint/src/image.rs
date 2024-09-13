@@ -34,7 +34,7 @@ impl ImageData {
         self.size()[1]
     }
 
-    pub fn bytes_per_pixel(&self) -> usize {
+    pub const fn bytes_per_pixel(&self) -> usize {
         match self {
             Self::Color(_) | Self::Font(_) => 4,
         }
@@ -204,12 +204,12 @@ impl ColorImage {
     }
 
     #[inline]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.size[0]
     }
 
     #[inline]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.size[1]
     }
 }
@@ -285,12 +285,12 @@ impl FontImage {
     }
 
     #[inline]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.size[0]
     }
 
     #[inline]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.size[1]
     }
 
@@ -386,26 +386,38 @@ pub struct ImageDelta {
 
 impl ImageDelta {
     /// Update the whole texture.
-    pub fn full(image: impl Into<ImageData>, options: TextureOptions) -> Self {
+    pub const fn const_full(image: ImageData, options: TextureOptions) -> Self {
         Self {
-            image: image.into(),
+            image,
             options,
             pos: None,
         }
     }
 
+    /// See [`Self::const_full`].
+    pub fn full(image: impl Into<ImageData>, options: TextureOptions) -> Self {
+        let image = image.into();
+        Self::const_full(image, options)
+    }
+
     /// Update a sub-region of an existing texture.
-    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>, options: TextureOptions) -> Self {
+    pub const fn const_partial(pos: [usize; 2], image: ImageData, options: TextureOptions) -> Self {
         Self {
-            image: image.into(),
+            image,
             options,
             pos: Some(pos),
         }
     }
 
+    /// See [`Self::const_partial`].
+    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>, options: TextureOptions) -> Self {
+        let image = image.into();
+        Self::const_partial(pos, image, options)
+    }
+
     /// Is this affecting the whole texture?
     /// If `false`, this is a partial (sub-region) update.
-    pub fn is_whole(&self) -> bool {
+    pub const fn is_whole(&self) -> bool {
         self.pos.is_none()
     }
 }

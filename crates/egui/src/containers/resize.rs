@@ -64,23 +64,28 @@ impl Default for Resize {
 impl Resize {
     /// Assign an explicit and globally unique id.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
+    pub const fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
+    /// A source for the unique [`Id`], e.g. `.const_id_salt("second_resize_area")` or `.const_id_salt(loop_index)`.
     #[inline]
-    #[deprecated = "Renamed id_salt"]
-    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt(id_salt)
+    pub const fn const_id_salt(mut self, id: Id) -> Self {
+        self.id_salt = Some(id);
+        self
     }
 
-    /// A source for the unique [`Id`], e.g. `.id_salt("second_resize_area")` or `.id_salt(loop_index)`.
+    /// See [`Self::const_id_salt`].
     #[inline]
-    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
-        self
+    pub fn id_salt(self, id_salt: impl std::hash::Hash) -> Self {
+        self.const_id_salt(Id::new(id_salt))
+    }
+
+    #[deprecated = "Renamed id_salt"]
+    #[inline]
+    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt(id_salt)
     }
 
     /// Preferred / suggested width. Actual width will depend on contents.
@@ -90,7 +95,7 @@ impl Resize {
     /// * if the contents is a canvas, this decides the width of it,
     /// * if the contents is some buttons, this is ignored and we will auto-size.
     #[inline]
-    pub fn default_width(mut self, width: f32) -> Self {
+    pub const fn default_width(mut self, width: f32) -> Self {
         self.default_size.x = width;
         self
     }
@@ -103,55 +108,76 @@ impl Resize {
     /// * if the contents is text and buttons, then the `default_height` is ignored
     ///   and the height is picked automatically..
     #[inline]
-    pub fn default_height(mut self, height: f32) -> Self {
+    pub const fn default_height(mut self, height: f32) -> Self {
         self.default_size.y = height;
         self
     }
 
     #[inline]
-    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
-        self.default_size = default_size.into();
+    pub const fn const_default_size(mut self, default_size: Vec2) -> Self {
+        self.default_size = default_size;
         self
+    }
+
+    /// See [`Self::const_default_size`].
+    #[inline]
+    pub fn default_size(self, default_size: impl Into<Vec2>) -> Self {
+        let default_size = default_size.into();
+        self.const_default_size(default_size)
     }
 
     /// Won't shrink to smaller than this
     #[inline]
-    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
-        self.min_size = min_size.into();
+    pub const fn const_min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
         self
+    }
+
+    /// See [`Self::const_min_size`].
+    #[inline]
+    pub fn min_size(self, min_size: impl Into<Vec2>) -> Self {
+        let min_size = min_size.into();
+        self.const_min_size(min_size)
     }
 
     /// Won't shrink to smaller than this
     #[inline]
-    pub fn min_width(mut self, min_width: f32) -> Self {
+    pub const fn min_width(mut self, min_width: f32) -> Self {
         self.min_size.x = min_width;
         self
     }
 
     /// Won't shrink to smaller than this
     #[inline]
-    pub fn min_height(mut self, min_height: f32) -> Self {
+    pub const fn min_height(mut self, min_height: f32) -> Self {
         self.min_size.y = min_height;
         self
     }
 
     /// Won't expand to larger than this
     #[inline]
-    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
-        self.max_size = max_size.into();
+    pub const fn const_max_size(mut self, max_size: Vec2) -> Self {
+        self.max_size = max_size;
         self
+    }
+
+    /// See [`Self::const_max_size`].
+    #[inline]
+    pub fn max_size(self, max_size: impl Into<Vec2>) -> Self {
+        let max_size = max_size.into();
+        self.const_max_size(max_size)
     }
 
     /// Won't expand to larger than this
     #[inline]
-    pub fn max_width(mut self, max_width: f32) -> Self {
+    pub const fn max_width(mut self, max_width: f32) -> Self {
         self.max_size.x = max_width;
         self
     }
 
     /// Won't expand to larger than this
     #[inline]
-    pub fn max_height(mut self, max_height: f32) -> Self {
+    pub const fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
         self
     }
@@ -162,27 +188,33 @@ impl Resize {
     ///
     /// Default is `true`.
     #[inline]
-    pub fn resizable(mut self, resizable: impl Into<Vec2b>) -> Self {
-        self.resizable = resizable.into();
+    pub const fn const_resizable(mut self, resizable: Vec2b) -> Self {
+        self.resizable = resizable;
         self
     }
 
+    /// See [`Self::const_resizable`].
     #[inline]
-    pub fn is_resizable(&self) -> Vec2b {
+    pub fn resizable(self, resizable: impl Into<Vec2b>) -> Self {
+        let resizable = resizable.into();
+        self.const_resizable(resizable)
+    }
+
+    #[inline]
+    pub const fn is_resizable(&self) -> Vec2b {
         self.resizable
     }
 
     /// Not manually resizable, just takes the size of its contents.
     /// Text will not wrap, but will instead make your window width expand.
-    pub fn auto_sized(self) -> Self {
-        self.min_size(Vec2::ZERO)
-            .default_size(Vec2::splat(f32::INFINITY))
-            .resizable(false)
+    pub const fn auto_sized(self) -> Self {
+        self.const_min_size(Vec2::ZERO)
+            .const_default_size(Vec2::splat(f32::INFINITY))
+            .const_resizable(Vec2b::FALSE)
     }
 
     #[inline]
-    pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
-        let size = size.into();
+    pub const fn const_fixed_size(mut self, size: Vec2) -> Self {
         self.default_size = size;
         self.min_size = size;
         self.max_size = size;
@@ -190,8 +222,15 @@ impl Resize {
         self
     }
 
+    /// See [`Self::const_fixed_size`].
     #[inline]
-    pub fn with_stroke(mut self, with_stroke: bool) -> Self {
+    pub fn fixed_size(self, size: impl Into<Vec2>) -> Self {
+        let size = size.into();
+        self.const_fixed_size(size)
+    }
+
+    #[inline]
+    pub const fn with_stroke(mut self, with_stroke: bool) -> Self {
         self.with_stroke = with_stroke;
         self
     }

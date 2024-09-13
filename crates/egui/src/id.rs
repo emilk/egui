@@ -73,7 +73,7 @@ impl Id {
     ///
     /// This is a high-entropy hash, or [`Self::NULL`].
     #[inline(always)]
-    pub fn value(&self) -> u64 {
+    pub const fn value(&self) -> u64 {
         self.0.get()
     }
 

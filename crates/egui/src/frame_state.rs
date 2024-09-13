@@ -58,7 +58,11 @@ pub struct ScrollTarget {
 }
 
 impl ScrollTarget {
-    pub fn new(range: Rangef, align: Option<Align>, animation: style::ScrollAnimation) -> Self {
+    pub const fn new(
+        range: Rangef,
+        align: Option<Align>,
+        animation: style::ScrollAnimation,
+    ) -> Self {
         Self {
             range,
             align,

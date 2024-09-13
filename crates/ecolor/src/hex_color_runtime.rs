@@ -72,7 +72,7 @@ impl Display for HexColor {
 impl HexColor {
     /// Retrieves the inner [`Color32`]
     #[inline]
-    pub fn color(&self) -> Color32 {
+    pub const fn color(&self) -> Color32 {
         match self {
             Self::Hex3(color) | Self::Hex4(color) | Self::Hex6(color) | Self::Hex8(color) => *color,
         }

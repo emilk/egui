@@ -10,7 +10,7 @@ pub struct Stopwatch {
 }
 
 impl Stopwatch {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             total_time_ns: 0,
             start: None,

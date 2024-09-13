@@ -1,3 +1,4 @@
+use core::f32;
 use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
 /// Inclusive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
@@ -12,31 +13,22 @@ pub struct Rangef {
 
 impl Rangef {
     /// Infinite range that contains everything, from -∞ to +∞, inclusive.
-    pub const EVERYTHING: Self = Self {
-        min: f32::NEG_INFINITY,
-        max: f32::INFINITY,
-    };
+    pub const EVERYTHING: Self = Self::new(f32::NEG_INFINITY, f32::INFINITY);
 
     /// The inverse of [`Self::EVERYTHING`]: stretches from positive infinity to negative infinity.
     /// Contains nothing.
-    pub const NOTHING: Self = Self {
-        min: f32::INFINITY,
-        max: f32::NEG_INFINITY,
-    };
+    pub const NOTHING: Self = Self::new(f32::INFINITY, f32::NEG_INFINITY);
 
     /// An invalid [`Rangef`] filled with [`f32::NAN`].
-    pub const NAN: Self = Self {
-        min: f32::NAN,
-        max: f32::NAN,
-    };
+    pub const NAN: Self = Self::point(f32::NAN);
 
     #[inline]
-    pub fn new(min: f32, max: f32) -> Self {
+    pub const fn new(min: f32, max: f32) -> Self {
         Self { min, max }
     }
 
     #[inline]
-    pub fn point(min_and_max: f32) -> Self {
+    pub const fn point(min_and_max: f32) -> Self {
         Self {
             min: min_and_max,
             max: min_and_max,
@@ -100,7 +92,7 @@ impl Rangef {
     /// Flip the min and the max
     #[inline]
     #[must_use]
-    pub fn flip(self) -> Self {
+    pub const fn flip(self) -> Self {
         Self {
             min: self.max,
             max: self.min,

@@ -68,7 +68,7 @@ fn roaming_appdata() -> Option<PathBuf> {
         ) {
             S_OK => {
                 let path_slice = slice::from_raw_parts(path, wcslen(path));
-                let s = OsString::from_wide(&path_slice);
+                let s = OsString::from_wide(path_slice);
                 CoTaskMemFree(path.cast());
                 Some(PathBuf::from(s))
             }

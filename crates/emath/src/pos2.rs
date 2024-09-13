@@ -1,3 +1,4 @@
+use core::f32;
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
@@ -114,8 +115,17 @@ impl From<Pos2> for mint::Point2<f32> {
 impl Pos2 {
     /// The zero position, the origin.
     /// The top left corner in a GUI.
-    /// Same as `Pos2::default()`.
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+    /// Same as [`Pos2::default()`].
+    pub const ZERO: Self = Self::new(0.0, 0.0);
+
+    /// An invalid [`Pos2`] where both `x` and `y` are [`f32::NAN`].
+    pub const NAN: Self = Self::new(f32::NAN, f32::NAN);
+
+    /// A [`Pos2`] infinitely far away in the positive direction (both axes).
+    pub const INFINITY: Self = Self::new(f32::INFINITY, f32::INFINITY);
+
+    /// A [`Pos2`] infinitely far away in the negative direction (both axes).
+    pub const NEG_INFINITY: Self = Self::new(f32::NEG_INFINITY, f32::NEG_INFINITY);
 
     #[inline(always)]
     pub const fn new(x: f32, y: f32) -> Self {
@@ -125,7 +135,7 @@ impl Pos2 {
     /// The vector from origin to this position.
     /// `p.to_vec2()` is equivalent to `p - Pos2::default()`.
     #[inline(always)]
-    pub fn to_vec2(self) -> Vec2 {
+    pub const fn to_vec2(self) -> Vec2 {
         Vec2 {
             x: self.x,
             y: self.y,

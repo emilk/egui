@@ -55,7 +55,7 @@ impl BarState {
         self.open_menu.show(button, add_contents)
     }
 
-    pub(crate) fn has_root(&self) -> bool {
+    pub(crate) const fn has_root(&self) -> bool {
         self.open_menu.inner.is_some()
     }
 }
@@ -491,8 +491,8 @@ pub enum MenuResponse {
 }
 
 impl MenuResponse {
-    pub fn is_close(&self) -> bool {
-        *self == Self::Close
+    pub const fn is_close(&self) -> bool {
+        matches!(self, Self::Close)
     }
 }
 
@@ -504,12 +504,15 @@ pub struct SubMenuButton {
 
 impl SubMenuButton {
     /// The `icon` can be an emoji (e.g. `⏵` right arrow), shown right of the label
+    const fn const_new(text: WidgetText, icon: WidgetText, index: usize) -> Self {
+        Self { text, icon, index }
+    }
+
+    /// See [`Self::const_new`].
     fn new(text: impl Into<WidgetText>, icon: impl Into<WidgetText>, index: usize) -> Self {
-        Self {
-            text: text.into(),
-            icon: icon.into(),
-            index,
-        }
+        let text = text.into();
+        let icon = icon.into();
+        Self::const_new(text, icon, index)
     }
 
     fn visuals<'a>(

@@ -18,7 +18,7 @@ pub struct CCursor {
 
 impl CCursor {
     #[inline]
-    pub fn new(index: usize) -> Self {
+    pub const fn new(index: usize) -> Self {
         Self {
             index,
             prefer_next_row: false,

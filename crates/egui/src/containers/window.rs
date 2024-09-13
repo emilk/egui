@@ -72,7 +72,7 @@ impl<'open> Window<'open> {
 
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     #[inline]
-    pub fn id(mut self, id: Id) -> Self {
+    pub const fn id(mut self, id: Id) -> Self {
         self.area = self.area.id(id);
         self
     }
@@ -90,7 +90,7 @@ impl<'open> Window<'open> {
 
     /// If `false` the window will be grayed out and non-interactive.
     #[inline]
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub const fn enabled(mut self, enabled: bool) -> Self {
         self.area = self.area.enabled(enabled);
         self
     }
@@ -101,21 +101,21 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn interactable(mut self, interactable: bool) -> Self {
+    pub const fn interactable(mut self, interactable: bool) -> Self {
         self.area = self.area.interactable(interactable);
         self
     }
 
     /// If `false` the window will be immovable.
     #[inline]
-    pub fn movable(mut self, movable: bool) -> Self {
+    pub const fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
         self
     }
 
     /// `order(Order::Foreground)` for a Window that should always be on top
     #[inline]
-    pub fn order(mut self, order: Order) -> Self {
+    pub const fn order(mut self, order: Order) -> Self {
         self.area = self.area.order(order);
         self
     }
@@ -124,7 +124,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn fade_in(mut self, fade_in: bool) -> Self {
+    pub const fn fade_in(mut self, fade_in: bool) -> Self {
         self.area = self.area.fade_in(fade_in);
         self
     }
@@ -135,7 +135,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn fade_out(mut self, fade_out: bool) -> Self {
+    pub const fn fade_out(mut self, fade_out: bool) -> Self {
         self.fade_out = fade_out;
         self
     }
@@ -158,73 +158,108 @@ impl<'open> Window<'open> {
 
     /// Change the background color, margins, etc.
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    pub const fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
 
     /// Set minimum width of the window.
     #[inline]
-    pub fn min_width(mut self, min_width: f32) -> Self {
+    pub const fn min_width(mut self, min_width: f32) -> Self {
         self.resize = self.resize.min_width(min_width);
         self
     }
 
     /// Set minimum height of the window.
     #[inline]
-    pub fn min_height(mut self, min_height: f32) -> Self {
+    pub const fn min_height(mut self, min_height: f32) -> Self {
         self.resize = self.resize.min_height(min_height);
         self
     }
 
     /// Set minimum size of the window, equivalent to calling both `min_width` and `min_height`.
     #[inline]
-    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.min_size(min_size);
+    pub const fn const_min_size(mut self, min_size: Vec2) -> Self {
+        self.resize = self.resize.const_min_size(min_size);
         self
+    }
+
+    /// See [`Self::const_min_size`].
+    #[inline]
+    pub fn min_size(self, min_size: impl Into<Vec2>) -> Self {
+        let min_size = min_size.into();
+        self.const_min_size(min_size)
     }
 
     /// Set maximum width of the window.
     #[inline]
-    pub fn max_width(mut self, max_width: f32) -> Self {
+    pub const fn max_width(mut self, max_width: f32) -> Self {
         self.resize = self.resize.max_width(max_width);
         self
     }
 
     /// Set maximum height of the window.
     #[inline]
-    pub fn max_height(mut self, max_height: f32) -> Self {
+    pub const fn max_height(mut self, max_height: f32) -> Self {
         self.resize = self.resize.max_height(max_height);
         self
     }
 
     /// Set maximum size of the window, equivalent to calling both `max_width` and `max_height`.
     #[inline]
-    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.max_size(max_size);
+    pub const fn const_max_size(mut self, max_size: Vec2) -> Self {
+        self.resize = self.resize.const_max_size(max_size);
         self
+    }
+
+    /// See [`Self::const_max_size`].
+    #[inline]
+    pub fn max_size(self, max_size: impl Into<Vec2>) -> Self {
+        let max_size = max_size.into();
+        self.const_max_size(max_size)
     }
 
     /// Set current position of the window.
     /// If the window is movable it is up to you to keep track of where it moved to!
     #[inline]
-    pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.current_pos(current_pos);
+    pub const fn const_current_pos(mut self, current_pos: Pos2) -> Self {
+        self.area = self.area.const_current_pos(current_pos);
         self
+    }
+
+    /// See [`Self::const_current_pos`].
+    #[inline]
+    pub fn current_pos(self, current_pos: impl Into<Pos2>) -> Self {
+        let current_pos = current_pos.into();
+        self.const_current_pos(current_pos)
     }
 
     /// Set initial position of the window.
     #[inline]
-    pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.default_pos(default_pos);
+    pub const fn const_default_pos(mut self, default_pos: Pos2) -> Self {
+        self.area = self.area.const_default_pos(default_pos);
         self
+    }
+
+    /// See [`Self::const_default_pos`].
+    #[inline]
+    pub fn default_pos(self, default_pos: impl Into<Pos2>) -> Self {
+        let default_pos = default_pos.into();
+        self.const_default_pos(default_pos)
     }
 
     /// Sets the window position and prevents it from being dragged around.
     #[inline]
-    pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.fixed_pos(pos);
+    pub const fn const_fixed_pos(mut self, pos: Pos2) -> Self {
+        self.area = self.area.const_fixed_pos(pos);
         self
+    }
+
+    /// See [`Self::const_fixed_pos`].
+    #[inline]
+    pub fn fixed_pos(self, pos: impl Into<Pos2>) -> Self {
+        let pos = pos.into();
+        self.const_fixed_pos(pos)
     }
 
     /// Constrains this window to [`Context::screen_rect`].
@@ -233,7 +268,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn constrain(mut self, constrain: bool) -> Self {
+    pub const fn constrain(mut self, constrain: bool) -> Self {
         self.area = self.area.constrain(constrain);
         self
     }
@@ -242,7 +277,7 @@ impl<'open> Window<'open> {
     ///
     /// For instance: `.constrain_to(ctx.screen_rect())`.
     #[inline]
-    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
+    pub const fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
         self
     }
@@ -255,7 +290,7 @@ impl<'open> Window<'open> {
     ///
     /// Default: [`Align2::LEFT_TOP`].
     #[inline]
-    pub fn pivot(mut self, pivot: Align2) -> Self {
+    pub const fn pivot(mut self, pivot: Align2) -> Self {
         self.area = self.area.pivot(pivot);
         self
     }
@@ -272,44 +307,65 @@ impl<'open> Window<'open> {
     ///
     /// It is an error to set both an anchor and a position.
     #[inline]
-    pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
-        self.area = self.area.anchor(align, offset);
+    pub const fn const_anchor(mut self, align: Align2, offset: Vec2) -> Self {
+        self.area = self.area.const_anchor(align, offset);
         self
+    }
+
+    /// See [`Self::const_anchor`].
+    #[inline]
+    pub fn anchor(self, align: Align2, offset: impl Into<Vec2>) -> Self {
+        let offset = offset.into();
+        self.const_anchor(align, offset)
     }
 
     /// Set initial collapsed state of the window
     #[inline]
-    pub fn default_open(mut self, default_open: bool) -> Self {
+    pub const fn default_open(mut self, default_open: bool) -> Self {
         self.default_open = default_open;
         self
     }
 
     /// Set initial size of the window.
     #[inline]
-    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.default_size(default_size);
+    pub const fn const_default_size(mut self, default_size: Vec2) -> Self {
+        self.resize = self.resize.const_default_size(default_size);
         self
+    }
+
+    /// See [`Self::const_default_size`].
+    #[inline]
+    pub fn default_size(self, default_size: impl Into<Vec2>) -> Self {
+        let default_size = default_size.into();
+        self.const_default_size(default_size)
     }
 
     /// Set initial width of the window.
     #[inline]
-    pub fn default_width(mut self, default_width: f32) -> Self {
+    pub const fn default_width(mut self, default_width: f32) -> Self {
         self.resize = self.resize.default_width(default_width);
         self
     }
 
     /// Set initial height of the window.
     #[inline]
-    pub fn default_height(mut self, default_height: f32) -> Self {
+    pub const fn default_height(mut self, default_height: f32) -> Self {
         self.resize = self.resize.default_height(default_height);
         self
     }
 
     /// Sets the window size and prevents it from being resized by dragging its edges.
     #[inline]
-    pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
-        self.resize = self.resize.fixed_size(size);
+    pub const fn const_fixed_size(mut self, size: Vec2) -> Self {
+        self.resize = self.resize.const_fixed_size(size);
         self
+    }
+
+    /// See [`Self::const_fixed_size`].
+    #[inline]
+    pub fn fixed_size(self, size: impl Into<Vec2>) -> Self {
+        let size = size.into();
+        self.const_fixed_size(size)
     }
 
     /// Set initial position and size of the window.
@@ -332,15 +388,21 @@ impl<'open> Window<'open> {
     ///
     /// Default is `true`.
     #[inline]
-    pub fn resizable(mut self, resizable: impl Into<Vec2b>) -> Self {
-        let resizable = resizable.into();
-        self.resize = self.resize.resizable(resizable);
+    pub const fn const_resizable(mut self, resizable: Vec2b) -> Self {
+        self.resize = self.resize.const_resizable(resizable);
         self
+    }
+
+    /// See [`Self::const_resizable`].
+    #[inline]
+    pub fn resizable(self, resizable: impl Into<Vec2b>) -> Self {
+        let resizable = resizable.into();
+        self.const_resizable(resizable)
     }
 
     /// Can the window be collapsed by clicking on its title?
     #[inline]
-    pub fn collapsible(mut self, collapsible: bool) -> Self {
+    pub const fn collapsible(mut self, collapsible: bool) -> Self {
         self.collapsible = collapsible;
         self
     }
@@ -348,7 +410,7 @@ impl<'open> Window<'open> {
     /// Show title bar on top of the window?
     /// If `false`, the window will not be collapsible nor have a close-button.
     #[inline]
-    pub fn title_bar(mut self, title_bar: bool) -> Self {
+    pub const fn title_bar(mut self, title_bar: bool) -> Self {
         self.with_title_bar = title_bar;
         self
     }
@@ -357,39 +419,45 @@ impl<'open> Window<'open> {
     /// Also disabled scrolling.
     /// Text will not wrap, but will instead make your window width expand.
     #[inline]
-    pub fn auto_sized(mut self) -> Self {
+    pub const fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
         self
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
+    #[inline]
+    pub const fn const_scroll(mut self, scroll: Vec2b) -> Self {
+        self.scroll = self.scroll.const_scroll(scroll);
+        self
+    }
+
+    /// See [`Self::const_scroll`].
     ///
     /// You can pass in `false`, `true`, `[false, true]` etc.
     #[inline]
-    pub fn scroll(mut self, scroll: impl Into<Vec2b>) -> Self {
-        self.scroll = self.scroll.scroll(scroll);
-        self
+    pub fn scroll(self, scroll: impl Into<Vec2b>) -> Self {
+        let scroll = scroll.into();
+        self.const_scroll(scroll)
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
     #[deprecated = "Renamed to `scroll`"]
     #[inline]
-    pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
-        self.scroll = self.scroll.scroll(scroll);
-        self
+    pub fn scroll2(self, scroll: impl Into<Vec2b>) -> Self {
+        self.scroll(scroll)
     }
 
     /// Enable/disable horizontal scrolling. `false` by default.
     #[inline]
-    pub fn hscroll(mut self, hscroll: bool) -> Self {
+    pub const fn hscroll(mut self, hscroll: bool) -> Self {
         self.scroll = self.scroll.hscroll(hscroll);
         self
     }
 
     /// Enable/disable vertical scrolling. `false` by default.
     #[inline]
-    pub fn vscroll(mut self, vscroll: bool) -> Self {
+    pub const fn vscroll(mut self, vscroll: bool) -> Self {
         self.scroll = self.scroll.vscroll(vscroll);
         self
     }
@@ -398,7 +466,7 @@ impl<'open> Window<'open> {
     ///
     /// See [`ScrollArea::drag_to_scroll`] for more.
     #[inline]
-    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+    pub const fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
         self
     }
@@ -698,7 +766,7 @@ impl PossibleInteractions {
         }
     }
 
-    pub fn resizable(&self) -> bool {
+    pub const fn resizable(&self) -> bool {
         self.resize_left || self.resize_right || self.resize_top || self.resize_bottom
     }
 }
@@ -721,7 +789,7 @@ struct SideResponse {
 }
 
 impl SideResponse {
-    pub fn any(&self) -> bool {
+    pub const fn any(&self) -> bool {
         self.hover || self.drag
     }
 }
@@ -754,11 +822,11 @@ impl ResizeInteraction {
         }
     }
 
-    pub fn any_hovered(&self) -> bool {
+    pub const fn any_hovered(&self) -> bool {
         self.left.hover || self.right.hover || self.top.hover || self.bottom.hover
     }
 
-    pub fn any_dragged(&self) -> bool {
+    pub const fn any_dragged(&self) -> bool {
         self.left.drag || self.right.drag || self.top.drag || self.bottom.drag
     }
 }
