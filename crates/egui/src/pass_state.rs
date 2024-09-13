@@ -261,7 +261,7 @@ impl PassState {
             scroll_delta,
             #[cfg(feature = "accesskit")]
             accesskit_state,
-            highlight_next_pass: highlight_next_frame,
+            highlight_next_pass,
 
             #[cfg(debug_assertions)]
             debug_rect,
@@ -287,7 +287,7 @@ impl PassState {
             *accesskit_state = None;
         }
 
-        highlight_next_frame.clear();
+        highlight_next_pass.clear();
     }
 
     /// How much space is still available after panels has been added.
