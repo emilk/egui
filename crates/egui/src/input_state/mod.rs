@@ -932,6 +932,7 @@ impl PointerState {
                             press_origin.distance(pos) > self.input_options.max_click_dist;
                     }
 
+                    self.last_move_time = time;
                     self.pointer_events.push(PointerEvent::Moved(pos));
                 }
                 Event::PointerButton {
@@ -1027,15 +1028,6 @@ impl PointerState {
         }
 
         self.pos_history.flush(time);
-
-        self.velocity = if self.pos_history.len() >= 3 && self.pos_history.duration() > 0.01 {
-            self.pos_history.velocity().unwrap_or_default()
-        } else {
-            Vec2::default()
-        };
-        if self.velocity != Vec2::ZERO {
-            self.last_move_time = time;
-        }
 
         self.direction = self.pos_history.velocity().unwrap_or_default().normalized();
 
