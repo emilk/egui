@@ -61,6 +61,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     let document = window.document().unwrap();
     let canvas = runner_ref.try_lock().unwrap().canvas().clone();
 
+    install_blur_focus(runner_ref, &document)?;
     install_blur_focus(runner_ref, &canvas)?;
 
     prevent_default_and_stop_propagation(
