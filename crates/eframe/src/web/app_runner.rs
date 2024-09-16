@@ -176,6 +176,12 @@ impl AppRunner {
     ///
     /// Technically: does either the canvas or the [`TextAgent`] have focus?
     pub fn has_focus(&self) -> bool {
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        if document.hidden() {
+            return false;
+        }
+
         super::has_focus(self.canvas()) || self.text_agent.has_focus()
     }
 
