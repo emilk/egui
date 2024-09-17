@@ -53,8 +53,7 @@ pub fn paint_text_selection(
             galley_pos + vec2(left, row.min_y()),
             galley_pos + vec2(right, row.max_y()),
         );
-        let weak_color = color.linear_multiply(0.5);
-        let _shape_idx = ui.painter().rect_filled(rect, 0.0, weak_color);
+        let _shape_idx = ui.painter().rect_filled(rect, 0.0, color);
 
         let rect = Rect::from_min_max(pos2(left, row.min_y()), pos2(right, row.max_y()));
         let mesh = &mut row.visuals.mesh;
