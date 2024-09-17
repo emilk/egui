@@ -159,6 +159,8 @@ pub struct FontTweak {
     /// Shift font's glyphs downwards by this fraction of the font size (in points).
     /// this is only a visual effect and does not affect the text layout.
     ///
+    /// Affects larger font sizes more.
+    ///
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
     ///
@@ -167,6 +169,8 @@ pub struct FontTweak {
 
     /// Shift font's glyphs downwards by this amount of logical points.
     /// this is only a visual effect and does not affect the text layout.
+    ///
+    /// Affects all font sizes equally.
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
