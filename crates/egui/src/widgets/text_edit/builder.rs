@@ -702,7 +702,7 @@ impl<'t> TextEdit<'t> {
             if has_focus {
                 if let Some(cursor_range) = state.cursor.range(&galley) {
                     // Add text selection rectangles to the galley:
-                    paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
+                    paint_text_selection(ui, galley_pos, &mut galley, &cursor_range, None);
                 }
             }
 
