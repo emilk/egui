@@ -156,7 +156,7 @@ impl PaintList {
         if self.0.len() <= idx.0 {
             #[cfg(feature = "log")]
             log::warn!("Index {} is out of bounds for PaintList", idx.0);
-            self.add(clip_rect, Shape::Noop);
+            return;
         }
 
         self.0[idx.0] = ClippedShape { clip_rect, shape };
