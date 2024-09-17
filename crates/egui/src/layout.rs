@@ -660,8 +660,6 @@ impl Layout {
         let rect = self.align_size_within_rect(size, frame);
         debug_assert!(!rect.any_nan());
         debug_assert!(!rect.is_negative());
-        debug_assert!((rect.width() - size.x).abs() < 1.0 || size.x == f32::INFINITY);
-        debug_assert!((rect.height() - size.y).abs() < 1.0 || size.y == f32::INFINITY);
         rect
     }
 
