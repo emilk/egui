@@ -1,4 +1,4 @@
-use egui::{style::HandleShape, Slider, SliderOrientation, Ui};
+use egui::{style::HandleShape, Slider, SliderClamping, SliderOrientation, Ui};
 use std::f64::INFINITY;
 
 /// Showcase sliders
@@ -9,7 +9,7 @@ pub struct Sliders {
     pub min: f64,
     pub max: f64,
     pub logarithmic: bool,
-    pub clamp_to_range: bool,
+    pub clamping: SliderClamping,
     pub smart_aim: bool,
     pub step: f64,
     pub use_steps: bool,
@@ -26,7 +26,7 @@ impl Default for Sliders {
             min: 0.0,
             max: 10000.0,
             logarithmic: true,
-            clamp_to_range: false,
+            clamping: SliderClamping::Always,
             smart_aim: true,
             step: 10.0,
             use_steps: false,
@@ -61,7 +61,7 @@ impl crate::View for Sliders {
             min,
             max,
             logarithmic,
-            clamp_to_range,
+            clamping,
             smart_aim,
             step,
             use_steps,
@@ -97,7 +97,7 @@ impl crate::View for Sliders {
             ui.add(
                 Slider::new(&mut value_i32, (*min as i32)..=(*max as i32))
                     .logarithmic(*logarithmic)
-                    .clamp_to_range(*clamp_to_range)
+                    .clamping(*clamping)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("i32 demo slider")
@@ -110,7 +110,7 @@ impl crate::View for Sliders {
             ui.add(
                 Slider::new(value, (*min)..=(*max))
                     .logarithmic(*logarithmic)
-                    .clamp_to_range(*clamp_to_range)
+                    .clamping(*clamping)
                     .smart_aim(*smart_aim)
                     .orientation(orientation)
                     .text("f64 demo slider")
@@ -188,9 +188,14 @@ impl crate::View for Sliders {
         ui.label("Logarithmic sliders can include infinity and zero.");
         ui.add_space(8.0);
 
-        ui.checkbox(clamp_to_range, "Clamp to range");
+        ui.horizontal(|ui| {
+            ui.label("Clamping:");
+            ui.selectable_value(clamping, SliderClamping::Never, "Never");
+            ui.selectable_value(clamping, SliderClamping::Edits, "Edits");
+            ui.selectable_value(clamping, SliderClamping::Always, "Always");
+        });
         ui.label("If true, the slider will clamp incoming and outgoing values to the given range.");
-        ui.label("If false, the slider can shows values outside its range, and you can manually enter values outside the range.");
+        ui.label("If false, the slider can show values outside its range, and you cannot enter new values outside the range.");
         ui.add_space(8.0);
 
         ui.checkbox(smart_aim, "Smart Aim");

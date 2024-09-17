@@ -37,7 +37,7 @@ pub use self::{
     radio_button::RadioButton,
     selected_label::SelectableLabel,
     separator::Separator,
-    slider::{Slider, SliderOrientation},
+    slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,
     text_edit::{TextBuffer, TextEdit},
 };

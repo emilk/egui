@@ -737,7 +737,8 @@ fn default_parser(text: &str) -> Option<f64> {
     text.parse().ok()
 }
 
-fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
+/// Clamp the given value with careful handling of negative zero, and other corner cases.
+pub(crate) fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
     let (mut min, mut max) = (*range.start(), *range.end());
 
     if min.total_cmp(&max) == Ordering::Greater {

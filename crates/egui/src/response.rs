@@ -116,6 +116,9 @@ pub struct Response {
     ///
     /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
     /// Always `false` for something like a [`Button`](crate::Button).
+    ///
+    /// Note that this can be `true` even if the user did not interact with the widget,
+    /// for instance if an existing slider value was clamped to the given range.
     #[doc(hidden)]
     pub changed: bool,
 }
@@ -496,6 +499,9 @@ impl Response {
     ///
     /// This is not set if the *view* of the data was changed.
     /// For instance, moving the cursor in a [`TextEdit`](crate::TextEdit) does not set this to `true`.
+    ///
+    /// Note that this can be `true` even if the user did not interact with the widget,
+    /// for instance if an existing slider value was clamped to the given range.
     #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
