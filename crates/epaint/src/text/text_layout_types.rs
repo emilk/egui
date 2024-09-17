@@ -283,11 +283,10 @@ pub struct TextFormat {
     /// If you use a small font and [`Align::BOTTOM`]
     /// you get the effect of a subscript.
     ///
-    /// If you use [`Align::center`], you get text that is centered
+    /// If you use [`Align::Center`], you get text that is centered
     /// around a common center-line, which is nice when mixining emojis
     /// and normal text in e.g. a button.
     pub valign: Align,
-    // TODO(emilk): lowered
 }
 
 impl Default for TextFormat {
