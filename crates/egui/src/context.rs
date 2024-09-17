@@ -2418,12 +2418,18 @@ impl Context {
 
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
-            let texture_atlas = ctx
-                .fonts
-                .get(&pixels_per_point.into())
-                .expect("tessellate called with a different pixels_per_point than the font atlas was created with. \
-                         You should use egui::FullOutput::pixels_per_point when tessellating.")
-                .texture_atlas();
+            let texture_atlas = if let Some(fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+                fonts.texture_atlas()
+            } else {
+                #[cfg(feature = "log")]
+                log::warn!("No font size matching {pixels_per_point} pixels per point found.");
+                ctx.fonts
+                    .iter()
+                    .next()
+                    .expect("No fonts loaded")
+                    .1
+                    .texture_atlas()
+            };
             let (font_tex_size, prepared_discs) = {
                 let atlas = texture_atlas.lock();
                 (atlas.size(), atlas.prepared_discs())
