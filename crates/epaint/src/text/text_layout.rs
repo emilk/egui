@@ -585,40 +585,29 @@ fn galley_from_rows(
     let mut min_x: f32 = 0.0;
     let mut max_x: f32 = 0.0;
     for row in &mut rows {
-        let mut line_height = first_row_min_height.max(row.rect.height());
-        let mut row_ascent = 0.0f32;
+        let mut row_height = first_row_min_height.max(row.rect.height());
         first_row_min_height = 0.0;
-
-        // take metrics from the highest font in this row
-        if let Some(glyph) = row
-            .glyphs
-            .iter()
-            .max_by(|a, b| a.size.y.partial_cmp(&b.size.y).unwrap())
-        {
-            line_height = glyph.size.y;
-            row_ascent = glyph.ascent;
+        for glyph in &row.glyphs {
+            row_height = row_height.max(glyph.size.y);
         }
-        line_height = point_scale.round_to_pixel(line_height);
+        row_height = point_scale.round_to_pixel(row_height);
 
         // Now positions each glyph:
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
 
-            let align_offset = match format.valign {
-                Align::Center | Align::Max => row_ascent,
+            glyph.pos.y =
+                cursor_y + glyph.ascent + format.valign.to_factor() * (row_height - glyph.size.y);
 
-                // raised text.
-                Align::Min => glyph.ascent,
-            };
-            glyph.pos.y = cursor_y + align_offset;
+            glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }
 
         row.rect.min.y = cursor_y;
-        row.rect.max.y = cursor_y + line_height;
+        row.rect.max.y = cursor_y + row_height;
 
         min_x = min_x.min(row.rect.min.x);
         max_x = max_x.max(row.rect.max.x);
-        cursor_y += line_height;
+        cursor_y += row_height;
         cursor_y = point_scale.round_to_pixel(cursor_y);
     }
 
