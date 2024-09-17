@@ -4,7 +4,7 @@
 
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
-use epaint::{Rounding, Shadow, Stroke};
+use epaint::{text::FontTweak, Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::Color32,
@@ -2496,5 +2496,50 @@ impl Widget for &mut crate::Frame {
                 ui.end_row();
             })
             .response
+    }
+}
+
+impl Widget for &mut FontTweak {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let original: FontTweak = *self;
+
+        let mut response = Grid::new("font_tweak")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let FontTweak {
+                    scale,
+                    y_offset_factor,
+                    y_offset,
+                    baseline_offset_factor,
+                } = self;
+
+                ui.label("Scale");
+                let speed = *scale * 0.01;
+                ui.add(DragValue::new(scale).range(0.01..=10.0).speed(speed));
+                ui.end_row();
+
+                ui.label("y_offset_factor");
+                ui.add(DragValue::new(y_offset_factor).speed(-0.0025));
+                ui.end_row();
+
+                ui.label("y_offset");
+                ui.add(DragValue::new(y_offset).speed(-0.02));
+                ui.end_row();
+
+                ui.label("baseline_offset_factor");
+                ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
+                ui.end_row();
+
+                if ui.button("Reset").clicked() {
+                    *self = Default::default();
+                }
+            })
+            .response;
+
+        if *self != original {
+            response.mark_changed();
+        }
+
+        response
     }
 }
