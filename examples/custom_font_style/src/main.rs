@@ -3,6 +3,7 @@
 
 use eframe::egui;
 use egui::{FontFamily, FontId, RichText, TextStyle};
+use std::collections::BTreeMap;
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -28,8 +29,7 @@ fn heading3() -> TextStyle {
 fn configure_text_styles(ctx: &egui::Context) {
     use FontFamily::{Monospace, Proportional};
 
-    let mut style = (*ctx.style()).clone();
-    style.text_styles = [
+    let text_styles: BTreeMap<TextStyle, FontId> = [
         (TextStyle::Heading, FontId::new(25.0, Proportional)),
         (heading2(), FontId::new(22.0, Proportional)),
         (heading3(), FontId::new(19.0, Proportional)),
@@ -39,7 +39,7 @@ fn configure_text_styles(ctx: &egui::Context) {
         (TextStyle::Small, FontId::new(8.0, Proportional)),
     ]
     .into();
-    ctx.set_style(style);
+    ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());
 }
 
 fn content(ui: &mut egui::Ui) {

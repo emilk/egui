@@ -302,7 +302,7 @@ pub trait BytesLoader {
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
-    fn end_frame(&self, frame_index: usize) {
+    fn end_pass(&self, frame_index: usize) {
         let _ = frame_index;
     }
 
@@ -367,9 +367,9 @@ pub trait ImageLoader {
     /// so that all of them may be fully reloaded.
     fn forget_all(&self);
 
-    /// Implementations may use this to perform work at the end of a frame,
+    /// Implementations may use this to perform work at the end of a pass,
     /// such as evicting unused entries from a cache.
-    fn end_frame(&self, frame_index: usize) {
+    fn end_pass(&self, frame_index: usize) {
         let _ = frame_index;
     }
 
@@ -505,9 +505,9 @@ pub trait TextureLoader {
     /// so that all of them may be fully reloaded.
     fn forget_all(&self);
 
-    /// Implementations may use this to perform work at the end of a frame,
+    /// Implementations may use this to perform work at the end of a pass,
     /// such as evicting unused entries from a cache.
-    fn end_frame(&self, frame_index: usize) {
+    fn end_pass(&self, frame_index: usize) {
         let _ = frame_index;
     }
 

@@ -130,7 +130,8 @@ impl crate::View for CodeExample {
 
         ui.separator();
 
-        let mut theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let mut theme =
+            egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), ui.style());
         ui.collapsing("Theme", |ui| {
             theme.ui(ui);
             theme.store_in_memory(ui.ctx());

@@ -1,6 +1,6 @@
 //! Collect statistics about what is being painted.
 
-use crate::*;
+use crate::{ClippedShape, Galley, Mesh, Primitive, Shape};
 
 /// Size of the elements in a vector/array.
 #[derive(Clone, Copy, PartialEq)]

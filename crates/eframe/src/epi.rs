@@ -23,7 +23,7 @@ use static_assertions::assert_not_impl_any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use winit::{event_loop::EventLoopBuilder, window::WindowBuilder};
+pub use winit::{event_loop::EventLoopBuilder, window::WindowAttributes};
 
 /// Hook into the building of an event loop before it is run
 ///
@@ -46,14 +46,15 @@ type DynError = Box<dyn std::error::Error + Send + Sync>;
 /// This is how your app is created.
 ///
 /// You can use the [`CreationContext`] to setup egui, restore state, setup OpenGL things, etc.
-pub type AppCreator = Box<dyn FnOnce(&CreationContext<'_>) -> Result<Box<dyn App>, DynError>>;
+pub type AppCreator<'app> =
+    Box<dyn 'app + FnOnce(&CreationContext<'_>) -> Result<Box<dyn 'app + App>, DynError>>;
 
 /// Data that is passed to [`AppCreator`] that can be used to setup and initialize your app.
 pub struct CreationContext<'s> {
     /// The egui Context.
     ///
     /// You can use this to customize the look of egui, e.g to call [`egui::Context::set_fonts`],
-    /// [`egui::Context::set_visuals`] etc.
+    /// [`egui::Context::set_visuals_of`] etc.
     pub egui_ctx: egui::Context,
 
     /// Information about the surrounding environment.
@@ -297,21 +298,6 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub renderer: Renderer,
 
-    /// Try to detect and follow the system preferred setting for dark vs light mode.
-    ///
-    /// The theme will automatically change when the dark vs light mode preference is changed.
-    ///
-    /// Does not work on Linux (see <https://github.com/rust-windowing/winit/issues/1549>).
-    ///
-    /// See also [`Self::default_theme`].
-    pub follow_system_theme: bool,
-
-    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
-    /// or eframe fails to detect the system theme.
-    ///
-    /// Default: [`Theme::Dark`].
-    pub default_theme: Theme,
-
     /// This controls what happens when you close the main eframe window.
     ///
     /// If `true`, execution will continue after the eframe window is closed.
@@ -366,8 +352,8 @@ pub struct NativeOptions {
     /// persisted (only if the "persistence" feature is enabled).
     pub persist_window: bool,
 
-    /// The folder where `eframe` will store the app state. If not set, eframe will get the paths
-    /// from [directories].
+    /// The folder where `eframe` will store the app state. If not set, eframe will use a default
+    /// data storage path for each target system.
     pub persistence_path: Option<std::path::PathBuf>,
 
     /// Controls whether to apply dithering to minimize banding artifacts.
@@ -417,8 +403,6 @@ impl Default for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             renderer: Renderer::default(),
 
-            follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
-            default_theme: Theme::Dark,
             run_and_return: true,
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -449,19 +433,6 @@ impl Default for NativeOptions {
 /// Options when using `eframe` in a web page.
 #[cfg(target_arch = "wasm32")]
 pub struct WebOptions {
-    /// Try to detect and follow the system preferred setting for dark vs light mode.
-    ///
-    /// See also [`Self::default_theme`].
-    ///
-    /// Default: `true`.
-    pub follow_system_theme: bool,
-
-    /// Which theme to use in case [`Self::follow_system_theme`] is `false`
-    /// or system theme detection fails.
-    ///
-    /// Default: `Theme::Dark`.
-    pub default_theme: Theme,
-
     /// Sets the number of bits in the depth buffer.
     ///
     /// `egui` doesn't need the depth buffer, so the default value is 0.
@@ -486,14 +457,20 @@ pub struct WebOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
+
+    /// If the web event corresponding to an egui event should be propagated
+    /// to the rest of the web page.
+    ///
+    /// The default is `false`, meaning
+    /// [`stopPropagation`](https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation)
+    /// is called on every event.
+    pub should_propagate_event: Box<dyn Fn(&egui::Event) -> bool>,
 }
 
 #[cfg(target_arch = "wasm32")]
 impl Default for WebOptions {
     fn default() -> Self {
         Self {
-            follow_system_theme: true,
-            default_theme: Theme::Dark,
             depth_buffer: 0,
 
             #[cfg(feature = "glow")]
@@ -503,31 +480,8 @@ impl Default for WebOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             dithering: true,
-        }
-    }
-}
 
-// ----------------------------------------------------------------------------
-
-/// Dark or Light theme.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum Theme {
-    /// Dark mode: light text on a dark background.
-    Dark,
-
-    /// Light mode: dark text on a light background.
-    Light,
-}
-
-impl Theme {
-    /// Get the egui visuals corresponding to this theme.
-    ///
-    /// Use with [`egui::Context::set_visuals`].
-    pub fn egui_visuals(self) -> egui::Visuals {
-        match self {
-            Self::Dark => egui::Visuals::dark(),
-            Self::Light => egui::Visuals::light(),
+            should_propagate_event: Box::new(|_| false),
         }
     }
 }
@@ -813,11 +767,6 @@ pub struct IntegrationInfo {
     /// Information about the surrounding web environment.
     #[cfg(target_arch = "wasm32")]
     pub web_info: WebInfo,
-
-    /// Does the OS use dark or light mode?
-    ///
-    /// `None` means "don't know".
-    pub system_theme: Option<Theme>,
 
     /// Seconds of cpu usage (in seconds) on the previous frame.
     ///

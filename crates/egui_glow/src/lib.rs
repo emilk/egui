@@ -139,4 +139,4 @@ mod profiling_scopes {
 }
 
 #[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;
+pub(crate) use profiling_scopes::{profile_function, profile_scope};

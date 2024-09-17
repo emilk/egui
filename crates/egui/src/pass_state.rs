@@ -1,16 +1,19 @@
 use ahash::{HashMap, HashSet};
 
-use crate::{id::IdSet, *};
+use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
+
+#[cfg(debug_assertions)]
+use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
 
 /// Reset at the start of each frame.
 #[derive(Clone, Debug, Default)]
-pub struct TooltipFrameState {
+pub struct TooltipPassState {
     /// If a tooltip has been shown this frame, where was it?
     /// This is used to prevent multiple tooltips to cover each other.
     pub widget_tooltips: IdMap<PerWidgetTooltipState>,
 }
 
-impl TooltipFrameState {
+impl TooltipPassState {
     pub fn clear(&mut self) {
         let Self { widget_tooltips } = self;
         widget_tooltips.clear();
@@ -40,9 +43,33 @@ pub struct PerLayerState {
     pub widget_with_tooltip: Option<Id>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ScrollTarget {
+    // The range that the scroll area should scroll to.
+    pub range: Rangef,
+
+    /// How should we align the rect within the visible area?
+    /// If `align` is [`Align::TOP`] it means "put the top of the rect at the top of the scroll area", etc.
+    /// If `align` is `None`, it'll scroll enough to bring the UI into view.
+    pub align: Option<Align>,
+
+    /// How should the scroll be animated?
+    pub animation: style::ScrollAnimation,
+}
+
+impl ScrollTarget {
+    pub fn new(range: Rangef, align: Option<Align>, animation: style::ScrollAnimation) -> Self {
+        Self {
+            range,
+            align,
+            animation,
+        }
+    }
+}
+
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
-pub struct AccessKitFrameState {
+pub struct AccessKitPassState {
     pub node_builders: IdMap<accesskit::NodeBuilder>,
     pub parent_stack: Vec<Id>,
 }
@@ -140,16 +167,18 @@ impl DebugRect {
     }
 }
 
-/// State that is collected during a frame, then saved for the next frame,
+/// State that is collected during a pass, then saved for the next pass,
 /// and then cleared.
+///
+/// (NOTE: we usually run only one pass per frame).
 ///
 /// One per viewport.
 #[derive(Clone)]
-pub struct FrameState {
-    /// All [`Id`]s that were used this frame.
+pub struct PassState {
+    /// All [`Id`]s that were used this pass.
     pub used_ids: IdMap<Rect>,
 
-    /// All widgets produced this frame.
+    /// All widgets produced this pass.
     pub widgets: WidgetRects,
 
     /// Per-layer state.
@@ -157,22 +186,22 @@ pub struct FrameState {
     /// Not all layers registers themselves there though.
     pub layers: HashMap<LayerId, PerLayerState>,
 
-    pub tooltips: TooltipFrameState,
+    pub tooltips: TooltipPassState,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`CentralPanel`] does not change this.
+    /// The [`crate::CentralPanel`] does not change this.
     /// This is the area available to Window's.
     pub available_rect: Rect,
 
     /// Starts off as the `screen_rect`, shrinks as panels are added.
-    /// The [`CentralPanel`] retracts from this.
+    /// The [`crate::CentralPanel`] retracts from this.
     pub unused_rect: Rect,
 
     /// How much space is used by panels.
     pub used_by_panels: Rect,
 
     /// The current scroll area should scroll to this range (horizontal, vertical).
-    pub scroll_target: [Option<(Rangef, Option<Align>)>; 2],
+    pub scroll_target: [Option<ScrollTarget>; 2],
 
     /// The current scroll area should scroll by this much.
     ///
@@ -183,19 +212,19 @@ pub struct FrameState {
     ///
     /// A positive Y-value indicates the content is being moved down,
     /// as when swiping down on a touch-screen or track-pad with natural scrolling.
-    pub scroll_delta: Vec2,
+    pub scroll_delta: (Vec2, style::ScrollAnimation),
 
     #[cfg(feature = "accesskit")]
-    pub accesskit_state: Option<AccessKitFrameState>,
+    pub accesskit_state: Option<AccessKitPassState>,
 
-    /// Highlight these widgets the next frame.
-    pub highlight_next_frame: IdSet,
+    /// Highlight these widgets the next pass.
+    pub highlight_next_pass: IdSet,
 
     #[cfg(debug_assertions)]
     pub debug_rect: Option<DebugRect>,
 }
 
-impl Default for FrameState {
+impl Default for PassState {
     fn default() -> Self {
         Self {
             used_ids: Default::default(),
@@ -206,10 +235,10 @@ impl Default for FrameState {
             unused_rect: Rect::NAN,
             used_by_panels: Rect::NAN,
             scroll_target: [None, None],
-            scroll_delta: Vec2::default(),
+            scroll_delta: (Vec2::default(), style::ScrollAnimation::none()),
             #[cfg(feature = "accesskit")]
             accesskit_state: None,
-            highlight_next_frame: Default::default(),
+            highlight_next_pass: Default::default(),
 
             #[cfg(debug_assertions)]
             debug_rect: None,
@@ -217,8 +246,8 @@ impl Default for FrameState {
     }
 }
 
-impl FrameState {
-    pub(crate) fn begin_frame(&mut self, screen_rect: Rect) {
+impl PassState {
+    pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
         crate::profile_function!();
         let Self {
             used_ids,
@@ -232,7 +261,7 @@ impl FrameState {
             scroll_delta,
             #[cfg(feature = "accesskit")]
             accesskit_state,
-            highlight_next_frame,
+            highlight_next_pass,
 
             #[cfg(debug_assertions)]
             debug_rect,
@@ -246,7 +275,7 @@ impl FrameState {
         *unused_rect = screen_rect;
         *used_by_panels = Rect::NOTHING;
         *scroll_target = [None, None];
-        *scroll_delta = Vec2::default();
+        *scroll_delta = Default::default();
 
         #[cfg(debug_assertions)]
         {
@@ -258,7 +287,7 @@ impl FrameState {
             *accesskit_state = None;
         }
 
-        highlight_next_frame.clear();
+        highlight_next_pass.clear();
     }
 
     /// How much space is still available after panels has been added.

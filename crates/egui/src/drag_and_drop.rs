@@ -23,10 +23,10 @@ pub struct DragAndDrop {
 
 impl DragAndDrop {
     pub(crate) fn register(ctx: &Context) {
-        ctx.on_end_frame("debug_text", std::sync::Arc::new(Self::end_frame));
+        ctx.on_end_pass("debug_text", std::sync::Arc::new(Self::end_pass));
     }
 
-    fn end_frame(ctx: &Context) {
+    fn end_pass(ctx: &Context) {
         let abort_dnd =
             ctx.input(|i| i.pointer.any_released() || i.key_pressed(crate::Key::Escape));
 

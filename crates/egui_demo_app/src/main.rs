@@ -24,7 +24,13 @@ fn main() -> eframe::Result {
 
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
-        let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
+        let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| {
+            if cfg!(debug_assertions) {
+                "debug".to_owned()
+            } else {
+                "info".to_owned()
+            }
+        });
         for loud_crate in ["naga", "wgpu_core", "wgpu_hal"] {
             if !rust_log.contains(&format!("{loud_crate}=")) {
                 rust_log += &format!(",{loud_crate}=warn");
@@ -58,7 +64,7 @@ fn start_puffin_server() {
 
     match puffin_http::Server::new("127.0.0.1:8585") {
         Ok(puffin_server) => {
-            eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
+            log::info!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
 
             std::process::Command::new("puffin_viewer")
                 .arg("--url")
@@ -72,7 +78,7 @@ fn start_puffin_server() {
             std::mem::forget(puffin_server);
         }
         Err(err) => {
-            eprintln!("Failed to start puffin server: {err}");
+            log::error!("Failed to start puffin server: {err}");
         }
     };
 }

@@ -25,5 +25,6 @@ env_logger = { version = "0.10", default-features = false, features = [
     "auto-color",
     "humantime",
 ] }
+log = { workspace = true }
 puffin = "0.19"
 puffin_http = "0.16"

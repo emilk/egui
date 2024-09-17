@@ -56,9 +56,6 @@ pub fn best_in_range_f64(min: f64, max: f64) -> f64 {
     let min_str = to_decimal_string(min / exp_factor);
     let max_str = to_decimal_string(max / exp_factor);
 
-    // eprintln!("min_str: {:?}", min_str);
-    // eprintln!("max_str: {:?}", max_str);
-
     let mut ret_str = [0; NUM_DECIMALS];
 
     // Select the common prefix:

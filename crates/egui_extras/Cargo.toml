@@ -22,12 +22,13 @@ workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
 
 [lib]
 
 
 [features]
-default = ["dep:mime_guess2", "serde"]
+default = ["dep:mime_guess2"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
 all_loaders = ["file", "http", "image", "svg", "gif"]

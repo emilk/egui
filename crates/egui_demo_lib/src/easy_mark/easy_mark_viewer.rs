@@ -1,5 +1,8 @@
 use super::easy_mark_parser as easy_mark;
-use egui::*;
+use egui::{
+    vec2, Align, Align2, Hyperlink, Layout, Response, RichText, Sense, Separator, Shape, TextStyle,
+    Ui,
+};
 
 /// Parse and display a VERY simple and small subset of Markdown.
 pub fn easy_mark(ui: &mut Ui, easy_mark: &str) {

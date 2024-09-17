@@ -5,11 +5,12 @@
 pub(crate) mod area;
 pub mod collapsing_header;
 mod combo_box;
-pub(crate) mod frame;
+pub mod frame;
 pub mod panel;
 pub mod popup;
 pub(crate) mod resize;
 pub mod scroll_area;
+mod sides;
 pub(crate) mod window;
 
 pub use {
@@ -21,5 +22,6 @@ pub use {
     popup::*,
     resize::Resize,
     scroll_area::ScrollArea,
+    sides::Sides,
     window::Window,
 };

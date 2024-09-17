@@ -1,4 +1,4 @@
-use super::*;
+use super::{linear_f32_from_linear_u8, linear_u8_from_linear_f32, Color32, Hsva, HsvaGamma, Rgba};
 use cint::{Alpha, ColorInterop, EncodedSrgb, Hsv, LinearSrgb, PremultipliedAlpha};
 
 // ---- Color32 ----

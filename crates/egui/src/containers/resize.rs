@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    pos2, vec2, Align2, Color32, Context, CursorIcon, Id, NumExt, Rect, Response, Sense, Shape, Ui,
+    UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -31,7 +34,7 @@ impl State {
 #[must_use = "You should call .show()"]
 pub struct Resize {
     id: Option<Id>,
-    id_source: Option<Id>,
+    id_salt: Option<Id>,
 
     /// If false, we are no enabled
     resizable: Vec2b,
@@ -48,7 +51,7 @@ impl Default for Resize {
     fn default() -> Self {
         Self {
             id: None,
-            id_source: None,
+            id_salt: None,
             resizable: Vec2b::TRUE,
             min_size: Vec2::splat(16.0),
             max_size: Vec2::splat(f32::INFINITY),
@@ -68,8 +71,15 @@ impl Resize {
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_resize_area")` or `.id_source(loop_index)`.
     #[inline]
-    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
-        self.id_source = Some(Id::new(id_source));
+    #[deprecated = "Renamed id_salt"]
+    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt(id_salt)
+    }
+
+    /// A source for the unique [`Id`], e.g. `.id_salt("second_resize_area")` or `.id_salt(loop_index)`.
+    #[inline]
+    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt = Some(Id::new(id_salt));
         self
     }
 
@@ -88,7 +98,7 @@ impl Resize {
     /// Preferred / suggested height. Actual height will depend on contents.
     ///
     /// Examples:
-    /// * if the contents is a [`ScrollArea`] then this decides the maximum size.
+    /// * if the contents is a [`crate::ScrollArea`] then this decides the maximum size.
     /// * if the contents is a canvas, this decides the height of it,
     /// * if the contents is text and buttons, then the `default_height` is ignored
     ///   and the height is picked automatically..
@@ -198,8 +208,8 @@ impl Resize {
     fn begin(&mut self, ui: &mut Ui) -> Prepared {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
-            let id_source = self.id_source.unwrap_or_else(|| Id::new("resize"));
-            ui.make_persistent_id(id_source)
+            let id_salt = self.id_salt.unwrap_or_else(|| Id::new("resize"));
+            ui.make_persistent_id(id_salt)
         });
 
         let mut state = State::load(ui.ctx(), id).unwrap_or_else(|| {
@@ -270,10 +280,10 @@ impl Resize {
 
         content_clip_rect = content_clip_rect.intersect(ui.clip_rect()); // Respect parent region
 
-        let mut content_ui = ui.child_ui(
-            inner_rect,
-            *ui.layout(),
-            Some(UiStackInfo::new(UiKind::Resize)),
+        let mut content_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::Resize))
+                .max_rect(inner_rect),
         );
         content_ui.set_clip_rect(content_clip_rect);
 

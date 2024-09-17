@@ -7,8 +7,10 @@ use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 use epaint::{Rounding, Shadow, Stroke};
 
 use crate::{
-    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response,
-    RichText, WidgetText,
+    ecolor::Color32,
+    emath::{pos2, vec2, Rangef, Rect, Vec2},
+    ComboBox, CursorIcon, FontFamily, FontId, Grid, Margin, Response, RichText, TextWrapMode,
+    WidgetText,
 };
 
 /// How to format numbers in e.g. a [`crate::DragValue`].
@@ -174,7 +176,8 @@ impl From<TextStyle> for FontSelection {
 /// Specifies the look and feel of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
-/// and of everything with [`crate::Context::set_style`].
+/// and of everything with [`crate::Context::set_style_of`].
+/// To choose between dark and light style, use [`crate::Context::set_theme`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
@@ -204,12 +207,10 @@ pub struct Style {
     /// use egui::FontFamily::Proportional;
     /// use egui::FontId;
     /// use egui::TextStyle::*;
-    ///
-    /// // Get current context style
-    /// let mut style = (*ctx.style()).clone();
+    /// use std::collections::BTreeMap;
     ///
     /// // Redefine text_styles
-    /// style.text_styles = [
+    /// let text_styles: BTreeMap<_, _> = [
     ///   (Heading, FontId::new(30.0, Proportional)),
     ///   (Name("Heading2".into()), FontId::new(25.0, Proportional)),
     ///   (Name("Context".into()), FontId::new(23.0, Proportional)),
@@ -219,8 +220,8 @@ pub struct Style {
     ///   (Small, FontId::new(10.0, Proportional)),
     /// ].into();
     ///
-    /// // Mutate global style with above changes
-    /// ctx.set_style(style);
+    /// // Mutate global styles with new text styles
+    /// ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());
     /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
@@ -280,6 +281,9 @@ pub struct Style {
 
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
+
+    /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [Ui::scroll_to_rect].
+    pub scroll_animation: ScrollAnimation,
 }
 
 #[test]
@@ -358,7 +362,7 @@ pub struct Spacing {
     /// Default (minimum) width of a [`ComboBox`].
     pub combo_width: f32,
 
-    /// Default width of a [`TextEdit`].
+    /// Default width of a [`crate::TextEdit`].
     pub text_edit_width: f32,
 
     /// Checkboxes, radio button and collapsing headers have an icon at the start.
@@ -692,6 +696,88 @@ impl ScrollStyle {
 
 // ----------------------------------------------------------------------------
 
+/// Scroll animation configuration, used when programmatically scrolling somewhere (e.g. with `[crate::Ui::scroll_to_cursor]`)
+/// The animation duration is calculated based on the distance to be scrolled via `[ScrollAnimation::points_per_second]`
+/// and can be clamped to a min / max duration via `[ScrollAnimation::duration]`.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollAnimation {
+    /// With what speed should we scroll? (Default: 1000.0)
+    pub points_per_second: f32,
+
+    /// The min / max scroll duration.
+    pub duration: Rangef,
+}
+
+impl Default for ScrollAnimation {
+    fn default() -> Self {
+        Self {
+            points_per_second: 1000.0,
+            duration: Rangef::new(0.1, 0.3),
+        }
+    }
+}
+
+impl ScrollAnimation {
+    /// New scroll animation
+    pub fn new(points_per_second: f32, duration: Rangef) -> Self {
+        Self {
+            points_per_second,
+            duration,
+        }
+    }
+
+    /// No animation, scroll instantly.
+    pub fn none() -> Self {
+        Self {
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(0.0, 0.0),
+        }
+    }
+
+    /// Scroll with a fixed duration, regardless of distance.
+    pub fn duration(t: f32) -> Self {
+        Self {
+            points_per_second: f32::INFINITY,
+            duration: Rangef::new(t, t),
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut crate::Ui) {
+        crate::Grid::new("scroll_animation").show(ui, |ui| {
+            ui.label("Scroll animation:");
+            ui.add(
+                DragValue::new(&mut self.points_per_second)
+                    .speed(100.0)
+                    .range(0.0..=5000.0),
+            );
+            ui.label("points/second");
+            ui.end_row();
+
+            ui.label("Min duration:");
+            ui.add(
+                DragValue::new(&mut self.duration.min)
+                    .speed(0.01)
+                    .range(0.0..=self.duration.max),
+            );
+            ui.label("seconds");
+            ui.end_row();
+
+            ui.label("Max duration:");
+            ui.add(
+                DragValue::new(&mut self.duration.max)
+                    .speed(0.01)
+                    .range(0.0..=1.0),
+            );
+            ui.label("seconds");
+            ui.end_row();
+        });
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// How and when interaction happens.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -768,7 +854,7 @@ impl Default for TextCursorStyle {
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
-/// and of everything with [`crate::Context::set_visuals`].
+/// and of everything with [`crate::Context::set_visuals_of`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
@@ -802,7 +888,7 @@ pub struct Visuals {
 
     pub selection: Selection,
 
-    /// The color used for [`Hyperlink`],
+    /// The color used for [`crate::Hyperlink`],
     pub hyperlink_color: Color32,
 
     /// Something just barely different from the background color.
@@ -1129,6 +1215,7 @@ impl Default for Style {
             explanation_tooltips: false,
             url_in_tooltip: false,
             always_scroll_the_only_direction: false,
+            scroll_animation: ScrollAnimation::default(),
         }
     }
 }
@@ -1403,7 +1490,10 @@ impl Default for Widgets {
 
 // ----------------------------------------------------------------------------
 
-use crate::{widgets::*, Ui};
+use crate::{
+    widgets::{reset_button, DragValue, Slider, Widget},
+    Ui,
+};
 
 impl Style {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
@@ -1415,7 +1505,7 @@ impl Style {
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
             wrap: _,
-            wrap_mode: _,
+            wrap_mode,
             spacing,
             interaction,
             visuals,
@@ -1425,9 +1515,8 @@ impl Style {
             explanation_tooltips,
             url_in_tooltip,
             always_scroll_the_only_direction,
+            scroll_animation,
         } = self;
-
-        visuals.light_dark_radio_buttons(ui);
 
         crate::Grid::new("_options").show(ui, |ui| {
             ui.label("Override font id");
@@ -1445,7 +1534,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Override text style");
-            crate::ComboBox::from_id_source("Override text style")
+            crate::ComboBox::from_id_salt("Override text style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
                     Some(override_text_style) => override_text_style.to_string(),
@@ -1462,7 +1551,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Text style of DragValue");
-            crate::ComboBox::from_id_source("drag_value_text_style")
+            crate::ComboBox::from_id_salt("drag_value_text_style")
                 .selected_text(drag_value_text_style.to_string())
                 .show_ui(ui, |ui| {
                     let all_text_styles = ui.style().text_styles();
@@ -1470,6 +1559,23 @@ impl Style {
                         let text =
                             crate::RichText::new(style.to_string()).text_style(style.clone());
                         ui.selectable_value(drag_value_text_style, style, text);
+                    }
+                });
+            ui.end_row();
+
+            ui.label("Text Wrap Mode");
+            crate::ComboBox::from_id_salt("text_wrap_mode")
+                .selected_text(format!("{wrap_mode:?}"))
+                .show_ui(ui, |ui| {
+                    let all_wrap_mode: Vec<Option<TextWrapMode>> = vec![
+                        None,
+                        Some(TextWrapMode::Extend),
+                        Some(TextWrapMode::Wrap),
+                        Some(TextWrapMode::Truncate),
+                    ];
+                    for style in all_wrap_mode {
+                        let text = crate::RichText::new(format!("{style:?}"));
+                        ui.selectable_value(wrap_mode, style, text);
                     }
                 });
             ui.end_row();
@@ -1488,6 +1594,7 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
+        ui.collapsing("🔄 Scroll Animation", |ui| scroll_animation.ui(ui));
 
         #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
@@ -1821,38 +1928,6 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
-    /// Show radio-buttons to switch between light and dark mode.
-    pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui) {
-        ui.horizontal(|ui| {
-            ui.selectable_value(self, Self::light(), "☀ Light");
-            ui.selectable_value(self, Self::dark(), "🌙 Dark");
-        });
-    }
-
-    /// Show small toggle-button for light and dark mode.
-    #[must_use]
-    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_else_if)]
-        if self.dark_mode {
-            if ui
-                .add(Button::new("☀").frame(false))
-                .on_hover_text("Switch to light mode")
-                .clicked()
-            {
-                return Some(Self::light());
-            }
-        } else {
-            if ui
-                .add(Button::new("🌙").frame(false))
-                .on_hover_text("Switch to dark mode")
-                .clicked()
-            {
-                return Some(Self::dark());
-            }
-        }
-        None
-    }
-
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode: _,
@@ -2222,7 +2297,7 @@ impl Widget for &mut Margin {
                 ui.checkbox(&mut same, "same");
 
                 let mut value = self.left;
-                ui.add(DragValue::new(&mut value));
+                ui.add(DragValue::new(&mut value).range(0.0..=100.0));
                 *self = Margin::same(value);
             })
             .response
@@ -2232,19 +2307,19 @@ impl Widget for &mut Margin {
 
                 crate::Grid::new("margin").num_columns(2).show(ui, |ui| {
                     ui.label("Left");
-                    ui.add(DragValue::new(&mut self.left));
+                    ui.add(DragValue::new(&mut self.left).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Right");
-                    ui.add(DragValue::new(&mut self.right));
+                    ui.add(DragValue::new(&mut self.right).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Top");
-                    ui.add(DragValue::new(&mut self.top));
+                    ui.add(DragValue::new(&mut self.top).range(0.0..=100.0));
                     ui.end_row();
 
                     ui.label("Bottom");
-                    ui.add(DragValue::new(&mut self.bottom));
+                    ui.add(DragValue::new(&mut self.bottom).range(0.0..=100.0));
                     ui.end_row();
                 });
             })
@@ -2367,8 +2442,12 @@ impl Widget for &mut Stroke {
 
             // stroke preview:
             let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-            let left = stroke_rect.left_center();
-            let right = stroke_rect.right_center();
+            let left = ui
+                .painter()
+                .round_pos_to_pixel_center(stroke_rect.left_center());
+            let right = ui
+                .painter()
+                .round_pos_to_pixel_center(stroke_rect.right_center());
             ui.painter().line_segment([left, right], (*width, *color));
         })
         .response
@@ -2396,7 +2475,8 @@ impl Widget for &mut crate::Frame {
                 ui.end_row();
 
                 ui.label("Outer margin");
-                ui.add(outer_margin);
+                // Push Id to avoid clashes in the Margin widget's Grid
+                ui.push_id("outer", |ui| ui.add(outer_margin));
                 ui.end_row();
 
                 ui.label("Rounding");

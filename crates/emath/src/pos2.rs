@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-use crate::*;
+use crate::{lerp, Div, Mul, Vec2};
 
 /// A position on screen.
 ///

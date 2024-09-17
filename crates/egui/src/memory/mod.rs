@@ -1,5 +1,7 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
+use std::num::NonZeroUsize;
+
 use ahash::{HashMap, HashSet};
 use epaint::emath::TSTransform;
 
@@ -7,6 +9,9 @@ use crate::{
     area, vec2, EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, RawInput, Rect, Style, Vec2,
     ViewportId, ViewportIdMap, ViewportIdSet,
 };
+
+mod theme;
+pub use theme::{Theme, ThemePreference};
 
 // ----------------------------------------------------------------------------
 
@@ -165,9 +170,30 @@ impl FocusDirection {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Options {
-    /// The default style for new [`Ui`](crate::Ui):s.
+    /// The default style for new [`Ui`](crate::Ui):s in dark mode.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) style: std::sync::Arc<Style>,
+    pub dark_style: std::sync::Arc<Style>,
+
+    /// The default style for new [`Ui`](crate::Ui):s in light mode.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub light_style: std::sync::Arc<Style>,
+
+    /// A preference for how to select between dark and light [`crate::Context::style`]
+    /// as the active style used by all subsequent windows, panels etc.
+    ///
+    /// Default: `ThemePreference::System`.
+    pub theme_preference: ThemePreference,
+
+    /// Which theme to use in case [`Self::theme_preference`] is [`ThemePreference::System`]
+    /// and egui fails to detect the system theme.
+    ///
+    /// Default: [`crate::Theme::Dark`].
+    pub fallback_theme: Theme,
+
+    /// The current system theme, used to choose between
+    /// dark and light style in case [`Self::theme_preference`] is [`ThemePreference::System`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) system_theme: Option<Theme>,
 
     /// Global zoom factor of the UI.
     ///
@@ -204,6 +230,23 @@ pub struct Options {
     /// (<https://github.com/rerun-io/rerun/issues/5018>).
     pub repaint_on_widget_change: bool,
 
+    /// Maximum number of passes to run in one frame.
+    ///
+    /// Set to `1` for pure single-pass immediate mode.
+    /// Set to something larger than `1` to allow multi-pass when needed.
+    ///
+    /// Default is `2`. This means sometimes a frame will cost twice as much,
+    /// but usually only rarely (e.g. when showing a new panel for the first time).
+    ///
+    /// egui will usually only ever run one pass, even if `max_passes` is large.
+    ///
+    /// If this is `1`, [`crate::Context::request_discard`] will be ignored.
+    ///
+    /// Multi-pass is supported by [`crate::Context::run`].
+    ///
+    /// See [`crate::Context::request_discard`] for more.
+    pub max_passes: NonZeroUsize,
+
     /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
     ///
     /// The only change to egui is that labels can be focused by pressing tab.
@@ -236,6 +279,9 @@ pub struct Options {
     /// Controls the speed at which we zoom in when doing ctrl/cmd + scroll.
     pub scroll_zoom_speed: f32,
 
+    /// Options related to input state handling.
+    pub input_options: crate::input_state::InputOptions,
+
     /// If `true`, `egui` will discard the loaded image data after
     /// the texture is loaded onto the GPU to reduce memory usage.
     ///
@@ -261,11 +307,16 @@ impl Default for Options {
         };
 
         Self {
-            style: Default::default(),
+            dark_style: std::sync::Arc::new(Theme::Dark.default_style()),
+            light_style: std::sync::Arc::new(Theme::Light.default_style()),
+            theme_preference: ThemePreference::System,
+            fallback_theme: Theme::Dark,
+            system_theme: None,
             zoom_factor: 1.0,
             zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             repaint_on_widget_change: false,
+            max_passes: NonZeroUsize::new(2).unwrap(),
             screen_reader: false,
             preload_font_glyphs: true,
             warn_on_id_clash: cfg!(debug_assertions),
@@ -273,7 +324,37 @@ impl Default for Options {
             // Input:
             line_scroll_speed,
             scroll_zoom_speed: 1.0 / 200.0,
+            input_options: Default::default(),
             reduce_texture_memory: false,
+        }
+    }
+}
+
+impl Options {
+    pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput) {
+        self.system_theme = new_raw_input.system_theme;
+    }
+
+    /// The currently active theme (may depend on the system theme).
+    pub(crate) fn theme(&self) -> Theme {
+        match self.theme_preference {
+            ThemePreference::Dark => Theme::Dark,
+            ThemePreference::Light => Theme::Light,
+            ThemePreference::System => self.system_theme.unwrap_or(self.fallback_theme),
+        }
+    }
+
+    pub(crate) fn style(&self) -> &std::sync::Arc<Style> {
+        match self.theme() {
+            Theme::Dark => &self.dark_style,
+            Theme::Light => &self.light_style,
+        }
+    }
+
+    pub(crate) fn style_mut(&mut self) -> &mut std::sync::Arc<Style> {
+        match self.theme() {
+            Theme::Dark => &mut self.dark_style,
+            Theme::Light => &mut self.light_style,
         }
     }
 }
@@ -282,17 +363,23 @@ impl Options {
     /// Show the options in the ui.
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            style,          // covered above
+            dark_style, // covered above
+            light_style,
+            theme_preference,
+            fallback_theme: _,
+            system_theme: _,
             zoom_factor: _, // TODO(emilk)
             zoom_with_keyboard,
             tessellation_options,
             repaint_on_widget_change,
+            max_passes,
             screen_reader: _, // needs to come from the integration
             preload_font_glyphs: _,
             warn_on_id_clash,
 
             line_scroll_speed,
             scroll_zoom_speed,
+            input_options,
             reduce_texture_memory,
         } = self;
 
@@ -301,6 +388,11 @@ impl Options {
         CollapsingHeader::new("⚙ Options")
             .default_open(false)
             .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Max passes:");
+                    ui.add(crate::DragValue::new(max_passes).range(0..=10));
+                });
+
                 ui.checkbox(
                     repaint_on_widget_change,
                     "Repaint if any widget moves or changes id",
@@ -316,11 +408,18 @@ impl Options {
                 ui.checkbox(reduce_texture_memory, "Reduce texture memory");
             });
 
-        use crate::containers::*;
+        use crate::containers::CollapsingHeader;
         CollapsingHeader::new("🎑 Style")
             .default_open(true)
             .show(ui, |ui| {
-                std::sync::Arc::make_mut(style).ui(ui);
+                theme_preference.radio_buttons(ui);
+
+                CollapsingHeader::new("Dark")
+                    .default_open(true)
+                    .show(ui, |ui| std::sync::Arc::make_mut(dark_style).ui(ui));
+                CollapsingHeader::new("Light")
+                    .default_open(true)
+                    .show(ui, |ui| std::sync::Arc::make_mut(light_style).ui(ui));
             });
 
         CollapsingHeader::new("✒ Painting")
@@ -351,6 +450,7 @@ impl Options {
                     )
                     .on_hover_text("How fast to zoom with ctrl/cmd + scroll");
                 });
+                input_options.ui(ui);
             });
 
         ui.vertical_centered(|ui| crate::reset_button(ui, self, "Reset all"));
@@ -441,7 +541,7 @@ impl Focus {
         self.focused_widget.as_ref().map(|w| w.id)
     }
 
-    fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
+    fn begin_pass(&mut self, new_input: &crate::data::input::RawInput) {
         self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
             self.focused_widget = Some(FocusWidget::new(id));
@@ -502,7 +602,7 @@ impl Focus {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
         if self.focus_direction.is_cardinal() {
             if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
                 self.focused_widget = Some(FocusWidget::new(found_widget));
@@ -652,7 +752,7 @@ impl Focus {
 }
 
 impl Memory {
-    pub(crate) fn begin_frame(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
+    pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
         crate::profile_function!();
 
         self.viewport_id = new_raw_input.viewport_id;
@@ -665,16 +765,18 @@ impl Memory {
 
         // self.interactions  is handled elsewhere
 
+        self.options.begin_pass(new_raw_input);
+
         self.focus
             .entry(self.viewport_id)
             .or_default()
-            .begin_frame(new_raw_input);
+            .begin_pass(new_raw_input);
     }
 
-    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_pass(&mut self, used_ids: &IdMap<Rect>) {
         self.caches.update();
-        self.areas_mut().end_frame();
-        self.focus_mut().end_frame(used_ids);
+        self.areas_mut().end_pass();
+        self.focus_mut().end_pass(used_ids);
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -703,16 +805,20 @@ impl Memory {
         self.areas().order().iter().copied()
     }
 
-    pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
+    /// Check if the layer had focus last frame.
+    /// returns `true` if the layer had focus last frame, but not this one.
+    pub fn had_focus_last_frame(&self, id: Id) -> bool {
         self.focus().and_then(|f| f.id_previous_frame) == Some(id)
     }
 
-    /// True if the given widget had keyboard focus last frame, but not this one.
+    /// Check if the layer lost focus last frame
+    /// returns `true` if the layer lost focus last frame, but not this one.
     pub(crate) fn lost_focus(&self, id: Id) -> bool {
         self.had_focus_last_frame(id) && !self.has_focus(id)
     }
 
-    /// True if the given widget has keyboard focus this frame, but didn't last frame.
+    /// Check if the layer gained focus this frame
+    /// returns `true` if the layer gained focus this frame, but not last one.
     pub(crate) fn gained_focus(&self, id: Id) -> bool {
         !self.had_focus_last_frame(id) && self.has_focus(id)
     }
@@ -1069,7 +1175,7 @@ impl Areas {
             .any(|(_, children)| children.contains(layer))
     }
 
-    pub(crate) fn end_frame(&mut self) {
+    pub(crate) fn end_pass(&mut self) {
         let Self {
             visible_last_frame,
             visible_current_frame,

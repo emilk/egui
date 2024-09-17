@@ -3,7 +3,7 @@
 //! Panels can either be a child of a [`Ui`] (taking up a portion of the parent)
 //! or be top-level (taking up a portion of the whole screen).
 //!
-//! Together with [`Window`] and [`Area`]:s, top-level panels are
+//! Together with [`crate::Window`] and [`crate::Area`]:s, top-level panels are
 //! the only places where you can put you widgets.
 //!
 //! The order in which you add panels matter!
@@ -13,9 +13,12 @@
 //!
 //! ⚠ Always add any [`CentralPanel`] last.
 //!
-//! Add your [`Window`]:s after any top-level panels.
+//! Add your [`crate::Window`]:s after any top-level panels.
 
-use crate::*;
+use crate::{
+    lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
+    Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
+};
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
     ctx.animate_bool_responsive(id, is_expanded)
@@ -135,9 +138,9 @@ impl SidePanel {
     /// If you want your panel to be resizable you also need a widget in it that
     /// takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
-    /// * A [`ScrollArea`].
-    /// * A [`Separator`].
-    /// * A [`TextEdit`].
+    /// * A [`crate::ScrollArea`].
+    /// * A [`crate::Separator`].
+    /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -261,14 +264,15 @@ impl SidePanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(
-            panel_rect,
-            Layout::top_down(Align::Min),
-            id,
-            Some(UiStackInfo::new(match side {
-                Side::Left => UiKind::LeftPanel,
-                Side::Right => UiKind::RightPanel,
-            })),
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .id_salt(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    Side::Left => UiKind::LeftPanel,
+                    Side::Right => UiKind::RightPanel,
+                }))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
@@ -325,6 +329,9 @@ impl SidePanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
+        // Keep this rect snapped so that panel content can be pixel-perfect
+        let rect = ui.painter().round_rect_to_pixels(rect);
+
         PanelState { rect }.store(ui.ctx(), id);
 
         {
@@ -339,10 +346,14 @@ impl SidePanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_x = side.opposite().side_x(rect.shrink(1.0));
-            let resize_x = ui.painter().round_to_pixel(resize_x);
+            let resize_x = side.opposite().side_x(rect);
+
+            // This makes it pixel-perfect for odd-sized strokes (width=1.0, width=3.0, etc)
+            let resize_x = ui.painter().round_to_pixel_center(resize_x);
+
+            // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
+            // left-side panels
+            let resize_x = resize_x - if side == Side::Left { 1.0 } else { 0.0 };
             ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
@@ -367,24 +378,22 @@ impl SidePanel {
         let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
-        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             layer_id,
             self.id,
-            available_rect,
-            clip_rect,
-            UiStackInfo::default(),
+            UiBuilder::new().max_rect(available_rect),
         );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
-            Side::Left => ctx.frame_state_mut(|state| {
+            Side::Left => ctx.pass_state_mut(|state| {
                 state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
             }),
-            Side::Right => ctx.frame_state_mut(|state| {
+            Side::Right => ctx.pass_state_mut(|state| {
                 state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
             }),
         }
@@ -614,9 +623,9 @@ impl TopBottomPanel {
     /// If you want your panel to be resizable you also need a widget in it that
     /// takes up more space as you resize it, such as:
     /// * Wrapping text ([`Ui::horizontal_wrapped`]).
-    /// * A [`ScrollArea`].
-    /// * A [`Separator`].
-    /// * A [`TextEdit`].
+    /// * A [`crate::ScrollArea`].
+    /// * A [`crate::Separator`].
+    /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
@@ -634,7 +643,7 @@ impl TopBottomPanel {
     }
 
     /// The initial height of the [`TopBottomPanel`], including margins.
-    /// Defaults to [`style::Spacing::interact_size`].y, plus frame margins.
+    /// Defaults to [`crate::style::Spacing::interact_size`].y, plus frame margins.
     #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
@@ -750,14 +759,15 @@ impl TopBottomPanel {
             }
         }
 
-        let mut panel_ui = ui.child_ui_with_id_source(
-            panel_rect,
-            Layout::top_down(Align::Min),
-            id,
-            Some(UiStackInfo::new(match side {
-                TopBottomSide::Top => UiKind::TopPanel,
-                TopBottomSide::Bottom => UiKind::BottomPanel,
-            })),
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .id_salt(id)
+                .ui_stack_info(UiStackInfo::new(match side {
+                    TopBottomSide::Top => UiKind::TopPanel,
+                    TopBottomSide::Bottom => UiKind::BottomPanel,
+                }))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.expand_to_include_rect(panel_rect);
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
@@ -814,6 +824,9 @@ impl TopBottomPanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
+        // Keep this rect snapped so that panel content can be pixel-perfect
+        let rect = ui.painter().round_rect_to_pixels(rect);
+
         PanelState { rect }.store(ui.ctx(), id);
 
         {
@@ -828,10 +841,12 @@ impl TopBottomPanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_y = side.opposite().side_y(rect.shrink(1.0));
-            let resize_y = ui.painter().round_to_pixel(resize_y);
+            let resize_y = side.opposite().side_y(rect);
+            let resize_y = ui.painter().round_to_pixel_center(resize_y);
+
+            // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
+            // top-side panels
+            let resize_y = resize_y - if side == TopBottomSide::Top { 1.0 } else { 0.0 };
             ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 
@@ -857,27 +872,25 @@ impl TopBottomPanel {
         let available_rect = ctx.available_rect();
         let side = self.side;
 
-        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             layer_id,
             self.id,
-            available_rect,
-            clip_rect,
-            UiStackInfo::default(), // set by show_inside_dyn
+            UiBuilder::new().max_rect(available_rect),
         );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
             TopBottomSide::Top => {
-                ctx.frame_state_mut(|state| {
+                ctx.pass_state_mut(|state| {
                     state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
                 });
             }
             TopBottomSide::Bottom => {
-                ctx.frame_state_mut(|state| {
+                ctx.pass_state_mut(|state| {
                     state.allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
                 });
             }
@@ -1043,7 +1056,7 @@ impl TopBottomPanel {
 ///
 /// ⚠ [`CentralPanel`] must be added after all other panels!
 ///
-/// NOTE: Any [`Window`]s and [`Area`]s will cover the top-level [`CentralPanel`].
+/// NOTE: Any [`crate::Window`]s and [`crate::Area`]s will cover the top-level [`CentralPanel`].
 ///
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
@@ -1091,10 +1104,11 @@ impl CentralPanel {
         let Self { frame } = self;
 
         let panel_rect = ui.available_rect_before_wrap();
-        let mut panel_ui = ui.child_ui(
-            panel_rect,
-            Layout::top_down(Align::Min),
-            Some(UiStackInfo::new(UiKind::CentralPanel)),
+        let mut panel_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::CentralPanel))
+                .max_rect(panel_rect)
+                .layout(Layout::top_down(Align::Min)),
         );
         panel_ui.set_clip_rect(panel_rect); // If we overflow, don't do so visibly (#4475)
 
@@ -1124,20 +1138,18 @@ impl CentralPanel {
         let layer_id = LayerId::background();
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
-        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
             layer_id,
             id,
-            available_rect,
-            clip_rect,
-            UiStackInfo::default(), // set by show_inside_dyn
+            UiBuilder::new().max_rect(available_rect),
         );
+        panel_ui.set_clip_rect(ctx.screen_rect());
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
-        ctx.frame_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
+        ctx.pass_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
 
         inner_response
     }

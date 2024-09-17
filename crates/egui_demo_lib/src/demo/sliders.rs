@@ -1,4 +1,4 @@
-use egui::{style::HandleShape, *};
+use egui::{style::HandleShape, Slider, SliderOrientation, Ui};
 use std::f64::INFINITY;
 
 /// Showcase sliders

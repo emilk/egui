@@ -223,6 +223,25 @@
 //!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
 //!
+//! ## Multi-pass immediate mode
+//! By default, egui usually only does one pass for each rendered frame.
+//! However, egui supports multi-pass immediate mode.
+//! Another pass can be requested with [`Context::request_discard`].
+//!
+//! This is used by some widgets to cover up "first-frame jitters".
+//! For instance, the [`Grid`] needs to know the width of all columns before it can properly place the widgets.
+//! But it cannot know the width of widgets to come.
+//! So it stores the max widths of previous frames and uses that.
+//! This means the first time a `Grid` is shown it will _guess_ the widths of the columns, and will usually guess wrong.
+//! This means the contents of the grid will be wrong for one frame, before settling to the correct places.
+//! Therefore `Grid` calls [`Context::request_discard`] when it is first shown, so the wrong placement is never
+//! visible to the end user.
+//!
+//! This is an example of a form of multi-pass immediate mode, where earlier passes are used for sizing,
+//! and later passes for layout.
+//!
+//! See [`Context::request_discard`] and [`Options::max_passes`] for more.
+//!
 //! # Misc
 //!
 //! ## How widgets works
@@ -270,7 +289,7 @@
 //!
 //! ## Widget interaction
 //! Each widget has a [`Sense`], which defines whether or not the widget
-//! is sensitive to clickicking and/or drags.
+//! is sensitive to clicking and/or drags.
 //!
 //! For instance, a [`Button`] only has a [`Sense::click`] (by default).
 //! This means if you drag a button it will not respond with [`Response::dragged`].
@@ -379,7 +398,6 @@ mod context;
 mod data;
 pub mod debug_text;
 mod drag_and_drop;
-mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
@@ -394,12 +412,14 @@ mod memory;
 pub mod menu;
 pub mod os;
 mod painter;
+mod pass_state;
 pub(crate) mod placer;
 mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
 mod ui;
+mod ui_builder;
 mod ui_stack;
 pub mod util;
 pub mod viewport;
@@ -414,6 +434,7 @@ mod callstack;
 #[cfg(feature = "accesskit")]
 pub use accesskit;
 
+#[deprecated = "Use the ahash crate directly."]
 pub use ahash;
 
 pub use epaint;
@@ -442,7 +463,7 @@ pub mod text {
     };
 }
 
-pub use {
+pub use self::{
     containers::*,
     context::{Context, RepaintCause, RequestRepaintInfo},
     data::{
@@ -460,13 +481,14 @@ pub use {
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options},
+    memory::{Memory, Options, Theme, ThemePreference},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Style, TextStyle, Visuals},
+    style::{FontSelection, Spacing, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    ui_builder::UiBuilder,
     ui_stack::*,
     viewport::*,
     widget_rect::{WidgetRect, WidgetRects},
@@ -615,6 +637,9 @@ pub enum WidgetType {
 
     RadioButton,
 
+    /// A group of radio buttons.
+    RadioGroup,
+
     SelectableLabel,
 
     ComboBox,
@@ -649,7 +674,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 }
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
+pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
     let _ = ctx.run(Default::default(), |ctx| {
@@ -692,4 +717,4 @@ mod profiling_scopes {
 }
 
 #[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;
+pub(crate) use profiling_scopes::{profile_function, profile_scope};

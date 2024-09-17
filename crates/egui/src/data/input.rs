@@ -2,7 +2,10 @@
 
 use epaint::ColorImage;
 
-use crate::{emath::*, Key, ViewportId, ViewportIdMap};
+use crate::{
+    emath::{Pos2, Rect, Vec2},
+    Key, Theme, ViewportId, ViewportIdMap,
+};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -73,6 +76,11 @@ pub struct RawInput {
     ///
     /// False when the user alt-tab away from the application, for instance.
     pub focused: bool,
+
+    /// Does the OS use dark or light mode?
+    ///
+    /// `None` means "don't know".
+    pub system_theme: Option<Theme>,
 }
 
 impl Default for RawInput {
@@ -89,6 +97,7 @@ impl Default for RawInput {
             hovered_files: Default::default(),
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
+            system_theme: None,
         }
     }
 }
@@ -107,16 +116,21 @@ impl RawInput {
     pub fn take(&mut self) -> Self {
         Self {
             viewport_id: self.viewport_id,
-            viewports: self.viewports.clone(),
+            viewports: self
+                .viewports
+                .iter_mut()
+                .map(|(id, info)| (*id, info.take()))
+                .collect(),
             screen_rect: self.screen_rect.take(),
             max_texture_side: self.max_texture_side.take(),
-            time: self.time.take(),
+            time: self.time,
             predicted_dt: self.predicted_dt,
             modifiers: self.modifiers,
             events: std::mem::take(&mut self.events),
             hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
             focused: self.focused,
+            system_theme: self.system_theme,
         }
     }
 
@@ -134,6 +148,7 @@ impl RawInput {
             mut hovered_files,
             mut dropped_files,
             focused,
+            system_theme,
         } = newer;
 
         self.viewport_id = viewport_ids;
@@ -147,6 +162,7 @@ impl RawInput {
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
+        self.system_theme = system_theme;
     }
 }
 
@@ -189,7 +205,7 @@ pub struct ViewportInfo {
     /// This should always be set, if known.
     ///
     /// On web this takes browser scaling into account,
-    /// and orresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
+    /// and corresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
     pub native_pixels_per_point: Option<f32>,
 
     /// Current monitor size in egui points.
@@ -233,6 +249,23 @@ impl ViewportInfo {
         self.events
             .iter()
             .any(|&event| event == ViewportEvent::Close)
+    }
+
+    /// Helper: move [`Self::events`], clone the other fields.
+    pub fn take(&mut self) -> Self {
+        Self {
+            parent: self.parent,
+            title: self.title.clone(),
+            events: std::mem::take(&mut self.events),
+            native_pixels_per_point: self.native_pixels_per_point,
+            monitor_size: self.monitor_size,
+            inner_rect: self.inner_rect,
+            outer_rect: self.outer_rect,
+            minimized: self.minimized,
+            maximized: self.maximized,
+            fullscreen: self.fullscreen,
+            focused: self.focused,
+        }
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
@@ -710,7 +743,7 @@ impl Modifiers {
     }
 
     /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
-    /// of the pressed ksey (`self`).
+    /// of the pressed key (`self`).
     ///
     /// This means that if the pattern has not set `shift`, then `self` can have `shift` set or not.
     ///
@@ -1044,6 +1077,7 @@ impl RawInput {
             hovered_files,
             dropped_files,
             focused,
+            system_theme,
         } = self;
 
         ui.label(format!("Active viwport: {viewport_id:?}"));
@@ -1068,6 +1102,7 @@ impl RawInput {
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
+        ui.label(format!("system_theme: {system_theme:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {events:#?}"))

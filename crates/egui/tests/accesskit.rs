@@ -94,7 +94,7 @@ fn toggle_button_node() {
     let (_, toggle) = output
         .nodes
         .iter()
-        .find(|(_, node)| node.role() == Role::ToggleButton)
+        .find(|(_, node)| node.role() == Role::Button)
         .expect("Toggle button should exist in the accesskit output");
 
     assert_eq!(toggle.name(), Some(button_text));
@@ -130,7 +130,7 @@ fn multiple_disabled_widgets() {
     );
 }
 
-fn accesskit_output_single_egui_frame(run_ui: impl FnOnce(&Context)) -> TreeUpdate {
+fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&Context)) -> TreeUpdate {
     let ctx = Context::default();
     ctx.enable_accesskit();
 
