@@ -154,6 +154,7 @@ impl PaintList {
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
         if self.0.len() <= idx.0 {
+            #[cfg(feature = "log")]
             log::warn!("Index {} is out of bounds for PaintList", idx.0);
             self.add(clip_rect, Shape::Noop);
         }
