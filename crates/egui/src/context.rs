@@ -2418,7 +2418,9 @@ impl Context {
 
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
-            let texture_atlas = if let Some(fonts) = ctx.fonts.get(&pixels_per_point.into()) { fonts.texture_atlas() } else {
+            let texture_atlas = if let Some(fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+            	fonts.texture_atlas()
+           	} else {
                 #[cfg(feature = "log")]
                 log::warn!("No font size matching {pixels_per_point} pixels per point found.");
                 ctx.fonts.iter().next()
