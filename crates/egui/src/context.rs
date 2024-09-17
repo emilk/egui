@@ -2421,6 +2421,7 @@ impl Context {
             let texture_atlas = match ctx.fonts.get(&pixels_per_point.into()) {
                 Some(fonts) => fonts.texture_atlas(),
                 None => {
+                    log::warn!("No font size matching {pixels_per_point} pixels per point found.");
                     ctx.fonts.iter().next()
                     .expect("tessellate called with a different pixels_per_point than the font atlas was created with. \
                     You should use egui::FullOutput::pixels_per_point when tessellating.")
