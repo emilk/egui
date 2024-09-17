@@ -189,7 +189,7 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
-            baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
+            baseline_offset_factor: 0.0,
         }
     }
 }
@@ -270,30 +270,30 @@ impl Default for FontDefinitions {
 
         let mut families = BTreeMap::new();
 
+        // We tweak the fonts slightly to improve their vertical alignment in buttons etc:
         font_data.insert("Hack".to_owned(), FontData::from_static(HACK_REGULAR));
-        font_data.insert(
-            "Ubuntu-Light".to_owned(),
-            FontData::from_static(UBUNTU_LIGHT),
-        );
 
         // Some good looking emojis. Use as first priority:
         font_data.insert(
             "NotoEmoji-Regular".to_owned(),
             FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
-                scale: 0.81, // make it smaller
+                scale: 0.81,             // Make smaller
+                y_offset_factor: -0.120, // Move up
                 ..Default::default()
             }),
+        );
+
+        font_data.insert(
+            "Ubuntu-Light".to_owned(),
+            FontData::from_static(UBUNTU_LIGHT),
         );
 
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
         font_data.insert(
             "emoji-icon-font".to_owned(),
             FontData::from_static(EMOJI_ICON).tweak(FontTweak {
-                scale: 0.88, // make it smaller
-
-                // probably not correct, but this does make texts look better (#2724 for details)
-                y_offset_factor: 0.11, // move glyphs down to better align with common fonts
-                baseline_offset_factor: -0.11, // ...now the entire row is a bit down so shift it back
+                scale: 0.90,           // Make smaller
+                y_offset_factor: 0.09, // Move down
                 ..Default::default()
             }),
         );
