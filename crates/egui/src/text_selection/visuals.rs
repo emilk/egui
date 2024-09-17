@@ -12,8 +12,9 @@ pub struct RowVertexIndices {
 
 /// Adds text selection rectangles to the galley.
 pub fn paint_text_selection(
+    ui: &Ui,
+    galley_pos: crate::Pos2,
     galley: &mut Arc<Galley>,
-    visuals: &Visuals,
     cursor_range: &CursorRange,
     mut new_vertex_indices: Option<&mut Vec<RowVertexIndices>>,
 ) {
@@ -25,7 +26,7 @@ pub fn paint_text_selection(
     // and so we need to clone it if it is shared:
     let galley: &mut Galley = Arc::make_mut(galley);
 
-    let color = visuals.selection.bg_fill;
+    let color = ui.visuals().selection.bg_fill;
     let [min, max] = cursor_range.sorted_cursors();
     let min = min.rcursor;
     let max = max.rcursor;
@@ -47,6 +48,13 @@ pub fn paint_text_selection(
             };
             row.rect.right() + newline_size
         };
+
+        let rect = Rect::from_min_max(
+            galley_pos + vec2(left, row.min_y()),
+            galley_pos + vec2(right, row.max_y()),
+        );
+        let weak_color = color.linear_multiply(0.5);
+        let _shape_idx = ui.painter().rect_filled(rect, 0.0, weak_color);
 
         let rect = Rect::from_min_max(pos2(left, row.min_y()), pos2(right, row.max_y()));
         let mesh = &mut row.visuals.mesh;
