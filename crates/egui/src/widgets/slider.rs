@@ -822,7 +822,7 @@ impl<'a> Slider<'a> {
             let mut dv = DragValue::new(&mut value)
                 .speed(speed)
                 .range(self.range.clone())
-                .clamp_to_range(self.clamp_to_range)
+                .clamp_existing_to_range(self.clamp_to_range)
                 .min_decimals(self.min_decimals)
                 .max_decimals_opt(self.max_decimals)
                 .suffix(self.suffix.clone())
