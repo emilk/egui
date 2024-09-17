@@ -617,6 +617,14 @@ impl Ui {
         self.wrap_mode() == TextWrapMode::Wrap
     }
 
+    /// How to vertically align text
+    #[inline]
+    pub fn text_valign(&self) -> Align {
+        #![allow(clippy::unused_self)]
+        // We currently always center-align, because that makes emojis and text nice and centered everywhere.
+        Align::Center
+    }
+
     /// Create a painter for a sub-region of this Ui.
     ///
     /// The clip-rect of the returned [`Painter`] will be the intersection
