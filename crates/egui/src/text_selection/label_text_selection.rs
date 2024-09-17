@@ -593,8 +593,9 @@ impl LabelSelectionState {
 
         if let Some(cursor_range) = cursor_range {
             paint_text_selection(
+                ui,
+                galley_pos,
                 galley,
-                ui.visuals(),
                 &cursor_range,
                 Some(&mut new_vertex_indices),
             );
