@@ -482,7 +482,7 @@ fn replace_last_glyph_with_overflow_character(
 
 /// Horizontally aligned the text on a row.
 ///
-/// /// Ignores the Y coordinate.
+/// Ignores the Y coordinate.
 fn halign_and_justify_row(
     point_scale: PointScale,
     row: &mut Row,

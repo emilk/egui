@@ -1404,7 +1404,7 @@ impl Ui {
     ///
     /// If this is called multiple times per frame for the same [`crate::ScrollArea`], the deltas will be summed.
     ///
-    /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
     ///
     /// ```
     /// # use egui::{Align, Vec2};
