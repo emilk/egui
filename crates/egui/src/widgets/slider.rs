@@ -88,6 +88,8 @@ pub struct Slider<'a> {
     custom_parser: Option<NumParser<'a>>,
     trailing_fill: Option<bool>,
     handle_shape: Option<HandleShape>,
+
+    rail_color: Option<Color32>,
 }
 
 impl<'a> Slider<'a> {
@@ -135,6 +137,8 @@ impl<'a> Slider<'a> {
             custom_parser: None,
             trailing_fill: None,
             handle_shape: None,
+
+            rail_color: None,
         }
     }
 
@@ -518,6 +522,13 @@ impl<'a> Slider<'a> {
         self.fixed_decimals(0).smallest_positive(1.0).step_by(1.0)
     }
 
+    /// Override rail color.
+    #[inline]
+    pub fn rail_color(mut self, color: Color32) -> Self {
+        self.rail_color = Some(color);
+        self
+    }
+
     fn get_value(&mut self) -> f64 {
         let value = get(&mut self.get_set_value);
         if self.clamp_to_range {
@@ -687,11 +698,10 @@ impl<'a> Slider<'a> {
             let rail_radius = (spacing.slider_rail_height / 2.0).at_least(0.0);
             let rail_rect = self.rail_rect(rect, rail_radius);
 
-            ui.painter().rect_filled(
-                rail_rect,
-                widget_visuals.inactive.rounding,
-                widget_visuals.inactive.bg_fill,
-            );
+            let rail_color = self.rail_color.unwrap_or(widget_visuals.inactive.bg_fill);
+
+            ui.painter()
+                .rect_filled(rail_rect, widget_visuals.inactive.rounding, rail_color);
 
             let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
