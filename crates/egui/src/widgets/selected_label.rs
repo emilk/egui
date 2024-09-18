@@ -41,6 +41,7 @@ impl SelectableLabel {
     ///
     /// Default behavior is to only show the rect when the widget is
     /// either selected, hovered, highlighted, or in focus.
+    #[inline]
     pub fn always_show_rect(mut self) -> Self {
         self.always_show_rect = true;
         self
