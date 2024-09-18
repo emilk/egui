@@ -37,7 +37,7 @@ impl SelectableLabel {
         }
     }
 
-    /// Always show the rect surrouding the label.
+    /// Always show the rect surrounding the label.
     ///
     /// Default behavior is to only show the rect when the widget is
     /// either selected, hovered, highlighted, or in focus.
