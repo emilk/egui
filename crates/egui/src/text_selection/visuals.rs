@@ -79,6 +79,8 @@ pub fn paint_text_selection(
         mesh.indices[glyph_index_start..glyph_index_start + 6]
             .clone_from_slice(&selection_triangles);
 
+        row.visuals.mesh_bounds = mesh.calc_bounds();
+
         if let Some(new_vertex_indices) = &mut new_vertex_indices {
             new_vertex_indices.push(RowVertexIndices {
                 row: ri,
