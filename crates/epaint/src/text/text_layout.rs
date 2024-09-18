@@ -172,7 +172,7 @@ fn layout_section(
                 chr,
                 pos: pos2(paragraph.cursor_x, f32::NAN),
                 size: vec2(glyph_info.advance_width, line_height),
-                ascent: font_impl.map_or(0.0, |font| font.ascent()), // Failure to find the font here would be weird
+                ascent: font.ascent(),
                 uv_rect: glyph_info.uv_rect,
                 section_index,
             });
@@ -392,7 +392,7 @@ fn replace_last_glyph_with_overflow_character(
             chr: overflow_character,
             pos: pos2(x, f32::NAN),
             size: vec2(replacement_glyph_info.advance_width, line_height),
-            ascent: font_impl.map_or(0.0, |font| font.ascent()), // Failure to find the font here would be weird
+            ascent: font.ascent(),
             uv_rect: replacement_glyph_info.uv_rect,
             section_index,
         });
@@ -404,13 +404,13 @@ fn replace_last_glyph_with_overflow_character(
 
         let x = 0.0; // TODO(emilk): heed paragraph leading_space 😬
 
-        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
+        let (_, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
 
         row.glyphs.push(Glyph {
             chr: overflow_character,
             pos: pos2(x, f32::NAN),
             size: vec2(replacement_glyph_info.advance_width, line_height),
-            ascent: font_impl.map_or(0.0, |font| font.ascent()), // Failure to find the font here would be weird
+            ascent: font.ascent(),
             uv_rect: replacement_glyph_info.uv_rect,
             section_index,
         });
