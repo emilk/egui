@@ -577,26 +577,26 @@ impl Renderer {
             );
         };
 
-        if let Some(pos) = image_delta.pos {
+        // Use same label for all resources associated with this texture id (no point in retyping the type)
+        let label_str = format!("egui_texid_{id:?}");
+        let label = Some(label_str.as_str());
+
+        let (texture, origin) = if let Some(pos) = image_delta.pos {
             // update the existing texture
             let (texture, _bind_group) = self
                 .textures
-                .get(&id)
+                .remove(&id)
                 .expect("Tried to update a texture that has not been allocated yet.");
+            let texture = texture.expect("Tried to update user texture.");
             let origin = wgpu::Origin3d {
                 x: pos[0] as u32,
                 y: pos[1] as u32,
                 z: 0,
             };
-            queue_write_data_to_texture(
-                texture.as_ref().expect("Tried to update user texture."),
-                origin,
-            );
+
+            (texture, origin)
         } else {
             // allocate a new texture
-            // Use same label for all resources associated with this texture id (no point in retyping the type)
-            let label_str = format!("egui_texid_{id:?}");
-            let label = Some(label_str.as_str());
             let texture = {
                 crate::profile_scope!("create_texture");
                 device.create_texture(&wgpu::TextureDescriptor {
@@ -610,30 +610,32 @@ impl Renderer {
                     view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
                 })
             };
-            let sampler = self
-                .samplers
-                .entry(image_delta.options)
-                .or_insert_with(|| create_sampler(image_delta.options, device));
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label,
-                layout: &self.texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(
-                            &texture.create_view(&wgpu::TextureViewDescriptor::default()),
-                        ),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(sampler),
-                    },
-                ],
-            });
             let origin = wgpu::Origin3d::ZERO;
-            queue_write_data_to_texture(&texture, origin);
-            self.textures.insert(id, (Some(texture), bind_group));
+            (texture, origin)
         };
+
+        let sampler = self
+            .samplers
+            .entry(image_delta.options)
+            .or_insert_with(|| create_sampler(image_delta.options, device));
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label,
+            layout: &self.texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(
+                        &texture.create_view(&wgpu::TextureViewDescriptor::default()),
+                    ),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+        });
+        queue_write_data_to_texture(&texture, origin);
+        self.textures.insert(id, (Some(texture), bind_group));
     }
 
     pub fn free_texture(&mut self, id: &epaint::TextureId) {
