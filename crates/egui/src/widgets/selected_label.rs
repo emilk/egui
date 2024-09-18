@@ -24,6 +24,7 @@ use crate::*;
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct SelectableLabel {
     selected: bool,
+    always_show_rect: bool,
     text: WidgetText,
 }
 
@@ -31,14 +32,29 @@ impl SelectableLabel {
     pub fn new(selected: bool, text: impl Into<WidgetText>) -> Self {
         Self {
             selected,
+            always_show_rect: false,
             text: text.into(),
         }
+    }
+
+    /// Always show the rect surrounding the label.
+    ///
+    /// Default behavior is to only show the rect when the widget is
+    /// either selected, hovered, highlighted, or in focus.
+    #[inline]
+    pub fn always_show_rect(mut self) -> Self {
+        self.always_show_rect = true;
+        self
     }
 }
 
 impl Widget for SelectableLabel {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Self { selected, text } = self;
+        let Self {
+            selected,
+            text,
+            always_show_rect,
+        } = self;
 
         let button_padding = ui.spacing().button_padding;
         let total_extra = button_padding + button_padding;
@@ -61,7 +77,12 @@ impl Widget for SelectableLabel {
 
             let visuals = ui.style().interact_selectable(&response, selected);
 
-            if selected || response.hovered() || response.highlighted() || response.has_focus() {
+            if selected
+                || response.hovered()
+                || response.highlighted()
+                || response.has_focus()
+                || always_show_rect
+            {
                 let rect = rect.expand(visuals.expansion);
 
                 ui.painter().rect(
