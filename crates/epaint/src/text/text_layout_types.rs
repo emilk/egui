@@ -608,8 +608,11 @@ pub struct Glyph {
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
 
-    /// `ascent` value from the font
-    pub ascent: f32,
+    /// `ascent` value from the `Font`
+    pub font_ascent: f32,
+
+    /// `ascent` value from the `FontImpl`
+    pub font_impl_ascent: f32,
 
     /// Advance width and line height.
     ///
@@ -631,7 +634,7 @@ impl Glyph {
     /// Same y range for all characters with the same [`TextFormat`].
     #[inline]
     pub fn logical_rect(&self) -> Rect {
-        Rect::from_min_size(self.pos - vec2(0.0, self.ascent), self.size)
+        Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size)
     }
 }
 
