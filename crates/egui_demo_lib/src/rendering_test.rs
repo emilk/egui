@@ -254,7 +254,7 @@ impl ColorTest {
         });
     }
 
-    fn vertex_gradient(&mut self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
+    fn vertex_gradient(&self, ui: &mut Ui, label: &str, bg_fill: Color32, gradient: &Gradient) {
         if !self.vertex_gradients {
             return;
         }

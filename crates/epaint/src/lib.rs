@@ -77,6 +77,7 @@ pub use emath;
 pub use ecolor::hex_color;
 
 /// The UV coordinate of a white region of the texture mesh.
+///
 /// The default egui texture has the top-left corner pixel fully white.
 /// You need need use a clamping texture sampler for this to work
 /// (so it doesn't do bilinear blending with bottom right corner).

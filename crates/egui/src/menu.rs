@@ -349,7 +349,7 @@ impl MenuRoot {
     }
 
     pub fn show<R>(
-        &mut self,
+        &self,
         button: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
@@ -759,7 +759,7 @@ impl MenuState {
         self.sub_menu.as_ref().map(|(_, sub)| sub)
     }
 
-    fn submenu(&mut self, id: Id) -> Option<&Arc<RwLock<Self>>> {
+    fn submenu(&self, id: Id) -> Option<&Arc<RwLock<Self>>> {
         self.sub_menu
             .as_ref()
             .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })

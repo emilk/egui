@@ -1537,7 +1537,7 @@ impl Tessellator {
     ///
     /// * `mesh`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_mesh(&mut self, mesh: &Mesh, out: &mut Mesh) {
+    pub fn tessellate_mesh(&self, mesh: &Mesh, out: &mut Mesh) {
         if !mesh.is_valid() {
             debug_assert!(false, "Invalid Mesh in Shape::Mesh");
             return;

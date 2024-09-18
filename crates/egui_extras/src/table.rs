@@ -439,7 +439,7 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Reset all column widths.
-    pub fn reset(&mut self) {
+    pub fn reset(&self) {
         let state_id = self.ui.id().with(self.id_salt);
         TableState::reset(self.ui, state_id);
     }
