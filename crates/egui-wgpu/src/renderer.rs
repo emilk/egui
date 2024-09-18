@@ -163,6 +163,17 @@ struct SlicedBuffer {
     capacity: wgpu::BufferAddress,
 }
 
+pub struct Texture {
+    /// The texture may be None if the `TextureId` is just a handle to a user-provided sampler.
+    pub texture: Option<wgpu::Texture>,
+
+    /// Bindgroup for the texture + sampler.
+    pub bind_group: wgpu::BindGroup,
+
+    /// Options describing the sampler used in the bind group. This may be None if the `TextureId` is just a handle to a user-provided sampler.
+    pub options: Option<epaint::textures::TextureOptions>,
+}
+
 /// Renderer for a egui based GUI.
 pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
@@ -178,7 +189,7 @@ pub struct Renderer {
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the `TextureId` is just a handle to a user-provided
     /// sampler.
-    textures: HashMap<epaint::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
+    textures: HashMap<epaint::TextureId, Texture>,
     next_user_texture_id: u64,
     samplers: HashMap<epaint::textures::TextureOptions, wgpu::Sampler>,
 
@@ -454,7 +465,7 @@ impl Renderer {
                     let index_buffer_slice = index_buffer_slices.next().unwrap();
                     let vertex_buffer_slice = vertex_buffer_slices.next().unwrap();
 
-                    if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
+                    if let Some(Texture { bind_group, .. }) = self.textures.get(&mesh.texture_id) {
                         render_pass.set_bind_group(1, bind_group, &[]);
                         render_pass.set_index_buffer(
                             self.index_buffer.buffer.slice(
@@ -581,20 +592,35 @@ impl Renderer {
         let label_str = format!("egui_texid_{id:?}");
         let label = Some(label_str.as_str());
 
-        let (texture, origin) = if let Some(pos) = image_delta.pos {
+        let (texture, origin, bind_group) = if let Some(pos) = image_delta.pos {
             // update the existing texture
-            let (texture, _bind_group) = self
+            let Texture {
+                texture,
+                bind_group,
+                options,
+            } = self
                 .textures
                 .remove(&id)
                 .expect("Tried to update a texture that has not been allocated yet.");
             let texture = texture.expect("Tried to update user texture.");
+            let options = options.expect("Tried to update user texture.");
             let origin = wgpu::Origin3d {
                 x: pos[0] as u32,
                 y: pos[1] as u32,
                 z: 0,
             };
 
-            (texture, origin)
+            (
+                texture,
+                origin,
+                // If the TextureOptions are the same as the previous ones, we can reuse the bind group. Otherwise we
+                // have to recreate it.
+                if image_delta.options == options {
+                    Some(bind_group)
+                } else {
+                    None
+                },
+            )
         } else {
             // allocate a new texture
             let texture = {
@@ -611,45 +637,54 @@ impl Renderer {
                 })
             };
             let origin = wgpu::Origin3d::ZERO;
-            (texture, origin)
+            (texture, origin, None)
         };
 
-        let sampler = self
-            .samplers
-            .entry(image_delta.options)
-            .or_insert_with(|| create_sampler(image_delta.options, device));
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label,
-            layout: &self.texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(
-                        &texture.create_view(&wgpu::TextureViewDescriptor::default()),
-                    ),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(sampler),
-                },
-            ],
+        let bind_group = bind_group.unwrap_or_else(|| {
+            let sampler = self
+                .samplers
+                .entry(image_delta.options)
+                .or_insert_with(|| create_sampler(image_delta.options, device));
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label,
+                layout: &self.texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(
+                            &texture.create_view(&wgpu::TextureViewDescriptor::default()),
+                        ),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(sampler),
+                    },
+                ],
+            })
         });
+
         queue_write_data_to_texture(&texture, origin);
-        self.textures.insert(id, (Some(texture), bind_group));
+        self.textures.insert(
+            id,
+            Texture {
+                texture: Some(texture),
+                bind_group,
+                options: Some(image_delta.options),
+            },
+        );
     }
 
     pub fn free_texture(&mut self, id: &epaint::TextureId) {
-        self.textures.remove(id);
+        if let Some(texture) = self.textures.remove(id).and_then(|t| t.texture) {
+            texture.destroy();
+        }
     }
 
     /// Get the WGPU texture and bind group associated to a texture that has been allocated by egui.
     ///
     /// This could be used by custom paint hooks to render images that have been added through
     /// [`epaint::Context::load_texture`](https://docs.rs/egui/latest/egui/struct.Context.html#method.load_texture).
-    pub fn texture(
-        &self,
-        id: &epaint::TextureId,
-    ) -> Option<&(Option<wgpu::Texture>, wgpu::BindGroup)> {
+    pub fn texture(&self, id: &epaint::TextureId) -> Option<&Texture> {
         self.textures.get(id)
     }
 
@@ -737,7 +772,14 @@ impl Renderer {
         });
 
         let id = epaint::TextureId::User(self.next_user_texture_id);
-        self.textures.insert(id, (None, bind_group));
+        self.textures.insert(
+            id,
+            Texture {
+                texture: None,
+                bind_group,
+                options: None,
+            },
+        );
         self.next_user_texture_id += 1;
 
         id
@@ -757,7 +799,10 @@ impl Renderer {
     ) {
         crate::profile_function!();
 
-        let (_user_texture, user_texture_binding) = self
+        let Texture {
+            bind_group: user_texture_binding,
+            ..
+        } = self
             .textures
             .get_mut(&id)
             .expect("Tried to update a texture that has not been allocated yet.");
