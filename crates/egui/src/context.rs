@@ -4,9 +4,15 @@ use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration
 
 use containers::area::AreaState;
 use epaint::{
-    emath, emath::TSTransform, mutex::RwLock, pos2, stats::PaintStats, tessellator, text::Fonts,
-    util::OrderedFloat, vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2,
-    Rect, TessellationOptions, TextureAtlas, TextureId, Vec2,
+    emath::{self, TSTransform},
+    mutex::RwLock,
+    pos2,
+    stats::PaintStats,
+    tessellator,
+    text::Fonts,
+    util::OrderedFloat,
+    vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
+    TessellationOptions, TextureAtlas, TextureId, Vec2,
 };
 
 use crate::{
@@ -2817,10 +2823,31 @@ impl Context {
         let prev_options = self.options(|o| o.clone());
         let mut options = prev_options.clone();
 
+        ui.collapsing("🔠 Font tweak", |ui| {
+            self.fonts_tweak_ui(ui);
+        });
+
         options.ui(ui);
 
         if options != prev_options {
             self.options_mut(move |o| *o = options);
+        }
+    }
+
+    fn fonts_tweak_ui(&self, ui: &mut Ui) {
+        let mut font_definitions = self.write(|ctx| ctx.font_definitions.clone());
+        let mut changed = false;
+
+        for (name, data) in &mut font_definitions.font_data {
+            ui.collapsing(name, |ui| {
+                if data.tweak.ui(ui).changed() {
+                    changed = true;
+                }
+            });
+        }
+
+        if changed {
+            self.set_fonts(font_definitions);
         }
     }
 

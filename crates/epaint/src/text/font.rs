@@ -1,11 +1,13 @@
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use emath::{vec2, Vec2};
+
 use crate::{
     mutex::{Mutex, RwLock},
     text::FontTweak,
     TextureAtlas,
 };
-use emath::{vec2, Vec2};
-use std::collections::BTreeSet;
-use std::sync::Arc;
 
 // ----------------------------------------------------------------------------
 
@@ -330,7 +332,7 @@ pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
 
     /// Lazily calculated.
-    characters: Option<BTreeSet<char>>,
+    characters: Option<BTreeMap<char, Vec<String>>>,
 
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
@@ -398,12 +400,14 @@ impl Font {
         self.glyph_info(crate::text::PASSWORD_REPLACEMENT_CHAR);
     }
 
-    /// All supported characters.
-    pub fn characters(&mut self) -> &BTreeSet<char> {
+    /// All supported characters, and in which font they are available in.
+    pub fn characters(&mut self) -> &BTreeMap<char, Vec<String>> {
         self.characters.get_or_insert_with(|| {
-            let mut characters = BTreeSet::new();
+            let mut characters: BTreeMap<char, Vec<String>> = Default::default();
             for font in &self.fonts {
-                characters.extend(font.characters());
+                for chr in font.characters() {
+                    characters.entry(chr).or_default().push(font.name.clone());
+                }
             }
             characters
         })
