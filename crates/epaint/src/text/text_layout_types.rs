@@ -280,6 +280,7 @@ pub struct TextFormat {
     /// If you use a small font and [`Align::TOP`] you
     /// can get the effect of raised text.
     pub valign: Align,
+    // TODO(emilk): lowered
 }
 
 impl Default for TextFormat {
