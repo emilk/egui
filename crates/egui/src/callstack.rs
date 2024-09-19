@@ -94,7 +94,7 @@ pub fn capture() -> String {
             "<F as egui::widgets::Widget>",
             "egui_plot::",
             "egui_extras::",
-            "core::ptr::drop_in_place<egui::ui::Ui>::",
+            "core::ptr::drop_in_place<egui::ui::Ui>",
             "eframe::",
             "core::ops::function::FnOnce::call_once",
             "<alloc::boxed::Box<F,A> as core::ops::function::FnOnce<Args>>::call_once",
