@@ -262,7 +262,9 @@ impl GridLayout {
     }
 
     pub(crate) fn save(&self) {
-        if self.curr_state != self.prev_state {
+        // We need to always save state on the first frame, otherwise request_discard
+        // would be called repeatedly (see #5132)
+        if self.curr_state != self.prev_state || self.is_first_frame {
             self.curr_state.clone().store(&self.ctx, self.id);
             self.ctx.request_repaint();
         }
