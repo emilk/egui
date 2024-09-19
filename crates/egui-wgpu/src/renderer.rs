@@ -164,13 +164,14 @@ struct SlicedBuffer {
 }
 
 pub struct Texture {
-    /// The texture may be None if the `TextureId` is just a handle to a user-provided sampler.
+    /// The texture may be None if the `TextureId` is just a handle to a user-provided bind-group.
     pub texture: Option<wgpu::Texture>,
 
     /// Bindgroup for the texture + sampler.
     pub bind_group: wgpu::BindGroup,
 
-    /// Options describing the sampler used in the bind group. This may be None if the `TextureId` is just a handle to a user-provided sampler.
+    /// Options describing the sampler used in the bind group. This may be None if the `TextureId`
+    /// is just a handle to a user-provided bind-group.
     pub options: Option<epaint::textures::TextureOptions>,
 }
 
