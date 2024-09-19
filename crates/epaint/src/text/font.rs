@@ -80,6 +80,8 @@ pub struct FontImpl {
     pixels_per_point: f32,
     glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
+
+    fallbacks: [char; 2],
 }
 
 impl FontImpl {
@@ -134,6 +136,7 @@ impl FontImpl {
             pixels_per_point,
             glyph_info_cache: Default::default(),
             atlas,
+            fallbacks: tweak.fallbacks.unwrap_or(['◻', '?']),
         }
     }
 
@@ -365,20 +368,23 @@ impl Font {
             glyph_info_cache: Default::default(),
         };
 
-        const PRIMARY_REPLACEMENT_CHAR: char = '◻'; // white medium square
-        const FALLBACK_REPLACEMENT_CHAR: char = '?'; // fallback for the fallback
-
-        let replacement_glyph = slf
-            .glyph_info_no_cache_or_fallback(PRIMARY_REPLACEMENT_CHAR)
-            .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
+        // For each font, find the first available fallback character
+        slf.replacement_glyph = slf
+            .fonts
+            .iter()
+            .enumerate()
+            .find_map(|(font_index, font_impl)| {
+                font_impl.fallbacks.iter().find_map(|chr| {
+                    font_impl
+                        .glyph_info(*chr)
+                        .map(|glyph_info| (font_index, glyph_info))
+                })
+            })
             .unwrap_or_else(|| {
                 #[cfg(feature = "log")]
-                log::warn!(
-                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}. Will use empty glyph."
-                );
+                log::warn!("Failed to find replacement characters. Will use empty glyph.");
                 (0, GlyphInfo::default())
             });
-        slf.replacement_glyph = replacement_glyph;
 
         slf
     }
@@ -438,7 +444,7 @@ impl Font {
 
     /// Can we display this glyph?
     pub fn has_glyph(&mut self, c: char) -> bool {
-        self.glyph_info(c) != self.replacement_glyph // TODO(emilk): this is a false negative if the user asks about the replacement character itself 🤦‍♂️
+        self.glyph_info_no_cache_or_fallback(c).is_some()
     }
 
     /// Can we display all the glyphs in this text?

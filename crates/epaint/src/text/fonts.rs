@@ -181,6 +181,10 @@ pub struct FontTweak {
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
     pub baseline_offset_factor: f32,
+
+    /// Fallback characters for this font
+    /// The default value is handled to be either the square character, or the question mark.
+    pub fallbacks: Option<[char; 2]>,
 }
 
 impl Default for FontTweak {
@@ -190,6 +194,7 @@ impl Default for FontTweak {
             y_offset_factor: 0.0,
             y_offset: 0.0,
             baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
+            fallbacks: None,
         }
     }
 }
