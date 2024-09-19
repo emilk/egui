@@ -222,6 +222,14 @@ impl Ui {
     }
 
     /// Create a child `Ui` with the properties of the given builder.
+    ///
+    /// This is a very low-level function.
+    /// Usually you are better off using [`Self::scope_builder`].
+    ///
+    /// Note that calling this does not allocate any space in the parent `Ui`,
+    /// so after adding widgets to the child `Ui` you probably want to allocate
+    /// the [`Ui::min_rect`] of the child in the parent `Ui` using e.g.
+    /// [`Ui::advance_cursor_after_rect`].
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
