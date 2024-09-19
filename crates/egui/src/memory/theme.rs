@@ -94,7 +94,7 @@ impl ThemePreference {
         ui.horizontal(|ui| {
             ui.selectable_value(self, Self::Light, "☀ Light");
             ui.selectable_value(self, Self::Dark, "🌙 Dark");
-            ui.selectable_value(self, Self::System, "System");
+            ui.selectable_value(self, Self::System, "💻 System");
         });
     }
 }
