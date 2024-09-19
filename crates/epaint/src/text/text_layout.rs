@@ -172,6 +172,7 @@ fn layout_section(
                 chr,
                 pos: pos2(paragraph.cursor_x, f32::NAN),
                 size: vec2(glyph_info.advance_width, line_height),
+                font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
                 font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
                 font_ascent: font.ascent(),
                 uv_rect: glyph_info.uv_rect,
@@ -393,6 +394,7 @@ fn replace_last_glyph_with_overflow_character(
             chr: overflow_character,
             pos: pos2(x, f32::NAN),
             size: vec2(replacement_glyph_info.advance_width, line_height),
+            font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
             font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
             font_ascent: font.ascent(),
             uv_rect: replacement_glyph_info.uv_rect,
@@ -412,6 +414,7 @@ fn replace_last_glyph_with_overflow_character(
             chr: overflow_character,
             pos: pos2(x, f32::NAN),
             size: vec2(replacement_glyph_info.advance_width, line_height),
+            font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
             font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
             font_ascent: font.ascent(),
             uv_rect: replacement_glyph_info.uv_rect,
@@ -595,13 +598,13 @@ fn galley_from_rows(
         }
         row_height = point_scale.round_to_pixel(row_height);
 
-        // Now positions each glyph:
+        // Now position each glyph:
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
 
             glyph.pos.y = cursor_y
                 + glyph.font_impl_ascent
-                + format.valign.to_factor() * (row_height - glyph.size.y);
+                + format.valign.to_factor() * (row_height - glyph.font_impl_height);
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }

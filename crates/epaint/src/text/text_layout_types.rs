@@ -611,6 +611,9 @@ pub struct Glyph {
     /// `ascent` value from the `Font`
     pub font_ascent: f32,
 
+    /// `row_height` value from the `FontImpl`
+    pub font_impl_height: f32,
+
     /// `ascent` value from the `FontImpl`
     pub font_impl_ascent: f32,
 
