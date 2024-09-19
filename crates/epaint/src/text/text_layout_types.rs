@@ -610,7 +610,10 @@ pub struct Glyph {
 
     pub advance_width: f32,
 
-    /// Height of this row
+    /// Height of this row of text.
+    ///
+    /// Usually same as [`Self::font_height`],
+    /// unless explicitly overriden by [`TextFormat::line_height`].
     pub line_height: f32,
 
     /// [`Font::ascent`]

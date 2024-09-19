@@ -607,7 +607,7 @@ fn galley_from_rows(
         }
         max_row_height = point_scale.round_to_pixel(max_row_height);
 
-        // Now position each glyph:
+        // Now position each glyph vertically:
         for glyph in &mut row.glyphs {
             let format = &job.sections[glyph.section_index as usize].format;
 
@@ -619,7 +619,7 @@ fn galley_from_rows(
 
                 // When mixing different `FontImpl` (e.g. latin and emojis),
                 // we always center the difference:
-                + 0.5 * (glyph.line_height - glyph.font_impl_height);
+                + 0.5 * (glyph.font_height - glyph.font_impl_height);
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }
