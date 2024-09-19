@@ -270,14 +270,13 @@ impl Default for FontDefinitions {
 
         let mut families = BTreeMap::new();
 
-        // We tweak the fonts slightly to improve their vertical alignment in buttons etc:
         font_data.insert("Hack".to_owned(), FontData::from_static(HACK_REGULAR));
 
         // Some good looking emojis. Use as first priority:
         font_data.insert(
             "NotoEmoji-Regular".to_owned(),
             FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
-                scale: 0.81,             // Make smaller
+                scale: 0.81, // Make smaller
                 ..Default::default()
             }),
         );
@@ -291,7 +290,7 @@ impl Default for FontDefinitions {
         font_data.insert(
             "emoji-icon-font".to_owned(),
             FontData::from_static(EMOJI_ICON).tweak(FontTweak {
-                scale: 0.90,           // Make smaller
+                scale: 0.90, // Make smaller
                 ..Default::default()
             }),
         );
