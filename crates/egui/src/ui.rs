@@ -621,8 +621,7 @@ impl Ui {
     #[inline]
     pub fn text_valign(&self) -> Align {
         #![allow(clippy::unused_self)]
-        // We currently always center-align, because that makes emojis and text nice and centered everywhere.
-        Align::Center
+        Align::BOTTOM
     }
 
     /// Create a painter for a sub-region of this Ui.

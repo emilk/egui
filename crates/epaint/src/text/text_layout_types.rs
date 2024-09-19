@@ -301,7 +301,7 @@ impl Default for TextFormat {
             italics: false,
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
-            valign: Align::Center,
+            valign: Align::BOTTOM,
         }
     }
 }
