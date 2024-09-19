@@ -120,8 +120,15 @@ pub struct Response {
     pub changed: bool,
 
     /// The intrinsic / desired size of the widget.
+    ///
     /// For a button, this will be the size of the label + the frames padding,
     /// even if the button is laid out in a justified layout and the actual size will be larger.
+    ///
+    /// If this is `None`, use [`Self::rect`] instead.
+    ///
+    /// At the time of writing, this is only used by external crates
+    /// for improved layouting.
+    /// See for instance [`egui_flex`](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_flex).
     pub intrinsic_size: Option<Vec2>,
 }
 
