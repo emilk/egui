@@ -562,7 +562,7 @@ impl ContextImpl {
             self.fonts.clear();
             self.font_definitions = font_definitions;
             #[cfg(feature = "log")]
-            log::debug!("Loading new font definitions");
+            log::trace!("Loading new font definitions");
         }
 
         let mut is_new = false;
