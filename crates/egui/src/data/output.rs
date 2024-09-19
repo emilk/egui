@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{ViewportIdMap, ViewportOutput, WidgetType};
+use crate::{RepaintCause, ViewportIdMap, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -137,7 +137,8 @@ pub struct PlatformOutput {
     /// If so, what was the reason(s) for it?
     ///
     /// If empty, there was never any calls.
-    pub request_discard_reasons: Vec<String>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub request_discard_reasons: Vec<RepaintCause>,
 }
 
 impl PlatformOutput {

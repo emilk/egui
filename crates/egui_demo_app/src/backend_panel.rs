@@ -163,8 +163,8 @@ impl BackendPanel {
                     }
 
                     ui.horizontal(|ui| {
-                        if ui.button("Request discard").clicked() {
-                            ui.ctx().request_discard();
+                        if ui.button("Request discard").hovered() {
+                            ui.ctx().request_discard("manual click");
 
                             if !ui.ctx().will_discard() {
                                 ui.label("Discard denied!");

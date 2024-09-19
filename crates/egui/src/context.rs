@@ -284,25 +284,28 @@ pub struct ViewportState {
     pub num_multipass_in_row: usize,
 }
 
-/// What called [`Context::request_repaint`]?
-#[derive(Clone)]
+/// What called [`Context::request_repaint`] or [`Context::request_discard`]?
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct RepaintCause {
     /// What file had the call that requested the repaint?
     pub file: &'static str,
 
     /// What line number of the call that requested the repaint?
     pub line: u32,
+
+    /// Explicit reason; human readable.
+    pub reason: Cow<'static, str>,
 }
 
 impl std::fmt::Debug for RepaintCause {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.file, self.line)
+        write!(f, "{}:{} {}", self.file, self.line, self.reason)
     }
 }
 
 impl std::fmt::Display for RepaintCause {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.file, self.line)
+        write!(f, "{}:{} {}", self.file, self.line, self.reason)
     }
 }
 
@@ -315,6 +318,20 @@ impl RepaintCause {
         Self {
             file: caller.file(),
             line: caller.line(),
+            reason: "".into(),
+        }
+    }
+
+    /// Capture the file and line number of the call site,
+    /// as well as add a reason.
+    #[allow(clippy::new_without_default)]
+    #[track_caller]
+    pub fn new_reason(reason: impl Into<Cow<'static, str>>) -> Self {
+        let caller = Location::caller();
+        Self {
+            file: caller.file(),
+            line: caller.line(),
+            reason: reason.into(),
         }
     }
 }
@@ -1645,8 +1662,10 @@ impl Context {
     /// The given reason should be a human-readable string that explains why `request_discard`
     /// was called. This will be shown in certain debug situations, to help you figure out
     /// why a pass was discarded.
-    pub fn request_discard(&self, reason: impl Into<String>) {
-        self.output_mut(|o| o.request_discard_reasons.push(reason.into()));
+    #[track_caller]
+    pub fn request_discard(&self, reason: impl Into<Cow<'static, str>>) {
+        let cause = RepaintCause::new_reason(reason);
+        self.output_mut(|o| o.request_discard_reasons.push(cause));
 
         #[cfg(feature = "log")]
         log::trace!(
@@ -3765,8 +3784,13 @@ mod test {
                 "The request should be reported"
             );
             assert_eq!(
-                output.platform_output.request_discard_reasons,
-                vec!["test".to_owned()]
+                output
+                    .platform_output
+                    .request_discard_reasons
+                    .first()
+                    .unwrap()
+                    .reason,
+                "test"
             );
         }
     }
