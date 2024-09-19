@@ -199,7 +199,7 @@ pub struct Style {
 
     /// How to vertically align text.
     ///
-    /// Default depends on layout.
+    /// Set to `None` to use align that depends on the current layout.
     pub override_text_valign: Option<Align>,
 
     /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
@@ -1207,7 +1207,7 @@ impl Default for Style {
         Self {
             override_font_id: None,
             override_text_style: None,
-            override_text_valign: None,
+            override_text_valign: Some(Align::Center),
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
