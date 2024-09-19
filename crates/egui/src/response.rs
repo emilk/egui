@@ -121,6 +121,18 @@ pub struct Response {
     /// for instance if an existing slider value was clamped to the given range.
     #[doc(hidden)]
     pub changed: bool,
+
+    /// The intrinsic / desired size of the widget.
+    ///
+    /// For a button, this will be the size of the label + the frames padding,
+    /// even if the button is laid out in a justified layout and the actual size will be larger.
+    ///
+    /// If this is `None`, use [`Self::rect`] instead.
+    ///
+    /// At the time of writing, this is only used by external crates
+    /// for improved layouting.
+    /// See for instance [`egui_flex`](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_flex).
+    pub intrinsic_size: Option<Vec2>,
 }
 
 impl Response {
@@ -1144,6 +1156,7 @@ impl Response {
                 || other.is_pointer_button_down_on,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             changed: self.changed || other.changed,
+            intrinsic_size: None,
         }
     }
 }

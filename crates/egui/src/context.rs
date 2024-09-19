@@ -1212,6 +1212,7 @@ impl Context {
             is_pointer_button_down_on: false,
             interact_pointer_pos: None,
             changed: false,
+            intrinsic_size: None,
         };
 
         self.write(|ctx| {

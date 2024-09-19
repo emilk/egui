@@ -1050,7 +1050,9 @@ impl Ui {
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
         let (id, rect) = self.allocate_space(desired_size);
-        self.interact(rect, id, sense)
+        let mut response = self.interact(rect, id, sense);
+        response.intrinsic_size = Some(desired_size);
+        response
     }
 
     /// Returns a [`Rect`] with exactly what you asked for.
