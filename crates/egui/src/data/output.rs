@@ -204,7 +204,7 @@ impl PlatformOutput {
         taken
     }
 
-    /// Was [`Context::request_discard`] called?
+    /// Was [`crate::Context::request_discard`] called?
     pub fn requested_discard(&self) -> bool {
         !self.request_discard_reasons.is_empty()
     }
