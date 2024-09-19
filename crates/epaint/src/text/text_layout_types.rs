@@ -613,7 +613,7 @@ pub struct Glyph {
     /// Height of this row of text.
     ///
     /// Usually same as [`Self::font_height`],
-    /// unless explicitly overriden by [`TextFormat::line_height`].
+    /// unless explicitly overridden by [`TextFormat::line_height`].
     pub line_height: f32,
 
     /// [`Font::ascent`]
