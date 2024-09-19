@@ -1240,7 +1240,6 @@ impl Ui {
     /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
-        register_rect(self, rect);
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -1250,6 +1249,7 @@ impl Ui {
         debug_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
+        register_rect(self, rect);
 
         let id = Id::new(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
@@ -1363,6 +1363,7 @@ impl Ui {
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
+        register_rect(self, rect);
         let response = self.interact(rect, child_ui.id, Sense::hover());
         InnerResponse::new(inner, response)
     }
@@ -2246,7 +2247,7 @@ impl Ui {
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
         let response = child_ui.remember_min_rect();
-        self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        self.advance_cursor_after_rect(child_ui.min_rect());
         InnerResponse::new(ret, response)
     }
 
