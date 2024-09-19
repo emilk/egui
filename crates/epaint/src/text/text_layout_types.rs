@@ -608,6 +608,7 @@ pub struct Glyph {
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
 
+    /// Logical width of the glyph.
     pub advance_width: f32,
 
     /// Height of this row of text.
@@ -616,17 +617,17 @@ pub struct Glyph {
     /// unless explicitly overridden by [`TextFormat::line_height`].
     pub line_height: f32,
 
-    /// [`Font::ascent`]
+    /// The ascent of this font.
     pub font_ascent: f32,
 
-    /// [`Font::row_height`]
+    /// The row/line height of this font.
     pub font_height: f32,
 
-    /// [`FontImpl::row_height`]
-    pub font_impl_height: f32,
-
-    /// [`FontImpl::ascent`]
+    /// The ascent of the sub-font within the font ("FontImpl").
     pub font_impl_ascent: f32,
+
+    /// The row/line height of the sub-font within the font ("FontImpl").
+    pub font_impl_height: f32,
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
