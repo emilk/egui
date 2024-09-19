@@ -171,9 +171,11 @@ fn layout_section(
             paragraph.glyphs.push(Glyph {
                 chr,
                 pos: pos2(paragraph.cursor_x, f32::NAN),
-                size: vec2(glyph_info.advance_width, line_height),
+                advance_width: glyph_info.advance_width,
+                line_height,
                 font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
                 font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
+                font_height: font.row_height(),
                 font_ascent: font.ascent(),
                 uv_rect: glyph_info.uv_rect,
                 section_index,
@@ -378,7 +380,7 @@ fn replace_last_glyph_with_overflow_character(
 
         let (_, last_glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
 
-        let mut x = last_glyph.pos.x + last_glyph.size.x;
+        let mut x = last_glyph.pos.x + last_glyph.advance_width;
 
         let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
 
@@ -393,9 +395,11 @@ fn replace_last_glyph_with_overflow_character(
         row.glyphs.push(Glyph {
             chr: overflow_character,
             pos: pos2(x, f32::NAN),
-            size: vec2(replacement_glyph_info.advance_width, line_height),
+            advance_width: replacement_glyph_info.advance_width,
+            line_height,
             font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
             font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
+            font_height: font.row_height(),
             font_ascent: font.ascent(),
             uv_rect: replacement_glyph_info.uv_rect,
             section_index,
@@ -413,9 +417,11 @@ fn replace_last_glyph_with_overflow_character(
         row.glyphs.push(Glyph {
             chr: overflow_character,
             pos: pos2(x, f32::NAN),
-            size: vec2(replacement_glyph_info.advance_width, line_height),
+            advance_width: replacement_glyph_info.advance_width,
+            line_height,
             font_impl_height: font_impl.map_or(0.0, |f| f.row_height()),
             font_impl_ascent: font_impl.map_or(0.0, |f| f.ascent()),
+            font_height: font.row_height(),
             font_ascent: font.ascent(),
             uv_rect: replacement_glyph_info.uv_rect,
             section_index,
@@ -444,7 +450,6 @@ fn replace_last_glyph_with_overflow_character(
         let section = &job.sections[last_glyph.section_index as usize];
         let extra_letter_spacing = section.format.extra_letter_spacing;
         let font = fonts.font(&section.format.font_id);
-        let line_height = row_height(section, font);
 
         if let Some(prev_glyph) = prev_glyph {
             let prev_glyph_id = font.font_impl_and_glyph_info(prev_glyph.chr).1.id;
@@ -459,7 +464,9 @@ fn replace_last_glyph_with_overflow_character(
             // Replace the glyph:
             last_glyph.chr = overflow_character;
             let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-            last_glyph.size = vec2(glyph_info.advance_width, line_height);
+            last_glyph.advance_width = glyph_info.advance_width;
+            last_glyph.font_impl_ascent = font_impl.map_or(0.0, |f| f.ascent());
+            last_glyph.font_impl_height = font_impl.map_or(0.0, |f| f.row_height());
             last_glyph.uv_rect = glyph_info.uv_rect;
 
             // Reapply kerning:
@@ -478,8 +485,10 @@ fn replace_last_glyph_with_overflow_character(
         } else {
             // Just replace and be done with it.
             last_glyph.chr = overflow_character;
-            let (_, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-            last_glyph.size = vec2(glyph_info.advance_width, line_height);
+            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
+            last_glyph.advance_width = glyph_info.advance_width;
+            last_glyph.font_impl_ascent = font_impl.map_or(0.0, |f| f.ascent());
+            last_glyph.font_impl_height = font_impl.map_or(0.0, |f| f.row_height());
             last_glyph.uv_rect = glyph_info.uv_rect;
             return;
         }
@@ -591,12 +600,12 @@ fn galley_from_rows(
     let mut min_x: f32 = 0.0;
     let mut max_x: f32 = 0.0;
     for row in &mut rows {
-        let mut row_height = first_row_min_height.max(row.rect.height());
+        let mut max_row_height = first_row_min_height.max(row.rect.height());
         first_row_min_height = 0.0;
         for glyph in &row.glyphs {
-            row_height = row_height.max(glyph.size.y);
+            max_row_height = max_row_height.max(glyph.line_height);
         }
-        row_height = point_scale.round_to_pixel(row_height);
+        max_row_height = point_scale.round_to_pixel(max_row_height);
 
         // Now position each glyph:
         for glyph in &mut row.glyphs {
@@ -606,21 +615,21 @@ fn galley_from_rows(
                 + glyph.font_impl_ascent
 
                 // Apply valign to the different in height of the entire row, and the height of this `Font`:
-                + format.valign.to_factor() * (row_height - glyph.size.y)
+                + format.valign.to_factor() * (max_row_height - glyph.line_height)
 
                 // When mixing different `FontImpl` (e.g. latin and emojis),
                 // we always center the difference:
-                + 0.5 * (glyph.size.y - glyph.font_impl_height);
+                + 0.5 * (glyph.line_height - glyph.font_impl_height);
 
             glyph.pos.y = point_scale.round_to_pixel(glyph.pos.y);
         }
 
         row.rect.min.y = cursor_y;
-        row.rect.max.y = cursor_y + row_height;
+        row.rect.max.y = cursor_y + max_row_height;
 
         min_x = min_x.min(row.rect.min.x);
         max_x = max_x.max(row.rect.max.x);
-        cursor_y += row_height;
+        cursor_y += max_row_height;
         cursor_y = point_scale.round_to_pixel(cursor_y);
     }
 

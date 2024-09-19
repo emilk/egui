@@ -608,19 +608,22 @@ pub struct Glyph {
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
 
-    /// `ascent` value from the `Font`
+    pub advance_width: f32,
+
+    /// Height of this row
+    pub line_height: f32,
+
+    /// [`Font::ascent`]
     pub font_ascent: f32,
 
-    /// `row_height` value from the `FontImpl`
+    /// [`Font::row_height`]
+    pub font_height: f32,
+
+    /// [`FontImpl::row_height`]
     pub font_impl_height: f32,
 
-    /// `ascent` value from the `FontImpl`
+    /// [`FontImpl::ascent`]
     pub font_impl_ascent: f32,
-
-    /// Advance width and line height.
-    ///
-    /// Does not control the visual size of the glyph (see [`Self::uv_rect`] for that).
-    pub size: Vec2,
 
     /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
@@ -630,14 +633,20 @@ pub struct Glyph {
 }
 
 impl Glyph {
+    #[inline]
+    pub fn size(&self) -> Vec2 {
+        Vec2::new(self.advance_width, self.line_height)
+    }
+
+    #[inline]
     pub fn max_x(&self) -> f32 {
-        self.pos.x + self.size.x
+        self.pos.x + self.advance_width
     }
 
     /// Same y range for all characters with the same [`TextFormat`].
     #[inline]
     pub fn logical_rect(&self) -> Rect {
-        Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size)
+        Rect::from_min_size(self.pos - vec2(0.0, self.font_ascent), self.size())
     }
 }
 

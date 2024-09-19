@@ -77,7 +77,7 @@ pub fn update_accesskit_for_text_widget(
                     value.push(glyph.chr);
                     character_lengths.push((value.len() - old_len) as _);
                     character_positions.push(glyph.pos.x - row.rect.min.x);
-                    character_widths.push(glyph.size.x);
+                    character_widths.push(glyph.advance_width);
                 }
 
                 if row.ends_with_newline {
