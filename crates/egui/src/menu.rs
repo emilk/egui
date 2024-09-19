@@ -706,7 +706,7 @@ impl MenuState {
 
             self.open_submenu(sub_id, pos);
         } else if open
-            && ui.interact_bg(Sense::hover()).contains_pointer()
+            && ui.response().contains_pointer()
             && !button.hovered()
             && !self.hovering_current_submenu(&pointer)
         {
