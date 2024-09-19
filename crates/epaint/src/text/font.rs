@@ -468,6 +468,14 @@ impl Font {
         (Some(font_impl), glyph_info)
     }
 
+    pub(crate) fn ascent(&self) -> f32 {
+        if let Some(first) = self.fonts.first() {
+            first.ascent()
+        } else {
+            self.row_height
+        }
+    }
+
     fn glyph_info_no_cache_or_fallback(&mut self, c: char) -> Option<(FontIndex, GlyphInfo)> {
         for (font_index, font_impl) in self.fonts.iter().enumerate() {
             if let Some(glyph_info) = font_impl.glyph_info(c) {

@@ -617,6 +617,14 @@ impl Ui {
         self.wrap_mode() == TextWrapMode::Wrap
     }
 
+    /// How to vertically align text
+    #[inline]
+    pub fn text_valign(&self) -> Align {
+        self.style()
+            .override_text_valign
+            .unwrap_or_else(|| self.layout().vertical_align())
+    }
+
     /// Create a painter for a sub-region of this Ui.
     ///
     /// The clip-rect of the returned [`Painter`] will be the intersection

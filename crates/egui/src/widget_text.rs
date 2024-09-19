@@ -648,7 +648,7 @@ impl WidgetText {
         available_width: f32,
         fallback_font: impl Into<FontSelection>,
     ) -> Arc<Galley> {
-        let valign = ui.layout().vertical_align();
+        let valign = ui.text_valign();
         let style = ui.style();
 
         let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());

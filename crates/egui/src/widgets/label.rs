@@ -162,7 +162,7 @@ impl Label {
             return (pos, galley, response);
         }
 
-        let valign = ui.layout().vertical_align();
+        let valign = ui.text_valign();
         let mut layout_job = self
             .text
             .into_layout_job(ui.style(), FontSelection::Default, valign);
