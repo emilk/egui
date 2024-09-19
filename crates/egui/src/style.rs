@@ -4,6 +4,7 @@
 
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
+use emath::Align;
 use epaint::{text::FontTweak, Rounding, Shadow, Stroke};
 
 use crate::{
@@ -195,6 +196,11 @@ pub struct Style {
     /// On most widgets you can also set an explicit text style,
     /// which will take precedence over this.
     pub override_font_id: Option<FontId>,
+
+    /// How to vertically align text.
+    ///
+    /// Default depends on layout.
+    pub override_text_valign: Option<Align>,
 
     /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
     ///
@@ -1201,6 +1207,7 @@ impl Default for Style {
         Self {
             override_font_id: None,
             override_text_style: None,
+            override_text_valign: None,
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
@@ -1501,6 +1508,7 @@ impl Style {
         let Self {
             override_font_id,
             override_text_style,
+            override_text_valign,
             text_styles,
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
@@ -1534,7 +1542,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Override text style");
-            crate::ComboBox::from_id_salt("Override text style")
+            crate::ComboBox::from_id_salt("override_text_style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
                     Some(override_text_style) => override_text_style.to_string(),
@@ -1546,6 +1554,28 @@ impl Style {
                         let text =
                             crate::RichText::new(style.to_string()).text_style(style.clone());
                         ui.selectable_value(override_text_style, Some(style), text);
+                    }
+                });
+            ui.end_row();
+
+            fn valign_name(valign: Align) -> &'static str {
+                match valign {
+                    Align::TOP => "Top",
+                    Align::Center => "Center",
+                    Align::BOTTOM => "Bottom",
+                }
+            }
+
+            ui.label("Override text valign");
+            crate::ComboBox::from_id_salt("override_text_valign")
+                .selected_text(match override_text_valign {
+                    None => "None",
+                    Some(override_text_valign) => valign_name(*override_text_valign),
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(override_text_valign, None, "None");
+                    for align in [Align::TOP, Align::Center, Align::BOTTOM] {
+                        ui.selectable_value(override_text_valign, Some(align), valign_name(align));
                     }
                 });
             ui.end_row();

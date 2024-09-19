@@ -620,8 +620,9 @@ impl Ui {
     /// How to vertically align text
     #[inline]
     pub fn text_valign(&self) -> Align {
-        #![allow(clippy::unused_self)]
-        Align::BOTTOM
+        self.style()
+            .override_text_valign
+            .unwrap_or_else(|| self.layout().vertical_align())
     }
 
     /// Create a painter for a sub-region of this Ui.
