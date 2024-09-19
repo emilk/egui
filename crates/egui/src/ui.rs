@@ -1023,9 +1023,9 @@ impl Ui {
     /// It's [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
     ///
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`]
-    /// of the last frame.
+    /// of the last pass.
     ///
-    /// On the first frame, when the [`Ui`] is created, this will return a [`Response`] with a
+    /// The very first time when the [`Ui`] is created, this will return a [`Response`] with a
     /// [`Rect`] of [`Rect::NOTHING`].
     pub fn response(&self) -> Response {
         // This is the inverse of Context::read_response. We prefer a response
@@ -1034,10 +1034,10 @@ impl Ui {
         self.ctx()
             .viewport(|viewport| {
                 viewport
-                    .prev_frame
+                    .prev_pass
                     .widgets
                     .get(self.id)
-                    .or_else(|| viewport.this_frame.widgets.get(self.id))
+                    .or_else(|| viewport.this_pass.widgets.get(self.id))
                     .copied()
             })
             .map(|widget_rect| self.ctx().get_response(widget_rect))
@@ -1053,7 +1053,7 @@ impl Ui {
         // We remove the id from used_ids to prevent a duplicate id warning from showing
         // when the ui was created with `UiBuilder::sense`.
         // This is a bit hacky, is there a better way?
-        self.ctx().frame_state_mut(|fs| {
+        self.ctx().pass_state_mut(|fs| {
             fs.used_ids.remove(&self.id);
         });
         // This will update the WidgetRect that was first created in `Ui::new`.
