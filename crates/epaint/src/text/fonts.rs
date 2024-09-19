@@ -278,7 +278,6 @@ impl Default for FontDefinitions {
             "NotoEmoji-Regular".to_owned(),
             FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
                 scale: 0.81,             // Make smaller
-                y_offset_factor: -0.120, // Move up
                 ..Default::default()
             }),
         );
@@ -293,7 +292,6 @@ impl Default for FontDefinitions {
             "emoji-icon-font".to_owned(),
             FontData::from_static(EMOJI_ICON).tweak(FontTweak {
                 scale: 0.90,           // Make smaller
-                y_offset_factor: 0.09, // Move down
                 ..Default::default()
             }),
         );
