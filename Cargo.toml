@@ -75,7 +75,7 @@ bytemuck = "1.18.0"
 criterion = { version = "0.5.1", default-features = false }
 document-features = " 0.2.8"
 glow = "0.14.1"
-glutin = "0.32.0"
+glutin = "0.32.1"
 glutin-winit = "0.5.0"
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
