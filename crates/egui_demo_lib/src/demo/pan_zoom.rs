@@ -114,6 +114,7 @@ impl crate::View for PanZoom {
             let id = egui::Area::new(id.with(("subarea", i)))
                 .default_pos(pos)
                 .order(egui::Order::Middle)
+                .constrain(false)
                 .show(ui.ctx(), |ui| {
                     ui.set_clip_rect(transform.inverse() * rect);
                     egui::Frame::default()
