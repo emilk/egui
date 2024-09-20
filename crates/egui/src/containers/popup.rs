@@ -87,7 +87,7 @@ pub fn show_tooltip_at_pointer<R>(
 
         // Add a small exclusion zone around the pointer to avoid tooltips
         // covering what we're hovering over.
-        let mut exclusion_rect = Rect::from_center_size(pointer_pos, Vec2::splat(24.0));
+        let mut exclusion_rect = Rect::from_center_size(pointer_pos, Vec2::splat(48.0));
 
         // Keep the left edge of the tooltip in line with the cursor:
         exclusion_rect.min.x = pointer_pos.x;
