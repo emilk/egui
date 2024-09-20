@@ -45,7 +45,7 @@ impl crate::View for FontBook {
         let available_glyphs = self
             .available_glyphs
             .entry(self.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, self.font_id.clone()));
+            .or_insert_with(|| available_characters(ui, &self.font_id));
 
         ui.label(format!(
             "The selected font supports {} characters.",
@@ -113,11 +113,11 @@ impl crate::View for FontBook {
     }
 }
 
-fn available_characters(ui: &egui::Ui, font_id: egui::FontId) -> BTreeMap<char, GlyphInfo> {
+fn available_characters(ui: &egui::Ui, font_id: &egui::FontId) -> BTreeMap<char, GlyphInfo> {
     ui.fonts(|f| {
         f.lock()
             .fonts
-            .font(&font_id)
+            .font(font_id)
             .characters()
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
