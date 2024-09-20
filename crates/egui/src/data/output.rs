@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{ViewportIdMap, ViewportOutput, WidgetType};
+use crate::{RepaintCause, ViewportIdMap, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -133,7 +133,12 @@ pub struct PlatformOutput {
     pub num_completed_passes: usize,
 
     /// Was [`crate::Context::request_discard`] called during the latest pass?
-    pub requested_discard: bool,
+    ///
+    /// If so, what was the reason(s) for it?
+    ///
+    /// If empty, there was never any calls.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub request_discard_reasons: Vec<RepaintCause>,
 }
 
 impl PlatformOutput {
@@ -167,7 +172,7 @@ impl PlatformOutput {
             #[cfg(feature = "accesskit")]
             accesskit_update,
             num_completed_passes,
-            requested_discard,
+            mut request_discard_reasons,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -181,7 +186,8 @@ impl PlatformOutput {
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
         self.num_completed_passes += num_completed_passes;
-        self.requested_discard |= requested_discard;
+        self.request_discard_reasons
+            .append(&mut request_discard_reasons);
 
         #[cfg(feature = "accesskit")]
         {
@@ -196,6 +202,11 @@ impl PlatformOutput {
         let taken = std::mem::take(self);
         self.cursor_icon = taken.cursor_icon; // everything else is ephemeral
         taken
+    }
+
+    /// Was [`crate::Context::request_discard`] called?
+    pub fn requested_discard(&self) -> bool {
+        !self.request_discard_reasons.is_empty()
     }
 }
 

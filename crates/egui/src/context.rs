@@ -284,19 +284,28 @@ pub struct ViewportState {
     pub num_multipass_in_row: usize,
 }
 
-/// What called [`Context::request_repaint`]?
-#[derive(Clone)]
+/// What called [`Context::request_repaint`] or [`Context::request_discard`]?
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct RepaintCause {
     /// What file had the call that requested the repaint?
     pub file: &'static str,
 
     /// What line number of the call that requested the repaint?
     pub line: u32,
+
+    /// Explicit reason; human readable.
+    pub reason: Cow<'static, str>,
 }
 
 impl std::fmt::Debug for RepaintCause {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.file, self.line)
+        write!(f, "{}:{} {}", self.file, self.line, self.reason)
+    }
+}
+
+impl std::fmt::Display for RepaintCause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{} {}", self.file, self.line, self.reason)
     }
 }
 
@@ -309,13 +318,21 @@ impl RepaintCause {
         Self {
             file: caller.file(),
             line: caller.line(),
+            reason: "".into(),
         }
     }
-}
 
-impl std::fmt::Display for RepaintCause {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.file, self.line)
+    /// Capture the file and line number of the call site,
+    /// as well as add a reason.
+    #[allow(clippy::new_without_default)]
+    #[track_caller]
+    pub fn new_reason(reason: impl Into<Cow<'static, str>>) -> Self {
+        let caller = Location::caller();
+        Self {
+            file: caller.file(),
+            line: caller.line(),
+            reason: reason.into(),
+        }
     }
 }
 
@@ -791,7 +808,7 @@ impl Context {
                 let viewport = ctx.viewport_for(viewport_id);
                 viewport.output.num_completed_passes =
                     std::mem::take(&mut output.platform_output.num_completed_passes);
-                output.platform_output.requested_discard = false;
+                output.platform_output.request_discard_reasons.clear();
             });
 
             self.begin_pass(new_input.take());
@@ -799,13 +816,13 @@ impl Context {
             output.append(self.end_pass());
             debug_assert!(0 < output.platform_output.num_completed_passes);
 
-            if !output.platform_output.requested_discard {
+            if !output.platform_output.requested_discard() {
                 break; // no need for another pass
             }
 
             if max_passes <= output.platform_output.num_completed_passes {
                 #[cfg(feature = "log")]
-                log::debug!("Ignoring call request_discard, because max_passes={max_passes}");
+                log::debug!("Ignoring call request_discard, because max_passes={max_passes}. Requested from {:?}", output.platform_output.request_discard_reasons);
 
                 break;
             }
@@ -1641,8 +1658,14 @@ impl Context {
     ///
     /// You should be very conservative with when you call [`Self::request_discard`],
     /// as it will cause an extra ui pass, potentially leading to extra CPU use and frame judder.
-    pub fn request_discard(&self) {
-        self.output_mut(|o| o.requested_discard = true);
+    ///
+    /// The given reason should be a human-readable string that explains why `request_discard`
+    /// was called. This will be shown in certain debug situations, to help you figure out
+    /// why a pass was discarded.
+    #[track_caller]
+    pub fn request_discard(&self, reason: impl Into<Cow<'static, str>>) {
+        let cause = RepaintCause::new_reason(reason);
+        self.output_mut(|o| o.request_discard_reasons.push(cause));
 
         #[cfg(feature = "log")]
         log::trace!(
@@ -1664,7 +1687,7 @@ impl Context {
         self.write(|ctx| {
             let vp = ctx.viewport();
             // NOTE: `num_passes` is incremented
-            vp.output.requested_discard
+            vp.output.requested_discard()
                 && vp.output.num_completed_passes + 1 < ctx.memory.options.max_passes.get()
         })
     }
@@ -2197,12 +2220,16 @@ impl Context {
         if 3 <= num_multipass_in_row {
             // If you see this message, it means we've been paying the cost of multi-pass for multiple frames in a row.
             // This is likely a bug. `request_discard` should only be called in rare situations, when some layout changes.
-            self.debug_painter().debug_text(
-                Pos2::ZERO,
-                Align2::LEFT_TOP,
-                Color32::RED,
-                format!("egui PERF WARNING: request_discard has been called {num_multipass_in_row} frames in a row"),
-            );
+
+            let mut warning = format!("egui PERF WARNING: request_discard has been called {num_multipass_in_row} frames in a row");
+            self.viewport(|vp| {
+                for reason in &vp.output.request_discard_reasons {
+                    warning += &format!("\n  {reason}");
+                }
+            });
+
+            self.debug_painter()
+                .debug_text(Pos2::ZERO, Align2::LEFT_TOP, Color32::RED, warning);
         }
     }
 }
@@ -3734,12 +3761,12 @@ mod test {
             let output = ctx.run(Default::default(), |ctx| {
                 num_calls += 1;
                 assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
-                assert!(!ctx.output(|o| o.requested_discard));
+                assert!(!ctx.output(|o| o.requested_discard()));
                 assert!(!ctx.will_discard());
             });
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
-            assert!(!output.platform_output.requested_discard);
+            assert!(!output.platform_output.requested_discard());
         }
 
         // A single call, with a denied request to discard:
@@ -3747,14 +3774,23 @@ mod test {
             let mut num_calls = 0;
             let output = ctx.run(Default::default(), |ctx| {
                 num_calls += 1;
-                ctx.request_discard();
+                ctx.request_discard("test");
                 assert!(!ctx.will_discard(), "The request should have been denied");
             });
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
             assert!(
-                output.platform_output.requested_discard,
+                output.platform_output.requested_discard(),
                 "The request should be reported"
+            );
+            assert_eq!(
+                output
+                    .platform_output
+                    .request_discard_reasons
+                    .first()
+                    .unwrap()
+                    .reason,
+                "test"
             );
         }
     }
@@ -3769,13 +3805,13 @@ mod test {
             let mut num_calls = 0;
             let output = ctx.run(Default::default(), |ctx| {
                 assert_eq!(ctx.output(|o| o.num_completed_passes), 0);
-                assert!(!ctx.output(|o| o.requested_discard));
+                assert!(!ctx.output(|o| o.requested_discard()));
                 assert!(!ctx.will_discard());
                 num_calls += 1;
             });
             assert_eq!(num_calls, 1);
             assert_eq!(output.platform_output.num_completed_passes, 1);
-            assert!(!output.platform_output.requested_discard);
+            assert!(!output.platform_output.requested_discard());
         }
 
         // Request discard once:
@@ -3786,7 +3822,7 @@ mod test {
 
                 assert!(!ctx.will_discard());
                 if num_calls == 0 {
-                    ctx.request_discard();
+                    ctx.request_discard("test");
                     assert!(ctx.will_discard());
                 }
 
@@ -3795,7 +3831,7 @@ mod test {
             assert_eq!(num_calls, 2);
             assert_eq!(output.platform_output.num_completed_passes, 2);
             assert!(
-                !output.platform_output.requested_discard,
+                !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
         }
@@ -3807,7 +3843,7 @@ mod test {
                 assert_eq!(ctx.output(|o| o.num_completed_passes), num_calls);
 
                 assert!(!ctx.will_discard());
-                ctx.request_discard();
+                ctx.request_discard("test");
                 if num_calls == 0 {
                     assert!(ctx.will_discard(), "First request granted");
                 } else {
@@ -3819,7 +3855,7 @@ mod test {
             assert_eq!(num_calls, 2);
             assert_eq!(output.platform_output.num_completed_passes, 2);
             assert!(
-                output.platform_output.requested_discard,
+                output.platform_output.requested_discard(),
                 "The unfulfilled request should be reported"
             );
         }
@@ -3838,7 +3874,7 @@ mod test {
 
                 assert!(!ctx.will_discard());
                 if num_calls <= 2 {
-                    ctx.request_discard();
+                    ctx.request_discard("test");
                     assert!(ctx.will_discard());
                 }
 
@@ -3847,7 +3883,7 @@ mod test {
             assert_eq!(num_calls, 4);
             assert_eq!(output.platform_output.num_completed_passes, 4);
             assert!(
-                !output.platform_output.requested_discard,
+                !output.platform_output.requested_discard(),
                 "The request should have been cleared when fulfilled"
             );
         }
