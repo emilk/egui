@@ -28,7 +28,7 @@ web_app = ["http", "persistence"]
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui/persistence", "serde", "egui_extras/serde"]
-puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http"]
+puffin = ["dep:puffin", "dep:puffin_http", "eframe/puffin", "profiling/profile-with-puffin" ]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
 
@@ -49,6 +49,7 @@ egui = { workspace = true, features = ["callstack", "default", "log"] }
 egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 log.workspace = true
+profiling.workspace = true
 
 # Optional dependencies:
 

@@ -1287,6 +1287,7 @@ dependencies = [
  "image",
  "log",
  "poll-promise",
+ "profiling",
  "puffin",
  "puffin_http",
  "rfd",
@@ -3121,6 +3122,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f0f7f43585c34e4fdd7497d746bc32e14458cf11c69341cc0587b1d825dde42"
 dependencies = [
  "profiling-procmacros",
+ "puffin",
 ]
 
 [[package]]
