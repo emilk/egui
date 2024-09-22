@@ -16,15 +16,15 @@ use crate::{
 };
 
 // ----------------------------------------------------------------------------
+#[profiling::function]
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
-    crate::profile_function!();
     let mut builder = winit::event_loop::EventLoop::with_user_event();
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
         hook(&mut builder);
     }
 
-    crate::profile_scope!("EventLoopBuilder::build");
+    profiling::scope!("EventLoopBuilder::build");
     Ok(builder.build()?)
 }
 
@@ -175,7 +175,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
 
 impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     fn suspended(&mut self, event_loop: &ActiveEventLoop) {
-        crate::profile_function!("Event::Suspended");
+        profiling::scope!("Event::Suspended");
 
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = self.winit_app.suspended(event_loop);
@@ -184,7 +184,7 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        crate::profile_function!("Event::Resumed");
+        profiling::scope!("Event::Resumed");
 
         // Nb: Make sure this guard is dropped after this function returns.
         event_loop_context::with_event_loop_context(event_loop, move || {
@@ -208,7 +208,10 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         device_id: winit::event::DeviceId,
         event: winit::event::DeviceEvent,
     ) {
-        crate::profile_function!(egui_winit::short_device_event_description(&event));
+        profiling::scope!(
+            "device_event",
+            egui_winit::short_device_event_description(&event)
+        );
 
         // Nb: Make sure this guard is dropped after this function returns.
         event_loop_context::with_event_loop_context(event_loop, move || {
@@ -218,11 +221,14 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
-        crate::profile_function!(match &event {
-            UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
-            #[cfg(feature = "accesskit")]
-            UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
-        });
+        profiling::scope!(
+            "user_event",
+            match &event {
+                UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
+                #[cfg(feature = "accesskit")]
+                UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
+            }
+        );
 
         event_loop_context::with_event_loop_context(event_loop, move || {
             let event_result = match event {
@@ -274,7 +280,10 @@ impl<T: WinitApp> ApplicationHandler<UserEvent> for WinitAppWrapper<T> {
         window_id: WindowId,
         event: winit::event::WindowEvent,
     ) {
-        crate::profile_function!(egui_winit::short_window_event_description(&event));
+        profiling::scope!(
+            "window_event",
+            egui_winit::short_window_event_description(&event)
+        );
 
         // Nb: Make sure this guard is dropped after this function returns.
         event_loop_context::with_event_loop_context(event_loop, move || {

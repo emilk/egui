@@ -71,15 +71,6 @@ persistence = [
   "serde",
 ]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = [
-  "dep:puffin"
-]
-
 ## Enables wayland support and fixes clipboard issue.
 wayland = ["egui-winit/wayland", "egui-wgpu?/wayland", "egui_glow?/wayland"]
 
@@ -155,7 +146,7 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 glutin = { workspace = true, optional = true }
 glutin-winit = { workspace = true, optional = true }
 home = { workspace = true, optional = true }
-puffin = { workspace = true, optional = true }
+profiling.workspace = true
 wgpu = { workspace = true, optional = true, features = [
   # Let's enable some backends so that users can use `eframe` out-of-the-box
   # without having to explicitly opt-in to backends

@@ -21,8 +21,8 @@ pub trait IconDataExt {
 ///
 /// # Errors
 /// If this is not a valid png.
+#[profiling::function]
 pub fn from_png_bytes(png_bytes: &[u8]) -> Result<IconData, image::ImageError> {
-    crate::profile_function!();
     let image = image::load_from_memory(png_bytes)?;
     Ok(from_image(image))
 }
@@ -37,8 +37,8 @@ fn from_image(image: image::DynamicImage) -> IconData {
 }
 
 impl IconDataExt for IconData {
+    #[profiling::function]
     fn to_image(&self) -> Result<image::RgbaImage, String> {
-        crate::profile_function!();
         let Self {
             rgba,
             width,
@@ -47,8 +47,8 @@ impl IconDataExt for IconData {
         image::RgbaImage::from_raw(width, height, rgba).ok_or_else(|| "Invalid IconData".to_owned())
     }
 
+    #[profiling::function]
     fn to_png_bytes(&self) -> Result<Vec<u8>, String> {
-        crate::profile_function!();
         let image = self.to_image()?;
         let mut png_bytes: Vec<u8> = Vec::new();
         image

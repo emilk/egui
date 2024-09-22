@@ -58,9 +58,8 @@ enum AppIconStatus {
 ///
 /// Since window creation can be lazy, call this every frame until it's either successfully or gave up.
 /// (See [`AppIconStatus`])
+#[profiling::function]
 fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconStatus {
-    crate::profile_function!();
-
     #[cfg(target_os = "windows")]
     {
         if let Some(icon_data) = _icon_data {

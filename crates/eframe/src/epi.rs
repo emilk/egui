@@ -815,7 +815,7 @@ impl Storage for DummyStorage {
 /// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
-    crate::profile_function!(key);
+    profiling::scope!("get_value", key);
     storage
         .get_string(key)
         .and_then(|value| match ron::from_str(&value) {
@@ -831,7 +831,7 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
 #[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    crate::profile_function!(key);
+    profiling::scope!("set_value", key);
     match ron::ser::to_string(value) {
         Ok(string) => storage.set_string(key, string),
         Err(err) => log::error!("eframe failed to encode data using ron: {}", err),

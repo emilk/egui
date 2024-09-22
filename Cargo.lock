@@ -1201,7 +1201,7 @@ dependencies = [
  "parking_lot",
  "percent-encoding",
  "pollster",
- "puffin",
+ "profiling",
  "raw-window-handle 0.6.2",
  "ron",
  "serde",
