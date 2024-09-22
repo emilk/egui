@@ -172,7 +172,6 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub dark_style: std::sync::Arc<Style>,
 
-
     /// The default style for new [`Ui`](crate::Ui):s in light mode.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub light_style: std::sync::Arc<Style>,
@@ -188,7 +187,6 @@ pub struct Options {
     ///
     /// Default: [`crate::Theme::Dark`].
     pub fallback_theme: Theme,
-
 
     /// The current system theme, used to choose between
     /// dark and light style in case [`Self::theme_preference`] is [`ThemePreference::System`].
