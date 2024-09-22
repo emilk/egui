@@ -92,14 +92,14 @@ impl RenderState {
         msaa_samples: u32,
         dithering: bool,
     ) -> Result<Self, WgpuError> {
-        crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
+        profiling::scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
         // This is always an empty list on web.
         #[cfg(not(target_arch = "wasm32"))]
         let available_adapters = instance.enumerate_adapters(wgpu::Backends::all());
 
         let adapter = {
-            crate::profile_scope!("request_adapter");
+            profiling::scope!("request_adapter");
             instance
                 .request_adapter(&wgpu::RequestAdapterOptions {
                     power_preference: config.power_preference,
@@ -153,13 +153,13 @@ impl RenderState {
         }
 
         let capabilities = {
-            crate::profile_scope!("get_capabilities");
+            profiling::scope!("get_capabilities");
             surface.get_capabilities(&adapter).formats
         };
         let target_format = crate::preferred_framebuffer_format(&capabilities)?;
 
         let (device, queue) = {
-            crate::profile_scope!("request_device");
+            profiling::scope!("request_device");
             adapter
                 .request_device(&(*config.device_descriptor)(&adapter), None)
                 .await?
@@ -407,33 +407,3 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
 
     summary
 }
-
-// ---------------------------------------------------------------------------
-
-mod profiling_scopes {
-    #![allow(unused_macros)]
-    #![allow(unused_imports)]
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_function {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_function!($($arg)*);
-        };
-    }
-    pub(crate) use profile_function;
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_scope {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_scope!($($arg)*);
-        };
-    }
-    pub(crate) use profile_scope;
-}
-
-#[allow(unused_imports)]
-pub(crate) use profiling_scopes::{profile_function, profile_scope};

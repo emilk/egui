@@ -1243,7 +1243,7 @@ dependencies = [
  "egui",
  "epaint",
  "log",
- "puffin",
+ "profiling",
  "thiserror",
  "type-map",
  "web-time",

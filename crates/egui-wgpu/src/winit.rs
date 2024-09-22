@@ -145,13 +145,12 @@ impl Painter {
         self.render_state.clone()
     }
 
+    #[profiling::function]
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
         config: &WgpuConfiguration,
     ) {
-        crate::profile_function!();
-
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
@@ -208,7 +207,7 @@ impl Painter {
         viewport_id: ViewportId,
         window: Option<Arc<winit::window::Window>>,
     ) -> Result<(), crate::WgpuError> {
-        crate::profile_scope!("Painter::set_window"); // profile_function gives bad names for async functions
+        profiling::scope!("Painter::set_window"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
             let size = window.inner_size();
@@ -234,7 +233,7 @@ impl Painter {
         viewport_id: ViewportId,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
-        crate::profile_scope!("Painter::set_window_unsafe"); // profile_function gives bad names for async functions
+        profiling::scope!("Painter::set_window_unsafe"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
             let size = window.inner_size();
@@ -322,14 +321,13 @@ impl Painter {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
+    #[profiling::function]
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
         viewport_id: ViewportId,
         width_in_pixels: NonZeroU32,
         height_in_pixels: NonZeroU32,
     ) {
-        crate::profile_function!();
-
         let width = width_in_pixels.get();
         let height = height_in_pixels.get();
 
@@ -393,14 +391,13 @@ impl Painter {
         };
     }
 
+    #[profiling::function]
     pub fn on_window_resized(
         &mut self,
         viewport_id: ViewportId,
         width_in_pixels: NonZeroU32,
         height_in_pixels: NonZeroU32,
     ) {
-        crate::profile_function!();
-
         if self.surfaces.contains_key(&viewport_id) {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
                 viewport_id,
@@ -515,6 +512,7 @@ impl Painter {
     ///
     /// The approximate number of seconds spent on vsync-waiting (if any),
     /// and the captures captured screenshot if it was requested.
+    #[profiling::function]
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -524,8 +522,6 @@ impl Painter {
         textures_delta: &epaint::textures::TexturesDelta,
         capture: bool,
     ) -> (f32, Option<epaint::ColorImage>) {
-        crate::profile_function!();
-
         let mut vsync_sec = 0.0;
 
         let Some(render_state) = self.render_state.as_mut() else {
@@ -578,7 +574,7 @@ impl Painter {
         };
 
         let output_frame = {
-            crate::profile_scope!("get_current_texture");
+            profiling::scope!("get_current_texture");
             // This is what vsync-waiting happens on my Mac.
             let start = web_time::Instant::now();
             let output_frame = surface_state.surface.get_current_texture();
@@ -669,13 +665,13 @@ impl Painter {
         }
 
         let encoded = {
-            crate::profile_scope!("CommandEncoder::finish");
+            profiling::scope!("CommandEncoder::finish");
             encoder.finish()
         };
 
         // Submit the commands: both the main buffer and user-defined ones.
         {
-            crate::profile_scope!("Queue::submit");
+            profiling::scope!("Queue::submit");
             // wgpu doesn't document where vsync can happen. Maybe here?
             let start = web_time::Instant::now();
             render_state
@@ -695,7 +691,7 @@ impl Painter {
         };
 
         {
-            crate::profile_scope!("present");
+            profiling::scope!("present");
             // wgpu doesn't document where vsync can happen. Maybe here?
             let start = web_time::Instant::now();
             output_frame.present();

@@ -77,8 +77,7 @@ persistence = [
 ##
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
 puffin = [
-  "dep:puffin",
-  "egui-wgpu?/puffin"
+  "dep:puffin"
 ]
 
 ## Enables wayland support and fixes clipboard issue.
