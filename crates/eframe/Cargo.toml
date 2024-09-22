@@ -79,8 +79,7 @@ persistence = [
 puffin = [
   "dep:puffin",
   "egui_glow?/puffin",
-  "egui-wgpu?/puffin",
-  "egui-winit/puffin",
+  "egui-wgpu?/puffin"
 ]
 
 ## Enables wayland support and fixes clipboard issue.

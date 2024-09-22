@@ -1262,7 +1262,7 @@ dependencies = [
  "egui",
  "log",
  "nix",
- "puffin",
+ "profiling",
  "raw-window-handle 0.6.2",
  "serde",
  "smithay-clipboard",

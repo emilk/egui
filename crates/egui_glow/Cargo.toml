@@ -40,7 +40,7 @@ clipboard = ["egui-winit?/clipboard"]
 links = ["egui-winit?/links"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin", "egui-winit?/puffin" ]
+puffin = ["dep:puffin" ]
 
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["egui-winit", "dep:winit"]
