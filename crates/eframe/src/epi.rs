@@ -772,7 +772,7 @@ pub struct IntegrationInfo {
     ///
     /// This includes [`App::update`] as well as rendering (except for vsync waiting).
     ///
-    /// For a more detailed view of cpu usage, connect your prefered profiler by enabling it's feature in [`profiling`](https://crates.io/crates/profiling).
+    /// For a more detailed view of cpu usage, connect your preferred profiler by enabling it's feature in [`profiling`](https://crates.io/crates/profiling).
     ///
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
