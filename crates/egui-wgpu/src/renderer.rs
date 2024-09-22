@@ -878,7 +878,7 @@ impl Renderer {
         };
 
         if index_count > 0 {
-            profiling::scope!("indices", index_count.to_string());
+            profiling::scope!("indices", index_count.to_string().as_str());
 
             self.index_buffer.slices.clear();
 
@@ -916,7 +916,7 @@ impl Renderer {
             }
         }
         if vertex_count > 0 {
-            profiling::scope!("vertices", vertex_count.to_string());
+            profiling::scope!("vertices", vertex_count.to_string().as_str());
 
             self.vertex_buffer.slices.clear();
 

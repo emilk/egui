@@ -22,6 +22,9 @@ fn main() -> eframe::Result {
         }
     }
 
+    #[cfg(feature = "tracy")]
+    tracy_client::Client::start();
+
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
         let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| {
@@ -51,6 +54,7 @@ fn main() -> eframe::Result {
 
         ..Default::default()
     };
+
     eframe::run_native(
         "egui demo app",
         options,

@@ -20,7 +20,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["glow", "persistence"]
+default = ["glow", "persistence" ]
 
 # image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
@@ -29,6 +29,7 @@ http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui/persistence", "serde", "egui_extras/serde"]
 puffin = ["dep:puffin", "dep:puffin_http", "profiling/profile-with-puffin" ]
+tracy = ["dep:tracy-client", "profiling/profile-with-tracy", "tracy-client/enable" ]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
 
@@ -76,6 +77,7 @@ env_logger = { version = "0.10", default-features = false, features = [
   "humantime",
 ] }
 rfd = { version = "0.13", optional = true }
+tracy-client = { version = "0.17", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

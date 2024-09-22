@@ -797,7 +797,11 @@ impl Context {
         loop {
             profiling::scope!(
                 "pass",
-                output.platform_output.num_completed_passes.to_string()
+                output
+                    .platform_output
+                    .num_completed_passes
+                    .to_string()
+                    .as_str()
             );
 
             // We must move the `num_passes` (back) to the viewport output so that [`Self::will_discard`]
