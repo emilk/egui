@@ -46,7 +46,7 @@ clipboard = ["arboard", "smithay-clipboard"]
 links = ["webbrowser"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin", "egui/puffin"]
+puffin = ["dep:puffin" ]
 
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]

@@ -109,13 +109,13 @@ struct Plugins {
 
 impl Plugins {
     fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
-        crate::profile_scope!("plugins", _cb_name);
+        profiling::scope!("plugins", _cb_name);
         for NamedContextCallback {
             debug_name: _name,
             callback,
         } in callbacks
         {
-            crate::profile_scope!("plugin", _name);
+            profiling::scope!("plugin", _name);
             (callback)(ctx);
         }
     }
@@ -549,7 +549,7 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
-            crate::profile_scope!("accesskit");
+            profiling::scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
             let id = crate::accesskit_root_id();
             let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
@@ -567,9 +567,8 @@ impl ContextImpl {
     }
 
     /// Load fonts unless already loaded.
+    #[profiling::function]
     fn update_fonts_mut(&mut self) {
-        crate::profile_function!();
-
         let input = &self.viewport().input;
         let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
@@ -592,7 +591,7 @@ impl ContextImpl {
                 log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
 
                 is_new = true;
-                crate::profile_scope!("Fonts::new");
+                profiling::scope!("Fonts::new");
                 Fonts::new(
                     pixels_per_point,
                     max_texture_side,
@@ -601,12 +600,12 @@ impl ContextImpl {
             });
 
         {
-            crate::profile_scope!("Fonts::begin_pass");
+            profiling::scope!("Fonts::begin_pass");
             fonts.begin_pass(pixels_per_point, max_texture_side);
         }
 
         if is_new && self.memory.options.preload_font_glyphs {
-            crate::profile_scope!("preload_font_glyphs");
+            profiling::scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
             for font_id in self.memory.options.style().text_styles.values() {
@@ -787,9 +786,8 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
+    #[profiling::function]
     pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
-        crate::profile_function!();
-
         let viewport_id = new_input.viewport_id;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
@@ -797,7 +795,7 @@ impl Context {
         debug_assert_eq!(output.platform_output.num_completed_passes, 0);
 
         loop {
-            crate::profile_scope!(
+            profiling::scope!(
                 "pass",
                 output.platform_output.num_completed_passes.to_string()
             );
@@ -861,9 +859,8 @@ impl Context {
     /// let full_output = ctx.end_pass();
     /// // handle full_output
     /// ```
+    #[profiling::function]
     pub fn begin_pass(&self, new_input: RawInput) {
-        crate::profile_function!();
-
         self.write(|ctx| ctx.begin_pass(new_input));
 
         // Plugins run just after the pass starts:
@@ -1727,9 +1724,8 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass.
+    #[profiling::function]
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        crate::profile_function!();
-
         let pixels_per_point = self.pixels_per_point();
 
         let mut update_fonts = true;
@@ -2073,9 +2069,8 @@ impl Context {
 impl Context {
     /// Call at the end of each frame if you called [`Context::begin_pass`].
     #[must_use]
+    #[profiling::function]
     pub fn end_pass(&self) -> FullOutput {
-        crate::profile_function!();
-
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
@@ -2264,7 +2259,7 @@ impl ContextImpl {
                 // https://github.com/emilk/egui/issues/3664
                 // at the cost of a lot of performance.
                 // (This will override any smaller delta that was uploaded above.)
-                crate::profile_scope!("full_font_atlas_update");
+                profiling::scope!("full_font_atlas_update");
                 let full_delta = ImageDelta::full(fonts.image(), TextureAtlas::texture_options());
                 tex_mngr.set(TextureId::default(), full_delta);
             }
@@ -2278,7 +2273,7 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         {
-            crate::profile_scope!("accesskit");
+            profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
@@ -2308,7 +2303,7 @@ impl ContextImpl {
         let mut repaint_needed = false;
 
         if self.memory.options.repaint_on_widget_change {
-            crate::profile_function!("compare-widget-rects");
+            profiling::scope!("compare-widget-rects");
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
                 repaint_needed = true; // Some widget has moved
             }
@@ -2442,13 +2437,12 @@ impl Context {
     /// `pixels_per_point` is used for feathering (anti-aliasing).
     /// For this you can use [`FullOutput::pixels_per_point`], [`Self::pixels_per_point`],
     /// or whatever is appropriate for your viewport.
+    #[profiling::function]
     pub fn tessellate(
         &self,
         shapes: Vec<ClippedShape>,
         pixels_per_point: f32,
     ) -> Vec<ClippedPrimitive> {
-        crate::profile_function!();
-
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
@@ -2474,7 +2468,7 @@ impl Context {
 
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {
-                crate::profile_scope!("tessellator::tessellate_shapes");
+                profiling::scope!("tessellator::tessellate_shapes");
                 tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
@@ -3270,10 +3264,9 @@ impl Context {
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
+    #[profiling::function]
     pub fn forget_image(&self, uri: &str) {
         use load::BytesLoader as _;
-
-        crate::profile_function!();
 
         let loaders = self.loaders();
 
@@ -3292,10 +3285,9 @@ impl Context {
     /// Release all memory and textures related to images used in [`Ui::image`] or [`crate::Image`].
     ///
     /// If you attempt to load any images again, they will be reloaded from scratch.
+    #[profiling::function]
     pub fn forget_all_images(&self) {
         use load::BytesLoader as _;
-
-        crate::profile_function!();
 
         let loaders = self.loaders();
 
@@ -3330,7 +3322,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
-        crate::profile_function!(uri);
+        profiling::scope!("try_load_bytes", uri);
 
         let loaders = self.loaders();
         let bytes_loaders = loaders.bytes.lock();
@@ -3367,7 +3359,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
-        crate::profile_function!(uri);
+        profiling::scope!("try_load_image", uri);
 
         let loaders = self.loaders();
         let image_loaders = loaders.image.lock();
@@ -3410,7 +3402,7 @@ impl Context {
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        crate::profile_function!(uri);
+        profiling::scope!("try_load_texture", uri);
 
         let loaders = self.loaders();
         let texture_loaders = loaders.texture.lock();
@@ -3427,8 +3419,8 @@ impl Context {
     }
 
     /// The loaders of bytes, images, and textures.
+    #[profiling::function]
     pub fn loaders(&self) -> Arc<Loaders> {
-        crate::profile_function!();
         self.read(|this| this.loaders.clone())
     }
 }
@@ -3554,14 +3546,13 @@ impl Context {
     /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
     ///
     /// See [`crate::viewport`] for more information about viewports.
+    #[profiling::function]
     pub fn show_viewport_deferred(
         &self,
         new_viewport_id: ViewportId,
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Self, ViewportClass) + Send + Sync + 'static,
     ) {
-        crate::profile_function!();
-
         if self.embed_viewports() {
             viewport_ui_cb(self, ViewportClass::Embedded);
         } else {
@@ -3606,14 +3597,13 @@ impl Context {
     /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
     ///
     /// See [`crate::viewport`] for more information about viewports.
+    #[profiling::function]
     pub fn show_viewport_immediate<T>(
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
         mut viewport_ui_cb: impl FnMut(&Self, ViewportClass) -> T,
     ) -> T {
-        crate::profile_function!();
-
         if self.embed_viewports() {
             return viewport_ui_cb(self, ViewportClass::Embedded);
         }

@@ -62,10 +62,6 @@ mint = ["epaint/mint"]
 ## Enable persistence of memory (window positions etc).
 persistence = ["serde", "epaint/serde", "ron"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin" ]
 
 ## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
 ##
@@ -95,6 +91,6 @@ backtrace = { workspace = true, optional = true }
 document-features = { workspace = true, optional = true }
 
 log = { workspace = true, optional = true }
-puffin = { workspace = true, optional = true }
+profiling.workspace=true
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }

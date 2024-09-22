@@ -56,7 +56,7 @@ image = ["dep:image"]
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 ##
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin", "egui/puffin"]
+puffin = ["dep:puffin" ]
 
 ## Derive serde Serialize/Deserialize on stateful structs
 serde = ["egui/serde", "dep:serde"]
