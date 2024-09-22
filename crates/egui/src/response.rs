@@ -343,7 +343,7 @@ impl Response {
     /// To find out which button(s), use [`Self::dragged_by`].
     ///
     /// If the widget is only sensitive to drags, this is `true` as soon as the pointer presses down on it.
-    /// If the widget is also sensitive to drags, this won't be true until the pointer has moved a bit,
+    /// If the widget also senses clicks, this won't be true until the pointer has moved a bit,
     /// or the user has pressed down for long enough.
     /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
     ///
