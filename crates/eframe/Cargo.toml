@@ -117,6 +117,7 @@ parking_lot.workspace = true
 raw-window-handle.workspace = true
 static_assertions = "1.1.0"
 web-time.workspace = true
+profiling.workspace = true
 
 # Optional dependencies
 
@@ -146,7 +147,6 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 glutin = { workspace = true, optional = true }
 glutin-winit = { workspace = true, optional = true }
 home = { workspace = true, optional = true }
-profiling.workspace = true
 wgpu = { workspace = true, optional = true, features = [
   # Let's enable some backends so that users can use `eframe` out-of-the-box
   # without having to explicitly opt-in to backends
