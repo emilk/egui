@@ -164,6 +164,10 @@ pub struct TextureOptions {
     ///
     /// Mipmaps ensures textures look smooth even when the texture is very small and pixels are much
     /// larger than individual texels.
+    ///
+    /// # Notes
+    ///
+    /// - This may not be available on all backends (currently only `egui_glow`).
     pub mipmap_mode: Option<TextureFilter>,
 }
 
