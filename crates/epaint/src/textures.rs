@@ -159,6 +159,12 @@ pub struct TextureOptions {
 
     /// How to wrap the texture when the texture coordinates are outside the [0, 1] range.
     pub wrap_mode: TextureWrapMode,
+
+    /// How to filter between texture mipmaps.
+    ///
+    /// Mipmaps ensures textures look smooth even when the texture is very small and pixels are much
+    /// larger than individual texels.
+    pub mipmap_mode: Option<TextureFilter>,
 }
 
 impl TextureOptions {
@@ -167,6 +173,7 @@ impl TextureOptions {
         magnification: TextureFilter::Linear,
         minification: TextureFilter::Linear,
         wrap_mode: TextureWrapMode::ClampToEdge,
+        mipmap_mode: None,
     };
 
     /// Nearest magnification and minification.
@@ -174,6 +181,7 @@ impl TextureOptions {
         magnification: TextureFilter::Nearest,
         minification: TextureFilter::Nearest,
         wrap_mode: TextureWrapMode::ClampToEdge,
+        mipmap_mode: None,
     };
 
     /// Linear magnification and minification, but with the texture repeated.
@@ -181,6 +189,7 @@ impl TextureOptions {
         magnification: TextureFilter::Linear,
         minification: TextureFilter::Linear,
         wrap_mode: TextureWrapMode::Repeat,
+        mipmap_mode: None,
     };
 
     /// Linear magnification and minification, but with the texture mirrored and repeated.
@@ -188,6 +197,7 @@ impl TextureOptions {
         magnification: TextureFilter::Linear,
         minification: TextureFilter::Linear,
         wrap_mode: TextureWrapMode::MirroredRepeat,
+        mipmap_mode: None,
     };
 
     /// Nearest magnification and minification, but with the texture repeated.
@@ -195,6 +205,7 @@ impl TextureOptions {
         magnification: TextureFilter::Nearest,
         minification: TextureFilter::Nearest,
         wrap_mode: TextureWrapMode::Repeat,
+        mipmap_mode: None,
     };
 
     /// Nearest magnification and minification, but with the texture mirrored and repeated.
@@ -202,7 +213,15 @@ impl TextureOptions {
         magnification: TextureFilter::Nearest,
         minification: TextureFilter::Nearest,
         wrap_mode: TextureWrapMode::MirroredRepeat,
+        mipmap_mode: None,
     };
+
+    pub const fn with_mipmap_mode(self, mipmap_mode: Option<TextureFilter>) -> Self {
+        Self {
+            mipmap_mode,
+            ..self
+        }
+    }
 }
 
 impl Default for TextureOptions {
