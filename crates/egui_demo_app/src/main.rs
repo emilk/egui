@@ -22,9 +22,6 @@ fn main() -> eframe::Result {
         }
     }
 
-    #[cfg(feature = "tracy")]
-    tracy_client::Client::start();
-
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
         let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| {
