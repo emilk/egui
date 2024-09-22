@@ -17,7 +17,7 @@ macro_rules! hex_color {
         if array.len() == 3 {
             $crate::Color32::from_rgb(array[0], array[1], array[2])
         } else {
-            #[allow(unconditional_panic)]
+            #[allow(unconditional_panic, clippy::out_of_bounds_indexing)]
             $crate::Color32::from_rgba_unmultiplied(array[0], array[1], array[2], array[3])
         }
     }};

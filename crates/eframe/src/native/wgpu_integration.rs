@@ -491,7 +491,7 @@ impl<'app> WgpuWinitRunning<'app> {
     fn save_and_destroy(&mut self) {
         crate::profile_function!();
 
-        let mut shared = self.shared.borrow_mut();
+        let shared = self.shared.borrow_mut();
         if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
             self.integration.save(self.app.as_mut(), window.as_deref());
         }

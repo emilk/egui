@@ -89,11 +89,11 @@ impl TextEditState {
         self.undoer.lock().clone()
     }
 
-    pub fn set_undoer(&mut self, undoer: TextEditUndoer) {
+    pub fn set_undoer(&self, undoer: TextEditUndoer) {
         *self.undoer.lock() = undoer;
     }
 
-    pub fn clear_undoer(&mut self) {
+    pub fn clear_undoer(&self) {
         self.set_undoer(TextEditUndoer::default());
     }
 

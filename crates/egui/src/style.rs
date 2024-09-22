@@ -288,7 +288,7 @@ pub struct Style {
     /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
     pub always_scroll_the_only_direction: bool,
 
-    /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [Ui::scroll_to_rect].
+    /// The animation that should be used when scrolling a [`crate::ScrollArea`] using e.g. [`Ui::scroll_to_rect`].
     pub scroll_animation: ScrollAnimation,
 }
 

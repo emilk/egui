@@ -211,8 +211,8 @@ impl CubicBezierShape {
     /// + t^2 * ( (3 * P2.x - 6 * P1.x + 3 * P0.x) * (P3.y - P0.y) - (3 * P2.y - 6 * P1.y + 3 * P0.y) * (P3.x - P0.x))
     /// + t^1 * ( (3 * P1.x - 3 * P0.x) * (P3.y - P0.y) - (3 * P1.y - 3 * P0.y) * (P3.x - P0.x))
     /// + (P0.x * (P3.y - P0.y) - P0.y * (P3.x - P0.x)) + P0.x * (P0.y - P3.y) + P0.y * (P3.x - P0.x)
-    /// = 0
-    /// or a * t^3 + b * t^2 + c * t + d = 0
+    ///         = 0
+    ///         or a * t^3 + b * t^2 + c * t + d = 0
     ///
     /// let x = t - b / (3 * a), then we have:
     /// x^3 + p * x + q = 0, where:

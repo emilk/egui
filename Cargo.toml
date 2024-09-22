@@ -22,7 +22,7 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.76"
+rust-version = "1.81"
 version = "0.28.1"
 
 
@@ -100,12 +100,13 @@ winit = { version = "0.30.5", default-features = false }
 unsafe_code = "deny"
 
 elided_lifetimes_in_paths = "warn"
-future_incompatible = "warn"
-nonstandard_style = "warn"
-rust_2018_idioms = "warn"
+# future_incompatible = "warn"
+# nonstandard_style = "warn"
+# rust_2018_idioms = "warn"
 rust_2021_prelude_collisions = "warn"
 semicolon_in_expressions_from_macros = "warn"
 trivial_numeric_casts = "warn"
+unexpected_cfgs = "warn"
 unsafe_op_in_unsafe_fn = "warn"               # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
 unused_extern_crates = "warn"
 unused_import_braces = "warn"
@@ -191,7 +192,7 @@ match_same_arms = "warn"
 match_wild_err_arm = "warn"
 match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
-mismatched_target_os = "warn"
+# mismatched_target_os = "warn"               # renamed
 mismatching_type_param_order = "warn"
 missing_enforced_import_renames = "warn"
 missing_errors_doc = "warn"
