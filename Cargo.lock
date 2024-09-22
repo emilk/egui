@@ -1344,7 +1344,7 @@ dependencies = [
  "glutin-winit",
  "log",
  "memoffset 0.9.0",
- "puffin",
+ "profiling",
  "wasm-bindgen",
  "web-sys",
  "winit",
