@@ -508,14 +508,13 @@ struct Highlighter {}
 #[cfg(not(feature = "syntect"))]
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
+    #[profiling::function]
     fn highlight_impl(
         &self,
         theme: &CodeTheme,
         mut text: &str,
         language: &str,
     ) -> Option<LayoutJob> {
-        crate::profile_function!();
-
         let language = Language::new(language)?;
 
         // Extremely simple syntax highlighter for when we compile without syntect

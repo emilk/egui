@@ -1324,7 +1324,7 @@ dependencies = [
  "image",
  "log",
  "mime_guess2",
- "puffin",
+ "profiling",
  "resvg",
  "serde",
  "syntect",
