@@ -115,7 +115,7 @@ pub trait CallbackTrait: Send + Sync {
     fn paint<'a>(
         &'a self,
         info: PaintCallbackInfo,
-        render_pass: &mut wgpu::RenderPass<'a>,
+        render_pass: &mut wgpu::RenderPass<'static>,
         callback_resources: &'a CallbackResources,
     );
 }
@@ -408,10 +408,16 @@ impl Renderer {
     }
 
     /// Executes the egui renderer onto an existing wgpu renderpass.
-    pub fn render<'rp>(
-        &'rp self,
-        render_pass: &mut wgpu::RenderPass<'rp>,
-        paint_jobs: &'rp [epaint::ClippedPrimitive],
+    ///
+    /// Note that the lifetime of `render_pass` is `'static` which requires a call to `wgpu::RenderPass::forget_lifetime`.
+    /// This allows users to pass resources that live outside of the callback resources to the render pass.
+    /// The render pass internally keeps all referenced resources alive as long as necessary.
+    /// The only consequence of `forget_lifetime` is that any operation on the parent encoder will cause a runtime error
+    /// instead of a compile time error.
+    pub fn render(
+        &self,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
         crate::profile_function!();
