@@ -620,10 +620,11 @@ impl FontsImpl {
 
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { size, family } = font_id;
+        let FontId { mut size, family } = font_id;
+        size = size.at_least(0.1).at_most(2048.0);
 
         self.sized_family
-            .entry((OrderedFloat(*size), family.clone()))
+            .entry((OrderedFloat(size), family.clone()))
             .or_insert_with(|| {
                 let fonts = &self.definitions.families.get(family);
                 let fonts = fonts
@@ -631,7 +632,7 @@ impl FontsImpl {
 
                 let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
-                    .map(|font_name| self.font_impl_cache.font_impl(*size, font_name))
+                    .map(|font_name| self.font_impl_cache.font_impl(size, font_name))
                     .collect();
 
                 Font::new(fonts)

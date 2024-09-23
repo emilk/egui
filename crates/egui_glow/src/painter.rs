@@ -22,14 +22,18 @@ const VERT_SRC: &str = include_str!("shader/vertex.glsl");
 const FRAG_SRC: &str = include_str!("shader/fragment.glsl");
 
 trait TextureFilterExt {
-    fn glow_code(&self) -> u32;
+    fn glow_code(&self, mipmap: Option<egui::TextureFilter>) -> u32;
 }
 
 impl TextureFilterExt for egui::TextureFilter {
-    fn glow_code(&self) -> u32 {
-        match self {
-            Self::Linear => glow::LINEAR,
-            Self::Nearest => glow::NEAREST,
+    fn glow_code(&self, mipmap: Option<egui::TextureFilter>) -> u32 {
+        match (self, mipmap) {
+            (Self::Linear, None) => glow::LINEAR,
+            (Self::Nearest, None) => glow::NEAREST,
+            (Self::Linear, Some(Self::Linear)) => glow::LINEAR_MIPMAP_LINEAR,
+            (Self::Nearest, Some(Self::Linear)) => glow::NEAREST_MIPMAP_LINEAR,
+            (Self::Linear, Some(Self::Nearest)) => glow::LINEAR_MIPMAP_NEAREST,
+            (Self::Nearest, Some(Self::Nearest)) => glow::NEAREST_MIPMAP_NEAREST,
         }
     }
 }
@@ -567,12 +571,12 @@ impl Painter {
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
-                options.magnification.glow_code() as i32,
+                options.magnification.glow_code(None) as i32,
             );
             self.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
-                options.minification.glow_code() as i32,
+                options.minification.glow_code(options.mipmap_mode) as i32,
             );
 
             self.gl.tex_parameter_i32(
@@ -632,6 +636,11 @@ impl Painter {
                     Some(data),
                 );
                 check_for_gl_error!(&self.gl, "tex_image_2d");
+            }
+
+            if options.mipmap_mode.is_some() {
+                self.gl.generate_mipmap(glow::TEXTURE_2D);
+                check_for_gl_error!(&self.gl, "generate_mipmap");
             }
         }
     }
