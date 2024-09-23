@@ -112,11 +112,11 @@ pub trait CallbackTrait: Send + Sync {
     ///
     /// It is given access to the [`wgpu::RenderPass`] so that it can issue draw commands
     /// into the same [`wgpu::RenderPass`] that is used for all other egui elements.
-    fn paint<'a>(
-        &'a self,
+    fn paint(
+        &self,
         info: PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'static>,
-        callback_resources: &'a CallbackResources,
+        callback_resources: &CallbackResources,
     );
 }
 
@@ -409,7 +409,7 @@ impl Renderer {
 
     /// Executes the egui renderer onto an existing wgpu renderpass.
     ///
-    /// Note that the lifetime of `render_pass` is `'static` which requires a call to `wgpu::RenderPass::forget_lifetime`.
+    /// Note that the lifetime of `render_pass` is `'static` which requires a call to [`wgpu::RenderPass::forget_lifetime`].
     /// This allows users to pass resources that live outside of the callback resources to the render pass.
     /// The render pass internally keeps all referenced resources alive as long as necessary.
     /// The only consequence of `forget_lifetime` is that any operation on the parent encoder will cause a runtime error
