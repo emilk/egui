@@ -70,7 +70,7 @@ winit = { workspace = true, default-features = false }
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.22", optional = true }
+accesskit_winit = { version = "0.22.1", optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
