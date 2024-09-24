@@ -73,7 +73,7 @@ ahash = { version = "0.8.11", default-features = false, features = [
 backtrace = "0.3"
 bytemuck = "1.18.0"
 criterion = { version = "0.5.1", default-features = false }
-document-features = " 0.2.8"
+document-features = " 0.2.10"
 glow = "0.14.1"
 glutin = "0.32.1"
 glutin-winit = "0.5.0"
@@ -85,9 +85,9 @@ parking_lot = "0.12"
 puffin = "0.19"
 puffin_http = "0.16"
 ron = "0.8"
-raw-window-handle = "0.6.0"
+raw-window-handle = "0.6.2"
 serde = { version = "1", features = ["derive"] }
-thiserror = "1.0.37"
+thiserror = "1.0.64"
 web-time = "1.1.0" # Timekeeping for native and web
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"

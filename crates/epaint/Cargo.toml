@@ -11,12 +11,7 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/epaint"
 categories = ["graphics", "gui"]
 keywords = ["graphics", "gui", "egui"]
-include = [
-  "../LICENSE-APACHE",
-  "../LICENSE-MIT",
-  "**/*.rs",
-  "Cargo.toml"
-]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [lints]
 workspace = true
@@ -75,7 +70,7 @@ unity = []
 emath.workspace = true
 ecolor.workspace = true
 
-ab_glyph = "0.2.11"
+ab_glyph = "0.2.28"
 ahash.workspace = true
 nohash-hasher.workspace = true
 parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
@@ -88,7 +83,7 @@ document-features = { workspace = true, optional = true }
 
 log = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
-rayon = { version = "1.7", optional = true }
+rayon = { version = "1.10", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
