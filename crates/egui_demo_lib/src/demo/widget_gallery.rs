@@ -285,3 +285,32 @@ fn doc_link_label_with_crate<'a>(
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::View;
+    use egui::{CentralPanel, Context, Vec2};
+    use etest::snapshot::image_snapshot;
+    use etest::wgpu::TestRenderer;
+    use etest::Harness;
+
+    #[test]
+    pub fn should_match_screenshot() {
+        let mut demo = WidgetGallery::default();
+        let app = |ctx: &Context| {
+            CentralPanel::default().show(ctx, |ui| {
+                demo.ui(ui);
+            });
+        };
+        let mut harness = Harness::new()
+            .with_size(Vec2::new(380.0, 550.0))
+            .with_dpi(2.0);
+
+        harness.run(app);
+
+        let image = TestRenderer::new().render(&harness);
+
+        image_snapshot(image, "widget_gallery");
+    }
+}

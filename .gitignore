@@ -6,3 +6,5 @@
 /.vscode
 /media/*
 .idea/
+**/tests/snapshots/*.new.png
+**/tests/snapshots/*.diff.png

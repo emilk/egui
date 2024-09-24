@@ -12,11 +12,9 @@ members = [
     "crates/emath",
     "crates/epaint",
     "crates/epaint_default_fonts",
-
     "examples/*",
     "tests/*",
-
-    "xtask",
+    "xtask", "crates/etest", "crates/accesskit_query",
 ]
 
 [workspace.package]
