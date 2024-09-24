@@ -60,6 +60,7 @@ egui = { workspace = true, default-features = false, features = ["log"] }
 ahash.workspace = true
 log.workspace = true
 nix = { version = "0.26.4", default-features = false, optional = true }
+profiling.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
 winit = { workspace = true, default-features = false }
@@ -72,7 +73,6 @@ accesskit_winit = { version = "0.22", optional = true }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-profiling.workspace = true
 serde = { workspace = true, optional = true }
 webbrowser = { version = "1.0.0", optional = true }
 

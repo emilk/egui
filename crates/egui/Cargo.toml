@@ -81,6 +81,7 @@ epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
 nohash-hasher.workspace = true
+profiling.workspace = true
 
 #! ### Optional dependencies
 accesskit = { version = "0.16", optional = true }
@@ -91,6 +92,5 @@ backtrace = { workspace = true, optional = true }
 document-features = { workspace = true, optional = true }
 
 log = { workspace = true, optional = true }
-profiling.workspace=true
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }

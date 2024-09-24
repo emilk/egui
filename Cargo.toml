@@ -82,6 +82,7 @@ image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
 parking_lot = "0.12"
+profiling = "1.0"
 puffin = "0.19"
 puffin_http = "0.16"
 ron = "0.8"
@@ -95,7 +96,6 @@ web-sys = "0.3.70"
 wgpu = { version = "22.1.0", default-features = false }
 windows-sys = "0.52"
 winit = { version = "0.30.5", default-features = false }
-profiling = "1.0"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

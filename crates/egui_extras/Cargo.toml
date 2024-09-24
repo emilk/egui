@@ -69,6 +69,7 @@ egui = { workspace = true, default-features = false }
 ahash.workspace = true
 enum-map = { version = "2", features = ["serde"] }
 log.workspace = true
+profiling.workspace = true
 
 #! ### Optional dependencies
 
@@ -91,7 +92,6 @@ image = { workspace = true, optional = true }
 # file feature
 mime_guess2 = { version = "2", optional = true, default-features = false }
 
-profiling.workspace=true
 
 syntect = { version = "5", optional = true, default-features = false, features = [
   "default-fancy",
