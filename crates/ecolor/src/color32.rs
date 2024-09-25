@@ -10,10 +10,17 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 ///
 /// The special value of alpha=0 means the color is to be treated as an additive color.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
+
+impl std::fmt::Debug for Color32 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let [r, g, b, a] = self.0;
+        write!(f, "#{r:02X}_{g:02X}_{b:02X}_{a:02X}")
+    }
+}
 
 impl std::ops::Index<usize> for Color32 {
     type Output = u8;
