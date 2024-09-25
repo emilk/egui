@@ -13,8 +13,10 @@ members = [
     "crates/emath",
     "crates/epaint",
     "crates/epaint_default_fonts",
+
     "examples/*",
     "tests/*",
+
     "xtask",
 ]
 
