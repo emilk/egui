@@ -388,6 +388,18 @@
 //! ## Installing additional fonts
 //! The default egui fonts only support latin and cryllic characters, and some emojis.
 //! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
+//!
+//! ## Instrumentation
+//! This crate supports using the [profiling](https://crates.io/crates/profiling) crate for instrumentation.
+//! You can enable features on the profiling crates in your application to add instrumentation for all
+//! crates that support it, including egui. See the profiling crate docs for more information.
+//! ```
+//! [dependencies]
+//! profiling = "1.0"
+//! [features]
+//! profile-with-puffin = ["profiling/profile-with-puffin"]
+//! ```
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

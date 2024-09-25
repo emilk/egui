@@ -129,6 +129,17 @@
 //! ## Feature flags
 #![doc = document_features::document_features!()]
 //!
+//! ## Instrumentation
+//! This crate supports using the [profiling](https://crates.io/crates/profiling) crate for instrumentation.
+//! You can enable features on the profiling crates in your application to add instrumentation for all
+//! crates that support it, including egui. See the profiling crate docs for more information.
+//! ```
+//! [dependencies]
+//! profiling = "1.0"
+//! [features]
+//! profile-with-puffin = ["profiling/profile-with-puffin"]
+//! ```
+//!
 
 #![warn(missing_docs)] // let's keep eframe well-documented
 #![allow(clippy::needless_doctest_main)]
