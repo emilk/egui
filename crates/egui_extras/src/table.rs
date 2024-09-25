@@ -415,7 +415,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// Default: `true`.
     #[inline]
-    pub fn animated(mut self, animated: bool) -> Self {
+    pub fn animate_scrolling(mut self, animated: bool) -> Self {
         self.scroll_options.animated = animated;
         self
     }
