@@ -54,6 +54,7 @@ impl Color32 {
     pub const LIGHT_RED: Self = Self::from_rgb(255, 128, 128);
 
     pub const YELLOW: Self = Self::from_rgb(255, 255, 0);
+    pub const ORANGE: Self = Self::from_rgb(255, 165, 0);
     pub const LIGHT_YELLOW: Self = Self::from_rgb(255, 255, 0xE0);
     pub const KHAKI: Self = Self::from_rgb(240, 230, 140);
 
