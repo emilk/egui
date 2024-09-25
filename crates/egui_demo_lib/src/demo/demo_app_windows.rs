@@ -377,3 +377,58 @@ fn file_menu_button(ui: &mut Ui) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::demo::demo_app_windows::Demos;
+    use egui::Vec2;
+    use egui_kittest::kittest::Queryable;
+    use egui_kittest::snapshot::try_image_snapshot;
+    use egui_kittest::wgpu::TestRenderer;
+    use egui_kittest::Harness;
+
+    #[test]
+    fn demos_should_match_snapshot() {
+        let demos = Demos::default();
+
+        let mut errors = Vec::new();
+
+        for mut demo in demos.demos {
+            let name = demo
+                .name()
+                .split_once(" ")
+                .map(|(_, name)| name)
+                .unwrap_or(demo.name());
+
+            let mut harness = Harness::new(|ctx| {
+                demo.show(ctx, &mut true);
+            });
+
+            // We need to run the app for multiple frames before all windows have the right size
+            harness.run();
+            harness.run();
+            harness.run();
+
+            let window = harness.node().children().next().unwrap();
+            // TODO: Windows should probably have a label?
+            //let window = harness.get_by_name(name);
+
+            let size = window.raw_bounds().expect("window bounds").size();
+            harness = harness.with_size(Vec2::new(size.width as f32, size.height as f32));
+
+            // We need to run the app for some more frames...
+            harness.run();
+            harness.run();
+
+            let image = TestRenderer::new().render(&harness);
+            let result = try_image_snapshot(image, &format!("{}", name));
+            if let Err(err) = result {
+                errors.push(err);
+            }
+        }
+
+        if !errors.is_empty() {
+            panic!("Errors: {:#?}", errors);
+        }
+    }
+}

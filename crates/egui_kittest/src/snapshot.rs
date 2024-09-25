@@ -1,11 +1,23 @@
-pub fn image_snapshot(current: image::RgbaImage, name: &str) {
+use std::path::{Path, PathBuf};
+
+#[derive(Debug)]
+pub struct SnapshotError {
+    pub diff: i32,
+    pub diff_path: PathBuf,
+}
+
+pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), SnapshotError> {
     let current =
         dify_image::RgbaImage::from_raw(current.width(), current.height(), current.into_raw())
             .unwrap();
 
-    let path = format!("tests/snapshots/{name}.png");
-    let diff_path = format!("tests/snapshots/{name}.diff.png");
-    let current_path = format!("tests/snapshots/{name}.new.png");
+    let snapshots_path = Path::new("tests/snapshots");
+
+    let path = snapshots_path.join(format!("{name}.png"));
+    std::fs::create_dir_all(path.parent().unwrap()).ok();
+
+    let diff_path = snapshots_path.join(format!("{name}.diff.png"));
+    let current_path = snapshots_path.join(format!("{name}.new.png"));
 
     std::fs::create_dir_all("tests/snapshots").ok();
 
@@ -15,7 +27,7 @@ pub fn image_snapshot(current: image::RgbaImage, name: &str) {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
             println!("Error opening image: {err}");
-            println!("Saving current image as {path}");
+            println!("Saving current image as {path:?}");
             current.save(&path).unwrap();
 
             current.clone()
@@ -29,12 +41,26 @@ pub fn image_snapshot(current: image::RgbaImage, name: &str) {
 
         if std::env::var("UPDATE_SNAPSHOTS").is_ok() {
             current.save(&path).unwrap();
-            println!("Updated snapshot: {path}");
+            println!("Updated snapshot: {path:?}");
         } else {
-            panic!("Image did not match snapshot. Diff: {diff}, {diff_path}");
+            return Err(SnapshotError { diff, diff_path });
         }
     } else {
         // Delete old diff if it exists
         std::fs::remove_file(diff_path).ok();
+    }
+
+    Ok(())
+}
+
+pub fn image_snapshot(current: image::RgbaImage, name: &str) {
+    match try_image_snapshot(current, name) {
+        Ok(_) => {}
+        Err(err) => {
+            panic!(
+                "{name} failed. Image did not match snapshot. Diff: {}, {:?}",
+                err.diff, err.diff_path
+            );
+        }
     }
 }

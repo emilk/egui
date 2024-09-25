@@ -6,6 +6,8 @@ mod utils;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
+pub use kittest;
+
 use crate::utils::egui_vec2;
 pub use accesskit_consumer;
 use egui::accesskit::NodeId;
