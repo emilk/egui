@@ -291,9 +291,9 @@ mod tests {
     use super::*;
     use crate::View;
     use egui::{CentralPanel, Context, Vec2};
-    use etest::snapshot::image_snapshot;
-    use etest::wgpu::TestRenderer;
-    use etest::Harness;
+    use egui_kittest::snapshot::image_snapshot;
+    use egui_kittest::wgpu::TestRenderer;
+    use egui_kittest::Harness;
 
     #[test]
     pub fn should_match_screenshot() {
@@ -303,11 +303,11 @@ mod tests {
                 demo.ui(ui);
             });
         };
-        let mut harness = Harness::new()
+        let mut harness = Harness::new(app)
             .with_size(Vec2::new(380.0, 550.0))
             .with_dpi(2.0);
 
-        harness.run(app);
+        harness.run();
 
         let image = TestRenderer::new().render(&harness);
 

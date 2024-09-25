@@ -67,15 +67,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "accesskit_query"
-version = "0.28.1"
-dependencies = [
- "accesskit",
- "accesskit_consumer",
- "extension-traits",
-]
-
-[[package]]
 name = "accesskit_unix"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1349,7 +1340,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui_extras",
- "etest",
+ "egui_kittest",
  "log",
  "serde",
  "unicode_names2",
@@ -1393,6 +1384,21 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "winit",
+]
+
+[[package]]
+name = "egui_kittest"
+version = "0.28.1"
+dependencies = [
+ "accesskit_consumer",
+ "dify",
+ "egui",
+ "egui-wgpu",
+ "image 0.24.9",
+ "image 0.25.0",
+ "kittest",
+ "pollster",
+ "wgpu",
 ]
 
 [[package]]
@@ -1549,21 +1555,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "281e452d3bad4005426416cdba5ccfd4f5c1280e10099e21db27f7c1c28347fc"
 
 [[package]]
-name = "etest"
-version = "0.28.1"
-dependencies = [
- "accesskit_consumer",
- "accesskit_query",
- "dify",
- "egui",
- "egui-wgpu",
- "image 0.24.9",
- "image 0.25.0",
- "pollster",
- "wgpu",
-]
-
-[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1615,35 +1606,6 @@ dependencies = [
  "rayon-core",
  "smallvec",
  "zune-inflate",
-]
-
-[[package]]
-name = "ext-trait"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "703090345f7d5de48379b391c9dfe69967a3c1694730a3e53bf4c905f71069c0"
-dependencies = [
- "ext-trait-proc_macros",
-]
-
-[[package]]
-name = "ext-trait-proc_macros"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd9f3f15f123dee4e8a6b14f033ba22904a48c5935505dc07225ce440e640d8b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "extension-traits"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "360cbc11ebc403c8ebb731dfb4d3950835d40d3d9a20f0e89a27b17e991d0863"
-dependencies = [
- "ext-trait",
 ]
 
 [[package]]
@@ -2451,6 +2413,16 @@ name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
+
+[[package]]
+name = "kittest"
+version = "0.1.0"
+source = "git+https://github.com/rerun-io/kittest?branch=kittest#be12a16312993bd614f7291470c588e906908cc8"
+dependencies = [
+ "accesskit",
+ "accesskit_consumer",
+ "parking_lot",
+]
 
 [[package]]
 name = "kurbo"

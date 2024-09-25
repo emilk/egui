@@ -1,5 +1,5 @@
 [package]
-name = "etest"
+name = "egui_kittest"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -13,7 +13,7 @@ snapshot = ["dep:dify", "dep:dify_image"]
 
 [dependencies]
 accesskit_consumer = "0.24.0"
-accesskit_query = { path = "../accesskit_query" }
+kittest = { git = "https://github.com/rerun-io/kittest", branch = "kittest" }
 egui = { workspace = true, features = ["accesskit"] }
 
 # wgpu dependencies

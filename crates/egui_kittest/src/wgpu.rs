@@ -6,7 +6,7 @@ use image::RgbaImage;
 use std::iter::once;
 use wgpu::Maintain;
 
-impl Harness {
+impl<'a> Harness<'a> {
     pub fn image(&self, _renderer: TestRenderer) {}
 }
 

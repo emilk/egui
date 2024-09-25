@@ -56,7 +56,7 @@ serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion.workspace = true
-etest = { path = "../etest", features = ["wgpu", "snapshot"] }
+egui_kittest = { path = "../egui_kittest", features = ["wgpu", "snapshot"] }
 wgpu = { workspace = true, features = ["metal"] }
 egui = { workspace = true, features = ["default_fonts"] }
 

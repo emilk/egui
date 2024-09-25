@@ -8,30 +8,28 @@ pub mod wgpu;
 
 use crate::utils::egui_vec2;
 pub use accesskit_consumer;
-use accesskit_query::{AKEvent, Node, Queryable, SimulatedEvent, Tree};
 use egui::accesskit::NodeId;
 use egui::{Pos2, Rect, TexturesDelta, Vec2};
+use kittest::{Node, Queryable, SimulatedEvent, Tree};
+use std::iter;
+use std::time::Duration;
 
-pub struct Harness {
+pub struct Harness<'a> {
     pub ctx: egui::Context,
     input: egui::RawInput,
     tree: Option<Tree>,
     output: Option<egui::FullOutput>,
     texture_deltas: Vec<TexturesDelta>,
+    update_fn: Box<dyn FnMut(&egui::Context) + 'a>,
 }
 
-impl Default for Harness {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Harness {
-    pub fn new() -> Self {
+impl<'a> Harness<'a> {
+    pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
 
         Self {
+            update_fn: Box::new(app),
             ctx,
             input: egui::RawInput {
                 screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0))),
@@ -57,16 +55,16 @@ impl Harness {
         self
     }
 
-    pub fn run(&mut self, app: impl FnMut(&egui::Context)) {
+    pub fn run(&mut self) {
         if let Some(tree) = &mut self.tree {
             for event in tree.take_events() {
                 match event {
-                    AKEvent::ActionRequest(e) => {
+                    kittest::Event::ActionRequest(e) => {
                         self.input
                             .events
                             .push(egui::Event::AccessKitActionRequest(e));
                     }
-                    AKEvent::Simulated(e) => match e {
+                    kittest::Event::Simulated(e) => match e {
                         SimulatedEvent::Click { position } => {
                             let position = egui_vec2(position).to_pos2();
                             self.input.events.push(egui::Event::PointerButton {
@@ -89,7 +87,7 @@ impl Harness {
                 }
             }
         }
-        let mut output = self.ctx.run(self.input.take(), app);
+        let mut output = self.ctx.run(self.input.take(), self.update_fn.as_mut());
         if let Some(tree) = &mut self.tree {
             tree.update(
                 output
@@ -168,7 +166,7 @@ impl Harness {
     }
 }
 
-impl<'t, 'n> Queryable<'t, 'n> for Harness
+impl<'t, 'n, 'h> Queryable<'t, 'n> for Harness<'h>
 where
     'n: 't,
 {

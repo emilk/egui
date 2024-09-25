@@ -6,6 +6,7 @@ members = [
     "crates/egui_demo_lib",
     "crates/egui_extras",
     "crates/egui_glow",
+    "crates/egui_kittest",
     "crates/egui-wgpu",
     "crates/egui-winit",
     "crates/egui",
@@ -14,7 +15,7 @@ members = [
     "crates/epaint_default_fonts",
     "examples/*",
     "tests/*",
-    "xtask", "crates/etest", "crates/accesskit_query",
+    "xtask",
 ]
 
 [workspace.package]

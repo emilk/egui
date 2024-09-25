@@ -4,8 +4,8 @@ pub fn image_snapshot(current: image::RgbaImage, name: &str) {
             .unwrap();
 
     let path = format!("tests/snapshots/{name}.png");
-    let diff_path = format!("tests/snapshots/{name}.diff.webp");
-    let current_path = format!("tests/snapshots/{name}.new.webp");
+    let diff_path = format!("tests/snapshots/{name}.diff.png");
+    let current_path = format!("tests/snapshots/{name}.new.png");
 
     std::fs::create_dir_all("tests/snapshots").ok();
 
@@ -31,9 +31,7 @@ pub fn image_snapshot(current: image::RgbaImage, name: &str) {
             current.save(&path).unwrap();
             println!("Updated snapshot: {path}");
         } else {
-            panic!(
-                "Image did not match snapshot. Diff: {diff}, {diff_path}"
-            );
+            panic!("Image did not match snapshot. Diff: {diff}, {diff_path}");
         }
     } else {
         // Delete old diff if it exists

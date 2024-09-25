@@ -1,7 +1,7 @@
-use accesskit_query::Queryable;
 use egui::accesskit::{Role, Toggled};
 use egui::{CentralPanel, Context, TextEdit, Vec2};
-use etest::Harness;
+use egui_kittest::Harness;
+use kittest::Queryable;
 use std::cell::RefCell;
 
 fn main() {
@@ -16,13 +16,13 @@ fn main() {
         });
     };
 
-    let mut harness = Harness::new().with_size(Vec2::new(200.0, 100.0));
+    let mut harness = Harness::new(app).with_size(Vec2::new(200.0, 100.0));
 
-    harness.run(&mut app);
+    harness.run();
 
     harness.get_by_name("Check me!").click();
 
-    harness.run(&mut app);
+    harness.run();
 
     assert!(*checked.borrow());
     let checkbox = harness.get_by_name("Check me!");
@@ -32,7 +32,7 @@ fn main() {
         .get_by_role(Role::TextInput)
         .type_text("Hello, World!");
 
-    harness.run(&mut app);
+    harness.run();
 
     assert_eq!(&*text.borrow_mut(), "Hello, World!");
     assert_eq!(
@@ -42,9 +42,9 @@ fn main() {
 
     #[cfg(feature = "wgpu")]
     {
-        let mut renderer = etest::wgpu::TestRenderer::new();
+        let mut renderer = egui_kittest::wgpu::TestRenderer::new();
         let image = renderer.render(&harness);
 
-        image.save("crates/etest/etest.png").unwrap();
+        image.save("../kittest.png").unwrap();
     }
 }
