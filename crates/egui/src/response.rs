@@ -790,6 +790,10 @@ impl Response {
     #[doc(alias = "tooltip")]
     pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
         self.on_hover_ui_at_pointer(|ui| {
+            // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
+            // See https://github.com/emilk/egui/issues/5167
+            ui.set_max_width(ui.spacing().tooltip_width);
+
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -803,6 +807,10 @@ impl Response {
     #[doc(alias = "tooltip")]
     pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_hover_ui(|ui| {
+            // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
+            // See https://github.com/emilk/egui/issues/5167
+            ui.set_max_width(ui.spacing().tooltip_width);
+
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -822,6 +830,10 @@ impl Response {
     /// Show this text when hovering if the widget is disabled.
     pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_disabled_hover_ui(|ui| {
+            // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
+            // See https://github.com/emilk/egui/issues/5167
+            ui.set_max_width(ui.spacing().tooltip_width);
+
             ui.add(crate::widgets::Label::new(text));
         })
     }
