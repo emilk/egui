@@ -2,11 +2,13 @@
 pub mod snapshot;
 #[cfg(feature = "wgpu")]
 mod texture_to_bytes;
+mod utils;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
+use crate::utils::egui_vec2;
 pub use accesskit_consumer;
-use accesskit_consumer::{Node, Tree};
+use accesskit_query::{AKEvent, Node, Queryable, SimulatedEvent, Tree};
 use egui::accesskit::NodeId;
 use egui::{Pos2, Rect, TexturesDelta, Vec2};
 
@@ -56,6 +58,37 @@ impl Harness {
     }
 
     pub fn run(&mut self, app: impl FnMut(&egui::Context)) {
+        if let Some(tree) = &mut self.tree {
+            for event in tree.take_events() {
+                match event {
+                    AKEvent::ActionRequest(e) => {
+                        self.input
+                            .events
+                            .push(egui::Event::AccessKitActionRequest(e));
+                    }
+                    AKEvent::Simulated(e) => match e {
+                        SimulatedEvent::Click { position } => {
+                            let position = egui_vec2(position).to_pos2();
+                            self.input.events.push(egui::Event::PointerButton {
+                                pos: position,
+                                button: egui::PointerButton::Primary,
+                                pressed: true,
+                                modifiers: Default::default(),
+                            });
+                            self.input.events.push(egui::Event::PointerButton {
+                                pos: position,
+                                button: egui::PointerButton::Primary,
+                                pressed: false,
+                                modifiers: Default::default(),
+                            });
+                        }
+                        SimulatedEvent::Type { text } => {
+                            self.input.events.push(egui::Event::Text(text));
+                        }
+                    },
+                }
+            }
+        }
         let mut output = self.ctx.run(self.input.take(), app);
         if let Some(tree) = &mut self.tree {
             tree.update(
@@ -72,7 +105,6 @@ impl Harness {
                     .accesskit_update
                     .take()
                     .expect("AccessKit was disabled"),
-                true,
             ));
         }
         self.output = Some(output);
@@ -134,8 +166,13 @@ impl Harness {
     pub fn tree(&self) -> &Tree {
         self.tree.as_ref().expect("Not initialized")
     }
+}
 
-    pub fn root(&self) -> Node<'_> {
-        self.tree().state().root()
+impl<'t, 'n> Queryable<'t, 'n> for Harness
+where
+    'n: 't,
+{
+    fn node(&'n self) -> Node<'t> {
+        self.tree().node()
     }
 }
