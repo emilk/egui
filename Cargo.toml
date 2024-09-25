@@ -16,7 +16,7 @@ members = [
     "examples/*",
     "tests/*",
 
-    "xtask",
+    "xtask", "crates/egui_cpu",
 ]
 
 [workspace.package]
