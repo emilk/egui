@@ -697,6 +697,7 @@ impl GalleyCache {
             // * https://github.com/emilk/egui/issues/4927
             // * https://github.com/emilk/egui/issues/4928
             // * https://github.com/emilk/egui/issues/5084
+            // * https://github.com/emilk/egui/issues/5163
 
             job.wrap.max_width = job.wrap.max_width.round();
         }
