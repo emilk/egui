@@ -2962,7 +2962,32 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
+    use emath::Align2;
+
     let debug = ui.style().debug;
+
+    if debug.show_unaligned {
+        let unaligned_line = |p0: Pos2, p1: Pos2| {
+            let color = Color32::ORANGE;
+            let font_id = TextStyle::Monospace.resolve(ui.style());
+            ui.painter().line_segment([p0, p1], (1.0, color));
+            ui.painter()
+                .text(p0, Align2::LEFT_TOP, "Unaligned", font_id, color);
+        };
+
+        if rect.left().fract() != 0.0 {
+            unaligned_line(rect.left_top(), rect.left_bottom());
+        }
+        if rect.right().fract() != 0.0 {
+            unaligned_line(rect.right_top(), rect.right_bottom());
+        }
+        if rect.top().fract() != 0.0 {
+            unaligned_line(rect.left_top(), rect.right_top());
+        }
+        if rect.bottom().fract() != 0.0 {
+            unaligned_line(rect.left_bottom(), rect.right_bottom());
+        }
+    }
 
     let show_callstacks = debug.debug_on_hover
         || debug.debug_on_hover_with_all_modifiers && ui.input(|i| i.modifiers.all());
