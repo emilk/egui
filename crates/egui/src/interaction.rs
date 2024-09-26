@@ -106,6 +106,7 @@ impl InteractionSnapshot {
     }
 }
 
+#[profiling::function]
 pub(crate) fn interact(
     prev_snapshot: &InteractionSnapshot,
     widgets: &WidgetRects,
@@ -113,8 +114,6 @@ pub(crate) fn interact(
     input: &InputState,
     interaction: &mut InteractionState,
 ) -> InteractionSnapshot {
-    crate::profile_function!();
-
     if let Some(id) = interaction.potential_click_id {
         if !widgets.contains(id) {
             // The widget we were interested in clicking is gone.

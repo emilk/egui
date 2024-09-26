@@ -53,11 +53,6 @@ http = ["dep:ehttp"]
 ## ```
 image = ["dep:image"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin", "egui/puffin"]
-
 ## Derive serde Serialize/Deserialize on stateful structs
 serde = ["egui/serde", "dep:serde"]
 
@@ -74,6 +69,7 @@ egui = { workspace = true, default-features = false }
 ahash.workspace = true
 enum-map = { version = "2", features = ["serde"] }
 log.workspace = true
+profiling.workspace = true
 
 #! ### Optional dependencies
 
@@ -96,7 +92,6 @@ image = { workspace = true, optional = true }
 # file feature
 mime_guess2 = { version = "2", optional = true, default-features = false }
 
-puffin = { workspace = true, optional = true }
 
 syntect = { version = "5", optional = true, default-features = false, features = [
   "default-fancy",

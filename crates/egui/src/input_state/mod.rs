@@ -262,6 +262,7 @@ impl Default for InputState {
 
 impl InputState {
     #[must_use]
+    #[profiling::function]
     pub fn begin_pass(
         mut self,
         mut new: RawInput,
@@ -269,8 +270,6 @@ impl InputState {
         pixels_per_point: f32,
         options: &crate::Options,
     ) -> Self {
-        crate::profile_function!();
-
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 

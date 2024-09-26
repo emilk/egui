@@ -1201,7 +1201,7 @@ dependencies = [
  "parking_lot",
  "percent-encoding",
  "pollster",
- "puffin",
+ "profiling",
  "raw-window-handle 0.6.2",
  "ron",
  "serde",
@@ -1228,7 +1228,7 @@ dependencies = [
  "epaint",
  "log",
  "nohash-hasher",
- "puffin",
+ "profiling",
  "ron",
  "serde",
 ]
@@ -1243,7 +1243,7 @@ dependencies = [
  "egui",
  "epaint",
  "log",
- "puffin",
+ "profiling",
  "thiserror",
  "type-map",
  "web-time",
@@ -1262,7 +1262,7 @@ dependencies = [
  "egui",
  "log",
  "nix",
- "puffin",
+ "profiling",
  "raw-window-handle 0.6.2",
  "serde",
  "smithay-clipboard",
@@ -1287,6 +1287,7 @@ dependencies = [
  "image",
  "log",
  "poll-promise",
+ "profiling",
  "puffin",
  "puffin_http",
  "rfd",
@@ -1324,7 +1325,7 @@ dependencies = [
  "image",
  "log",
  "mime_guess2",
- "puffin",
+ "profiling",
  "resvg",
  "serde",
  "syntect",
@@ -1344,7 +1345,7 @@ dependencies = [
  "glutin-winit",
  "log",
  "memoffset 0.9.0",
- "puffin",
+ "profiling",
  "wasm-bindgen",
  "web-sys",
  "winit",
@@ -1461,7 +1462,7 @@ dependencies = [
  "log",
  "nohash-hasher",
  "parking_lot",
- "puffin",
+ "profiling",
  "rayon",
  "serde",
 ]
@@ -3116,9 +3117,23 @@ dependencies = [
 
 [[package]]
 name = "profiling"
-version = "1.0.14"
+version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f0f7f43585c34e4fdd7497d746bc32e14458cf11c69341cc0587b1d825dde42"
+checksum = "43d84d1d7a6ac92673717f9f6d1518374ef257669c24ebc5ac25d5033828be58"
+dependencies = [
+ "profiling-procmacros",
+ "puffin",
+]
+
+[[package]]
+name = "profiling-procmacros"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8021cf59c8ec9c432cfc2526ac6b8aa508ecaf29cd415f271b8406c1b851c3fd"
+dependencies = [
+ "quote",
+ "syn 2.0.48",
+]
 
 [[package]]
 name = "puffin"
@@ -3156,6 +3171,7 @@ dependencies = [
  "eframe",
  "env_logger",
  "log",
+ "profiling",
  "puffin",
  "puffin_http",
 ]

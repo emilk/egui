@@ -247,8 +247,8 @@ impl Default for PassState {
 }
 
 impl PassState {
+    #[profiling::function]
     pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
-        crate::profile_function!();
         let Self {
             used_ids,
             widgets,

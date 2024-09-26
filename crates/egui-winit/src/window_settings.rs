@@ -50,14 +50,13 @@ impl WindowSettings {
         self.inner_size_points
     }
 
+    #[profiling::function]
     pub fn initialize_viewport_builder(
         &self,
         egui_zoom_factor: f32,
         event_loop: &winit::event_loop::ActiveEventLoop,
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
-        crate::profile_function!();
-
         // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
         // See [`winit::window::WindowBuilder::with_position`] for details.
         let pos_px = if cfg!(target_os = "macos") {
@@ -137,14 +136,13 @@ impl WindowSettings {
     }
 }
 
+#[profiling::function]
 fn find_active_monitor(
     egui_zoom_factor: f32,
     event_loop: &winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
     position_px: &egui::Pos2,
 ) -> Option<winit::monitor::MonitorHandle> {
-    crate::profile_function!();
-
     let monitors = event_loop.available_monitors();
 
     // default to primary monitor, in case the correct monitor was disconnected.
@@ -172,14 +170,13 @@ fn find_active_monitor(
     Some(active_monitor)
 }
 
+#[profiling::function]
 fn clamp_pos_to_monitors(
     egui_zoom_factor: f32,
     event_loop: &winit::event_loop::ActiveEventLoop,
     window_size_pts: egui::Vec2,
     position_px: &mut egui::Pos2,
 ) {
-    crate::profile_function!();
-
     let Some(active_monitor) =
         find_active_monitor(egui_zoom_factor, event_loop, window_size_pts, position_px)
     else {

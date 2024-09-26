@@ -573,9 +573,8 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 
 #[cfg(feature = "persistence")]
 impl PersistedMap {
+    #[profiling::function]
     fn from_map(map: &IdTypeMap) -> Self {
-        crate::profile_function!();
-
         use std::collections::BTreeMap;
 
         let mut types_map: nohash_hasher::IntMap<TypeId, TypeStats> = Default::default();
@@ -593,7 +592,7 @@ impl PersistedMap {
         let max_bytes_per_type = map.max_bytes_per_type;
 
         {
-            crate::profile_scope!("gather");
+            profiling::scope!("gather");
             for (hash, element) in &map.map {
                 if let Some(element) = element.to_serialize() {
                     let stats = types_map.entry(element.type_id).or_default();
@@ -610,7 +609,7 @@ impl PersistedMap {
         let mut persisted = vec![];
 
         {
-            crate::profile_scope!("gc");
+            profiling::scope!("gc");
             for stats in types_map.values() {
                 let mut bytes_written = 0;
 
@@ -633,8 +632,8 @@ impl PersistedMap {
         Self(persisted)
     }
 
+    #[profiling::function]
     fn into_map(self) -> IdTypeMap {
-        crate::profile_function!();
         let map = self
             .0
             .into_iter()
@@ -671,7 +670,7 @@ impl serde::Serialize for IdTypeMap {
     where
         S: serde::Serializer,
     {
-        crate::profile_scope!("IdTypeMap::serialize");
+        profiling::scope!("IdTypeMap::serialize");
         PersistedMap::from_map(self).serialize(serializer)
     }
 }
@@ -682,7 +681,7 @@ impl<'de> serde::Deserialize<'de> for IdTypeMap {
     where
         D: serde::Deserializer<'de>,
     {
-        crate::profile_scope!("IdTypeMap::deserialize");
+        profiling::scope!("IdTypeMap::deserialize");
         <PersistedMap>::deserialize(deserializer).map(PersistedMap::into_map)
     }
 }

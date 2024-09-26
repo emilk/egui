@@ -404,8 +404,8 @@ struct Highlighter {
 
 #[cfg(feature = "syntect")]
 impl Default for Highlighter {
+    #[profiling::function]
     fn default() -> Self {
-        crate::profile_function!();
         Self {
             ps: syntect::parsing::SyntaxSet::load_defaults_newlines(),
             ts: syntect::highlighting::ThemeSet::load_defaults(),
@@ -438,9 +438,8 @@ impl Highlighter {
     }
 
     #[cfg(feature = "syntect")]
+    #[profiling::function]
     fn highlight_impl(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
-        crate::profile_function!();
-
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;
         use syntect::util::LinesWithEndings;
@@ -508,14 +507,13 @@ struct Highlighter {}
 #[cfg(not(feature = "syntect"))]
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
+    #[profiling::function]
     fn highlight_impl(
         &self,
         theme: &CodeTheme,
         mut text: &str,
         language: &str,
     ) -> Option<LayoutJob> {
-        crate::profile_function!();
-
         let language = Language::new(language)?;
 
         // Extremely simple syntax highlighter for when we compile without syntect
