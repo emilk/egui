@@ -6,6 +6,10 @@ pub struct SnapshotError {
     pub diff_path: PathBuf,
 }
 
+/// Image snapshot test.
+///
+/// # Errors
+/// Returns a [`SnapshotError`] if the image does not match the snapshot.
 pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), SnapshotError> {
     let current =
         dify_image::RgbaImage::from_raw(current.width(), current.height(), current.into_raw())
@@ -53,6 +57,10 @@ pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), S
     Ok(())
 }
 
+/// Image snapshot test.
+///
+/// # Panics
+/// Panics if the image does not match the snapshot.
 pub fn image_snapshot(current: image::RgbaImage, name: &str) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}

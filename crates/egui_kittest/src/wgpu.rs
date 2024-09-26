@@ -49,7 +49,7 @@ impl TestRenderer {
         }
     }
 
-    pub fn render(&mut self, harness: &Harness) -> RgbaImage {
+    pub fn render(&mut self, harness: &Harness<'_>) -> RgbaImage {
         for delta in &harness.texture_deltas {
             for (id, image_delta) in &delta.set {
                 self.renderer

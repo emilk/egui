@@ -1,28 +1,29 @@
+mod event;
 #[cfg(feature = "snapshot")]
 pub mod snapshot;
 #[cfg(feature = "wgpu")]
 mod texture_to_bytes;
-mod utils;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
 pub use kittest;
 
-use crate::utils::egui_vec2;
+use crate::event::{kittest_key_to_egui, pointer_button_to_egui};
 pub use accesskit_consumer;
 use egui::accesskit::NodeId;
-use egui::{Pos2, Rect, TexturesDelta, Vec2};
-use kittest::{Node, Queryable, SimulatedEvent, Tree};
-use std::iter;
-use std::time::Duration;
+use egui::{Event, ImeEvent, Modifiers, Pos2, Rect, TexturesDelta, Vec2};
+use kittest::{ElementState, Node, Queryable, SimulatedEvent, State};
 
 pub struct Harness<'a> {
     pub ctx: egui::Context,
     input: egui::RawInput,
-    tree: Option<Tree>,
+    tree: Option<State>,
     output: Option<egui::FullOutput>,
     texture_deltas: Vec<TexturesDelta>,
     update_fn: Box<dyn FnMut(&egui::Context) + 'a>,
+
+    last_mouse_pos: Pos2,
+    modifiers: Modifiers,
 }
 
 impl<'a> Harness<'a> {
@@ -40,6 +41,9 @@ impl<'a> Harness<'a> {
             tree: None,
             output: None,
             texture_deltas: Vec::new(),
+
+            last_mouse_pos: Pos2::ZERO,
+            modifiers: Modifiers::NONE,
         }
     }
 
@@ -62,28 +66,55 @@ impl<'a> Harness<'a> {
             for event in tree.take_events() {
                 match event {
                     kittest::Event::ActionRequest(e) => {
-                        self.input
-                            .events
-                            .push(egui::Event::AccessKitActionRequest(e));
+                        self.input.events.push(Event::AccessKitActionRequest(e));
                     }
                     kittest::Event::Simulated(e) => match e {
-                        SimulatedEvent::Click { position } => {
-                            let position = egui_vec2(position).to_pos2();
-                            self.input.events.push(egui::Event::PointerButton {
-                                pos: position,
-                                button: egui::PointerButton::Primary,
-                                pressed: true,
-                                modifiers: Default::default(),
-                            });
-                            self.input.events.push(egui::Event::PointerButton {
-                                pos: position,
-                                button: egui::PointerButton::Primary,
-                                pressed: false,
-                                modifiers: Default::default(),
-                            });
+                        SimulatedEvent::CursorMoved { position } => {
+                            self.input.events.push(Event::PointerMoved(Pos2::new(
+                                position.x as f32,
+                                position.y as f32,
+                            )));
                         }
-                        SimulatedEvent::Type { text } => {
-                            self.input.events.push(egui::Event::Text(text));
+                        SimulatedEvent::MouseInput { state, button } => {
+                            let button = pointer_button_to_egui(button);
+                            if let Some(button) = button {
+                                self.input.events.push(Event::PointerButton {
+                                    button,
+                                    modifiers: self.modifiers,
+                                    pos: self.last_mouse_pos,
+                                    pressed: matches!(state, ElementState::Pressed),
+                                });
+                            }
+                        }
+                        SimulatedEvent::Ime(text) => {
+                            self.input.events.push(Event::Ime(ImeEvent::Commit(text)));
+                        }
+                        SimulatedEvent::KeyInput { state, key } => {
+                            match key {
+                                kittest::Key::Alt => {
+                                    self.modifiers.alt = matches!(state, ElementState::Pressed);
+                                }
+                                kittest::Key::Command => {
+                                    self.modifiers.command = matches!(state, ElementState::Pressed);
+                                }
+                                kittest::Key::Control => {
+                                    self.modifiers.ctrl = matches!(state, ElementState::Pressed);
+                                }
+                                kittest::Key::Shift => {
+                                    self.modifiers.shift = matches!(state, ElementState::Pressed);
+                                }
+                                _ => {}
+                            }
+                            let key = kittest_key_to_egui(key);
+                            if let Some(key) = key {
+                                self.input.events.push(Event::Key {
+                                    key,
+                                    modifiers: self.modifiers,
+                                    pressed: matches!(state, ElementState::Pressed),
+                                    repeat: false,
+                                    physical_key: None,
+                                });
+                            }
                         }
                     },
                 }
@@ -99,7 +130,7 @@ impl<'a> Harness<'a> {
                     .expect("AccessKit was disabled"),
             );
         } else {
-            self.tree = Some(Tree::new(
+            self.tree = Some(State::new(
                 output
                     .platform_output
                     .accesskit_update
@@ -131,7 +162,7 @@ impl<'a> Harness<'a> {
         };
         self.input
             .events
-            .push(egui::Event::AccessKitActionRequest(action));
+            .push(Event::AccessKitActionRequest(action));
     }
 
     // TODO: SetValue is currently not supported by egui
@@ -163,7 +194,7 @@ impl<'a> Harness<'a> {
         self.output.as_ref().expect("Not initialized")
     }
 
-    pub fn tree(&self) -> &Tree {
+    pub fn kittest_state(&self) -> &State {
         self.tree.as_ref().expect("Not initialized")
     }
 }
@@ -173,6 +204,6 @@ where
     'n: 't,
 {
     fn node(&'n self) -> Node<'t> {
-        self.tree().node()
+        self.kittest_state().node()
     }
 }

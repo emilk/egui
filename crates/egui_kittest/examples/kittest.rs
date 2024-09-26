@@ -7,7 +7,7 @@ use std::cell::RefCell;
 fn main() {
     let checked = RefCell::new(false);
     let text = RefCell::new(String::new());
-    let mut app = |ctx: &Context| {
+    let app = |ctx: &Context| {
         CentralPanel::default().show(ctx, |ui| {
             ui.checkbox(&mut checked.borrow_mut(), "Check me!");
             TextEdit::singleline(&mut *text.borrow_mut())
