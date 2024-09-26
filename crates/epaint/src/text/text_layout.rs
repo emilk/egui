@@ -658,9 +658,9 @@ fn galley_from_rows(
 
         if did_exceed_wrap_width_by_a_lot {
             // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
-            // we should let the user know.
+            // we should let the user know by reporting that our width is wider than the wrap width.
         } else {
-            // Make sure we don't go over the max wrap width the user picked:
+            // Make sure we don't report being wider than the wrap width the user picked:
             rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width).floor();
         }
     }
