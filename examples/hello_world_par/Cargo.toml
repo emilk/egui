@@ -11,6 +11,10 @@ publish = false
 workspace = true
 
 
+[package.metadata.cargo-machete]
+ignored = ["winit"] # Just enable some features of it; see below
+
+
 [dependencies]
 eframe = { workspace = true, default-features = false, features = [
     # accesskit struggles with threading

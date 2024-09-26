@@ -9,6 +9,11 @@ publish = false
 [lints]
 workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = ["image"] # We need the .png feature
+
+
 [dependencies]
 eframe = { workspace = true, features = [
     "default",
