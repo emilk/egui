@@ -188,6 +188,7 @@ struct TableScrollOptions {
     max_scroll_height: f32,
     auto_shrink: Vec2b,
     scroll_bar_visibility: ScrollBarVisibility,
+    animated: bool,
 }
 
 impl Default for TableScrollOptions {
@@ -202,6 +203,7 @@ impl Default for TableScrollOptions {
             max_scroll_height: f32::INFINITY,
             auto_shrink: Vec2b::TRUE,
             scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
+            animated: true,
         }
     }
 }
@@ -406,6 +408,15 @@ impl<'a> TableBuilder<'a> {
     #[inline]
     pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
         self.scroll_options.scroll_bar_visibility = scroll_bar_visibility;
+        self
+    }
+
+    /// Should the scroll area animate `scroll_to_*` functions?
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn animate_scrolling(mut self, animated: bool) -> Self {
+        self.scroll_options.animated = animated;
         self
     }
 
@@ -726,6 +737,7 @@ impl<'a> Table<'a> {
             max_scroll_height,
             auto_shrink,
             scroll_bar_visibility,
+            animated,
         } = scroll_options;
 
         let cursor_position = ui.cursor().min;
@@ -736,7 +748,8 @@ impl<'a> Table<'a> {
             .min_scrolled_height(min_scrolled_height)
             .max_height(max_scroll_height)
             .auto_shrink(auto_shrink)
-            .scroll_bar_visibility(scroll_bar_visibility);
+            .scroll_bar_visibility(scroll_bar_visibility)
+            .animated(animated);
 
         if let Some(scroll_offset_y) = scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
