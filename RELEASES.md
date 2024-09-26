@@ -33,7 +33,6 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] `./scripts/docs.sh`: read and improve documentation of new stuff
 * [ ] `cargo update`
 * [ ] `cargo outdated` (or manually look for outdated crates in each `Cargo.toml`)
-* [ ] `cargo machete`
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
