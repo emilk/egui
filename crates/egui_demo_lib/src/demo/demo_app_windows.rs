@@ -421,7 +421,7 @@ mod tests {
             harness.run();
 
             let image = TestRenderer::new().render(&harness);
-            let result = try_image_snapshot(image, &format!("{}", name));
+            let result = try_image_snapshot(image, &format!("demos/{}", name));
             if let Err(err) = result {
                 errors.push(err);
             }
