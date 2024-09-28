@@ -61,6 +61,8 @@ impl crate::Demo for WidgetGallery {
 
 impl crate::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.visuals_mut().widgets.inactive.rounding = 0.0.into();
+
         let mut ui_builder = egui::UiBuilder::new();
         if !self.enabled {
             ui_builder = ui_builder.disabled();
