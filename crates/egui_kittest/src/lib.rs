@@ -11,7 +11,7 @@ pub use kittest;
 use crate::event::{kittest_key_to_egui, pointer_button_to_egui};
 pub use accesskit_consumer;
 use egui::accesskit::NodeId;
-use egui::{Event, ImeEvent, Modifiers, Pos2, Rect, TexturesDelta, Vec2};
+use egui::{Event, Modifiers, Pos2, Rect, TexturesDelta, Vec2};
 use kittest::{ElementState, Node, Queryable, SimulatedEvent, State};
 
 pub struct Harness<'a> {
@@ -87,7 +87,7 @@ impl<'a> Harness<'a> {
                             }
                         }
                         SimulatedEvent::Ime(text) => {
-                            self.input.events.push(Event::Ime(ImeEvent::Commit(text)));
+                            self.input.events.push(Event::Text(text));
                         }
                         SimulatedEvent::KeyInput { state, key } => {
                             match key {
