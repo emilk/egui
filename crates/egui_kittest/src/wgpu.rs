@@ -6,10 +6,6 @@ use image::RgbaImage;
 use std::iter::once;
 use wgpu::Maintain;
 
-impl<'a> Harness<'a> {
-    pub fn image(&self, _renderer: TestRenderer) {}
-}
-
 pub struct TestRenderer {
     renderer: egui_wgpu::Renderer,
     device: wgpu::Device,
@@ -69,7 +65,7 @@ impl TestRenderer {
             size_in_pixels: [size.x as u32, size.y as u32],
         };
 
-        let tesselated = harness.ctx.tessellate(
+        let tessellated = harness.ctx.tessellate(
             harness.output().shapes.clone(),
             harness.ctx.pixels_per_point(),
         );
@@ -78,7 +74,7 @@ impl TestRenderer {
             &self.device,
             &self.queue,
             &mut encoder,
-            &tesselated,
+            &tessellated,
             &screen,
         );
 
@@ -117,7 +113,7 @@ impl TestRenderer {
                 })
                 .forget_lifetime();
 
-            self.renderer.render(&mut pass, &tesselated, &screen);
+            self.renderer.render(&mut pass, &tessellated, &screen);
         }
 
         self.queue
