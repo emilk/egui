@@ -881,7 +881,10 @@ fn events(
     let mut events = ui.input(|i| i.filtered_events(&event_filter));
 
     if state.ime_enabled {
-        remove_ime_incompatible_events(&mut events);
+        if ui.visuals().text_edit.ime_key_handling {
+            remove_ime_incompatible_events(&mut events);
+        }
+
         // Process IME events first:
         events.sort_by_key(|e| !matches!(e, Event::Ime(_)));
     }
