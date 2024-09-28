@@ -870,7 +870,10 @@ pub struct TextEditStyle {
 impl Default for TextEditStyle {
     fn default() -> Self {
         Self {
-            ime_key_handling: !cfg!(target_os = "linux"),
+            #[cfg(target_os = "linux")]
+            ime_key_handling: false,
+            #[cfg(not(target_os = "linux"))]
+            ime_key_handling: true,
         }
     }
 }
