@@ -112,8 +112,11 @@ impl Painter {
         self.opacity_factor
     }
 
+    /// If `false`, nothing you paint will show up.
+    ///
+    /// Also checks [`Context::will_discard`].
     pub(crate) fn is_visible(&self) -> bool {
-        self.fade_to_color != Some(Color32::TRANSPARENT)
+        self.fade_to_color != Some(Color32::TRANSPARENT) && !self.ctx.will_discard()
     }
 
     /// If `false`, nothing added to the painter will be visible

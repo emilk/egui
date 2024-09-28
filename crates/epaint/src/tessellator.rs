@@ -1537,7 +1537,7 @@ impl Tessellator {
     ///
     /// * `mesh`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_mesh(&mut self, mesh: &Mesh, out: &mut Mesh) {
+    pub fn tessellate_mesh(&self, mesh: &Mesh, out: &mut Mesh) {
         if !mesh.is_valid() {
             debug_assert!(false, "Invalid Mesh in Shape::Mesh");
             return;
@@ -1749,8 +1749,12 @@ impl Tessellator {
         }
 
         if galley.pixels_per_point != self.pixels_per_point {
-            eprintln!("epaint: WARNING: pixels_per_point (dpi scale) have changed between text layout and tessellation. \
-                       You must recreate your text shapes if pixels_per_point changes.");
+            let warn = "epaint: WARNING: pixels_per_point (dpi scale) have changed between text layout and tessellation. \
+                       You must recreate your text shapes if pixels_per_point changes.";
+            #[cfg(feature = "log")]
+            log::warn!("{warn}");
+            #[cfg(not(feature = "log"))]
+            println!("{warn}");
         }
 
         out.vertices.reserve(galley.num_vertices);

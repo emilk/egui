@@ -33,7 +33,6 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] `./scripts/docs.sh`: read and improve documentation of new stuff
 * [ ] `cargo update`
 * [ ] `cargo outdated` (or manually look for outdated crates in each `Cargo.toml`)
-* [ ] `cargo machete`
 
 ## Release testing
 * [ ] `cargo r -p egui_demo_app` and click around for while
@@ -55,12 +54,13 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] write a short release note that fits in a tweet
 * [ ] record gif for `CHANGELOG.md` release note (and later twitter post)
 * [ ] update changelogs using `scripts/generate_changelog.py --write`
-  - For major releases, always diff to the latest MAJOR release, e.g. `--commit-range 0.27.0..HEAD`
+  - For major releases, always diff to the latest MAJOR release, e.g. `--commit-range 0.29.0..HEAD`
 * [ ] bump version numbers in workspace `Cargo.toml`
 
 ## Actual release
 I usually do this all on the `master` branch, but doing it in a release branch is also fine, as long as you remember to merge it into `master` later.
 
+* [ ] Run `typos`
 * [ ] `git commit -m 'Release 0.x.0 - summary'`
 * [ ] `cargo publish` (see below)
 * [ ] `git tag -a 0.x.0 -m 'Release 0.x.0 - summary'`
@@ -75,8 +75,8 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 ```
 (cd crates/emath                && cargo publish --quiet)  &&  echo "✅ emath"
 (cd crates/ecolor               && cargo publish --quiet)  &&  echo "✅ ecolor"
-(cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
 (cd crates/epaint_default_fonts && cargo publish --quiet)  &&  echo "✅ epaint_default_fonts"
+(cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
 (cd crates/egui                 && cargo publish --quiet)  &&  echo "✅ egui"
 (cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
 (cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
@@ -96,4 +96,5 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 ## After release
 * [ ] publish new `eframe_template`
 * [ ] publish new `egui_plot`
+* [ ] publish new `egui_table`
 * [ ] publish new `egui_tiles`

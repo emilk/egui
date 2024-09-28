@@ -98,8 +98,7 @@ On Fedora Rawhide you need to run:
 * Portable: the same code works on the web and as a native app
 * Easy to integrate into any environment
 * A simple 2D graphics API for custom painting ([`epaint`](https://docs.rs/epaint)).
-* No callbacks
-* Pure immediate mode
+* Pure immediate mode: no callbacks
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
@@ -113,7 +112,6 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 
 * Become the most powerful GUI library
 * Native looking interface
-* Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
 ## State
 
@@ -206,6 +204,7 @@ These are the official egui integrations:
 * [`fltk-egui`](https://crates.io/crates/fltk-egui) for [fltk-rs](https://github.com/fltk-rs/fltk-rs)
 * [`ggegui`](https://github.com/NemuiSen/ggegui) for the [ggez](https://ggez.rs/) game framework
 * [`godot-egui`](https://github.com/setzer22/godot-egui) for [godot-rust](https://github.com/godot-rust/godot-rust)
+* [`gtk-egui-area`](https://github.com/ilya-zlobintsev/gtk-egui-area) for [gtk-rs](https://github.com/gtk-rs/gtk4-rs)
 * [`nannou_egui`](https://github.com/nannou-org/nannou/tree/master/nannou_egui) for [nannou](https://nannou.cc)
 * [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan)
 * [`screen-13-egui`](https://github.com/attackgoat/screen-13/tree/master/contrib/screen-13-egui) for [Screen 13](https://github.com/attackgoat/screen-13)
@@ -250,7 +249,8 @@ This is a fundamental shortcoming of immediate mode GUIs, and any attempt to res
 
 One workaround is to store the size and use it the next frame. This produces a frame-delay for the correct layout, producing occasional flickering the first frame something shows up. `egui` does this for some things such as windows and grid layouts.
 
-You can also call the layout code twice (once to get the size, once to do the interaction), but that is not only more expensive, it's also complex to implement, and in some cases twice is not enough. `egui` never does this.
+The "first-frame jitter" can be covered up with an extra _pass_, which egui supports via `Context::request_discard`.
+The downside of this is the added CPU cost of a second pass, so egui only does this in very rare circumstances (the majority of frames are single-pass).
 
 For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so centering buttons, labels etc is possible in `egui` without any special workarounds.
 

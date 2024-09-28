@@ -223,6 +223,25 @@
 //!
 //! Read more about the pros and cons of immediate mode at <https://github.com/emilk/egui#why-immediate-mode>.
 //!
+//! ## Multi-pass immediate mode
+//! By default, egui usually only does one pass for each rendered frame.
+//! However, egui supports multi-pass immediate mode.
+//! Another pass can be requested with [`Context::request_discard`].
+//!
+//! This is used by some widgets to cover up "first-frame jitters".
+//! For instance, the [`Grid`] needs to know the width of all columns before it can properly place the widgets.
+//! But it cannot know the width of widgets to come.
+//! So it stores the max widths of previous frames and uses that.
+//! This means the first time a `Grid` is shown it will _guess_ the widths of the columns, and will usually guess wrong.
+//! This means the contents of the grid will be wrong for one frame, before settling to the correct places.
+//! Therefore `Grid` calls [`Context::request_discard`] when it is first shown, so the wrong placement is never
+//! visible to the end user.
+//!
+//! This is an example of a form of multi-pass immediate mode, where earlier passes are used for sizing,
+//! and later passes for layout.
+//!
+//! See [`Context::request_discard`] and [`Options::max_passes`] for more.
+//!
 //! # Misc
 //!
 //! ## How widgets works
@@ -379,7 +398,6 @@ mod context;
 mod data;
 pub mod debug_text;
 mod drag_and_drop;
-mod frame_state;
 pub(crate) mod grid;
 pub mod gui_zoom;
 mod hit_test;
@@ -394,6 +412,7 @@ mod memory;
 pub mod menu;
 pub mod os;
 mod painter;
+mod pass_state;
 pub(crate) mod placer;
 mod response;
 mod sense;
@@ -462,7 +481,7 @@ pub use self::{
     layers::{LayerId, Order},
     layout::*,
     load::SizeHint,
-    memory::{Memory, Options, Theme},
+    memory::{Memory, Options, Theme, ThemePreference},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
@@ -618,6 +637,9 @@ pub enum WidgetType {
 
     RadioButton,
 
+    /// A group of radio buttons.
+    RadioGroup,
+
     SelectableLabel,
 
     ComboBox,
@@ -652,7 +674,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 }
 
 /// For use in tests; especially doctests.
-pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
+pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
     let _ = ctx.run(Default::default(), |ctx| {

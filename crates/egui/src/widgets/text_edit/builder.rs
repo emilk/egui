@@ -895,16 +895,15 @@ fn events(
 
             Event::Copy => {
                 if cursor_range.is_empty() {
-                    copy_if_not_password(ui, text.as_str().to_owned());
+                    None
                 } else {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
+                    None
                 }
-                None
             }
             Event::Cut => {
                 if cursor_range.is_empty() {
-                    copy_if_not_password(ui, text.take());
-                    Some(CCursorRange::default())
+                    None
                 } else {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
                     Some(CCursorRange::one(text.delete_selected(&cursor_range)))

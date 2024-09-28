@@ -1,9 +1,16 @@
 use std::collections::BTreeMap;
 
+struct GlyphInfo {
+    name: String,
+
+    // What fonts it is available in
+    fonts: Vec<String>,
+}
+
 pub struct FontBook {
     filter: String,
     font_id: egui::FontId,
-    named_chars: BTreeMap<egui::FontFamily, BTreeMap<char, String>>,
+    available_glyphs: BTreeMap<egui::FontFamily, BTreeMap<char, GlyphInfo>>,
 }
 
 impl Default for FontBook {
@@ -11,7 +18,7 @@ impl Default for FontBook {
         Self {
             filter: Default::default(),
             font_id: egui::FontId::proportional(18.0),
-            named_chars: Default::default(),
+            available_glyphs: Default::default(),
         }
     }
 }
@@ -37,7 +44,7 @@ impl crate::View for FontBook {
 
         ui.label(format!(
             "The selected font supports {} characters.",
-            self.named_chars
+            self.available_glyphs
                 .get(&self.font_id.family)
                 .map(|map| map.len())
                 .unwrap_or_default()
@@ -67,8 +74,8 @@ impl crate::View for FontBook {
         });
 
         let filter = &self.filter;
-        let named_chars = self
-            .named_chars
+        let available_glyphs = self
+            .available_glyphs
             .entry(self.font_id.family.clone())
             .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
 
@@ -78,8 +85,11 @@ impl crate::View for FontBook {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::Vec2::splat(2.0);
 
-                for (&chr, name) in named_chars {
-                    if filter.is_empty() || name.contains(filter) || *filter == chr.to_string() {
+                for (&chr, glyph_info) in available_glyphs {
+                    if filter.is_empty()
+                        || glyph_info.name.contains(filter)
+                        || *filter == chr.to_string()
+                    {
                         let button = egui::Button::new(
                             egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                         )
@@ -89,7 +99,10 @@ impl crate::View for FontBook {
                             ui.label(
                                 egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                             );
-                            ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
+                            ui.label(format!(
+                                "{}\nU+{:X}\n\nFound in: {:?}\n\nClick to copy",
+                                glyph_info.name, chr as u32, glyph_info.fonts
+                            ));
                         };
 
                         if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
@@ -102,15 +115,23 @@ impl crate::View for FontBook {
     }
 }
 
-fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, String> {
+fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
     ui.fonts(|f| {
         f.lock()
             .fonts
             .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
             .characters()
             .iter()
-            .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
-            .map(|&chr| (chr, char_name(chr)))
+            .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
+            .map(|(chr, fonts)| {
+                (
+                    *chr,
+                    GlyphInfo {
+                        name: char_name(*chr),
+                        fonts: fonts.clone(),
+                    },
+                )
+            })
             .collect()
     })
 }

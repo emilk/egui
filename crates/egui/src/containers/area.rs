@@ -462,14 +462,17 @@ impl Area {
                 }
             });
 
-            let move_response = ctx.create_widget(WidgetRect {
-                id: interact_id,
-                layer_id,
-                rect: state.rect(),
-                interact_rect: state.rect(),
-                sense,
-                enabled,
-            });
+            let move_response = ctx.create_widget(
+                WidgetRect {
+                    id: interact_id,
+                    layer_id,
+                    rect: state.rect(),
+                    interact_rect: state.rect(),
+                    sense,
+                    enabled,
+                },
+                true,
+            );
 
             if movable && move_response.dragged() {
                 if let Some(pivot_pos) = &mut state.pivot_pos {

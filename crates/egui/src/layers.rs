@@ -124,10 +124,14 @@ impl PaintList {
         self.0.is_empty()
     }
 
+    pub fn next_idx(&self) -> ShapeIdx {
+        ShapeIdx(self.0.len())
+    }
+
     /// Returns the index of the new [`Shape`] that can be used with `PaintList::set`.
     #[inline(always)]
     pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
-        let idx = ShapeIdx(self.0.len());
+        let idx = self.next_idx();
         self.0.push(ClippedShape { clip_rect, shape });
         idx
     }
@@ -149,6 +153,12 @@ impl PaintList {
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
+        if self.0.len() <= idx.0 {
+            #[cfg(feature = "log")]
+            log::warn!("Index {} is out of bounds for PaintList", idx.0);
+            return;
+        }
+
         self.0[idx.0] = ClippedShape { clip_rect, shape };
     }
 
@@ -166,6 +176,14 @@ impl PaintList {
     /// Transform each [`Shape`] and clip rectangle by this much, in-place
     pub fn transform(&mut self, transform: TSTransform) {
         for ClippedShape { clip_rect, shape } in &mut self.0 {
+            *clip_rect = transform.mul_rect(*clip_rect);
+            shape.transform(transform);
+        }
+    }
+
+    /// Transform each [`Shape`] and clip rectangle in range by this much, in-place
+    pub fn transform_range(&mut self, start: ShapeIdx, end: ShapeIdx, transform: TSTransform) {
+        for ClippedShape { clip_rect, shape } in &mut self.0[start.0..end.0] {
             *clip_rect = transform.mul_rect(*clip_rect);
             shape.transform(transform);
         }

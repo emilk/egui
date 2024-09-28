@@ -6,6 +6,20 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.29.0 - 2024-09-26 - `wgpu` 22.0
+### ⭐ Added
+* Add opt-out `fragile-send-sync-non-atomic-wasm` feature for wgpu [#5098](https://github.com/emilk/egui/pull/5098) by [@9SMTM6](https://github.com/9SMTM6)
+
+### 🔧 Changed
+* Upgrade to wgpu 22.0.0 [#4847](https://github.com/emilk/egui/pull/4847) by [@KeKsBoTer](https://github.com/KeKsBoTer)
+* Introduce dithering to reduce banding [#4497](https://github.com/emilk/egui/pull/4497) by [@jwagner](https://github.com/jwagner)
+* Ensure that `WgpuConfiguration` is `Send + Sync` [#4803](https://github.com/emilk/egui/pull/4803) by [@murl-digital](https://github.com/murl-digital)
+* Wgpu render pass on paint callback has now `'static` lifetime [#5149](https://github.com/emilk/egui/pull/5149) by [@Wumpf](https://github.com/Wumpf)
+
+### 🐛 Fixed
+* Update sampler along with texture on wgpu backend [#5122](https://github.com/emilk/egui/pull/5122) by [@valadaptive](https://github.com/valadaptive)
+
+
 ## 0.28.1 - 2024-07-05
 Nothing new
 

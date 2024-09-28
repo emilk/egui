@@ -44,8 +44,8 @@ pub struct WidgetRect {
 
 /// Stores the [`WidgetRect`]s of all widgets generated during a single egui update/frame.
 ///
-/// All [`crate::Ui`]s have a [`WidgetRects`], but whether or not their rects are correct
-/// depends on if [`crate::Ui::interact_bg`] was ever called.
+/// All [`crate::Ui`]s have a [`WidgetRect`]. It is created in [`crate::Ui::new`] with [`Rect::NOTHING`]
+/// and updated with the correct [`Rect`] when the [`crate::Ui`] is dropped.
 #[derive(Default, Clone)]
 pub struct WidgetRects {
     /// All widgets, in painting order.

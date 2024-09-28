@@ -775,22 +775,22 @@ mod tests {
     fn test_ray_intersection() {
         let rect = Rect::from_min_max(pos2(1.0, 1.0), pos2(3.0, 3.0));
 
-        eprintln!("Righward ray from left:");
+        println!("Righward ray from left:");
         assert!(rect.intersects_ray(pos2(0.0, 2.0), Vec2::RIGHT));
 
-        eprintln!("Righward ray from center:");
+        println!("Righward ray from center:");
         assert!(rect.intersects_ray(pos2(2.0, 2.0), Vec2::RIGHT));
 
-        eprintln!("Righward ray from right:");
+        println!("Righward ray from right:");
         assert!(!rect.intersects_ray(pos2(4.0, 2.0), Vec2::RIGHT));
 
-        eprintln!("Leftward ray from left:");
+        println!("Leftward ray from left:");
         assert!(!rect.intersects_ray(pos2(0.0, 2.0), Vec2::LEFT));
 
-        eprintln!("Leftward ray from center:");
+        println!("Leftward ray from center:");
         assert!(rect.intersects_ray(pos2(2.0, 2.0), Vec2::LEFT));
 
-        eprintln!("Leftward ray from right:");
+        println!("Leftward ray from right:");
         assert!(rect.intersects_ray(pos2(4.0, 2.0), Vec2::LEFT));
     }
 }

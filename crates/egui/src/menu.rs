@@ -171,7 +171,7 @@ fn menu_popup<'c, R>(
 
     let area_id = menu_id.with("__menu");
 
-    ctx.frame_state_mut(|fs| {
+    ctx.pass_state_mut(|fs| {
         fs.layers
             .entry(parent_layer)
             .or_default()
@@ -349,7 +349,7 @@ impl MenuRoot {
     }
 
     pub fn show<R>(
-        &mut self,
+        &self,
         button: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> (MenuResponse, Option<InnerResponse<R>>) {
@@ -706,7 +706,7 @@ impl MenuState {
 
             self.open_submenu(sub_id, pos);
         } else if open
-            && ui.interact_bg(Sense::hover()).contains_pointer()
+            && ui.response().contains_pointer()
             && !button.hovered()
             && !self.hovering_current_submenu(&pointer)
         {
@@ -759,7 +759,7 @@ impl MenuState {
         self.sub_menu.as_ref().map(|(_, sub)| sub)
     }
 
-    fn submenu(&mut self, id: Id) -> Option<&Arc<RwLock<Self>>> {
+    fn submenu(&self, id: Id) -> Option<&Arc<RwLock<Self>>> {
         self.sub_menu
             .as_ref()
             .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })

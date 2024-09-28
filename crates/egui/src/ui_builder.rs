@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{Id, Layout, Rect, Style, UiStackInfo};
+use crate::{Id, Layout, Rect, Sense, Style, UiStackInfo};
 
 #[allow(unused_imports)] // Used for doclinks
 use crate::Ui;
@@ -21,6 +21,7 @@ pub struct UiBuilder {
     pub invisible: bool,
     pub sizing_pass: bool,
     pub style: Option<Arc<Style>>,
+    pub sense: Option<Sense>,
 }
 
 impl UiBuilder {
@@ -112,6 +113,18 @@ impl UiBuilder {
     #[inline]
     pub fn style(mut self, style: impl Into<Arc<Style>>) -> Self {
         self.style = Some(style.into());
+        self
+    }
+
+    /// Set if you want sense clicks and/or drags. Default is [`Sense::hover`].
+    /// The sense will be registered below the Senses of any widgets contained in this [`Ui`], so
+    /// if the user clicks a button contained within this [`Ui`], that button will receive the click
+    /// instead.
+    ///
+    /// The response can be read early with [`Ui::response`].
+    #[inline]
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = Some(sense);
         self
     }
 }

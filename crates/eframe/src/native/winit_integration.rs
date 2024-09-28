@@ -25,6 +25,11 @@ pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Contex
 
     egui_ctx.set_embed_viewports(!IS_DESKTOP);
 
+    egui_ctx.options_mut(|o| {
+        // eframe supports multi-pass (Context::request_discard).
+        o.max_passes = 2.try_into().unwrap();
+    });
+
     let memory = crate::native::epi_integration::load_egui_memory(storage).unwrap_or_default();
     egui_ctx.memory_mut(|mem| *mem = memory);
 
@@ -42,8 +47,8 @@ pub enum UserEvent {
         /// When to repaint.
         when: Instant,
 
-        /// What the frame number was when the repaint was _requested_.
-        frame_nr: u64,
+        /// What the cumulative pass number was when the repaint was _requested_.
+        cumulative_pass_nr: u64,
     },
 
     /// A request related to [`accesskit`](https://accesskit.dev/).
@@ -59,8 +64,7 @@ impl From<accesskit_winit::Event> for UserEvent {
 }
 
 pub trait WinitApp {
-    /// The current frame number, as reported by egui.
-    fn frame_nr(&self, viewport_id: ViewportId) -> u64;
+    fn egui_ctx(&self) -> Option<&egui::Context>;
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
 

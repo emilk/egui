@@ -5,10 +5,6 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
-// `clippy::arc_with_non_send_sync`: `glow::Context` was accidentally non-Sync in glow 0.13,
-// but that will be fixed in future releases of glow.
-// https://github.com/grovesNL/glow/commit/c4a5f7151b9b4bbb380faa06ec27415235d1bf7e
-#![allow(clippy::arc_with_non_send_sync)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use std::{cell::RefCell, num::NonZeroU32, rc::Rc, sync::Arc, time::Instant};
@@ -255,13 +251,13 @@ impl<'app> GlowWinitApp<'app> {
                 .set_request_repaint_callback(move |info| {
                     log::trace!("request_repaint_callback: {info:?}");
                     let when = Instant::now() + info.delay;
-                    let frame_nr = info.current_frame_nr;
+                    let cumulative_pass_nr = info.current_cumulative_pass_nr;
                     event_loop_proxy
                         .lock()
                         .send_event(UserEvent::RequestRepaint {
                             viewport_id: info.viewport_id,
                             when,
-                            frame_nr,
+                            cumulative_pass_nr,
                         })
                         .ok();
                 });
@@ -350,10 +346,8 @@ impl<'app> GlowWinitApp<'app> {
 }
 
 impl<'app> WinitApp for GlowWinitApp<'app> {
-    fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
-        self.running
-            .as_ref()
-            .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
+    fn egui_ctx(&self) -> Option<&egui::Context> {
+        self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
 
     fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
@@ -716,7 +710,7 @@ impl<'app> GlowWinitRunning<'app> {
 
         // give it time to settle:
         #[cfg(feature = "__screenshot")]
-        if integration.egui_ctx.frame_nr() == 2 {
+        if integration.egui_ctx.cumulative_pass_nr() == 2 {
             if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
                 save_screenshot_and_exit(&path, &painter, screen_size_in_pixels);
             }
@@ -1401,7 +1395,7 @@ fn render_immediate_viewport(
     let ImmediateViewport {
         ids,
         builder,
-        viewport_ui_cb,
+        mut viewport_ui_cb,
     } = immediate_viewport;
 
     let viewport_id = ids.this;
@@ -1553,7 +1547,7 @@ fn save_screenshot_and_exit(
     .unwrap_or_else(|err| {
         panic!("Failed to save screenshot to {path:?}: {err}");
     });
-    eprintln!("Screenshot saved to {path:?}.");
+    log::info!("Screenshot saved to {path:?}.");
 
     #[allow(clippy::exit)]
     std::process::exit(0);

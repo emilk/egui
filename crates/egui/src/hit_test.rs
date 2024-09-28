@@ -417,7 +417,7 @@ mod tests {
         ];
 
         for (i, w) in widgets.iter().enumerate() {
-            eprintln!("Widget {i}: {:?}", w.id);
+            println!("Widget {i}: {:?}", w.id);
         }
 
         // In the middle of the bg-left-label:

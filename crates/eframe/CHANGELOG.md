@@ -7,6 +7,41 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.29.0 - 2024-09-26 - `winit` 0.30 & fix mobile text input
+### ✨ Highlights
+* Upgrade winit to 0.30 ([#4849](https://github.com/emilk/egui/pull/4849) [#4939](https://github.com/emilk/egui/pull/4939))
+* Fix virtual keyboard on (mobile) web ([#4848](https://github.com/emilk/egui/pull/4848) [#4855](https://github.com/emilk/egui/pull/4855))
+
+### 🧳 Migration
+* `WebRunner::start` now expects a `HtmlCanvasElement` rather than the id of it ([#4780](https://github.com/emilk/egui/pull/4780))
+* `NativeOptions::follow_system_theme` and `default_theme` is gone, and is now in `egui::Options` instead ([#4860](https://github.com/emilk/egui/pull/4860) by [@bash](https://github.com/bash))
+
+### ⭐ Added
+* Conditionally propagate web events using a filter in WebOptions [#5056](https://github.com/emilk/egui/pull/5056) by [@liamrosenfeld](https://github.com/liamrosenfeld)
+
+### 🔧 Changed
+* Pass `HtmlCanvasElement ` element directly in `WebRunner::start` [#4780](https://github.com/emilk/egui/pull/4780) by [@jprochazk](https://github.com/jprochazk)
+* Upgrade winit to 0.30.2 [#4849](https://github.com/emilk/egui/pull/4849) [#4939](https://github.com/emilk/egui/pull/4939) by [@ArthurBrussee](https://github.com/ArthurBrussee)
+* Allow non-`static` `eframe::App` lifetime [#5060](https://github.com/emilk/egui/pull/5060) by [@timstr](https://github.com/timstr)
+* Improve `glow` context switching [#4814](https://github.com/emilk/egui/pull/4814) by [@rustbasic](https://github.com/rustbasic)
+* Ignore viewport size/position on iOS [#4922](https://github.com/emilk/egui/pull/4922) by [@frederik-uni](https://github.com/frederik-uni)
+* Update `web-sys` & `wasm-bindgen` [#4980](https://github.com/emilk/egui/pull/4980) by [@bircni](https://github.com/bircni)
+* Remove the need for setting `web_sys_unstable_apis` [#5000](https://github.com/emilk/egui/pull/5000) by [@emilk](https://github.com/emilk)
+* Remove the `directories` dependency [#4904](https://github.com/emilk/egui/pull/4904) by [@YgorSouza](https://github.com/YgorSouza)
+
+### 🐛 Fixed
+* Fix: call `save` when hiding web tab, and `update` when focusing it [#5114](https://github.com/emilk/egui/pull/5114) by [@emilk](https://github.com/emilk)
+* Force canvas/text input focus on touch for iOS web browsers [#4848](https://github.com/emilk/egui/pull/4848) by [@BKSalman](https://github.com/BKSalman)
+* Fix virtual keyboard on (mobile) web [#4855](https://github.com/emilk/egui/pull/4855) by [@micmonay](https://github.com/micmonay)
+* Fix: Backspace not working after IME input [#4912](https://github.com/emilk/egui/pull/4912) by [@rustbasic](https://github.com/rustbasic)
+* Fix iOS build, and add iOS step to CI [#4898](https://github.com/emilk/egui/pull/4898) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix iOS compilation of eframe [#4851](https://github.com/emilk/egui/pull/4851) by [@ardocrat](https://github.com/ardocrat)
+* Fix crash when changing viewport settings [#4862](https://github.com/emilk/egui/pull/4862) by [@pm100](https://github.com/pm100)
+* Fix eframe centering on multiple monitor systems [#4919](https://github.com/emilk/egui/pull/4919) by [@VinTarZ](https://github.com/VinTarZ)
+* Fix viewport not working when minimized [#5042](https://github.com/emilk/egui/pull/5042) by [@rustbasic](https://github.com/rustbasic)
+* Clarified `eframe::run_simple_native()` persistence [#4846](https://github.com/emilk/egui/pull/4846) by [@tpstevens](https://github.com/tpstevens)
+
+
 ## 0.28.1 - 2024-07-05
 * Web: only capture clicks/touches when actually over canvas [#4775](https://github.com/emilk/egui/pull/4775) by [@lucasmerlin](https://github.com/lucasmerlin)
 

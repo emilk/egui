@@ -10,10 +10,11 @@ use crate::{
     ecolor::Hsva,
     emath, epaint,
     epaint::text::Fonts,
-    frame_state, grid,
+    grid,
     layout::{Direction, Layout},
     menu,
     menu::MenuState,
+    pass_state,
     placer::Placer,
     pos2, style,
     util::IdTypeMap,
@@ -89,6 +90,14 @@ pub struct Ui {
 
     /// The [`UiStack`] for this [`Ui`].
     stack: Arc<UiStack>,
+
+    /// The sense for the ui background.
+    sense: Sense,
+
+    /// Whether [`Ui::remember_min_rect`] should be called when the [`Ui`] is dropped.
+    /// This is an optimization, so we don't call [`Ui::remember_min_rect`] multiple times at the
+    /// end of a [`Ui::scope`].
+    min_rect_already_remembered: bool,
 }
 
 impl Ui {
@@ -109,6 +118,7 @@ impl Ui {
             invisible,
             sizing_pass,
             style,
+            sense,
         } = ui_builder;
 
         debug_assert!(
@@ -121,6 +131,7 @@ impl Ui {
         let layout = layout.unwrap_or_default();
         let disabled = disabled || invisible;
         let style = style.unwrap_or_else(|| ctx.style());
+        let sense = sense.unwrap_or(Sense::hover());
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
@@ -141,18 +152,23 @@ impl Ui {
             sizing_pass,
             menu_state: None,
             stack: Arc::new(ui_stack),
+            sense,
+            min_rect_already_remembered: false,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
-        ui.ctx().create_widget(WidgetRect {
-            id: ui.id,
-            layer_id: ui.layer_id(),
-            rect: start_rect,
-            interact_rect: start_rect,
-            sense: Sense::hover(),
-            enabled: ui.enabled,
-        });
+        ui.ctx().create_widget(
+            WidgetRect {
+                id: ui.id,
+                layer_id: ui.layer_id(),
+                rect: start_rect,
+                interact_rect: start_rect,
+                sense,
+                enabled: ui.enabled,
+            },
+            true,
+        );
 
         if disabled {
             ui.disable();
@@ -206,6 +222,14 @@ impl Ui {
     }
 
     /// Create a child `Ui` with the properties of the given builder.
+    ///
+    /// This is a very low-level function.
+    /// Usually you are better off using [`Self::scope_builder`].
+    ///
+    /// Note that calling this does not allocate any space in the parent `Ui`,
+    /// so after adding widgets to the child `Ui` you probably want to allocate
+    /// the [`Ui::min_rect`] of the child in the parent `Ui` using e.g.
+    /// [`Ui::advance_cursor_after_rect`].
     pub fn new_child(&mut self, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
@@ -216,6 +240,7 @@ impl Ui {
             invisible,
             sizing_pass,
             style,
+            sense,
         } = ui_builder;
 
         let mut painter = self.painter.clone();
@@ -229,6 +254,7 @@ impl Ui {
         }
         let sizing_pass = self.sizing_pass || sizing_pass;
         let style = style.unwrap_or_else(|| self.style.clone());
+        let sense = sense.unwrap_or(Sense::hover());
 
         if self.sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
@@ -264,18 +290,23 @@ impl Ui {
             sizing_pass,
             menu_state: self.menu_state.clone(),
             stack: Arc::new(ui_stack),
+            sense,
+            min_rect_already_remembered: false,
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
-        child_ui.ctx().create_widget(WidgetRect {
-            id: child_ui.id,
-            layer_id: child_ui.layer_id(),
-            rect: start_rect,
-            interact_rect: start_rect,
-            sense: Sense::hover(),
-            enabled: child_ui.enabled,
-        });
+        child_ui.ctx().create_widget(
+            WidgetRect {
+                id: child_ui.id,
+                layer_id: child_ui.layer_id(),
+                rect: start_rect,
+                interact_rect: start_rect,
+                sense,
+                enabled: child_ui.enabled,
+            },
+            true,
+        );
 
         child_ui
     }
@@ -320,7 +351,7 @@ impl Ui {
     /// Mutably borrow internal [`Style`].
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the style of all [`Ui`]:s, use [`Context::set_style`].
+    /// To set the style of all [`Ui`]:s, use [`Context::set_style_of`].
     ///
     /// Example:
     /// ```
@@ -334,7 +365,7 @@ impl Ui {
 
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
     pub fn set_style(&mut self, style: impl Into<Arc<Style>>) {
         self.style = style.into();
     }
@@ -374,7 +405,7 @@ impl Ui {
     /// Mutably borrow internal `visuals`.
     /// Changes apply to this [`Ui`] and its subsequent children.
     ///
-    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals`].
+    /// To set the visuals of all [`Ui`]:s, use [`Context::set_visuals_of`].
     ///
     /// Example:
     /// ```
@@ -469,6 +500,9 @@ impl Ui {
     }
 
     /// If `false`, any widgets added to the [`Ui`] will be invisible and non-interactive.
+    ///
+    /// This is `false` if any parent had [`UiBuilder::invisible`]
+    /// or if [`Context::will_discard`].
     #[inline]
     pub fn is_visible(&self) -> bool {
         self.painter.is_visible()
@@ -613,6 +647,14 @@ impl Ui {
         self.wrap_mode() == TextWrapMode::Wrap
     }
 
+    /// How to vertically align text
+    #[inline]
+    pub fn text_valign(&self) -> Align {
+        self.style()
+            .override_text_valign
+            .unwrap_or_else(|| self.layout().vertical_align())
+    }
+
     /// Create a painter for a sub-region of this Ui.
     ///
     /// The clip-rect of the returned [`Painter`] will be the intersection
@@ -659,6 +701,9 @@ impl Ui {
     }
 
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
+    ///
+    /// This is false if the whole `Ui` is invisible (see [`UiBuilder::invisible`])
+    /// or if [`Context::will_discard`] is true.
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
     }
@@ -957,14 +1002,17 @@ impl Ui {
 impl Ui {
     /// Check for clicks, drags and/or hover on a specific region of this [`Ui`].
     pub fn interact(&self, rect: Rect, id: Id, sense: Sense) -> Response {
-        self.ctx().create_widget(WidgetRect {
-            id,
-            layer_id: self.layer_id(),
-            rect,
-            interact_rect: self.clip_rect().intersect(rect),
-            sense,
-            enabled: self.enabled,
-        })
+        self.ctx().create_widget(
+            WidgetRect {
+                id,
+                layer_id: self.layer_id(),
+                rect,
+                interact_rect: self.clip_rect().intersect(rect),
+                sense,
+                enabled: self.enabled,
+            },
+            true,
+        )
     }
 
     /// Deprecated: use [`Self::interact`] instead.
@@ -979,10 +1027,62 @@ impl Ui {
         self.interact(rect, id, sense)
     }
 
+    /// Read the [`Ui`]s background [`Response`].
+    /// It's [`Sense`] will be based on the [`UiBuilder::sense`] used to create this [`Ui`].
+    ///
+    /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`]
+    /// of the last pass.
+    ///
+    /// The very first time when the [`Ui`] is created, this will return a [`Response`] with a
+    /// [`Rect`] of [`Rect::NOTHING`].
+    pub fn response(&self) -> Response {
+        // This is the inverse of Context::read_response. We prefer a response
+        // based on last frame's widget rect since the one from this frame is Rect::NOTHING until
+        // Ui::interact_bg is called or the Ui is dropped.
+        self.ctx()
+            .viewport(|viewport| {
+                viewport
+                    .prev_pass
+                    .widgets
+                    .get(self.id)
+                    .or_else(|| viewport.this_pass.widgets.get(self.id))
+                    .copied()
+            })
+            .map(|widget_rect| self.ctx().get_response(widget_rect))
+            .expect(
+                "Since we always call Context::create_widget in Ui::new, this should never be None",
+            )
+    }
+
+    /// Update the [`WidgetRect`] created in [`Ui::new`] or [`Ui::new_child`] with the current
+    /// [`Ui::min_rect`].
+    fn remember_min_rect(&mut self) -> Response {
+        self.min_rect_already_remembered = true;
+        // We remove the id from used_ids to prevent a duplicate id warning from showing
+        // when the ui was created with `UiBuilder::sense`.
+        // This is a bit hacky, is there a better way?
+        self.ctx().pass_state_mut(|fs| {
+            fs.used_ids.remove(&self.id);
+        });
+        // This will update the WidgetRect that was first created in `Ui::new`.
+        self.ctx().create_widget(
+            WidgetRect {
+                id: self.id,
+                layer_id: self.layer_id(),
+                rect: self.min_rect(),
+                interact_rect: self.clip_rect().intersect(self.min_rect()),
+                sense: self.sense,
+                enabled: self.enabled,
+            },
+            false,
+        )
+    }
+
     /// Interact with the background of this [`Ui`],
     /// i.e. behind all the widgets.
     ///
     /// The rectangle of the [`Response`] (and interactive area) will be [`Self::min_rect`].
+    #[deprecated = "Use UiBuilder::sense with Ui::response instead"]
     pub fn interact_bg(&self, sense: Sense) -> Response {
         // This will update the WidgetRect that was first created in `Ui::new`.
         self.interact(self.min_rect(), self.id, sense)
@@ -1005,7 +1105,7 @@ impl Ui {
     ///
     /// Note that this tests against the _current_ [`Ui::min_rect`].
     /// If you want to test against the final `min_rect`,
-    /// use [`Self::interact_bg`] instead.
+    /// use [`Self::response`] instead.
     pub fn ui_contains_pointer(&self) -> bool {
         self.rect_contains_pointer(self.min_rect())
     }
@@ -1035,7 +1135,9 @@ impl Ui {
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
         let (id, rect) = self.allocate_space(desired_size);
-        self.interact(rect, id, sense)
+        let mut response = self.interact(rect, id, sense);
+        response.intrinsic_size = Some(desired_size);
+        response
     }
 
     /// Returns a [`Rect`] with exactly what you asked for.
@@ -1146,7 +1248,6 @@ impl Ui {
     /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
-        register_rect(self, rect);
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -1156,6 +1257,7 @@ impl Ui {
         debug_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
+        register_rect(self, rect);
 
         let id = Id::new(self.next_auto_id_salt);
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
@@ -1269,6 +1371,7 @@ impl Ui {
         let rect = child_ui.min_rect();
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
+        register_rect(self, rect);
         let response = self.interact(rect, child_ui.id, Sense::hover());
         InnerResponse::new(inner, response)
     }
@@ -1336,9 +1439,9 @@ impl Ui {
     ) {
         for d in 0..2 {
             let range = Rangef::new(rect.min[d], rect.max[d]);
-            self.ctx().frame_state_mut(|state| {
+            self.ctx().pass_state_mut(|state| {
                 state.scroll_target[d] =
-                    Some(frame_state::ScrollTarget::new(range, align, animation));
+                    Some(pass_state::ScrollTarget::new(range, align, animation));
             });
         }
     }
@@ -1378,9 +1481,9 @@ impl Ui {
         let target = self.next_widget_position();
         for d in 0..2 {
             let target = Rangef::point(target[d]);
-            self.ctx().frame_state_mut(|state| {
+            self.ctx().pass_state_mut(|state| {
                 state.scroll_target[d] =
-                    Some(frame_state::ScrollTarget::new(target, align, animation));
+                    Some(pass_state::ScrollTarget::new(target, align, animation));
             });
         }
     }
@@ -1397,7 +1500,7 @@ impl Ui {
     ///
     /// If this is called multiple times per frame for the same [`crate::ScrollArea`], the deltas will be summed.
     ///
-    /// /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
+    /// See also: [`Response::scroll_to_me`], [`Ui::scroll_to_rect`], [`Ui::scroll_to_cursor`]
     ///
     /// ```
     /// # use egui::{Align, Vec2};
@@ -1420,7 +1523,7 @@ impl Ui {
 
     /// Same as [`Self::scroll_with_delta`], but allows you to specify the [`style::ScrollAnimation`].
     pub fn scroll_with_delta_animation(&self, delta: Vec2, animation: style::ScrollAnimation) {
-        self.ctx().frame_state_mut(|state| {
+        self.ctx().pass_state_mut(|state| {
             state.scroll_delta.0 += delta;
             state.scroll_delta.1 = animation;
         });
@@ -1456,8 +1559,8 @@ impl Ui {
     /// See also [`Self::add`] and [`Self::put`].
     ///
     /// ```
-    /// # let mut my_value = 42;
     /// # egui::__run_test_ui(|ui| {
+    /// # let mut my_value = 42;
     /// ui.add_sized([40.0, 20.0], egui::DragValue::new(&mut my_value));
     /// # });
     /// ```
@@ -2151,7 +2254,8 @@ impl Ui {
         let mut child_ui = self.new_child(ui_builder);
         self.next_auto_id_salt = next_auto_id_salt; // HACK: we want `scope` to only increment this once, so that `ui.scope` is equivalent to `ui.allocate_space`.
         let ret = add_contents(&mut child_ui);
-        let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
+        let response = child_ui.remember_min_rect();
+        self.advance_cursor_after_rect(child_ui.min_rect());
         InnerResponse::new(ret, response)
     }
 
@@ -2690,6 +2794,33 @@ impl Ui {
 
         (InnerResponse { inner, response }, payload)
     }
+
+    /// Create a new Scope and transform its contents via a [`emath::TSTransform`].
+    /// This only affects visuals, inputs will not be transformed. So this is mostly useful
+    /// to create visual effects on interactions, e.g. scaling a button on hover / click.
+    ///
+    /// Check out [`Context::set_transform_layer`] for a persistent transform that also affects
+    /// inputs.
+    pub fn with_visual_transform<R>(
+        &mut self,
+        transform: emath::TSTransform,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        let start_idx = self.ctx().graphics(|gx| {
+            gx.get(self.layer_id())
+                .map_or(crate::layers::ShapeIdx(0), |l| l.next_idx())
+        });
+
+        let r = self.scope_dyn(UiBuilder::new(), Box::new(add_contents));
+
+        self.ctx().graphics_mut(|g| {
+            let list = g.entry(self.layer_id());
+            let end_idx = list.next_idx();
+            list.transform_range(start_idx, end_idx, transform);
+        });
+
+        r
+    }
 }
 
 /// # Menus
@@ -2817,9 +2948,13 @@ impl Ui {
     }
 }
 
-#[cfg(debug_assertions)]
 impl Drop for Ui {
     fn drop(&mut self) {
+        if !self.min_rect_already_remembered {
+            // Register our final `min_rect`
+            self.remember_min_rect();
+        }
+        #[cfg(debug_assertions)]
         register_rect(self, self.min_rect());
     }
 }
@@ -2827,7 +2962,32 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
+    use emath::Align2;
+
     let debug = ui.style().debug;
+
+    if debug.show_unaligned {
+        let unaligned_line = |p0: Pos2, p1: Pos2| {
+            let color = Color32::ORANGE;
+            let font_id = TextStyle::Monospace.resolve(ui.style());
+            ui.painter().line_segment([p0, p1], (1.0, color));
+            ui.painter()
+                .text(p0, Align2::LEFT_TOP, "Unaligned", font_id, color);
+        };
+
+        if rect.left().fract() != 0.0 {
+            unaligned_line(rect.left_top(), rect.left_bottom());
+        }
+        if rect.right().fract() != 0.0 {
+            unaligned_line(rect.right_top(), rect.right_bottom());
+        }
+        if rect.top().fract() != 0.0 {
+            unaligned_line(rect.left_top(), rect.right_top());
+        }
+        if rect.bottom().fract() != 0.0 {
+            unaligned_line(rect.left_bottom(), rect.right_bottom());
+        }
+    }
 
     let show_callstacks = debug.debug_on_hover
         || debug.debug_on_hover_with_all_modifiers && ui.input(|i| i.modifiers.all());
@@ -2849,14 +3009,14 @@ fn register_rect(ui: &Ui, rect: Rect) {
     let callstack = String::default();
 
     // We only show one debug rectangle, or things get confusing:
-    let debug_rect = frame_state::DebugRect {
+    let debug_rect = pass_state::DebugRect {
         rect,
         callstack,
         is_clicking,
     };
 
     let mut kept = false;
-    ui.ctx().frame_state_mut(|fs| {
+    ui.ctx().pass_state_mut(|fs| {
         if let Some(final_debug_rect) = &mut fs.debug_rect {
             // or maybe pick the one with deepest callstack?
             if final_debug_rect.rect.contains_rect(rect) {

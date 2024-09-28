@@ -1,0 +1,31 @@
+name: Preview Cleanup
+
+permissions:
+  contents: write
+
+on:
+  pull_request_target:
+    types:
+      - closed
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - run: mkdir -p empty_dir
+      - name: Url slug variable
+        run: |
+          echo "URL_SLUG=${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: empty_dir
+          repository-name: egui-pr-preview/pr
+          branch: 'main'
+          clean: true
+          target-folder: ${{ env.URL_SLUG }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          commit-message: "Remove preview for PR ${{ env.URL_SLUG }}"
+          single-commit: true

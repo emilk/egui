@@ -6,6 +6,13 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.29.0 - 2024-09-26 - `glow` 0.14
+* Update `glow` to 0.14 [#4952](https://github.com/emilk/egui/pull/4952) by [@bircni](https://github.com/bircni)
+* Introduce dithering to reduce banding [#4497](https://github.com/emilk/egui/pull/4497) by [@jwagner](https://github.com/jwagner)
+* Fix missing `winit` feature in `egui_glow` [#4916](https://github.com/emilk/egui/pull/4916) by [@bash](https://github.com/bash)
+* Add support for mipmap textures [#5146](https://github.com/emilk/egui/pull/5146) by [@nolanderc](https://github.com/nolanderc)
+
+
 ## 0.28.1 - 2024-07-05
 Nothing new
 

@@ -2,8 +2,8 @@ use std::{any::Any, sync::Arc};
 
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    frame_state, menu, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense,
-    Ui, WidgetRect, WidgetText,
+    menu, pass_state, AreaState, Context, CursorIcon, Id, LayerId, Order, PointerButton, Sense, Ui,
+    WidgetRect, WidgetText,
 };
 // ----------------------------------------------------------------------------
 
@@ -116,8 +116,23 @@ pub struct Response {
     ///
     /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
     /// Always `false` for something like a [`Button`](crate::Button).
+    ///
+    /// Note that this can be `true` even if the user did not interact with the widget,
+    /// for instance if an existing slider value was clamped to the given range.
     #[doc(hidden)]
     pub changed: bool,
+
+    /// The intrinsic / desired size of the widget.
+    ///
+    /// For a button, this will be the size of the label + the frames padding,
+    /// even if the button is laid out in a justified layout and the actual size will be larger.
+    ///
+    /// If this is `None`, use [`Self::rect`] instead.
+    ///
+    /// At the time of writing, this is only used by external crates
+    /// for improved layouting.
+    /// See for instance [`egui_flex`](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_flex).
+    pub intrinsic_size: Option<Vec2>,
 }
 
 impl Response {
@@ -328,7 +343,7 @@ impl Response {
     /// To find out which button(s), use [`Self::dragged_by`].
     ///
     /// If the widget is only sensitive to drags, this is `true` as soon as the pointer presses down on it.
-    /// If the widget is also sensitive to drags, this won't be true until the pointer has moved a bit,
+    /// If the widget also senses clicks, this won't be true until the pointer has moved a bit,
     /// or the user has pressed down for long enough.
     /// See [`crate::input_state::PointerState::is_decidedly_dragging`] for details.
     ///
@@ -496,6 +511,9 @@ impl Response {
     ///
     /// This is not set if the *view* of the data was changed.
     /// For instance, moving the cursor in a [`TextEdit`](crate::TextEdit) does not set this to `true`.
+    ///
+    /// Note that this can be `true` even if the user did not interact with the widget,
+    /// for instance if an existing slider value was clamped to the given range.
     #[inline(always)]
     pub fn changed(&self) -> bool {
         self.changed
@@ -600,7 +618,7 @@ impl Response {
             return true;
         }
 
-        let any_open_popups = self.ctx.prev_frame_state(|fs| {
+        let any_open_popups = self.ctx.prev_pass_state(|fs| {
             fs.layers
                 .get(&self.layer_id)
                 .map_or(false, |layer| !layer.open_popups.is_empty())
@@ -648,7 +666,7 @@ impl Response {
             let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
             let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
-                vp.prev_frame
+                vp.prev_pass
                     .widgets
                     .get_layer(tooltip_layer_id)
                     .any(|w| w.enabled && w.sense.interactive())
@@ -696,7 +714,7 @@ impl Response {
             }
         }
 
-        let is_other_tooltip_open = self.ctx.prev_frame_state(|fs| {
+        let is_other_tooltip_open = self.ctx.prev_pass_state(|fs| {
             if let Some(already_open_tooltip) = fs
                 .layers
                 .get(&self.layer_id)
@@ -772,6 +790,10 @@ impl Response {
     #[doc(alias = "tooltip")]
     pub fn on_hover_text_at_pointer(self, text: impl Into<WidgetText>) -> Self {
         self.on_hover_ui_at_pointer(|ui| {
+            // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
+            // See https://github.com/emilk/egui/issues/5167
+            ui.set_max_width(ui.spacing().tooltip_width);
+
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -785,6 +807,10 @@ impl Response {
     #[doc(alias = "tooltip")]
     pub fn on_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_hover_ui(|ui| {
+            // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
+            // See https://github.com/emilk/egui/issues/5167
+            ui.set_max_width(ui.spacing().tooltip_width);
+
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -804,6 +830,10 @@ impl Response {
     /// Show this text when hovering if the widget is disabled.
     pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_disabled_hover_ui(|ui| {
+            // Prevent `Area` auto-sizing from shrinking tooltips with dynamic content.
+            // See https://github.com/emilk/egui/issues/5167
+            ui.set_max_width(ui.spacing().tooltip_width);
+
             ui.add(crate::widgets::Label::new(text));
         })
     }
@@ -857,14 +887,17 @@ impl Response {
             return self.clone();
         }
 
-        self.ctx.create_widget(WidgetRect {
-            layer_id: self.layer_id,
-            id: self.id,
-            rect: self.rect,
-            interact_rect: self.interact_rect,
-            sense: self.sense | sense,
-            enabled: self.enabled,
-        })
+        self.ctx.create_widget(
+            WidgetRect {
+                layer_id: self.layer_id,
+                id: self.id,
+                rect: self.rect,
+                interact_rect: self.interact_rect,
+                sense: self.sense | sense,
+                enabled: self.enabled,
+            },
+            true,
+        )
     }
 
     /// Adjust the scroll position until this UI becomes visible.
@@ -896,13 +929,13 @@ impl Response {
         align: Option<Align>,
         animation: crate::style::ScrollAnimation,
     ) {
-        self.ctx.frame_state_mut(|state| {
-            state.scroll_target[0] = Some(frame_state::ScrollTarget::new(
+        self.ctx.pass_state_mut(|state| {
+            state.scroll_target[0] = Some(pass_state::ScrollTarget::new(
                 self.rect.x_range(),
                 align,
                 animation,
             ));
-            state.scroll_target[1] = Some(frame_state::ScrollTarget::new(
+            state.scroll_target[1] = Some(pass_state::ScrollTarget::new(
                 self.rect.y_range(),
                 align,
                 animation,
@@ -992,6 +1025,7 @@ impl Response {
             }
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
+            WidgetType::RadioGroup => Role::RadioGroup,
             WidgetType::SelectableLabel => Role::Button,
             WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
@@ -1137,6 +1171,7 @@ impl Response {
                 || other.is_pointer_button_down_on,
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             changed: self.changed || other.changed,
+            intrinsic_size: None,
         }
     }
 }

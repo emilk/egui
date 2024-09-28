@@ -4,7 +4,8 @@
 
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
-use epaint::{Rounding, Shadow, Stroke};
+use emath::Align;
+use epaint::{text::FontTweak, Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::Color32,
@@ -176,7 +177,8 @@ impl From<TextStyle> for FontSelection {
 /// Specifies the look and feel of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::style_mut`]
-/// and of everything with [`crate::Context::set_style`].
+/// and of everything with [`crate::Context::set_style_of`].
+/// To choose between dark and light style, use [`crate::Context::set_theme`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
@@ -195,6 +197,11 @@ pub struct Style {
     /// which will take precedence over this.
     pub override_font_id: Option<FontId>,
 
+    /// How to vertically align text.
+    ///
+    /// Set to `None` to use align that depends on the current layout.
+    pub override_text_valign: Option<Align>,
+
     /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
     ///
     /// The most convenient way to look something up in this is to use [`TextStyle::resolve`].
@@ -206,12 +213,10 @@ pub struct Style {
     /// use egui::FontFamily::Proportional;
     /// use egui::FontId;
     /// use egui::TextStyle::*;
-    ///
-    /// // Get current context style
-    /// let mut style = (*ctx.style()).clone();
+    /// use std::collections::BTreeMap;
     ///
     /// // Redefine text_styles
-    /// style.text_styles = [
+    /// let text_styles: BTreeMap<_, _> = [
     ///   (Heading, FontId::new(30.0, Proportional)),
     ///   (Name("Heading2".into()), FontId::new(25.0, Proportional)),
     ///   (Name("Context".into()), FontId::new(23.0, Proportional)),
@@ -221,8 +226,8 @@ pub struct Style {
     ///   (Small, FontId::new(10.0, Proportional)),
     /// ].into();
     ///
-    /// // Mutate global style with above changes
-    /// ctx.set_style(style);
+    /// // Mutate global styles with new text styles
+    /// ctx.all_styles_mut(move |style| style.text_styles = text_styles.clone());
     /// ```
     pub text_styles: BTreeMap<TextStyle, FontId>,
 
@@ -871,7 +876,7 @@ impl Default for TextEditStyle {
 /// Controls the visual style (colors etc) of egui.
 ///
 /// You can change the visuals of a [`Ui`] with [`Ui::visuals_mut`]
-/// and of everything with [`crate::Context::set_visuals`].
+/// and of everything with [`crate::Context::set_visuals_of`].
 ///
 /// If you want to change fonts, use [`crate::Context::set_fonts`] instead.
 #[derive(Clone, Debug, PartialEq)]
@@ -1180,6 +1185,13 @@ pub struct DebugOptions {
 
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
+
+    /// If true, highlight widgets that are not aligned to integer point coordinates.
+    ///
+    /// It's usually a good idea to keep to integer coordinates to avoid rounding issues.
+    ///
+    /// See <https://github.com/emilk/egui/issues/5163> for more.
+    pub show_unaligned: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1195,6 +1207,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
+            show_unaligned: false,
         }
     }
 }
@@ -1221,6 +1234,7 @@ impl Default for Style {
         Self {
             override_font_id: None,
             override_text_style: None,
+            override_text_valign: Some(Align::Center),
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
@@ -1512,7 +1526,7 @@ impl Default for Widgets {
 // ----------------------------------------------------------------------------
 
 use crate::{
-    widgets::{reset_button, Button, DragValue, Slider, Widget},
+    widgets::{reset_button, DragValue, Slider, Widget},
     Ui,
 };
 
@@ -1522,6 +1536,7 @@ impl Style {
         let Self {
             override_font_id,
             override_text_style,
+            override_text_valign,
             text_styles,
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
@@ -1539,8 +1554,6 @@ impl Style {
             scroll_animation,
         } = self;
 
-        visuals.light_dark_radio_buttons(ui);
-
         crate::Grid::new("_options").show(ui, |ui| {
             ui.label("Override font id");
             ui.vertical(|ui| {
@@ -1557,7 +1570,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Override text style");
-            crate::ComboBox::from_id_salt("Override text style")
+            crate::ComboBox::from_id_salt("override_text_style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
                     Some(override_text_style) => override_text_style.to_string(),
@@ -1569,6 +1582,28 @@ impl Style {
                         let text =
                             crate::RichText::new(style.to_string()).text_style(style.clone());
                         ui.selectable_value(override_text_style, Some(style), text);
+                    }
+                });
+            ui.end_row();
+
+            fn valign_name(valign: Align) -> &'static str {
+                match valign {
+                    Align::TOP => "Top",
+                    Align::Center => "Center",
+                    Align::BOTTOM => "Bottom",
+                }
+            }
+
+            ui.label("Override text valign");
+            crate::ComboBox::from_id_salt("override_text_valign")
+                .selected_text(match override_text_valign {
+                    None => "None",
+                    Some(override_text_valign) => valign_name(*override_text_valign),
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(override_text_valign, None, "None");
+                    for align in [Align::TOP, Align::Center, Align::BOTTOM] {
+                        ui.selectable_value(override_text_valign, Some(align), valign_name(align));
                     }
                 });
             ui.end_row();
@@ -1951,38 +1986,6 @@ impl WidgetVisuals {
 }
 
 impl Visuals {
-    /// Show radio-buttons to switch between light and dark mode.
-    pub fn light_dark_radio_buttons(&mut self, ui: &mut crate::Ui) {
-        ui.horizontal(|ui| {
-            ui.selectable_value(self, Self::light(), "☀ Light");
-            ui.selectable_value(self, Self::dark(), "🌙 Dark");
-        });
-    }
-
-    /// Show small toggle-button for light and dark mode.
-    #[must_use]
-    pub fn light_dark_small_toggle_button(&self, ui: &mut crate::Ui) -> Option<Self> {
-        #![allow(clippy::collapsible_else_if)]
-        if self.dark_mode {
-            if ui
-                .add(Button::new("☀").frame(false))
-                .on_hover_text("Switch to light mode")
-                .clicked()
-            {
-                return Some(Self::light());
-            }
-        } else {
-            if ui
-                .add(Button::new("🌙").frame(false))
-                .on_hover_text("Switch to dark mode")
-                .clicked()
-            {
-                return Some(Self::dark());
-            }
-        }
-        None
-    }
-
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             dark_mode: _,
@@ -2228,6 +2231,7 @@ impl DebugOptions {
             show_resize,
             show_interactive_widgets,
             show_widget_hits,
+            show_unaligned,
         } = self;
 
         {
@@ -2256,6 +2260,11 @@ impl DebugOptions {
         );
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
+
+        ui.checkbox(
+            show_unaligned,
+            "Show rectangles not aligned to integer point coordinates",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
     }
@@ -2564,5 +2573,50 @@ impl Widget for &mut crate::Frame {
                 ui.end_row();
             })
             .response
+    }
+}
+
+impl Widget for &mut FontTweak {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let original: FontTweak = *self;
+
+        let mut response = Grid::new("font_tweak")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let FontTweak {
+                    scale,
+                    y_offset_factor,
+                    y_offset,
+                    baseline_offset_factor,
+                } = self;
+
+                ui.label("Scale");
+                let speed = *scale * 0.01;
+                ui.add(DragValue::new(scale).range(0.01..=10.0).speed(speed));
+                ui.end_row();
+
+                ui.label("y_offset_factor");
+                ui.add(DragValue::new(y_offset_factor).speed(-0.0025));
+                ui.end_row();
+
+                ui.label("y_offset");
+                ui.add(DragValue::new(y_offset).speed(-0.02));
+                ui.end_row();
+
+                ui.label("baseline_offset_factor");
+                ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
+                ui.end_row();
+
+                if ui.button("Reset").clicked() {
+                    *self = Default::default();
+                }
+            })
+            .response;
+
+        if *self != original {
+            response.mark_changed();
+        }
+
+        response
     }
 }

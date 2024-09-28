@@ -251,9 +251,9 @@ impl Widget for Button<'_> {
         if image.is_some() && galley.is_some() {
             desired_size.x += ui.spacing().icon_spacing;
         }
-        if let Some(text) = &galley {
-            desired_size.x += text.size().x;
-            desired_size.y = desired_size.y.max(text.size().y);
+        if let Some(galley) = &galley {
+            desired_size.x += galley.size().x;
+            desired_size.y = desired_size.y.max(galley.size().y);
         }
         if let Some(shortcut_galley) = &shortcut_galley {
             desired_size.x += gap_before_shortcut_text + shortcut_galley.size().x;

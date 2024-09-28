@@ -1053,6 +1053,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_style"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_demo_lib",
+ "egui_extras",
+ "env_logger",
+ "image",
+]
+
+[[package]]
 name = "custom_window_frame"
 version = "0.1.0"
 dependencies = [
@@ -1155,7 +1166,7 @@ checksum = "f25c0e292a7ca6d6498557ff1df68f32c99850012b6ea401cf8daf771f22ff53"
 
 [[package]]
 name = "ecolor"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1167,7 +1178,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1177,7 +1188,7 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "egui_glow",
- "glow",
+ "glow 0.14.0",
  "glutin",
  "glutin-winit",
  "home",
@@ -1207,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1224,7 +1235,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -1242,7 +1253,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "accesskit_winit",
  "ahash",
@@ -1250,7 +1261,6 @@ dependencies = [
  "document-features",
  "egui",
  "log",
- "nix",
  "puffin",
  "raw-window-handle 0.6.2",
  "serde",
@@ -1263,7 +1273,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -1288,21 +1298,20 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "chrono",
  "criterion",
  "document-features",
  "egui",
  "egui_extras",
- "log",
  "serde",
  "unicode_names2",
 ]
 
 [[package]]
 name = "egui_extras"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "ahash",
  "chrono",
@@ -1321,14 +1330,14 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "ahash",
  "bytemuck",
  "document-features",
  "egui",
  "egui-winit",
- "glow",
+ "glow 0.14.0",
  "glutin",
  "glutin-winit",
  "log",
@@ -1361,7 +1370,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "emath"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1436,7 +1445,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -1457,7 +1466,7 @@ dependencies = [
 
 [[package]]
 name = "epaint_default_fonts"
-version = "0.28.1"
+version = "0.29.0"
 
 [[package]]
 name = "equivalent"
@@ -1824,6 +1833,18 @@ name = "glow"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd348e04c43b32574f2de31c8bb397d96c9fcfa1371bd4ca6d8bdc464ab121b1"
+dependencies = [
+ "js-sys",
+ "slotmap",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "glow"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f865cbd94bd355b89611211e49508da98a1fce0ad755c1e8448fb96711b24528"
 dependencies = [
  "js-sys",
  "slotmap",
@@ -3048,7 +3069,7 @@ checksum = "22686f4785f02a4fcc856d3b3bb19bf6c8160d103f7a99cc258bddd0251dc7f2"
 
 [[package]]
 name = "popups"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "eframe",
  "env_logger",
@@ -3132,6 +3153,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "env_logger",
+ "log",
  "puffin",
  "puffin_http",
 ]
@@ -3560,6 +3582,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "env_logger",
+ "log",
 ]
 
 [[package]]
@@ -4504,7 +4527,7 @@ dependencies = [
  "block",
  "cfg_aliases 0.1.1",
  "core-graphics-types",
- "glow",
+ "glow 0.13.1",
  "glutin_wgl_sys",
  "gpu-alloc",
  "gpu-allocator",
@@ -5003,7 +5026,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "0.28.1"
+version = "0.29.0"
 
 [[package]]
 name = "yaml-rust"

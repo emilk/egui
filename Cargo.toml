@@ -23,7 +23,7 @@ members = [
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.76"
-version = "0.28.1"
+version = "0.29.0"
 
 
 [profile.release]
@@ -54,17 +54,17 @@ opt-level = 2
 
 
 [workspace.dependencies]
-emath = { version = "0.28.1", path = "crates/emath", default-features = false }
-ecolor = { version = "0.28.1", path = "crates/ecolor", default-features = false }
-epaint = { version = "0.28.1", path = "crates/epaint", default-features = false }
-epaint_default_fonts = { version = "0.28.1", path = "crates/epaint_default_fonts" }
-egui = { version = "0.28.1", path = "crates/egui", default-features = false }
-egui-winit = { version = "0.28.1", path = "crates/egui-winit", default-features = false }
-egui_extras = { version = "0.28.1", path = "crates/egui_extras", default-features = false }
-egui-wgpu = { version = "0.28.1", path = "crates/egui-wgpu", default-features = false }
-egui_demo_lib = { version = "0.28.1", path = "crates/egui_demo_lib", default-features = false }
-egui_glow = { version = "0.28.1", path = "crates/egui_glow", default-features = false }
-eframe = { version = "0.28.1", path = "crates/eframe", default-features = false }
+emath = { version = "0.29.0", path = "crates/emath", default-features = false }
+ecolor = { version = "0.29.0", path = "crates/ecolor", default-features = false }
+epaint = { version = "0.29.0", path = "crates/epaint", default-features = false }
+epaint_default_fonts = { version = "0.29.0", path = "crates/epaint_default_fonts" }
+egui = { version = "0.29.0", path = "crates/egui", default-features = false }
+egui-winit = { version = "0.29.0", path = "crates/egui-winit", default-features = false }
+egui_extras = { version = "0.29.0", path = "crates/egui_extras", default-features = false }
+egui-wgpu = { version = "0.29.0", path = "crates/egui-wgpu", default-features = false }
+egui_demo_lib = { version = "0.29.0", path = "crates/egui_demo_lib", default-features = false }
+egui_glow = { version = "0.29.0", path = "crates/egui_glow", default-features = false }
+eframe = { version = "0.29.0", path = "crates/eframe", default-features = false }
 
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
@@ -74,7 +74,7 @@ backtrace = "0.3"
 bytemuck = "1.7.2"
 criterion = { version = "0.5.1", default-features = false }
 document-features = " 0.2.8"
-glow = "0.13"
+glow = "0.14"
 glutin = "0.32.0"
 glutin-winit = "0.5.0"
 home = "0.5.9"
@@ -92,10 +92,7 @@ web-time = "1.1.0" # Timekeeping for native and web
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"
-wgpu = { version = "22.1.0", default-features = false, features = [
-    # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
-    "fragile-send-sync-non-atomic-wasm",
-] }
+wgpu = { version = "22.1.0", default-features = false }
 windows-sys = "0.52"
 winit = { version = "0.30.5", default-features = false }
 
@@ -210,6 +207,7 @@ negative_feature_names = "warn"
 nonstandard_macro_braces = "warn"
 option_option = "warn"
 path_buf_push_overwrite = "warn"
+print_stderr = "warn"
 ptr_as_ptr = "warn"
 ptr_cast_constness = "warn"
 pub_without_shorthand = "warn"
@@ -254,11 +252,11 @@ wildcard_dependencies = "warn"
 wildcard_imports = "warn"
 zero_sized_map_values = "warn"
 
+
 # TODO(emilk): enable more of these lints:
 iter_over_hash_type = "allow"
 let_underscore_untyped = "allow"
 missing_assert_message = "allow"
-print_stderr = "allow"                # TODO(emilk): use `log` crate instead
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one
