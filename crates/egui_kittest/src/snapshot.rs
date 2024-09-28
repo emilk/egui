@@ -1,9 +1,20 @@
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct SnapshotError {
     pub diff: i32,
     pub diff_path: PathBuf,
+}
+
+impl Display for SnapshotError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Image did not match snapshot. Diff: {}, {:?}",
+            self.diff, self.diff_path
+        )
+    }
 }
 
 /// Image snapshot test.
@@ -65,10 +76,7 @@ pub fn image_snapshot(current: image::RgbaImage, name: &str) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
-            panic!(
-                "{name} failed. Image did not match snapshot. Diff: {}, {:?}",
-                err.diff, err.diff_path
-            );
+            panic!("{}", err);
         }
     }
 }
