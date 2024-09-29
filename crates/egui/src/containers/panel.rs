@@ -284,21 +284,19 @@ impl SidePanel {
             add_contents(ui)
         });
 
-        let rect = inner_response.response.rect;
-
         {
             let mut cursor = ui.cursor();
             match side {
                 Side::Left => {
-                    cursor.min.x = rect.max.x;
+                    cursor.min.x = panel_rect.max.x;
                 }
                 Side::Right => {
-                    cursor.max.x = rect.min.x;
+                    cursor.max.x = panel_rect.min.x;
                 }
             }
             ui.set_cursor(cursor);
         }
-        ui.expand_to_include_rect(rect);
+        ui.expand_to_include_rect(panel_rect);
 
         if resizable {
             // Now we do the actual resize interaction, on top of all the contents.
@@ -330,7 +328,7 @@ impl SidePanel {
         }
 
         // Keep this rect snapped so that panel content can be pixel-perfect
-        let rect = ui.painter().round_rect_to_pixels(rect);
+        let rect = ui.painter().round_rect_to_pixels(panel_rect);
 
         PanelState { rect }.store(ui.ctx(), id);
 
