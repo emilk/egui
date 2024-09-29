@@ -23,7 +23,7 @@ use self::text_selection::LabelSelectionState;
 /// }
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Link {
     text: WidgetText,
 }
@@ -88,7 +88,7 @@ impl Widget for Link {
 /// ui.add(egui::Hyperlink::from_label_and_url("My favorite repo", "https://github.com/emilk/egui"));
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Hyperlink {
     url: String,
     text: WidgetText,

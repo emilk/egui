@@ -855,7 +855,7 @@ egui_extras::install_image_loaders(egui_ctx);
 * Added `Slider::step_by` ([1225](https://github.com/emilk/egui/pull/1225)).
 * Added `Context::move_to_top` and `Context::top_most_layer` for managing the layer on the top ([#1242](https://github.com/emilk/egui/pull/1242)).
 * Support a subset of macOS' emacs input field keybindings in `TextEdit` ([#1243](https://github.com/emilk/egui/pull/1243)).
-* Added ability to scroll an UI into view without specifying an alignment ([1247](https://github.com/emilk/egui/pull/1247)).
+* Added ability to scroll a UI into view without specifying an alignment ([1247](https://github.com/emilk/egui/pull/1247)).
 * Added `Ui::scroll_to_rect` ([1252](https://github.com/emilk/egui/pull/1252)).
 
 ### 🔧 Changed

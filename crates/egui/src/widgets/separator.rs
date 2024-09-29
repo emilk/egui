@@ -11,7 +11,7 @@ use crate::{vec2, Response, Sense, Ui, Vec2, Widget};
 /// ui.add(egui::Separator::default());
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Separator {
     spacing: f32,
     grow: f32,
