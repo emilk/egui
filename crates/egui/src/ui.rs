@@ -173,7 +173,7 @@ impl Ui {
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if `remember_min_rect` is called
+        let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         ui.ctx().create_widget(
             WidgetRect {
                 id: ui.unique_id,
@@ -317,7 +317,7 @@ impl Ui {
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if `remember_min_rect` is called
+        let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         child_ui.ctx().create_widget(
             WidgetRect {
                 id: child_ui.unique_id,
