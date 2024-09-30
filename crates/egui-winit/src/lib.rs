@@ -344,7 +344,13 @@ impl State {
                 // between Commits.
                 match ime {
                     winit::event::Ime::Enabled => {
-                        self.ime_event_enable();
+                        if cfg!(target_os = "linux") {
+                            // This event means different things in X11 and Wayland, but we can just
+                            // ignore it and enable IME on the preedit event.
+                            // See <https://github.com/rust-windowing/winit/issues/2498>
+                        } else {
+                            self.ime_event_enable();
+                        }
                     }
                     winit::event::Ime::Preedit(text, Some(_cursor)) => {
                         self.ime_event_enable();
