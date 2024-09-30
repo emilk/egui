@@ -329,39 +329,43 @@ impl State {
             }
 
             WindowEvent::Ime(ime) => {
-                // on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
-                // So no need to check is_mac_cmd.
-                //
-                // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
-                // and Windows.
-                //
-                // - On Windows, before and after each Commit will produce an Enable/Disabled
-                // event.
-                // - On MacOS, only when user explicit enable/disable ime. No Disabled
-                // after Commit.
-                //
-                // We use input_method_editor_started to manually insert CompositionStart
-                // between Commits.
-                match ime {
-                    winit::event::Ime::Enabled => {
-                        self.ime_event_enable();
-                    }
-                    winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                        self.ime_event_enable();
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
-                    }
-                    winit::event::Ime::Commit(text) => {
-                        self.egui_input
-                            .events
-                            .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                        self.ime_event_disable();
-                    }
-                    winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
-                        self.ime_event_disable();
-                    }
-                };
+                if cfg!(target_os = "linux") {
+                    // We ignore IME events on linux, because of https://github.com/emilk/egui/issues/5008
+                } else {
+                    // on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
+                    // So no need to check is_mac_cmd.
+                    //
+                    // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
+                    // and Windows.
+                    //
+                    // - On Windows, before and after each Commit will produce an Enable/Disabled
+                    // event.
+                    // - On MacOS, only when user explicit enable/disable ime. No Disabled
+                    // after Commit.
+                    //
+                    // We use input_method_editor_started to manually insert CompositionStart
+                    // between Commits.
+                    match ime {
+                        winit::event::Ime::Enabled => {
+                            self.ime_event_enable();
+                        }
+                        winit::event::Ime::Preedit(text, Some(_cursor)) => {
+                            self.ime_event_enable();
+                            self.egui_input
+                                .events
+                                .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
+                        }
+                        winit::event::Ime::Commit(text) => {
+                            self.egui_input
+                                .events
+                                .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
+                            self.ime_event_disable();
+                        }
+                        winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
+                            self.ime_event_disable();
+                        }
+                    };
+                }
 
                 EventResponse {
                     repaint: true,
