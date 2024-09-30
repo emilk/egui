@@ -139,6 +139,14 @@ impl WidgetRects {
                 // e.g. calling `response.interact(…)` to add more interaction.
                 let (idx_in_layer, existing) = entry.get_mut();
 
+                debug_assert!(
+                    existing.layer_id == widget_rect.layer_id,
+                    "Widget {:?} changed layer_id during the frame from {:?} to {:?}",
+                    widget_rect.id,
+                    existing.layer_id,
+                    widget_rect.layer_id
+                );
+
                 // Update it:
                 existing.rect = widget_rect.rect; // last wins
                 existing.interact_rect = widget_rect.interact_rect; // last wins
