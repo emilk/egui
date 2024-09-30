@@ -120,10 +120,11 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
+    pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
             ui_stack_info,
+            layer_id,
             max_rect,
             layout,
             disabled,
@@ -132,6 +133,8 @@ impl Ui {
             style,
             sense,
         } = ui_builder;
+
+        let layer_id = layer_id.unwrap_or(LayerId::background());
 
         debug_assert!(
             id_salt.is_none(),
