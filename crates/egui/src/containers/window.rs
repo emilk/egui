@@ -1046,13 +1046,14 @@ impl TitleBar {
         let inner_response = ui.horizontal(|ui| {
             let height = ui
                 .fonts(|fonts| title.font_height(fonts, ui.style()))
-                .max(ui.spacing().interact_size.y);
+                .max(ui.spacing().interact_size.y)
+                .round();
             ui.set_min_height(height);
 
             let item_spacing = ui.spacing().item_spacing;
             let button_size = Vec2::splat(ui.spacing().icon_width);
 
-            let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
+            let pad = ((height - button_size.y) / 2.0).round(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
             if collapsible {
                 ui.add_space(pad);
