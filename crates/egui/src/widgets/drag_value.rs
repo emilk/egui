@@ -34,7 +34,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 /// ui.add(egui::DragValue::new(&mut my_f32).speed(0.1));
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,
     speed: f64,

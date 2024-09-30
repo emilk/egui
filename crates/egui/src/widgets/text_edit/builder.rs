@@ -60,7 +60,7 @@ use super::{TextEditOutput, TextEditState};
 ///
 /// ## Other
 /// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
     hint_text: WidgetText,
