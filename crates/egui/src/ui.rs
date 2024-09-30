@@ -2313,6 +2313,7 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use ui.scope_builder(UiBuilder::new().layer_id(…), …) instead"]
     pub fn with_layer_id<R>(
         &mut self,
         layer_id: LayerId,
@@ -2764,7 +2765,8 @@ impl Ui {
 
             // Paint the body to a new layer:
             let layer_id = LayerId::new(Order::Tooltip, id);
-            let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
+            let InnerResponse { inner, response } =
+                self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents);
 
             // Now we move the visuals of the body to where the mouse is.
             // Normally you need to decide a location for a widget first,
