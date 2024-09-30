@@ -771,13 +771,12 @@ fn resize_response(
     area: &mut area::Prepared,
     resize_id: Id,
 ) {
-    let Some(new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
+    let Some(mut new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
         return;
     };
-    let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
     if area.constrain() {
-        new_rect = ctx.constrain_window_rect_to_area(new_rect, area.constrain_rect());
+        new_rect = Context::constrain_window_rect_to_area(new_rect, area.constrain_rect());
     }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
@@ -802,18 +801,18 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
     let mut rect = interaction.start_rect; // prevent drift
 
     if interaction.left.drag {
-        rect.min.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.min.x = pointer_pos.x;
     } else if interaction.right.drag {
-        rect.max.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.max.x = pointer_pos.x;
     }
 
     if interaction.top.drag {
-        rect.min.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.min.y = pointer_pos.y;
     } else if interaction.bottom.drag {
-        rect.max.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.max.y = pointer_pos.y;
     }
 
-    Some(rect)
+    Some(rect.round())
 }
 
 fn resize_interaction(

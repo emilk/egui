@@ -2065,7 +2065,7 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
-    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Rect) -> Rect {
+    pub(crate) fn constrain_window_rect_to_area(window: Rect, area: Rect) -> Rect {
         let mut pos = window.min;
 
         // Constrain to screen, unless window is too large to fit:
@@ -2077,9 +2077,7 @@ impl Context {
         pos.y = pos.y.at_most(area.bottom() + margin_y - window.height()); // move right if needed
         pos.y = pos.y.at_least(area.top() - margin_y); // move down if needed
 
-        pos = self.round_pos_to_pixels(pos);
-
-        Rect::from_min_size(pos, window.size())
+        Rect::from_min_size(pos, window.size()).round()
     }
 }
 

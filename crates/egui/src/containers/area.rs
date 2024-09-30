@@ -66,21 +66,25 @@ impl AreaState {
             pivot_pos.x - self.pivot.x().to_factor() * size.x,
             pivot_pos.y - self.pivot.y().to_factor() * size.y,
         )
+        .round()
     }
 
     /// Move the left top positions of the area.
     pub fn set_left_top_pos(&mut self, pos: Pos2) {
         let size = self.size.unwrap_or_default();
-        self.pivot_pos = Some(pos2(
-            pos.x + self.pivot.x().to_factor() * size.x,
-            pos.y + self.pivot.y().to_factor() * size.y,
-        ));
+        self.pivot_pos = Some(
+            pos2(
+                pos.x + self.pivot.x().to_factor() * size.x,
+                pos.y + self.pivot.y().to_factor() * size.y,
+            )
+            .round(),
+        );
     }
 
     /// Where the area is on screen.
     pub fn rect(&self) -> Rect {
         let size = self.size.unwrap_or_default();
-        Rect::from_min_size(self.left_top_pos(), size)
+        Rect::from_min_size(self.left_top_pos(), size).round()
     }
 }
 
@@ -493,12 +497,11 @@ impl Area {
 
         if constrain {
             state.set_left_top_pos(
-                ctx.constrain_window_rect_to_area(state.rect(), constrain_rect)
-                    .min,
+                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
             );
         }
 
-        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
+        state.set_left_top_pos(state.left_top_pos().round());
 
         // Update response with possibly moved/constrained rect:
         move_response.rect = state.rect();
