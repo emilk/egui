@@ -487,7 +487,7 @@ impl<'t> TextEdit<'t> {
         let prev_text = text.as_str().to_owned();
 
         let font_id = font_selection.resolve(ui.style());
-        let row_height = ui.fonts(|f| f.row_height(&font_id));
+        let row_height = ui.fonts(|f| f.row_height(&font_id)).round();
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);

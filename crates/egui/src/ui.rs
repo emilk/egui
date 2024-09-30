@@ -708,6 +708,7 @@ impl Ui {
     /// The height of text of this text style
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
         self.fonts(|f| f.row_height(&style.resolve(self.style())))
+            .round()
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.

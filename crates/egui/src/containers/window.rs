@@ -470,7 +470,7 @@ impl<'open> Window<'open> {
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
             let spacing = window_margin.top + window_margin.bottom;
-            let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
+            let height = ctx.fonts(|f| title.font_height(f, &style)).round() + spacing;
             window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
             window_frame.rounding.nw = window_frame.rounding.nw.clamp(0.0, height / 2.0);
             (height, spacing)

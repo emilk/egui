@@ -204,7 +204,9 @@ impl Widget for Button<'_> {
         }
 
         let space_available_for_image = if let Some(text) = &text {
-            let font_height = ui.fonts(|fonts| text.font_height(fonts, ui.style()));
+            let font_height = ui
+                .fonts(|fonts| text.font_height(fonts, ui.style()))
+                .round();
             Vec2::splat(font_height) // Reasonable?
         } else {
             ui.available_size() - 2.0 * button_padding
