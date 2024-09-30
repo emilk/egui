@@ -149,9 +149,12 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        let child_ui = self.cell(flags, max_rect, child_ui_id_salt, add_cell_contents);
+        let mut child_ui = self.cell(flags, max_rect, child_ui_id_salt, add_cell_contents);
 
         let used_rect = child_ui.min_rect();
+
+        // Make sure we catch clicks etc on the _whole_ cell:
+        child_ui.set_min_size(max_rect.size());
 
         let allocation_rect = if self.ui.is_sizing_pass() {
             used_rect
@@ -165,7 +168,7 @@ impl<'l> StripLayout<'l> {
 
         self.ui.advance_cursor_after_rect(allocation_rect);
 
-        let response = child_ui.interact(max_rect, child_ui.id(), self.sense);
+        let response = child_ui.response();
 
         (used_rect, response)
     }
@@ -204,7 +207,8 @@ impl<'l> StripLayout<'l> {
             .id_salt(child_ui_id_salt)
             .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::TableCell))
             .max_rect(max_rect)
-            .layout(self.cell_layout);
+            .layout(self.cell_layout)
+            .sense(self.sense);
         if flags.sizing_pass {
             ui_builder = ui_builder.sizing_pass();
         }
