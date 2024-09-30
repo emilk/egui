@@ -247,6 +247,7 @@ impl Ui {
         let UiBuilder {
             id_salt,
             ui_stack_info,
+            layer_id,
             max_rect,
             layout,
             disabled,
@@ -262,6 +263,9 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
         let enabled = self.enabled && !disabled && !invisible;
+        if let Some(layer_id) = layer_id {
+            painter.set_layer_id(layer_id);
+        }
         if invisible {
             painter.set_invisible();
         }
@@ -2311,10 +2315,7 @@ impl Ui {
         layer_id: LayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.scope(|ui| {
-            ui.painter.set_layer_id(layer_id);
-            add_contents(ui)
-        })
+        self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents)
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
