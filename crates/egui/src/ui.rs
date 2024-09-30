@@ -2260,6 +2260,16 @@ impl Ui {
     }
 
     /// Redirect shapes to another paint layer.
+    ///
+    /// ```
+    /// # use egui::{LayerId, Order, Id};
+    /// # egui::__run_test_ui(|ui| {
+    /// let layer_id = LayerId::new(Order::Tooltip, Id::new("my_floating_ui"));
+    /// ui.with_layer_id(layer_id, |ui| {
+    ///     ui.label("This is now in a different layer");
+    /// });
+    /// # });
+    /// ```
     pub fn with_layer_id<R>(
         &mut self,
         layer_id: LayerId,
