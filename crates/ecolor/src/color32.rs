@@ -12,7 +12,6 @@ use crate::{fast_round, linear_f32_from_linear_u8, Rgba};
 #[repr(C)]
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
 
 impl std::fmt::Debug for Color32 {
@@ -262,4 +261,16 @@ impl Color32 {
             fast_round(lerp((self[3] as f32)..=(other[3] as f32), t)),
         )
     }
+}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+mod bytemuck_impl {
+    use super::Color32;
+    use bytemuck::{Pod, Zeroable};
+
+    // Safety: empty impl
+    unsafe impl Pod for Color32 {}
+    // Safety: empty impl
+    unsafe impl Zeroable for Color32 {}
 }
