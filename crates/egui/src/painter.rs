@@ -76,7 +76,7 @@ impl Painter {
     /// Redirect where you are painting.
     ///
     /// It is undefined behavior to change the [`LayerId`]
-    /// of [`Ui::painter`].
+    /// of [`crate::Ui::painter`].
     pub fn set_layer_id(&mut self, layer_id: LayerId) {
         self.layer_id = layer_id;
     }
