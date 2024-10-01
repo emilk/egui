@@ -120,10 +120,11 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
+    pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
             ui_stack_info,
+            layer_id,
             max_rect,
             layout,
             disabled,
@@ -132,6 +133,8 @@ impl Ui {
             style,
             sense,
         } = ui_builder;
+
+        let layer_id = layer_id.unwrap_or(LayerId::background());
 
         debug_assert!(
             id_salt.is_none(),
@@ -170,7 +173,7 @@ impl Ui {
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if `remember_min_rect` is called
+        let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         ui.ctx().create_widget(
             WidgetRect {
                 id: ui.unique_id,
@@ -247,6 +250,7 @@ impl Ui {
         let UiBuilder {
             id_salt,
             ui_stack_info,
+            layer_id,
             max_rect,
             layout,
             disabled,
@@ -262,6 +266,9 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
         let enabled = self.enabled && !disabled && !invisible;
+        if let Some(layer_id) = layer_id {
+            painter.set_layer_id(layer_id);
+        }
         if invisible {
             painter.set_invisible();
         }
@@ -310,7 +317,7 @@ impl Ui {
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if `remember_min_rect` is called
+        let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         child_ui.ctx().create_widget(
             WidgetRect {
                 id: child_ui.unique_id,
@@ -2306,15 +2313,13 @@ impl Ui {
     /// });
     /// # });
     /// ```
+    #[deprecated = "Use ui.scope_builder(UiBuilder::new().layer_id(…), …) instead"]
     pub fn with_layer_id<R>(
         &mut self,
         layer_id: LayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.scope(|ui| {
-            ui.painter.set_layer_id(layer_id);
-            add_contents(ui)
-        })
+        self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents)
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
@@ -2760,7 +2765,8 @@ impl Ui {
 
             // Paint the body to a new layer:
             let layer_id = LayerId::new(Order::Tooltip, id);
-            let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
+            let InnerResponse { inner, response } =
+                self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents);
 
             // Now we move the visuals of the body to where the mouse is.
             // Normally you need to decide a location for a widget first,

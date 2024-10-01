@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{Id, Layout, Rect, Sense, Style, UiStackInfo};
+use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
 #[allow(unused_imports)] // Used for doclinks
 use crate::Ui;
@@ -15,6 +15,7 @@ use crate::Ui;
 pub struct UiBuilder {
     pub id_salt: Option<Id>,
     pub ui_stack_info: UiStackInfo,
+    pub layer_id: Option<LayerId>,
     pub max_rect: Option<Rect>,
     pub layout: Option<Layout>,
     pub disabled: bool,
@@ -45,6 +46,13 @@ impl UiBuilder {
     #[inline]
     pub fn ui_stack_info(mut self, ui_stack_info: UiStackInfo) -> Self {
         self.ui_stack_info = ui_stack_info;
+        self
+    }
+
+    /// Show the [`Ui`] in a different [`LayerId`] from its parent.
+    #[inline]
+    pub fn layer_id(mut self, layer_id: LayerId) -> Self {
+        self.layer_id = Some(layer_id);
         self
     }
 

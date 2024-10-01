@@ -372,14 +372,14 @@ impl SidePanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
-            layer_id,
             self.id,
-            UiBuilder::new().max_rect(available_rect),
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
@@ -864,15 +864,15 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let available_rect = ctx.available_rect();
         let side = self.side;
 
         let mut panel_ui = Ui::new(
             ctx.clone(),
-            layer_id,
             self.id,
-            UiBuilder::new().max_rect(available_rect),
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
@@ -1131,14 +1131,14 @@ impl CentralPanel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
-        let layer_id = LayerId::background();
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let mut panel_ui = Ui::new(
             ctx.clone(),
-            layer_id,
             id,
-            UiBuilder::new().max_rect(available_rect),
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 

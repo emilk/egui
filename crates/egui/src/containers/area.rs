@@ -540,6 +540,7 @@ impl Prepared {
 
         let mut ui_builder = UiBuilder::new()
             .ui_stack_info(UiStackInfo::new(self.kind))
+            .layer_id(self.layer_id)
             .max_rect(max_rect);
 
         if !self.enabled {
@@ -549,7 +550,7 @@ impl Prepared {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        let mut ui = Ui::new(ctx.clone(), self.layer_id, self.layer_id.id, ui_builder);
+        let mut ui = Ui::new(ctx.clone(), self.layer_id.id, ui_builder);
         ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
         if self.fade_in {
