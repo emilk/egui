@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.29.1 - 2024-10-01
+Nothing new
+
+
 ## 0.29.0 - 2024-09-26 - `wgpu` 22.0
 ### ⭐ Added
 * Add opt-out `fragile-send-sync-non-atomic-wasm` feature for wgpu [#5098](https://github.com/emilk/egui/pull/5098) by [@9SMTM6](https://github.com/9SMTM6)

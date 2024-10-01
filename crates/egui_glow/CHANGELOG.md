@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.29.1 - 2024-10-01
+Nothing new
+
+
 ## 0.29.0 - 2024-09-26 - `glow` 0.14
 * Update `glow` to 0.14 [#4952](https://github.com/emilk/egui/pull/4952) by [@bircni](https://github.com/bircni)
 * Introduce dithering to reduce banding [#4497](https://github.com/emilk/egui/pull/4497) by [@jwagner](https://github.com/jwagner)

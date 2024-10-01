@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.29.1 - 2024-10-01 - Fix table interaction
+* Bug fix: click anywhere on a `Table` row to select it [#5193](https://github.com/emilk/egui/pull/5193) by [@emilk](https://github.com/emilk)
+
+
 ## 0.29.0 - 2024-09-26
 ### ⭐ Added
 * Add `TableRow::set_hovered` [#4820](https://github.com/emilk/egui/pull/4820) by [@addiswebb](https://github.com/addiswebb)

@@ -7,6 +7,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.29.1 - 2024-10-01 - Bug fixes
+* Remove debug-assert triggered by `with_layer_id/dnd_drag_source` [#5191](https://github.com/emilk/egui/pull/5191) by [@emilk](https://github.com/emilk)
+* Fix id clash in `Ui::response` [#5192](https://github.com/emilk/egui/pull/5192) by [@emilk](https://github.com/emilk)
+* Do not round panel rectangles to pixel grid [#5196](https://github.com/emilk/egui/pull/5196) by [@emilk](https://github.com/emilk)
+
+
 ## 0.29.0 - 2024-09-26 - Multipass, `UiBuilder`, & visual improvements
 ### ✨ Highlights
 This release adds initial support for multi-pass layout, which is a tool to circumvent [a common limitation of immediate mode](https://github.com/emilk/egui#layout).
