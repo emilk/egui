@@ -640,15 +640,8 @@ impl ScrollArea {
                     .as_ref()
                     .is_some_and(|response| response.drag_stopped())
                 {
-                    for d in 0..2 {
-                        if scroll_enabled[d] {
-                            ui.input(|input| {
-                                state.vel[d] = input.pointer.velocity()[d];
-                            });
-                        } else {
-                            state.vel[d] = 0.0;
-                        }
-                    }
+                    state.vel =
+                        scroll_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
                 }
                 for d in 0..2 {
                     // Kinetic scrolling
