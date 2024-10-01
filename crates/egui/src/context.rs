@@ -3597,7 +3597,7 @@ impl Context {
     ///
     /// This is the easier type of viewport to use, but it is less performant
     /// at it requires both parent and child to repaint if any one of them needs repainting,
-    /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
+    /// which effectively produce double work for two viewports, and triple work for three viewports, etc.
     /// To avoid this, use [`Self::show_viewport_deferred`] instead.
     ///
     /// The given id must be unique for each viewport.
