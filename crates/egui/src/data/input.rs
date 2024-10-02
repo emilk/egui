@@ -7,6 +7,15 @@ use crate::{
     Key, Theme, ViewportId, ViewportIdMap,
 };
 
+#[derive(Debug, PartialEq, Copy, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct SafeArea {
+    pub top: f32,
+    pub right: f32,
+    pub bottom: f32,
+    pub left: f32,
+}
+
 /// What the integrations provides to egui at the start of each frame.
 ///
 /// Set the values that make sense, leave the rest at their `Default::default()`.
@@ -26,6 +35,11 @@ pub struct RawInput {
 
     /// Information about all egui viewports.
     pub viewports: ViewportIdMap<ViewportInfo>,
+
+    /// mobile safe area
+    /// 0,0,0,0 on desktop
+    /// `None` will be treated as "same as last frame"
+    pub safe_area: Option<SafeArea>,
 
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
@@ -98,6 +112,7 @@ impl Default for RawInput {
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
             system_theme: None,
+            safe_area: Default::default(),
         }
     }
 }
@@ -131,6 +146,7 @@ impl RawInput {
             dropped_files: std::mem::take(&mut self.dropped_files),
             focused: self.focused,
             system_theme: self.system_theme,
+            safe_area: self.safe_area,
         }
     }
 
@@ -149,6 +165,7 @@ impl RawInput {
             mut dropped_files,
             focused,
             system_theme,
+            safe_area,
         } = newer;
 
         self.viewport_id = viewport_ids;
@@ -163,6 +180,7 @@ impl RawInput {
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
         self.system_theme = system_theme;
+        self.safe_area = safe_area;
     }
 }
 
@@ -1078,6 +1096,7 @@ impl RawInput {
             dropped_files,
             focused,
             system_theme,
+            safe_area,
         } = self;
 
         ui.label(format!("Active viwport: {viewport_id:?}"));
@@ -1103,6 +1122,7 @@ impl RawInput {
         ui.label(format!("dropped_files: {}", dropped_files.len()));
         ui.label(format!("focused: {focused}"));
         ui.label(format!("system_theme: {system_theme:?}"));
+        ui.label(format!("safe_area: {safe_area:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {events:#?}"))

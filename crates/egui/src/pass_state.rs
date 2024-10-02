@@ -1,6 +1,8 @@
 use ahash::{HashMap, HashSet};
 
-use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
+use crate::{
+    id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, SafeArea, Vec2, WidgetRects,
+};
 
 #[cfg(debug_assertions)]
 use crate::{pos2, Align2, Color32, FontId, NumExt, Painter};
@@ -247,7 +249,11 @@ impl Default for PassState {
 }
 
 impl PassState {
-    pub(crate) fn begin_pass(&mut self, screen_rect: Rect) {
+    pub(crate) fn begin_pass(&mut self, screen_rect: Rect, safe_area: SafeArea) {
+        let screen_rect = Rect::from_min_max(
+            screen_rect.min + emath::vec2(safe_area.left, safe_area.top),
+            screen_rect.max - emath::vec2(safe_area.right, safe_area.bottom),
+        );
         crate::profile_function!();
         let Self {
             used_ids,

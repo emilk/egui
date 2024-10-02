@@ -1,4 +1,4 @@
-use egui::{vec2, Sense, Widget};
+use egui::SafeArea;
 use objc::runtime::Object;
 use objc::{class, msg_send, sel, sel_impl};
 
@@ -24,16 +24,13 @@ pub fn get_ios_safe_area_insets() -> UIEdgeInsets {
     }
 }
 
-/// Adds spacing at the top on ios devices
-#[derive(Default)]
-pub struct IosSafeArea;
-
-impl Widget for IosSafeArea {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let (id, rect) = ui.allocate_space(vec2(
-            ui.available_width(),
-            get_ios_safe_area_insets().top as f32,
-        ));
-        ui.interact(rect, id, Sense::hover())
+impl From<UIEdgeInsets> for SafeArea {
+    fn from(value: UIEdgeInsets) -> Self {
+        SafeArea {
+            top: value.top as f32,
+            left: value.left as f32,
+            bottom: value.bottom as f32,
+            right: value.right as f32,
+        }
     }
 }
