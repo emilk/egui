@@ -256,7 +256,7 @@ zero_sized_map_values = "warn"
 # TODO(emilk): enable more of these lints:
 iter_over_hash_type = "allow"
 let_underscore_untyped = "allow"
-missing_assert_message = "allow"
+missing_assert_message = "deny"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one

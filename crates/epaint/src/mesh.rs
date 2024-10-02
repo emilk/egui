@@ -112,7 +112,7 @@ impl Mesh {
     /// Panics when `other` mesh has a different texture.
     pub fn append(&mut self, other: Self) {
         crate::profile_function!();
-        debug_assert!(other.is_valid());
+        debug_assert!(other.is_valid(), "other has a different texture");
 
         if self.is_empty() {
             *self = other;
@@ -126,7 +126,7 @@ impl Mesh {
     ///
     /// Panics when `other` mesh has a different texture.
     pub fn append_ref(&mut self, other: &Self) {
-        debug_assert!(other.is_valid());
+        debug_assert!(other.is_valid(), "other has a different texture");
 
         if self.is_empty() {
             self.texture_id = other.texture_id;
@@ -148,7 +148,10 @@ impl Mesh {
     /// Panics when the mesh has assigned a texture.
     #[inline(always)]
     pub fn colored_vertex(&mut self, pos: Pos2, color: Color32) {
-        debug_assert!(self.texture_id == TextureId::default());
+        debug_assert!(
+            self.texture_id == TextureId::default(),
+            "Can't add colored vertex to textured mesh"
+        );
         self.vertices.push(Vertex {
             pos,
             uv: WHITE_UV,
@@ -211,7 +214,10 @@ impl Mesh {
     /// Uniformly colored rectangle.
     #[inline(always)]
     pub fn add_colored_rect(&mut self, rect: Rect, color: Color32) {
-        debug_assert!(self.texture_id == TextureId::default());
+        debug_assert!(
+            self.texture_id == TextureId::default(),
+            "Can't add colored rect to textured mesh"
+        );
         self.add_rect_with_uv(rect, [WHITE_UV, WHITE_UV].into(), color);
     }
 
@@ -220,7 +226,7 @@ impl Mesh {
     /// Splits this mesh into many smaller meshes (if needed)
     /// where the smaller meshes have 16-bit indices.
     pub fn split_to_u16(self) -> Vec<Mesh16> {
-        debug_assert!(self.is_valid());
+        debug_assert!(self.is_valid(), "Invalid mesh");
 
         const MAX_SIZE: u32 = u16::MAX as u32;
 
@@ -273,7 +279,7 @@ impl Mesh {
                 vertices: self.vertices[(min_vindex as usize)..=(max_vindex as usize)].to_vec(),
                 texture_id: self.texture_id,
             };
-            debug_assert!(mesh.is_valid());
+            debug_assert!(mesh.is_valid(), "Invalid mesh");
             output.push(mesh);
         }
         output
