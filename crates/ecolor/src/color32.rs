@@ -111,7 +111,7 @@ impl Color32 {
                 static LOOKUP_TABLE: OnceLock<Box<[u8]>> = OnceLock::new();
                 let lut = LOOKUP_TABLE.get_or_init(|| {
                     use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
-                    (0..u16::MAX)
+                    (0..=u16::MAX)
                         .map(|i| {
                             let [value, alpha] = i.to_ne_bytes();
                             let value_lin = linear_f32_from_gamma_u8(value);
