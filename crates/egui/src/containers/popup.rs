@@ -1,8 +1,12 @@
 //! Show popup windows, tooltips, context menus etc.
 
-use frame_state::PerWidgetTooltipState;
+use pass_state::PerWidgetTooltipState;
 
-use crate::*;
+use crate::{
+    pass_state, vec2, AboveOrBelow, Align, Align2, Area, AreaState, Context, Frame, Id,
+    InnerResponse, Key, LayerId, Layout, Order, Pos2, Rect, Response, Sense, Ui, UiKind, Vec2,
+    Widget, WidgetText,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -158,7 +162,7 @@ fn show_tooltip_at_dyn<'c, R>(
 
     remember_that_tooltip_was_shown(ctx);
 
-    let mut state = ctx.frame_state_mut(|fs| {
+    let mut state = ctx.pass_state_mut(|fs| {
         // Remember that this is the widget showing the tooltip:
         fs.layers
             .entry(parent_layer)
@@ -209,14 +213,14 @@ fn show_tooltip_at_dyn<'c, R>(
 
     state.tooltip_count += 1;
     state.bounding_rect = state.bounding_rect.union(response.rect);
-    ctx.frame_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
+    ctx.pass_state_mut(|fs| fs.tooltips.widget_tooltips.insert(widget_id, state));
 
     inner
 }
 
 /// What is the id of the next tooltip for this widget?
 pub fn next_tooltip_id(ctx: &Context, widget_id: Id) -> Id {
-    let tooltip_count = ctx.frame_state(|fs| {
+    let tooltip_count = ctx.pass_state(|fs| {
         fs.tooltips
             .widget_tooltips
             .get(&widget_id)
@@ -322,14 +326,14 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, widget_id: Id) -> bool {
 pub enum PopupCloseBehavior {
     /// Popup will be closed on click anywhere, inside or outside the popup.
     ///
-    /// It is used in [`ComboBox`].
+    /// It is used in [`crate::ComboBox`].
     CloseOnClick,
 
     /// Popup will be closed if the click happened somewhere else
     /// but in the popup's body
     CloseOnClickOutside,
 
-    /// Clicks will be ignored. Popup might be closed manually by calling [`Memory::close_popup`]
+    /// Clicks will be ignored. Popup might be closed manually by calling [`crate::Memory::close_popup`]
     /// or by pressing the escape button
     IgnoreClicks,
 }
@@ -358,7 +362,7 @@ pub fn popup_below_widget<R>(
 ///
 /// The opened popup will have a minimum width matching its parent.
 ///
-/// You must open the popup with [`Memory::open_popup`] or  [`Memory::toggle_popup`].
+/// You must open the popup with [`crate::Memory::open_popup`] or  [`crate::Memory::toggle_popup`].
 ///
 /// Returns `None` if the popup is not open.
 ///
@@ -405,7 +409,7 @@ pub fn popup_above_or_below_widget<R>(
     let frame_margin = frame.total_margin();
     let inner_width = widget_response.rect.width() - frame_margin.sum().x;
 
-    parent_ui.ctx().frame_state_mut(|fs| {
+    parent_ui.ctx().pass_state_mut(|fs| {
         fs.layers
             .entry(parent_ui.layer_id())
             .or_default()

@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    BytesLoader, Context, HashMap, ImagePoll, Mutex, SizeHint, SizedTexture, TextureHandle,
+    TextureLoadResult, TextureLoader, TextureOptions, TexturePoll,
+};
 
 #[derive(Default)]
 pub struct DefaultTextureLoader {
@@ -59,7 +62,7 @@ impl TextureLoader for DefaultTextureLoader {
         self.cache.lock().clear();
     }
 
-    fn end_frame(&self, _: usize) {}
+    fn end_pass(&self, _: usize) {}
 
     fn byte_size(&self) -> usize {
         self.cache

@@ -1,6 +1,10 @@
 use epaint::Shape;
 
-use crate::{style::WidgetVisuals, *};
+use crate::{
+    epaint, style::WidgetVisuals, vec2, Align2, Context, Id, InnerResponse, NumExt, Painter,
+    PopupCloseBehavior, Rect, Response, ScrollArea, Sense, Stroke, TextStyle, TextWrapMode, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+};
 
 #[allow(unused_imports)] // Documentation
 use crate::style::Spacing;
@@ -18,10 +22,10 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBe
 /// A drop-down selection menu with a descriptive label.
 ///
 /// ```
+/// # egui::__run_test_ui(|ui| {
 /// # #[derive(Debug, PartialEq)]
 /// # enum Enum { First, Second, Third }
 /// # let mut selected = Enum::First;
-/// # egui::__run_test_ui(|ui| {
 /// egui::ComboBox::from_label("Select one!")
 ///     .selected_text(format!("{:?}", selected))
 ///     .show_ui(ui, |ui| {
@@ -34,7 +38,7 @@ pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBe
 /// ```
 #[must_use = "You should call .show*"]
 pub struct ComboBox {
-    id_source: Id,
+    id_salt: Id,
     label: Option<WidgetText>,
     selected_text: WidgetText,
     width: Option<f32>,
@@ -45,9 +49,9 @@ pub struct ComboBox {
 
 impl ComboBox {
     /// Create new [`ComboBox`] with id and label
-    pub fn new(id_source: impl std::hash::Hash, label: impl Into<WidgetText>) -> Self {
+    pub fn new(id_salt: impl std::hash::Hash, label: impl Into<WidgetText>) -> Self {
         Self {
-            id_source: Id::new(id_source),
+            id_salt: Id::new(id_salt),
             label: Some(label.into()),
             selected_text: Default::default(),
             width: None,
@@ -61,7 +65,7 @@ impl ComboBox {
     pub fn from_label(label: impl Into<WidgetText>) -> Self {
         let label = label.into();
         Self {
-            id_source: Id::new(label.text()),
+            id_salt: Id::new(label.text()),
             label: Some(label),
             selected_text: Default::default(),
             width: None,
@@ -72,9 +76,9 @@ impl ComboBox {
     }
 
     /// Without label.
-    pub fn from_id_source(id_source: impl std::hash::Hash) -> Self {
+    pub fn from_id_salt(id_salt: impl std::hash::Hash) -> Self {
         Self {
-            id_source: Id::new(id_source),
+            id_salt: Id::new(id_salt),
             label: Default::default(),
             selected_text: Default::default(),
             width: None,
@@ -82,6 +86,12 @@ impl ComboBox {
             icon: None,
             wrap_mode: None,
         }
+    }
+
+    /// Without label.
+    #[deprecated = "Renamed id_salt"]
+    pub fn from_id_source(id_salt: impl std::hash::Hash) -> Self {
+        Self::from_id_salt(id_salt)
     }
 
     /// Set the outer width of the button and menu.
@@ -134,7 +144,7 @@ impl ComboBox {
     ///     ));
     /// }
     ///
-    /// egui::ComboBox::from_id_source("my-combobox")
+    /// egui::ComboBox::from_id_salt("my-combobox")
     ///     .selected_text(text)
     ///     .icon(filled_triangle)
     ///     .show_ui(ui, |_ui| {});
@@ -150,7 +160,7 @@ impl ComboBox {
 
     /// Controls the wrap mode used for the selected text.
     ///
-    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
+    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`crate::Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
@@ -191,7 +201,7 @@ impl ComboBox {
         menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<Option<R>> {
         let Self {
-            id_source,
+            id_salt,
             label,
             selected_text,
             width,
@@ -200,7 +210,7 @@ impl ComboBox {
             wrap_mode,
         } = self;
 
-        let button_id = ui.make_persistent_id(id_source);
+        let button_id = ui.make_persistent_id(id_salt);
 
         ui.horizontal(|ui| {
             let mut ir = combo_box_dyn(
@@ -425,7 +435,7 @@ fn button_frame(
     outer_rect.set_height(outer_rect.height().at_least(interact_size.y));
 
     let inner_rect = outer_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout(), None);
+    let mut content_ui = ui.new_child(UiBuilder::new().max_rect(inner_rect));
     add_contents(&mut content_ui);
 
     let mut outer_rect = content_ui.min_rect().expand2(margin);

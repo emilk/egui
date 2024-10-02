@@ -1,8 +1,14 @@
 //! Color picker widgets.
 
 use crate::util::fixed_cache::FixedCache;
-use crate::*;
-use epaint::{ecolor::*, *};
+use crate::{
+    epaint, lerp, remap_clamp, Area, Context, DragValue, Frame, Id, Key, Order, Painter, Response,
+    Sense, Ui, UiKind, Widget, WidgetInfo, WidgetType,
+};
+use epaint::{
+    ecolor::{Color32, Hsva, HsvaGamma, Rgba},
+    pos2, vec2, Mesh, Rect, Shape, Stroke, Vec2,
+};
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     if color.into().intensity() < 0.5 {
@@ -363,7 +369,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 fn input_type_button_ui(ui: &mut Ui) {
     let mut input_type = ui.ctx().style().visuals.numeric_color_space;
     if input_type.toggle_button_ui(ui).changed() {
-        ui.ctx().style_mut(|s| {
+        ui.ctx().all_styles_mut(|s| {
             s.visuals.numeric_color_space = input_type;
         });
     }

@@ -91,7 +91,7 @@ fn main() -> eframe::Result {
                 |i| alternatives[i],
             );
 
-            egui::ComboBox::from_id_source("combo")
+            egui::ComboBox::from_id_salt("combo")
                 .selected_text("ComboBox")
                 .width(100.0)
                 .show_ui(ui, |ui| {
@@ -103,6 +103,12 @@ fn main() -> eframe::Result {
                     ui.label("World");
                     ui.label("Hellooooooooooooooooooooooooo");
                 });
+
+            ui.separator();
+
+            let time = ui.input(|i| i.time);
+            ui.label("Hover for a tooltip with changing content")
+                .on_hover_text(format!("A number: {}", time % 10.0));
         });
     })
 }

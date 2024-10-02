@@ -4,7 +4,7 @@
 //! * `ui.add(Label::new("Text").text_color(color::red));`
 //! * `if ui.add(Button::new("Click me")).clicked() { … }`
 
-use crate::*;
+use crate::{epaint, Response, Ui};
 
 mod button;
 mod checkbox;
@@ -37,7 +37,7 @@ pub use self::{
     radio_button::RadioButton,
     selected_label::SelectableLabel,
     separator::Separator,
-    slider::{Slider, SliderOrientation},
+    slider::{Slider, SliderClamping, SliderOrientation},
     spinner::Spinner,
     text_edit::{TextBuffer, TextEdit},
 };
@@ -57,7 +57,7 @@ pub use self::{
 /// Tip: you can `impl Widget for &mut YourThing { }`.
 ///
 /// `|ui: &mut Ui| -> Response { … }` also implements [`Widget`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub trait Widget {
     /// Allocate space, interact, paint, and return a [`Response`].
     ///
@@ -133,17 +133,27 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
 }
 
 /// Show a small button to switch to/from dark/light mode (globally).
-pub fn global_dark_light_mode_switch(ui: &mut Ui) {
-    let style: crate::Style = (*ui.ctx().style()).clone();
-    let new_visuals = style.visuals.light_dark_small_toggle_button(ui);
-    if let Some(visuals) = new_visuals {
-        ui.ctx().set_visuals(visuals);
+pub fn global_theme_preference_switch(ui: &mut Ui) {
+    if let Some(new_theme) = ui.ctx().theme().small_toggle_button(ui) {
+        ui.ctx().set_theme(new_theme);
     }
 }
 
 /// Show larger buttons for switching between light and dark mode (globally).
+pub fn global_theme_preference_buttons(ui: &mut Ui) {
+    let mut theme_preference = ui.ctx().options(|opt| opt.theme_preference);
+    theme_preference.radio_buttons(ui);
+    ui.ctx().set_theme(theme_preference);
+}
+
+/// Show a small button to switch to/from dark/light mode (globally).
+#[deprecated = "Use global_theme_preference_switch instead"]
+pub fn global_dark_light_mode_switch(ui: &mut Ui) {
+    global_theme_preference_switch(ui);
+}
+
+/// Show larger buttons for switching between light and dark mode (globally).
+#[deprecated = "Use global_theme_preference_buttons instead"]
 pub fn global_dark_light_mode_buttons(ui: &mut Ui) {
-    let mut visuals = ui.ctx().style().visuals.clone();
-    visuals.light_dark_radio_buttons(ui);
-    ui.ctx().set_visuals(visuals);
+    global_theme_preference_buttons(ui);
 }

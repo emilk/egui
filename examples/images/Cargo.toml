@@ -11,6 +11,10 @@ publish = false
 workspace = true
 
 
+[package.metadata.cargo-machete]
+ignored = ["image"] # We only use the dependency to add more features to it
+
+
 [dependencies]
 eframe = { workspace = true, features = [
   "default",

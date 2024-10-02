@@ -147,8 +147,8 @@ impl BackendPanel {
             if cfg!(debug_assertions) {
                 ui.collapsing("More…", |ui| {
                     ui.horizontal(|ui| {
-                        ui.label("Frame number:");
-                        ui.monospace(ui.ctx().frame_nr().to_string());
+                        ui.label("Total ui passes:");
+                        ui.monospace(ui.ctx().cumulative_pass_nr().to_string());
                     });
                     if ui
                         .button("Wait 2s, then request repaint after another 3s")
@@ -161,6 +161,16 @@ impl BackendPanel {
                             ctx.request_repaint_after(std::time::Duration::from_secs(3));
                         });
                     }
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Request discard").clicked() {
+                            ui.ctx().request_discard("Manual button click");
+
+                            if !ui.ctx().will_discard() {
+                                ui.label("Discard denied!");
+                            }
+                        }
+                    });
                 });
             }
         }
@@ -297,7 +307,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             }
 
             let mut size = None;
-            egui::ComboBox::from_id_source("viewport-size-combo")
+            egui::ComboBox::from_id_salt("viewport-size-combo")
                 .selected_text("Resize to…")
                 .show_ui(ui, |ui| {
                     ui.selectable_value(

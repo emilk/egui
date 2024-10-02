@@ -1,6 +1,9 @@
-use super::*;
+use super::{Demo, View};
 
-use egui::*;
+use egui::{
+    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Frame, Resize, RichText,
+    Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -577,8 +580,17 @@ fn text_layout_demo(ui: &mut Ui) {
     };
 
     job.append(
-        "This is a demonstration of ",
+        "This",
         first_row_indentation,
+        TextFormat {
+            color: default_color,
+            font_id: FontId::proportional(20.0),
+            ..Default::default()
+        },
+    );
+    job.append(
+        " is a demonstration of ",
+        0.0,
         TextFormat {
             color: default_color,
             ..Default::default()
@@ -629,7 +641,7 @@ fn text_layout_demo(ui: &mut Ui) {
         "mixing ",
         0.0,
         TextFormat {
-            font_id: FontId::proportional(17.0),
+            font_id: FontId::proportional(20.0),
             color: default_color,
             ..Default::default()
         },

@@ -1168,5 +1168,5 @@ pub struct ImmediateViewport<'a> {
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI.
-    pub viewport_ui_cb: Box<dyn FnOnce(&Context) + 'a>,
+    pub viewport_ui_cb: Box<dyn FnMut(&Context) + 'a>,
 }

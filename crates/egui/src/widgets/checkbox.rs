@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    epaint, pos2, vec2, NumExt, Response, Sense, Shape, TextStyle, Ui, Vec2, Widget, WidgetInfo,
+    WidgetText, WidgetType,
+};
 
 // TODO(emilk): allow checkbox without a text label
 /// Boolean on/off control with text label.
@@ -13,7 +16,7 @@ use crate::*;
 /// ui.add(egui::Checkbox::new(&mut my_bool, "Checked"));
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: WidgetText,

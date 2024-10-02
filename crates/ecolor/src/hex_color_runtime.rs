@@ -123,8 +123,8 @@ impl Color32 {
     /// Supports the 3, 4, 6, and 8-digit formats, according to the specification in
     /// <https://drafts.csswg.org/css-color-4/#hex-color>
     ///
-    /// To parse hex colors at compile-time (e.g. for use in `const` contexts)
-    /// use the macro [`crate::hex_color!`] instead.
+    /// To parse hex colors from string literals with compile-time checking, use the macro
+    /// [`crate::hex_color!`] instead.
     ///
     /// # Example
     /// ```rust

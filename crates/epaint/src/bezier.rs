@@ -4,7 +4,7 @@
 use std::ops::Range;
 
 use crate::{shape::Shape, Color32, PathShape, PathStroke};
-use emath::*;
+use emath::{Pos2, Rect, RectTransform};
 
 // ----------------------------------------------------------------------------
 
@@ -172,7 +172,7 @@ impl CubicBezierShape {
         }
     }
 
-    // copied from lyon::geom::flattern_cubic.rs
+    // copied from <https://docs.rs/lyon_geom/latest/src/lyon_geom/cubic_bezier.rs.html#384-396>
     // Computes the number of quadratic bézier segments to approximate a cubic one.
     // Derived by Raph Levien from section 10.6 of Sedeberg's CAGD notes
     // https://scholarsarchive.byu.edu/cgi/viewcontent.cgi?article=1000&context=facpub#section.10.6
@@ -762,6 +762,8 @@ fn cubic_for_each_local_extremum<F: FnMut(f32)>(p0: f32, p1: f32, p2: f32, p3: f
 
 #[cfg(test)]
 mod tests {
+    use emath::pos2;
+
     use super::*;
 
     #[test]

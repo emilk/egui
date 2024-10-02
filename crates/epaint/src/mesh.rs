@@ -1,5 +1,5 @@
-use crate::*;
-use emath::*;
+use crate::{emath, Color32, TextureId, WHITE_UV};
+use emath::{Pos2, Rect, Rot2, TSTransform, Vec2};
 
 /// The 2D vertex type.
 ///
@@ -222,7 +222,7 @@ impl Mesh {
     pub fn split_to_u16(self) -> Vec<Mesh16> {
         debug_assert!(self.is_valid());
 
-        const MAX_SIZE: u32 = std::u16::MAX as u32;
+        const MAX_SIZE: u32 = u16::MAX as u32;
 
         if self.vertices.len() <= MAX_SIZE as usize {
             // Common-case optimization:

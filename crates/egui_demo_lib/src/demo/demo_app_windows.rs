@@ -31,6 +31,7 @@ impl Default for Demos {
             Box::<super::font_book::FontBook>::default(),
             Box::<super::frame_demo::FrameDemo>::default(),
             Box::<super::highlighting::Highlighting>::default(),
+            Box::<super::interactive_container::InteractiveContainerDemo>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
@@ -258,8 +259,10 @@ impl DemoWindows {
     fn desktop_ui(&mut self, ctx: &Context) {
         egui::SidePanel::right("egui_demo_panel")
             .resizable(false)
-            .default_width(150.0)
+            .default_width(160.0)
+            .min_width(160.0)
             .show(ctx, |ui| {
+                ui.add_space(4.0);
                 ui.vertical_centered(|ui| {
                     ui.heading("✒ egui demos");
                 });

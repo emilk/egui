@@ -21,7 +21,7 @@ pub use rendering_test::ColorTest;
 /// View some Rust code with syntax highlighting and selection.
 pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {
     let language = "rs";
-    let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx(), ui.style());
     egui_extras::syntax_highlighting::code_view_ui(ui, &theme, code, language);
 }
 

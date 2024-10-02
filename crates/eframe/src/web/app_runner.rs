@@ -6,7 +6,7 @@ use super::{now_sec, text_agent::TextAgent, web_painter::WebPainter, NeedRepaint
 
 pub struct AppRunner {
     #[allow(dead_code)]
-    web_options: crate::WebOptions,
+    pub(crate) web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: super::ActiveWebPainter,
@@ -33,23 +33,16 @@ impl AppRunner {
     pub async fn new(
         canvas: web_sys::HtmlCanvasElement,
         web_options: crate::WebOptions,
-        app_creator: epi::AppCreator,
+        app_creator: epi::AppCreator<'static>,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
         let painter = super::ActiveWebPainter::new(canvas, &web_options).await?;
-
-        let system_theme = if web_options.follow_system_theme {
-            super::system_theme()
-        } else {
-            None
-        };
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
                 user_agent: super::user_agent().unwrap_or_default(),
                 location: super::web_location(),
             },
-            system_theme,
             cpu_usage: None,
         };
         let storage = LocalStorage::default();
@@ -67,9 +60,6 @@ impl AppRunner {
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
         });
-
-        let theme = system_theme.unwrap_or(web_options.default_theme);
-        egui_ctx.set_visuals(theme.egui_visuals());
 
         let cc = epi::CreationContext {
             egui_ctx: egui_ctx.clone(),
@@ -132,6 +122,7 @@ impl AppRunner {
             .entry(egui::ViewportId::ROOT)
             .or_default()
             .native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner.input.raw.system_theme = super::system_theme();
 
         Ok(runner)
     }
@@ -185,6 +176,12 @@ impl AppRunner {
     ///
     /// Technically: does either the canvas or the [`TextAgent`] have focus?
     pub fn has_focus(&self) -> bool {
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        if document.hidden() {
+            return false;
+        }
+
         super::has_focus(self.canvas()) || self.text_agent.has_focus()
     }
 
@@ -278,6 +275,8 @@ impl AppRunner {
             ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
+            num_completed_passes: _,    // handled by `Context::run`
+            request_discard_reasons: _, // handled by `Context::run`
         } = platform_output;
 
         super::set_cursor_icon(cursor_icon);
@@ -285,13 +284,9 @@ impl AppRunner {
             super::open_url(&open.url, open.new_tab);
         }
 
-        #[cfg(web_sys_unstable_apis)]
         if !copied_text.is_empty() {
             super::set_clipboard_text(&copied_text);
         }
-
-        #[cfg(not(web_sys_unstable_apis))]
-        let _ = copied_text;
 
         if self.has_focus() {
             // The eframe app has focus.
@@ -305,7 +300,10 @@ impl AppRunner {
             }
         }
 
-        if let Err(err) = self.text_agent.move_to(ime, self.canvas()) {
+        if let Err(err) = self
+            .text_agent
+            .move_to(ime, self.canvas(), self.egui_ctx.zoom_factor())
+        {
             log::error!(
                 "failed to update text agent position: {}",
                 super::string_from_js_value(&err)

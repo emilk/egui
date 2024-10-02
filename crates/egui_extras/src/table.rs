@@ -5,7 +5,7 @@
 
 use egui::{
     scroll_area::{ScrollAreaOutput, ScrollBarVisibility},
-    Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
+    Align, Id, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b,
 };
 
 use crate::{
@@ -38,6 +38,10 @@ pub struct Column {
     clip: bool,
 
     resizable: Option<bool>,
+
+    /// If set, we should acurately measure the size of this column this frame
+    /// so that we can correctly auto-size it. This is done as a `sizing_pass`.
+    auto_size_this_frame: bool,
 }
 
 impl Column {
@@ -86,6 +90,7 @@ impl Column {
             width_range: Rangef::new(0.0, f32::INFINITY),
             resizable: None,
             clip: false,
+            auto_size_this_frame: false,
         }
     }
 
@@ -138,6 +143,15 @@ impl Column {
         self
     }
 
+    /// If set, the column will be automatically sized based on the content this frame.
+    ///
+    /// Do not set this every frame, just on a specific action.
+    #[inline]
+    pub fn auto_size_this_frame(mut self, auto_size_this_frame: bool) -> Self {
+        self.auto_size_this_frame = auto_size_this_frame;
+        self
+    }
+
     fn is_auto(&self) -> bool {
         match self.initial_width {
             InitialColumnSize::Automatic(_) => true,
@@ -174,6 +188,7 @@ struct TableScrollOptions {
     max_scroll_height: f32,
     auto_shrink: Vec2b,
     scroll_bar_visibility: ScrollBarVisibility,
+    animated: bool,
 }
 
 impl Default for TableScrollOptions {
@@ -188,6 +203,7 @@ impl Default for TableScrollOptions {
             max_scroll_height: f32::INFINITY,
             auto_shrink: Vec2b::TRUE,
             scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
+            animated: true,
         }
     }
 }
@@ -199,7 +215,7 @@ impl Default for TableScrollOptions {
 /// You must pre-allocate all columns with [`Self::column`]/[`Self::columns`].
 ///
 /// If you have multiple [`Table`]:s in the same [`Ui`]
-/// you will need to give them unique id:s by surrounding them with [`Ui::push_id`].
+/// you will need to give them unique id:s by with [`Self::id_salt`].
 ///
 /// ### Example
 /// ```
@@ -230,6 +246,7 @@ impl Default for TableScrollOptions {
 /// ```
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
+    id_salt: Id,
     columns: Vec<Column>,
     striped: Option<bool>,
     resizable: bool,
@@ -243,6 +260,7 @@ impl<'a> TableBuilder<'a> {
         let cell_layout = *ui.layout();
         Self {
             ui,
+            id_salt: Id::new("__table_state"),
             columns: Default::default(),
             striped: None,
             resizable: false,
@@ -250,6 +268,24 @@ impl<'a> TableBuilder<'a> {
             scroll_options: Default::default(),
             sense: egui::Sense::hover(),
         }
+    }
+
+    /// Give this table a unique id within the parent [`Ui`].
+    ///
+    /// This is required if you have multiple tables in the same [`Ui`].
+    #[inline]
+    #[deprecated = "Renamed id_salt"]
+    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt(id_salt)
+    }
+
+    /// Give this table a unique id within the parent [`Ui`].
+    ///
+    /// This is required if you have multiple tables in the same [`Ui`].
+    #[inline]
+    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt = Id::new(id_salt);
+        self
     }
 
     /// Enable striped row background for improved readability.
@@ -375,6 +411,15 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
+    /// Should the scroll area animate `scroll_to_*` functions?
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn animate_scrolling(mut self, animated: bool) -> Self {
+        self.scroll_options.animated = animated;
+        self
+    }
+
     /// What layout should we use for the individual cells?
     #[inline]
     pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
@@ -405,8 +450,8 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// Reset all column widths.
-    pub fn reset(&mut self) {
-        let state_id = self.ui.id().with("__table_state");
+    pub fn reset(&self) {
+        let state_id = self.ui.id().with(self.id_salt);
         TableState::reset(self.ui, state_id);
     }
 
@@ -416,7 +461,8 @@ impl<'a> TableBuilder<'a> {
 
         let Self {
             ui,
-            columns,
+            id_salt,
+            mut columns,
             striped,
             resizable,
             cell_layout,
@@ -424,9 +470,18 @@ impl<'a> TableBuilder<'a> {
             sense,
         } = self;
 
+        for (i, column) in columns.iter_mut().enumerate() {
+            let column_resize_id = ui.id().with("resize_column").with(i);
+            if let Some(response) = ui.ctx().read_response(column_resize_id) {
+                if response.double_clicked() {
+                    column.auto_size_this_frame = true;
+                }
+            }
+        }
+
         let striped = striped.unwrap_or(ui.visuals().striped);
 
-        let state_id = ui.id().with("__table_state");
+        let state_id = ui.id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
@@ -434,10 +489,11 @@ impl<'a> TableBuilder<'a> {
         let mut max_used_widths = vec![0.0; columns.len()];
         let table_top = ui.cursor().top();
 
-        ui.scope(|ui| {
-            if is_sizing_pass {
-                ui.set_sizing_pass();
-            }
+        let mut ui_builder = egui::UiBuilder::new();
+        if is_sizing_pass {
+            ui_builder = ui_builder.sizing_pass();
+        }
+        ui.scope_builder(ui_builder, |ui| {
             let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
             let mut response: Option<Response> = None;
             add_header_row(TableRow {
@@ -482,6 +538,7 @@ impl<'a> TableBuilder<'a> {
 
         let Self {
             ui,
+            id_salt,
             columns,
             striped,
             resizable,
@@ -492,7 +549,7 @@ impl<'a> TableBuilder<'a> {
 
         let striped = striped.unwrap_or(ui.visuals().striped);
 
-        let state_id = ui.id().with("__table_state");
+        let state_id = ui.id().with(id_salt);
 
         let (is_sizing_pass, state) =
             TableState::load(ui, state_id, resizable, &columns, available_width);
@@ -543,12 +600,13 @@ impl TableState {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
-        let state = ui
-            .data_mut(|d| d.get_persisted::<Self>(state_id))
-            .filter(|state| {
-                // make sure that the stored widths aren't out-dated
-                state.column_widths.len() == columns.len()
-            });
+        #[cfg(feature = "serde")]
+        let state = ui.data_mut(|d| d.get_persisted::<Self>(state_id));
+        #[cfg(not(feature = "serde"))]
+        let state = ui.data_mut(|d| d.get_temp::<Self>(state_id));
+
+        // Make sure that the stored widths aren't out-dated:
+        let state = state.filter(|state| state.column_widths.len() == columns.len());
 
         let is_sizing_pass =
             ui.is_sizing_pass() || state.is_none() && columns.iter().any(|c| c.is_auto());
@@ -597,7 +655,15 @@ impl TableState {
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
-        ui.data_mut(|d| d.insert_persisted(state_id, self));
+        #![allow(clippy::needless_return)]
+        #[cfg(feature = "serde")]
+        {
+            return ui.data_mut(|d| d.insert_persisted(state_id, self));
+        }
+        #[cfg(not(feature = "serde"))]
+        {
+            return ui.data_mut(|d| d.insert_temp(state_id, self));
+        }
     }
 
     fn reset(ui: &egui::Ui, state_id: egui::Id) {
@@ -671,18 +737,19 @@ impl<'a> Table<'a> {
             max_scroll_height,
             auto_shrink,
             scroll_bar_visibility,
+            animated,
         } = scroll_options;
 
         let cursor_position = ui.cursor().min;
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
-            .auto_shrink(true)
             .drag_to_scroll(drag_to_scroll)
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
             .max_height(max_scroll_height)
             .auto_shrink(auto_shrink)
-            .scroll_bar_visibility(scroll_bar_visibility);
+            .scroll_bar_visibility(scroll_bar_visibility)
+            .animated(animated);
 
         if let Some(scroll_offset_y) = scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
@@ -697,11 +764,11 @@ impl<'a> Table<'a> {
 
             let clip_rect = ui.clip_rect();
 
-            ui.scope(|ui| {
-                if is_sizing_pass {
-                    ui.set_sizing_pass();
-                }
-
+            let mut ui_builder = egui::UiBuilder::new();
+            if is_sizing_pass {
+                ui_builder = ui_builder.sizing_pass();
+            }
+            ui.scope_builder(ui_builder, |ui| {
                 let hovered_row_index_id = self.state_id.with("__table_hovered_row");
                 let hovered_row_index =
                     ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
@@ -715,8 +782,7 @@ impl<'a> Table<'a> {
                     max_used_widths: max_used_widths_ref,
                     striped,
                     row_index: 0,
-                    start_y: clip_rect.top(),
-                    end_y: clip_rect.bottom(),
+                    y_range: clip_rect.y_range(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
                     hovered_row_index,
@@ -724,7 +790,7 @@ impl<'a> Table<'a> {
                 });
 
                 if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
-                    // TableBody::row didn't find the right row, so scroll to the bottom:
+                    // TableBody::row didn't find the correct row, so scroll to the bottom:
                     scroll_to_y_range = Some(Rangef::new(f32::INFINITY, f32::INFINITY));
                 }
             });
@@ -790,9 +856,8 @@ impl<'a> Table<'a> {
                 let resize_response =
                     ui.interact(line_rect, column_resize_id, egui::Sense::click_and_drag());
 
-                if resize_response.double_clicked() {
-                    // Resize to the minimum of what is needed.
-
+                if column.auto_size_this_frame {
+                    // Auto-size: resize to what is needed.
                     *column_width = width_range.clamp(max_used_widths[i]);
                 } else if resize_response.dragged() {
                     if let Some(pointer) = ui.ctx().pointer_latest_pos() {
@@ -863,8 +928,7 @@ pub struct TableBody<'a> {
 
     striped: bool,
     row_index: usize,
-    start_y: f32,
-    end_y: f32,
+    y_range: Rangef,
 
     /// Look for this row to scroll to.
     scroll_to_row: Option<usize>,
@@ -895,7 +959,7 @@ impl<'a> TableBody<'a> {
     }
 
     fn scroll_offset_y(&self) -> f32 {
-        self.start_y - self.layout.rect.top()
+        self.y_range.min - self.layout.rect.top()
     }
 
     /// Return a vector containing all column widths for this table body.
@@ -981,7 +1045,7 @@ impl<'a> TableBody<'a> {
         let scroll_offset_y = self
             .scroll_offset_y()
             .min(total_rows as f32 * row_height_with_spacing);
-        let max_height = self.end_y - self.start_y;
+        let max_height = self.y_range.span();
         let mut min_row = 0;
 
         if scroll_offset_y > 0.0 {
@@ -1053,7 +1117,7 @@ impl<'a> TableBody<'a> {
         let spacing = self.layout.ui.spacing().item_spacing;
         let mut enumerated_heights = heights.enumerate();
 
-        let max_height = self.end_y - self.start_y;
+        let max_height = self.y_range.span();
         let scroll_offset_y = self.scroll_offset_y() as f64;
 
         let scroll_to_y_range_offset = self.layout.cursor.y as f64;
@@ -1200,7 +1264,7 @@ pub struct TableRow<'a, 'b> {
 }
 
 impl<'a, 'b> TableRow<'a, 'b> {
-    /// Add the contents of a column.
+    /// Add the contents of a column on this row (i.e. a cell).
     ///
     /// Returns the used space (`min_rect`) plus the [`Response`] of the whole cell.
     #[cfg_attr(debug_assertions, track_caller)]
@@ -1208,6 +1272,10 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let col_index = self.col_index;
 
         let clip = self.columns.get(col_index).map_or(false, |c| c.clip);
+        let auto_size_this_frame = self
+            .columns
+            .get(col_index)
+            .map_or(false, |c| c.auto_size_this_frame);
 
         let width = if let Some(width) = self.widths.get(col_index) {
             self.col_index += 1;
@@ -1228,6 +1296,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
             striped: self.striped,
             hovered: self.hovered,
             selected: self.selected,
+            sizing_pass: auto_size_this_frame || self.layout.ui.is_sizing_pass(),
         };
 
         let (used_rect, response) = self.layout.add(

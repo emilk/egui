@@ -1,6 +1,9 @@
 #![allow(clippy::needless_range_loop)]
 
-use crate::*;
+use crate::{
+    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, vec2, Context, Id, NumExt, Pos2,
+    Rangef, Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -157,7 +160,7 @@ impl ScrollBarVisibility {
 /// # });
 /// ```
 ///
-/// You can scroll to an element using [`Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
+/// You can scroll to an element using [`crate::Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
@@ -168,7 +171,8 @@ pub struct ScrollArea {
     max_size: Vec2,
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
-    id_source: Option<Id>,
+    scroll_bar_rect: Option<Rect>,
+    id_salt: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
 
@@ -220,7 +224,8 @@ impl ScrollArea {
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
             scroll_bar_visibility: Default::default(),
-            id_source: None,
+            scroll_bar_rect: None,
+            id_salt: None,
             offset_x: None,
             offset_y: None,
             scrolling_enabled: true,
@@ -285,10 +290,27 @@ impl ScrollArea {
         self
     }
 
+    /// Specify within which screen-space rectangle to show the scroll bars.
+    ///
+    /// This can be used to move the scroll bars to a smaller region of the `ScrollArea`,
+    /// for instance if you are painting a sticky header on top of it.
+    #[inline]
+    pub fn scroll_bar_rect(mut self, scroll_bar_rect: Rect) -> Self {
+        self.scroll_bar_rect = Some(scroll_bar_rect);
+        self
+    }
+
     /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
     #[inline]
-    pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
-        self.id_source = Some(Id::new(id_source));
+    #[deprecated = "Renamed id_salt"]
+    pub fn id_source(self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt(id_salt)
+    }
+
+    /// A source for the unique [`Id`], e.g. `.id_salt("second_scroll_area")` or `.id_salt(loop_index)`.
+    #[inline]
+    pub fn id_salt(mut self, id_salt: impl std::hash::Hash) -> Self {
+        self.id_salt = Some(Id::new(id_salt));
         self
     }
 
@@ -367,7 +389,7 @@ impl ScrollArea {
     /// * If `false`, the scroll area will not respond to user scrolling.
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is typing text in a [`TextEdit`] widget contained within the scroll area.
+    /// is typing text in a [`crate::TextEdit`] widget contained within the scroll area.
     ///
     /// This controls both scrolling directions.
     #[inline]
@@ -464,6 +486,7 @@ struct Prepared {
     current_bar_use: Vec2,
 
     scroll_bar_visibility: ScrollBarVisibility,
+    scroll_bar_rect: Option<Rect>,
 
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
@@ -487,7 +510,8 @@ impl ScrollArea {
             max_size,
             min_scrolled_size,
             scroll_bar_visibility,
-            id_source,
+            scroll_bar_rect,
+            id_salt,
             offset_x,
             offset_y,
             scrolling_enabled,
@@ -499,8 +523,8 @@ impl ScrollArea {
         let ctx = ui.ctx().clone();
         let scrolling_enabled = scrolling_enabled && ui.is_enabled();
 
-        let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
-        let id = ui.make_persistent_id(id_source);
+        let id_salt = id_salt.unwrap_or_else(|| Id::new("scroll_area"));
+        let id = ui.make_persistent_id(id_salt);
         ctx.check_for_id_clash(
             id,
             Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO),
@@ -560,10 +584,10 @@ impl ScrollArea {
         }
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
-        let mut content_ui = ui.child_ui(
-            content_max_rect,
-            *ui.layout(),
-            Some(UiStackInfo::new(UiKind::ScrollArea)),
+        let mut content_ui = ui.new_child(
+            UiBuilder::new()
+                .ui_stack_info(UiStackInfo::new(UiKind::ScrollArea))
+                .max_rect(content_max_rect),
         );
 
         {
@@ -572,10 +596,8 @@ impl ScrollArea {
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if scroll_enabled[d] {
-                    if state.content_is_too_large[d] {
-                        content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
-                        content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
-                    }
+                    content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
+                    content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
@@ -599,20 +621,28 @@ impl ScrollArea {
                 .interact_rect
                 .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
 
-            if content_response_option.map(|response| response.dragged()) == Some(true) {
+            if content_response_option
+                .as_ref()
+                .is_some_and(|response| response.dragged())
+            {
                 for d in 0..2 {
                     if scroll_enabled[d] {
                         ui.input(|input| {
                             state.offset[d] -= input.pointer.delta()[d];
-                            state.vel[d] = input.pointer.velocity()[d];
                         });
                         state.scroll_stuck_to_end[d] = false;
                         state.offset_target[d] = None;
-                    } else {
-                        state.vel[d] = 0.0;
                     }
                 }
             } else {
+                // Apply the cursor velocity to the scroll area when the user releases the drag.
+                if content_response_option
+                    .as_ref()
+                    .is_some_and(|response| response.drag_stopped())
+                {
+                    state.vel =
+                        scroll_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
+                }
                 for d in 0..2 {
                     // Kinetic scrolling
                     let stop_speed = 20.0; // Pixels per second.
@@ -671,6 +701,7 @@ impl ScrollArea {
             show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
+            scroll_bar_rect,
             inner_rect,
             content_ui,
             viewport,
@@ -732,7 +763,7 @@ impl ScrollArea {
 
             let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y_min..=y_max);
 
-            ui.allocate_ui_at_rect(rect, |viewport_ui| {
+            ui.allocate_new_ui(UiBuilder::new().max_rect(rect), |viewport_ui| {
                 viewport_ui.skip_ahead_auto_ids(min_row); // Make sure we get consistent IDs.
                 add_contents(viewport_ui, min_row..max_row)
             })
@@ -784,6 +815,7 @@ impl Prepared {
             mut show_bars_factor,
             current_bar_use,
             scroll_bar_visibility,
+            scroll_bar_rect,
             content_ui,
             viewport: _,
             scrolling_enabled,
@@ -795,10 +827,10 @@ impl Prepared {
 
         let scroll_delta = content_ui
             .ctx()
-            .frame_state_mut(|state| std::mem::take(&mut state.scroll_delta));
+            .pass_state_mut(|state| std::mem::take(&mut state.scroll_delta));
 
         for d in 0..2 {
-            // FrameState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
+            // PassState::scroll_delta is inverted from the way we apply the delta, so we need to negate it.
             let mut delta = -scroll_delta.0[d];
             let mut animation = scroll_delta.1;
 
@@ -806,11 +838,11 @@ impl Prepared {
             // is to avoid them leaking to other scroll areas.
             let scroll_target = content_ui
                 .ctx()
-                .frame_state_mut(|state| state.scroll_target[d].take());
+                .pass_state_mut(|state| state.scroll_target[d].take());
 
             if scroll_enabled[d] {
                 if let Some(target) = scroll_target {
-                    let frame_state::ScrollTarget {
+                    let pass_state::ScrollTarget {
                         range,
                         align,
                         animation: animation_update,
@@ -949,6 +981,7 @@ impl Prepared {
         let scroll_style = ui.spacing().scroll;
 
         // Paint the bars:
+        let scroll_bar_rect = scroll_bar_rect.unwrap_or(inner_rect);
         for d in 0..2 {
             // maybe force increase in offset to keep scroll stuck to end position
             if stick_to_end[d] && state.scroll_stuck_to_end[d] {
@@ -960,10 +993,6 @@ impl Prepared {
                 state.scroll_bar_interaction[d] = false;
                 continue;
             }
-
-            // left/right of a horizontal scroll (d==1)
-            // top/bottom of vertical scroll (d == 1)
-            let main_range = Rangef::new(inner_rect.min[d], inner_rect.max[d]);
 
             // Margin on either side of the scroll bar:
             let inner_margin = show_factor * scroll_style.bar_inner_margin;
@@ -1018,19 +1047,25 @@ impl Prepared {
                 cross.min = cross.max - width;
             }
 
-            let outer_scroll_rect = if d == 0 {
+            let outer_scroll_bar_rect = if d == 0 {
                 Rect::from_min_max(
-                    pos2(inner_rect.left(), cross.min),
-                    pos2(inner_rect.right(), cross.max),
+                    pos2(scroll_bar_rect.left(), cross.min),
+                    pos2(scroll_bar_rect.right(), cross.max),
                 )
             } else {
                 Rect::from_min_max(
-                    pos2(cross.min, inner_rect.top()),
-                    pos2(cross.max, inner_rect.bottom()),
+                    pos2(cross.min, scroll_bar_rect.top()),
+                    pos2(cross.max, scroll_bar_rect.bottom()),
                 )
             };
 
-            let from_content = |content| remap_clamp(content, 0.0..=content_size[d], main_range);
+            let from_content = |content| {
+                remap_clamp(
+                    content,
+                    0.0..=content_size[d],
+                    scroll_bar_rect.min[d]..=scroll_bar_rect.max[d],
+                )
+            };
 
             let handle_rect = if d == 0 {
                 Rect::from_min_max(
@@ -1053,7 +1088,7 @@ impl Prepared {
             } else {
                 Sense::hover()
             };
-            let response = ui.interact(outer_scroll_rect, interact_id, sense);
+            let response = ui.interact(outer_scroll_bar_rect, interact_id, sense);
 
             state.scroll_bar_interaction[d] = response.hovered() || response.dragged();
 
@@ -1063,16 +1098,21 @@ impl Prepared {
                         if handle_rect.contains(pointer_pos) {
                             pointer_pos[d] - handle_rect.min[d]
                         } else {
-                            let handle_top_pos_at_bottom = main_range.max - handle_rect.size()[d];
+                            let handle_top_pos_at_bottom =
+                                scroll_bar_rect.max[d] - handle_rect.size()[d];
                             // Calculate the new handle top position, centering the handle on the mouse.
                             let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
-                                .clamp(main_range.min, handle_top_pos_at_bottom);
+                                .clamp(scroll_bar_rect.min[d], handle_top_pos_at_bottom);
                             pointer_pos[d] - new_handle_top_pos
                         }
                     });
 
                 let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
-                state.offset[d] = remap(new_handle_top, main_range, 0.0..=content_size[d]);
+                state.offset[d] = remap(
+                    new_handle_top,
+                    scroll_bar_rect.min[d]..=scroll_bar_rect.max[d],
+                    0.0..=content_size[d],
+                );
 
                 // some manual action taken, scroll not stuck
                 state.scroll_stuck_to_end[d] = false;
@@ -1089,7 +1129,7 @@ impl Prepared {
                 state.vel[d] = 0.0;
             }
 
-            if ui.is_rect_visible(outer_scroll_rect) {
+            if ui.is_rect_visible(outer_scroll_bar_rect) {
                 // Avoid frame-delay by calculating a new handle rect:
                 let mut handle_rect = if d == 0 {
                     Rect::from_min_max(
@@ -1176,7 +1216,7 @@ impl Prepared {
 
                 // Background:
                 ui.painter().add(epaint::Shape::rect_filled(
-                    outer_scroll_rect,
+                    outer_scroll_bar_rect,
                     visuals.rounding,
                     ui.visuals()
                         .extreme_bg_color

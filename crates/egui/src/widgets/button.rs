@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    widgets, Align, Color32, Image, NumExt, Rect, Response, Rounding, Sense, Stroke, TextStyle,
+    TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+};
 
 /// Clickable button with text.
 ///
@@ -18,7 +21,7 @@ use crate::*;
 /// }
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Button<'a> {
     image: Option<Image<'a>>,
     text: Option<WidgetText>,
@@ -72,7 +75,7 @@ impl<'a> Button<'a> {
 
     /// Set the wrap mode for the text.
     ///
-    /// By default, [`Ui::wrap_mode`] will be used, which can be overridden with [`Style::wrap_mode`].
+    /// By default, [`crate::Ui::wrap_mode`] will be used, which can be overridden with [`crate::Style::wrap_mode`].
     ///
     /// Note that any `\n` in the text will always produce a new line.
     #[inline]
@@ -157,7 +160,7 @@ impl<'a> Button<'a> {
     ///
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
     ///
-    /// The text can be created with [`Context::format_shortcut`].
+    /// The text can be created with [`crate::Context::format_shortcut`].
     #[inline]
     pub fn shortcut_text(mut self, shortcut_text: impl Into<WidgetText>) -> Self {
         self.shortcut_text = shortcut_text.into();
@@ -248,9 +251,9 @@ impl Widget for Button<'_> {
         if image.is_some() && galley.is_some() {
             desired_size.x += ui.spacing().icon_spacing;
         }
-        if let Some(text) = &galley {
-            desired_size.x += text.size().x;
-            desired_size.y = desired_size.y.max(text.size().y);
+        if let Some(galley) = &galley {
+            desired_size.x += galley.size().x;
+            desired_size.y = desired_size.y.max(galley.size().y);
         }
         if let Some(shortcut_galley) = &shortcut_galley {
             desired_size.x += gap_before_shortcut_text + shortcut_galley.size().x;
@@ -306,10 +309,14 @@ impl Widget for Button<'_> {
             let mut cursor_x = rect.min.x + button_padding.x;
 
             if let Some(image) = &image {
-                let image_rect = Rect::from_min_size(
-                    pos2(cursor_x, rect.center().y - 0.5 - (image_size.y / 2.0)),
-                    image_size,
-                );
+                let mut image_pos = ui
+                    .layout()
+                    .align_size_within_rect(image_size, rect.shrink2(button_padding))
+                    .min;
+                if galley.is_some() || shortcut_galley.is_some() {
+                    image_pos.x = cursor_x;
+                }
+                let image_rect = Rect::from_min_size(image_pos, image_size);
                 cursor_x += image_size.x;
                 let tlr = image.load_for_size(ui.ctx(), image_size);
                 widgets::image::paint_texture_load_result(
@@ -331,22 +338,26 @@ impl Widget for Button<'_> {
             }
 
             if let Some(galley) = galley {
-                let text_pos = if image.is_some() || shortcut_galley.is_some() {
-                    pos2(cursor_x, rect.center().y - 0.5 * galley.size().y)
-                } else {
-                    // Make sure button text is centered if within a centered layout
-                    ui.layout()
-                        .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
-                        .min
-                };
+                let mut text_pos = ui
+                    .layout()
+                    .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
+                    .min;
+                if image.is_some() || shortcut_galley.is_some() {
+                    text_pos.x = cursor_x;
+                }
                 ui.painter().galley(text_pos, galley, visuals.text_color());
             }
 
             if let Some(shortcut_galley) = shortcut_galley {
-                let shortcut_text_pos = pos2(
-                    rect.max.x - button_padding.x - shortcut_galley.size().x,
-                    rect.center().y - 0.5 * shortcut_galley.size().y,
-                );
+                // Always align to the right
+                let layout = if ui.layout().is_horizontal() {
+                    ui.layout().with_main_align(Align::Max)
+                } else {
+                    ui.layout().with_cross_align(Align::Max)
+                };
+                let shortcut_text_pos = layout
+                    .align_size_within_rect(shortcut_galley.size(), rect.shrink2(button_padding))
+                    .min;
                 ui.painter().galley(
                     shortcut_text_pos,
                     shortcut_galley,

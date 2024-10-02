@@ -7,7 +7,7 @@ use crate::{
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke, TextureId,
 };
-use emath::*;
+use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 pub use crate::{CubicBezierShape, QuadraticBezierShape};
 
@@ -1001,7 +1001,7 @@ pub struct TextShape {
     pub underline: Stroke,
 
     /// Any [`Color32::PLACEHOLDER`] in the galley will be replaced by the given color.
-    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    /// Affects everything: backgrounds, glyphs, strikethrough, underline, etc.
     pub fallback_color: Color32,
 
     /// If set, the text color in the galley will be ignored and replaced
@@ -1011,7 +1011,7 @@ pub struct TextShape {
     pub override_text_color: Option<Color32>,
 
     /// If set, the text will be rendered with the given opacity in gamma space
-    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    /// Affects everything: backgrounds, glyphs, strikethrough, underline, etc.
     pub opacity_factor: f32,
 
     /// Rotate text by this many radians clockwise.

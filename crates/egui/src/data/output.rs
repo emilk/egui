@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{ViewportIdMap, ViewportOutput, WidgetType};
+use crate::{RepaintCause, ViewportIdMap, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -43,7 +43,7 @@ impl FullOutput {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewport_output: viewports,
+            viewport_output,
         } = newer;
 
         self.platform_output.append(platform_output);
@@ -51,7 +51,7 @@ impl FullOutput {
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
 
-        for (id, new_viewport) in viewports {
+        for (id, new_viewport) in viewport_output {
             match self.viewport_output.entry(id) {
                 std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(new_viewport);
@@ -123,6 +123,22 @@ pub struct PlatformOutput {
     /// NOTE: this needs to be per-viewport.
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
+
+    /// How many ui passes is this the sum of?
+    ///
+    /// See [`crate::Context::request_discard`] for details.
+    ///
+    /// This is incremented at the END of each frame,
+    /// so this will be `0` for the first pass.
+    pub num_completed_passes: usize,
+
+    /// Was [`crate::Context::request_discard`] called during the latest pass?
+    ///
+    /// If so, what was the reason(s) for it?
+    ///
+    /// If empty, there was never any calls.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub request_discard_reasons: Vec<RepaintCause>,
 }
 
 impl PlatformOutput {
@@ -155,6 +171,8 @@ impl PlatformOutput {
             ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            num_completed_passes,
+            mut request_discard_reasons,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -167,6 +185,9 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.ime = ime.or(self.ime);
+        self.num_completed_passes += num_completed_passes;
+        self.request_discard_reasons
+            .append(&mut request_discard_reasons);
 
         #[cfg(feature = "accesskit")]
         {
@@ -181,6 +202,11 @@ impl PlatformOutput {
         let taken = std::mem::take(self);
         self.cursor_icon = taken.cursor_icon; // everything else is ephemeral
         taken
+    }
+
+    /// Was [`crate::Context::request_discard`] called?
+    pub fn requested_discard(&self) -> bool {
+        !self.request_discard_reasons.is_empty()
     }
 }
 
@@ -640,6 +666,7 @@ impl WidgetInfo {
             WidgetType::Button => "button",
             WidgetType::Checkbox => "checkbox",
             WidgetType::RadioButton => "radio",
+            WidgetType::RadioGroup => "radio group",
             WidgetType::SelectableLabel => "selectable",
             WidgetType::ComboBox => "combo",
             WidgetType::Slider => "slider",

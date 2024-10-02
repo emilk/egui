@@ -1,6 +1,6 @@
 use ahash::HashMap;
 
-use crate::*;
+use crate::{Id, IdMap, LayerId, Rect, Sense, WidgetInfo};
 
 /// Used to store each widget's [Id], [Rect] and [Sense] each frame.
 ///
@@ -12,9 +12,9 @@ pub struct WidgetRect {
     /// For interactive widgets, this better be globally unique.
     /// If not there will be weird bugs,
     /// and also big red warning test on the screen in debug builds
-    /// (see [`Options::warn_on_id_clash`]).
+    /// (see [`crate::Options::warn_on_id_clash`]).
     ///
-    /// You can ensure globally unique ids using [`Ui::push_id`].
+    /// You can ensure globally unique ids using [`crate::Ui::push_id`].
     pub id: Id,
 
     /// What layer the widget is on.
@@ -44,8 +44,8 @@ pub struct WidgetRect {
 
 /// Stores the [`WidgetRect`]s of all widgets generated during a single egui update/frame.
 ///
-/// All [`Ui`]s have a [`WidgetRects`], but whether or not their rects are correct
-/// depends on if [`Ui::interact_bg`] was ever called.
+/// All [`crate::Ui`]s have a [`WidgetRect`]. It is created in [`crate::Ui::new`] with [`Rect::NOTHING`]
+/// and updated with the correct [`Rect`] when the [`crate::Ui`] is dropped.
 #[derive(Default, Clone)]
 pub struct WidgetRects {
     /// All widgets, in painting order.
@@ -141,7 +141,10 @@ impl WidgetRects {
 
                 debug_assert!(
                     existing.layer_id == widget_rect.layer_id,
-                    "Widget changed layer_id during the frame"
+                    "Widget {:?} changed layer_id during the frame from {:?} to {:?}",
+                    widget_rect.id,
+                    existing.layer_id,
+                    widget_rect.layer_id
                 );
 
                 // Update it:

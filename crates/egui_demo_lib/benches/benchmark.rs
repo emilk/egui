@@ -69,7 +69,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let ctx = egui::Context::default();
-        ctx.begin_frame(RawInput::default());
+        ctx.begin_pass(RawInput::default());
 
         egui::CentralPanel::default().show(&ctx, |ui| {
             c.bench_function("Painter::rect", |b| {
@@ -81,7 +81,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
         });
 
-        // Don't call `end_frame` to not have to drain the huge paint list
+        // Don't call `end_pass` to not have to drain the huge paint list
     }
 
     {

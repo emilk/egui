@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use crate::mutex::Mutex;
 
-use crate::*;
-
-use self::text_selection::{CCursorRange, CursorRange, TextCursorState};
+use crate::{
+    text_selection::{CCursorRange, CursorRange, TextCursorState},
+    Context, Galley, Id,
+};
 
 pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 
@@ -97,7 +98,7 @@ impl TextEditState {
     }
 
     #[deprecated = "Use `self.cursor.range` instead"]
-    pub fn cursor_range(&mut self, galley: &Galley) -> Option<CursorRange> {
+    pub fn cursor_range(&self, galley: &Galley) -> Option<CursorRange> {
         self.cursor.range(galley)
     }
 }

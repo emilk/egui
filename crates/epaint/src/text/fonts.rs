@@ -159,6 +159,8 @@ pub struct FontTweak {
     /// Shift font's glyphs downwards by this fraction of the font size (in points).
     /// this is only a visual effect and does not affect the text layout.
     ///
+    /// Affects larger font sizes more.
+    ///
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
     ///
@@ -167,6 +169,8 @@ pub struct FontTweak {
 
     /// Shift font's glyphs downwards by this amount of logical points.
     /// this is only a visual effect and does not affect the text layout.
+    ///
+    /// Affects all font sizes equally.
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
@@ -185,7 +189,7 @@ impl Default for FontTweak {
             scale: 1.0,
             y_offset_factor: 0.0,
             y_offset: 0.0,
-            baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
+            baseline_offset_factor: 0.0,
         }
     }
 }
@@ -267,29 +271,26 @@ impl Default for FontDefinitions {
         let mut families = BTreeMap::new();
 
         font_data.insert("Hack".to_owned(), FontData::from_static(HACK_REGULAR));
-        font_data.insert(
-            "Ubuntu-Light".to_owned(),
-            FontData::from_static(UBUNTU_LIGHT),
-        );
 
         // Some good looking emojis. Use as first priority:
         font_data.insert(
             "NotoEmoji-Regular".to_owned(),
             FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
-                scale: 0.81, // make it smaller
+                scale: 0.81, // Make smaller
                 ..Default::default()
             }),
+        );
+
+        font_data.insert(
+            "Ubuntu-Light".to_owned(),
+            FontData::from_static(UBUNTU_LIGHT),
         );
 
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
         font_data.insert(
             "emoji-icon-font".to_owned(),
             FontData::from_static(EMOJI_ICON).tweak(FontTweak {
-                scale: 0.88, // make it smaller
-
-                // probably not correct, but this does make texts look better (#2724 for details)
-                y_offset_factor: 0.11, // move glyphs down to better align with common fonts
-                baseline_offset_factor: -0.11, // ...now the entire row is a bit down so shift it back
+                scale: 0.90, // Make smaller
                 ..Default::default()
             }),
         );
@@ -360,7 +361,7 @@ impl FontDefinitions {
 ///
 /// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
-/// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
+/// You need to call [`Self::begin_pass`] and [`Self::font_image_delta`] once every frame.
 #[derive(Clone)]
 pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
@@ -389,7 +390,7 @@ impl Fonts {
     ///
     /// This function will react to changes in `pixels_per_point` and `max_texture_side`,
     /// as well as notice when the font atlas is getting full, and handle that.
-    pub fn begin_frame(&self, pixels_per_point: f32, max_texture_side: usize) {
+    pub fn begin_pass(&self, pixels_per_point: f32, max_texture_side: usize) {
         let mut fonts_and_cache = self.0.lock();
 
         let pixels_per_point_changed = fonts_and_cache.fonts.pixels_per_point != pixels_per_point;
@@ -503,7 +504,7 @@ impl Fonts {
     /// How full is the font atlas?
     ///
     /// This increases as new fonts and/or glyphs are used,
-    /// but can also decrease in a call to [`Self::begin_frame`].
+    /// but can also decrease in a call to [`Self::begin_pass`].
     pub fn font_atlas_fill_ratio(&self) -> f32 {
         self.lock().fonts.atlas.lock().fill_ratio()
     }
@@ -619,10 +620,11 @@ impl FontsImpl {
 
     /// Get the right font implementation from size and [`FontFamily`].
     pub fn font(&mut self, font_id: &FontId) -> &mut Font {
-        let FontId { size, family } = font_id;
+        let FontId { mut size, family } = font_id;
+        size = size.at_least(0.1).at_most(2048.0);
 
         self.sized_family
-            .entry((OrderedFloat(*size), family.clone()))
+            .entry((OrderedFloat(size), family.clone()))
             .or_insert_with(|| {
                 let fonts = &self.definitions.families.get(family);
                 let fonts = fonts
@@ -630,7 +632,7 @@ impl FontsImpl {
 
                 let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
-                    .map(|font_name| self.font_impl_cache.font_impl(*size, font_name))
+                    .map(|font_name| self.font_impl_cache.font_impl(size, font_name))
                     .collect();
 
                 Font::new(fonts)
@@ -674,7 +676,32 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
-    fn layout(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
+    fn layout(&mut self, fonts: &mut FontsImpl, mut job: LayoutJob) -> Arc<Galley> {
+        if job.wrap.max_width.is_finite() {
+            // Protect against rounding errors in egui layout code.
+
+            // Say the user asks to wrap at width 200.0.
+            // The text layout wraps, and reports that the final width was 196.0 points.
+            // This than trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
+            // On the next frame, this is then set as the max width for the tooltip,
+            // and we end up calling the text layout code again, this time with a wrap width of 196.0.
+            // Except, somewhere in the `Ui` chain with added margins etc, a rounding error was introduced,
+            // so that we actually set a wrap-width of 195.9997 instead.
+            // Now the text that fit perfrectly at 196.0 needs to wrap one word earlier,
+            // and so the text re-wraps and reports a new width of 185.0 points.
+            // And then the cycle continues.
+
+            // So we limit max_width to integers.
+
+            // Related issues:
+            // * https://github.com/emilk/egui/issues/4927
+            // * https://github.com/emilk/egui/issues/4928
+            // * https://github.com/emilk/egui/issues/5084
+            // * https://github.com/emilk/egui/issues/5163
+
+            job.wrap.max_width = job.wrap.max_width.round();
+        }
+
         let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
 
         match self.cache.entry(hash) {

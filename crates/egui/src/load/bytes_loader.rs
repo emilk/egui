@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    generate_loader_id, Bytes, BytesLoadResult, BytesLoader, BytesPoll, Context, Cow, HashMap,
+    LoadError, Mutex,
+};
 
 /// Maps URI:s to [`Bytes`], e.g. found with `include_bytes!`.
 ///

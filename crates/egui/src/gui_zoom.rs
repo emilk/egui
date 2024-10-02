@@ -1,10 +1,10 @@
 //! Helpers for zooming the whole GUI of an app (changing [`Context::pixels_per_point`].
 //!
-use crate::*;
+use crate::{Button, Context, Key, KeyboardShortcut, Modifiers, Ui};
 
 /// The suggested keyboard shortcuts for global gui zooming.
 pub mod kb_shortcuts {
-    use super::*;
+    use super::{Key, KeyboardShortcut, Modifiers};
 
     /// Primary keyboard shortcut for zooming in (`Cmd` + `+`).
     pub const ZOOM_IN: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Plus);

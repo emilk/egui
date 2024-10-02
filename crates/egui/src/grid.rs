@@ -1,4 +1,10 @@
-use crate::*;
+use crate::{
+    vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
+    UiBuilder, Vec2,
+};
+
+#[cfg(debug_assertions)]
+use crate::Stroke;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct State {
@@ -256,7 +262,9 @@ impl GridLayout {
     }
 
     pub(crate) fn save(&self) {
-        if self.curr_state != self.prev_state {
+        // We need to always save state on the first frame, otherwise request_discard
+        // would be called repeatedly (see #5132)
+        if self.curr_state != self.prev_state || self.is_first_frame {
             self.curr_state.clone().store(&self.ctx, self.id);
             self.ctx.request_repaint();
         }
@@ -293,7 +301,7 @@ impl GridLayout {
 /// ```
 #[must_use = "You should call .show()"]
 pub struct Grid {
-    id_source: Id,
+    id_salt: Id,
     num_columns: Option<usize>,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
@@ -305,9 +313,9 @@ pub struct Grid {
 
 impl Grid {
     /// Create a new [`Grid`] with a locally unique identifier.
-    pub fn new(id_source: impl std::hash::Hash) -> Self {
+    pub fn new(id_salt: impl std::hash::Hash) -> Self {
         Self {
-            id_source: Id::new(id_source),
+            id_salt: Id::new(id_salt),
             num_columns: None,
             min_col_width: None,
             min_row_height: None,
@@ -382,7 +390,7 @@ impl Grid {
     }
 
     /// Change which row number the grid starts on.
-    /// This can be useful when you have a large [`Grid`] inside of [`ScrollArea::show_rows`].
+    /// This can be useful when you have a large [`crate::Grid`] inside of [`crate::ScrollArea::show_rows`].
     #[inline]
     pub fn start_row(mut self, start_row: usize) -> Self {
         self.start_row = start_row;
@@ -401,7 +409,7 @@ impl Grid {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let Self {
-            id_source,
+            id_salt,
             num_columns,
             min_col_width,
             min_row_height,
@@ -417,7 +425,7 @@ impl Grid {
             color_picker = Some(Box::new(striped_row_color));
         }
 
-        let id = ui.make_persistent_id(id_source);
+        let id = ui.make_persistent_id(id_salt);
         let prev_state = State::load(ui.ctx(), id);
 
         // Each grid cell is aligned LEFT_CENTER.
@@ -425,11 +433,21 @@ impl Grid {
         // then we should pick a default layout that matches that alignment,
         // which we do here:
         let max_rect = ui.cursor().intersect(ui.max_rect());
-        ui.allocate_ui_at_rect(max_rect, |ui| {
-            if prev_state.is_none() {
-                // Hide the ui this frame, and make things as narrow as possible.
-                ui.set_sizing_pass();
+
+        let mut ui_builder = UiBuilder::new().max_rect(max_rect);
+        if prev_state.is_none() {
+            // The initial frame will be glitchy, because we don't know the sizes of things to come.
+
+            if ui.is_visible() {
+                // Try to cover up the glitchy initial frame:
+                ui.ctx().request_discard("new Grid");
             }
+
+            // Hide the ui this frame, and make things as narrow as possible:
+            ui_builder = ui_builder.sizing_pass().invisible();
+        }
+
+        ui.allocate_new_ui(ui_builder, |ui| {
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
                 let mut grid = GridLayout {

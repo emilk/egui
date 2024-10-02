@@ -96,17 +96,6 @@ pub struct Painter {
     surfaces: ViewportIdMap<SurfaceState>,
 }
 
-impl Drop for Painter {
-    fn drop(&mut self) {
-        // Drop surfaces before dropping the render state.
-        //
-        // This is a workaround for a bug in wgpu 22.0.0.
-        // Fixed in https://github.com/gfx-rs/wgpu/pull/6052
-        // Remove with wgpu 22.1.0 update!
-        self.surfaces.clear();
-    }
-}
-
 impl Painter {
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///
@@ -638,7 +627,7 @@ impl Painter {
                     (texture_view, Some(&frame_view))
                 });
 
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("egui_render"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
@@ -669,7 +658,14 @@ impl Painter {
                 occlusion_query_set: None,
             });
 
-            renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
+            // Forgetting the pass' lifetime means that we are no longer compile-time protected from
+            // runtime errors caused by accessing the parent encoder before the render pass is dropped.
+            // Since we don't pass it on to the renderer, we should be perfectly safe against this mistake here!
+            renderer.render(
+                &mut render_pass.forget_lifetime(),
+                clipped_primitives,
+                &screen_descriptor,
+            );
         }
 
         {

@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    epaint, pos2, vec2, NumExt, Response, Sense, TextStyle, Ui, Vec2, Widget, WidgetInfo,
+    WidgetText, WidgetType,
+};
 
 /// One out of several alternatives, either selected or not.
 ///
@@ -19,7 +22,7 @@ use crate::*;
 /// }
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct RadioButton {
     checked: bool,
     text: WidgetText,

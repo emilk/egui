@@ -2,7 +2,10 @@
 
 use std::{cmp::Ordering, ops::RangeInclusive};
 
-use crate::*;
+use crate::{
+    emath, text, Button, CursorIcon, Key, Modifiers, NumExt, Response, RichText, Sense, TextEdit,
+    TextWrapMode, Ui, Widget, WidgetInfo, MINUS_CHAR_STR,
+};
 
 // ----------------------------------------------------------------------------
 
@@ -23,7 +26,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
     (get_set_value)(Some(value));
 }
 
-/// A numeric value that you can change by dragging the number. More compact than a [`Slider`].
+/// A numeric value that you can change by dragging the number. More compact than a [`crate::Slider`].
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
@@ -31,14 +34,14 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 /// ui.add(egui::DragValue::new(&mut my_f32).speed(0.1));
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,
     speed: f64,
     prefix: String,
     suffix: String,
     range: RangeInclusive<f64>,
-    clamp_to_range: bool,
+    clamp_existing_to_range: bool,
     min_decimals: usize,
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
@@ -69,7 +72,7 @@ impl<'a> DragValue<'a> {
             prefix: Default::default(),
             suffix: Default::default(),
             range: f64::NEG_INFINITY..=f64::INFINITY,
-            clamp_to_range: true,
+            clamp_existing_to_range: true,
             min_decimals: 0,
             max_decimals: None,
             custom_formatter: None,
@@ -90,33 +93,73 @@ impl<'a> DragValue<'a> {
     /// Sets valid range for the value.
     ///
     /// By default all values are clamped to this range, even when not interacted with.
-    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+    /// You can change this behavior by passing `false` to [`Self::clamp_existing_to_range`].
     #[deprecated = "Use `range` instead"]
     #[inline]
-    pub fn clamp_range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
-        self.range = range.start().to_f64()..=range.end().to_f64();
-        self
+    pub fn clamp_range<Num: emath::Numeric>(self, range: RangeInclusive<Num>) -> Self {
+        self.range(range)
     }
 
     /// Sets valid range for dragging the value.
     ///
     /// By default all values are clamped to this range, even when not interacted with.
-    /// You can change this behavior by passing `false` to [`Slider::clamp_to_range`].
+    /// You can change this behavior by passing `false` to [`Self::clamp_existing_to_range`].
     #[inline]
     pub fn range<Num: emath::Numeric>(mut self, range: RangeInclusive<Num>) -> Self {
         self.range = range.start().to_f64()..=range.end().to_f64();
         self
     }
 
-    /// If set to `true`, all incoming and outgoing values will be clamped to the sliding [`Self::range`] (if any).
+    /// If set to `true`, existing values will be clamped to [`Self::range`].
     ///
-    /// If set to `false`, a value outside of the range that is set programmatically or by user input will not be changed.
-    /// Dragging will be restricted to the range regardless of this setting.
-    /// Default: `true`.
+    /// If `false`, only values entered by the user (via dragging or text editing)
+    /// will be clamped to the range.
+    ///
+    /// ### Without calling `range`
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut my_value: f32 = 1337.0;
+    /// ui.add(egui::DragValue::new(&mut my_value));
+    /// assert_eq!(my_value, 1337.0, "No range, no clamp");
+    /// # });
+    /// ```
+    ///
+    /// ### With `.clamp_existing_to_range(true)` (default)
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut my_value: f32 = 1337.0;
+    /// ui.add(egui::DragValue::new(&mut my_value).range(0.0..=1.0));
+    /// assert!(0.0 <= my_value && my_value <= 1.0, "Existing values should be clamped");
+    /// # });
+    /// ```
+    ///
+    /// ### With `.clamp_existing_to_range(false)`
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut my_value: f32 = 1337.0;
+    /// let response = ui.add(
+    ///     egui::DragValue::new(&mut my_value).range(0.0..=1.0)
+    ///         .clamp_existing_to_range(false)
+    /// );
+    /// if response.dragged() {
+    ///     // The user edited the value, so it should be clamped to the range
+    ///     assert!(0.0 <= my_value && my_value <= 1.0);
+    /// } else {
+    ///     // The user didn't edit, so our original value should still be here:
+    ///     assert_eq!(my_value, 1337.0);
+    /// }
+    /// # });
+    /// ```
     #[inline]
-    pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
-        self.clamp_to_range = clamp_to_range;
+    pub fn clamp_existing_to_range(mut self, clamp_existing_to_range: bool) -> Self {
+        self.clamp_existing_to_range = clamp_existing_to_range;
         self
+    }
+
+    #[inline]
+    #[deprecated = "Renamed clamp_existing_to_range"]
+    pub fn clamp_to_range(self, clamp_to_range: bool) -> Self {
+        self.clamp_existing_to_range(clamp_to_range)
     }
 
     /// Show a prefix before the number, e.g. "x: "
@@ -176,7 +219,7 @@ impl<'a> DragValue<'a> {
     /// A custom formatter takes a `f64` for the numeric value and a `RangeInclusive<usize>` representing
     /// the decimal range i.e. minimum and maximum number of decimal places shown.
     ///
-    /// The default formatter is [`Style::number_formatter`].
+    /// The default formatter is [`crate::Style::number_formatter`].
     ///
     /// See also: [`DragValue::custom_parser`]
     ///
@@ -389,7 +432,7 @@ impl<'a> Widget for DragValue<'a> {
             mut get_set_value,
             speed,
             range,
-            clamp_to_range,
+            clamp_existing_to_range,
             prefix,
             suffix,
             min_decimals,
@@ -467,7 +510,7 @@ impl<'a> Widget for DragValue<'a> {
             });
         }
 
-        if clamp_to_range {
+        if clamp_existing_to_range {
             value = clamp_value_to_range(value, range.clone());
         }
 
@@ -498,9 +541,8 @@ impl<'a> Widget for DragValue<'a> {
                 // Make sure we applied the last text value:
                 let parsed_value = parse(&custom_parser, &value_text);
                 if let Some(mut parsed_value) = parsed_value {
-                    if clamp_to_range {
-                        parsed_value = clamp_value_to_range(parsed_value, range.clone());
-                    }
+                    // User edits always clamps:
+                    parsed_value = clamp_value_to_range(parsed_value, range.clone());
                     set(&mut get_set_value, parsed_value);
                 }
             }
@@ -534,9 +576,8 @@ impl<'a> Widget for DragValue<'a> {
             if update {
                 let parsed_value = parse(&custom_parser, &value_text);
                 if let Some(mut parsed_value) = parsed_value {
-                    if clamp_to_range {
-                        parsed_value = clamp_value_to_range(parsed_value, range.clone());
-                    }
+                    // User edits always clamps:
+                    parsed_value = clamp_value_to_range(parsed_value, range.clone());
                     set(&mut get_set_value, parsed_value);
                 }
             }
@@ -696,7 +737,8 @@ fn default_parser(text: &str) -> Option<f64> {
     text.parse().ok()
 }
 
-fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
+/// Clamp the given value with careful handling of negative zero, and other corner cases.
+pub(crate) fn clamp_value_to_range(x: f64, range: RangeInclusive<f64>) -> f64 {
     let (mut min, mut max) = (*range.start(), *range.end());
 
     if min.total_cmp(&max) == Ordering::Greater {
