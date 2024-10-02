@@ -1166,6 +1166,13 @@ pub struct DebugOptions {
 
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
+
+    /// If true, highlight widgets that are not aligned to integer point coordinates.
+    ///
+    /// It's usually a good idea to keep to integer coordinates to avoid rounding issues.
+    ///
+    /// See <https://github.com/emilk/egui/issues/5163> for more.
+    pub show_unaligned: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1181,6 +1188,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
+            show_unaligned: false,
         }
     }
 }
@@ -2190,6 +2198,7 @@ impl DebugOptions {
             show_resize,
             show_interactive_widgets,
             show_widget_hits,
+            show_unaligned,
         } = self;
 
         {
@@ -2218,6 +2227,11 @@ impl DebugOptions {
         );
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
+
+        ui.checkbox(
+            show_unaligned,
+            "Show rectangles not aligned to integer point coordinates",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
     }

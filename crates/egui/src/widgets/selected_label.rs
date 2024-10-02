@@ -21,7 +21,7 @@ use crate::{NumExt, Response, Sense, TextStyle, Ui, Widget, WidgetInfo, WidgetTe
 /// }
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct SelectableLabel {
     selected: bool,
     text: WidgetText,

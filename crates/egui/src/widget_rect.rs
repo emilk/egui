@@ -141,7 +141,10 @@ impl WidgetRects {
 
                 debug_assert!(
                     existing.layer_id == widget_rect.layer_id,
-                    "Widget changed layer_id during the frame"
+                    "Widget {:?} changed layer_id during the frame from {:?} to {:?}",
+                    widget_rect.id,
+                    existing.layer_id,
+                    widget_rect.layer_id
                 );
 
                 // Update it:

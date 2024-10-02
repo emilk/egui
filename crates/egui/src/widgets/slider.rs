@@ -94,7 +94,7 @@ pub enum SliderClamping {
 /// ```
 ///
 /// The default [`Slider`] size is set by [`crate::style::Spacing::slider_width`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
     range: RangeInclusive<f64>,

@@ -1869,6 +1869,19 @@ impl Context {
         self.style_mut_of(theme, |style| style.visuals = visuals);
     }
 
+    /// The [`crate::Visuals`] used by all subsequent windows, panels etc.
+    ///
+    /// You can also use [`Ui::visuals_mut`] to change the visuals of a single [`Ui`].
+    ///
+    /// Example:
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.set_visuals(egui::Visuals { panel_fill: egui::Color32::RED, ..Default::default() });
+    /// ```
+    pub fn set_visuals(&self, visuals: crate::Visuals) {
+        self.style_mut_of(self.theme(), |style| style.visuals = visuals);
+    }
+
     /// The number of physical pixels for each logical point.
     ///
     /// This is calculated as [`Self::zoom_factor`] * [`Self::native_pixels_per_point`]
@@ -3584,7 +3597,7 @@ impl Context {
     ///
     /// This is the easier type of viewport to use, but it is less performant
     /// at it requires both parent and child to repaint if any one of them needs repainting,
-    /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
+    /// which effectively produce double work for two viewports, and triple work for three viewports, etc.
     /// To avoid this, use [`Self::show_viewport_deferred`] instead.
     ///
     /// The given id must be unique for each viewport.

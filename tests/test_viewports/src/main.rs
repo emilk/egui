@@ -433,7 +433,7 @@ fn drag_source<R>(
 
         // Paint the body to a new layer:
         let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
-        let res = ui.with_layer_id(layer_id, body);
+        let res = ui.scope_builder(UiBuilder::new().layer_id(layer_id), body);
 
         if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
             let delta = pointer_pos - res.response.rect.center();

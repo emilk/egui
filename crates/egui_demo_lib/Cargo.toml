@@ -45,7 +45,6 @@ syntect = ["egui_extras/syntect"]
 egui = { workspace = true, default-features = false, features = ["color-hex"] }
 egui_extras = { workspace = true, features = ["default"] }
 
-log.workspace = true
 unicode_names2 = { version = "0.6.0", default-features = false } # this old version has fewer dependencies
 
 #! ### Optional dependencies

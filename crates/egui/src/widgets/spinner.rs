@@ -5,7 +5,7 @@ use crate::{Response, Sense, Ui, Widget, WidgetInfo, WidgetType};
 /// A spinner widget used to indicate loading.
 ///
 /// See also: [`crate::ProgressBar`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Default)]
 pub struct Spinner {
     /// Uses the style's `interact_size` if `None`.
