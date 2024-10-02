@@ -447,7 +447,7 @@ mod tests_rwlock {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic = "DEAD-LOCK DETECTED"]
     fn rwlock_write_write_reentrancy() {
         let one = RwLock::new(());
         let _a1 = one.write();
@@ -455,7 +455,7 @@ mod tests_rwlock {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic = "DEAD-LOCK DETECTED"]
     fn rwlock_write_read_reentrancy() {
         let one = RwLock::new(());
         let _a1 = one.write();
@@ -463,7 +463,7 @@ mod tests_rwlock {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic = "DEAD-LOCK DETECTED"]
     fn rwlock_read_write_reentrancy() {
         let one = RwLock::new(());
         let _a1 = one.read();
@@ -505,7 +505,7 @@ mod tests_rwlock {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic = "DEAD-LOCK DETECTED"]
     fn rwlock_read_foreign_read_write_reentrancy() {
         use std::sync::Arc;
 
