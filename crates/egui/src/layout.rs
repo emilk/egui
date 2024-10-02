@@ -69,9 +69,9 @@ impl Region {
     }
 
     pub fn sanity_check(&self) {
-        debug_assert!(!self.min_rect.any_nan());
-        debug_assert!(!self.max_rect.any_nan());
-        debug_assert!(!self.cursor.any_nan());
+        debug_assert!(!self.min_rect.any_nan(), "should not be NaN");
+        debug_assert!(!self.max_rect.any_nan(), "should not be NaN");
+        debug_assert!(!self.cursor.any_nan(), "should not be NaN");
     }
 }
 
@@ -392,8 +392,8 @@ impl Layout {
 /// ## Doing layout
 impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
-        debug_assert!(size.x >= 0.0 && size.y >= 0.0);
-        debug_assert!(!outer.is_negative());
+        debug_assert!(size.x >= 0.0 && size.y >= 0.0, "size should be positive");
+        debug_assert!(!outer.is_negative(), "outer should be positive");
         self.align2().align_size_within_rect(size, outer)
     }
 
@@ -419,7 +419,7 @@ impl Layout {
     }
 
     pub(crate) fn region_from_max_rect(&self, max_rect: Rect) -> Region {
-        debug_assert!(!max_rect.any_nan());
+        debug_assert!(!max_rect.any_nan(), "should not be NaN");
         let mut region = Region {
             min_rect: Rect::NOTHING, // temporary
             max_rect,
@@ -452,8 +452,8 @@ impl Layout {
     /// Given the cursor in the region, how much space is available
     /// for the next widget?
     fn available_from_cursor_max_rect(&self, cursor: Rect, max_rect: Rect) -> Rect {
-        debug_assert!(!cursor.any_nan());
-        debug_assert!(!max_rect.any_nan());
+        debug_assert!(!cursor.any_nan(), "should not be NaN");
+        debug_assert!(!max_rect.any_nan(), "should not be NaN");
 
         // NOTE: in normal top-down layout the cursor has moved below the current max_rect,
         // but the available shouldn't be negative.
@@ -507,7 +507,7 @@ impl Layout {
             avail.max.y = y;
         }
 
-        debug_assert!(!avail.any_nan());
+        debug_assert!(!avail.any_nan(), "should not be NaN");
 
         avail
     }
@@ -518,7 +518,10 @@ impl Layout {
     /// Use `justify_and_align` to get the inner `widget_rect`.
     pub(crate) fn next_frame(&self, region: &Region, child_size: Vec2, spacing: Vec2) -> Rect {
         region.sanity_check();
-        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+        debug_assert!(
+            child_size.x >= 0.0 && child_size.y >= 0.0,
+            "child_size should be positive"
+        );
 
         if self.main_wrap {
             let available_size = self.available_rect_before_wrap(region).size();
@@ -598,7 +601,10 @@ impl Layout {
 
     fn next_frame_ignore_wrap(&self, region: &Region, child_size: Vec2) -> Rect {
         region.sanity_check();
-        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
+        debug_assert!(
+            child_size.x >= 0.0 && child_size.y >= 0.0,
+            "child_size should be positive"
+        );
 
         let available_rect = self.available_rect_before_wrap(region);
 
@@ -631,16 +637,19 @@ impl Layout {
             frame_rect = frame_rect.translate(Vec2::Y * (region.cursor.top() - frame_rect.top()));
         }
 
-        debug_assert!(!frame_rect.any_nan());
-        debug_assert!(!frame_rect.is_negative());
+        debug_assert!(!frame_rect.any_nan(), "frame should not be NaN");
+        debug_assert!(!frame_rect.is_negative(), "frame should be positive");
 
         frame_rect
     }
 
     /// Apply justify (fill width/height) and/or alignment after calling `next_space`.
     pub(crate) fn justify_and_align(&self, frame: Rect, mut child_size: Vec2) -> Rect {
-        debug_assert!(child_size.x >= 0.0 && child_size.y >= 0.0);
-        debug_assert!(!frame.is_negative());
+        debug_assert!(
+            child_size.x >= 0.0 && child_size.y >= 0.0,
+            "child_size should be positive"
+        );
+        debug_assert!(!frame.is_negative(), "frame should be positive");
 
         if self.horizontal_justify() {
             child_size.x = child_size.x.at_least(frame.width()); // fill full width
@@ -658,8 +667,8 @@ impl Layout {
     ) -> Rect {
         let frame = self.next_frame_ignore_wrap(region, size);
         let rect = self.align_size_within_rect(size, frame);
-        debug_assert!(!rect.any_nan());
-        debug_assert!(!rect.is_negative());
+        debug_assert!(!rect.any_nan(), "rect should not be NaN");
+        debug_assert!(!rect.is_negative(), "rect should be positive");
         rect
     }
 
@@ -702,7 +711,7 @@ impl Layout {
         widget_rect: Rect,
         item_spacing: Vec2,
     ) {
-        debug_assert!(!cursor.any_nan());
+        debug_assert!(!cursor.any_nan(), "cursor should not be NaN");
         if self.main_wrap {
             if cursor.intersects(frame_rect.shrink(1.0)) {
                 // make row/column larger if necessary
