@@ -38,9 +38,6 @@ use winit::{
 };
 
 pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
-    #[cfg(target_os = "ios")]
-    let size = window.outer_size();
-    #[cfg(not(target_os = "ios"))]
     let size = window.inner_size();
     egui::vec2(size.width as f32, size.height as f32)
 }
