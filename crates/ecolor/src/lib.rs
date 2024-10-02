@@ -104,7 +104,7 @@ fn fast_round(r: f32) -> u8 {
 pub fn test_srgba_conversion() {
     for b in 0..=255 {
         let l = linear_f32_from_gamma_u8(b);
-        assert!(0.0 <= l && l <= 1.0);
+        assert!((0.0..=1.0).contains(&l));
         assert_eq!(gamma_u8_from_linear_f32(l), b);
     }
 }

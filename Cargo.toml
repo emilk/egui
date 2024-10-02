@@ -181,6 +181,7 @@ manual_clamp = "warn"
 manual_instant_elapsed = "warn"
 manual_let_else = "warn"
 manual_ok_or = "warn"
+manual_range_contains = "warn"
 manual_string_new = "warn"
 map_err_ignore = "warn"
 map_flatten = "warn"
@@ -261,6 +262,5 @@ should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one
 
-manual_range_contains = "allow"       # this one is just worse imho
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
