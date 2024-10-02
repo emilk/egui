@@ -217,7 +217,7 @@ fn label_ui(ui: &mut egui::Ui) {
             );
 
             ui.label("You can mix in other widgets into text, like");
-            let _ = ui.small_button("this button");
+            _ = ui.small_button("this button");
             ui.label(".");
 
             ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")

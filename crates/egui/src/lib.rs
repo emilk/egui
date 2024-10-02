@@ -668,7 +668,7 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
+    _ = ctx.run(Default::default(), |ctx| {
         run_ui(ctx);
     });
 }
@@ -677,7 +677,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
+    _ = ctx.run(Default::default(), |ctx| {
         crate::CentralPanel::default().show(ctx, |ui| {
             add_contents(ui);
         });

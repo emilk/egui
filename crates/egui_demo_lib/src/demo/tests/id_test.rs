@@ -44,8 +44,8 @@ impl crate::View for IdTest {
             (and if it is, the window will have a new layout, and the slider will end up somewhere else, and so aborting the interaction probably makes sense).");
 
         ui.label("So these buttons have automatic Id:s, and therefore there is no name clash:");
-        let _ = ui.button("Button");
-        let _ = ui.button("Button");
+        _ = ui.button("Button");
+        _ = ui.button("Button");
 
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());

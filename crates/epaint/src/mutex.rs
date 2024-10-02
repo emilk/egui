@@ -431,13 +431,13 @@ mod tests_rwlock {
         let other_thread1 = {
             let one = Arc::clone(&one);
             std::thread::spawn(move || {
-                let _ = one.write();
+                _ = one.write();
             })
         };
         let other_thread2 = {
             let one = Arc::clone(&one);
             std::thread::spawn(move || {
-                let _ = one.read();
+                _ = one.read();
             })
         };
         std::thread::sleep(Duration::from_millis(200));

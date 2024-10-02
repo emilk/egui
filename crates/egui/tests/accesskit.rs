@@ -106,9 +106,9 @@ fn multiple_disabled_widgets() {
     let output = accesskit_output_single_egui_frame(|ctx| {
         CentralPanel::default().show(ctx, |ui| {
             ui.add_enabled_ui(false, |ui| {
-                let _ = ui.button("Button 1");
-                let _ = ui.button("Button 2");
-                let _ = ui.button("Button 3");
+                _ = ui.button("Button 1");
+                _ = ui.button("Button 2");
+                _ = ui.button("Button 3");
             })
         });
     });

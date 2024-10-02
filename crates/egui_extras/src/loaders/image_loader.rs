@@ -80,7 +80,7 @@ impl ImageLoader for ImageCrateLoader {
     }
 
     fn forget(&self, uri: &str) {
-        let _ = self.cache.lock().remove(uri);
+        _ = self.cache.lock().remove(uri);
     }
 
     fn forget_all(&self) {

@@ -67,7 +67,7 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("Immediate mode is a GUI paradigm that lets you create a GUI with less code and simpler control flow. For example, this is how you create a ");
-            let _ = ui.small_button("button");
+            _ = ui.small_button("button");
             ui.label(" in egui:");
         });
 

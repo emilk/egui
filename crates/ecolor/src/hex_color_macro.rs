@@ -24,11 +24,11 @@
 /// If the literal string has the wrong format, the code does not compile.
 ///
 /// ```compile_fail
-/// let _ = ecolor::hex_color!("#abc");
+/// _ = ecolor::hex_color!("#abc");
 /// ```
 ///
 /// ```compile_fail
-/// let _ = ecolor::hex_color!("#20212x");
+/// _ = ecolor::hex_color!("#20212x");
 /// ```
 ///
 /// The macro cannot be used in a `const` context.

@@ -303,7 +303,7 @@ pub trait BytesLoader {
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
     fn end_pass(&self, frame_index: usize) {
-        let _ = frame_index;
+        _ = frame_index;
     }
 
     /// If the loader caches any data, this should return the size of that cache.
@@ -370,7 +370,7 @@ pub trait ImageLoader {
     /// Implementations may use this to perform work at the end of a pass,
     /// such as evicting unused entries from a cache.
     fn end_pass(&self, frame_index: usize) {
-        let _ = frame_index;
+        _ = frame_index;
     }
 
     /// If the loader caches any data, this should return the size of that cache.
@@ -508,7 +508,7 @@ pub trait TextureLoader {
     /// Implementations may use this to perform work at the end of a pass,
     /// such as evicting unused entries from a cache.
     fn end_pass(&self, frame_index: usize) {
-        let _ = frame_index;
+        _ = frame_index;
     }
 
     /// If the loader caches any data, this should return the size of that cache.

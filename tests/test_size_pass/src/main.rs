@@ -45,7 +45,7 @@ fn main() -> eframe::Result {
                     );
                     ui.label("Hover for interactive tooltip").on_hover_ui(|ui| {
                         ui.label("This tooltip has a button:");
-                        let _ = ui.button("Clicking me does nothing");
+                        _ = ui.button("Clicking me does nothing");
                     });
                 });
             });
@@ -64,9 +64,9 @@ fn main() -> eframe::Result {
 
             ui.label("The menu should be as wide as the widest button");
             ui.menu_button("Click for menu", |ui| {
-                let _ = ui.button("Narrow").clicked();
-                let _ = ui.button("Very wide text").clicked();
-                let _ = ui.button("Narrow").clicked();
+                _ = ui.button("Narrow").clicked();
+                _ = ui.button("Very wide text").clicked();
+                _ = ui.button("Narrow").clicked();
             });
 
             ui.label("Hover for tooltip").on_hover_ui(|ui| {
