@@ -203,7 +203,8 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    /// Set the background color of the [`TextEdit`].
+    /// Set the background color of the [`TextEdit`]. The default is [`crate::Visuals::extreme_bg_color`].
+    // TODO: remove this once #3284 is implemented
     #[inline]
     pub fn background_color(mut self, color: Color32) -> Self {
         self.background_color = Some(color);
