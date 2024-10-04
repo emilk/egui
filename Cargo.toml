@@ -265,7 +265,3 @@ unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on thi
 manual_range_contains = "allow"       # this one is just worse imho
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
-
-[patch.crates-io]
-# TODO(lucasmerlin): Remove once dify releases a new version
-dify = { git = "https://github.com/jihchi/dify"}
