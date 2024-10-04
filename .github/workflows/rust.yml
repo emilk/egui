@@ -242,3 +242,9 @@ jobs:
       - name: Run tests
         # TODO: Enable --all-features (currently this breaks the rendering in the tests)
         run: cargo test
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/tests/snapshots"
