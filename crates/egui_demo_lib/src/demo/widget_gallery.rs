@@ -314,6 +314,6 @@ mod tests {
 
         let image = TestRenderer::new().render(&harness);
 
-        image_snapshot(image, "widget_gallery");
+        image_snapshot(&image, "widget_gallery");
     }
 }

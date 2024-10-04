@@ -2,18 +2,23 @@ use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
-pub struct SnapshotError {
-    pub diff: i32,
-    pub diff_path: PathBuf,
+pub enum SnapshotError {
+    Diff { diff: i32, diff_path: PathBuf },
+    MissingSnapshot { path: PathBuf },
 }
-
 impl Display for SnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Image did not match snapshot. Diff: {}, {:?}",
-            self.diff, self.diff_path
-        )
+        match self {
+            Self::Diff { diff, diff_path } => {
+                write!(
+                    f,
+                    "Image did not match snapshot. Diff: {diff}, {diff_path:?}"
+                )
+            }
+            Self::MissingSnapshot { path } => {
+                write!(f, "Missing snapshot: {path:?}")
+            }
+        }
     }
 }
 
@@ -21,7 +26,7 @@ impl Display for SnapshotError {
 ///
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot.
-pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), SnapshotError> {
+pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), SnapshotError> {
     let snapshots_path = Path::new("tests/snapshots");
 
     let path = snapshots_path.join(format!("{name}.png"));
@@ -29,8 +34,6 @@ pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), S
 
     let diff_path = snapshots_path.join(format!("{name}.diff.png"));
     let current_path = snapshots_path.join(format!("{name}.new.png"));
-
-    std::fs::create_dir_all("tests/snapshots").ok();
 
     current.save(&current_path).unwrap();
 
@@ -41,7 +44,7 @@ pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), S
             println!("Saving current image as {path:?}");
             current.save(&path).unwrap();
 
-            current.clone()
+            return Err(SnapshotError::MissingSnapshot { path });
         }
     };
 
@@ -54,7 +57,7 @@ pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), S
             current.save(&path).unwrap();
             println!("Updated snapshot: {path:?}");
         } else {
-            return Err(SnapshotError { diff, diff_path });
+            return Err(SnapshotError::Diff { diff, diff_path });
         }
     } else {
         // Delete old diff if it exists
@@ -68,7 +71,7 @@ pub fn try_image_snapshot(current: image::RgbaImage, name: &str) -> Result<(), S
 ///
 /// # Panics
 /// Panics if the image does not match the snapshot.
-pub fn image_snapshot(current: image::RgbaImage, name: &str) {
+pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
