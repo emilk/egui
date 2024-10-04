@@ -47,11 +47,13 @@ impl<'a> Harness<'a> {
         }
     }
 
+    #[inline]
     pub fn with_size(mut self, size: Vec2) -> Self {
         self.input.screen_rect = Some(Rect::from_min_size(Pos2::ZERO, size));
         self
     }
 
+    #[inline]
     pub fn with_dpi(mut self, dpi: f32) -> Self {
         self.input
             .viewports
@@ -165,7 +167,7 @@ impl<'a> Harness<'a> {
             .push(Event::AccessKitActionRequest(action));
     }
 
-    // TODO: SetValue is currently not supported by egui
+    // TODO(lucasmerlin): SetValue is currently not supported by egui
     // pub fn set_text(&mut self, id: NodeId, text: &str) {
     //     let action = egui::accesskit::ActionRequest {
     //         target: id,

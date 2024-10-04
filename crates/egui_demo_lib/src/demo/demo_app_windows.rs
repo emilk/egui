@@ -396,9 +396,8 @@ mod tests {
         for mut demo in demos.demos {
             let name = demo
                 .name()
-                .split_once(" ")
-                .map(|(_, name)| name)
-                .unwrap_or(demo.name());
+                .split_once(' ')
+                .map_or(demo.name(), |(_, name)| name);
 
             let mut harness = Harness::new(|ctx| {
                 demo.show(ctx, &mut true);
@@ -410,7 +409,7 @@ mod tests {
             harness.run();
 
             let window = harness.node().children().next().unwrap();
-            // TODO: Windows should probably have a label?
+            // TODO(lucasmerlin): Windows should probably have a label?
             //let window = harness.get_by_name(name);
 
             let size = window.raw_bounds().expect("window bounds").size();
@@ -421,14 +420,12 @@ mod tests {
             harness.run();
 
             let image = TestRenderer::new().render(&harness);
-            let result = try_image_snapshot(image, &format!("demos/{}", name));
+            let result = try_image_snapshot(image, &format!("demos/{name}"));
             if let Err(err) = result {
                 errors.push(err);
             }
         }
 
-        if !errors.is_empty() {
-            panic!("Errors: {:#?}", errors);
-        }
+        assert!(errors.is_empty(), "Errors: {errors:#?}");
     }
 }
