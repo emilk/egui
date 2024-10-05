@@ -72,6 +72,7 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
 ///
 /// # Panics
 /// Panics if the image does not match the snapshot.
+#[track_caller]
 pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
