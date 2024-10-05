@@ -16,14 +16,15 @@ use std::mem;
 use crate::event::{kittest_key_to_egui, pointer_button_to_egui};
 pub use accesskit_consumer;
 pub use builder::*;
-use egui::accesskit::NodeId;
 use egui::{Event, Modifiers, Pos2, Rect, TexturesDelta, Vec2, ViewportId};
-use kittest::{ElementState, Node, Queryable, SimulatedEvent, State};
+use kittest::{ElementState, Node, Queryable, SimulatedEvent};
 
+/// The test Harness. This contains everything needed to run the test.
+/// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
 pub struct Harness<'a> {
     pub ctx: egui::Context,
     input: egui::RawInput,
-    kittest: State,
+    kittest: kittest::State,
     output: egui::FullOutput,
     texture_deltas: Vec<TexturesDelta>,
     update_fn: Box<dyn FnMut(&egui::Context) + 'a>,
@@ -52,7 +53,7 @@ impl<'a> Harness<'a> {
             update_fn: Box::new(app),
             ctx,
             input,
-            kittest: State::new(
+            kittest: kittest::State::new(
                 output
                     .platform_output
                     .accesskit_update
@@ -71,6 +72,22 @@ impl<'a> Harness<'a> {
         HarnessBuilder::default()
     }
 
+    /// Create a new Harness with the given app closure.
+    ///
+    /// The ui closure will immediately be called once to create the initial ui.
+    ///
+    /// If you e.g. want to customize the size of the window, you can use [`Harness::builder`].
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui::CentralPanel;
+    /// # use egui_kittest::Harness;
+    /// let mut harness = Harness::new(|ctx| {
+    ///     CentralPanel::default().show(ctx, |ui| {
+    ///         ui.label("Hello, world!");
+    ///     });
+    /// });
+    /// ```
     pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
         Self::builder().build(app)
     }
@@ -93,6 +110,8 @@ impl<'a> Harness<'a> {
         self
     }
 
+    /// Run a frame.
+    /// This will call the app closure with the current context and update the Harness.
     pub fn run(&mut self) {
         for event in self.kittest.take_events() {
             match event {
@@ -164,58 +183,23 @@ impl<'a> Harness<'a> {
         self.output = output;
     }
 
-    pub fn click(&mut self, id: NodeId) {
-        let action = egui::accesskit::ActionRequest {
-            target: id,
-            action: egui::accesskit::Action::Default,
-            data: None,
-        };
-        self.input
-            .events
-            .push(egui::Event::AccessKitActionRequest(action));
-    }
-
-    pub fn focus(&mut self, id: NodeId) {
-        let action = egui::accesskit::ActionRequest {
-            target: id,
-            action: egui::accesskit::Action::Focus,
-            data: None,
-        };
-        self.input
-            .events
-            .push(Event::AccessKitActionRequest(action));
-    }
-
-    // TODO(lucasmerlin): SetValue is currently not supported by egui
-    // pub fn set_text(&mut self, id: NodeId, text: &str) {
-    //     let action = egui::accesskit::ActionRequest {
-    //         target: id,
-    //         action: egui::accesskit::Action::SetValue,
-    //         data: Some(ActionData::Value(Box::from(text))),
-    //     };
-    //     self.input
-    //         .events
-    //         .push(egui::Event::AccessKitActionRequest(action));
-    // }
-
-    pub fn type_text(&mut self, id: NodeId, text: &str) {
-        self.focus(id);
-        self.input.events.push(egui::Event::Text(text.to_owned()));
-    }
-
+    /// Access the [`egui::RawInput`] for the next frame.
     pub fn input(&self) -> &egui::RawInput {
         &self.input
     }
 
+    /// Access the [`egui::RawInput`] for the next frame mutably.
     pub fn input_mut(&mut self) -> &mut egui::RawInput {
         &mut self.input
     }
 
+    /// Access the [`egui::FullOutput`] for the last frame.
     pub fn output(&self) -> &egui::FullOutput {
         &self.output
     }
 
-    pub fn kittest_state(&self) -> &State {
+    /// Access the [`kittest::State`].
+    pub fn kittest_state(&self) -> &kittest::State {
         &self.kittest
     }
 }
