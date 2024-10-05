@@ -1336,7 +1336,6 @@ dependencies = [
  "egui_demo_lib",
  "egui_extras",
  "egui_kittest",
- "log",
  "serde",
  "unicode_names2",
  "wgpu",
@@ -1383,7 +1382,7 @@ dependencies = [
 
 [[package]]
 name = "egui_kittest"
-version = "0.28.1"
+version = "0.29.1"
 dependencies = [
  "accesskit_consumer",
  "dify",
