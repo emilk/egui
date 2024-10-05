@@ -1,10 +1,22 @@
+use image::ImageError;
 use std::fmt::Display;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum SnapshotError {
-    Diff { diff: i32, diff_path: PathBuf },
-    MissingSnapshot { path: PathBuf },
+    Diff {
+        diff: i32,
+        diff_path: PathBuf,
+    },
+    OpenSnapshot {
+        path: PathBuf,
+        err: image::ImageError,
+    },
+    SizeMismatch {
+        expected: (u32, u32),
+        actual: (u32, u32),
+    },
 }
 
 impl Display for SnapshotError {
@@ -16,8 +28,24 @@ impl Display for SnapshotError {
                     "Image did not match snapshot. Diff: {diff}, {diff_path:?}"
                 )
             }
-            Self::MissingSnapshot { path } => {
-                write!(f, "Missing snapshot: {path:?}")
+            Self::OpenSnapshot { path, err } => match err {
+                ImageError::IoError(io) => match io.kind() {
+                    ErrorKind::NotFound => {
+                        write!(f, "Missing snapshot: {path:?}")
+                    }
+                    err => {
+                        write!(f, "Error reading snapshot: {err:?}")
+                    }
+                },
+                err => {
+                    write!(f, "Error decoding snapshot: {err:?}")
+                }
+            },
+            Self::SizeMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "Image size did not match snapshot. Expected: {expected:?}, Actual: {actual:?}"
+                )
             }
         }
     }
@@ -41,31 +69,42 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
     let previous = match image::open(&path) {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
-            println!("Error opening image: {err}");
-            println!("Saving current image as {path:?}");
-            current.save(&path).unwrap();
-
-            return Err(SnapshotError::MissingSnapshot { path });
+            maybe_update_snapshot(&path, current);
+            return Err(SnapshotError::OpenSnapshot { path, err });
         }
     };
+
+    if previous.dimensions() != current.dimensions() {
+        maybe_update_snapshot(&path, current);
+        return Err(SnapshotError::SizeMismatch {
+            expected: previous.dimensions(),
+            actual: current.dimensions(),
+        });
+    }
 
     let result = dify::diff::get_results(previous, current.clone(), 0.1, true, None, &None, &None);
 
     if let Some((diff, result_image)) = result {
         result_image.save(diff_path.clone()).unwrap();
-
-        if std::env::var("UPDATE_SNAPSHOTS").is_ok() {
-            current.save(&path).unwrap();
-            println!("Updated snapshot: {path:?}");
-        } else {
-            return Err(SnapshotError::Diff { diff, diff_path });
-        }
+        maybe_update_snapshot(&path, current);
+        return Err(SnapshotError::Diff { diff, diff_path });
     } else {
         // Delete old diff if it exists
         std::fs::remove_file(diff_path).ok();
     }
 
     Ok(())
+}
+
+fn should_update_snapshots() -> bool {
+    std::env::var("UPDATE_SNAPSHOTS").is_ok()
+}
+
+fn maybe_update_snapshot(snapshot_path: &Path, current: &image::RgbaImage) {
+    if should_update_snapshots() {
+        current.save(snapshot_path).unwrap();
+        println!("Updated snapshot: {snapshot_path:?}");
+    }
 }
 
 /// Image snapshot test.

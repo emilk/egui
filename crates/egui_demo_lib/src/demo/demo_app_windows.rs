@@ -383,7 +383,7 @@ mod tests {
     use crate::demo::demo_app_windows::Demos;
     use egui::Vec2;
     use egui_kittest::kittest::Queryable;
-    use egui_kittest::snapshot::try_image_snapshot;
+    use egui_kittest::try_image_snapshot;
     use egui_kittest::wgpu::TestRenderer;
     use egui_kittest::Harness;
 
@@ -406,14 +406,13 @@ mod tests {
             // We need to run the app for multiple frames before all windows have the right size
             harness.run();
             harness.run();
-            harness.run();
 
             let window = harness.node().children().next().unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
             //let window = harness.get_by_name(name);
 
             let size = window.raw_bounds().expect("window bounds").size();
-            harness = harness.with_size(Vec2::new(size.width as f32, size.height as f32));
+            harness.set_size(Vec2::new(size.width as f32, size.height as f32));
 
             // We need to run the app for some more frames...
             harness.run();
