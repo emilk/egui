@@ -668,13 +668,6 @@ impl Painter {
             );
         }
 
-        {
-            let mut renderer = render_state.renderer.write();
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
-            }
-        }
-
         let encoded = {
             crate::profile_scope!("CommandEncoder::finish");
             encoder.finish()
@@ -690,6 +683,13 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
             vsync_sec += start.elapsed().as_secs_f32();
         };
+
+        {
+            let mut renderer = render_state.renderer.write();
+            for id in &textures_delta.free {
+                renderer.free_texture(id);
+            }
+        }
 
         let screenshot = if capture {
             self.screen_capture_state
