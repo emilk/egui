@@ -582,21 +582,25 @@ impl ContextImpl {
             log::trace!("Loading new font definitions");
         }
 
-        if let Some(font) = self.memory.add_font.take() {
-            self.fonts.clear();
-            self.font_definitions
-                .font_data
-                .insert(font.name.clone(), font.data);
-            let fam = self
-                .font_definitions
-                .families
-                .entry(font.family)
-                .or_default();
-            if font.family_append {
-                fam.push(font.name);
-            } else {
-                fam.insert(0, font.name);
-            };
+        if !self.memory.add_fonts.is_empty() {
+            let fonts = self.memory.add_fonts.drain(..);
+            for font in fonts {
+                self.fonts.clear();
+                self.font_definitions
+                    .font_data
+                    .insert(font.name.clone(), font.data);
+                let fam = self
+                    .font_definitions
+                    .families
+                    .entry(font.family)
+                    .or_default();
+                if font.family_append {
+                    fam.push(font.name);
+                } else {
+                    fam.insert(0, font.name);
+                };
+            }
+
             #[cfg(feature = "log")]
             log::trace!("Loading new font definitions");
         }
@@ -1777,7 +1781,28 @@ impl Context {
     /// This will keep the existing fonts
     pub fn add_font(&self, new_font: FontInsert) {
         crate::profile_function!();
-        self.memory_mut(|mem| mem.add_font = Some(new_font));
+
+        let pixels_per_point = self.pixels_per_point();
+
+        let mut update_fonts = true;
+
+        self.read(|ctx| {
+            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+                if current_fonts
+                    .lock()
+                    .fonts
+                    .definitions()
+                    .font_data
+                    .contains_key(&new_font.name)
+                {
+                    update_fonts = false; // no need to update
+                }
+            }
+        });
+
+        if update_fonts {
+            self.memory_mut(|mem| mem.add_fonts.push(new_font));
+        }
     }
 
     /// Does the OS use dark or light mode?

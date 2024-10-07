@@ -81,7 +81,7 @@ pub struct Memory {
 
     /// add new font that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) add_font: Option<epaint::text::FontInsert>,
+    pub(crate) add_fonts: Vec<epaint::text::FontInsert>,
 
     // Current active viewport
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -123,7 +123,7 @@ impl Default for Memory {
             layer_transforms: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
-            add_font: Default::default(),
+            add_fonts: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
