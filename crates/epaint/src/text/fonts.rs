@@ -272,13 +272,8 @@ pub struct FontInsert {
 }
 
 impl FontInsert {
-    pub fn new(
-        name: impl ToString,
-        data: FontData,
-        family: FontFamily,
-        primary_font: bool,
-    ) -> Self {
-        FontInsert {
+    pub fn new(name: &str, data: FontData, family: FontFamily, primary_font: bool) -> Self {
+        Self {
             name: name.to_string(),
             data,
             family,
