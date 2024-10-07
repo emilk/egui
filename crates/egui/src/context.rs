@@ -592,9 +592,10 @@ impl ContextImpl {
                 .families
                 .entry(font.family)
                 .or_default();
-            match font.family_append {
-                true => fam.push(font.name),
-                false => fam.insert(0, font.name),
+            if font.family_append {
+                fam.push(font.name)
+            } else {
+                fam.insert(0, font.name)
             };
             #[cfg(feature = "log")]
             log::trace!("Loading new font definitions");
