@@ -258,10 +258,13 @@ pub struct FontDefinitions {
 pub struct FontInsert {
     /// Font name
     pub name: String,
+
     /// A `.ttf` or `.otf` file and a font face index.
     pub data: FontData,
+
     /// Sets the font family
     pub family: FontFamily,
+
     /// If append is true & there are multiple fonts for that font family the font will be added as fallback.
     /// This decides if the font is added to the front or the back.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
