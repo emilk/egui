@@ -274,7 +274,7 @@ pub struct FontInsert {
 impl FontInsert {
     pub fn new(name: &str, data: FontData, family: FontFamily, primary_font: bool) -> Self {
         Self {
-            name: name.to_string(),
+            name: name.to_owned(),
             data,
             family,
             family_append: !primary_font,
