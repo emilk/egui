@@ -254,6 +254,36 @@ pub struct FontDefinitions {
     pub families: BTreeMap<FontFamily, Vec<String>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct FontInsert {
+    /// Font name
+    pub name: String,
+    /// A `.ttf` or `.otf` file and a font face index.
+    pub data: FontData,
+    /// Sets the font family
+    pub family: FontFamily,
+    /// If append is true & there are multiple fonts for that font family the font will be added as fallback.
+    /// This decides if the font is added to the front or the back.
+    /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
+    pub family_append: bool,
+}
+
+impl FontInsert {
+    pub fn new(
+        name: impl ToString,
+        data: FontData,
+        family: FontFamily,
+        primary_font: bool,
+    ) -> Self {
+        FontInsert {
+            name: name.to_string(),
+            data,
+            family,
+            family_append: !primary_font,
+        }
+    }
+}
+
 impl Default for FontDefinitions {
     /// Specifies the default fonts if the feature `default_fonts` is enabled,
     /// otherwise this is the same as [`Self::empty`].

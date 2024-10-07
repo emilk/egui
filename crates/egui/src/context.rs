@@ -9,7 +9,7 @@ use epaint::{
     pos2,
     stats::PaintStats,
     tessellator,
-    text::Fonts,
+    text::{FontInsert, Fonts},
     util::OrderedFloat,
     vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
@@ -578,6 +578,24 @@ impl ContextImpl {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts.clear();
             self.font_definitions = font_definitions;
+            #[cfg(feature = "log")]
+            log::trace!("Loading new font definitions");
+        }
+
+        if let Some(font) = self.memory.add_font.take() {
+            self.fonts.clear();
+            self.font_definitions
+                .font_data
+                .insert(font.name.clone(), font.data);
+            let fam = self
+                .font_definitions
+                .families
+                .entry(font.family)
+                .or_default();
+            match font.family_append {
+                true => fam.push(font.name),
+                false => fam.insert(0, font.name),
+            };
             #[cfg(feature = "log")]
             log::trace!("Loading new font definitions");
         }
@@ -1727,6 +1745,7 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass.
+    /// This will overwrite the existing fonts
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         crate::profile_function!();
 
@@ -1746,6 +1765,18 @@ impl Context {
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
         }
+    }
+
+    /// Tell `egui` which fonts to use.
+    ///
+    /// The default `egui` fonts only support latin and cyrillic alphabets,
+    /// but you can call this to install additional fonts that support e.g. korean characters.
+    ///
+    /// The new font will become active at the start of the next pass.
+    /// This will keep the existing fonts
+    pub fn add_font(&self, new_font: FontInsert) {
+        crate::profile_function!();
+        self.memory_mut(|mem| mem.add_font = Some(new_font));
     }
 
     /// Does the OS use dark or light mode?
