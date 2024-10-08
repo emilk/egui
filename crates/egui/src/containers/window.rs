@@ -9,6 +9,7 @@ use crate::{
 };
 use epaint::{emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Shape, Stroke, Vec2};
 
+use super::scroll_area::ScrollBarVisibility;
 use super::{area, resize, Area, Frame, Resize, ScrollArea};
 
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
@@ -400,6 +401,13 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
+        self
+    }
+
+    /// Sets the [`ScrollBarVisibility`] of the window.
+    #[inline]
+    pub fn scroll_bar_visibility(mut self, visibility: ScrollBarVisibility) -> Self {
+        self.scroll = self.scroll.scroll_bar_visibility(visibility);
         self
     }
 }
