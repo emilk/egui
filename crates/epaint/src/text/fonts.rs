@@ -262,22 +262,38 @@ pub struct FontInsert {
     /// A `.ttf` or `.otf` file and a font face index.
     pub data: FontData,
 
-    /// Sets the font family
+    /// Sets the font family and priority
+    pub families: Vec<InsertFontFamily>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InsertFontFamily {
+    /// Font family
     pub family: FontFamily,
 
-    /// If append is true & there are multiple fonts for that font family the font will be added as fallback.
-    /// This decides if the font is added to the front or the back.
-    /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
-    pub family_append: bool,
+    /// Fallback or Primary font
+    pub priority: FontPriority,
+}
+
+#[derive(Debug, Clone)]
+pub enum FontPriority {
+    /// Prefer this font before all existing ones.
+    ///
+    /// If a desired glyph exists in this font, it will be used.
+    Highest,
+
+    /// Use this font as a fallback, after all existing ones.
+    ///
+    /// This font will only be used if the glyph is not found in any of the previously installed fonts.
+    Lowest,
 }
 
 impl FontInsert {
-    pub fn new(name: &str, data: FontData, family: FontFamily, primary_font: bool) -> Self {
+    pub fn new(name: &str, data: FontData, families: Vec<InsertFontFamily>) -> Self {
         Self {
             name: name.to_owned(),
             data,
-            family,
-            family_append: !primary_font,
+            families,
         }
     }
 }

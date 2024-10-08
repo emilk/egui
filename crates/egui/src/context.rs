@@ -9,7 +9,7 @@ use epaint::{
     pos2,
     stats::PaintStats,
     tessellator,
-    text::{FontInsert, Fonts},
+    text::{FontInsert, FontPriority, Fonts},
     util::OrderedFloat,
     vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
@@ -586,19 +586,18 @@ impl ContextImpl {
             let fonts = self.memory.add_fonts.drain(..);
             for font in fonts {
                 self.fonts.clear();
-                self.font_definitions
-                    .font_data
-                    .insert(font.name.clone(), font.data);
-                let fam = self
-                    .font_definitions
-                    .families
-                    .entry(font.family)
-                    .or_default();
-                if font.family_append {
-                    fam.push(font.name);
-                } else {
-                    fam.insert(0, font.name);
-                };
+                for family in font.families {
+                    let fam = self
+                        .font_definitions
+                        .families
+                        .entry(family.family)
+                        .or_default();
+                    match family.priority {
+                        FontPriority::Highest => fam.insert(0, font.name.clone()),
+                        FontPriority::Lowest => fam.push(font.name.clone()),
+                    }
+                }
+                self.font_definitions.font_data.insert(font.name, font.data);
             }
 
             #[cfg(feature = "log")]
