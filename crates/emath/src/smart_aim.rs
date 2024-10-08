@@ -138,17 +138,22 @@ fn test_aim() {
     assert_eq!(best_in_range_f64(99.999, 100.000), 100.0);
     assert_eq!(best_in_range_f64(10.001, 100.001), 100.0);
 
-    use std::f64::{INFINITY, NAN, NEG_INFINITY};
-    assert!(best_in_range_f64(NAN, NAN).is_nan());
-    assert_eq!(best_in_range_f64(NAN, 1.2), 1.2);
-    assert_eq!(best_in_range_f64(NAN, INFINITY), INFINITY);
-    assert_eq!(best_in_range_f64(1.2, NAN), 1.2);
-    assert_eq!(best_in_range_f64(1.2, INFINITY), 1.2);
-    assert_eq!(best_in_range_f64(INFINITY, 1.2), 1.2);
-    assert_eq!(best_in_range_f64(NEG_INFINITY, 1.2), 0.0);
-    assert_eq!(best_in_range_f64(NEG_INFINITY, -2.7), -2.7);
-    assert_eq!(best_in_range_f64(INFINITY, INFINITY), INFINITY);
-    assert_eq!(best_in_range_f64(NEG_INFINITY, NEG_INFINITY), NEG_INFINITY);
-    assert_eq!(best_in_range_f64(NEG_INFINITY, INFINITY), 0.0);
-    assert_eq!(best_in_range_f64(INFINITY, NEG_INFINITY), 0.0);
+    assert!(best_in_range_f64(f64::NAN, f64::NAN).is_nan());
+    assert_eq!(best_in_range_f64(f64::NAN, 1.2), 1.2);
+    assert_eq!(best_in_range_f64(f64::NAN, f64::INFINITY), f64::INFINITY);
+    assert_eq!(best_in_range_f64(1.2, f64::NAN), 1.2);
+    assert_eq!(best_in_range_f64(1.2, f64::INFINITY), 1.2);
+    assert_eq!(best_in_range_f64(f64::INFINITY, 1.2), 1.2);
+    assert_eq!(best_in_range_f64(f64::NEG_INFINITY, 1.2), 0.0);
+    assert_eq!(best_in_range_f64(f64::NEG_INFINITY, -2.7), -2.7);
+    assert_eq!(
+        best_in_range_f64(f64::INFINITY, f64::INFINITY),
+        f64::INFINITY
+    );
+    assert_eq!(
+        best_in_range_f64(f64::NEG_INFINITY, f64::NEG_INFINITY),
+        f64::NEG_INFINITY
+    );
+    assert_eq!(best_in_range_f64(f64::NEG_INFINITY, f64::INFINITY), 0.0);
+    assert_eq!(best_in_range_f64(f64::INFINITY, f64::NEG_INFINITY), 0.0);
 }

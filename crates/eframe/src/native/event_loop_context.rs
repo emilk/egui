@@ -2,7 +2,7 @@ use std::cell::Cell;
 use winit::event_loop::ActiveEventLoop;
 
 thread_local! {
-    static CURRENT_EVENT_LOOP: Cell<Option<*const ActiveEventLoop>> = Cell::new(None);
+    static CURRENT_EVENT_LOOP: Cell<Option<*const ActiveEventLoop>> = const { Cell::new(None) };
 }
 
 struct EventLoopGuard;

@@ -227,7 +227,7 @@ impl GridLayout {
         self.col += 1;
     }
 
-    fn paint_row(&mut self, cursor: &Rect, painter: &Painter) {
+    fn paint_row(&self, cursor: &Rect, painter: &Painter) {
         // handle row color painting based on color-picker function
         let Some(color_picker) = self.color_picker.as_ref() else {
             return;
@@ -450,7 +450,7 @@ impl Grid {
         ui.allocate_new_ui(ui_builder, |ui| {
             ui.horizontal(|ui| {
                 let is_color = color_picker.is_some();
-                let mut grid = GridLayout {
+                let grid = GridLayout {
                     num_columns,
                     color_picker,
                     min_cell_size: vec2(min_col_width, min_row_height),
