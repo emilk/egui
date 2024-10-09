@@ -1,5 +1,5 @@
+#![doc = include_str!("../README.md")]
 mod builder;
-#[doc = include_str!("../README.md")]
 mod event;
 #[cfg(feature = "snapshot")]
 mod snapshot;
