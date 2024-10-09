@@ -62,17 +62,11 @@ jobs:
       - name: cargo check -p test_egui_extras_compilation
         run: cargo check -p test_egui_extras_compilation
 
-      - name: Test doc-tests
-        run: cargo test --doc --all-features
-
       - name: cargo doc --lib
         run: cargo doc --lib --no-deps --all-features
 
       - name: cargo doc --document-private-items
         run: cargo doc --document-private-items --no-deps --all-features
-
-      - name: Test
-        run: cargo test --all-features
 
       - name: clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -246,6 +240,9 @@ jobs:
       - name: Run tests
         # TODO: Enable --all-features (currently this breaks the rendering in the tests)
         run: cargo test
+
+      - name: Run doc-tests
+        run: cargo test --doc --all-features
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
