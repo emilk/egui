@@ -394,10 +394,16 @@ mod tests {
         let mut errors = Vec::new();
 
         for mut demo in demos.demos {
+            // Remove the emoji from the demo name
             let name = demo
                 .name()
                 .split_once(' ')
                 .map_or(demo.name(), |(_, name)| name);
+
+            // Widget Gallery needs to be customized (to set a specific date) and has its own test
+            if name == "Widget Gallery" {
+                continue;
+            }
 
             let mut harness = Harness::new(|ctx| {
                 demo.show(ctx, &mut true);

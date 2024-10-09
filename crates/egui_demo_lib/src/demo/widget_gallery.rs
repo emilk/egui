@@ -297,7 +297,11 @@ mod tests {
 
     #[test]
     pub fn should_match_screenshot() {
-        let mut demo = WidgetGallery::default();
+        let mut demo = WidgetGallery {
+            // If we don't set a fixed date, the snapshot test will fail.
+            date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            ..Default::default()
+        };
         let app = |ctx: &Context| {
             CentralPanel::default().show(ctx, |ui| {
                 demo.ui(ui);
