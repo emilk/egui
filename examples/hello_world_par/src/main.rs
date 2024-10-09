@@ -69,7 +69,7 @@ fn new_worker(
             let mut state = ThreadState::new(thread_nr);
             while let Ok(ctx) = show_rc.recv() {
                 state.show(&ctx);
-                let _ = on_done_tx.send(());
+                _ = on_done_tx.send(());
             }
         })
         .expect("failed to spawn thread");
@@ -124,11 +124,11 @@ impl eframe::App for MyApp {
         });
 
         for (_handle, show_tx) in &self.threads {
-            let _ = show_tx.send(ctx.clone());
+            _ = show_tx.send(ctx.clone());
         }
 
         for _ in 0..self.threads.len() {
-            let _ = self.on_done_rc.recv();
+            _ = self.on_done_rc.recv();
         }
     }
 }
