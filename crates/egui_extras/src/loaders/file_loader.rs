@@ -96,7 +96,7 @@ impl BytesLoader for FileLoader {
                             Err(err) => Err(err.to_string()),
                         };
                         let prev = cache.lock().insert(uri.clone(), Poll::Ready(result));
-                        assert!(matches!(prev, Some(Poll::Pending)));
+                        assert!(matches!(prev, Some(Poll::Pending)), "unexpected state");
                         ctx.request_repaint();
                         log::trace!("finished loading {uri:?}");
                     }

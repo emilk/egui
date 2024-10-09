@@ -313,7 +313,7 @@ impl Shape {
 
     #[inline]
     pub fn mesh(mesh: Mesh) -> Self {
-        debug_assert!(mesh.is_valid());
+        debug_assert!(mesh.is_valid(), "Invalid mesh");
         Self::Mesh(mesh)
     }
 
@@ -1111,7 +1111,11 @@ fn dashes_from_line(
     shapes: &mut Vec<Shape>,
     dash_offset: f32,
 ) {
-    assert_eq!(dash_lengths.len(), gap_lengths.len());
+    assert_eq!(
+        dash_lengths.len(),
+        gap_lengths.len(),
+        "Mismatched dash and gap lengths"
+    );
     let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
     let mut step = 0;

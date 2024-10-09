@@ -83,7 +83,11 @@ impl Default for WrappedTextureManager {
             epaint::FontImage::new([0, 0]).into(),
             Default::default(),
         );
-        assert_eq!(font_id, TextureId::default());
+        assert_eq!(
+            font_id,
+            TextureId::default(),
+            "the font_id must be the same as the default TextureId"
+        );
 
         Self(Arc::new(RwLock::new(tex_mngr)))
     }
@@ -794,7 +798,10 @@ impl Context {
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
         let mut output = FullOutput::default();
-        debug_assert_eq!(output.platform_output.num_completed_passes, 0);
+        debug_assert_eq!(
+            output.platform_output.num_completed_passes, 0,
+            "Should be 0 for the first pass"
+        );
 
         loop {
             crate::profile_scope!(
@@ -814,7 +821,10 @@ impl Context {
             self.begin_pass(new_input.take());
             run_ui(self);
             output.append(self.end_pass());
-            debug_assert!(0 < output.platform_output.num_completed_passes);
+            debug_assert!(
+                0 < output.platform_output.num_completed_passes,
+                "Should be at least 1"
+            );
 
             if !output.platform_output.requested_discard() {
                 break; // no need for another pass
@@ -3186,7 +3196,7 @@ impl Context {
         #[cfg(feature = "accesskit")]
         self.pass_state_mut(|fs| {
             if let Some(state) = fs.accesskit_state.as_mut() {
-                assert_eq!(state.parent_stack.pop(), Some(_id));
+                assert_eq!(state.parent_stack.pop(), Some(_id), "Mismatched push/pop");
             }
         });
 

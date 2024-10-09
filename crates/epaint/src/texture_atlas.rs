@@ -88,7 +88,7 @@ impl TextureAtlas {
 
         // Make the top left pixel fully white for `WHITE_UV`, i.e. painting something with solid color:
         let (pos, image) = atlas.allocate((1, 1));
-        assert_eq!(pos, (0, 0));
+        assert_eq!(pos, (0, 0), "Expected the first allocation to be at (0, 0)");
         image[pos] = 1.0;
 
         // Allocate a series of anti-aliased discs used to render small filled circles:

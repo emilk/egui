@@ -979,7 +979,7 @@ impl Galley {
                 pcursor_it.offset += row.char_count_including_newline();
             }
         }
-        debug_assert!(ccursor_it == self.end().ccursor);
+        debug_assert!(ccursor_it == self.end().ccursor, "ccursor out of bounds");
         Cursor {
             ccursor: ccursor_it, // clamp
             rcursor: self.end_rcursor(),
