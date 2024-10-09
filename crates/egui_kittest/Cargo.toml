@@ -15,7 +15,7 @@ default = ["image?/png"]
 
 [dependencies]
 accesskit_consumer = "0.24.0"
-kittest = { git = "https://github.com/rerun-io/kittest", branch = "kittest" }
+kittest = { git = "https://github.com/rerun-io/kittest", version = "0.1", branch = "kittest" }
 egui = { workspace = true, features = ["accesskit"] }
 
 # wgpu dependencies

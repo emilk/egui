@@ -59,7 +59,7 @@ serde = { workspace = true, optional = true }
 egui_demo_lib = { features = ["chrono"], workspace = true }
 
 criterion.workspace = true
-egui_kittest = { path = "../egui_kittest", features = ["wgpu", "snapshot"] }
+egui_kittest = { workspace = true, features = ["default", "wgpu", "snapshot"] }
 wgpu = { workspace = true, features = ["metal"] }
 egui = { workspace = true, features = ["default_fonts"] }
 
