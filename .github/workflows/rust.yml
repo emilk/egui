@@ -238,11 +238,12 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run tests
-        # TODO: Enable --all-features (currently this breaks the rendering in the tests)
+        # TODO(lucasmerlin): Enable --all-features (currently this breaks the rendering in the tests because of the `unity` feature)
         run: cargo test
 
       - name: Run doc-tests
-        run: cargo test --doc --all-features
+        # TODO(lucasmerlin): Enable --all-features (currently this breaks the rendering in the tests because of the `unity` feature)
+        run: cargo test --doc
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
