@@ -23,7 +23,7 @@ eframe = { workspace = true, default-features = false, features = [
     "x11",
     "wgpu",
 ] }
-env_logger = { version = "0.10", default-features = false, features = [
+env_logger = { version = "0.11", default-features = false, features = [
     "auto-color",
     "humantime",
 ] }
