@@ -3,8 +3,10 @@ mod builder;
 mod event;
 #[cfg(feature = "snapshot")]
 mod snapshot;
+
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
+use std::fmt::{Debug, Formatter};
 #[cfg(feature = "wgpu")]
 mod texture_to_bytes;
 #[cfg(feature = "wgpu")]
@@ -13,11 +15,11 @@ pub mod wgpu;
 pub use kittest;
 use std::mem;
 
-use crate::event::{kittest_key_to_egui, pointer_button_to_egui};
+use crate::event::EventState;
 pub use accesskit_consumer;
 pub use builder::*;
-use egui::{Event, Modifiers, Pos2, Rect, TexturesDelta, Vec2, ViewportId};
-use kittest::{ElementState, Node, Queryable, SimulatedEvent};
+use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
+use kittest::{Node, Queryable};
 
 /// The test Harness. This contains everything needed to run the test.
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
@@ -28,9 +30,13 @@ pub struct Harness<'a> {
     output: egui::FullOutput,
     texture_deltas: Vec<TexturesDelta>,
     update_fn: Box<dyn FnMut(&egui::Context) + 'a>,
+    event_state: EventState,
+}
 
-    last_mouse_pos: Pos2,
-    modifiers: Modifiers,
+impl<'a> Debug for Harness<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.kittest.fmt(f)
+    }
 }
 
 impl<'a> Harness<'a> {
@@ -62,9 +68,7 @@ impl<'a> Harness<'a> {
             ),
             texture_deltas: vec![mem::take(&mut output.textures_delta)],
             output,
-
-            last_mouse_pos: Pos2::ZERO,
-            modifiers: Modifiers::NONE,
+            event_state: EventState::default(),
         }
     }
 
@@ -114,59 +118,8 @@ impl<'a> Harness<'a> {
     /// This will call the app closure with the current context and update the Harness.
     pub fn run(&mut self) {
         for event in self.kittest.take_events() {
-            match event {
-                kittest::Event::ActionRequest(e) => {
-                    self.input.events.push(Event::AccessKitActionRequest(e));
-                }
-                kittest::Event::Simulated(e) => match e {
-                    SimulatedEvent::CursorMoved { position } => {
-                        self.input.events.push(Event::PointerMoved(Pos2::new(
-                            position.x as f32,
-                            position.y as f32,
-                        )));
-                    }
-                    SimulatedEvent::MouseInput { state, button } => {
-                        let button = pointer_button_to_egui(button);
-                        if let Some(button) = button {
-                            self.input.events.push(Event::PointerButton {
-                                button,
-                                modifiers: self.modifiers,
-                                pos: self.last_mouse_pos,
-                                pressed: matches!(state, ElementState::Pressed),
-                            });
-                        }
-                    }
-                    SimulatedEvent::Ime(text) => {
-                        self.input.events.push(Event::Text(text));
-                    }
-                    SimulatedEvent::KeyInput { state, key } => {
-                        match key {
-                            kittest::Key::Alt => {
-                                self.modifiers.alt = matches!(state, ElementState::Pressed);
-                            }
-                            kittest::Key::Command => {
-                                self.modifiers.command = matches!(state, ElementState::Pressed);
-                            }
-                            kittest::Key::Control => {
-                                self.modifiers.ctrl = matches!(state, ElementState::Pressed);
-                            }
-                            kittest::Key::Shift => {
-                                self.modifiers.shift = matches!(state, ElementState::Pressed);
-                            }
-                            _ => {}
-                        }
-                        let key = kittest_key_to_egui(key);
-                        if let Some(key) = key {
-                            self.input.events.push(Event::Key {
-                                key,
-                                modifiers: self.modifiers,
-                                pressed: matches!(state, ElementState::Pressed),
-                                repeat: false,
-                                physical_key: None,
-                            });
-                        }
-                    }
-                },
+            if let Some(event) = self.event_state.kittest_event_to_egui(event) {
+                self.input.events.push(event);
             }
         }
 
