@@ -87,7 +87,7 @@ ahash.workspace = true
 nohash-hasher.workspace = true
 
 #! ### Optional dependencies
-accesskit = { version = "0.16", optional = true }
+accesskit = { version = "0.16.1", optional = true }
 
 backtrace = { workspace = true, optional = true }
 

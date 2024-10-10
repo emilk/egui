@@ -69,7 +69,7 @@ winit = { workspace = true, default-features = false }
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.22", optional = true }
+accesskit_winit = { version = "0.22.1", optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
@@ -84,7 +84,7 @@ smithay-clipboard = { version = "0.7.2", optional = true }
 # The wayland-cursor normally selected doesn't properly enable all the features it uses
 # and thus doesn't compile as it is used in egui-winit. This is fixed upstream, so force
 # a slightly newer version. Remove this when winit upgrades past this version.
-wayland-cursor = { version = "0.31.1", default-features = false, optional = true }
+wayland-cursor = { version = "0.31.6", default-features = false, optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-arboard = { version = "3.3", optional = true, default-features = false }
+arboard = { version = "3.4.1", optional = true, default-features = false }
