@@ -2,7 +2,6 @@ use crate::{
     emath::{pos2, vec2, Align2, NumExt, Pos2, Rect, Vec2},
     Align,
 };
-use std::f32::INFINITY;
 
 // ----------------------------------------------------------------------------
 
@@ -402,16 +401,16 @@ impl Layout {
 
         match self.main_dir {
             Direction::LeftToRight => {
-                cursor.max.x = INFINITY;
+                cursor.max.x = f32::INFINITY;
             }
             Direction::RightToLeft => {
-                cursor.min.x = -INFINITY;
+                cursor.min.x = -f32::INFINITY;
             }
             Direction::TopDown => {
-                cursor.max.y = INFINITY;
+                cursor.max.y = f32::INFINITY;
             }
             Direction::BottomUp => {
-                cursor.min.y = -INFINITY;
+                cursor.min.y = -f32::INFINITY;
             }
         }
 
@@ -538,7 +537,7 @@ impl Layout {
                         let new_top = min_rect.bottom() + spacing.y; // tighter packing
                         cursor = Rect::from_min_max(
                             pos2(max_rect.left(), new_top),
-                            pos2(INFINITY, new_top + new_row_height),
+                            pos2(f32::INFINITY, new_top + new_row_height),
                         );
                         max_rect.max.y = max_rect.max.y.max(cursor.max.y);
                     }
@@ -550,7 +549,7 @@ impl Layout {
                         // let new_top = cursor.bottom() + spacing.y;
                         let new_top = min_rect.bottom() + spacing.y; // tighter packing
                         cursor = Rect::from_min_max(
-                            pos2(-INFINITY, new_top),
+                            pos2(-f32::INFINITY, new_top),
                             pos2(max_rect.right(), new_top + new_row_height),
                         );
                         max_rect.max.y = max_rect.max.y.max(cursor.max.y);
@@ -562,7 +561,7 @@ impl Layout {
                         let new_col_width = cursor.width().max(child_size.x);
                         cursor = Rect::from_min_max(
                             pos2(cursor.right() + spacing.x, max_rect.top()),
-                            pos2(cursor.right() + spacing.x + new_col_width, INFINITY),
+                            pos2(cursor.right() + spacing.x + new_col_width, f32::INFINITY),
                         );
                         max_rect.max.x = max_rect.max.x.max(cursor.max.x);
                     }
@@ -572,7 +571,7 @@ impl Layout {
                         // New column
                         let new_col_width = cursor.width().max(child_size.x);
                         cursor = Rect::from_min_max(
-                            pos2(cursor.right() + spacing.x, -INFINITY),
+                            pos2(cursor.right() + spacing.x, -f32::INFINITY),
                             pos2(
                                 cursor.right() + spacing.x + new_col_width,
                                 max_rect.bottom(),
@@ -713,24 +712,24 @@ impl Layout {
                     Direction::LeftToRight => {
                         *cursor = Rect::from_min_max(
                             pos2(f32::NAN, frame_rect.min.y),
-                            pos2(INFINITY, frame_rect.max.y),
+                            pos2(f32::INFINITY, frame_rect.max.y),
                         );
                     }
                     Direction::RightToLeft => {
                         *cursor = Rect::from_min_max(
-                            pos2(-INFINITY, frame_rect.min.y),
+                            pos2(-f32::INFINITY, frame_rect.min.y),
                             pos2(f32::NAN, frame_rect.max.y),
                         );
                     }
                     Direction::TopDown => {
                         *cursor = Rect::from_min_max(
                             pos2(frame_rect.min.x, f32::NAN),
-                            pos2(frame_rect.max.x, INFINITY),
+                            pos2(frame_rect.max.x, f32::INFINITY),
                         );
                     }
                     Direction::BottomUp => {
                         *cursor = Rect::from_min_max(
-                            pos2(frame_rect.min.x, -INFINITY),
+                            pos2(frame_rect.min.x, -f32::INFINITY),
                             pos2(frame_rect.max.x, f32::NAN),
                         );
                     }
@@ -772,13 +771,13 @@ impl Layout {
                     let new_top = region.cursor.bottom() + spacing.y;
                     region.cursor = Rect::from_min_max(
                         pos2(region.max_rect.left(), new_top),
-                        pos2(INFINITY, new_top + region.cursor.height()),
+                        pos2(f32::INFINITY, new_top + region.cursor.height()),
                     );
                 }
                 Direction::RightToLeft => {
                     let new_top = region.cursor.bottom() + spacing.y;
                     region.cursor = Rect::from_min_max(
-                        pos2(-INFINITY, new_top),
+                        pos2(-f32::INFINITY, new_top),
                         pos2(region.max_rect.right(), new_top + region.cursor.height()),
                     );
                 }
