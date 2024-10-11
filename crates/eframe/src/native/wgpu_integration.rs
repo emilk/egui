@@ -65,7 +65,6 @@ struct WgpuWinitRunning<'app> {
 ///
 /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
 pub struct SharedState {
-    egui_ctx: egui::Context,
     viewports: Viewports,
     painter: egui_wgpu::winit::Painter,
     viewport_from_window: HashMap<WindowId, ViewportId>,
@@ -134,8 +133,8 @@ impl<'app> WgpuWinitApp<'app> {
 
         for viewport in viewports.values_mut() {
             viewport.initialize_window(
-                event_loop,
                 &running.integration.egui_ctx,
+                event_loop,
                 viewport_from_window,
                 painter,
             );
@@ -145,7 +144,6 @@ impl<'app> WgpuWinitApp<'app> {
     #[cfg(target_os = "android")]
     fn recreate_window(&self, event_loop: &ActiveEventLoop, running: &WgpuWinitRunning<'app>) {
         let SharedState {
-            egui_ctx,
             viewports,
             viewport_from_window,
             painter,
@@ -160,7 +158,12 @@ impl<'app> WgpuWinitApp<'app> {
             None,
             painter,
         )
-        .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+        .initialize_window(
+            &running.integration.egui_ctx,
+            event_loop,
+            viewport_from_window,
+            painter,
+        );
     }
 
     #[cfg(target_os = "android")]
@@ -294,7 +297,6 @@ impl<'app> WgpuWinitApp<'app> {
         );
 
         let shared = Rc::new(RefCell::new(SharedState {
-            egui_ctx,
             viewport_from_window,
             viewports,
             painter,
@@ -308,7 +310,7 @@ impl<'app> WgpuWinitApp<'app> {
 
             egui::Context::set_immediate_viewport_renderer(move |_egui_ctx, immediate_viewport| {
                 if let Some(shared) = shared.upgrade() {
-                    render_immediate_viewport(beginning, &shared, immediate_viewport);
+                    render_immediate_viewport(&egui_ctx, beginning, &shared, immediate_viewport);
                 } else {
                     log::warn!("render_sync_callback called after window closed");
                 }
@@ -544,12 +546,13 @@ impl<'app> WgpuWinitRunning<'app> {
                     return Ok(EventResult::Wait);
                 };
 
-                if viewport.viewport_ui_cb.is_none() {
+                let is_immediate = viewport.viewport_ui_cb.is_none();
+                if is_immediate {
                     // This will only happen if this is an immediate viewport.
                     // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                    if let Some(viewport) = viewports.get(&viewport.ids.parent) {
-                        if let Some(window) = viewport.window.as_ref() {
-                            return Ok(EventResult::RepaintNext(window.id()));
+                    if let Some(parent_viewport) = viewports.get(&viewport.ids.parent) {
+                        if let Some(window) = parent_viewport.window.as_ref() {
+                            return Ok(EventResult::RepaintNow(window.id()));
                         }
                     }
                     return Ok(EventResult::Wait);
@@ -607,7 +610,6 @@ impl<'app> WgpuWinitRunning<'app> {
         let mut shared_mut = shared.borrow_mut();
 
         let SharedState {
-            egui_ctx,
             viewports,
             painter,
             viewport_from_window,
@@ -641,7 +643,7 @@ impl<'app> WgpuWinitRunning<'app> {
 
         egui_winit.handle_platform_output(window, platform_output);
 
-        let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+        let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
         let screenshot_requested = viewport
             .actions_requested
@@ -650,7 +652,7 @@ impl<'app> WgpuWinitRunning<'app> {
         let (vsync_secs, screenshot) = painter.paint_and_update_textures(
             viewport_id,
             pixels_per_point,
-            app.clear_color(&egui_ctx.style().visuals),
+            app.clear_color(&integration.egui_ctx.style().visuals),
             &clipped_primitives,
             &textures_delta,
             screenshot_requested,
@@ -692,8 +694,6 @@ impl<'app> WgpuWinitRunning<'app> {
 
         integration.post_rendering(window);
 
-        let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
-
         handle_viewport_output(
             &integration.egui_ctx,
             &viewport_output,
@@ -701,11 +701,6 @@ impl<'app> WgpuWinitRunning<'app> {
             painter,
             viewport_from_window,
         );
-
-        // Prune dead viewports:
-        viewports.retain(|id, _| active_viewports_ids.contains(id));
-        viewport_from_window.retain(|_, id| active_viewports_ids.contains(id));
-        painter.gc_viewports(&active_viewports_ids);
 
         let window = viewport_from_window
             .get(&window_id)
@@ -838,8 +833,8 @@ impl Viewport {
     /// Create winit window, if needed.
     fn initialize_window(
         &mut self,
-        event_loop: &ActiveEventLoop,
         egui_ctx: &egui::Context,
+        event_loop: &ActiveEventLoop,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
     ) {
@@ -905,6 +900,7 @@ fn create_window(
 }
 
 fn render_immediate_viewport(
+    egui_ctx: &egui::Context,
     beginning: Instant,
     shared: &RefCell<SharedState>,
     immediate_viewport: ImmediateViewport<'_>,
@@ -919,7 +915,6 @@ fn render_immediate_viewport(
 
     let input = {
         let SharedState {
-            egui_ctx,
             viewports,
             painter,
             viewport_from_window,
@@ -936,7 +931,7 @@ fn render_immediate_viewport(
         );
         if viewport.window.is_none() {
             event_loop_context::with_current_event_loop(|event_loop| {
-                viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+                viewport.initialize_window(egui_ctx, event_loop, viewport_from_window, painter);
             });
         }
 
@@ -953,8 +948,6 @@ fn render_immediate_viewport(
         input.time = Some(beginning.elapsed().as_secs_f64());
         input
     };
-
-    let egui_ctx = shared.borrow().egui_ctx.clone();
 
     // ------------------------------------------
 
@@ -1011,7 +1004,7 @@ fn render_immediate_viewport(
     egui_winit.handle_platform_output(window, platform_output);
 
     handle_viewport_output(
-        &egui_ctx,
+        egui_ctx,
         &viewport_output,
         viewports,
         painter,
