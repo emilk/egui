@@ -2348,7 +2348,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "kittest"
 version = "0.1.0"
-source = "git+https://github.com/rerun-io/kittest?branch=impl-debug#240832d5d086ae0a9cf358af9450c0cef16fbeab"
+source = "git+https://github.com/rerun-io/kittest?branch=main#1336a504aefd05f7e9aa7c9237ae44ba9e72acdd"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
