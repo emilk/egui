@@ -10,28 +10,35 @@ pub enum SnapshotError {
     Diff {
         /// Count of pixels that were different
         diff: i32,
+
         /// Path where the diff image was saved
         diff_path: PathBuf,
     },
+
     /// Error opening the existing snapshot (it probably doesn't exist, check the
     /// [`ImageError`] for more information)
     OpenSnapshot {
         /// Path where the snapshot was expected to be
         path: PathBuf,
+
         /// The error that occurred
         err: ImageError,
     },
+
     /// The size of the image did not match the snapshot
     SizeMismatch {
         /// Expected size
         expected: (u32, u32),
+
         /// Actual size
         actual: (u32, u32),
     },
+
     /// Error writing the snapshot output
     WriteSnapshot {
         /// Path where a file was expected to be written
         path: PathBuf,
+
         /// The error that occurred
         err: ImageError,
     },

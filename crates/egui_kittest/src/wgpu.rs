@@ -47,6 +47,7 @@ impl TestRenderer {
         }
     }
 
+    #[inline]
     pub fn with_dithering(mut self, dithering: bool) -> Self {
         self.dithering = dithering;
         self
