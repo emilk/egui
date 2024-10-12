@@ -12,7 +12,7 @@ mod snapshot;
 pub use snapshot::*;
 use std::fmt::{Debug, Formatter};
 #[cfg(feature = "wgpu")]
-mod texture_to_bytes;
+mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 

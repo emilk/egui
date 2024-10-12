@@ -1,4 +1,4 @@
-use crate::texture_to_bytes::texture_to_bytes;
+use crate::texture_to_image::texture_to_image;
 use crate::Harness;
 use egui_wgpu::wgpu::{Backends, InstanceDescriptor, StoreOp, TextureFormat};
 use egui_wgpu::{wgpu, ScreenDescriptor};
@@ -62,7 +62,7 @@ impl TestRenderer {
         let size = harness.ctx.screen_rect().size() * harness.ctx.pixels_per_point();
         let screen = ScreenDescriptor {
             pixels_per_point: harness.ctx.pixels_per_point(),
-            size_in_pixels: [size.x as u32, size.y as u32],
+            size_in_pixels: [size.x.round() as u32, size.y.round() as u32],
         };
 
         let tessellated = harness.ctx.tessellate(
@@ -121,6 +121,6 @@ impl TestRenderer {
 
         self.device.poll(Maintain::Wait);
 
-        texture_to_bytes(&self.device, &self.queue, &texture)
+        texture_to_image(&self.device, &self.queue, &texture)
     }
 }

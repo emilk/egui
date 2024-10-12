@@ -5,7 +5,7 @@ use std::iter;
 use std::mem::size_of;
 use std::sync::mpsc::channel;
 
-pub(crate) fn texture_to_bytes(device: &Device, queue: &Queue, texture: &Texture) -> RgbaImage {
+pub(crate) fn texture_to_image(device: &Device, queue: &Queue, texture: &Texture) -> RgbaImage {
     let buffer_dimensions =
         BufferDimensions::new(texture.width() as usize, texture.height() as usize);
 
