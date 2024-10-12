@@ -81,8 +81,8 @@ impl TestRenderer {
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Egui Texture"),
             size: wgpu::Extent3d {
-                width: size.x as u32,
-                height: size.y as u32,
+                width: screen.size_in_pixels[0],
+                height: screen.size_in_pixels[1],
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
