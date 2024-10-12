@@ -1384,8 +1384,8 @@ dependencies = [
 name = "egui_kittest"
 version = "0.29.1"
 dependencies = [
- "accesskit_consumer",
  "dify",
+ "document-features",
  "egui",
  "egui-wgpu",
  "image",

@@ -1,4 +1,8 @@
 #![doc = include_str!("../README.md")]
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+
 mod builder;
 mod event;
 #[cfg(feature = "snapshot")]
@@ -16,7 +20,6 @@ pub use kittest;
 use std::mem;
 
 use crate::event::EventState;
-pub use accesskit_consumer;
 pub use builder::*;
 use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
 use kittest::{Node, Queryable};

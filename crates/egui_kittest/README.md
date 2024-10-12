@@ -1,6 +1,6 @@
 # egui_kittest 
 
-Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kittest) (a AccessKit based testing library).
+Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kittest) (an [AccessKit](https://github.com/AccessKit/accesskit) based testing library).
 
 ```rust
 use egui::accesskit::{Role, Toggled};

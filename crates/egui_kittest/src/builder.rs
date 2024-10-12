@@ -19,7 +19,7 @@ impl Default for HarnessBuilder {
 impl HarnessBuilder {
     /// Set the size of the window.
     #[inline]
-    pub fn with_size(mut self, size: Vec2) -> Self {
+    pub fn with_size(mut self, size: impl Into<Vec2>) -> Self {
         self.screen_rect.set_width(size.x);
         self.screen_rect.set_height(size.y);
         self
