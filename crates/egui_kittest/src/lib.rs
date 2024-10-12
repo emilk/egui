@@ -60,7 +60,7 @@ impl<'a> Harness<'a> {
         // and users can immediately start querying for widgets.
         let mut output = ctx.run(input.clone(), &mut app);
 
-        Self {
+        let mut harness = Self {
             update_fn: Box::new(app),
             ctx,
             input,
@@ -74,7 +74,10 @@ impl<'a> Harness<'a> {
             texture_deltas: vec![mem::take(&mut output.textures_delta)],
             output,
             event_state: EventState::default(),
-        }
+        };
+        // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
+        harness.run();
+        harness
     }
 
     pub fn builder() -> HarnessBuilder {
@@ -121,7 +124,7 @@ impl<'a> Harness<'a> {
 
     /// Run a frame.
     /// This will call the app closure with the current context and update the Harness.
-    pub fn run(&mut self) {
+    pub fn step(&mut self) {
         for event in self.kittest.take_events() {
             if let Some(event) = self.event_state.kittest_event_to_egui(event) {
                 self.input.events.push(event);
@@ -139,6 +142,17 @@ impl<'a> Harness<'a> {
         self.texture_deltas
             .push(mem::take(&mut output.textures_delta));
         self.output = output;
+    }
+
+    /// Run a few frames.
+    /// This will soon be changed to run the app until it is "stable", meaning
+    /// - all animations are done
+    /// - no more repaints are requested
+    pub fn run(&mut self) {
+        const STEPS: usize = 2;
+        for _ in 0..STEPS {
+            self.step();
+        }
     }
 
     /// Access the [`egui::RawInput`] for the next frame.
