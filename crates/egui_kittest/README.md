@@ -30,6 +30,6 @@ fn main() {
 
     // You can even render the ui and do image snapshot tests
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    egui_kittest::image_snapshot(&egui_kittest::wgpu::TestRenderer::new().render(&harness), "readme_example");
+    harness.wgpu_snapshot("readme_example");
 }
 ```

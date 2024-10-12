@@ -7,9 +7,9 @@ use std::iter::once;
 use wgpu::Maintain;
 
 pub struct TestRenderer {
-    renderer: egui_wgpu::Renderer,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    dithering: bool,
 }
 
 impl Default for TestRenderer {
@@ -36,20 +36,34 @@ impl TestRenderer {
         ))
         .expect("Failed to create device");
 
-        let renderer = egui_wgpu::Renderer::new(&device, TextureFormat::Rgba8Unorm, None, 1, true);
+        Self::create(device, queue)
+    }
 
+    pub fn create(device: wgpu::Device, queue: wgpu::Queue) -> Self {
         Self {
-            renderer,
             device,
             queue,
+            dithering: false,
         }
     }
 
+    pub fn with_dithering(mut self, dithering: bool) -> Self {
+        self.dithering = dithering;
+        self
+    }
+
     pub fn render(&mut self, harness: &Harness<'_>) -> RgbaImage {
+        let mut renderer = egui_wgpu::Renderer::new(
+            &self.device,
+            TextureFormat::Rgba8Unorm,
+            None,
+            1,
+            self.dithering,
+        );
+
         for delta in &harness.texture_deltas {
             for (id, image_delta) in &delta.set {
-                self.renderer
-                    .update_texture(&self.device, &self.queue, *id, image_delta);
+                renderer.update_texture(&self.device, &self.queue, *id, image_delta);
             }
         }
 
@@ -70,7 +84,7 @@ impl TestRenderer {
             harness.ctx.pixels_per_point(),
         );
 
-        let user_buffers = self.renderer.update_buffers(
+        let user_buffers = renderer.update_buffers(
             &self.device,
             &self.queue,
             &mut encoder,
@@ -113,7 +127,7 @@ impl TestRenderer {
                 })
                 .forget_lifetime();
 
-            self.renderer.render(&mut pass, &tessellated, &screen);
+            renderer.render(&mut pass, &tessellated, &screen);
         }
 
         self.queue

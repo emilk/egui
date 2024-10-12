@@ -1,3 +1,4 @@
+use crate::Harness;
 use image::ImageError;
 use std::fmt::Display;
 use std::io::ErrorKind;
@@ -74,7 +75,8 @@ impl Display for SnapshotError {
 /// Image snapshot test.
 ///
 /// # Errors
-/// Returns a [`SnapshotError`] if the image does not match the snapshot.
+/// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
+/// reading or writing the snapshot.
 pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), SnapshotError> {
     let snapshots_path = Path::new("tests/snapshots");
 
@@ -163,13 +165,43 @@ fn maybe_update_snapshot(
 /// Image snapshot test.
 ///
 /// # Panics
-/// Panics if the image does not match the snapshot.
+/// Panics if the image does not match the snapshot or if there was an error reading or writing the
+/// snapshot.
 #[track_caller]
 pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
     match try_image_snapshot(current, name) {
         Ok(_) => {}
         Err(err) => {
             panic!("{}", err);
+        }
+    }
+}
+
+#[cfg(feature = "wgpu")]
+impl Harness<'_> {
+    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    ///
+    /// # Errors
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
+    /// reading or writing the snapshot.
+    #[track_caller]
+    pub fn try_wgpu_snapshot(&self, name: &str) -> Result<(), SnapshotError> {
+        let image = crate::wgpu::TestRenderer::new().render(self);
+        try_image_snapshot(&image, name)
+    }
+
+    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    ///
+    /// # Panics
+    /// Panics if the image does not match the snapshot or if there was an error reading or writing the
+    /// snapshot.
+    #[track_caller]
+    pub fn wgpu_snapshot(&self, name: &str) {
+        match self.try_wgpu_snapshot(name) {
+            Ok(_) => {}
+            Err(err) => {
+                panic!("{}", err);
+            }
         }
     }
 }

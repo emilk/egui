@@ -291,8 +291,6 @@ mod tests {
     use super::*;
     use crate::View;
     use egui::{CentralPanel, Context, Vec2};
-    use egui_kittest::image_snapshot;
-    use egui_kittest::wgpu::TestRenderer;
     use egui_kittest::Harness;
 
     #[test]
@@ -307,16 +305,11 @@ mod tests {
                 demo.ui(ui);
             });
         };
-        let mut harness = Harness::builder()
+        let harness = Harness::builder()
             .with_size(Vec2::new(380.0, 550.0))
             .with_dpi(2.0)
             .build(app);
 
-        // The first and second frames are slightly different, so we take the second frame
-        harness.run();
-
-        let image = TestRenderer::new().render(&harness);
-
-        image_snapshot(&image, "widget_gallery");
+        harness.wgpu_snapshot("widget_gallery");
     }
 }
