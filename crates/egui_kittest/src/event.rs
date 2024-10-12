@@ -12,45 +12,48 @@ impl EventState {
     pub fn kittest_event_to_egui(&mut self, event: kittest::Event) -> Option<egui::Event> {
         match event {
             kittest::Event::ActionRequest(e) => Some(Event::AccessKitActionRequest(e)),
-            kittest::Event::Simulated(e) => {
-                match e {
-                    SimulatedEvent::CursorMoved { position } => Some(Event::PointerMoved(
-                        Pos2::new(position.x as f32, position.y as f32),
-                    )),
-                    SimulatedEvent::MouseInput { state, button } => pointer_button_to_egui(button)
-                        .map(|button| PointerButton {
-                            button,
-                            modifiers: self.modifiers,
-                            pos: self.last_mouse_pos,
-                            pressed: matches!(state, ElementState::Pressed),
-                        }),
-                    SimulatedEvent::Ime(text) => Some(Event::Text(text)),
-                    SimulatedEvent::KeyInput { state, key } => {
-                        match key {
-                            kittest::Key::Alt => {
-                                self.modifiers.alt = matches!(state, ElementState::Pressed);
-                            }
-                            kittest::Key::Command => {
-                                self.modifiers.command = matches!(state, ElementState::Pressed);
-                            }
-                            kittest::Key::Control => {
-                                self.modifiers.ctrl = matches!(state, ElementState::Pressed);
-                            }
-                            kittest::Key::Shift => {
-                                self.modifiers.shift = matches!(state, ElementState::Pressed);
-                            }
-                            _ => {}
-                        }
-                        kittest_key_to_egui(key).map(|key| Event::Key {
-                            key,
-                            modifiers: self.modifiers,
-                            pressed: matches!(state, ElementState::Pressed),
-                            repeat: false,
-                            physical_key: None,
-                        })
-                    }
+            kittest::Event::Simulated(e) => match e {
+                SimulatedEvent::CursorMoved { position } => {
+                    self.last_mouse_pos = Pos2::new(position.x as f32, position.y as f32);
+                    Some(Event::PointerMoved(Pos2::new(
+                        position.x as f32,
+                        position.y as f32,
+                    )))
                 }
-            }
+                SimulatedEvent::MouseInput { state, button } => {
+                    pointer_button_to_egui(button).map(|button| PointerButton {
+                        button,
+                        modifiers: self.modifiers,
+                        pos: self.last_mouse_pos,
+                        pressed: matches!(state, ElementState::Pressed),
+                    })
+                }
+                SimulatedEvent::Ime(text) => Some(Event::Text(text)),
+                SimulatedEvent::KeyInput { state, key } => {
+                    match key {
+                        kittest::Key::Alt => {
+                            self.modifiers.alt = matches!(state, ElementState::Pressed);
+                        }
+                        kittest::Key::Command => {
+                            self.modifiers.command = matches!(state, ElementState::Pressed);
+                        }
+                        kittest::Key::Control => {
+                            self.modifiers.ctrl = matches!(state, ElementState::Pressed);
+                        }
+                        kittest::Key::Shift => {
+                            self.modifiers.shift = matches!(state, ElementState::Pressed);
+                        }
+                        _ => {}
+                    }
+                    kittest_key_to_egui(key).map(|key| Event::Key {
+                        key,
+                        modifiers: self.modifiers,
+                        pressed: matches!(state, ElementState::Pressed),
+                        repeat: false,
+                        physical_key: None,
+                    })
+                }
+            },
         }
     }
 }
