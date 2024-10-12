@@ -15,6 +15,9 @@ pub struct MultiTouchInfo {
     /// Position of the pointer at the time the gesture started.
     pub start_pos: Pos2,
 
+    /// Center position of the current gesture (average of all touch points).
+    pub center_pos: Pos2,
+
     /// Number of touches (fingers) on the surface. Value is ≥ 2 since for a single touch no
     /// [`MultiTouchInfo`] is created.
     pub num_touches: usize,
@@ -60,9 +63,6 @@ pub struct MultiTouchInfo {
     /// Note 2: Just increasing the physical pressure without actually moving the finger may not
     /// necessarily lead to a change of this value.
     pub force: f32,
-
-    /// Center position of the current gesture (average of all touch points).
-    pub center_pos: Pos2,
 }
 
 /// The current state (for a specific touch device) of touch events and gestures.
