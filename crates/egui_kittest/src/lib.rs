@@ -56,6 +56,8 @@ impl<'a> Harness<'a> {
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
         viewport.native_pixels_per_point = Some(builder.dpi);
 
+        // We need to run egui for a single frame so that the AccessKit state can be initialized
+        // and users can immediately start querying for widgets.
         let mut output = ctx.run(input.clone(), &mut app);
 
         Self {

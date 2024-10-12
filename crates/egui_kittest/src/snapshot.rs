@@ -5,16 +5,26 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum SnapshotError {
+    /// Image did not match snapshot
     Diff {
+        /// Count of pixels that were different
         diff: i32,
+        /// Path where the diff image was saved
         diff_path: PathBuf,
     },
+    /// Error opening the existing snapshot (it probably doesn't exist, check the
+    /// [`ImageError`] for more information)
     OpenSnapshot {
+        /// Path where the snapshot was expected to be
         path: PathBuf,
-        err: image::ImageError,
+        /// The error that occurred
+        err: ImageError,
     },
+    /// The size of the image did not match the snapshot
     SizeMismatch {
+        /// Expected size
         expected: (u32, u32),
+        /// Actual size
         actual: (u32, u32),
     },
 }
@@ -82,7 +92,21 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
         });
     }
 
-    let result = dify::diff::get_results(previous, current.clone(), 0.1, true, None, &None, &None);
+    // Looking at dify's source code, the threshold is based on the distance between two colors in
+    // YIQ color space.
+    // The default is 0.1, but we'll try 0.0 because ideally the output should not change at all.
+    // We might have to increase the threshold if there are minor differences when running tests
+    // on different gpus or different backends.
+    let threshold = 0.0;
+    let result = dify::diff::get_results(
+        previous,
+        current.clone(),
+        threshold,
+        true,
+        None,
+        &None,
+        &None,
+    );
 
     if let Some((diff, result_image)) = result {
         result_image.save(diff_path.clone()).unwrap();
