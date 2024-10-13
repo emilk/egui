@@ -977,23 +977,7 @@ fn events(
                     break;
                 }
             }
-            Event::Key {
-                key: Key::Z,
-                pressed: true,
-                modifiers,
-                ..
-            } if modifiers.matches_logically(Modifiers::COMMAND) => {
-                if let Some((undo_ccursor_range, undo_txt)) = state
-                    .undoer
-                    .lock()
-                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
-                {
-                    text.replace_with(undo_txt);
-                    Some(*undo_ccursor_range)
-                } else {
-                    None
-                }
-            }
+
             Event::Key {
                 key,
                 pressed: true,
@@ -1010,6 +994,24 @@ fn events(
                 {
                     text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+
+            Event::Key {
+                key: Key::Z,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.matches_logically(Modifiers::COMMAND) => {
+                if let Some((undo_ccursor_range, undo_txt)) = state
+                    .undoer
+                    .lock()
+                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace_with(undo_txt);
+                    Some(*undo_ccursor_range)
                 } else {
                     None
                 }
