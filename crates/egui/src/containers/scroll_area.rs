@@ -499,6 +499,11 @@ struct Prepared {
 
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
+
+    /// If there was a scroll target before the ScrollArea was added this frame, it's
+    /// not for us to handle so we save it and restore it after this ScrollArea is done.
+    saved_scroll_target: [Option<frame_state::ScrollTarget>; 2],
+
     animated: bool,
 }
 
@@ -693,6 +698,10 @@ impl ScrollArea {
             }
         }
 
+        let saved_scroll_target = content_ui
+            .ctx()
+            .frame_state_mut(|state| std::mem::take(&mut state.scroll_target));
+
         Prepared {
             id,
             state,
@@ -707,6 +716,7 @@ impl ScrollArea {
             viewport,
             scrolling_enabled,
             stick_to_end,
+            saved_scroll_target,
             animated,
         }
     }
@@ -820,6 +830,7 @@ impl Prepared {
             viewport: _,
             scrolling_enabled,
             stick_to_end,
+            saved_scroll_target,
             animated,
         } = self;
 
@@ -853,7 +864,7 @@ impl Prepared {
                     let (start, end) = (range.min, range.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
-                    let mut spacing = ui.spacing().item_spacing[d];
+                    let mut spacing = content_ui.spacing().item_spacing[d];
 
                     let delta_update = if let Some(align) = align {
                         let center_factor = align.to_factor();
@@ -901,6 +912,15 @@ impl Prepared {
                 }
             }
         }
+
+        // Restore scroll target meant for ScrollAreas up the stack (if any)
+        ui.ctx().frame_state_mut(|state| {
+            for d in 0..2 {
+                if saved_scroll_target[d].is_some() {
+                    state.scroll_target[d] = saved_scroll_target[d].clone();
+                };
+            }
+        });
 
         let inner_rect = {
             // At this point this is the available size for the inner rect.

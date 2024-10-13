@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use emath::Rect;
 use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
@@ -719,6 +720,16 @@ impl<'t> TextEdit<'t> {
                 }
             }
 
+            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+            // if there's a ScrollArea, it can properly scroll to the cursor.
+            let extra_size = galley.size() - rect.size();
+            if extra_size.x > 0.0 || extra_size.y > 0.0 {
+                ui.allocate_rect(
+                    Rect::from_min_size(outer_rect.max, extra_size),
+                    Sense::hover(),
+                );
+            }
+
             painter.galley(galley_pos, galley.clone(), text_color);
 
             if has_focus {
@@ -726,10 +737,9 @@ impl<'t> TextEdit<'t> {
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
-                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO(emilk): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
-                    if (response.changed || selection_changed) && !is_fully_visible {
+                    if response.changed || selection_changed {
                         // Scroll to keep primary cursor in view:
-                        ui.scroll_to_rect(primary_cursor_rect, None);
+                        ui.scroll_to_rect(primary_cursor_rect + margin, None);
                     }
 
                     if text.is_mutable() && interactive {
