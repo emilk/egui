@@ -88,6 +88,8 @@ jobs:
   check_wasm:
     name: Check wasm32 + wasm-bindgen
     runs-on: ubuntu-22.04
+    env:
+      RUSTC_WRAPPER: ""
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -100,8 +102,8 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.6
+      # - name: Run sccache-cache
+      #   uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Check wasm32 egui_demo_app
         run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
@@ -167,8 +169,12 @@ jobs:
 
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
+    env:
+      RUSTC_WRAPPER: ""
     steps:
       - uses: actions/checkout@v4
+      # - name: Run sccache-cache
+      #   uses: mozilla-actions/sccache-action@v0.0.6
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: "1.76.0"
