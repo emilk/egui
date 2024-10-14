@@ -6,6 +6,8 @@ env:
   RUSTFLAGS: -D warnings
   RUSTDOCFLAGS: -D warnings
   NIGHTLY_VERSION: nightly-2024-09-11
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 jobs:
   fmt-crank-check-test:
@@ -28,6 +30,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Rustfmt
         run: cargo fmt --all -- --check
@@ -95,6 +100,9 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
       - name: Check wasm32 egui_demo_app
         run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
 
@@ -124,6 +132,10 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{env.NIGHTLY_VERSION}}
@@ -180,6 +192,9 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
       - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android
         working-directory: crates/eframe
 
@@ -199,6 +214,9 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.6
+
         # Default features are disabled because glutin doesn't compile for ios.
       - run: cargo check --features wgpu --target aarch64-apple-ios --no-default-features
         working-directory: crates/eframe
@@ -216,6 +234,9 @@ jobs:
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.6
 
       - name: Check all
         run: cargo check --all-targets --all-features
