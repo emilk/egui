@@ -159,8 +159,8 @@ impl TextureAtlas {
     }
 
     fn max_height(&self) -> usize {
-        // the initial width is likely the max texture side size
-        self.image.width()
+        // likely the max texture height
+        self.image.height().max(self.image.width())
     }
 
     /// When this get high, it might be time to clear and start over!
