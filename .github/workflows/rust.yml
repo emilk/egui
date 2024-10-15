@@ -173,8 +173,6 @@ jobs:
       RUSTC_WRAPPER: ""
     steps:
       - uses: actions/checkout@v4
-      # - name: Run sccache-cache
-      #   uses: mozilla-actions/sccache-action@v0.0.6
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: "1.76.0"
