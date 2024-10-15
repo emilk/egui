@@ -23,8 +23,7 @@ use crate::{
     input_state::{InputState, MultiTouchInfo, PointerEvent},
     interaction,
     layers::GraphicLayers,
-    load,
-    load::{Bytes, Loaders, SizedTexture},
+    load::{self, Bytes, Loaders, SizedTexture},
     memory::{Options, Theme},
     menu,
     os::OperatingSystem,
@@ -35,9 +34,10 @@ use crate::{
     viewport::ViewportClass,
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
     ImmediateViewportRendererCallback, Key, KeyboardShortcut, Label, LayerId, Memory,
-    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, ScrollArea, Sense, Style,
-    TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand, ViewportId,
-    ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect, WidgetText,
+    ModifierNames, NumExt, Order, Painter, RawInput, Response, RichText, SafeArea, ScrollArea,
+    Sense, Style, TextStyle, TextureHandle, TextureOptions, Ui, ViewportBuilder, ViewportCommand,
+    ViewportId, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, Widget, WidgetRect,
+    WidgetText,
 };
 
 #[cfg(feature = "accesskit")]
@@ -407,6 +407,7 @@ struct ContextImpl {
     animation_manager: AnimationManager,
 
     plugins: Plugins,
+    safe_area: SafeArea,
 
     /// All viewports share the same texture manager and texture namespace.
     ///
@@ -452,6 +453,10 @@ impl ContextImpl {
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
 
+        if let Some(safe_area) = new_raw_input.safe_area {
+            self.safe_area = safe_area;
+        }
+
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
 
@@ -495,7 +500,7 @@ impl ContextImpl {
 
         let screen_rect = viewport.input.screen_rect;
 
-        viewport.this_pass.begin_pass(screen_rect);
+        viewport.this_pass.begin_pass(screen_rect, self.safe_area);
 
         {
             let area_order = self.memory.areas().order_map();
