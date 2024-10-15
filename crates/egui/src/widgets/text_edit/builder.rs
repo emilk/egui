@@ -562,6 +562,7 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
+        response.intrinsic_size = Some(desired_outer_size);
 
         response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
 
