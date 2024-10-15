@@ -269,7 +269,7 @@ impl RichText {
         if let Some(family) = &self.family {
             font_id.family = family.clone();
         }
-        fonts.row_height(&font_id)
+        fonts.row_height(&font_id).round()
     }
 
     /// Append to an existing [`LayoutJob`]
