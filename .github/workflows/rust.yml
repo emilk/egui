@@ -102,9 +102,6 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      # - name: Run sccache-cache
-      #   uses: mozilla-actions/sccache-action@v0.0.6
-
       - name: Check wasm32 egui_demo_app
         run: cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
 
