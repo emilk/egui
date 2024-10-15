@@ -656,6 +656,8 @@ pub enum WidgetType {
 
     ProgressIndicator,
 
+    Window,
+
     /// If you cannot fit any of the above slots.
     ///
     /// If this is something you think should be added, file an issue.
