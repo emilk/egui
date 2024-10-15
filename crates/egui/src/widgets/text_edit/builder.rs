@@ -504,10 +504,21 @@ impl<'t> TextEdit<'t> {
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = (ui.available_width() - margin.sum().x).at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
-        let wrap_width = if ui.layout().horizontal_justify() {
+
+        let wrap_mode = ui.style().wrap_mode.unwrap_or(if multiline {
+            TextWrapMode::Wrap
+        } else {
+            TextWrapMode::Extend
+        });
+        let clip_wrap_width = if ui.layout().horizontal_justify() {
             available_width
         } else {
             desired_width.min(available_width)
+        };
+        let wrap_width = if wrap_mode == TextWrapMode::Extend {
+            f32::INFINITY
+        } else {
+            clip_wrap_width
         };
 
         let font_id_clone = font_id.clone();
@@ -526,9 +537,9 @@ impl<'t> TextEdit<'t> {
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
         let desired_width = if clip_text {
-            wrap_width // visual clipping with scroll in singleline input.
+            clip_wrap_width // visual clipping with scroll in singleline input.
         } else {
-            galley.size().x.max(wrap_width)
+            galley.size().x.max(clip_wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
         let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
@@ -692,7 +703,7 @@ impl<'t> TextEdit<'t> {
                 let galley = if multiline {
                     hint_text.into_galley(
                         ui,
-                        Some(TextWrapMode::Wrap),
+                        Some(wrap_mode),
                         desired_inner_size.x,
                         hint_text_font_id,
                     )
