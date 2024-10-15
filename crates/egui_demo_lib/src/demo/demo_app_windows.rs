@@ -377,3 +377,52 @@ fn file_menu_button(ui: &mut Ui) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::demo::demo_app_windows::Demos;
+    use egui::Vec2;
+    use egui_kittest::kittest::Queryable;
+    use egui_kittest::Harness;
+
+    #[test]
+    fn demos_should_match_snapshot() {
+        let demos = Demos::default();
+
+        let mut errors = Vec::new();
+
+        for mut demo in demos.demos {
+            // Remove the emoji from the demo name
+            let name = demo
+                .name()
+                .split_once(' ')
+                .map_or(demo.name(), |(_, name)| name);
+
+            // Widget Gallery needs to be customized (to set a specific date) and has its own test
+            if name == "Widget Gallery" {
+                continue;
+            }
+
+            let mut harness = Harness::new(|ctx| {
+                demo.show(ctx, &mut true);
+            });
+
+            let window = harness.node().children().next().unwrap();
+            // TODO(lucasmerlin): Windows should probably have a label?
+            //let window = harness.get_by_name(name);
+
+            let size = window.raw_bounds().expect("window bounds").size();
+            harness.set_size(Vec2::new(size.width as f32, size.height as f32));
+
+            // Run the app for some more frames...
+            harness.run();
+
+            let result = harness.try_wgpu_snapshot(&format!("demos/{name}"));
+            if let Err(err) = result {
+                errors.push(err);
+            }
+        }
+
+        assert!(errors.is_empty(), "Errors: {errors:#?}");
+    }
+}
