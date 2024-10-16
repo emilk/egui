@@ -799,6 +799,7 @@ pub trait Storage {
 }
 
 /// Stores nothing.
+#[allow(dead_code)]
 #[derive(Clone, Default)]
 pub(crate) struct DummyStorage {}
 
