@@ -11,6 +11,7 @@ mod snapshot;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
 use std::fmt::{Debug, Formatter};
+pub mod harness_kind;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
@@ -20,8 +21,9 @@ pub use kittest;
 use std::mem;
 
 use crate::event::EventState;
+use crate::harness_kind::AppKind;
 pub use builder::*;
-use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
+use egui::{CentralPanel, Pos2, Rect, TexturesDelta, UiBuilder, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 
 /// The test Harness. This contains everything needed to run the test.
@@ -32,8 +34,9 @@ pub struct Harness<'a> {
     kittest: kittest::State,
     output: egui::FullOutput,
     texture_deltas: Vec<TexturesDelta>,
-    update_fn: Box<dyn FnMut(&egui::Context) + 'a>,
+    app: AppKind<'a>,
     event_state: EventState,
+    response: Option<egui::Response>,
 }
 
 impl<'a> Debug for Harness<'a> {
@@ -43,10 +46,7 @@ impl<'a> Debug for Harness<'a> {
 }
 
 impl<'a> Harness<'a> {
-    pub(crate) fn from_builder(
-        builder: &HarnessBuilder,
-        mut app: impl FnMut(&egui::Context) + 'a,
-    ) -> Self {
+    pub(crate) fn from_builder(builder: &HarnessBuilder, mut app: AppKind<'a>) -> Self {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         let mut input = egui::RawInput {
@@ -56,12 +56,16 @@ impl<'a> Harness<'a> {
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
         viewport.native_pixels_per_point = Some(builder.dpi);
 
+        let mut response = None;
+
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
-        let mut output = ctx.run(input.clone(), &mut app);
+        let mut output = ctx.run(input.clone(), |ctx| {
+            response = app.run(ctx);
+        });
 
         let mut harness = Self {
-            update_fn: Box::new(app),
+            app,
             ctx,
             input,
             kittest: kittest::State::new(
@@ -73,6 +77,7 @@ impl<'a> Harness<'a> {
             ),
             texture_deltas: vec![mem::take(&mut output.textures_delta)],
             output,
+            response,
             event_state: EventState::default(),
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
@@ -104,6 +109,10 @@ impl<'a> Harness<'a> {
         Self::builder().build(app)
     }
 
+    pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
+        Self::builder().build_ui(app)
+    }
+
     /// Set the size of the window.
     /// Note: If you only want to set the size once at the beginning,
     /// prefer using [`HarnessBuilder::with_size`].
@@ -125,13 +134,23 @@ impl<'a> Harness<'a> {
     /// Run a frame.
     /// This will call the app closure with the current context and update the Harness.
     pub fn step(&mut self) {
+        self._step(false);
+    }
+
+    fn _step(&mut self, sizing_pass: bool) {
         for event in self.kittest.take_events() {
             if let Some(event) = self.event_state.kittest_event_to_egui(event) {
                 self.input.events.push(event);
             }
         }
 
-        let mut output = self.ctx.run(self.input.take(), self.update_fn.as_mut());
+        let mut output = self.ctx.run(self.input.take(), |ctx| {
+            if sizing_pass {
+                self.response = self.app.run_sizing_pass(ctx);
+            } else {
+                self.response = self.app.run(ctx);
+            }
+        });
         self.kittest.update(
             output
                 .platform_output
@@ -142,6 +161,14 @@ impl<'a> Harness<'a> {
         self.texture_deltas
             .push(mem::take(&mut output.textures_delta));
         self.output = output;
+    }
+
+    pub fn fit_contents(&mut self) {
+        self._step(true);
+        if let Some(response) = &self.response {
+            self.set_size(response.rect.size());
+        }
+        self.run();
     }
 
     /// Run a few frames.

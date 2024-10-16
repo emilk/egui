@@ -1,3 +1,4 @@
+use crate::harness_kind::AppKind;
 use crate::Harness;
 use egui::{Pos2, Rect, Vec2};
 
@@ -50,6 +51,10 @@ impl HarnessBuilder {
     ///     });
     /// ```
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, app)
+        Harness::from_builder(&self, AppKind::Context(Box::new(app)))
+    }
+
+    pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
+        Harness::from_builder(&self, AppKind::Ui(Box::new(app)))
     }
 }

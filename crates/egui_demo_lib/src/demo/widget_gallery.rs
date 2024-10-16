@@ -300,15 +300,12 @@ mod tests {
             date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             ..Default::default()
         };
-        let app = |ctx: &Context| {
-            CentralPanel::default().show(ctx, |ui| {
-                demo.ui(ui);
-            });
-        };
-        let harness = Harness::builder()
-            .with_size(Vec2::new(380.0, 550.0))
+        let mut harness = Harness::builder()
             .with_dpi(2.0)
-            .build(app);
+            .with_size(Vec2::new(380.0, 550.0))
+            .build_ui(|ui| demo.ui(ui));
+
+        harness.fit_contents();
 
         harness.wgpu_snapshot("widget_gallery");
     }
