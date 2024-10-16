@@ -407,7 +407,7 @@ pub fn popup_above_or_below_widget<R>(
 
     let frame = Frame::popup(parent_ui.style());
     let frame_margin = frame.total_margin();
-    let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+    let inner_width = (widget_response.rect.width() - frame_margin.sum().x).max(0.0);
 
     parent_ui.ctx().pass_state_mut(|fs| {
         fs.layers
