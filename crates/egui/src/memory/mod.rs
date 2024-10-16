@@ -77,7 +77,7 @@ pub struct Memory {
     // ------------------------------------------
     /// new fonts that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
+    pub(crate) new_font_definitions: Option<std::sync::Arc<epaint::text::FontDefinitions>>,
 
     // Current active viewport
     #[cfg_attr(feature = "persistence", serde(skip))]

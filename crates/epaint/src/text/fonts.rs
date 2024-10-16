@@ -374,7 +374,7 @@ impl Fonts {
     pub fn new(
         pixels_per_point: f32,
         max_texture_side: usize,
-        definitions: FontDefinitions,
+        definitions: Arc<FontDefinitions>,
     ) -> Self {
         let fonts_and_cache = FontsAndCache {
             fonts: FontsImpl::new(pixels_per_point, max_texture_side, definitions),
@@ -570,7 +570,7 @@ impl FontsAndCache {
 pub struct FontsImpl {
     pixels_per_point: f32,
     max_texture_side: usize,
-    definitions: FontDefinitions,
+    definitions: Arc<FontDefinitions>,
     atlas: Arc<Mutex<TextureAtlas>>,
     font_impl_cache: FontImplCache,
     sized_family: ahash::HashMap<(OrderedFloat<f32>, FontFamily), Font>,
@@ -582,7 +582,7 @@ impl FontsImpl {
     pub fn new(
         pixels_per_point: f32,
         max_texture_side: usize,
-        definitions: FontDefinitions,
+        definitions: Arc<FontDefinitions>,
     ) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
