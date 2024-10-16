@@ -630,11 +630,16 @@ impl<'app> GlowWinitRunning<'app> {
         };
 
         viewport.info.events.clear(); // they should have been processed
-        let window = viewport.window.clone().unwrap();
-        let gl_surface = viewport.gl_surface.as_ref().unwrap();
-        let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-        egui_winit.handle_platform_output(&window, platform_output);
+        let (Some(egui_winit), Some(window), Some(gl_surface)) = (
+            viewport.egui_winit.as_mut(),
+            &viewport.window.clone(),
+            &viewport.gl_surface,
+        ) else {
+            return Ok(EventResult::Wait);
+        };
+
+        egui_winit.handle_platform_output(window, platform_output);
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -691,7 +696,7 @@ impl<'app> GlowWinitRunning<'app> {
                 }
             }
 
-            integration.post_rendering(&window);
+            integration.post_rendering(window);
         }
 
         {
@@ -720,7 +725,7 @@ impl<'app> GlowWinitRunning<'app> {
 
         integration.report_frame_time(frame_timer.total_time_sec()); // don't count auto-save time as part of regular frame time
 
-        integration.maybe_autosave(app.as_mut(), Some(&window));
+        integration.maybe_autosave(app.as_mut(), Some(window));
 
         if window.is_minimized() == Some(true) {
             // On Mac, a minimized Window uses up all CPU:
@@ -1478,7 +1483,7 @@ fn render_immediate_viewport(
     viewport.info.events.clear(); // they should have been processed
 
     let (Some(egui_winit), Some(window), Some(gl_surface)) = (
-        &mut viewport.egui_winit,
+        viewport.egui_winit.as_mut(),
         &viewport.window,
         &viewport.gl_surface,
     ) else {
