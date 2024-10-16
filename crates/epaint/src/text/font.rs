@@ -91,8 +91,8 @@ impl FontImpl {
         scale_in_pixels: f32,
         tweak: FontTweak,
     ) -> Self {
-        assert!(scale_in_pixels > 0.0);
-        assert!(pixels_per_point > 0.0);
+        assert!(scale_in_pixels > 0.0, "Scale must be positive");
+        assert!(pixels_per_point > 0.0, "Pixels per point must be positive");
 
         use ab_glyph::{Font, ScaleFont};
         let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
@@ -266,7 +266,7 @@ impl FontImpl {
     }
 
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
-        assert!(glyph_id.0 != 0);
+        assert!(glyph_id.0 != 0, "Invalid glyph_id");
         use ab_glyph::{Font as _, ScaleFont};
 
         let glyph = glyph_id.with_scale_and_position(

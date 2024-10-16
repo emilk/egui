@@ -384,7 +384,7 @@ impl Path {
 
     pub fn add_open_points(&mut self, points: &[Pos2]) {
         let n = points.len();
-        assert!(n >= 2);
+        assert!(n >= 2, "A path needs at least two points");
 
         if n == 2 {
             // Common case optimization:
@@ -430,7 +430,7 @@ impl Path {
 
     pub fn add_line_loop(&mut self, points: &[Pos2]) {
         let n = points.len();
-        assert!(n >= 2);
+        assert!(n >= 2, "A path needs at least two points");
         self.reserve(n);
 
         let mut n0 = (points[0] - points[n - 1]).normalized().rot90();

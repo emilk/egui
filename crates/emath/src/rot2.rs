@@ -84,7 +84,7 @@ impl Rot2 {
             c: self.c / l,
             s: self.s / l,
         };
-        debug_assert!(ret.is_finite());
+        debug_assert!(ret.is_finite(), "ret must be finite");
         ret
     }
 }
