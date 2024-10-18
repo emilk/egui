@@ -1147,19 +1147,28 @@ impl Prepared {
                 };
                 let min_handle_size = scroll_style.handle_min_length;
                 if handle_rect.size()[d] < min_handle_size {
-                    let half_size_difference = (min_handle_size - handle_rect.size()[d]) / 2.0;
+                    let handle_half_size = min_handle_size / 2.0;
                     let center_distance = scroll_bar_rect.center()[d] - handle_rect.center()[d];
+
+                    // Amount to move the handle towards the center to prevent overlap.
+                    // A negative value indicates no overlap exists.
+                    let move_center_distance = if center_distance >= 0.0 {
+                        scroll_bar_rect.min[d] - (handle_rect.center()[d] - handle_half_size)
+                    } else {
+                        (handle_rect.center()[d] + handle_half_size) - scroll_bar_rect.max[d]
+                    }.max(0.0);
+
                     let center_adjust_vector = vec2(
-                        if d == 0 { half_size_difference.copysign(center_distance) } else { 0.0 },
-                        if d == 1 { half_size_difference.copysign(center_distance) } else { 0.0 }
+                        if d == 0 { move_center_distance.copysign(center_distance) } else { 0.0 },
+                        if d == 1 { move_center_distance.copysign(center_distance) } else { 0.0 }
                     );
-                    let new_size = vec2(
-                        if d == 0 { min_handle_size } else { handle_rect.size().x },
-                        if d == 1 { min_handle_size } else { handle_rect.size().y },
-                    );
+
                     handle_rect = Rect::from_center_size(
                         handle_rect.center() + center_adjust_vector,
-                        new_size
+                        vec2(
+                            if d == 0 { min_handle_size } else { handle_rect.size().x },
+                            if d == 1 { min_handle_size } else { handle_rect.size().y },
+                        )
                     );
                 }
 
