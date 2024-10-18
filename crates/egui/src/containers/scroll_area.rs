@@ -1150,17 +1150,15 @@ impl Prepared {
                     let handle_half_size = min_handle_size / 2.0;
                     let center_distance = scroll_bar_rect.center()[d] - handle_rect.center()[d];
 
-                    // Amount to move the handle towards the center to prevent overlap.
-                    // A negative value indicates no overlap exists.
-                    let move_center_distance = if center_distance >= 0.0 {
+                    let overlap = if center_distance >= 0.0 {
                         scroll_bar_rect.min[d] - (handle_rect.center()[d] - handle_half_size)
                     } else {
                         (handle_rect.center()[d] + handle_half_size) - scroll_bar_rect.max[d]
                     }.max(0.0);
 
                     let center_adjust_vector = vec2(
-                        if d == 0 { move_center_distance.copysign(center_distance) } else { 0.0 },
-                        if d == 1 { move_center_distance.copysign(center_distance) } else { 0.0 }
+                        if d == 0 { overlap.copysign(center_distance) } else { 0.0 },
+                        if d == 1 { overlap.copysign(center_distance) } else { 0.0 }
                     );
 
                     handle_rect = Rect::from_center_size(
