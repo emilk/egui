@@ -883,6 +883,8 @@ impl Prepared {
 
                     if !animated {
                         state.offset[d] = target_offset;
+                    } else if let Some(_scroll_to_target) = &mut state.offset_target[d] {
+                        // Probably in the middle of animation process.
                     } else {
                         // The further we scroll, the more time we take.
                         let now = ui.input(|i| i.time);
