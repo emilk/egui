@@ -1158,7 +1158,7 @@ impl Prepared {
 
                     let center_adjust_vector = vec2(
                         if d == 0 { overlap.copysign(center_distance) } else { 0.0 },
-                        if d == 1 { overlap.copysign(center_distance) } else { 0.0 }
+                        if d == 1 { overlap.copysign(center_distance) } else { 0.0 },
                     );
 
                     handle_rect = Rect::from_center_size(
@@ -1166,7 +1166,7 @@ impl Prepared {
                         vec2(
                             if d == 0 { min_handle_size } else { handle_rect.size().x },
                             if d == 1 { min_handle_size } else { handle_rect.size().y },
-                        )
+                        ),
                     );
                 }
 
