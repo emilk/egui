@@ -153,6 +153,12 @@ impl PaintList {
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
+        if self.0.len() <= idx.0 {
+            #[cfg(feature = "log")]
+            log::warn!("Index {} is out of bounds for PaintList", idx.0);
+            return;
+        }
+
         self.0[idx.0] = ClippedShape { clip_rect, shape };
     }
 

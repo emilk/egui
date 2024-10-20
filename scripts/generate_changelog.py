@@ -85,7 +85,12 @@ def fetch_pr_info(pr_number: int) -> Optional[PrInfo]:
     if response.status_code == 200:
         labels = [label["name"] for label in json["labels"]]
         gh_user_name = json["user"]["login"]
-        return PrInfo(pr_number=pr_number, gh_user_name=gh_user_name, title=json["title"], labels=labels)
+        return PrInfo(
+            pr_number=pr_number,
+            gh_user_name=gh_user_name,
+            title=json["title"],
+            labels=labels,
+        )
     else:
         print(f"ERROR {url}: {response.status_code} - {json['message']}")
         return None
@@ -126,7 +131,9 @@ def pr_summary(pr: PrInfo, crate_name: Optional[str] = None) -> str:
     return summary
 
 
-def pr_info_section(prs: List[PrInfo], *, crate_name: str, heading: Optional[str] = None) -> str:
+def pr_info_section(
+    prs: List[PrInfo], *, crate_name: str, heading: Optional[str] = None
+) -> str:
     result = ""
     if 0 < len(prs):
         if heading is not None:
@@ -145,13 +152,12 @@ def changelog_from_prs(pr_infos: List[PrInfo], crate_name: str) -> str:
         # For small crates, or small releases
         return pr_info_section(pr_infos, crate_name=crate_name)
 
-
     fixed = []
     added = []
     rest = []
     for pr in pr_infos:
         summary = pr_summary(pr, crate_name)
-        if "bug" in pr.labels:
+        if summary.startswith("Fix") or "bug" in pr.labels:
             fixed.append(pr)
         elif summary.startswith("Add") or "feature" in pr.labels:
             added.append(pr)
@@ -196,22 +202,24 @@ def add_to_changelog_file(crate: str, content: str, version: str) -> None:
 
     file_path = changelog_filepath(crate)
 
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         content = file.read()
 
-    position = content.find('\n##')
+    position = content.find("\n##")
     assert position != -1
 
     content = content[:position] + insert_text + content[position:]
 
-    with open(file_path, 'w') as file:
+    with open(file_path, "w") as file:
         file.write(content)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a changelog.")
     parser.add_argument("--commit-range", help="e.g. 0.24.0..HEAD", required=True)
-    parser.add_argument("--write", help="Write into the different changelogs?", action="store_true")
+    parser.add_argument(
+        "--write", help="Write into the different changelogs?", action="store_true"
+    )
     parser.add_argument("--version", help="What release is this?")
     args = parser.parse_args()
 
@@ -238,7 +246,7 @@ def main() -> None:
     all_changelogs = ""
     for crate in crate_names:
         file_path = changelog_filepath(crate)
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             all_changelogs += file.read()
 
     repo = Repo(".")
@@ -273,7 +281,9 @@ def main() -> None:
             unsorted_commits.append(summary)
         else:
             if f"[#{pr_number}]" in all_changelogs:
-                print(f"* Ignoring PR that is already in the changelog: [#{pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr_number})")
+                print(
+                    f"* Ignoring PR that is already in the changelog: [#{pr_number}](https://github.com/{OWNER}/{REPO}/pull/{pr_number})"
+                )
                 continue
 
             assert pr_info is not None
@@ -295,7 +305,6 @@ def main() -> None:
                 if not any(label in pr_info.labels for label in ignore_labels):
                     unsorted_prs.append(pr_summary(pr_info))
 
-
     print()
     print(f"Full diff at https://github.com/emilk/egui/compare/{args.commit_range}")
     print()
@@ -304,13 +313,14 @@ def main() -> None:
             prs = crate_sections[crate]
             print_section(crate, changelog_from_prs(prs, crate))
     print_section("Unsorted PRs", "\n".join([f"* {item}" for item in unsorted_prs]))
-    print_section("Unsorted commits", "\n".join([f"* {item}" for item in unsorted_commits]))
+    print_section(
+        "Unsorted commits", "\n".join([f"* {item}" for item in unsorted_commits])
+    )
 
     if args.write:
         for crate in crate_names:
             items = changelog_from_prs(crate_sections[crate], crate)
             add_to_changelog_file(crate, items, args.version)
-
 
 
 if __name__ == "__main__":

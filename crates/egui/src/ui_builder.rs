@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use crate::{Id, Layout, Rect, Style, UiStackInfo};
+use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 
 #[allow(unused_imports)] // Used for doclinks
 use crate::Ui;
@@ -15,12 +15,14 @@ use crate::Ui;
 pub struct UiBuilder {
     pub id_salt: Option<Id>,
     pub ui_stack_info: UiStackInfo,
+    pub layer_id: Option<LayerId>,
     pub max_rect: Option<Rect>,
     pub layout: Option<Layout>,
     pub disabled: bool,
     pub invisible: bool,
     pub sizing_pass: bool,
     pub style: Option<Arc<Style>>,
+    pub sense: Option<Sense>,
 }
 
 impl UiBuilder {
@@ -44,6 +46,13 @@ impl UiBuilder {
     #[inline]
     pub fn ui_stack_info(mut self, ui_stack_info: UiStackInfo) -> Self {
         self.ui_stack_info = ui_stack_info;
+        self
+    }
+
+    /// Show the [`Ui`] in a different [`LayerId`] from its parent.
+    #[inline]
+    pub fn layer_id(mut self, layer_id: LayerId) -> Self {
+        self.layer_id = Some(layer_id);
         self
     }
 
@@ -112,6 +121,18 @@ impl UiBuilder {
     #[inline]
     pub fn style(mut self, style: impl Into<Arc<Style>>) -> Self {
         self.style = Some(style.into());
+        self
+    }
+
+    /// Set if you want sense clicks and/or drags. Default is [`Sense::hover`].
+    /// The sense will be registered below the Senses of any widgets contained in this [`Ui`], so
+    /// if the user clicks a button contained within this [`Ui`], that button will receive the click
+    /// instead.
+    ///
+    /// The response can be read early with [`Ui::response`].
+    #[inline]
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = Some(sense);
         self
     }
 }

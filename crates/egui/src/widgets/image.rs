@@ -42,7 +42,7 @@ use crate::{
 /// # });
 /// ```
 ///
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
     source: ImageSource<'a>,

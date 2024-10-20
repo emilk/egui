@@ -4,7 +4,8 @@
 
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
-use epaint::{Rounding, Shadow, Stroke};
+use emath::Align;
+use epaint::{text::FontTweak, Rounding, Shadow, Stroke};
 
 use crate::{
     ecolor::Color32,
@@ -195,6 +196,11 @@ pub struct Style {
     /// On most widgets you can also set an explicit text style,
     /// which will take precedence over this.
     pub override_font_id: Option<FontId>,
+
+    /// How to vertically align text.
+    ///
+    /// Set to `None` to use align that depends on the current layout.
+    pub override_text_valign: Option<Align>,
 
     /// The [`FontFamily`] and size you want to use for a specific [`TextStyle`].
     ///
@@ -1160,6 +1166,13 @@ pub struct DebugOptions {
 
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
+
+    /// If true, highlight widgets that are not aligned to integer point coordinates.
+    ///
+    /// It's usually a good idea to keep to integer coordinates to avoid rounding issues.
+    ///
+    /// See <https://github.com/emilk/egui/issues/5163> for more.
+    pub show_unaligned: bool,
 }
 
 #[cfg(debug_assertions)]
@@ -1175,6 +1188,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
+            show_unaligned: false,
         }
     }
 }
@@ -1201,6 +1215,7 @@ impl Default for Style {
         Self {
             override_font_id: None,
             override_text_style: None,
+            override_text_valign: Some(Align::Center),
             text_styles: default_text_styles(),
             drag_value_text_style: TextStyle::Button,
             number_formatter: NumberFormatter(Arc::new(emath::format_with_decimals_in_range)),
@@ -1501,6 +1516,7 @@ impl Style {
         let Self {
             override_font_id,
             override_text_style,
+            override_text_valign,
             text_styles,
             drag_value_text_style,
             number_formatter: _, // can't change callbacks in the UI
@@ -1534,7 +1550,7 @@ impl Style {
             ui.end_row();
 
             ui.label("Override text style");
-            crate::ComboBox::from_id_salt("Override text style")
+            crate::ComboBox::from_id_salt("override_text_style")
                 .selected_text(match override_text_style {
                     None => "None".to_owned(),
                     Some(override_text_style) => override_text_style.to_string(),
@@ -1546,6 +1562,28 @@ impl Style {
                         let text =
                             crate::RichText::new(style.to_string()).text_style(style.clone());
                         ui.selectable_value(override_text_style, Some(style), text);
+                    }
+                });
+            ui.end_row();
+
+            fn valign_name(valign: Align) -> &'static str {
+                match valign {
+                    Align::TOP => "Top",
+                    Align::Center => "Center",
+                    Align::BOTTOM => "Bottom",
+                }
+            }
+
+            ui.label("Override text valign");
+            crate::ComboBox::from_id_salt("override_text_valign")
+                .selected_text(match override_text_valign {
+                    None => "None",
+                    Some(override_text_valign) => valign_name(*override_text_valign),
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(override_text_valign, None, "None");
+                    for align in [Align::TOP, Align::Center, Align::BOTTOM] {
+                        ui.selectable_value(override_text_valign, Some(align), valign_name(align));
                     }
                 });
             ui.end_row();
@@ -2160,6 +2198,7 @@ impl DebugOptions {
             show_resize,
             show_interactive_widgets,
             show_widget_hits,
+            show_unaligned,
         } = self;
 
         {
@@ -2188,6 +2227,11 @@ impl DebugOptions {
         );
 
         ui.checkbox(show_widget_hits, "Show widgets under mouse pointer");
+
+        ui.checkbox(
+            show_unaligned,
+            "Show rectangles not aligned to integer point coordinates",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self, "Reset debug options"));
     }
@@ -2496,5 +2540,50 @@ impl Widget for &mut crate::Frame {
                 ui.end_row();
             })
             .response
+    }
+}
+
+impl Widget for &mut FontTweak {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let original: FontTweak = *self;
+
+        let mut response = Grid::new("font_tweak")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let FontTweak {
+                    scale,
+                    y_offset_factor,
+                    y_offset,
+                    baseline_offset_factor,
+                } = self;
+
+                ui.label("Scale");
+                let speed = *scale * 0.01;
+                ui.add(DragValue::new(scale).range(0.01..=10.0).speed(speed));
+                ui.end_row();
+
+                ui.label("y_offset_factor");
+                ui.add(DragValue::new(y_offset_factor).speed(-0.0025));
+                ui.end_row();
+
+                ui.label("y_offset");
+                ui.add(DragValue::new(y_offset).speed(-0.02));
+                ui.end_row();
+
+                ui.label("baseline_offset_factor");
+                ui.add(DragValue::new(baseline_offset_factor).speed(-0.0025));
+                ui.end_row();
+
+                if ui.button("Reset").clicked() {
+                    *self = Default::default();
+                }
+            })
+            .response;
+
+        if *self != original {
+            response.mark_changed();
+        }
+
+        response
     }
 }

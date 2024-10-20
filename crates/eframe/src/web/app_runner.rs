@@ -176,6 +176,12 @@ impl AppRunner {
     ///
     /// Technically: does either the canvas or the [`TextAgent`] have focus?
     pub fn has_focus(&self) -> bool {
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        if document.hidden() {
+            return false;
+        }
+
         super::has_focus(self.canvas()) || self.text_agent.has_focus()
     }
 
@@ -269,8 +275,8 @@ impl AppRunner {
             ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
-            num_completed_passes: _, // handled by `Context::run`
-            requested_discard: _,    // handled by `Context::run`
+            num_completed_passes: _,    // handled by `Context::run`
+            request_discard_reasons: _, // handled by `Context::run`
         } = platform_output;
 
         super::set_cursor_icon(cursor_icon);

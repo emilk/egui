@@ -1,3 +1,5 @@
+use crate::Vec2;
+
 /// Two bools, one for each axis (X and Y).
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -42,6 +44,12 @@ impl Vec2b {
             x: self.x || other.x,
             y: self.y || other.y,
         }
+    }
+
+    /// Convert to a float `Vec2` where the components are 1.0 for `true` and 0.0 for `false`.
+    #[inline]
+    pub fn to_vec2(self) -> Vec2 {
+        Vec2::new(self.x.into(), self.y.into())
     }
 }
 

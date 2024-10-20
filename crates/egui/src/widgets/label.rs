@@ -23,7 +23,7 @@ use self::text_selection::LabelSelectionState;
 ///
 /// For full control of the text you can use [`crate::text::LayoutJob`]
 /// as argument to [`Self::new`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Label {
     text: WidgetText,
     wrap_mode: Option<TextWrapMode>,
@@ -162,7 +162,7 @@ impl Label {
             return (pos, galley, response);
         }
 
-        let valign = ui.layout().vertical_align();
+        let valign = ui.text_valign();
         let mut layout_job = self
             .text
             .into_layout_job(ui.style(), FontSelection::Default, valign);

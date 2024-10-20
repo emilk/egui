@@ -53,7 +53,7 @@ impl Region {
     }
 
     /// Ensure we are big enough to contain the given X-coordinate.
-    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_x(&mut self, x: f32) {
         self.min_rect.extend_with_x(x);
         self.max_rect.extend_with_x(x);
@@ -61,7 +61,7 @@ impl Region {
     }
 
     /// Ensure we are big enough to contain the given Y-coordinate.
-    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_y(&mut self, y: f32) {
         self.min_rect.extend_with_y(y);
         self.max_rect.extend_with_y(y);
@@ -660,8 +660,6 @@ impl Layout {
         let rect = self.align_size_within_rect(size, frame);
         debug_assert!(!rect.any_nan());
         debug_assert!(!rect.is_negative());
-        debug_assert!((rect.width() - size.x).abs() < 1.0 || size.x == f32::INFINITY);
-        debug_assert!((rect.height() - size.y).abs() < 1.0 || size.y == f32::INFINITY);
         rect
     }
 
@@ -767,7 +765,7 @@ impl Layout {
 
     /// Move to the next row in a wrapping layout.
     /// Otherwise does nothing.
-    pub(crate) fn end_row(&mut self, region: &mut Region, spacing: Vec2) {
+    pub(crate) fn end_row(&self, region: &mut Region, spacing: Vec2) {
         if self.main_wrap {
             match self.main_dir {
                 Direction::LeftToRight => {
@@ -790,7 +788,7 @@ impl Layout {
     }
 
     /// Set row height in horizontal wrapping layout.
-    pub(crate) fn set_row_height(&mut self, region: &mut Region, height: f32) {
+    pub(crate) fn set_row_height(&self, region: &mut Region, height: f32) {
         if self.main_wrap && self.is_horizontal() {
             region.cursor.max.y = region.cursor.min.y + height;
         }

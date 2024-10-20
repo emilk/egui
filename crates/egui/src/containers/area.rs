@@ -462,14 +462,17 @@ impl Area {
                 }
             });
 
-            let move_response = ctx.create_widget(WidgetRect {
-                id: interact_id,
-                layer_id,
-                rect: state.rect(),
-                interact_rect: state.rect(),
-                sense,
-                enabled,
-            });
+            let move_response = ctx.create_widget(
+                WidgetRect {
+                    id: interact_id,
+                    layer_id,
+                    rect: state.rect(),
+                    interact_rect: state.rect(),
+                    sense,
+                    enabled,
+                },
+                true,
+            );
 
             if movable && move_response.dragged() {
                 if let Some(pivot_pos) = &mut state.pivot_pos {
@@ -537,6 +540,7 @@ impl Prepared {
 
         let mut ui_builder = UiBuilder::new()
             .ui_stack_info(UiStackInfo::new(self.kind))
+            .layer_id(self.layer_id)
             .max_rect(max_rect);
 
         if !self.enabled {
@@ -546,7 +550,7 @@ impl Prepared {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        let mut ui = Ui::new(ctx.clone(), self.layer_id, self.layer_id.id, ui_builder);
+        let mut ui = Ui::new(ctx.clone(), self.layer_id.id, ui_builder);
         ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
         if self.fade_in {

@@ -11,7 +11,7 @@ enum ProgressBarText {
 /// A simple progress bar.
 ///
 /// See also: [`crate::Spinner`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct ProgressBar {
     progress: f32,
     desired_width: Option<f32>,

@@ -61,6 +61,7 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
     let document = window.document().unwrap();
     let canvas = runner_ref.try_lock().unwrap().canvas().clone();
 
+    install_blur_focus(runner_ref, &document)?;
     install_blur_focus(runner_ref, &canvas)?;
 
     prevent_default_and_stop_propagation(
@@ -106,15 +107,10 @@ pub(crate) fn install_event_handlers(runner_ref: &WebRunner) -> Result<(), JsVal
 fn install_blur_focus(runner_ref: &WebRunner, target: &EventTarget) -> Result<(), JsValue> {
     // NOTE: because of the text agent we sometime miss 'blur' events,
     // so we also poll the focus state each frame in `AppRunner::logic`.
-    for event_name in ["blur", "focus"] {
+    for event_name in ["blur", "focus", "visibilitychange"] {
         let closure = move |_event: web_sys::MouseEvent, runner: &mut AppRunner| {
             log::trace!("{} {event_name:?}", runner.canvas().id());
             runner.update_focus();
-
-            if event_name == "blur" {
-                // This might be a good time to save the state
-                runner.save();
-            }
         };
 
         runner_ref.add_event_listener(target, event_name, closure)?;
