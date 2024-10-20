@@ -886,10 +886,8 @@ impl Prepared {
 
                     if !animated {
                         state.offset[d] = target_offset;
-                    } else if let Some(scroll_to_target) = &mut state.offset_target[d] {
-                        // For instance: the user is continuously calling `ui.scroll_to_cursor`,
-                        // so we don't want to reset the animation, but perhaps update the target:
-                        scroll_to_target.target_offset = target_offset;
+                    } else if let Some(_scroll_to_target) = &mut state.offset_target[d] {
+                        // Probably in the middle of animation process.
                     } else {
                         // The further we scroll, the more time we take.
                         let now = ui.input(|i| i.time);
