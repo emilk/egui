@@ -80,6 +80,9 @@ impl Display for SnapshotError {
 }
 
 /// Image snapshot test.
+/// The snapshot will be saved under `tests/snapshots/{name}.png`.
+/// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+/// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
 ///
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
@@ -170,6 +173,9 @@ fn maybe_update_snapshot(
 }
 
 /// Image snapshot test.
+/// The snapshot will be saved under `tests/snapshots/{name}.png`.
+/// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+/// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
 ///
 /// # Panics
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
@@ -187,6 +193,9 @@ pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
 #[cfg(feature = "wgpu")]
 impl Harness<'_> {
     /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// The snapshot will be saved under `tests/snapshots/{name}.png`.
+    /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+    /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
@@ -198,6 +207,9 @@ impl Harness<'_> {
     }
 
     /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// The snapshot will be saved under `tests/snapshots/{name}.png`.
+    /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+    /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Panics
     /// Panics if the image does not match the snapshot or if there was an error reading or writing the
