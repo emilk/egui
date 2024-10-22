@@ -55,8 +55,13 @@ serde = { workspace = true, optional = true }
 
 
 [dev-dependencies]
-criterion.workspace = true
+# when running tests we always want to use the `chrono` feature
+egui_demo_lib = { workspace = true, features = ["chrono"] }
 
+criterion.workspace = true
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+wgpu = { workspace = true, features = ["metal"] }
+egui = { workspace = true, features = ["default_fonts"] }
 
 [[bench]]
 name = "benchmark"
