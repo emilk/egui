@@ -19,6 +19,7 @@ fn main() -> eframe::Result {
     )
 }
 
+// Demonstrates how to add a font to the existing ones
 fn add_font(ctx: &egui::Context) {
     ctx.add_font(FontInsert::new(
         "my_font",
