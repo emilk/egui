@@ -96,10 +96,10 @@ pub fn hit_test(
         let hits = hit_test_on_close(&close, pos_in_layer);
 
         if let Some(drag) = hits.drag {
-            debug_assert!(drag.sense.drag);
+            debug_assert!(drag.sense.drag, "Drag widget should sense drag");
         }
         if let Some(click) = hits.click {
-            debug_assert!(click.sense.click);
+            debug_assert!(click.sense.click, "Click widget should sense click");
         }
 
         hits

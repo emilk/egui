@@ -94,7 +94,13 @@ impl ColorImage {
     /// }
     /// ```
     pub fn from_rgba_unmultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        assert_eq!(
+            size[0] * size[1] * 4,
+            rgba.len(),
+            "size: {:?}, rgba.len(): {}",
+            size,
+            rgba.len()
+        );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
@@ -103,7 +109,13 @@ impl ColorImage {
     }
 
     pub fn from_rgba_premultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        assert_eq!(
+            size[0] * size[1] * 4,
+            rgba.len(),
+            "size: {:?}, rgba.len(): {}",
+            size,
+            rgba.len()
+        );
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_premultiplied(p[0], p[1], p[2], p[3]))
@@ -115,7 +127,11 @@ impl ColorImage {
     ///
     /// Panics if `size[0] * size[1] != gray.len()`.
     pub fn from_gray(size: [usize; 2], gray: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1], gray.len());
+        assert_eq!(
+            size[0] * size[1],
+            gray.len(),
+            "the size of the image and the length of the gray data must match"
+        );
         let pixels = gray.iter().map(|p| Color32::from_gray(*p)).collect();
         Self { size, pixels }
     }
@@ -126,7 +142,11 @@ impl ColorImage {
     /// Panics if `size[0] * size[1] != gray_iter.len()`.
     pub fn from_gray_iter(size: [usize; 2], gray_iter: impl Iterator<Item = u8>) -> Self {
         let pixels: Vec<_> = gray_iter.map(Color32::from_gray).collect();
-        assert_eq!(size[0] * size[1], pixels.len());
+        assert_eq!(
+            size[0] * size[1],
+            pixels.len(),
+            "the size of the image and the count of the pixels must match"
+        );
         Self { size, pixels }
     }
 
@@ -153,8 +173,8 @@ impl ColorImage {
         let max_x = (region.max.x * pixels_per_point) as usize;
         let min_y = (region.min.y * pixels_per_point) as usize;
         let max_y = (region.max.y * pixels_per_point) as usize;
-        assert!(min_x <= max_x);
-        assert!(min_y <= max_y);
+        assert!(min_x <= max_x, "min must be less than or equal to max");
+        assert!(min_y <= max_y, "min must be less than or equal to max");
         let width = max_x - min_x;
         let height = max_y - min_y;
         let mut output = Vec::with_capacity(width * height);
@@ -178,7 +198,11 @@ impl ColorImage {
     ///
     /// Panics if `size[0] * size[1] * 3 != rgb.len()`.
     pub fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
-        assert_eq!(size[0] * size[1] * 3, rgb.len());
+        assert_eq!(
+            size[0] * size[1] * 3,
+            rgb.len(),
+            "the size of the image and the length of the rgb data must match"
+        );
         let pixels = rgb
             .chunks_exact(3)
             .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
@@ -220,7 +244,7 @@ impl std::ops::Index<(usize, usize)> for ColorImage {
     #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &Color32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "index out of bounds");
         &self.pixels[y * w + x]
     }
 }
@@ -229,7 +253,7 @@ impl std::ops::IndexMut<(usize, usize)> for ColorImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut Color32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "index out of bounds");
         &mut self.pixels[y * w + x]
     }
 }
@@ -312,15 +336,15 @@ impl FontImage {
 
     /// Clone a sub-region as a new image.
     pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
-        assert!(x + w <= self.width());
-        assert!(y + h <= self.height());
+        assert!(x + w <= self.width(), "x must be within bounds");
+        assert!(y + h <= self.height(), "y must be within bounds");
 
         let mut pixels = Vec::with_capacity(w * h);
         for y in y..y + h {
             let offset = y * self.width() + x;
             pixels.extend(&self.pixels[offset..(offset + w)]);
         }
-        assert_eq!(pixels.len(), w * h);
+        assert_eq!(pixels.len(), w * h, "pixels.len() must match w * h");
         Self {
             size: [w, h],
             pixels,
@@ -334,7 +358,7 @@ impl std::ops::Index<(usize, usize)> for FontImage {
     #[inline]
     fn index(&self, (x, y): (usize, usize)) -> &f32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "index out of bounds");
         &self.pixels[y * w + x]
     }
 }
@@ -343,7 +367,7 @@ impl std::ops::IndexMut<(usize, usize)> for FontImage {
     #[inline]
     fn index_mut(&mut self, (x, y): (usize, usize)) -> &mut f32 {
         let [w, h] = self.size;
-        assert!(x < w && y < h);
+        assert!(x < w && y < h, "index out of bounds");
         &mut self.pixels[y * w + x]
     }
 }
