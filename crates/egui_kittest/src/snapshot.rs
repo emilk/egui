@@ -121,10 +121,12 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
 
     // Looking at dify's source code, the threshold is based on the distance between two colors in
     // YIQ color space.
-    // The default is 0.1, but we'll try 0.0 because ideally the output should not change at all.
-    // We might have to increase the threshold if there are minor differences when running tests
-    // on different gpus or different backends.
-    let threshold = 0.0;
+    // The default is 0.1.
+    // We currently need 2.1 because there are slight rendering differences between the different
+    // wgpu rendering backends, graphics cards and/or operating systems.
+    // After some testing it seems like 0.6 should be enough for almost all tests to pass.
+    // Only the `Bézier Curve` demo seems to need a threshold of 2.1.
+    let threshold = 2.1;
     let result = dify::diff::get_results(
         previous,
         current.clone(),
