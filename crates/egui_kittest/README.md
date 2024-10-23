@@ -2,6 +2,7 @@
 
 Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kittest) (an [AccessKit](https://github.com/AccessKit/accesskit) based testing library).
 
+## Example usage
 ```rust
 use egui::accesskit::{Role, Toggled};
 use egui::{CentralPanel, Context, TextEdit, Vec2};
@@ -33,3 +34,14 @@ fn main() {
     harness.wgpu_snapshot("readme_example");
 }
 ```
+
+## Snapshot testing
+There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
+Once enabled, you can call `Harness::wgpu_snapshot` to render the ui and save the image to the `tests/snapshots` directory.
+
+To update the snapshots, run your tests with `UPDATE_SNAPSHOTS=true`, so e.g. `UPDATE_SNAPSHOTS=true cargo test`.
+Running with `UPDATE_SNAPSHOTS=true` will still cause the tests to fail, but on the next run, the tests should pass.
+
+If you want to have multiple snapshots in the same test, it makes sense to collect the results in a `Vec` 
+([look here](https://github.com/emilk/egui/blob/70a01138b77f9c5724a35a6ef750b9ae1ab9f2dc/crates/egui_demo_lib/src/demo/demo_app_windows.rs#L388-L427) for an example).
+This way they can all be updated at the same time.

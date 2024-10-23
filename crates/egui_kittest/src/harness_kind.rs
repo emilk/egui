@@ -8,7 +8,7 @@ pub enum AppKind<'a> {
     Ui(AppKindUi<'a>),
 }
 
-// TODO: These aren't working unfortunately :(
+// TODO(lucasmerlin): These aren't working unfortunately :(
 // I think they should work though: https://geo-ant.github.io/blog/2021/rust-traits-and-variadic-functions/
 // pub trait IntoAppKind<'a, UiKind> {
 //     fn into_harness_kind(self) -> AppKind<'a>;

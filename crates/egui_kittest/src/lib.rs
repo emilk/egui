@@ -23,7 +23,7 @@ use std::mem;
 use crate::event::EventState;
 use crate::harness_kind::AppKind;
 pub use builder::*;
-use egui::{CentralPanel, Pos2, Rect, TexturesDelta, UiBuilder, Vec2, ViewportId};
+use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 
 /// The test Harness. This contains everything needed to run the test.

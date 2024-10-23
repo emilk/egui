@@ -80,6 +80,9 @@ impl Display for SnapshotError {
 }
 
 /// Image snapshot test.
+/// The snapshot will be saved under `tests/snapshots/{name}.png`.
+/// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+/// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
 ///
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
@@ -118,10 +121,12 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
 
     // Looking at dify's source code, the threshold is based on the distance between two colors in
     // YIQ color space.
-    // The default is 0.1, but we'll try 0.0 because ideally the output should not change at all.
-    // We might have to increase the threshold if there are minor differences when running tests
-    // on different gpus or different backends.
-    let threshold = 0.0;
+    // The default is 0.1.
+    // We currently need 2.1 because there are slight rendering differences between the different
+    // wgpu rendering backends, graphics cards and/or operating systems.
+    // After some testing it seems like 0.6 should be enough for almost all tests to pass.
+    // Only the `Bézier Curve` demo seems to need a threshold of 2.1.
+    let threshold = 2.1;
     let result = dify::diff::get_results(
         previous,
         current.clone(),
@@ -170,6 +175,9 @@ fn maybe_update_snapshot(
 }
 
 /// Image snapshot test.
+/// The snapshot will be saved under `tests/snapshots/{name}.png`.
+/// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+/// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
 ///
 /// # Panics
 /// Panics if the image does not match the snapshot or if there was an error reading or writing the
@@ -187,6 +195,9 @@ pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
 #[cfg(feature = "wgpu")]
 impl Harness<'_> {
     /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// The snapshot will be saved under `tests/snapshots/{name}.png`.
+    /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+    /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
@@ -198,6 +209,9 @@ impl Harness<'_> {
     }
 
     /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// The snapshot will be saved under `tests/snapshots/{name}.png`.
+    /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
+    /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Panics
     /// Panics if the image does not match the snapshot or if there was an error reading or writing the
