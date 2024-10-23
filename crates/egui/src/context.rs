@@ -601,7 +601,7 @@ impl ContextImpl {
             }
 
             #[cfg(feature = "log")]
-            log::trace!("Loading new font definitions");
+            log::trace!("Adding new fonts");
         }
 
         let mut is_new = false;
