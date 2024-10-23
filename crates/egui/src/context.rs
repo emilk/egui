@@ -1777,7 +1777,7 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new font will become active at the start of the next pass.
-    /// This will keep the existing fonts
+    /// This will keep the existing fonts.
     pub fn add_font(&self, new_font: FontInsert) {
         crate::profile_function!();
 
