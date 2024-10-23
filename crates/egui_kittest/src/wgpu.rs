@@ -6,6 +6,7 @@ use image::RgbaImage;
 use std::iter::once;
 use wgpu::Maintain;
 
+/// Utility to render snapshots from a [`Harness`] using [`egui_wgpu`].
 pub struct TestRenderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -19,6 +20,7 @@ impl Default for TestRenderer {
 }
 
 impl TestRenderer {
+    /// Create a new [`TestRenderer`] using a default [`wgpu::Instance`].
     pub fn new() -> Self {
         let instance = wgpu::Instance::new(InstanceDescriptor::default());
 
@@ -39,6 +41,7 @@ impl TestRenderer {
         Self::create(device, queue)
     }
 
+    /// Create a new [`TestRenderer`] using the provided [`wgpu::Device`] and [`wgpu::Queue`].
     pub fn create(device: wgpu::Device, queue: wgpu::Queue) -> Self {
         Self {
             device,
@@ -47,13 +50,20 @@ impl TestRenderer {
         }
     }
 
+    /// Enable or disable dithering.
+    ///
+    /// Disabled by default.
     #[inline]
     pub fn with_dithering(mut self, dithering: bool) -> Self {
         self.dithering = dithering;
         self
     }
 
+    /// Render the [`Harness`] and return the resulting image.
     pub fn render(&mut self, harness: &Harness<'_>) -> RgbaImage {
+        // We need to create a new renderer each time we render, since the renderer stores
+        // textures related to the Harnesses' egui Context.
+        // Calling the renderer from different Harnesses would cause problems if we store the renderer.
         let mut renderer = egui_wgpu::Renderer::new(
             &self.device,
             TextureFormat::Rgba8Unorm,
