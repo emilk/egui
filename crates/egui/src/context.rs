@@ -585,7 +585,7 @@ impl ContextImpl {
         if !self.memory.add_fonts.is_empty() {
             let fonts = self.memory.add_fonts.drain(..);
             for font in fonts {
-                self.fonts.clear();
+                self.fonts.clear(); // recreate all the fonts
                 for family in font.families {
                     let fam = self
                         .font_definitions
