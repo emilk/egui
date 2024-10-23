@@ -1147,13 +1147,26 @@ impl Prepared {
                 };
                 let min_handle_size = scroll_style.handle_min_length;
                 if handle_rect.size()[d] < min_handle_size {
+                    let handle_half_size = min_handle_size / 2.0;
+                    let center_distance = scroll_bar_rect.center()[d] - handle_rect.center()[d];
+
+                    let overlap = if center_distance >= 0.0 {
+                        scroll_bar_rect.min[d] - (handle_rect.center()[d] - handle_half_size)
+                    } else {
+                        (handle_rect.center()[d] + handle_half_size) - scroll_bar_rect.max[d]
+                    }.max(0.0);
+
+                    let center_adjust_vector = vec2(
+                        if d == 0 { overlap.copysign(center_distance) } else { 0.0 },
+                        if d == 1 { overlap.copysign(center_distance) } else { 0.0 }
+                    );
+
                     handle_rect = Rect::from_center_size(
-                        handle_rect.center(),
-                        if d == 0 {
-                            vec2(min_handle_size, handle_rect.size().y)
-                        } else {
-                            vec2(handle_rect.size().x, min_handle_size)
-                        },
+                        handle_rect.center() + center_adjust_vector,
+                        vec2(
+                            if d == 0 { min_handle_size } else { handle_rect.size().x },
+                            if d == 1 { min_handle_size } else { handle_rect.size().y },
+                        )
                     );
                 }
 
