@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
+use std::sync::Arc;
+
 use eframe::egui;
 
 fn main() -> eframe::Result {
@@ -44,7 +46,7 @@ fn setup_custom_fonts(ctx: &egui::Context) {
         .push("my_font".to_owned());
 
     // Tell egui to use these fonts:
-    ctx.set_fonts(fonts);
+    ctx.set_fonts(Arc::new(fonts));
 }
 
 struct MyApp {

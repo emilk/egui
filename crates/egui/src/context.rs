@@ -401,7 +401,7 @@ struct ContextImpl {
     /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
     /// as well as kerning, font sizes, etc.
     fonts: std::collections::BTreeMap<OrderedFloat<f32>, Fonts>,
-    font_definitions: FontDefinitions,
+    font_definitions: Arc<FontDefinitions>,
 
     memory: Memory,
     animation_manager: AnimationManager,
@@ -1727,7 +1727,7 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass.
-    pub fn set_fonts(&self, font_definitions: FontDefinitions) {
+    pub fn set_fonts(&self, font_definitions: Arc<FontDefinitions>) {
         crate::profile_function!();
 
         let pixels_per_point = self.pixels_per_point();
@@ -1737,7 +1737,7 @@ impl Context {
         self.read(|ctx| {
             if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
                 // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.lock().fonts.definitions() == &font_definitions {
+                if current_fonts.lock().fonts.definitions() == font_definitions.as_ref() {
                     update_fonts = false; // no need to update
                 }
             }
@@ -2879,7 +2879,7 @@ impl Context {
     }
 
     fn fonts_tweak_ui(&self, ui: &mut Ui) {
-        let mut font_definitions = self.write(|ctx| ctx.font_definitions.clone());
+        let mut font_definitions = self.write(|ctx| ctx.font_definitions.as_ref().clone());
         let mut changed = false;
 
         for (name, data) in &mut font_definitions.font_data {
@@ -2891,7 +2891,7 @@ impl Context {
         }
 
         if changed {
-            self.set_fonts(font_definitions);
+            self.set_fonts(Arc::new(font_definitions));
         }
     }
 
