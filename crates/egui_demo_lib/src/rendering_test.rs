@@ -699,14 +699,12 @@ mod tests {
 
             harness.fit_contents();
 
-            let result = harness.try_wgpu_snapshot(&format!("rendering_test/dpi_{:.2}", dpi));
+            let result = harness.try_wgpu_snapshot(&format!("rendering_test/dpi_{dpi:.2}"));
             if let Err(err) = result {
                 errors.push(err);
             }
         }
 
-        if !errors.is_empty() {
-            panic!("Errors: {:#?}", errors);
-        }
+        assert!(errors.is_empty(), "Errors: {errors:#?}");
     }
 }

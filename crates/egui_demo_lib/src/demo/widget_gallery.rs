@@ -290,7 +290,7 @@ fn doc_link_label_with_crate<'a>(
 mod tests {
     use super::*;
     use crate::View;
-    use egui::{CentralPanel, Context, Vec2};
+    use egui::Vec2;
     use egui_kittest::Harness;
 
     #[test]
