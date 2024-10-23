@@ -39,11 +39,11 @@ pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     let size = if cfg!(target_os = "ios") {
         // `outer_size` Includes the area behind the "dynamic island".
         // It is up to the eframe user to make sure the dynamic island doesn't cover anything important.
-        // That will be easier once https://github.com/rust-windowing/winit/pull/3890 lands 
-        window.outer_size();
+        // That will be easier once https://github.com/rust-windowing/winit/pull/3890 lands
+        window.outer_size()
     } else {
-		window.inner_size()
-	};
+        window.inner_size()
+    };
     egui::vec2(size.width as f32, size.height as f32)
 }
 
