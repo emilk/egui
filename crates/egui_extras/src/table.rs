@@ -743,6 +743,7 @@ impl<'a> Table<'a> {
         let cursor_position = ui.cursor().min;
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
+            .id_salt(state_id.with("__scroll_area"))
             .drag_to_scroll(drag_to_scroll)
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
