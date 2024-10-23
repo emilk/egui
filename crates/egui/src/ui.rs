@@ -276,7 +276,7 @@ impl Ui {
         let style = style.unwrap_or_else(|| self.style.clone());
         let sense = sense.unwrap_or(Sense::hover());
 
-        if self.sizing_pass {
+        if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
             // so that we measure the only the space we _need_.
             layout.cross_justify = false;
