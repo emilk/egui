@@ -39,6 +39,7 @@ fn add_font(ctx: &egui::Context) {
     ));
 }
 
+// Demonstrates how to replace all fonts.
 fn replace_fonts(ctx: &egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
     let mut fonts = egui::FontDefinitions::default();
