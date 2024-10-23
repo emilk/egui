@@ -108,15 +108,17 @@ impl Color32 {
             // common-case optimization
             255 => Self::from_rgb(r, g, b),
             a => {
-                static LOOKUP_TABLE: OnceLock<[u8; 256 * 256]> = OnceLock::new();
+                static LOOKUP_TABLE: OnceLock<Box<[u8]>> = OnceLock::new();
                 let lut = LOOKUP_TABLE.get_or_init(|| {
                     use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
-                    core::array::from_fn(|i| {
-                        let [value, alpha] = (i as u16).to_ne_bytes();
-                        let value_lin = linear_f32_from_gamma_u8(value);
-                        let alpha_lin = linear_f32_from_linear_u8(alpha);
-                        gamma_u8_from_linear_f32(value_lin * alpha_lin)
-                    })
+                    (0..=u16::MAX)
+                        .map(|i| {
+                            let [value, alpha] = i.to_ne_bytes();
+                            let value_lin = linear_f32_from_gamma_u8(value);
+                            let alpha_lin = linear_f32_from_linear_u8(alpha);
+                            gamma_u8_from_linear_f32(value_lin * alpha_lin)
+                        })
+                        .collect()
                 });
 
                 let [r, g, b] =
