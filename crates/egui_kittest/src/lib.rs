@@ -91,7 +91,9 @@ impl<'a> Harness<'a> {
 
     /// Create a new Harness with the given app closure.
     ///
-    /// The ui closure will immediately be called once to create the initial ui.
+    /// The app closure will immediately be called once to create the initial ui.
+    ///
+    /// If you don't need to create Windows / Panels, you can use [`Harness::new_ui`] instead.
     ///
     /// If you e.g. want to customize the size of the window, you can use [`Harness::builder`].
     ///
@@ -109,6 +111,21 @@ impl<'a> Harness<'a> {
         Self::builder().build(app)
     }
 
+    /// Create a new Harness with the given ui closure.
+    ///
+    /// The ui closure will immediately be called once to create the initial ui.
+    ///
+    /// If you need to create Windows / Panels, you can use [`Harness::new`] instead.
+    ///
+    /// If you e.g. want to customize the size of the ui, you can use [`Harness::builder`].
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_kittest::Harness;
+    /// let mut harness = Harness::new_ui(|ui| {
+    ///     ui.label("Hello, world!");
+    /// });
+    /// ```
     pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
         Self::builder().build_ui(app)
     }
@@ -163,6 +180,8 @@ impl<'a> Harness<'a> {
         self.output = output;
     }
 
+    /// Resize the test harness to fit the contents. This only works when creating the Harness via
+    /// [`Harness::new_ui`] or [`HarnessBuilder::build_ui`].
     pub fn fit_contents(&mut self) {
         self._step(true);
         if let Some(response) = &self.response {
