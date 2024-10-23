@@ -180,5 +180,5 @@ fn demo_ui(ui: &mut Ui) {
     let mut dummy = false;
     ui.checkbox(&mut dummy, "checkbox");
     ui.radio_value(&mut dummy, false, "radio");
-    let _ = ui.button("button");
+    _ = ui.button("button");
 }
