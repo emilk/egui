@@ -254,6 +254,50 @@ pub struct FontDefinitions {
     pub families: BTreeMap<FontFamily, Vec<String>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct FontInsert {
+    /// Font name
+    pub name: String,
+
+    /// A `.ttf` or `.otf` file and a font face index.
+    pub data: FontData,
+
+    /// Sets the font family and priority
+    pub families: Vec<InsertFontFamily>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InsertFontFamily {
+    /// Font family
+    pub family: FontFamily,
+
+    /// Fallback or Primary font
+    pub priority: FontPriority,
+}
+
+#[derive(Debug, Clone)]
+pub enum FontPriority {
+    /// Prefer this font before all existing ones.
+    ///
+    /// If a desired glyph exists in this font, it will be used.
+    Highest,
+
+    /// Use this font as a fallback, after all existing ones.
+    ///
+    /// This font will only be used if the glyph is not found in any of the previously installed fonts.
+    Lowest,
+}
+
+impl FontInsert {
+    pub fn new(name: &str, data: FontData, families: Vec<InsertFontFamily>) -> Self {
+        Self {
+            name: name.to_owned(),
+            data,
+            families,
+        }
+    }
+}
+
 impl Default for FontDefinitions {
     /// Specifies the default fonts if the feature `default_fonts` is enabled,
     /// otherwise this is the same as [`Self::empty`].
