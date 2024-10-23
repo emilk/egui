@@ -66,7 +66,7 @@ impl TextureHandle {
     }
 
     /// Assign a new image to an existing texture.
-    pub fn set(&mut self, image: impl Into<ImageData>, options: TextureOptions) {
+    pub fn set(&self, image: impl Into<ImageData>, options: TextureOptions) {
         self.tex_mngr
             .write()
             .set(self.id, ImageDelta::full(image.into(), options));
@@ -74,7 +74,7 @@ impl TextureHandle {
 
     /// Assign a new image to a subregion of the whole texture.
     pub fn set_partial(
-        &mut self,
+        &self,
         pos: [usize; 2],
         image: impl Into<ImageData>,
         options: TextureOptions,

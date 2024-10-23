@@ -331,7 +331,7 @@ pub struct NativeOptions {
     pub window_builder: Option<WindowBuilderHook>,
 
     #[cfg(feature = "glow")]
-    /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
+    /// Needed for cross compiling for `VirtualBox` VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
     /// See <https://github.com/emilk/egui/pull/1993>.
     ///
     /// For OpenGL ES 2.0: set this to [`egui_glow::ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
@@ -439,7 +439,7 @@ pub struct WebOptions {
     /// Unused by webgl context as of writing.
     pub depth_buffer: u8,
 
-    /// Which version of WebGl context to select
+    /// Which version of `WebGl` context to select
     ///
     /// Default: [`WebGlContextOption::BestFirst`].
     #[cfg(feature = "glow")]
@@ -492,7 +492,7 @@ impl Default for WebOptions {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WebGlContextOption {
-    /// Force Use WebGL1.
+    /// Force Use `WebGL1`.
     WebGl1,
 
     /// Force use WebGL2.
@@ -501,7 +501,7 @@ pub enum WebGlContextOption {
     /// Use WebGL2 first.
     BestFirst,
 
-    /// Use WebGL1 first
+    /// Use `WebGL1` first
     CompatibilityFirst,
 }
 
@@ -799,6 +799,7 @@ pub trait Storage {
 }
 
 /// Stores nothing.
+#[allow(dead_code)]
 #[derive(Clone, Default)]
 pub(crate) struct DummyStorage {}
 
