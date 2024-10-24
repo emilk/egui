@@ -728,7 +728,7 @@ impl ViewportBuilder {
         }
 
         if let Some(new_visible) = new_visible {
-            if Some(new_visible) != self.active {
+            if Some(new_visible) != self.visible {
                 self.visible = Some(new_visible);
                 commands.push(ViewportCommand::Visible(new_visible));
             }
