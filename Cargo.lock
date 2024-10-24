@@ -1290,6 +1290,7 @@ dependencies = [
  "document-features",
  "egui",
  "log",
+ "objc",
  "puffin",
  "raw-window-handle 0.6.2",
  "serde",
