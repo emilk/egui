@@ -245,6 +245,16 @@ impl Rect {
         )
     }
 
+    /// Round to integer
+    #[must_use]
+    #[inline]
+    pub fn round(self) -> Self {
+        Self {
+            min: self.min.round(),
+            max: self.max.round(),
+        }
+    }
+
     #[must_use]
     #[inline]
     pub fn intersects(self, other: Self) -> bool {
