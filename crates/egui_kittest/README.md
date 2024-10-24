@@ -47,7 +47,7 @@ If you want to have multiple snapshots in the same test, it makes sense to colle
 This way they can all be updated at the same time.
 
 You should add the following to your `.gitignore`:
-```
+```gitignore
 **/tests/snapshots/**/*.diff.png
 **/tests/snapshots/**/*.new.png
 ```
