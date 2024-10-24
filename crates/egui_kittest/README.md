@@ -45,3 +45,9 @@ Running with `UPDATE_SNAPSHOTS=true` will still cause the tests to fail, but on 
 If you want to have multiple snapshots in the same test, it makes sense to collect the results in a `Vec` 
 ([look here](https://github.com/emilk/egui/blob/70a01138b77f9c5724a35a6ef750b9ae1ab9f2dc/crates/egui_demo_lib/src/demo/demo_app_windows.rs#L388-L427) for an example).
 This way they can all be updated at the same time.
+
+You should add the following to your `.gitignore`:
+```gitignore
+**/tests/snapshots/**/*.diff.png
+**/tests/snapshots/**/*.new.png
+```

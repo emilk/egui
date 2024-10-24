@@ -4,6 +4,51 @@ use std::fmt::Display;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
+#[non_exhaustive]
+pub struct SnapshotOptions {
+    /// The threshold for the image comparison.
+    /// The default is `0.6` (which is enough for most egui tests to pass across different
+    /// wgpu backends).
+    pub threshold: f32,
+
+    /// The path where the snapshots will be saved.
+    /// The default is `tests/snapshots`.
+    pub output_path: PathBuf,
+}
+
+impl Default for SnapshotOptions {
+    fn default() -> Self {
+        Self {
+            threshold: 0.6,
+            output_path: PathBuf::from("tests/snapshots"),
+        }
+    }
+}
+
+impl SnapshotOptions {
+    /// Create a new [`SnapshotOptions`] with the default values.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Change the threshold for the image comparison.
+    /// The default is `0.6` (which is enough for most egui tests to pass across different
+    /// wgpu backends).
+    #[inline]
+    pub fn threshold(mut self, threshold: f32) -> Self {
+        self.threshold = threshold;
+        self
+    }
+
+    /// Change the path where the snapshots will be saved.
+    /// The default is `tests/snapshots`.
+    #[inline]
+    pub fn output_path(mut self, output_path: impl Into<PathBuf>) -> Self {
+        self.output_path = output_path.into();
+        self
+    }
+}
+
 #[derive(Debug)]
 pub enum SnapshotError {
     /// Image did not match snapshot
@@ -79,22 +124,57 @@ impl Display for SnapshotError {
     }
 }
 
-/// Image snapshot test.
-/// The snapshot will be saved under `tests/snapshots/{name}.png`.
-/// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
-/// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
+fn should_update_snapshots() -> bool {
+    std::env::var("UPDATE_SNAPSHOTS").is_ok()
+}
+
+fn maybe_update_snapshot(
+    snapshot_path: &Path,
+    current: &image::RgbaImage,
+) -> Result<(), SnapshotError> {
+    if should_update_snapshots() {
+        current
+            .save(snapshot_path)
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: snapshot_path.into(),
+            })?;
+        println!("Updated snapshot: {snapshot_path:?}");
+    }
+    Ok(())
+}
+
+/// Image snapshot test with custom options.
+///
+/// If you want to change the default options for your whole project, it's recommended to create a
+/// new `my_image_snapshot` function in your project that calls this function with the desired options.
+/// You could additionally use the
+/// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
+/// lint to disable use of the [`image_snapshot`] to prevent accidentally using the wrong defaults.
+///
+/// The snapshot files will be saved under [`SnapshotOptions::output_path`].
+/// The snapshot will be saved under `{output_path}/{name}.png`.
+/// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
+/// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
 ///
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
 /// reading or writing the snapshot.
-pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), SnapshotError> {
-    let snapshots_path = Path::new("tests/snapshots");
+pub fn try_image_snapshot_options(
+    current: &image::RgbaImage,
+    name: &str,
+    options: &SnapshotOptions,
+) -> Result<(), SnapshotError> {
+    let SnapshotOptions {
+        threshold,
+        output_path,
+    } = options;
 
-    let path = snapshots_path.join(format!("{name}.png"));
+    let path = output_path.join(format!("{name}.png"));
     std::fs::create_dir_all(path.parent().expect("Could not get snapshot folder")).ok();
 
-    let diff_path = snapshots_path.join(format!("{name}.diff.png"));
-    let current_path = snapshots_path.join(format!("{name}.new.png"));
+    let diff_path = output_path.join(format!("{name}.diff.png"));
+    let current_path = output_path.join(format!("{name}.new.png"));
 
     current
         .save(&current_path)
@@ -119,18 +199,10 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
         });
     }
 
-    // Looking at dify's source code, the threshold is based on the distance between two colors in
-    // YIQ color space.
-    // The default is 0.1.
-    // We currently need 2.1 because there are slight rendering differences between the different
-    // wgpu rendering backends, graphics cards and/or operating systems.
-    // After some testing it seems like 0.6 should be enough for almost all tests to pass.
-    // Only the `Bézier Curve` demo seems to need a threshold of 2.1.
-    let threshold = 2.1;
     let result = dify::diff::get_results(
         previous,
         current.clone(),
-        threshold,
+        *threshold,
         true,
         None,
         &None,
@@ -154,24 +226,47 @@ pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), 
     Ok(())
 }
 
-fn should_update_snapshots() -> bool {
-    std::env::var("UPDATE_SNAPSHOTS").is_ok()
+/// Image snapshot test.
+///
+/// This uses the default [`SnapshotOptions`]. Use [`try_image_snapshot_options`] if you want to
+/// e.g. change the threshold or output path.
+///
+/// The snapshot files will be saved under [`SnapshotOptions::output_path`].
+/// The snapshot will be saved under `{output_path}/{name}.png`.
+/// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
+/// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+///
+/// # Errors
+/// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
+/// reading or writing the snapshot.
+pub fn try_image_snapshot(current: &image::RgbaImage, name: &str) -> Result<(), SnapshotError> {
+    try_image_snapshot_options(current, name, &SnapshotOptions::default())
 }
 
-fn maybe_update_snapshot(
-    snapshot_path: &Path,
-    current: &image::RgbaImage,
-) -> Result<(), SnapshotError> {
-    if should_update_snapshots() {
-        current
-            .save(snapshot_path)
-            .map_err(|err| SnapshotError::WriteSnapshot {
-                err,
-                path: snapshot_path.into(),
-            })?;
-        println!("Updated snapshot: {snapshot_path:?}");
+/// Image snapshot test with custom options.
+///
+/// If you want to change the default options for your whole project, it's recommended to create a
+/// new `my_image_snapshot` function in your project that calls this function with the desired options.
+/// You could additionally use the
+/// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
+/// lint to disable use of the [`image_snapshot`] to prevent accidentally using the wrong defaults.
+///
+/// The snapshot files will be saved under [`SnapshotOptions::output_path`].
+/// The snapshot will be saved under `{output_path}/{name}.png`.
+/// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
+/// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+///
+/// # Panics
+/// Panics if the image does not match the snapshot or if there was an error reading or writing the
+/// snapshot.
+#[track_caller]
+pub fn image_snapshot_options(current: &image::RgbaImage, name: &str, options: &SnapshotOptions) {
+    match try_image_snapshot_options(current, name, options) {
+        Ok(_) => {}
+        Err(err) => {
+            panic!("{}", err);
+        }
     }
-    Ok(())
 }
 
 /// Image snapshot test.
@@ -194,6 +289,33 @@ pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
 
 #[cfg(feature = "wgpu")]
 impl Harness<'_> {
+    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot
+    /// with custom options.
+    ///
+    /// If you want to change the default options for your whole project, you could create an
+    /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
+    /// new `my_image_snapshot` function on the Harness that calls this function with the desired options.
+    /// You could additionally use the
+    /// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
+    /// lint to disable use of the [`Harness::wgpu_snapshot`] to prevent accidentally using the wrong defaults.
+    ///
+    /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
+    /// The snapshot will be saved under `{output_path}/{name}.png`.
+    /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
+    /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+    ///
+    /// # Errors
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
+    /// reading or writing the snapshot.
+    pub fn try_wgpu_snapshot_options(
+        &self,
+        name: &str,
+        options: &SnapshotOptions,
+    ) -> Result<(), SnapshotError> {
+        let image = crate::wgpu::TestRenderer::new().render(self);
+        try_image_snapshot_options(&image, name, options)
+    }
+
     /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
@@ -202,10 +324,37 @@ impl Harness<'_> {
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
     /// reading or writing the snapshot.
-    #[track_caller]
     pub fn try_wgpu_snapshot(&self, name: &str) -> Result<(), SnapshotError> {
         let image = crate::wgpu::TestRenderer::new().render(self);
         try_image_snapshot(&image, name)
+    }
+
+    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot
+    /// with custom options.
+    ///
+    /// If you want to change the default options for your whole project, you could create an
+    /// [extension trait](http://xion.io/post/code/rust-extension-traits.html) to create a
+    /// new `my_image_snapshot` function on the Harness that calls this function with the desired options.
+    /// You could additionally use the
+    /// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
+    /// lint to disable use of the [`Harness::wgpu_snapshot`] to prevent accidentally using the wrong defaults.
+    ///
+    /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
+    /// The snapshot will be saved under `{output_path}/{name}.png`.
+    /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
+    /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
+    ///
+    /// # Panics
+    /// Panics if the image does not match the snapshot or if there was an error reading or writing the
+    /// snapshot.
+    #[track_caller]
+    pub fn wgpu_snapshot_options(&self, name: &str, options: &SnapshotOptions) {
+        match self.try_wgpu_snapshot_options(name, options) {
+            Ok(_) => {}
+            Err(err) => {
+                panic!("{}", err);
+            }
+        }
     }
 
     /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.

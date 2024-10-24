@@ -383,7 +383,7 @@ mod tests {
     use crate::demo::demo_app_windows::Demos;
     use egui::Vec2;
     use egui_kittest::kittest::Queryable;
-    use egui_kittest::Harness;
+    use egui_kittest::{Harness, SnapshotOptions};
 
     #[test]
     fn demos_should_match_snapshot() {
@@ -417,7 +417,13 @@ mod tests {
             // Run the app for some more frames...
             harness.run();
 
-            let result = harness.try_wgpu_snapshot(&format!("demos/{name}"));
+            let mut options = SnapshotOptions::default();
+            // The Bézier Curve demo needs a threshold of 2.1 to pass on linux
+            if name == "Bézier Curve" {
+                options.threshold = 2.1;
+            }
+
+            let result = harness.try_wgpu_snapshot_options(&format!("demos/{name}"), &options);
             if let Err(err) = result {
                 errors.push(err);
             }
