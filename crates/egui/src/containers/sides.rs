@@ -78,7 +78,7 @@ impl Sides {
         let height = height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing.x);
 
-        let mut top_rect = ui.max_rect();
+        let mut top_rect = ui.available_rect_before_wrap();
         top_rect.max.y = top_rect.min.y + height;
 
         let result_left;
