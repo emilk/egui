@@ -724,7 +724,7 @@ impl Painter {
     }
 
     #[allow(clippy::unused_self)]
-    pub fn destroy(&mut self) {
+    pub fn destroy(&self) {
         // TODO(emilk): something here?
     }
 }
