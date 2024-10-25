@@ -177,7 +177,6 @@ impl ComboBox {
     #[inline]
     pub fn wrap(mut self) -> Self {
         self.wrap_mode = Some(TextWrapMode::Wrap);
-
         self
     }
 
