@@ -621,20 +621,28 @@ impl ScrollArea {
                 .interact_rect
                 .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
 
-            if content_response_option.map(|response| response.dragged()) == Some(true) {
+            if content_response_option
+                .as_ref()
+                .is_some_and(|response| response.dragged())
+            {
                 for d in 0..2 {
                     if scroll_enabled[d] {
                         ui.input(|input| {
                             state.offset[d] -= input.pointer.delta()[d];
-                            state.vel[d] = input.pointer.velocity()[d];
                         });
                         state.scroll_stuck_to_end[d] = false;
                         state.offset_target[d] = None;
-                    } else {
-                        state.vel[d] = 0.0;
                     }
                 }
             } else {
+                // Apply the cursor velocity to the scroll area when the user releases the drag.
+                if content_response_option
+                    .as_ref()
+                    .is_some_and(|response| response.drag_stopped())
+                {
+                    state.vel =
+                        scroll_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
+                }
                 for d in 0..2 {
                     // Kinetic scrolling
                     let stop_speed = 20.0; // Pixels per second.

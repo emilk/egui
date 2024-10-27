@@ -57,7 +57,7 @@ pub use self::{
 /// Tip: you can `impl Widget for &mut YourThing { }`.
 ///
 /// `|ui: &mut Ui| -> Response { … }` also implements [`Widget`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub trait Widget {
     /// Allocate space, interact, paint, and return a [`Response`].
     ///

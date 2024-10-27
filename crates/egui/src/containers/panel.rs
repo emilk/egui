@@ -329,9 +329,6 @@ impl SidePanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
-        // Keep this rect snapped so that panel content can be pixel-perfect
-        let rect = ui.painter().round_rect_to_pixels(rect);
-
         PanelState { rect }.store(ui.ctx(), id);
 
         {
@@ -375,14 +372,14 @@ impl SidePanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
         let mut panel_ui = Ui::new(
             ctx.clone(),
-            layer_id,
             self.id,
-            UiBuilder::new().max_rect(available_rect),
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
@@ -824,9 +821,6 @@ impl TopBottomPanel {
             ui.ctx().set_cursor_icon(cursor_icon);
         }
 
-        // Keep this rect snapped so that panel content can be pixel-perfect
-        let rect = ui.painter().round_rect_to_pixels(rect);
-
         PanelState { rect }.store(ui.ctx(), id);
 
         {
@@ -842,6 +836,8 @@ impl TopBottomPanel {
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_y = side.opposite().side_y(rect);
+
+            // This makes it pixel-perfect for odd-sized strokes (width=1.0, width=3.0, etc)
             let resize_y = ui.painter().round_to_pixel_center(resize_y);
 
             // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
@@ -868,15 +864,15 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
         let available_rect = ctx.available_rect();
         let side = self.side;
 
         let mut panel_ui = Ui::new(
             ctx.clone(),
-            layer_id,
             self.id,
-            UiBuilder::new().max_rect(available_rect),
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
@@ -1135,14 +1131,14 @@ impl CentralPanel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
-        let layer_id = LayerId::background();
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let mut panel_ui = Ui::new(
             ctx.clone(),
-            layer_id,
             id,
-            UiBuilder::new().max_rect(available_rect),
+            UiBuilder::new()
+                .layer_id(LayerId::background())
+                .max_rect(available_rect),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 

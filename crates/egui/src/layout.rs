@@ -53,7 +53,7 @@ impl Region {
     }
 
     /// Ensure we are big enough to contain the given X-coordinate.
-    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_x(&mut self, x: f32) {
         self.min_rect.extend_with_x(x);
         self.max_rect.extend_with_x(x);
@@ -61,7 +61,7 @@ impl Region {
     }
 
     /// Ensure we are big enough to contain the given Y-coordinate.
-    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_y(&mut self, y: f32) {
         self.min_rect.extend_with_y(y);
         self.max_rect.extend_with_y(y);
