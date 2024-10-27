@@ -1781,7 +1781,7 @@ impl Context {
     /// The new font will become active at the start of the next pass.
     /// This will keep the existing fonts.
     pub fn add_font(&self, new_font: FontInsert) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let pixels_per_point = self.pixels_per_point();
 
