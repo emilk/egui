@@ -285,3 +285,31 @@ fn doc_link_label_with_crate<'a>(
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::View;
+    use egui::{CentralPanel, Context, Vec2};
+    use egui_kittest::Harness;
+
+    #[test]
+    pub fn should_match_screenshot() {
+        let mut demo = WidgetGallery {
+            // If we don't set a fixed date, the snapshot test will fail.
+            date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            ..Default::default()
+        };
+        let app = |ctx: &Context| {
+            CentralPanel::default().show(ctx, |ui| {
+                demo.ui(ui);
+            });
+        };
+        let harness = Harness::builder()
+            .with_size(Vec2::new(380.0, 550.0))
+            .with_dpi(2.0)
+            .build(app);
+
+        harness.wgpu_snapshot("widget_gallery");
+    }
+}
