@@ -112,6 +112,7 @@ impl State {
         max_texture_side: Option<usize>,
     ) -> Self {
         profiling::function_scope!();
+
         let egui_input = egui::RawInput {
             focused: false, // winit will tell us when we have focus
             ..Default::default()
@@ -162,6 +163,7 @@ impl State {
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
     ) {
         profiling::function_scope!();
+
         self.accesskit = Some(accesskit_winit::Adapter::with_event_loop_proxy(
             window,
             event_loop_proxy,
@@ -222,6 +224,7 @@ impl State {
     /// viewport.
     pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
         profiling::function_scope!();
+
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
 
         // On Windows, a minimized window will have 0 width and height.
@@ -255,7 +258,7 @@ impl State {
         window: &Window,
         event: &winit::event::WindowEvent,
     ) -> EventResponse {
-        profiling::scope!("on_window_event", short_window_event_description(event));
+        profiling::function_scope!(short_window_event_description(event));
 
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_mut() {
@@ -811,6 +814,7 @@ impl State {
         platform_output: egui::PlatformOutput,
     ) {
         profiling::function_scope!();
+
         let egui::PlatformOutput {
             cursor_icon,
             open_url,
@@ -1312,6 +1316,7 @@ fn process_viewport_command(
     actions_requested: &mut HashSet<ActionRequested>,
 ) {
     profiling::function_scope!();
+
     use winit::window::ResizeDirection;
 
     log::trace!("Processing ViewportCommand::{command:?}");
@@ -1527,6 +1532,7 @@ pub fn create_window(
     viewport_builder: &ViewportBuilder,
 ) -> Result<Window, winit::error::OsError> {
     profiling::function_scope!();
+
     let window_attributes =
         create_winit_window_attributes(egui_ctx, event_loop, viewport_builder.clone());
     let window = event_loop.create_window(window_attributes)?;
@@ -1540,6 +1546,7 @@ pub fn create_winit_window_attributes(
     viewport_builder: ViewportBuilder,
 ) -> winit::window::WindowAttributes {
     profiling::function_scope!();
+
     // We set sizes and positions in egui:s own ui points, which depends on the egui
     // zoom_factor and the native pixels per point, so we need to know that here.
     // We don't know what monitor the window will appear on though, but
@@ -1731,10 +1738,10 @@ pub fn create_winit_window_attributes(
 }
 
 fn to_winit_icon(icon: &egui::IconData) -> Option<winit::window::Icon> {
-    profiling::function_scope!();
     if icon.is_empty() {
         None
     } else {
+        profiling::function_scope!();
         match winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height) {
             Ok(winit_icon) => Some(winit_icon),
             Err(err) => {

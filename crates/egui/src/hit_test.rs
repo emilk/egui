@@ -40,6 +40,7 @@ pub fn hit_test(
     search_radius: f32,
 ) -> WidgetHits {
     profiling::function_scope!();
+
     let search_radius_sq = search_radius * search_radius;
 
     // Transform the position into the local coordinate space of each layer:

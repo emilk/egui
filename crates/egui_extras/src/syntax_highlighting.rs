@@ -514,6 +514,7 @@ impl Highlighter {
         language: &str,
     ) -> Option<LayoutJob> {
         profiling::function_scope!();
+
         let language = Language::new(language)?;
 
         // Extremely simple syntax highlighter for when we compile without syntect

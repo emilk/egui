@@ -865,6 +865,7 @@ impl Context {
     /// ```
     pub fn begin_pass(&self, new_input: RawInput) {
         profiling::function_scope!();
+
         self.write(|ctx| ctx.begin_pass(new_input));
 
         // Plugins run just after the pass starts:
@@ -1730,6 +1731,7 @@ impl Context {
     /// The new fonts will become active at the start of the next pass.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         profiling::function_scope!();
+
         let pixels_per_point = self.pixels_per_point();
 
         let mut update_fonts = true;
@@ -2088,6 +2090,7 @@ impl Context {
     #[must_use]
     pub fn end_pass(&self) -> FullOutput {
         profiling::function_scope!();
+
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
@@ -2460,6 +2463,7 @@ impl Context {
         pixels_per_point: f32,
     ) -> Vec<ClippedPrimitive> {
         profiling::function_scope!();
+
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
@@ -3282,8 +3286,9 @@ impl Context {
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
     pub fn forget_image(&self, uri: &str) {
-        profiling::function_scope!();
         use load::BytesLoader as _;
+
+        profiling::function_scope!();
 
         let loaders = self.loaders();
 
@@ -3303,8 +3308,9 @@ impl Context {
     ///
     /// If you attempt to load any images again, they will be reloaded from scratch.
     pub fn forget_all_images(&self) {
-        profiling::function_scope!();
         use load::BytesLoader as _;
+
+        profiling::function_scope!();
 
         let loaders = self.loaders();
 
@@ -3339,7 +3345,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
-        profiling::scope!("try_load_bytes", uri);
+        profiling::function_scope!(uri);
 
         let loaders = self.loaders();
         let bytes_loaders = loaders.bytes.lock();
@@ -3376,7 +3382,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
-        profiling::scope!("try_load_image", uri);
+        profiling::function_scope!(uri);
 
         let loaders = self.loaders();
         let image_loaders = loaders.image.lock();
@@ -3419,7 +3425,7 @@ impl Context {
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        profiling::scope!("try_load_texture", uri);
+        profiling::function_scope!(uri);
 
         let loaders = self.loaders();
         let texture_loaders = loaders.texture.lock();
@@ -3570,6 +3576,7 @@ impl Context {
         viewport_ui_cb: impl Fn(&Self, ViewportClass) + Send + Sync + 'static,
     ) {
         profiling::function_scope!();
+
         if self.embed_viewports() {
             viewport_ui_cb(self, ViewportClass::Embedded);
         } else {
@@ -3621,6 +3628,7 @@ impl Context {
         mut viewport_ui_cb: impl FnMut(&Self, ViewportClass) -> T,
     ) -> T {
         profiling::function_scope!();
+
         if self.embed_viewports() {
             return viewport_ui_cb(self, ViewportClass::Embedded);
         }

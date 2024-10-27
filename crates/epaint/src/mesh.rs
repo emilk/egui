@@ -86,6 +86,7 @@ impl Mesh {
     /// Are all indices within the bounds of the contained vertices?
     pub fn is_valid(&self) -> bool {
         profiling::function_scope!();
+
         if let Ok(n) = u32::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
         } else {

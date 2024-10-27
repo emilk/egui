@@ -185,6 +185,7 @@ impl crate::Storage for FileStorage {
 
 fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
     profiling::function_scope!();
+
     if let Some(parent_dir) = file_path.parent() {
         if !parent_dir.exists() {
             if let Err(err) = std::fs::create_dir_all(parent_dir) {

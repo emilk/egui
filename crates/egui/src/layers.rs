@@ -223,6 +223,7 @@ impl GraphicLayers {
         transforms: &ahash::HashMap<LayerId, TSTransform>,
     ) -> Vec<ClippedShape> {
         profiling::function_scope!();
+
         let mut all_shapes: Vec<_> = Default::default();
 
         for &order in &Order::ALL {

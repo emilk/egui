@@ -234,9 +234,10 @@ pub fn load_svg_bytes_with_size(
     svg_bytes: &[u8],
     size_hint: Option<SizeHint>,
 ) -> Result<egui::ColorImage, String> {
-    profiling::function_scope!();
     use resvg::tiny_skia::{IntSize, Pixmap};
     use resvg::usvg::{Options, Tree, TreeParsing};
+
+    profiling::function_scope!();
 
     let opt = Options::default();
 

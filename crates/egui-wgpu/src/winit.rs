@@ -151,6 +151,7 @@ impl Painter {
         config: &WgpuConfiguration,
     ) {
         profiling::function_scope!();
+
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
@@ -328,6 +329,7 @@ impl Painter {
         height_in_pixels: NonZeroU32,
     ) {
         profiling::function_scope!();
+
         let width = width_in_pixels.get();
         let height = height_in_pixels.get();
 
@@ -398,6 +400,7 @@ impl Painter {
         height_in_pixels: NonZeroU32,
     ) {
         profiling::function_scope!();
+
         if self.surfaces.contains_key(&viewport_id) {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
                 viewport_id,

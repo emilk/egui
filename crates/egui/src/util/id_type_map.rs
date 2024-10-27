@@ -575,6 +575,7 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
         profiling::function_scope!();
+
         use std::collections::BTreeMap;
 
         let mut types_map: nohash_hasher::IntMap<TypeId, TypeStats> = Default::default();

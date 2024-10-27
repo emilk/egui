@@ -113,6 +113,7 @@ impl Clipboard {
 #[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
     profiling::function_scope!();
+
     log::trace!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),

@@ -195,6 +195,7 @@ impl<'app> GlowWinitApp<'app> {
         event_loop: &ActiveEventLoop,
     ) -> Result<&mut GlowWinitRunning<'app>> {
         profiling::function_scope!();
+
         let storage = if let Some(file) = &self.native_options.persistence_path {
             epi_integration::create_storage_with_file(file)
         } else {
@@ -366,8 +367,9 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
     }
 
     fn save_and_destroy(&mut self) {
-        profiling::function_scope!();
         if let Some(mut running) = self.running.take() {
+            profiling::function_scope!();
+
             running.integration.save(
                 running.app.as_mut(),
                 Some(&running.glutin.borrow().window(ViewportId::ROOT)),
@@ -484,6 +486,7 @@ impl<'app> GlowWinitRunning<'app> {
         window_id: WindowId,
     ) -> Result<EventResult> {
         profiling::function_scope!();
+
         let Some(viewport_id) = self
             .glutin
             .borrow()
@@ -852,6 +855,7 @@ fn change_gl_context(
     gl_surface: &glutin::surface::Surface<glutin::surface::WindowSurface>,
 ) {
     profiling::function_scope!();
+
     if !cfg!(target_os = "windows") {
         // According to https://github.com/emilk/egui/issues/4289
         // we cannot do this early-out on Windows.
@@ -890,6 +894,7 @@ impl GlutinWindowContext {
         event_loop: &ActiveEventLoop,
     ) -> Result<Self> {
         profiling::function_scope!();
+
         // There is a lot of complexity with opengl creation,
         // so prefer extensive logging to get all the help we can to debug issues.
 
@@ -1061,6 +1066,7 @@ impl GlutinWindowContext {
     /// Errors will be logged.
     fn initialize_all_windows(&mut self, event_loop: &ActiveEventLoop) {
         profiling::function_scope!();
+
         let viewports: Vec<ViewportId> = self.viewports.keys().copied().collect();
 
         for viewport_id in viewports {
@@ -1078,6 +1084,7 @@ impl GlutinWindowContext {
         event_loop: &ActiveEventLoop,
     ) -> Result {
         profiling::function_scope!();
+
         let viewport = self
             .viewports
             .get_mut(&viewport_id)
@@ -1257,6 +1264,7 @@ impl GlutinWindowContext {
         viewport_output: &ViewportIdMap<ViewportOutput>,
     ) {
         profiling::function_scope!();
+
         for (
             viewport_id,
             ViewportOutput {
@@ -1317,6 +1325,7 @@ fn initialize_or_update_viewport(
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
 ) -> &mut Viewport {
     profiling::function_scope!();
+
     if builder.icon.is_none() {
         // Inherit icon from parent
         builder.icon = viewports
@@ -1380,6 +1389,7 @@ fn render_immediate_viewport(
     immediate_viewport: ImmediateViewport<'_>,
 ) {
     profiling::function_scope!();
+
     let ImmediateViewport {
         ids,
         builder,

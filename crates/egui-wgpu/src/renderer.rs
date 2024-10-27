@@ -215,6 +215,7 @@ impl Renderer {
         dithering: bool,
     ) -> Self {
         profiling::function_scope!();
+
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
@@ -420,6 +421,7 @@ impl Renderer {
         screen_descriptor: &ScreenDescriptor,
     ) {
         profiling::function_scope!();
+
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
 
@@ -543,6 +545,7 @@ impl Renderer {
         image_delta: &epaint::ImageDelta,
     ) {
         profiling::function_scope!();
+
         let width = image_delta.image.width() as u32;
         let height = image_delta.image.height() as u32;
 
@@ -754,6 +757,7 @@ impl Renderer {
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
     ) -> epaint::TextureId {
         profiling::function_scope!();
+
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -801,6 +805,7 @@ impl Renderer {
         id: epaint::TextureId,
     ) {
         profiling::function_scope!();
+
         let Texture {
             bind_group: user_texture_binding,
             ..
@@ -845,6 +850,7 @@ impl Renderer {
         screen_descriptor: &ScreenDescriptor,
     ) -> Vec<wgpu::CommandBuffer> {
         profiling::function_scope!();
+
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
         let uniform_buffer_content = UniformBuffer {

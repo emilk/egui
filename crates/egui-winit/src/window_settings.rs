@@ -57,6 +57,7 @@ impl WindowSettings {
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
         profiling::function_scope!();
+
         // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
         // See [`winit::window::WindowBuilder::with_position`] for details.
         let pos_px = if cfg!(target_os = "macos") {
@@ -177,6 +178,7 @@ fn clamp_pos_to_monitors(
     position_px: &mut egui::Pos2,
 ) {
     profiling::function_scope!();
+
     let Some(active_monitor) =
         find_active_monitor(egui_zoom_factor, event_loop, window_size_pts, position_px)
     else {

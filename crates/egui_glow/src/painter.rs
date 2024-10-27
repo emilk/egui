@@ -367,6 +367,7 @@ impl Painter {
         textures_delta: &egui::TexturesDelta,
     ) {
         profiling::function_scope!();
+
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(*id, image_delta);
         }
@@ -508,6 +509,7 @@ impl Painter {
 
     pub fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
         profiling::function_scope!();
+
         self.assert_not_destroyed();
 
         let glow_texture = *self
@@ -674,6 +676,7 @@ impl Painter {
 
     pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> egui::ColorImage {
         profiling::function_scope!();
+
         let mut pixels = vec![0_u8; (w * h * 4) as usize];
         unsafe {
             self.gl.read_pixels(

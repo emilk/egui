@@ -114,6 +114,7 @@ pub(crate) fn interact(
     interaction: &mut InteractionState,
 ) -> InteractionSnapshot {
     profiling::function_scope!();
+
     if let Some(id) = interaction.potential_click_id {
         if !widgets.contains(id) {
             // The widget we were interested in clicking is gone.

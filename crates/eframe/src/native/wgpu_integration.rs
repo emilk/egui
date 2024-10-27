@@ -103,6 +103,7 @@ impl<'app> WgpuWinitApp<'app> {
         app_creator: AppCreator<'app>,
     ) -> Self {
         profiling::function_scope!();
+
         #[cfg(feature = "__screenshot")]
         assert!(
             std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
@@ -488,6 +489,7 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
 impl<'app> WgpuWinitRunning<'app> {
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
+
         let mut shared = self.shared.borrow_mut();
         if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
             self.integration.save(self.app.as_mut(), window.as_deref());
@@ -505,6 +507,7 @@ impl<'app> WgpuWinitRunning<'app> {
     /// This is called both for the root viewport, and all deferred viewports
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> Result<EventResult> {
         profiling::function_scope!();
+
         let Some(viewport_id) = self
             .shared
             .borrow()
@@ -838,10 +841,11 @@ impl Viewport {
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
     ) {
-        profiling::function_scope!();
         if self.window.is_some() {
             return; // we already have one
         }
+
+        profiling::function_scope!();
 
         let viewport_id = self.ids.this;
 
@@ -883,6 +887,7 @@ fn create_window(
     native_options: &mut NativeOptions,
 ) -> Result<(Window, ViewportBuilder), winit::error::OsError> {
     profiling::function_scope!();
+
     let window_settings = epi_integration::load_window_settings(storage);
     let viewport_builder = epi_integration::viewport_builder(
         egui_ctx.zoom_factor(),
@@ -903,6 +908,7 @@ fn render_immediate_viewport(
     immediate_viewport: ImmediateViewport<'_>,
 ) {
     profiling::function_scope!();
+
     let ImmediateViewport {
         ids,
         builder,
@@ -1090,6 +1096,7 @@ fn initialize_or_update_viewport<'a>(
     painter: &mut egui_wgpu::winit::Painter,
 ) -> &'a mut Viewport {
     profiling::function_scope!();
+
     if builder.icon.is_none() {
         // Inherit icon from parent
         builder.icon = viewports

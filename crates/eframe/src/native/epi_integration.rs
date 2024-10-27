@@ -236,10 +236,7 @@ impl EpiIntegration {
         egui_winit: &mut egui_winit::State,
         event: &winit::event::WindowEvent,
     ) -> EventResponse {
-        profiling::scope!(
-            "on_window_event",
-            egui_winit::short_window_event_description(event)
-        );
+        profiling::function_scope!(egui_winit::short_window_event_description(event));
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
@@ -333,7 +330,7 @@ impl EpiIntegration {
     pub fn save(&mut self, _app: &mut dyn epi::App, _window: Option<&winit::window::Window>) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
-            profiling::scope!("EpiIntegration::save");
+            profiling::function_scope!();
 
             if let Some(window) = _window {
                 if self.persist_window {
@@ -373,9 +370,9 @@ const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 const STORAGE_WINDOW_KEY: &str = "window";
 
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
+    profiling::function_scope!();
     #[cfg(feature = "persistence")]
     {
-        profiling::function_scope!();
         epi::get_value(_storage?, STORAGE_WINDOW_KEY)
     }
     #[cfg(not(feature = "persistence"))]
@@ -383,9 +380,9 @@ pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<Windo
 }
 
 pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
+    profiling::function_scope!();
     #[cfg(feature = "persistence")]
     {
-        profiling::function_scope!();
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)
     }
     #[cfg(not(feature = "persistence"))]

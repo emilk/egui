@@ -270,6 +270,7 @@ impl InputState {
         options: &crate::Options,
     ) -> Self {
         profiling::function_scope!();
+
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
