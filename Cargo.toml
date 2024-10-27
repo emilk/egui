@@ -82,7 +82,7 @@ image = { version = "0.25", default-features = false }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
 parking_lot = "0.12"
-profiling = "1.0"
+profiling = {version = "1.0", default-features = false }
 puffin = "0.19"
 puffin_http = "0.16"
 ron = "0.8"
