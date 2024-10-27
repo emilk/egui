@@ -1,11 +1,15 @@
 use egui::Frame;
 
+type AppKindContextState<'a, State> = Box<dyn FnMut(&egui::Context, &mut State) + 'a>;
+type AppKindUiState<'a, State> = Box<dyn FnMut(&mut egui::Ui, &mut State) + 'a>;
 type AppKindContext<'a> = Box<dyn FnMut(&egui::Context) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 
-pub(crate) enum AppKind<'a> {
+pub(crate) enum AppKind<'a, State> {
     Context(AppKindContext<'a>),
     Ui(AppKindUi<'a>),
+    ContextState(AppKindContextState<'a, State>),
+    UiState(AppKindUiState<'a, State>),
 }
 
 // TODO(lucasmerlin): These aren't working unfortunately :(
@@ -32,28 +36,29 @@ pub(crate) enum AppKind<'a> {
 //     }
 // }
 
-impl<'a> AppKind<'a> {
-    pub fn run(&mut self, ctx: &egui::Context) -> Option<egui::Response> {
+impl<'a, S> AppKind<'a, S> {
+    pub fn run(
+        &mut self,
+        ctx: &egui::Context,
+        state: &mut S,
+        sizing_pass: bool,
+    ) -> Option<egui::Response> {
         match self {
             AppKind::Context(f) => {
+                debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
                 f(ctx);
                 None
             }
-            AppKind::Ui(f) => Some(Self::run_ui(f, ctx, false)),
-        }
-    }
-
-    pub(crate) fn run_sizing_pass(&mut self, ctx: &egui::Context) -> Option<egui::Response> {
-        match self {
-            AppKind::Context(f) => {
-                f(ctx);
+            AppKind::ContextState(f) => {
+                debug_assert!(!sizing_pass, "Context closures cannot do a sizing pass");
+                f(ctx, state);
                 None
             }
-            AppKind::Ui(f) => Some(Self::run_ui(f, ctx, true)),
+            kind_ui => Some(kind_ui.run_ui(ctx, state, sizing_pass)),
         }
     }
 
-    fn run_ui(f: &mut AppKindUi<'a>, ctx: &egui::Context, sizing_pass: bool) -> egui::Response {
+    fn run_ui(&mut self, ctx: &egui::Context, state: &mut S, sizing_pass: bool) -> egui::Response {
         egui::CentralPanel::default()
             .frame(Frame::none())
             .show(ctx, |ui| {
@@ -65,7 +70,11 @@ impl<'a> AppKind<'a> {
                     Frame::central_panel(ui.style())
                         .outer_margin(8.0)
                         .inner_margin(0.0)
-                        .show(ui, |ui| f(ui));
+                        .show(ui, |ui| match self {
+                            AppKind::Ui(f) => f(ui),
+                            AppKind::UiState(f) => f(ui, state),
+                            _ => unreachable!(),
+                        });
                 })
                 .response
             })
