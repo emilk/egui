@@ -393,7 +393,7 @@
 //! This crate supports using the [profiling](https://crates.io/crates/profiling) crate for instrumentation.
 //! You can enable features on the profiling crates in your application to add instrumentation for all
 //! crates that support it, including egui. See the profiling crate docs for more information.
-//! ```
+//! ```toml
 //! [dependencies]
 //! profiling = "1.0"
 //! [features]
