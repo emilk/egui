@@ -8,6 +8,9 @@ rust-version.workspace = true
 publish = false
 default-run = "egui_demo_app"
 
+[package.metadata.cargo-machete]
+ignored = ["profiling"]
+
 [lints]
 workspace = true
 
