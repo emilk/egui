@@ -359,6 +359,9 @@ impl RichText {
                     || fallback_font.resolve(style),
                     |text_style| text_style.resolve(style),
                 );
+            if let Some(fid) = style.override_font_id.clone() {
+                font_id = fid;
+            }
             if let Some(size) = size {
                 font_id.size = size;
             }
