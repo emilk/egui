@@ -96,13 +96,13 @@ pub struct Viewport {
 // ----------------------------------------------------------------------------
 
 impl<'app> WgpuWinitApp<'app> {
-    #[profiling::function]
     pub fn new(
         event_loop: &EventLoop<UserEvent>,
         app_name: &str,
         native_options: NativeOptions,
         app_creator: AppCreator<'app>,
     ) -> Self {
+        profiling::function_scope!();
         #[cfg(feature = "__screenshot")]
         assert!(
             std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
@@ -172,7 +172,6 @@ impl<'app> WgpuWinitApp<'app> {
         Ok(())
     }
 
-    #[profiling::function]
     fn init_run_state(
         &mut self,
         egui_ctx: egui::Context,
@@ -181,6 +180,7 @@ impl<'app> WgpuWinitApp<'app> {
         window: Window,
         builder: ViewportBuilder,
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
+        profiling::function_scope!();
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
         let mut painter = egui_wgpu::winit::Painter::new(
             self.native_options.wgpu_options.clone(),
@@ -486,8 +486,8 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
 }
 
 impl<'app> WgpuWinitRunning<'app> {
-    #[profiling::function]
     fn save_and_destroy(&mut self) {
+        profiling::function_scope!();
         let mut shared = self.shared.borrow_mut();
         if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
             self.integration.save(self.app.as_mut(), window.as_deref());
@@ -503,8 +503,8 @@ impl<'app> WgpuWinitRunning<'app> {
     }
 
     /// This is called both for the root viewport, and all deferred viewports
-    #[profiling::function]
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> Result<EventResult> {
+        profiling::function_scope!();
         let Some(viewport_id) = self
             .shared
             .borrow()
@@ -831,7 +831,6 @@ impl<'app> WgpuWinitRunning<'app> {
 
 impl Viewport {
     /// Create winit window, if needed.
-    #[profiling::function]
     fn initialize_window(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -839,6 +838,7 @@ impl Viewport {
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
     ) {
+        profiling::function_scope!();
         if self.window.is_some() {
             return; // we already have one
         }
@@ -876,13 +876,13 @@ impl Viewport {
     }
 }
 
-#[profiling::function]
 fn create_window(
     egui_ctx: &egui::Context,
     event_loop: &ActiveEventLoop,
     storage: Option<&dyn Storage>,
     native_options: &mut NativeOptions,
 ) -> Result<(Window, ViewportBuilder), winit::error::OsError> {
+    profiling::function_scope!();
     let window_settings = epi_integration::load_window_settings(storage);
     let viewport_builder = epi_integration::viewport_builder(
         egui_ctx.zoom_factor(),
@@ -897,12 +897,12 @@ fn create_window(
     Ok((window, viewport_builder))
 }
 
-#[profiling::function]
 fn render_immediate_viewport(
     beginning: Instant,
     shared: &RefCell<SharedState>,
     immediate_viewport: ImmediateViewport<'_>,
 ) {
+    profiling::function_scope!();
     let ImmediateViewport {
         ids,
         builder,
@@ -1081,7 +1081,6 @@ fn handle_viewport_output(
     remove_viewports_not_in(viewports, painter, viewport_from_window, viewport_output);
 }
 
-#[profiling::function]
 fn initialize_or_update_viewport<'a>(
     viewports: &'a mut Viewports,
     ids: ViewportIdPair,
@@ -1090,6 +1089,7 @@ fn initialize_or_update_viewport<'a>(
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
     painter: &mut egui_wgpu::winit::Painter,
 ) -> &'a mut Viewport {
+    profiling::function_scope!();
     if builder.icon.is_none() {
         // Inherit icon from parent
         builder.icon = viewports

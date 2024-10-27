@@ -1585,8 +1585,8 @@ impl Tessellator {
     ///
     /// * `path_shape`: the path to tessellate.
     /// * `out`: triangles are appended to this.
-    #[profiling::function]
     pub fn tessellate_path(&mut self, path_shape: &PathShape, out: &mut Mesh) {
+        profiling::function_scope!();
         if path_shape.points.len() < 2 {
             return;
         }
@@ -1975,8 +1975,8 @@ impl Tessellator {
     /// ## Returns
     /// A list of clip rectangles with matching [`Mesh`].
     #[allow(unused_mut)]
-    #[profiling::function]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        profiling::function_scope!();
         #[cfg(feature = "rayon")]
         if self.options.parallel_tessellation {
             self.parallel_tessellation_of_large_shapes(&mut shapes);
@@ -2021,8 +2021,8 @@ impl Tessellator {
     /// Find large shapes and throw them on the rayon thread pool,
     /// then replace the original shape with their tessellated meshes.
     #[cfg(feature = "rayon")]
-    #[profiling::function]
     fn parallel_tessellation_of_large_shapes(&self, shapes: &mut [ClippedShape]) {
+        profiling::function_scope!();
         use rayon::prelude::*;
 
         // We only parallelize large/slow stuff, because each tessellation job

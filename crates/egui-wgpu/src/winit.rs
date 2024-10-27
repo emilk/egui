@@ -145,12 +145,12 @@ impl Painter {
         self.render_state.clone()
     }
 
-    #[profiling::function]
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
         config: &WgpuConfiguration,
     ) {
+        profiling::function_scope!();
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
@@ -321,13 +321,13 @@ impl Painter {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
-    #[profiling::function]
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
         viewport_id: ViewportId,
         width_in_pixels: NonZeroU32,
         height_in_pixels: NonZeroU32,
     ) {
+        profiling::function_scope!();
         let width = width_in_pixels.get();
         let height = height_in_pixels.get();
 
@@ -391,13 +391,13 @@ impl Painter {
         };
     }
 
-    #[profiling::function]
     pub fn on_window_resized(
         &mut self,
         viewport_id: ViewportId,
         width_in_pixels: NonZeroU32,
         height_in_pixels: NonZeroU32,
     ) {
+        profiling::function_scope!();
         if self.surfaces.contains_key(&viewport_id) {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
                 viewport_id,
@@ -512,7 +512,6 @@ impl Painter {
     ///
     /// The approximate number of seconds spent on vsync-waiting (if any),
     /// and the captures captured screenshot if it was requested.
-    #[profiling::function]
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -522,6 +521,7 @@ impl Painter {
         textures_delta: &epaint::textures::TexturesDelta,
         capture: bool,
     ) -> (f32, Option<epaint::ColorImage>) {
+        profiling::function_scope!();
         let mut vsync_sec = 0.0;
 
         let Some(render_state) = self.render_state.as_mut() else {

@@ -217,12 +217,12 @@ impl GraphicLayers {
         self.0[layer_id.order as usize].get_mut(&layer_id.id)
     }
 
-    #[profiling::function]
     pub fn drain(
         &mut self,
         area_order: &[LayerId],
         transforms: &ahash::HashMap<LayerId, TSTransform>,
     ) -> Vec<ClippedShape> {
+        profiling::function_scope!();
         let mut all_shapes: Vec<_> = Default::default();
 
         for &order in &Order::ALL {

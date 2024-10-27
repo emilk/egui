@@ -108,8 +108,8 @@ impl Drop for FileStorage {
 
 impl FileStorage {
     /// Store the state in this .ron file.
-    #[profiling::function]
     pub(crate) fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
+        profiling::function_scope!();
         let ron_filepath: PathBuf = ron_filepath.into();
         log::debug!("Loading app state from {:?}…", ron_filepath);
         Self {
@@ -121,8 +121,8 @@ impl FileStorage {
     }
 
     /// Find a good place to put the files that the OS likes.
-    #[profiling::function]
     pub fn from_app_id(app_id: &str) -> Option<Self> {
+        profiling::function_scope!();
         if let Some(data_dir) = storage_dir(app_id) {
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
                 log::warn!(
@@ -183,8 +183,8 @@ impl crate::Storage for FileStorage {
     }
 }
 
-#[profiling::function]
 fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
+    profiling::function_scope!();
     if let Some(parent_dir) = file_path.parent() {
         if !parent_dir.exists() {
             if let Err(err) = std::fs::create_dir_all(parent_dir) {
@@ -215,11 +215,11 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
 
 // ----------------------------------------------------------------------------
 
-#[profiling::function]
 fn read_ron<T>(ron_path: impl AsRef<Path>) -> Option<T>
 where
     T: serde::de::DeserializeOwned,
 {
+    profiling::function_scope!();
     match std::fs::File::open(ron_path) {
         Ok(file) => {
             let reader = std::io::BufReader::new(file);

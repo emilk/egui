@@ -752,8 +752,8 @@ impl Focus {
 }
 
 impl Memory {
-    #[profiling::function]
     pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
+        profiling::function_scope!();
         self.viewport_id = new_raw_input.viewport_id;
 
         // Cleanup

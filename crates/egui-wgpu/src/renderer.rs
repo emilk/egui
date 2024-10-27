@@ -207,7 +207,6 @@ impl Renderer {
     ///
     /// `output_color_format` should preferably be [`wgpu::TextureFormat::Rgba8Unorm`] or
     /// [`wgpu::TextureFormat::Bgra8Unorm`], i.e. in gamma-space.
-    #[profiling::function]
     pub fn new(
         device: &wgpu::Device,
         output_color_format: wgpu::TextureFormat,
@@ -215,6 +214,7 @@ impl Renderer {
         msaa_samples: u32,
         dithering: bool,
     ) -> Self {
+        profiling::function_scope!();
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
@@ -413,13 +413,13 @@ impl Renderer {
     /// The render pass internally keeps all referenced resources alive as long as necessary.
     /// The only consequence of `forget_lifetime` is that any operation on the parent encoder will cause a runtime error
     /// instead of a compile time error.
-    #[profiling::function]
     pub fn render(
         &self,
         render_pass: &mut wgpu::RenderPass<'static>,
         paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
+        profiling::function_scope!();
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
 
@@ -535,7 +535,6 @@ impl Renderer {
     }
 
     /// Should be called before [`Self::render`].
-    #[profiling::function]
     pub fn update_texture(
         &mut self,
         device: &wgpu::Device,
@@ -543,6 +542,7 @@ impl Renderer {
         id: epaint::TextureId,
         image_delta: &epaint::ImageDelta,
     ) {
+        profiling::function_scope!();
         let width = image_delta.image.width() as u32;
         let height = image_delta.image.height() as u32;
 
@@ -747,13 +747,13 @@ impl Renderer {
     /// The texture must have the format [`wgpu::TextureFormat::Rgba8UnormSrgb`].
     /// Any compare function supplied in the [`wgpu::SamplerDescriptor`] will be ignored.
     #[allow(clippy::needless_pass_by_value)] // false positive
-    #[profiling::function]
     pub fn register_native_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
     ) -> epaint::TextureId {
+        profiling::function_scope!();
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
             ..sampler_descriptor
@@ -793,7 +793,6 @@ impl Renderer {
     ///
     /// This allows applications to reuse [`epaint::TextureId`]s created with custom sampler options.
     #[allow(clippy::needless_pass_by_value)] // false positive
-    #[profiling::function]
     pub fn update_egui_texture_from_wgpu_texture_with_sampler_options(
         &mut self,
         device: &wgpu::Device,
@@ -801,6 +800,7 @@ impl Renderer {
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
         id: epaint::TextureId,
     ) {
+        profiling::function_scope!();
         let Texture {
             bind_group: user_texture_binding,
             ..
@@ -836,7 +836,6 @@ impl Renderer {
     /// Should be called before [`Self::render`].
     ///
     /// Returns all user-defined command buffers gathered from [`CallbackTrait::prepare`] & [`CallbackTrait::finish_prepare`] callbacks.
-    #[profiling::function]
     pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,
@@ -845,6 +844,7 @@ impl Renderer {
         paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) -> Vec<wgpu::CommandBuffer> {
+        profiling::function_scope!();
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
         let uniform_buffer_content = UniformBuffer {
@@ -1019,8 +1019,8 @@ fn create_sampler(
     })
 }
 
-#[profiling::function]
 fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    profiling::function_scope!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_vertex_buffer"),
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -1029,8 +1029,8 @@ fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
     })
 }
 
-#[profiling::function]
 fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
+    profiling::function_scope!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_index_buffer"),
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,

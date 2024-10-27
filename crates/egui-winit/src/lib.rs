@@ -103,7 +103,6 @@ pub struct State {
 
 impl State {
     /// Construct a new instance
-    #[profiling::function]
     pub fn new(
         egui_ctx: egui::Context,
         viewport_id: ViewportId,
@@ -112,6 +111,7 @@ impl State {
         theme: Option<winit::window::Theme>,
         max_texture_side: Option<usize>,
     ) -> Self {
+        profiling::function_scope!();
         let egui_input = egui::RawInput {
             focused: false, // winit will tell us when we have focus
             ..Default::default()
@@ -156,12 +156,12 @@ impl State {
     }
 
     #[cfg(feature = "accesskit")]
-    #[profiling::function]
     pub fn init_accesskit<T: From<accesskit_winit::Event> + Send>(
         &mut self,
         window: &Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
     ) {
+        profiling::function_scope!();
         self.accesskit = Some(accesskit_winit::Adapter::with_event_loop_proxy(
             window,
             event_loop_proxy,
@@ -220,8 +220,8 @@ impl State {
     /// You need to set [`egui::RawInput::viewports`] yourself though.
     /// Use [`update_viewport_info`] to update the info for each
     /// viewport.
-    #[profiling::function]
     pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
+        profiling::function_scope!();
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
 
         // On Windows, a minimized window will have 0 width and height.
@@ -805,12 +805,12 @@ impl State {
     /// * open any clicked urls
     /// * update the IME
     /// *
-    #[profiling::function]
     pub fn handle_platform_output(
         &mut self,
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
+        profiling::function_scope!();
         let egui::PlatformOutput {
             cursor_icon,
             open_url,
@@ -933,13 +933,13 @@ pub fn outer_rect_in_points(window: &Window, pixels_per_point: f32) -> Option<Re
 /// Call before [`State::take_egui_input`].
 ///
 /// If this is called right after window creation, `is_init` should be `true`, otherwise `false`.
-#[profiling::function]
 pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
     egui_ctx: &egui::Context,
     window: &Window,
     is_init: bool,
 ) {
+    profiling::function_scope!();
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
@@ -1304,7 +1304,6 @@ pub fn process_viewport_commands(
     }
 }
 
-#[profiling::function]
 fn process_viewport_command(
     egui_ctx: &egui::Context,
     window: &Window,
@@ -1312,6 +1311,7 @@ fn process_viewport_command(
     info: &mut ViewportInfo,
     actions_requested: &mut HashSet<ActionRequested>,
 ) {
+    profiling::function_scope!();
     use winit::window::ResizeDirection;
 
     log::trace!("Processing ViewportCommand::{command:?}");
@@ -1521,12 +1521,12 @@ fn process_viewport_command(
 ///
 /// # Errors
 /// Possible causes of error include denied permission, incompatible system, and lack of memory.
-#[profiling::function]
 pub fn create_window(
     egui_ctx: &egui::Context,
     event_loop: &ActiveEventLoop,
     viewport_builder: &ViewportBuilder,
 ) -> Result<Window, winit::error::OsError> {
+    profiling::function_scope!();
     let window_attributes =
         create_winit_window_attributes(egui_ctx, event_loop, viewport_builder.clone());
     let window = event_loop.create_window(window_attributes)?;
@@ -1534,12 +1534,12 @@ pub fn create_window(
     Ok(window)
 }
 
-#[profiling::function]
 pub fn create_winit_window_attributes(
     egui_ctx: &egui::Context,
     event_loop: &ActiveEventLoop,
     viewport_builder: ViewportBuilder,
 ) -> winit::window::WindowAttributes {
+    profiling::function_scope!();
     // We set sizes and positions in egui:s own ui points, which depends on the egui
     // zoom_factor and the native pixels per point, so we need to know that here.
     // We don't know what monitor the window will appear on though, but
@@ -1730,8 +1730,8 @@ pub fn create_winit_window_attributes(
     window_attributes
 }
 
-#[profiling::function]
 fn to_winit_icon(icon: &egui::IconData) -> Option<winit::window::Icon> {
+    profiling::function_scope!();
     if icon.is_empty() {
         None
     } else {

@@ -16,8 +16,8 @@ use crate::{
 };
 
 // ----------------------------------------------------------------------------
-#[profiling::function]
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
+    profiling::function_scope!();
     let mut builder = winit::event_loop::EventLoop::with_user_event();
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {

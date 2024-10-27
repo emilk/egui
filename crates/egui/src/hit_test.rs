@@ -32,7 +32,6 @@ pub struct WidgetHits {
 
 /// Find the top or closest widgets to the given position,
 /// none which is closer than `search_radius`.
-#[profiling::function]
 pub fn hit_test(
     widgets: &WidgetRects,
     layer_order: &[LayerId],
@@ -40,6 +39,7 @@ pub fn hit_test(
     pos: Pos2,
     search_radius: f32,
 ) -> WidgetHits {
+    profiling::function_scope!();
     let search_radius_sq = search_radius * search_radius;
 
     // Transform the position into the local coordinate space of each layer:

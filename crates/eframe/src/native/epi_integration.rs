@@ -13,13 +13,14 @@ use egui_winit::{EventResponse, WindowSettings};
 use crate::epi;
 
 #[cfg_attr(target_os = "ios", allow(dead_code, unused_variables, unused_mut))]
-#[profiling::function]
 pub fn viewport_builder(
     egui_zoom_factor: f32,
     event_loop: &ActiveEventLoop,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) -> ViewportBuilder {
+    profiling::function_scope!();
+
     let mut viewport_builder = native_options.viewport.clone();
 
     // On some Linux systems, a window size larger than the monitor causes crashes,
@@ -89,19 +90,19 @@ pub fn viewport_builder(
     }
 }
 
-#[profiling::function]
 pub fn apply_window_settings(
     window: &winit::window::Window,
     window_settings: Option<WindowSettings>,
 ) {
+    profiling::function_scope!();
     if let Some(window_settings) = window_settings {
         window_settings.initialize_window(window);
     }
 }
 
 #[cfg(not(target_os = "ios"))]
-#[profiling::function]
 fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
+    profiling::function_scope!();
     let mut max_size = egui::Vec2::ZERO;
 
     let available_monitors = {
@@ -305,8 +306,8 @@ impl EpiIntegration {
         self.frame.info.cpu_usage = Some(seconds);
     }
 
-    #[profiling::function]
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
+        profiling::function_scope!();
         if std::mem::take(&mut self.is_first_frame) {
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
@@ -360,8 +361,8 @@ impl EpiIntegration {
     }
 }
 
-#[profiling::function]
 fn load_default_egui_icon() -> egui::IconData {
+    profiling::function_scope!();
     crate::icon_data::from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap()
 }
 
@@ -371,20 +372,20 @@ const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 #[cfg(feature = "persistence")]
 const STORAGE_WINDOW_KEY: &str = "window";
 
-#[profiling::function]
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
     #[cfg(feature = "persistence")]
     {
+        profiling::function_scope!();
         epi::get_value(_storage?, STORAGE_WINDOW_KEY)
     }
     #[cfg(not(feature = "persistence"))]
     None
 }
 
-#[profiling::function]
 pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
     #[cfg(feature = "persistence")]
     {
+        profiling::function_scope!();
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)
     }
     #[cfg(not(feature = "persistence"))]

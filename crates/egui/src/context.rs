@@ -567,8 +567,8 @@ impl ContextImpl {
     }
 
     /// Load fonts unless already loaded.
-    #[profiling::function]
     fn update_fonts_mut(&mut self) {
+        profiling::function_scope!();
         let input = &self.viewport().input;
         let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
@@ -786,8 +786,8 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
-    #[profiling::function]
     pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
+        profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
@@ -863,8 +863,8 @@ impl Context {
     /// let full_output = ctx.end_pass();
     /// // handle full_output
     /// ```
-    #[profiling::function]
     pub fn begin_pass(&self, new_input: RawInput) {
+        profiling::function_scope!();
         self.write(|ctx| ctx.begin_pass(new_input));
 
         // Plugins run just after the pass starts:
@@ -1728,8 +1728,8 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass.
-    #[profiling::function]
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
+        profiling::function_scope!();
         let pixels_per_point = self.pixels_per_point();
 
         let mut update_fonts = true;
@@ -2086,8 +2086,8 @@ impl Context {
 impl Context {
     /// Call at the end of each frame if you called [`Context::begin_pass`].
     #[must_use]
-    #[profiling::function]
     pub fn end_pass(&self) -> FullOutput {
+        profiling::function_scope!();
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
@@ -2454,12 +2454,12 @@ impl Context {
     /// `pixels_per_point` is used for feathering (anti-aliasing).
     /// For this you can use [`FullOutput::pixels_per_point`], [`Self::pixels_per_point`],
     /// or whatever is appropriate for your viewport.
-    #[profiling::function]
     pub fn tessellate(
         &self,
         shapes: Vec<ClippedShape>,
         pixels_per_point: f32,
     ) -> Vec<ClippedPrimitive> {
+        profiling::function_scope!();
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
@@ -3281,8 +3281,8 @@ impl Context {
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
-    #[profiling::function]
     pub fn forget_image(&self, uri: &str) {
+        profiling::function_scope!();
         use load::BytesLoader as _;
 
         let loaders = self.loaders();
@@ -3302,8 +3302,8 @@ impl Context {
     /// Release all memory and textures related to images used in [`Ui::image`] or [`crate::Image`].
     ///
     /// If you attempt to load any images again, they will be reloaded from scratch.
-    #[profiling::function]
     pub fn forget_all_images(&self) {
+        profiling::function_scope!();
         use load::BytesLoader as _;
 
         let loaders = self.loaders();
@@ -3436,8 +3436,8 @@ impl Context {
     }
 
     /// The loaders of bytes, images, and textures.
-    #[profiling::function]
     pub fn loaders(&self) -> Arc<Loaders> {
+        profiling::function_scope!();
         self.read(|this| this.loaders.clone())
     }
 }
@@ -3563,13 +3563,13 @@ impl Context {
     /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
     ///
     /// See [`crate::viewport`] for more information about viewports.
-    #[profiling::function]
     pub fn show_viewport_deferred(
         &self,
         new_viewport_id: ViewportId,
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Self, ViewportClass) + Send + Sync + 'static,
     ) {
+        profiling::function_scope!();
         if self.embed_viewports() {
             viewport_ui_cb(self, ViewportClass::Embedded);
         } else {
@@ -3614,13 +3614,13 @@ impl Context {
     /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
     ///
     /// See [`crate::viewport`] for more information about viewports.
-    #[profiling::function]
     pub fn show_viewport_immediate<T>(
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
         mut viewport_ui_cb: impl FnMut(&Self, ViewportClass) -> T,
     ) -> T {
+        profiling::function_scope!();
         if self.embed_viewports() {
             return viewport_ui_cb(self, ViewportClass::Embedded);
         }

@@ -187,8 +187,8 @@ impl std::fmt::Debug for IconData {
 }
 
 impl From<IconData> for epaint::ColorImage {
-    #[profiling::function]
     fn from(icon: IconData) -> Self {
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,
@@ -199,8 +199,8 @@ impl From<IconData> for epaint::ColorImage {
 }
 
 impl From<&IconData> for epaint::ColorImage {
-    #[profiling::function]
     fn from(icon: &IconData) -> Self {
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,

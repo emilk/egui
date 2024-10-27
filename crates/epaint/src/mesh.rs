@@ -84,8 +84,8 @@ impl Mesh {
     }
 
     /// Are all indices within the bounds of the contained vertices?
-    #[profiling::function]
     pub fn is_valid(&self) -> bool {
+        profiling::function_scope!();
         if let Ok(n) = u32::try_from(self.vertices.len()) {
             self.indices.iter().all(|&i| i < n)
         } else {
@@ -109,8 +109,8 @@ impl Mesh {
     /// Append all the indices and vertices of `other` to `self`.
     ///
     /// Panics when `other` mesh has a different texture.
-    #[profiling::function]
     pub fn append(&mut self, other: Self) {
+        profiling::function_scope!();
         debug_assert!(other.is_valid());
 
         if self.is_empty() {
