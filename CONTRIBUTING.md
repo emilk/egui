@@ -35,9 +35,11 @@ You can test your code locally by running `./scripts/check.sh`.
 There are snapshots test that might need to be updated. Run the tests with `UPDATE_SNAPSHOTS=true` to update them.
 For more info about the tests see [egui_kittest](./crates/egui_kittest/README.md).
 
-We use [git-lfs](https://git-lfs.com/) to store big files in the repository. 
+We use [git-lfs](https://git-lfs.com/) to store big files in the repository.
 Make sure you have it installed (running `git lfs ls-files` from the repository root should list some files).
 Don't forget to run `git lfs install` after installing the git-lfs binary.
+You need to add any .png images to `git lfs`.
+If the CI complains about this, make sure you run `git add --renormalize .`.
 
 If you see an `InvalidSignature` error when running snapshot tests, it's probably a problem related to git-lfs.
 
