@@ -67,6 +67,27 @@ impl From<String> for RichText {
     }
 }
 
+impl From<&Box<str>> for RichText {
+    #[inline]
+    fn from(text: &Box<str>) -> Self {
+        Self::new(text.clone())
+    }
+}
+
+impl From<&mut Box<str>> for RichText {
+    #[inline]
+    fn from(text: &mut Box<str>) -> Self {
+        Self::new(text.clone())
+    }
+}
+
+impl From<Box<str>> for RichText {
+    #[inline]
+    fn from(text: Box<str>) -> Self {
+        Self::new(text)
+    }
+}
+
 impl From<Cow<'_, str>> for RichText {
     #[inline]
     fn from(text: Cow<'_, str>) -> Self {
@@ -697,6 +718,20 @@ impl From<&String> for WidgetText {
 impl From<String> for WidgetText {
     #[inline]
     fn from(text: String) -> Self {
+        Self::RichText(RichText::new(text))
+    }
+}
+
+impl From<&Box<str>> for WidgetText {
+    #[inline]
+    fn from(text: &Box<str>) -> Self {
+        Self::RichText(RichText::new(text.clone()))
+    }
+}
+
+impl From<Box<str>> for WidgetText {
+    #[inline]
+    fn from(text: Box<str>) -> Self {
         Self::RichText(RichText::new(text))
     }
 }
