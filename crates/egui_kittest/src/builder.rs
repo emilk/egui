@@ -27,7 +27,7 @@ impl HarnessBuilder {
         self
     }
 
-    /// Set the pixels_per_point of the window.
+    /// Set the `pixels_per_point` of the window.
     #[inline]
     pub fn with_pixels_per_point(mut self, pixels_per_point: f32) -> Self {
         self.pixels_per_point = pixels_per_point;

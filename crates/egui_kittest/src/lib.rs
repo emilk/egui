@@ -139,8 +139,8 @@ impl<'a> Harness<'a> {
         self
     }
 
-    /// Set the pixels_per_point of the window.
-    /// Note: If you only want to set the pixels_per_point once at the beginning,
+    /// Set the `pixels_per_point` of the window.
+    /// Note: If you only want to set the `pixels_per_point` once at the beginning,
     /// prefer using [`HarnessBuilder::with_pixels_per_point`].
     #[inline]
     pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) -> &mut Self {
