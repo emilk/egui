@@ -301,7 +301,7 @@ mod tests {
             ..Default::default()
         };
         let mut harness = Harness::builder()
-            .with_dpi(2.0)
+            .with_pixels_per_point(2.0)
             .with_size(Vec2::new(380.0, 550.0))
             .build_ui(|ui| demo.ui(ui));
 

@@ -54,7 +54,7 @@ impl<'a> Harness<'a> {
             ..Default::default()
         };
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
-        viewport.native_pixels_per_point = Some(builder.dpi);
+        viewport.native_pixels_per_point = Some(builder.pixels_per_point);
 
         let mut response = None;
 
@@ -139,12 +139,12 @@ impl<'a> Harness<'a> {
         self
     }
 
-    /// Set the DPI of the window.
-    /// Note: If you only want to set the DPI once at the beginning,
-    /// prefer using [`HarnessBuilder::with_dpi`].
+    /// Set the pixels_per_point of the window.
+    /// Note: If you only want to set the pixels_per_point once at the beginning,
+    /// prefer using [`HarnessBuilder::with_pixels_per_point`].
     #[inline]
-    pub fn set_dpi(&mut self, dpi: f32) -> &mut Self {
-        self.ctx.set_pixels_per_point(dpi);
+    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) -> &mut Self {
+        self.ctx.set_pixels_per_point(pixels_per_point);
         self
     }
 

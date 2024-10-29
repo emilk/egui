@@ -5,14 +5,14 @@ use egui::{Pos2, Rect, Vec2};
 /// Builder for [`Harness`].
 pub struct HarnessBuilder {
     pub(crate) screen_rect: Rect,
-    pub(crate) dpi: f32,
+    pub(crate) pixels_per_point: f32,
 }
 
 impl Default for HarnessBuilder {
     fn default() -> Self {
         Self {
             screen_rect: Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)),
-            dpi: 1.0,
+            pixels_per_point: 1.0,
         }
     }
 }
@@ -27,10 +27,10 @@ impl HarnessBuilder {
         self
     }
 
-    /// Set the DPI of the window.
+    /// Set the pixels_per_point of the window.
     #[inline]
-    pub fn with_dpi(mut self, dpi: f32) -> Self {
-        self.dpi = dpi;
+    pub fn with_pixels_per_point(mut self, pixels_per_point: f32) -> Self {
+        self.pixels_per_point = pixels_per_point;
         self
     }
 
