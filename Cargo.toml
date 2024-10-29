@@ -73,7 +73,7 @@ ahash = { version = "0.8.11", default-features = false, features = [
     "std",
 ] }
 backtrace = "0.3"
-bytemuck = "1.7.2"
+bytemuck = "1.19"
 criterion = { version = "0.5.1", default-features = false }
 dify = { version = "0.7", default-features = false }
 document-features = "0.2.10"

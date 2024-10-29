@@ -192,7 +192,22 @@ impl RetainedImage {
 
 use egui::ColorImage;
 
-/// Load a (non-svg) image.
+/// Load a `image::DynamicImage` image.
+///
+/// Requires the "image" feature. You must also opt-in to the image formats you need
+/// with e.g. `image = { version = "0.25", features = ["jpeg", "png"] }`.
+///
+/// # Errors
+/// On invalid image or unsupported image format.
+#[cfg(feature = "image")]
+pub fn load_dynamic_image(dynamic_image: &image::DynamicImage) -> egui::ColorImage {
+    let size = [dynamic_image.width() as _, dynamic_image.height() as _];
+    let image_buffer = dynamic_image.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice())
+}
+
+/// Load a (non-svg, non-jxl) image.
 ///
 /// Requires the "image" feature. You must also opt-in to the image formats you need
 /// with e.g. `image = { version = "0.25", features = ["jpeg", "png"] }`.
@@ -203,13 +218,24 @@ use egui::ColorImage;
 pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, String> {
     crate::profile_function!();
     let image = image::load_from_memory(image_bytes).map_err(|err| err.to_string())?;
-    let size = [image.width() as _, image.height() as _];
-    let image_buffer = image.to_rgba8();
-    let pixels = image_buffer.as_flat_samples();
-    Ok(egui::ColorImage::from_rgba_unmultiplied(
-        size,
-        pixels.as_slice(),
-    ))
+    Ok(load_dynamic_image(&image))
+}
+
+/// Load a jxl image.
+///
+/// Requires the "image" and "jxl" features. You must also opt-in to any other image formats
+/// you need with e.g. `image = { version = "0.25", features = ["jpeg", "png"] }`.
+/// No image crate feature is required for jxl support.
+///
+/// # Errors
+/// On invalid image or unsupported image format.
+#[cfg(all(feature = "image", feature = "jxl"))]
+pub fn load_image_bytes_jxl(image_bytes: &[u8]) -> Result<egui::ColorImage, String> {
+    crate::profile_function!();
+    let decoder =
+        jxl_oxide::integration::JxlDecoder::new(image_bytes).map_err(|err| err.to_string())?;
+    let image = image::DynamicImage::from_decoder(decoder).map_err(|err| err.to_string())?;
+    Ok(load_dynamic_image(&image))
 }
 
 /// Load an SVG and rasterize it into an egui image.

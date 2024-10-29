@@ -1328,6 +1328,7 @@ dependencies = [
  "ehttp",
  "enum-map",
  "image",
+ "jxl-oxide",
  "log",
  "mime_guess2",
  "puffin",
@@ -2196,6 +2197,151 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a88f1bda2bd75b0452a14784937d796722fdebfe50df998aeb3f0b7603019a9"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "jxl-bitstream"
+version = "0.5.0-alpha.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "tracing",
+]
+
+[[package]]
+name = "jxl-coding"
+version = "0.5.0-alpha.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+ "tracing",
+]
+
+[[package]]
+name = "jxl-color"
+version = "0.9.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+ "jxl-coding",
+ "jxl-grid",
+ "jxl-oxide-common",
+ "jxl-threadpool",
+ "tracing",
+]
+
+[[package]]
+name = "jxl-frame"
+version = "0.11.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+ "jxl-coding",
+ "jxl-grid",
+ "jxl-image",
+ "jxl-modular",
+ "jxl-oxide-common",
+ "jxl-threadpool",
+ "jxl-vardct",
+ "tracing",
+]
+
+[[package]]
+name = "jxl-grid"
+version = "0.5.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "tracing",
+]
+
+[[package]]
+name = "jxl-image"
+version = "0.11.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+ "jxl-color",
+ "jxl-grid",
+ "jxl-oxide-common",
+ "tracing",
+]
+
+[[package]]
+name = "jxl-modular"
+version = "0.9.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+ "jxl-coding",
+ "jxl-grid",
+ "jxl-oxide-common",
+ "jxl-threadpool",
+ "tracing",
+]
+
+[[package]]
+name = "jxl-oxide"
+version = "0.10.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "bytemuck",
+ "image",
+ "jxl-bitstream",
+ "jxl-color",
+ "jxl-frame",
+ "jxl-grid",
+ "jxl-image",
+ "jxl-oxide-common",
+ "jxl-render",
+ "jxl-threadpool",
+ "tracing",
+]
+
+[[package]]
+name = "jxl-oxide-common"
+version = "0.1.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+]
+
+[[package]]
+name = "jxl-render"
+version = "0.10.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+ "jxl-coding",
+ "jxl-color",
+ "jxl-frame",
+ "jxl-grid",
+ "jxl-image",
+ "jxl-modular",
+ "jxl-oxide-common",
+ "jxl-threadpool",
+ "jxl-vardct",
+ "tracing",
+]
+
+[[package]]
+name = "jxl-threadpool"
+version = "0.1.1"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "tracing",
+]
+
+[[package]]
+name = "jxl-vardct"
+version = "0.9.0"
+source = "git+https://github.com/tirr-c/jxl-oxide.git#229c223af49de96247a4e5548470ce2753912f3e"
+dependencies = [
+ "jxl-bitstream",
+ "jxl-coding",
+ "jxl-grid",
+ "jxl-modular",
+ "jxl-oxide-common",
+ "jxl-threadpool",
+ "tracing",
 ]
 
 [[package]]

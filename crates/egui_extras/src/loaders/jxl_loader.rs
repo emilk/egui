@@ -1,59 +1,68 @@
-use std::{mem::size_of, path::Path, sync::Arc};
-
 use ahash::HashMap;
-
 use egui::{
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage,
 };
+use std::{mem::size_of, path::Path, sync::Arc};
 
 type Entry = Result<Arc<ColorImage>, String>;
 
 #[derive(Default)]
-pub struct SvgLoader {
-    cache: Mutex<HashMap<(String, SizeHint), Entry>>,
+pub struct JxlLoader {
+    cache: Mutex<HashMap<String, Entry>>,
 }
 
-impl SvgLoader {
-    pub const ID: &'static str = egui::generate_loader_id!(SvgLoader);
+impl JxlLoader {
+    pub const ID: &'static str = egui::generate_loader_id!(JxlLoader);
 }
 
-fn is_supported(uri: &str) -> bool {
+fn is_supported_uri(uri: &str) -> bool {
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
         return false;
     };
 
-    ext == "svg"
+    ext == "jxl"
 }
 
-impl ImageLoader for SvgLoader {
+fn is_unsupported_mime(mime: &str) -> bool {
+    mime != "image/jxl"
+}
+
+impl ImageLoader for JxlLoader {
     fn id(&self) -> &str {
         Self::ID
     }
 
-    fn load(&self, ctx: &egui::Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult {
-        if !is_supported(uri) {
+    fn load(&self, ctx: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
+        // three stages of guessing if we support loading the image:
+        // 1. URI extension
+        // 2. Mime from `BytesPoll::Ready`
+        // 3. image::guess_format
+
+        // (1)
+        if !is_supported_uri(uri) {
             return Err(LoadError::NotSupported);
         }
 
-        let uri = uri.to_owned();
-
         let mut cache = self.cache.lock();
-        // We can't avoid the `uri` clone here without unsafe code.
-        if let Some(entry) = cache.get(&(uri.clone(), size_hint)).cloned() {
+        if let Some(entry) = cache.get(uri).cloned() {
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
                 Err(err) => Err(LoadError::Loading(err)),
             }
         } else {
-            match ctx.try_load_bytes(&uri) {
-                Ok(BytesPoll::Ready { bytes, .. }) => {
+            match ctx.try_load_bytes(uri) {
+                Ok(BytesPoll::Ready { bytes, mime, .. }) => {
+                    // (2 and 3)
+                    if mime.as_deref().is_some_and(is_unsupported_mime) {
+                        return Err(LoadError::NotSupported);
+                    }
+
                     log::trace!("started loading {uri:?}");
-                    let result = crate::image::load_svg_bytes_with_size(&bytes, Some(size_hint))
-                        .map(Arc::new);
+                    let result = crate::image::load_image_bytes_jxl(&bytes).map(Arc::new);
                     log::trace!("finished loading {uri:?}");
-                    cache.insert((uri, size_hint), result.clone());
+                    cache.insert(uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
                         Err(err) => Err(LoadError::Loading(err)),
@@ -66,7 +75,7 @@ impl ImageLoader for SvgLoader {
     }
 
     fn forget(&self, uri: &str) {
-        self.cache.lock().retain(|(u, _), _| u != uri);
+        let _ = self.cache.lock().remove(uri);
     }
 
     fn forget_all(&self) {
@@ -91,13 +100,12 @@ mod tests {
 
     #[test]
     fn check_support() {
-        // inverse of same test in `image_loader.rs`
-        assert!(!is_supported("https://test.png"));
-        assert!(!is_supported("test.jpeg"));
-        assert!(!is_supported("http://test.gif"));
-        assert!(!is_supported("test.webp"));
-        assert!(!is_supported("file://test"));
-        assert!(is_supported("test.svg"));
-        assert!(!is_supported("test.jxl"));
+        assert!(!is_supported_uri("https://test.png"));
+        assert!(!is_supported_uri("test.jpeg"));
+        assert!(!is_supported_uri("http://test.gif"));
+        assert!(!is_supported_uri("test.webp"));
+        assert!(!is_supported_uri("file://test"));
+        assert!(!is_supported_uri("test.svg"));
+        assert!(is_supported_uri("test.jxl"));
     }
 }

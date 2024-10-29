@@ -78,6 +78,12 @@ pub fn install_image_loaders(ctx: &egui::Context) {
         log::trace!("installed ImageCrateLoader");
     }
 
+    #[cfg(feature = "jxl")]
+    if !ctx.is_loader_installed(self::jxl_loader::JxlLoader::ID) {
+        ctx.add_image_loader(std::sync::Arc::new(self::jxl_loader::JxlLoader::default()));
+        log::trace!("installed JxlLoader");
+    }
+
     #[cfg(feature = "gif")]
     if !ctx.is_loader_installed(self::gif_loader::GifLoader::ID) {
         ctx.add_image_loader(std::sync::Arc::new(self::gif_loader::GifLoader::default()));
@@ -111,5 +117,7 @@ mod ehttp_loader;
 mod gif_loader;
 #[cfg(feature = "image")]
 mod image_loader;
+#[cfg(feature = "jxl")]
+mod jxl_loader;
 #[cfg(feature = "svg")]
 mod svg_loader;
