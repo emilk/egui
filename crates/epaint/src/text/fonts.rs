@@ -633,7 +633,7 @@ impl FontsImpl {
             "pixels_per_point out of range: {pixels_per_point}"
         );
 
-        let texture_width = max_texture_side.at_most(8 * 1024);
+        let texture_width = max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height]);
 
