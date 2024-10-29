@@ -690,7 +690,7 @@ mod tests {
             let mut color_test = ColorTest::default();
             let mut harness = egui_kittest::Harness::builder()
                 .with_size(vec2(2000.0, 2000.0))
-                .with_dpi(dpi)
+                .with_pixels_per_point(dpi)
                 .build_ui(|ui| {
                     color_test.ui(ui);
                 });

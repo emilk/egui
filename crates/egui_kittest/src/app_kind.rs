@@ -55,17 +55,19 @@ impl<'a> AppKind<'a> {
 
     fn run_ui(f: &mut AppKindUi<'a>, ctx: &egui::Context, sizing_pass: bool) -> egui::Response {
         egui::CentralPanel::default()
-            .frame(
-                Frame::central_panel(&ctx.style())
-                    .inner_margin(0.0)
-                    .outer_margin(0.0),
-            )
+            .frame(Frame::none())
             .show(ctx, |ui| {
                 let mut builder = egui::UiBuilder::new();
                 if sizing_pass {
                     builder.sizing_pass = true;
                 }
-                ui.scope_builder(builder, f).response
+                ui.scope_builder(builder, |ui| {
+                    Frame::central_panel(ui.style())
+                        .outer_margin(8.0)
+                        .inner_margin(0.0)
+                        .show(ui, |ui| f(ui));
+                })
+                .response
             })
             .inner
     }
