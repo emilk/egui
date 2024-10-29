@@ -38,8 +38,6 @@ impl<S> HarnessBuilder<S> {
     }
 
     /// Create a new Harness with the given app closure and a state.
-    /// Use the [`Harness::run_state`], [`Harness::step_state`], etc... methods to run the app with
-    /// your state.
     ///
     /// The app closure will immediately be called once to create the initial ui.
     ///
@@ -49,31 +47,29 @@ impl<S> HarnessBuilder<S> {
     /// ```rust
     /// # use egui::CentralPanel;
     /// # use egui_kittest::{Harness, kittest::Queryable};
-    /// let mut checked = false;
+    /// let checked = false;
     /// let mut harness = Harness::builder()
     ///     .with_size(egui::Vec2::new(300.0, 200.0))
     ///     .build_state(|ctx, checked| {
     ///         CentralPanel::default().show(ctx, |ui| {
     ///             ui.checkbox(checked, "Check me!");
     ///         });
-    ///     }, &mut checked);
+    ///     }, checked);
     ///
     /// harness.get_by_name("Check me!").click();
-    /// harness.run_state(&mut checked);
+    /// harness.run();
     ///
-    /// assert_eq!(checked, true);
+    /// assert_eq!(*harness.state(), true);
     /// ```
     pub fn build_state<'a>(
         self,
         app: impl FnMut(&egui::Context, &mut S) + 'a,
-        state: &mut S,
+        state: S,
     ) -> Harness<'a, S> {
         Harness::from_builder(&self, AppKind::ContextState(Box::new(app)), state)
     }
 
     /// Create a new Harness with the given ui closure and a state.
-    /// Use the [`Harness::run_state`], [`Harness::step_state`], etc... methods to run the app with
-    /// your state.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
     ///
@@ -87,17 +83,17 @@ impl<S> HarnessBuilder<S> {
     ///     .with_size(egui::Vec2::new(300.0, 200.0))
     ///     .build_ui_state(|ui, checked| {
     ///        ui.checkbox(checked, "Check me!");
-    ///     }, &mut checked);
+    ///     }, checked);
     ///
     /// harness.get_by_name("Check me!").click();
-    /// harness.run_state(&mut checked);
+    /// harness.run();
     ///
-    /// assert_eq!(checked, true);
+    /// assert_eq!(*harness.state(), true);
     /// ```
     pub fn build_ui_state<'a>(
         self,
         app: impl FnMut(&mut egui::Ui, &mut S) + 'a,
-        state: &mut S,
+        state: S,
     ) -> Harness<'a, S> {
         Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state)
     }
@@ -123,11 +119,7 @@ impl HarnessBuilder {
     ///     });
     /// ```
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
-        Harness::from_builder(
-            &self,
-            AppKind::Context(Box::new(app)),
-            &mut Default::default(),
-        )
+        Harness::from_builder(&self, AppKind::Context(Box::new(app)), ())
     }
 
     /// Create a new Harness with the given ui closure.
@@ -146,6 +138,6 @@ impl HarnessBuilder {
     ///     });
     /// ```
     pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, AppKind::Ui(Box::new(app)), &mut Default::default())
+        Harness::from_builder(&self, AppKind::Ui(Box::new(app)), ())
     }
 }

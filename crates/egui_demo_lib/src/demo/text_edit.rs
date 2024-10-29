@@ -121,17 +121,17 @@ mod tests {
 
     #[test]
     pub fn should_type() {
-        let mut text = "Hello, world!".to_owned();
+        let text = "Hello, world!".to_owned();
         let mut harness = Harness::new_state(
             move |ctx, text| {
                 CentralPanel::default().show(ctx, |ui| {
                     ui.text_edit_singleline(text);
                 });
             },
-            &mut text,
+            text,
         );
 
-        harness.run_state(&mut text);
+        harness.run();
 
         let text_edit = harness.get_by_role(accesskit::Role::TextInput);
         assert_eq!(text_edit.value().as_deref(), Some("Hello, world!"));
@@ -139,14 +139,14 @@ mod tests {
         text_edit.key_combination(&[Key::Command, Key::A]);
         text_edit.type_text("Hi ");
 
-        harness.run_state(&mut text);
+        harness.run();
         harness
             .get_by_role(accesskit::Role::TextInput)
             .type_text("there!");
 
-        harness.run_state(&mut text);
+        harness.run();
         let text_edit = harness.get_by_role(accesskit::Role::TextInput);
         assert_eq!(text_edit.value().as_deref(), Some("Hi there!"));
-        assert_eq!(text, "Hi there!");
+        assert_eq!(harness.state(), "Hi there!");
     }
 }
