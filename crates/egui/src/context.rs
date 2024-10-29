@@ -597,7 +597,9 @@ impl ContextImpl {
                         FontPriority::Lowest => fam.push(font.name.clone()),
                     }
                 }
-                self.font_definitions.font_data.insert(font.name, font.data);
+                self.font_definitions
+                    .font_data
+                    .insert(font.name, Arc::new(font.data));
             }
 
             #[cfg(feature = "log")]
@@ -2940,7 +2942,9 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                if data.tweak.ui(ui).changed() {
+                let mut tweak = data.tweak;
+                if tweak.ui(ui).changed() {
+                    Arc::make_mut(data).tweak = tweak;
                     changed = true;
                 }
             });
