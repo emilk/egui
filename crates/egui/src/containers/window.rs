@@ -288,7 +288,9 @@ impl<'open> Window<'open> {
     /// Set initial size of the window.
     #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
+        let default_size: Vec2 = default_size.into();
         self.resize = self.resize.default_size(default_size);
+        self.area = self.area.default_size(default_size);
         self
     }
 
@@ -296,6 +298,7 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.resize = self.resize.default_width(default_width);
+        self.area = self.area.default_width(default_width);
         self
     }
 
@@ -303,6 +306,7 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.resize = self.resize.default_height(default_height);
+        self.area = self.area.default_height(default_height);
         self
     }
 
