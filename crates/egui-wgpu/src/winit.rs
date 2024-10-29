@@ -116,14 +116,14 @@ impl Painter {
         support_transparent_backbuffer: bool,
         dithering: bool,
     ) -> Self {
-        let instance = match &configuration.wgpu_device_setup {
-            crate::WgpuDeviceSetup::Standard {
+        let instance = match &configuration.wgpu_setup {
+            crate::WgpuSetup::CreateNew {
                 supported_backends, ..
             } => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends: *supported_backends,
                 ..Default::default()
             })),
-            crate::WgpuDeviceSetup::Existing { instance, .. } => instance.clone(),
+            crate::WgpuSetup::Existing { instance, .. } => instance.clone(),
         };
 
         Self {

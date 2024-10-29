@@ -99,8 +99,8 @@ impl RenderState {
         #[cfg(not(target_arch = "wasm32"))]
         let available_adapters = instance.enumerate_adapters(wgpu::Backends::all());
 
-        let (adapter, device, queue) = match config.wgpu_device_setup.clone() {
-            WgpuDeviceSetup::Standard {
+        let (adapter, device, queue) = match config.wgpu_setup.clone() {
+            WgpuSetup::CreateNew {
                 supported_backends: _,
                 power_preference,
                 device_descriptor,
@@ -171,7 +171,7 @@ impl RenderState {
                 #[allow(clippy::arc_with_non_send_sync)]
                 (Arc::new(adapter), Arc::new(device), Arc::new(queue))
             }
-            WgpuDeviceSetup::Existing {
+            WgpuSetup::Existing {
                 instance: _,
                 adapter,
                 device,
@@ -236,9 +236,15 @@ pub enum SurfaceErrorAction {
 }
 
 #[derive(Clone)]
-pub enum WgpuDeviceSetup {
-    /// Construct a wgpu setup using some predefined heuristics & settings.
-    Standard {
+pub enum WgpuSetup {
+    /// Construct a wgpu setup using some predefined settings & heuristics.
+    /// This is the default option. You can customize most behaviours overriding the
+    /// supported backends, power preferences, and device description.
+    ///
+    /// This can also be configured with the environment variables:
+    /// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
+    /// * `WGPU_POWER_PREF`: `low`, `high` or `none`
+    CreateNew {
         /// Backends that should be supported (wgpu will pick one of these).
         ///
         /// For instance, if you only want to support WebGL (and not WebGPU),
@@ -266,10 +272,10 @@ pub enum WgpuDeviceSetup {
     },
 }
 
-impl std::fmt::Debug for WgpuDeviceSetup {
+impl std::fmt::Debug for WgpuSetup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Standard {
+            Self::CreateNew {
                 supported_backends,
                 power_preference,
                 device_descriptor: _,
@@ -286,10 +292,6 @@ impl std::fmt::Debug for WgpuDeviceSetup {
 }
 
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
-///
-/// This can also be configured with the environment variables:
-/// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
-/// * `WGPU_POWER_PREF`: `low`, `high` or `none`
 #[derive(Clone)]
 pub struct WgpuConfiguration {
     /// Present mode used for the primary surface.
@@ -305,7 +307,7 @@ pub struct WgpuConfiguration {
     pub desired_maximum_frame_latency: Option<u32>,
 
     /// How to create the wgpu adapter & device
-    pub wgpu_device_setup: WgpuDeviceSetup,
+    pub wgpu_setup: WgpuSetup,
 
     /// Callback for surface errors.
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction + Send + Sync>,
@@ -322,7 +324,7 @@ impl std::fmt::Debug for WgpuConfiguration {
         let Self {
             present_mode,
             desired_maximum_frame_latency,
-            wgpu_device_setup: adapter_selection,
+            wgpu_setup,
             on_surface_error: _,
         } = self;
         f.debug_struct("WgpuConfiguration")
@@ -331,7 +333,7 @@ impl std::fmt::Debug for WgpuConfiguration {
                 "desired_maximum_frame_latency",
                 &desired_maximum_frame_latency,
             )
-            .field("adapter_selection", &adapter_selection)
+            .field("wgpu_setup", &wgpu_setup)
             .finish_non_exhaustive()
     }
 }
@@ -343,10 +345,11 @@ impl Default for WgpuConfiguration {
 
             desired_maximum_frame_latency: None,
 
-            // Use "standard" wgpu adapter selection by default, which iterates adapters
-            // based on their power preference. The power preferenc can be configured from
-            // env variables.
-            wgpu_device_setup: WgpuDeviceSetup::Standard {
+            // By default, create a new wgpu setup. This will create a new instance, adapter, device and queue.
+            // This will create an instance for the supported backends (which can be configured by
+            // `WGPU_BACKEND`), and will pick an adapter by iterateing adapters based on their power preference. The power
+            // preference can also be configured by `WGPU_POWER_PREF`.
+            wgpu_setup: WgpuSetup::CreateNew {
                 // Add GL backend, primarily because WebGPU is not stable enough yet.
                 // (note however, that the GL backend needs to be opted-in via the wgpu feature flag "webgl")
                 supported_backends: wgpu::util::backend_bits_from_env()
