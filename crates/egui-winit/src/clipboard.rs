@@ -112,7 +112,7 @@ impl Clipboard {
 
 #[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     log::trace!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
@@ -139,7 +139,7 @@ fn init_smithay_clipboard(
 ) -> Option<smithay_clipboard::Clipboard> {
     #![allow(clippy::undocumented_unsafe_blocks)]
 
-    crate::profile_function!();
+    profiling::function_scope!();
 
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
         log::trace!("Initializing smithay clipboard…");

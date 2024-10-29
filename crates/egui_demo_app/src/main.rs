@@ -51,6 +51,7 @@ fn main() -> eframe::Result {
 
         ..Default::default()
     };
+
     eframe::run_native(
         "egui demo app",
         options,

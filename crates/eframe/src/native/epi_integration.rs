@@ -19,7 +19,7 @@ pub fn viewport_builder(
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) -> ViewportBuilder {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     let mut viewport_builder = native_options.viewport.clone();
 
@@ -67,7 +67,7 @@ pub fn viewport_builder(
 
     #[cfg(not(target_os = "ios"))]
     if native_options.centered {
-        crate::profile_scope!("center");
+        profiling::scope!("center");
         if let Some(monitor) = event_loop
             .primary_monitor()
             .or_else(|| event_loop.available_monitors().next())
@@ -94,8 +94,7 @@ pub fn apply_window_settings(
     window: &winit::window::Window,
     window_settings: Option<WindowSettings>,
 ) {
-    crate::profile_function!();
-
+    profiling::function_scope!();
     if let Some(window_settings) = window_settings {
         window_settings.initialize_window(window);
     }
@@ -103,12 +102,11 @@ pub fn apply_window_settings(
 
 #[cfg(not(target_os = "ios"))]
 fn largest_monitor_point_size(egui_zoom_factor: f32, event_loop: &ActiveEventLoop) -> egui::Vec2 {
-    crate::profile_function!();
-
+    profiling::function_scope!();
     let mut max_size = egui::Vec2::ZERO;
 
     let available_monitors = {
-        crate::profile_scope!("available_monitors");
+        profiling::scope!("available_monitors");
         event_loop.available_monitors()
     };
 
@@ -238,7 +236,7 @@ impl EpiIntegration {
         egui_winit: &mut egui_winit::State,
         event: &winit::event::WindowEvent,
     ) -> EventResponse {
-        crate::profile_function!(egui_winit::short_window_event_description(event));
+        profiling::function_scope!(egui_winit::short_window_event_description(event));
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
@@ -276,10 +274,10 @@ impl EpiIntegration {
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
-                crate::profile_scope!("viewport_callback");
+                profiling::scope!("viewport_callback");
                 viewport_ui_cb(egui_ctx);
             } else {
-                crate::profile_scope!("App::update");
+                profiling::scope!("App::update");
                 app.update(egui_ctx, &mut self.frame);
             }
         });
@@ -306,7 +304,7 @@ impl EpiIntegration {
     }
 
     pub fn post_rendering(&mut self, window: &winit::window::Window) {
-        crate::profile_function!();
+        profiling::function_scope!();
         if std::mem::take(&mut self.is_first_frame) {
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
@@ -332,11 +330,11 @@ impl EpiIntegration {
     pub fn save(&mut self, _app: &mut dyn epi::App, _window: Option<&winit::window::Window>) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
-            crate::profile_function!();
+            profiling::function_scope!();
 
             if let Some(window) = _window {
                 if self.persist_window {
-                    crate::profile_scope!("native_window");
+                    profiling::scope!("native_window");
                     epi::set_value(
                         storage,
                         STORAGE_WINDOW_KEY,
@@ -345,23 +343,23 @@ impl EpiIntegration {
                 }
             }
             if _app.persist_egui_memory() {
-                crate::profile_scope!("egui_memory");
+                profiling::scope!("egui_memory");
                 self.egui_ctx
                     .memory(|mem| epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, mem));
             }
             {
-                crate::profile_scope!("App::save");
+                profiling::scope!("App::save");
                 _app.save(storage);
             }
 
-            crate::profile_scope!("Storage::flush");
+            profiling::scope!("Storage::flush");
             storage.flush();
         }
     }
 }
 
 fn load_default_egui_icon() -> egui::IconData {
-    crate::profile_function!();
+    profiling::function_scope!();
     crate::icon_data::from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap()
 }
 
@@ -372,7 +370,7 @@ const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 const STORAGE_WINDOW_KEY: &str = "window";
 
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
-    crate::profile_function!();
+    profiling::function_scope!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_WINDOW_KEY)
@@ -382,7 +380,7 @@ pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<Windo
 }
 
 pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
-    crate::profile_function!();
+    profiling::function_scope!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)

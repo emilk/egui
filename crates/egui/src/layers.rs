@@ -222,7 +222,7 @@ impl GraphicLayers {
         area_order: &[LayerId],
         transforms: &ahash::HashMap<LayerId, TSTransform>,
     ) -> Vec<ClippedShape> {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let mut all_shapes: Vec<_> = Default::default();
 

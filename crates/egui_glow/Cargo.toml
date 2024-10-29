@@ -39,9 +39,6 @@ clipboard = ["egui-winit?/clipboard"]
 ## enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit?/links"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
-
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["egui-winit", "dep:winit"]
 
@@ -61,14 +58,13 @@ bytemuck.workspace = true
 glow.workspace = true
 log.workspace = true
 memoffset = "0.9"
+profiling.workspace = true
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
 # Native:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-puffin = { workspace = true, optional = true }
 winit = { workspace = true, optional = true, default-features = false, features = ["rwh_06"] }
 
 # Web:

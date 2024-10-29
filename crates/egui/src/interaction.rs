@@ -113,7 +113,7 @@ pub(crate) fn interact(
     input: &InputState,
     interaction: &mut InteractionState,
 ) -> InteractionSnapshot {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     if let Some(id) = interaction.potential_click_id {
         if !widgets.contains(id) {

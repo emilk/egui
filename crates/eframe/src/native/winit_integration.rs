@@ -11,7 +11,7 @@ use egui_winit::accesskit_winit;
 
 /// Create an egui context, restoring it from storage if possible.
 pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     pub const IS_DESKTOP: bool = cfg!(any(
         target_os = "freebsd",
