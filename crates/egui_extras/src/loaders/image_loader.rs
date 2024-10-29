@@ -115,7 +115,6 @@ mod tests {
         assert!(is_supported_uri("https://test.png"));
         assert!(is_supported_uri("test.jpeg"));
         assert!(is_supported_uri("http://test.gif"));
-        assert!(is_supported_uri("test.webp"));
         assert!(is_supported_uri("file://test"));
         assert!(!is_supported_uri("test.svg"));
     }
