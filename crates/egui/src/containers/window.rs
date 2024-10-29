@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::collapsing_header::CollapsingState;
 use crate::{
     Align, Align2, Context, CursorIcon, Id, InnerResponse, LayerId, NumExt, Order, Response, Sense,
-    TextStyle, Ui, UiKind, Vec2b, WidgetRect, WidgetText,
+    TextStyle, Ui, UiKind, Vec2b, WidgetInfo, WidgetRect, WidgetText, WidgetType,
 };
 use epaint::{emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Shape, Stroke, Vec2};
 
@@ -466,6 +466,8 @@ impl<'open> Window<'open> {
         let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
+        area.with_widget_info(|| WidgetInfo::labeled(WidgetType::Window, true, title.text()));
+
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
@@ -489,8 +491,9 @@ impl<'open> Window<'open> {
 
         // First check for resize to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
-        let resize_interaction =
-            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect);
+        let resize_interaction = ctx.with_accessibility_parent(area.id(), || {
+            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect)
+        });
 
         let margins = window_frame.outer_margin.sum()
             + window_frame.inner_margin.sum()
@@ -514,107 +517,109 @@ impl<'open> Window<'open> {
         }
 
         let content_inner = {
-            // BEGIN FRAME --------------------------------
-            let frame_stroke = window_frame.stroke;
-            let mut frame = window_frame.begin(&mut area_content_ui);
+            ctx.with_accessibility_parent(area.id(), || {
+                // BEGIN FRAME --------------------------------
+                let frame_stroke = window_frame.stroke;
+                let mut frame = window_frame.begin(&mut area_content_ui);
 
-            let show_close_button = open.is_some();
+                let show_close_button = open.is_some();
 
-            let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
+                let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
 
-            // Backup item spacing before the title bar
-            let item_spacing = frame.content_ui.spacing().item_spacing;
-            // Use title bar spacing as the item spacing before the content
-            frame.content_ui.spacing_mut().item_spacing.y = title_content_spacing;
+                // Backup item spacing before the title bar
+                let item_spacing = frame.content_ui.spacing().item_spacing;
+                // Use title bar spacing as the item spacing before the content
+                frame.content_ui.spacing_mut().item_spacing.y = title_content_spacing;
 
-            let title_bar = if with_title_bar {
-                let title_bar = TitleBar::new(
-                    &mut frame.content_ui,
-                    title,
-                    show_close_button,
-                    &mut collapsing,
-                    collapsible,
-                );
-                resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
-                Some(title_bar)
-            } else {
-                None
-            };
-
-            // Remove item spacing after the title bar
-            frame.content_ui.spacing_mut().item_spacing.y = 0.0;
-
-            let (content_inner, mut content_response) = collapsing
-                .show_body_unindented(&mut frame.content_ui, |ui| {
-                    // Restore item spacing for the content
-                    ui.spacing_mut().item_spacing.y = item_spacing.y;
-
-                    resize.show(ui, |ui| {
-                        if scroll.is_any_scroll_enabled() {
-                            scroll.show(ui, add_contents).inner
-                        } else {
-                            add_contents(ui)
-                        }
-                    })
-                })
-                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
-
-            let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(
-                &area_content_ui,
-                &possible,
-                outer_rect,
-                frame_stroke,
-                window_frame.rounding,
-            );
-
-            // END FRAME --------------------------------
-
-            if let Some(title_bar) = title_bar {
-                let mut title_rect = Rect::from_min_size(
-                    outer_rect.min,
-                    Vec2 {
-                        x: outer_rect.size().x,
-                        y: title_bar_height,
-                    },
-                );
-
-                title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
-
-                if on_top && area_content_ui.visuals().window_highlight_topmost {
-                    let mut round = window_frame.rounding;
-
-                    if !is_collapsed {
-                        round.se = 0.0;
-                        round.sw = 0.0;
-                    }
-
-                    area_content_ui.painter().set(
-                        *where_to_put_header_background,
-                        RectShape::filled(title_rect, round, header_color),
+                let title_bar = if with_title_bar {
+                    let title_bar = TitleBar::new(
+                        &mut frame.content_ui,
+                        title,
+                        show_close_button,
+                        &mut collapsing,
+                        collapsible,
                     );
+                    resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+                    Some(title_bar)
+                } else {
+                    None
                 };
 
-                // Fix title bar separator line position
-                if let Some(response) = &mut content_response {
-                    response.rect.min.y = outer_rect.min.y + title_bar_height;
+                // Remove item spacing after the title bar
+                frame.content_ui.spacing_mut().item_spacing.y = 0.0;
+
+                let (content_inner, mut content_response) = collapsing
+                    .show_body_unindented(&mut frame.content_ui, |ui| {
+                        // Restore item spacing for the content
+                        ui.spacing_mut().item_spacing.y = item_spacing.y;
+
+                        resize.show(ui, |ui| {
+                            if scroll.is_any_scroll_enabled() {
+                                scroll.show(ui, add_contents).inner
+                            } else {
+                                add_contents(ui)
+                            }
+                        })
+                    })
+                    .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+
+                let outer_rect = frame.end(&mut area_content_ui).rect;
+                paint_resize_corner(
+                    &area_content_ui,
+                    &possible,
+                    outer_rect,
+                    frame_stroke,
+                    window_frame.rounding,
+                );
+
+                // END FRAME --------------------------------
+
+                if let Some(title_bar) = title_bar {
+                    let mut title_rect = Rect::from_min_size(
+                        outer_rect.min,
+                        Vec2 {
+                            x: outer_rect.size().x,
+                            y: title_bar_height,
+                        },
+                    );
+
+                    title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
+
+                    if on_top && area_content_ui.visuals().window_highlight_topmost {
+                        let mut round = window_frame.rounding;
+
+                        if !is_collapsed {
+                            round.se = 0.0;
+                            round.sw = 0.0;
+                        }
+
+                        area_content_ui.painter().set(
+                            *where_to_put_header_background,
+                            RectShape::filled(title_rect, round, header_color),
+                        );
+                    };
+
+                    // Fix title bar separator line position
+                    if let Some(response) = &mut content_response {
+                        response.rect.min.y = outer_rect.min.y + title_bar_height;
+                    }
+
+                    title_bar.ui(
+                        &mut area_content_ui,
+                        title_rect,
+                        &content_response,
+                        open,
+                        &mut collapsing,
+                        collapsible,
+                    );
                 }
 
-                title_bar.ui(
-                    &mut area_content_ui,
-                    title_rect,
-                    &content_response,
-                    open,
-                    &mut collapsing,
-                    collapsible,
-                );
-            }
+                collapsing.store(ctx);
 
-            collapsing.store(ctx);
+                paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
 
-            paint_frame_interaction(&area_content_ui, outer_rect, resize_interaction);
-
-            content_inner
+                content_inner
+            })
         };
 
         let full_response = area.end(ctx, area_content_ui);
@@ -1192,6 +1197,9 @@ impl TitleBar {
 fn close_button(ui: &mut Ui, rect: Rect) -> Response {
     let close_id = ui.auto_id_with("window_close_button");
     let response = ui.interact(rect, close_id, Sense::click());
+    response
+        .widget_info(|| WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), "Close window"));
+
     ui.expand_to_include_rect(response.rect);
 
     let visuals = ui.style().interact(&response);
