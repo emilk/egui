@@ -9,7 +9,7 @@
 //! ```
 //!
 //! You can control whether WebGL or WebGPU will be picked at runtime by configuring
-//! [`WgpuConfiguration::wgpu_device_setup`].
+//! [`WgpuConfiguration::wgpu_setup`].
 //! The default is to prefer WebGPU and fall back on WebGL.
 //!
 //! ## Feature flags

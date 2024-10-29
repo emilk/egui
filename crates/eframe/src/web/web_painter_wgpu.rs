@@ -7,7 +7,7 @@ use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
 use crate::WebOptions;
-use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuDeviceSetup};
+use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
 
 use super::web_painter::WebPainter;
 
@@ -87,8 +87,8 @@ impl WebPainterWgpu {
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        let instance = match &options.wgpu_options.wgpu_device_setup {
-            WgpuDeviceSetup::Standard {
+        let instance = match &options.wgpu_options.wgpu_setup {
+            WgpuSetup::CreateNew {
                 supported_backends: backends,
                 power_preference,
                 ..
@@ -176,7 +176,7 @@ impl WebPainterWgpu {
                 #[allow(clippy::arc_with_non_send_sync)]
                 Arc::new(instance)
             }
-            WgpuDeviceSetup::Existing { instance, .. } => instance.clone(),
+            WgpuSetup::Existing { instance, .. } => instance.clone(),
         };
 
         let surface = instance
