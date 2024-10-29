@@ -11,7 +11,7 @@ mod snapshot;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
 use std::fmt::{Debug, Formatter};
-pub mod harness_kind;
+mod app_kind;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
@@ -20,8 +20,8 @@ pub mod wgpu;
 pub use kittest;
 use std::mem;
 
+use crate::app_kind::AppKind;
 use crate::event::EventState;
-use crate::harness_kind::AppKind;
 pub use builder::*;
 use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
 use kittest::{Node, Queryable};

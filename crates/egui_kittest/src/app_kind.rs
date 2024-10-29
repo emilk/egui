@@ -3,7 +3,7 @@ use egui::Frame;
 type AppKindContext<'a> = Box<dyn FnMut(&egui::Context) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 
-pub enum AppKind<'a> {
+pub(crate) enum AppKind<'a> {
     Context(AppKindContext<'a>),
     Ui(AppKindUi<'a>),
 }
@@ -43,7 +43,7 @@ impl<'a> AppKind<'a> {
         }
     }
 
-    pub fn run_sizing_pass(&mut self, ctx: &egui::Context) -> Option<egui::Response> {
+    pub(crate) fn run_sizing_pass(&mut self, ctx: &egui::Context) -> Option<egui::Response> {
         match self {
             AppKind::Context(f) => {
                 f(ctx);

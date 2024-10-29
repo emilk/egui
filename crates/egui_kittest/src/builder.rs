@@ -1,4 +1,4 @@
-use crate::harness_kind::AppKind;
+use crate::app_kind::AppKind;
 use crate::Harness;
 use egui::{Pos2, Rect, Vec2};
 
