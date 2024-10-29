@@ -93,7 +93,7 @@ impl WebPainterWgpu {
                 power_preference,
                 ..
             } => {
-                let mut backends = backends.clone();
+                let mut backends = *backends;
 
                 // Don't try WebGPU if we're not in a secure context.
                 if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
@@ -171,6 +171,9 @@ impl WebPainterWgpu {
                     }
                 }
 
+                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
+                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
+                #[allow(clippy::arc_with_non_send_sync)]
                 Arc::new(instance)
             }
             WgpuDeviceSetup::Existing { instance, .. } => instance.clone(),

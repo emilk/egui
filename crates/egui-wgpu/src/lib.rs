@@ -8,8 +8,8 @@
 //! wgpu = { version = "*", features = ["webgpu", "webgl"] }
 //! ```
 //!
-//! You can control whether WebGL or WebGPU will be picked at runtime by setting
-//! [`WgpuConfiguration::supported_backends`].
+//! You can control whether WebGL or WebGPU will be picked at runtime by configuring
+//! [`WgpuConfiguration::wgpu_device_setup`].
 //! The default is to prefer WebGPU and fall back on WebGL.
 //!
 //! ## Feature flags
@@ -166,6 +166,9 @@ impl RenderState {
                         .await?
                 };
 
+                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
+                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
+                #[allow(clippy::arc_with_non_send_sync)]
                 (Arc::new(adapter), Arc::new(device), Arc::new(queue))
             }
             WgpuDeviceSetup::Existing {
@@ -234,6 +237,7 @@ pub enum SurfaceErrorAction {
 
 #[derive(Clone)]
 pub enum WgpuDeviceSetup {
+    /// Construct a wgpu setup using some predefined heuristics & settings.
     Standard {
         /// Backends that should be supported (wgpu will pick one of these).
         ///
@@ -247,10 +251,12 @@ pub enum WgpuDeviceSetup {
 
         /// Power preference for the adapter.
         power_preference: wgpu::PowerPreference,
+
         /// Configuration passed on device request, given an adapter
         device_descriptor:
             Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> + Send + Sync>,
     },
+    /// Run on an existing wgpu setup.
     Existing {
         instance: Arc<Instance>,
         adapter: Arc<Adapter>,
