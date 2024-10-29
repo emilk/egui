@@ -256,6 +256,7 @@ pub enum WgpuDeviceSetup {
         device_descriptor:
             Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static> + Send + Sync>,
     },
+
     /// Run on an existing wgpu setup.
     Existing {
         instance: Arc<Instance>,
