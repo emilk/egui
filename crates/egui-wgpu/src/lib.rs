@@ -347,7 +347,7 @@ impl Default for WgpuConfiguration {
 
             // By default, create a new wgpu setup. This will create a new instance, adapter, device and queue.
             // This will create an instance for the supported backends (which can be configured by
-            // `WGPU_BACKEND`), and will pick an adapter by iterateing adapters based on their power preference. The power
+            // `WGPU_BACKEND`), and will pick an adapter by iterating adapters based on their power preference. The power
             // preference can also be configured by `WGPU_POWER_PREF`.
             wgpu_setup: WgpuSetup::CreateNew {
                 // Add GL backend, primarily because WebGPU is not stable enough yet.
