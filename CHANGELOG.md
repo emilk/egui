@@ -6,6 +6,8 @@ NOTE: this is just the changelog for the core `egui` crate. [`eframe`](crates/ef
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+# Unreleased
+* Added double slider widget
 
 ## 0.29.1 - 2024-10-01 - Bug fixes
 * Remove debug-assert triggered by `with_layer_id/dnd_drag_source` [#5191](https://github.com/emilk/egui/pull/5191) by [@emilk](https://github.com/emilk)
