@@ -15,6 +15,7 @@ pub struct WidgetGallery {
     opacity: f32,
     radio: Enum,
     scalar: f32,
+    scalar_2: f32,
     string: String,
     color: egui::Color32,
     animate_progress_bar: bool,
@@ -33,6 +34,7 @@ impl Default for WidgetGallery {
             boolean: false,
             radio: Enum::First,
             scalar: 42.0,
+            scalar_2: 52.0,
             string: Default::default(),
             color: egui::Color32::LIGHT_BLUE.linear_multiply(0.5),
             animate_progress_bar: false,
@@ -94,7 +96,7 @@ impl crate::View for WidgetGallery {
                         .speed(0.01)
                         .range(0.0..=1.0),
                 ) | ui.label("Opacity"))
-                .on_hover_text("Reduce this value to make widgets semi-transparent");
+                    .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
         });
 
@@ -119,6 +121,7 @@ impl WidgetGallery {
             boolean,
             radio,
             scalar,
+            scalar_2,
             string,
             color,
             animate_progress_bar,
@@ -187,6 +190,10 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("Slider", "Slider"));
         ui.add(egui::Slider::new(scalar, 0.0..=360.0).suffix("°"));
+        ui.end_row();
+
+        ui.add(doc_link_label("Double Slider", "Double Slider"));
+        ui.add(egui::DoubleSlider::new(scalar, scalar_2, 0.0..=360.0));
         ui.end_row();
 
         ui.add(doc_link_label("DragValue", "DragValue"));
