@@ -96,7 +96,7 @@ impl crate::View for WidgetGallery {
                         .speed(0.01)
                         .range(0.0..=1.0),
                 ) | ui.label("Opacity"))
-                    .on_hover_text("Reduce this value to make widgets semi-transparent");
+                .on_hover_text("Reduce this value to make widgets semi-transparent");
             }
         });
 

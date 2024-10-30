@@ -9,6 +9,7 @@ use crate::{epaint, Response, Ui};
 mod button;
 mod checkbox;
 pub mod color_picker;
+mod double_slider;
 pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
@@ -21,11 +22,11 @@ mod separator;
 mod slider;
 mod spinner;
 pub mod text_edit;
-mod double_slider;
 
 pub use self::{
     button::Button,
     checkbox::Checkbox,
+    double_slider::DoubleSlider,
     drag_value::DragValue,
     hyperlink::{Hyperlink, Link},
     image::{
@@ -39,7 +40,6 @@ pub use self::{
     selected_label::SelectableLabel,
     separator::Separator,
     slider::{Slider, SliderClamping, SliderOrientation},
-    double_slider::DoubleSlider,
     spinner::Spinner,
     text_edit::{TextBuffer, TextEdit},
 };

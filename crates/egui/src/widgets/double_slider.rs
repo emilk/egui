@@ -1,9 +1,8 @@
-use std::ops::RangeInclusive;
 use crate::emath;
 use crate::emath::{Pos2, Rect, Vec2};
 use crate::epaint::{CircleShape, Color32, PathShape, Shape, Stroke};
 use crate::{Sense, Ui, Widget};
-
+use std::ops::RangeInclusive;
 
 // offset for stroke highlight
 const OFFSET: f32 = 2.0;
@@ -22,7 +21,11 @@ pub struct DoubleSlider<'a> {
 }
 
 impl<'a> DoubleSlider<'a> {
-    pub fn new(lower_value: &'a mut f32, upper_value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
+    pub fn new(
+        lower_value: &'a mut f32,
+        upper_value: &'a mut f32,
+        range: RangeInclusive<f32>,
+    ) -> Self {
         DoubleSlider {
             left_slider: lower_value,
             right_slider: upper_value,
@@ -85,19 +88,23 @@ impl<'a> DoubleSlider<'a> {
         self
     }
 
-
     fn to_coord(&self, num: f32) -> f32 {
-        (self.width - 2.0 * self.control_point_radius - 2.0 * OFFSET) / (self.range.end() - self.range.start()) * (num - self.range.start())
-            + self.control_point_radius + OFFSET
+        (self.width - 2.0 * self.control_point_radius - 2.0 * OFFSET)
+            / (self.range.end() - self.range.start())
+            * (num - self.range.start())
+            + self.control_point_radius
+            + OFFSET
     }
 
     fn from_coord(&self, x: f32) -> f32 {
-        (self.range.end() - self.range.start()) / (self.width - 2.0 * self.control_point_radius - 2.0 * OFFSET) * x
+        (self.range.end() - self.range.start())
+            / (self.width - 2.0 * self.control_point_radius - 2.0 * OFFSET)
+            * x
     }
 }
 
 impl<'a> Widget for DoubleSlider<'a> {
-    fn ui(self: Self, ui: &mut Ui) -> crate::Response {
+    fn ui(self, ui: &mut Ui) -> crate::Response {
         let height = 2.0 * self.control_point_radius + 2.0 * OFFSET;
 
         let (response, painter) =
@@ -107,7 +114,10 @@ impl<'a> Widget for DoubleSlider<'a> {
         let mut right_edge = response.rect.right_center();
         right_edge.x -= self.control_point_radius;
 
-        painter.add(PathShape::line(vec![left_edge, right_edge], Stroke::new(self.stroke.width, self.color)));
+        painter.add(PathShape::line(
+            vec![left_edge, right_edge],
+            Stroke::new(self.stroke.width, self.color),
+        ));
 
         let to_screen = emath::RectTransform::from_to(
             Rect::from_min_size(Pos2::ZERO, response.rect.size()),
@@ -116,17 +126,24 @@ impl<'a> Widget for DoubleSlider<'a> {
 
         let lower_bound = {
             let size = Vec2::splat(2.0 * self.control_point_radius);
-            let point_in_screen = to_screen.transform_pos(Pos2 { x: self.to_coord(*self.left_slider), y: self.control_point_radius + OFFSET });
+            let point_in_screen = to_screen.transform_pos(Pos2 {
+                x: self.to_coord(*self.left_slider),
+                y: self.control_point_radius + OFFSET,
+            });
             let point_rect = Rect::from_center_size(point_in_screen, size);
             let point_id = response.id.with(0);
             let point_response = ui.interact(point_rect, point_id, Sense::drag());
 
             *self.left_slider += self.from_coord(point_response.drag_delta().x);
             if *self.right_slider < *self.left_slider + self.separation_distance {
-                *self.right_slider = *self.left_slider + self.separation_distance
+                *self.right_slider = *self.left_slider + self.separation_distance;
             }
-            *self.right_slider = self.right_slider.clamp(*self.range.start(), *self.range.end());
-            *self.left_slider = self.left_slider.clamp(*self.range.start(), *self.range.end());
+            *self.right_slider = self
+                .right_slider
+                .clamp(*self.range.start(), *self.range.end());
+            *self.left_slider = self
+                .left_slider
+                .clamp(*self.range.start(), *self.range.end());
 
             let stroke = ui.style().interact(&point_response).fg_stroke;
 
@@ -140,17 +157,24 @@ impl<'a> Widget for DoubleSlider<'a> {
 
         let upper_bound = {
             let size = Vec2::splat(2.0 * self.control_point_radius);
-            let point_in_screen = to_screen.transform_pos(Pos2 { x: self.to_coord(*self.right_slider), y: self.control_point_radius + OFFSET });
+            let point_in_screen = to_screen.transform_pos(Pos2 {
+                x: self.to_coord(*self.right_slider),
+                y: self.control_point_radius + OFFSET,
+            });
             let point_rect = Rect::from_center_size(point_in_screen, size);
             let point_id = response.id.with(1);
             let point_response = ui.interact(point_rect, point_id, Sense::drag());
 
             *self.right_slider += self.from_coord(point_response.drag_delta().x);
             if *self.left_slider > *self.right_slider - self.separation_distance {
-                *self.left_slider = *self.right_slider - self.separation_distance
+                *self.left_slider = *self.right_slider - self.separation_distance;
             }
-            *self.right_slider = self.right_slider.clamp(*self.range.start(), *self.range.end());
-            *self.left_slider = self.left_slider.clamp(*self.range.start(), *self.range.end());
+            *self.right_slider = self
+                .right_slider
+                .clamp(*self.range.start(), *self.range.end());
+            *self.left_slider = self
+                .left_slider
+                .clamp(*self.range.start(), *self.range.end());
 
             let stroke = ui.style().interact(&point_response).fg_stroke;
 
@@ -162,12 +186,19 @@ impl<'a> Widget for DoubleSlider<'a> {
             }
         };
 
-
-        let points_in_screen: Vec<Pos2> = [self.to_coord(*self
-            .left_slider), self.to_coord(*self.right_slider)]
-            .iter()
-            .map(|p| to_screen * Pos2 { x: *p, y: self.control_point_radius + OFFSET })
-            .collect();
+        let points_in_screen: Vec<Pos2> = [
+            self.to_coord(*self.left_slider),
+            self.to_coord(*self.right_slider),
+        ]
+        .iter()
+        .map(|p| {
+            to_screen
+                * Pos2 {
+                    x: *p,
+                    y: self.control_point_radius + OFFSET,
+                }
+        })
+        .collect();
 
         painter.add(PathShape::line(points_in_screen, self.stroke));
         painter.extend([Shape::Circle(lower_bound), Shape::Circle(upper_bound)]);
