@@ -19,7 +19,7 @@ WASM_OPT_FLAGS="-O2 --fast-math"
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
-      echo "build_demo_web.sh [--release] [--webgpu] [--open]"
+      echo "build_demo_web.sh [--release] [--wgpu] [--open]"
       echo ""
       echo "  -g:        Keep debug symbols even with --release."
       echo "             These are useful profiling and size trimming."
