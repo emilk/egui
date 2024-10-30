@@ -114,62 +114,13 @@ impl WebPainterWgpu {
                 }
 
                 log::debug!("Creating wgpu instance with backends {:?}", backends);
-                let mut instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-                    backends,
-                    ..Default::default()
-                });
 
-                // It can happen that a browser advertises WebGPU support, but then fails to create a
-                // suitable adapter. As of writing this happens for example on Linux with Chrome 121.
-                //
-                // Since WebGPU is handled in a special way in wgpu, we have to recreate the instance
-                // if we instead want to try with WebGL.
-                //
-                // To make matters worse, once a canvas has been used with either WebGL or WebGPU,
-                // we can't go back and change that without replacing the canvas (which is hard to do from here).
-                // Therefore, we have to create the surface *after* requesting the adapter.
-                // However, wgpu offers to pass in a surface on adapter creation to ensure it is actually compatible with the chosen backend.
-                // This in turn isn't all that important on the web, but it still makes sense for the design of
-                // `egui::RenderState`!
-                // Therefore, we have to first check if it's possible to create a WebGPU adapter,
-                // and if it is not, start over with a WebGL instance.
-                //
-                // Note that we also might needlessly try this here if wgpu already determined that there's no
-                // WebGPU support in the first place. This is not a huge problem since it fails very fast, but
-                // it would be nice to avoid this. See https://github.com/gfx-rs/wgpu/issues/5142
-                if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
-                    log::debug!("Attempting to create WebGPU adapter to check for support.");
-                    if let Some(adapter) = instance
-                        .request_adapter(&wgpu::RequestAdapterOptions {
-                            power_preference: *power_preference,
-                            compatible_surface: None,
-                            force_fallback_adapter: false,
-                        })
-                        .await
-                    {
-                        // WebGPU doesn't spec yet a destroy on the adapter, only on the device.
-                        //adapter.destroy();
-                        log::debug!(
-                            "Successfully created WebGPU adapter, WebGPU confirmed to be supported!"
-                        );
-                    } else {
-                        log::debug!("Failed to create WebGPU adapter.");
-
-                        if backends.contains(wgpu::Backends::GL) {
-                            log::debug!("Recreating wgpu instance with WebGL backend only.");
-                            backends = wgpu::Backends::GL;
-                            instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-                                backends,
-                                ..Default::default()
-                            });
-                        } else {
-                            return Err(
-                                "Failed to create WebGPU adapter and WebGL was not enabled."
-                                    .to_owned(),
-                            );
-                        }
-                    }
-                }
+                let instance =
+                    wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
+                        backends,
+                        ..Default::default()
+                    })
+                    .await;
 
                 // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
                 // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.

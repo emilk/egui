@@ -63,7 +63,7 @@ fn roaming_appdata() -> Option<PathBuf> {
         match SHGetKnownFolderPath(
             &FOLDERID_RoamingAppData,
             KF_FLAG_DONT_VERIFY as u32,
-            0,
+            std::ptr::null_mut(),
             &mut path,
         ) {
             S_OK => {
