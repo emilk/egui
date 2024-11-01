@@ -39,6 +39,7 @@ dify = { workspace = true, optional = true }
 document-features = { workspace = true, optional = true }
 
 [dev-dependencies]
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 wgpu = { workspace = true, features = ["metal"] }
 image = { workspace = true, features = ["png"] }
 egui = { workspace = true, features = ["default_fonts"] }

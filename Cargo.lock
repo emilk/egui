@@ -1364,6 +1364,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui-wgpu",
+ "egui_kittest",
  "image",
  "kittest",
  "pollster",
