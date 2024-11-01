@@ -1439,6 +1439,10 @@ impl Context {
     ///
     /// Empty strings are ignored.
     ///
+    /// Note that in wasm applications, the clipboard is only accessible in secure contexts (e.g.,
+    /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
+    /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
+    ///
     /// Equivalent to:
     /// ```
     /// # let ctx = egui::Context::default();
