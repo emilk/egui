@@ -38,7 +38,7 @@ impl<'a> Checkbox<'a> {
 
     /// Display an indeterminate state (neither checked nor unchecked)
     ///
-    /// This only affects the checkboxes appearance. It will still toggle its boolean value when
+    /// This only affects the checkbox's appearance. It will still toggle its boolean value when
     /// clicked.
     #[inline]
     pub fn indeterminate(mut self, indeterminate: bool) -> Self {

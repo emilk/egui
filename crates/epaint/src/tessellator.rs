@@ -2030,7 +2030,7 @@ impl Tessellator {
 
         // We only parallelize large/slow stuff, because each tessellation job
         // will allocate a new Mesh, and so it creates a lot of extra memory fragmentation
-        // and call locations that is only worth it for large shapes.
+        // and allocations that is only worth it for large shapes.
         fn should_parallelize(shape: &Shape) -> bool {
             match shape {
                 Shape::Vec(shapes) => 4 < shapes.len() || shapes.iter().any(should_parallelize),
