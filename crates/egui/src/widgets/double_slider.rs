@@ -122,7 +122,7 @@ impl<'a> Widget for DoubleSlider<'a> {
         // calculate height
         let height = 2.0 * self.control_point_radius + 2.0 * OFFSET;
 
-        let (response, painter) =
+        let (mut response, painter) =
             ui.allocate_painter(Vec2::new(self.width, height), Sense::hover());
         let mut left_edge = response.rect.left_center();
         left_edge.x += self.control_point_radius;
@@ -151,6 +151,10 @@ impl<'a> Widget for DoubleSlider<'a> {
             let point_rect = Rect::from_center_size(point_in_screen, size);
             let point_id = response.id.with(0);
             let point_response = ui.interact(point_rect, point_id, Sense::drag());
+
+            if point_response.dragged() {
+                response.mark_changed();
+            }
 
             // handle logic
             *self.left_slider += self.x_to_val(point_response.drag_delta().x);
@@ -185,6 +189,10 @@ impl<'a> Widget for DoubleSlider<'a> {
             let point_rect = Rect::from_center_size(point_in_screen, size);
             let point_id = response.id.with(1);
             let point_response = ui.interact(point_rect, point_id, Sense::drag());
+
+            if point_response.dragged() {
+                response.mark_changed();
+            }
 
             // handle logic
             *self.right_slider += self.x_to_val(point_response.drag_delta().x);
