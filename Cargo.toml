@@ -23,7 +23,7 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.76"
+rust-version = "1.77"
 version = "0.29.1"
 
 
@@ -76,29 +76,30 @@ backtrace = "0.3"
 bytemuck = "1.7.2"
 criterion = { version = "0.5.1", default-features = false }
 dify = { version = "0.7", default-features = false }
-document-features = " 0.2.8"
+document-features = "0.2.10"
 glow = "0.14"
 glutin = "0.32.0"
 glutin-winit = "0.5.0"
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
-kittest = { git = "https://github.com/rerun-io/kittest", version = "0.1", branch = "main"}
+kittest = { git = "https://github.com/rerun-io/kittest", version = "0.1", branch = "main" }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
 parking_lot = "0.12"
-pollster = "0.3"
+pollster = "0.4"
 puffin = "0.19"
 puffin_http = "0.16"
-ron = "0.8"
 raw-window-handle = "0.6.0"
+ron = "0.8"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1.0.37"
-web-time = "1.1.0" # Timekeeping for native and web
+type-map = "0.5.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"
-wgpu = { version = "22.1.0", default-features = false }
-windows-sys = "0.52"
+web-time = "1.1.0" # Timekeeping for native and web
+wgpu = { version = "23.0.0", default-features = false }
+windows-sys = "0.59"
 winit = { version = "0.30.5", default-features = false }
 
 [workspace.lints.rust]

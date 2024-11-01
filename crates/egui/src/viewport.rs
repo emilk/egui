@@ -534,7 +534,7 @@ impl ViewportBuilder {
     /// See [winit's documentation][drag_and_drop] for information on why you
     /// might want to disable this on windows.
     ///
-    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
+    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowAttributesExtWindows.html#tymethod.with_drag_and_drop
     #[inline]
     pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);

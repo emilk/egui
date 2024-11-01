@@ -597,7 +597,9 @@ impl ContextImpl {
                         FontPriority::Lowest => fam.push(font.name.clone()),
                     }
                 }
-                self.font_definitions.font_data.insert(font.name, font.data);
+                self.font_definitions
+                    .font_data
+                    .insert(font.name, Arc::new(font.data));
             }
 
             #[cfg(feature = "log")]
@@ -1438,6 +1440,10 @@ impl Context {
     /// Copy the given text to the system clipboard.
     ///
     /// Empty strings are ignored.
+    ///
+    /// Note that in wasm applications, the clipboard is only accessible in secure contexts (e.g.,
+    /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
+    /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
     ///
     /// Equivalent to:
     /// ```
@@ -2940,7 +2946,9 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                if data.tweak.ui(ui).changed() {
+                let mut tweak = data.tweak;
+                if tweak.ui(ui).changed() {
+                    Arc::make_mut(data).tweak = tweak;
                     changed = true;
                 }
             });

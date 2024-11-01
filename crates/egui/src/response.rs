@@ -1032,6 +1032,7 @@ impl Response {
             WidgetType::DragValue => Role::SpinButton,
             WidgetType::ColorButton => Role::ColorWell,
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
+            WidgetType::Window => Role::Window,
             WidgetType::Other => Role::Unknown,
         });
         if !info.enabled {

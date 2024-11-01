@@ -31,10 +31,8 @@ all-features = true
 [advisories]
 version = 2
 ignore = [
-  "RUSTSEC-2024-0320",        # unmaintaines yaml-rust pulled in by syntect
-  { name = "async-process" }, # yanked crated pulled in by old accesskit
+  "RUSTSEC-2024-0320", # unmaintaines yaml-rust pulled in by syntect
 ]
-
 
 [bans]
 multiple-versions = "deny"
@@ -46,7 +44,8 @@ deny = [
 ]
 
 skip = [
-  { name = "bit-set" },        # wgpu's naga depends on 0.6, syntect's (used by egui_extras) fancy-regex depends on 0.5
+  { name = "base64" },         # Pretty small
+  { name = "bit-set" },        # wgpu's naga depends on 0.8, syntect's (used by egui_extras) fancy-regex depends on 0.5
   { name = "bit-vec" },        # dependency of bit-set in turn, different between 0.6 and 0.5
   { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
   { name = "cfg_aliases" },    # old version via wgpu
@@ -57,16 +56,12 @@ skip = [
   { name = "quick-xml" },      # old version via wayland-scanner
   { name = "redox_syscall" },  # old version via winit
   { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
-  { name = "windows-core" },   # old version via accesskit_windows
-  { name = "windows" },        # old version via accesskit_windows
-  { name = "glow" },           # wgpu uses an old `glow`, but realistically no one uses _both_ `egui_wgpu` and `egui_glow`, so we won't get a duplicate dependency
+  { name = "windows-core" },   # Chrono pulls in 0.51, accesskit uses 0.58.0
+  { name = "windows-sys" },    # glutin pulls in 0.52.0, accesskit pulls in 0.59.0, rfd pulls 0.48, webbrowser pulls 0.45.0 (via jni)
 ]
 skip-tree = [
   { name = "criterion" },     # dev-dependency
-  { name = "fastrand" },      # old version via accesskit_unix
   { name = "foreign-types" }, # small crate. Old version via core-graphics (winit).
-  { name = "objc2" },         # old version via accesskit_macos
-  { name = "polling" },       # old version via accesskit_unix
   { name = "rfd" },           # example dependency
 ]
 
@@ -110,5 +105,5 @@ unknown-registry = "deny"
 unknown-git = "deny"
 
 allow-git = [
-  "https://github.com/rerun-io/kittest",  # TODO(lucasmerlin): remove this once the kittest crate is published"
+  "https://github.com/rerun-io/kittest", # TODO(lucasmerlin): remove this once the kittest crate is published"
 ]

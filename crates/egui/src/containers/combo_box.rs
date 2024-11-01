@@ -45,6 +45,7 @@ pub struct ComboBox {
     height: Option<f32>,
     icon: Option<IconPainter>,
     wrap_mode: Option<TextWrapMode>,
+    close_behavior: Option<PopupCloseBehavior>,
 }
 
 impl ComboBox {
@@ -58,6 +59,7 @@ impl ComboBox {
             height: None,
             icon: None,
             wrap_mode: None,
+            close_behavior: None,
         }
     }
 
@@ -72,6 +74,7 @@ impl ComboBox {
             height: None,
             icon: None,
             wrap_mode: None,
+            close_behavior: None,
         }
     }
 
@@ -85,6 +88,7 @@ impl ComboBox {
             height: None,
             icon: None,
             wrap_mode: None,
+            close_behavior: None,
         }
     }
 
@@ -173,7 +177,6 @@ impl ComboBox {
     #[inline]
     pub fn wrap(mut self) -> Self {
         self.wrap_mode = Some(TextWrapMode::Wrap);
-
         self
     }
 
@@ -181,6 +184,15 @@ impl ComboBox {
     #[inline]
     pub fn truncate(mut self) -> Self {
         self.wrap_mode = Some(TextWrapMode::Truncate);
+        self
+    }
+
+    /// Controls the close behavior for the popup.
+    ///
+    /// By default, `PopupCloseBehavior::CloseOnClick` will be used.
+    #[inline]
+    pub fn close_behavior(mut self, close_behavior: PopupCloseBehavior) -> Self {
+        self.close_behavior = Some(close_behavior);
         self
     }
 
@@ -208,6 +220,7 @@ impl ComboBox {
             height,
             icon,
             wrap_mode,
+            close_behavior,
         } = self;
 
         let button_id = ui.make_persistent_id(id_salt);
@@ -220,6 +233,7 @@ impl ComboBox {
                 menu_contents,
                 icon,
                 wrap_mode,
+                close_behavior,
                 (width, height),
             );
             if let Some(label) = label {
@@ -301,6 +315,7 @@ fn combo_box_dyn<'c, R>(
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
     wrap_mode: Option<TextWrapMode>,
+    close_behavior: Option<PopupCloseBehavior>,
     (width, height): (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
     let popup_id = ComboBox::widget_to_popup_id(button_id);
@@ -324,6 +339,8 @@ fn combo_box_dyn<'c, R>(
         };
 
     let wrap_mode = wrap_mode.unwrap_or_else(|| ui.wrap_mode());
+
+    let close_behavior = close_behavior.unwrap_or(PopupCloseBehavior::CloseOnClick);
 
     let margin = ui.spacing().button_padding;
     let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
@@ -396,7 +413,7 @@ fn combo_box_dyn<'c, R>(
         popup_id,
         &button_response,
         above_or_below,
-        PopupCloseBehavior::CloseOnClick,
+        close_behavior,
         |ui| {
             ScrollArea::vertical()
                 .max_height(height)
