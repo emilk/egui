@@ -89,14 +89,15 @@ parking_lot = "0.12"
 pollster = "0.4"
 puffin = "0.19"
 puffin_http = "0.16"
-ron = "0.8"
 raw-window-handle = "0.6.0"
+ron = "0.8"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1.0.37"
-web-time = "1.1.0" # Timekeeping for native and web
+type-map = "0.5.0"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"
+web-time = "1.1.0" # Timekeeping for native and web
 wgpu = { version = "23.0.0", default-features = false }
 windows-sys = "0.59"
 winit = { version = "0.30.5", default-features = false }
