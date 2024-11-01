@@ -44,6 +44,7 @@ deny = [
 ]
 
 skip = [
+  { name = "base64" },         # Pretty small
   { name = "bit-set" },        # wgpu's naga depends on 0.8, syntect's (used by egui_extras) fancy-regex depends on 0.5
   { name = "bit-vec" },        # dependency of bit-set in turn, different between 0.6 and 0.5
   { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
