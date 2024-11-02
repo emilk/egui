@@ -69,7 +69,6 @@ impl crate::View for FontBook {
         ui.horizontal(|ui| {
             ui.label("Filter:");
             ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0));
-            self.filter = self.filter.to_lowercase();
             if ui.button("ｘ").clicked() {
                 self.filter.clear();
             }
