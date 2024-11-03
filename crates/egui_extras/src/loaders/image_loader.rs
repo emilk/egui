@@ -26,50 +26,50 @@ fn get_ext_from_image_uri(uri: &str) -> String {
     let image_uri = uri.to_lowercase();
 
     let auto_ext: String = if image_uri.contains(".png") {
-        "png".to_string()
+        "png".to_owned()
     } else if image_uri.contains(".jpg") {
-        "jpg".to_string()
+        "jpg".to_owned()
     } else if image_uri.contains(".jpeg") {
-        "jpeg".to_string()
+        "jpeg".to_owned()
     } else if image_uri.contains(".gif") {
-        "gif".to_string()
+        "gif".to_owned()
     } else if image_uri.contains(".ico") {
-        "ico".to_string()
+        "ico".to_owned()
     } else if image_uri.contains(".svg") {
-        "svg".to_string()
+        "svg".to_owned()
     } else if image_uri.contains(".webp") {
-        "webp".to_string()
+        "webp".to_owned()
     } else if image_uri.contains(".avif") {
-        "avif".to_string()
+        "avif".to_owned()
     } else if image_uri.contains(".bmp") {
-        "bmp".to_string()
+        "bmp".to_owned()
     } else if image_uri.contains(".dds") {
-        "dds".to_string()
+        "dds".to_owned()
     } else if image_uri.contains(".exr") {
-        "exr".to_string()
+        "exr".to_owned()
     } else if image_uri.contains(".ff") {
-        "ff".to_string()
+        "ff".to_owned()
     } else if image_uri.contains(".hdr") {
-        "hdr".to_string()
+        "hdr".to_owned()
     } else if image_uri.contains(".pbm") {
-        "pbm".to_string()
+        "pbm".to_owned()
     } else if image_uri.contains(".pam") {
-        "pam".to_string()
+        "pam".to_owned()
     } else if image_uri.contains(".ppm") {
-        "ppm".to_string()
+        "ppm".to_owned()
     } else if image_uri.contains(".pgm") {
-        "pgm".to_string()
+        "pgm".to_owned()
     } else if image_uri.contains(".qoi") {
-        "qoi".to_string()
+        "qoi".to_owned()
     } else if image_uri.contains(".tif") {
-        "tif".to_string()
+        "tif".to_owned()
     } else if image_uri.contains(".tiff") {
-        "tiff".to_string()
+        "tiff".to_owned()
     } else if image_uri.contains(".tga") {
-        "tga".to_string()
+        "tga".to_owned()
     } else {
         // If the image format is unknown, it is assumed to be `png`.
-        "png".to_string()
+        "png".to_owned()
     };
 
     return auto_ext;
