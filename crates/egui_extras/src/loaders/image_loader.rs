@@ -39,6 +39,8 @@ fn get_ext_from_image_uri(uri: &str) -> String {
         "svg".to_owned()
     } else if image_uri.contains(".webp") {
         "webp".to_owned()
+    } else if image_uri.contains(".apng") {
+        "apng".to_owned()
     } else if image_uri.contains(".avif") {
         "avif".to_owned()
     } else if image_uri.contains(".bmp") {
