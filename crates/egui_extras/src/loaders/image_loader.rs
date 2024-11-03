@@ -5,7 +5,7 @@ use egui::{
     ColorImage,
 };
 use image::ImageFormat;
-use std::{mem::size_of, path::Path, sync::Arc};
+use std::{mem::size_of, sync::Arc};
 
 type Entry = Result<Arc<ColorImage>, String>;
 
@@ -18,11 +18,69 @@ impl ImageCrateLoader {
     pub const ID: &'static str = egui::generate_loader_id!(ImageCrateLoader);
 }
 
+fn get_ext_from_image_uri(uri: &str) -> String {
+    if uri.trim().is_empty() {
+        return String::new();
+    }
+
+    let image_uri = uri.to_lowercase();
+
+    let auto_ext: String = if image_uri.contains(".png") {
+        "png".to_string()
+    } else if image_uri.contains(".jpg") {
+        "jpg".to_string()
+    } else if image_uri.contains(".jpeg") {
+        "jpeg".to_string()
+    } else if image_uri.contains(".gif") {
+        "gif".to_string()
+    } else if image_uri.contains(".ico") {
+        "ico".to_string()
+    } else if image_uri.contains(".svg") {
+        "svg".to_string()
+    } else if image_uri.contains(".webp") {
+        "webp".to_string()
+    } else if image_uri.contains(".avif") {
+        "avif".to_string()
+    } else if image_uri.contains(".bmp") {
+        "bmp".to_string()
+    } else if image_uri.contains(".dds") {
+        "dds".to_string()
+    } else if image_uri.contains(".exr") {
+        "exr".to_string()
+    } else if image_uri.contains(".ff") {
+        "ff".to_string()
+    } else if image_uri.contains(".hdr") {
+        "hdr".to_string()
+    } else if image_uri.contains(".pbm") {
+        "pbm".to_string()
+    } else if image_uri.contains(".pam") {
+        "pam".to_string()
+    } else if image_uri.contains(".ppm") {
+        "ppm".to_string()
+    } else if image_uri.contains(".pgm") {
+        "pgm".to_string()
+    } else if image_uri.contains(".qoi") {
+        "qoi".to_string()
+    } else if image_uri.contains(".tif") {
+        "tif".to_string()
+    } else if image_uri.contains(".tiff") {
+        "tiff".to_string()
+    } else if image_uri.contains(".tga") {
+        "tga".to_string()
+    } else {
+        // If the image format is unknown, it is assumed to be `png`.
+        "png".to_string()
+    };
+
+    return auto_ext;
+}
+
 fn is_supported_uri(uri: &str) -> bool {
-    let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
+    let ext = get_ext_from_image_uri(uri);
+    if ext.is_empty() {
         // `true` because if there's no extension, assume that we support it
         return true;
-    };
+    }
 
     // Uses only the enabled image crate features
     ImageFormat::all()
