@@ -72,7 +72,7 @@ fn get_ext_from_image_uri(uri: &str) -> String {
         "png".to_owned()
     };
 
-    return auto_ext;
+    auto_ext
 }
 
 fn is_supported_uri(uri: &str) -> bool {
