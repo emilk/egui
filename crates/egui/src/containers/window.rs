@@ -730,7 +730,7 @@ struct ResizeInteraction {
     bottom: SideResponse,
 }
 
-/// A minitature version of `Response`, for each side of the window.
+/// A miniature version of `Response`, for each side of the window.
 #[derive(Clone, Copy, Debug, Default)]
 struct SideResponse {
     hover: bool,
