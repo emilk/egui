@@ -39,7 +39,7 @@ impl<Value, Computer> FrameCache<Value, Computer> {
     }
 
     /// Must be called once per frame to clear the cache.
-    pub fn evice_cache(&mut self) {
+    pub fn evict_cache(&mut self) {
         let current_generation = self.generation;
         self.cache.retain(|_key, cached| {
             cached.0 == current_generation // only keep those that were used this frame
@@ -89,7 +89,7 @@ impl<Value: 'static + Send + Sync, Computer: 'static + Send + Sync> CacheTrait
     for FrameCache<Value, Computer>
 {
     fn update(&mut self) {
-        self.evice_cache();
+        self.evict_cache();
     }
 
     fn len(&self) -> usize {
