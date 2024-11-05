@@ -109,7 +109,7 @@ syntect = { version = "5", optional = true, default-features = false, features =
 resvg = { version = "0.37", optional = true, default-features = false }
 
 # jxl feature
-jxl-oxide = { version = "0.10", git = "https://github.com/tirr-c/jxl-oxide.git", optional = true, default-features = false, features = [
+jxl-oxide = { version = "0.10", optional = true, default-features = false, features = [
   "image",
 ] }
 
