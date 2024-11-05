@@ -2,6 +2,8 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
+use eframe::egui::modal::Modal;
+use eframe::egui::{Align, ComboBox, Id, Layout, ProgressBar, Widget};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -11,23 +13,105 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    // Our application state:
-    let mut name = "Arthur".to_owned();
-    let mut age = 42;
+    let mut save_modal_open = false;
+    let mut user_modal_open = false;
+    let mut save_progress = None;
+
+    let roles = ["user", "admin"];
+    let mut role = roles[0];
+
+    let mut name = "John Doe".to_string();
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("My egui Application");
-            ui.horizontal(|ui| {
-                let name_label = ui.label("Your name: ");
-                ui.text_edit_singleline(&mut name)
-                    .labelled_by(name_label.id);
-            });
-            ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
-            if ui.button("Increment").clicked() {
-                age += 1;
+            if ui.button("Open Modal A").clicked() {
+                save_modal_open = true;
             }
-            ui.label(format!("Hello '{name}', age {age}"));
+
+            if ui.button("Open Modal B").clicked() {
+                user_modal_open = true;
+            }
+
+            if save_modal_open {
+                let modal = Modal::new(Id::new("Modal A")).show(ui.ctx(), |ui| {
+                    ui.set_width(250.0);
+
+                    ui.heading("Edit User");
+
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut name);
+
+                    ComboBox::new("role", "Role")
+                        .selected_text(role)
+                        .show_ui(ui, |ui| {
+                            for r in &roles {
+                                ui.selectable_value(&mut role, r, *r);
+                            }
+                        });
+
+                    ui.separator();
+
+                    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                        if ui.button("Save").clicked() {
+                            user_modal_open = true;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            save_modal_open = false;
+                        }
+                    });
+                });
+
+                if modal.backdrop_response.clicked() {
+                    save_modal_open = false;
+                }
+            }
+
+            if user_modal_open {
+                let modal = Modal::new(Id::new("Modal B")).show(ui.ctx(), |ui| {
+                    ui.set_width(200.0);
+                    ui.heading("Save? Are you sure?");
+
+                    ui.add_space(32.0);
+
+                    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                        if ui.button("Yes Please").clicked() {
+                            save_progress = Some(0.0);
+                        }
+
+                        if ui.button("No Thanks").clicked() {
+                            user_modal_open = false;
+                        }
+                    });
+                });
+
+                if modal.backdrop_response.clicked() {
+                    user_modal_open = false;
+                }
+            }
+
+            if let Some(progress) = save_progress {
+                let modal = Modal::new(Id::new("Modal C")).show(ui.ctx(), |ui| {
+                    ui.set_width(70.0);
+                    ui.heading("Saving...");
+
+                    ProgressBar::new(progress).ui(ui);
+
+                    if progress >= 1.0 {
+                        save_progress = None;
+                        user_modal_open = false;
+                        save_modal_open = false;
+                    } else {
+                        save_progress = Some(progress + 0.003);
+                        ui.ctx().request_repaint();
+                    }
+                });
+            }
+        });
+
+        egui::Window::new("My Window").show(ctx, |ui| {
+            if ui.button("show modal").clicked() {
+                user_modal_open = true;
+            }
         });
     })
 }
