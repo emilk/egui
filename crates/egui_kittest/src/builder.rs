@@ -4,13 +4,13 @@ use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
 
 /// Builder for [`Harness`].
-pub struct HarnessBuilder<S = ()> {
+pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
-    pub(crate) state: PhantomData<S>,
+    pub(crate) state: PhantomData<State>,
 }
 
-impl<S> Default for HarnessBuilder<S> {
+impl<State> Default for HarnessBuilder<State> {
     fn default() -> Self {
         Self {
             screen_rect: Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)),
@@ -20,7 +20,7 @@ impl<S> Default for HarnessBuilder<S> {
     }
 }
 
-impl<S> HarnessBuilder<S> {
+impl<State> HarnessBuilder<State> {
     /// Set the size of the window.
     #[inline]
     pub fn with_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -63,9 +63,9 @@ impl<S> HarnessBuilder<S> {
     /// ```
     pub fn build_state<'a>(
         self,
-        app: impl FnMut(&egui::Context, &mut S) + 'a,
-        state: S,
-    ) -> Harness<'a, S> {
+        app: impl FnMut(&egui::Context, &mut State) + 'a,
+        state: State,
+    ) -> Harness<'a, State> {
         Harness::from_builder(&self, AppKind::ContextState(Box::new(app)), state)
     }
 
@@ -92,9 +92,9 @@ impl<S> HarnessBuilder<S> {
     /// ```
     pub fn build_ui_state<'a>(
         self,
-        app: impl FnMut(&mut egui::Ui, &mut S) + 'a,
-        state: S,
-    ) -> Harness<'a, S> {
+        app: impl FnMut(&mut egui::Ui, &mut State) + 'a,
+        state: State,
+    ) -> Harness<'a, State> {
         Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state)
     }
 }

@@ -288,7 +288,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
 }
 
 #[cfg(feature = "wgpu")]
-impl Harness<'_> {
+impl<State> Harness<'_, State> {
     /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///

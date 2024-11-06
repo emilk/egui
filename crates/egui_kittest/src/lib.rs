@@ -32,29 +32,29 @@ use kittest::{Node, Queryable};
 /// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
 /// In _most cases_ it should be fine to just store the state in the closure itself.
 /// The state functions are useful if you need to access the state after the harness has been created.
-pub struct Harness<'a, S = ()> {
+pub struct Harness<'a, State = ()> {
     pub ctx: egui::Context,
     input: egui::RawInput,
     kittest: kittest::State,
     output: egui::FullOutput,
     texture_deltas: Vec<TexturesDelta>,
-    app: AppKind<'a, S>,
+    app: AppKind<'a, State>,
     event_state: EventState,
     response: Option<egui::Response>,
-    state: S,
+    state: State,
 }
 
-impl<'a> Debug for Harness<'a> {
+impl<'a, State> Debug for Harness<'a, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.kittest.fmt(f)
     }
 }
 
-impl<'a, S> Harness<'a, S> {
+impl<'a, State> Harness<'a, State> {
     pub(crate) fn from_builder(
-        builder: &HarnessBuilder<S>,
-        mut app: AppKind<'a, S>,
-        mut state: S,
+        builder: &HarnessBuilder<State>,
+        mut app: AppKind<'a, State>,
+        mut state: State,
     ) -> Self {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
@@ -96,7 +96,7 @@ impl<'a, S> Harness<'a, S> {
     }
 
     /// Create a [`Harness`] via a [`HarnessBuilder`].
-    pub fn builder() -> HarnessBuilder<S> {
+    pub fn builder() -> HarnessBuilder<State> {
         HarnessBuilder::default()
     }
 
@@ -124,7 +124,7 @@ impl<'a, S> Harness<'a, S> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
-    pub fn new_state(app: impl FnMut(&egui::Context, &mut S) + 'a, state: S) -> Self {
+    pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_state(app, state)
     }
 
@@ -149,7 +149,7 @@ impl<'a, S> Harness<'a, S> {
     ///
     /// assert_eq!(*harness.state(), true);
     /// ```
-    pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut S) + 'a, state: S) -> Self {
+    pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_ui_state(app, state)
     }
 
@@ -241,12 +241,12 @@ impl<'a, S> Harness<'a, S> {
     }
 
     /// Access the state.
-    pub fn state(&self) -> &S {
+    pub fn state(&self) -> &State {
         &self.state
     }
 
     /// Access the state mutably.
-    pub fn state_mut(&mut self) -> &mut S {
+    pub fn state_mut(&mut self) -> &mut State {
         &mut self.state
     }
 }
@@ -297,7 +297,7 @@ impl<'a> Harness<'a> {
     }
 }
 
-impl<'t, 'n, 'h, S> Queryable<'t, 'n> for Harness<'h, S>
+impl<'t, 'n, 'h, State> Queryable<'t, 'n> for Harness<'h, State>
 where
     'n: 't,
 {

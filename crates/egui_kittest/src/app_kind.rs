@@ -36,11 +36,11 @@ pub(crate) enum AppKind<'a, State> {
 //     }
 // }
 
-impl<'a, S> AppKind<'a, S> {
+impl<'a, State> AppKind<'a, State> {
     pub fn run(
         &mut self,
         ctx: &egui::Context,
-        state: &mut S,
+        state: &mut State,
         sizing_pass: bool,
     ) -> Option<egui::Response> {
         match self {
@@ -58,7 +58,12 @@ impl<'a, S> AppKind<'a, S> {
         }
     }
 
-    fn run_ui(&mut self, ctx: &egui::Context, state: &mut S, sizing_pass: bool) -> egui::Response {
+    fn run_ui(
+        &mut self,
+        ctx: &egui::Context,
+        state: &mut State,
+        sizing_pass: bool,
+    ) -> egui::Response {
         egui::CentralPanel::default()
             .frame(Frame::none())
             .show(ctx, |ui| {
