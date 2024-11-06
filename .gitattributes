@@ -1,2 +1,5 @@
 * text=auto eol=lf
 Cargo.lock linguist-generated=false
+*.png filter=lfs diff=lfs merge=lfs -text
+# The icon.png is needed when including eframe via git, so it may not be in lfs
+crates/eframe/data/* !filter !diff !merge text=auto eol=lf

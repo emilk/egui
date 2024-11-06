@@ -2,6 +2,8 @@
 **/target
 **/target_ra
 **/target_wasm
+**/tests/snapshots/**/*.diff.png
+**/tests/snapshots/**/*.new.png
 /.*.json
 /.vscode
 /media/*

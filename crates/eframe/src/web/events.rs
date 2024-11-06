@@ -6,7 +6,7 @@ use super::{
 };
 use web_sys::EventTarget;
 
-// TODO(emilk): there are more calls to `prevent_default` and `stop_propagaton`
+// TODO(emilk): there are more calls to `prevent_default` and `stop_propagation`
 // than what is probably needed.
 
 // ------------------------------------------------------------------------

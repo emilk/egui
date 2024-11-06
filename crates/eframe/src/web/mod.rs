@@ -174,6 +174,13 @@ fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
 /// Set the clipboard text.
 fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
+        if !window.is_secure_context() {
+            log::error!(
+                "Clipboard is not available because we are not in a secure context. \
+                See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts"
+            );
+            return;
+        }
         let promise = window.navigator().clipboard().write_text(s);
         let future = wasm_bindgen_futures::JsFuture::from(promise);
         let future = async move {

@@ -68,8 +68,8 @@ pub struct RawInput {
 
     /// Dragged files dropped into egui.
     ///
-    /// Note: when using `eframe` on Windows you need to enable
-    /// drag-and-drop support using `eframe::NativeOptions`.
+    /// Note: when using `eframe` on Windows, this will always be empty if drag-and-drop support has
+    /// been disabled in [`crate::viewport::ViewportBuilder`].
     pub dropped_files: Vec<DroppedFile>,
 
     /// The native window has the keyboard focus (i.e. is receiving key presses).

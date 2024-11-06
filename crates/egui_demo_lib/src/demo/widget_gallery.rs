@@ -285,3 +285,28 @@ fn doc_link_label_with_crate<'a>(
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::View;
+    use egui::Vec2;
+    use egui_kittest::Harness;
+
+    #[test]
+    pub fn should_match_screenshot() {
+        let mut demo = WidgetGallery {
+            // If we don't set a fixed date, the snapshot test will fail.
+            date: Some(chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
+            ..Default::default()
+        };
+        let mut harness = Harness::builder()
+            .with_pixels_per_point(2.0)
+            .with_size(Vec2::new(380.0, 550.0))
+            .build_ui(|ui| demo.ui(ui));
+
+        harness.fit_contents();
+
+        harness.wgpu_snapshot("widget_gallery");
+    }
+}
