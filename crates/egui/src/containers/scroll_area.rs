@@ -1072,7 +1072,8 @@ impl Prepared {
                     from_content(offset.x + inner_rect.width()) - from_content(offset.x)
                 } else {
                     from_content(offset.y + inner_rect.height()) - from_content(offset.y)
-                }.max(scroll_style.handle_min_length);
+                }
+                .max(scroll_style.handle_min_length);
 
                 let handle_start_point = remap_clamp(
                     offset[d],
