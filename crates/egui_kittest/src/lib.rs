@@ -28,25 +28,34 @@ use kittest::{Node, Queryable};
 
 /// The test Harness. This contains everything needed to run the test.
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
-pub struct Harness<'a> {
+///
+/// The [Harness] has a optional generic state that can be used to pass data to the app / ui closure.
+/// In _most cases_ it should be fine to just store the state in the closure itself.
+/// The state functions are useful if you need to access the state after the harness has been created.
+pub struct Harness<'a, State = ()> {
     pub ctx: egui::Context,
     input: egui::RawInput,
     kittest: kittest::State,
     output: egui::FullOutput,
     texture_deltas: Vec<TexturesDelta>,
-    app: AppKind<'a>,
+    app: AppKind<'a, State>,
     event_state: EventState,
     response: Option<egui::Response>,
+    state: State,
 }
 
-impl<'a> Debug for Harness<'a> {
+impl<'a, State> Debug for Harness<'a, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.kittest.fmt(f)
     }
 }
 
-impl<'a> Harness<'a> {
-    pub(crate) fn from_builder(builder: &HarnessBuilder, mut app: AppKind<'a>) -> Self {
+impl<'a, State> Harness<'a, State> {
+    pub(crate) fn from_builder(
+        builder: &HarnessBuilder<State>,
+        mut app: AppKind<'a, State>,
+        mut state: State,
+    ) -> Self {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         let mut input = egui::RawInput {
@@ -61,7 +70,7 @@ impl<'a> Harness<'a> {
         // We need to run egui for a single frame so that the AccessKit state can be initialized
         // and users can immediately start querying for widgets.
         let mut output = ctx.run(input.clone(), |ctx| {
-            response = app.run(ctx);
+            response = app.run(ctx, &mut state, false);
         });
 
         let mut harness = Self {
@@ -79,17 +88,19 @@ impl<'a> Harness<'a> {
             output,
             response,
             event_state: EventState::default(),
+            state,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run();
         harness
     }
 
-    pub fn builder() -> HarnessBuilder {
+    /// Create a [`Harness`] via a [`HarnessBuilder`].
+    pub fn builder() -> HarnessBuilder<State> {
         HarnessBuilder::default()
     }
 
-    /// Create a new Harness with the given app closure.
+    /// Create a new Harness with the given app closure and a state.
     ///
     /// The app closure will immediately be called once to create the initial ui.
     ///
@@ -100,18 +111,24 @@ impl<'a> Harness<'a> {
     /// # Example
     /// ```rust
     /// # use egui::CentralPanel;
-    /// # use egui_kittest::Harness;
-    /// let mut harness = Harness::new(|ctx| {
+    /// # use egui_kittest::{Harness, kittest::Queryable};
+    /// let mut checked = false;
+    /// let mut harness = Harness::new_state(|ctx, checked| {
     ///     CentralPanel::default().show(ctx, |ui| {
-    ///         ui.label("Hello, world!");
+    ///         ui.checkbox(checked, "Check me!");
     ///     });
-    /// });
+    /// }, checked);
+    ///
+    /// harness.get_by_name("Check me!").click();
+    /// harness.run();
+    ///
+    /// assert_eq!(*harness.state(), true);
     /// ```
-    pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
-        Self::builder().build(app)
+    pub fn new_state(app: impl FnMut(&egui::Context, &mut State) + 'a, state: State) -> Self {
+        Self::builder().build_state(app, state)
     }
 
-    /// Create a new Harness with the given ui closure.
+    /// Create a new Harness with the given ui closure and a state.
     ///
     /// The ui closure will immediately be called once to create the initial ui.
     ///
@@ -121,13 +138,19 @@ impl<'a> Harness<'a> {
     ///
     /// # Example
     /// ```rust
-    /// # use egui_kittest::Harness;
-    /// let mut harness = Harness::new_ui(|ui| {
-    ///     ui.label("Hello, world!");
-    /// });
+    /// # use egui_kittest::{Harness, kittest::Queryable};
+    /// let mut checked = false;
+    /// let mut harness = Harness::new_ui_state(|ui, checked| {
+    ///     ui.checkbox(checked, "Check me!");
+    /// }, checked);
+    ///
+    /// harness.get_by_name("Check me!").click();
+    /// harness.run();
+    ///
+    /// assert_eq!(*harness.state(), true);
     /// ```
-    pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
-        Self::builder().build_ui(app)
+    pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
+        Self::builder().build_ui_state(app, state)
     }
 
     /// Set the size of the window.
@@ -162,11 +185,7 @@ impl<'a> Harness<'a> {
         }
 
         let mut output = self.ctx.run(self.input.take(), |ctx| {
-            if sizing_pass {
-                self.response = self.app.run_sizing_pass(ctx);
-            } else {
-                self.response = self.app.run(ctx);
-            }
+            self.response = self.app.run(ctx, &mut self.state, sizing_pass);
         });
         self.kittest.update(
             output
@@ -220,9 +239,65 @@ impl<'a> Harness<'a> {
     pub fn kittest_state(&self) -> &kittest::State {
         &self.kittest
     }
+
+    /// Access the state.
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+
+    /// Access the state mutably.
+    pub fn state_mut(&mut self) -> &mut State {
+        &mut self.state
+    }
 }
 
-impl<'t, 'n, 'h> Queryable<'t, 'n> for Harness<'h>
+/// Utilities for stateless harnesses.
+impl<'a> Harness<'a> {
+    /// Create a new Harness with the given app closure.
+    /// Use the [`Harness::run`], [`Harness::step`], etc... methods to run the app.
+    ///
+    /// The app closure will immediately be called once to create the initial ui.
+    ///
+    /// If you don't need to create Windows / Panels, you can use [`Harness::new_ui`] instead.
+    ///
+    /// If you e.g. want to customize the size of the window, you can use [`Harness::builder`].
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui::CentralPanel;
+    /// # use egui_kittest::Harness;
+    /// let mut harness = Harness::new(|ctx| {
+    ///     CentralPanel::default().show(ctx, |ui| {
+    ///         ui.label("Hello, world!");
+    ///     });
+    /// });
+    /// ```
+    pub fn new(app: impl FnMut(&egui::Context) + 'a) -> Self {
+        Self::builder().build(app)
+    }
+
+    /// Create a new Harness with the given ui closure.
+    /// Use the [`Harness::run`], [`Harness::step`], etc... methods to run the app.
+    ///
+    /// The ui closure will immediately be called once to create the initial ui.
+    ///
+    /// If you need to create Windows / Panels, you can use [`Harness::new`] instead.
+    ///
+    /// If you e.g. want to customize the size of the ui, you can use [`Harness::builder`].
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_kittest::Harness;
+    /// let mut harness = Harness::new_ui(|ui| {
+    ///     ui.label("Hello, world!");
+    /// });
+    /// ```
+    pub fn new_ui(app: impl FnMut(&mut egui::Ui) + 'a) -> Self {
+        Self::builder().build_ui(app)
+    }
+}
+
+impl<'t, 'n, 'h, State> Queryable<'t, 'n> for Harness<'h, State>
 where
     'n: 't,
 {
