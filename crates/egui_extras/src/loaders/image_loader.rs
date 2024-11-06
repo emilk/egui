@@ -5,7 +5,7 @@ use egui::{
     ColorImage,
 };
 use image::ImageFormat;
-use std::{mem::size_of, sync::Arc};
+use std::{mem::size_of, path::Path, sync::Arc};
 
 type Entry = Result<Arc<ColorImage>, String>;
 
@@ -19,6 +19,11 @@ impl ImageCrateLoader {
 }
 
 fn is_supported_uri(uri: &str) -> bool {
+    let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
+        // `true` because if there's no extension, assume that we support it
+        return true;
+    };
+
     // Uses only the enabled image crate features
     ImageFormat::all()
         .filter(ImageFormat::reading_enabled)
