@@ -1067,20 +1067,33 @@ impl Prepared {
                 )
             };
 
-            let handle_rect = if d == 0 {
-                Rect::from_min_max(
-                    pos2(from_content(state.offset.x), cross.min),
-                    pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
-                )
-            } else {
-                Rect::from_min_max(
-                    pos2(cross.min, from_content(state.offset.y)),
-                    pos2(
-                        cross.max,
-                        from_content(state.offset.y + inner_rect.height()),
-                    ),
-                )
+            let calculate_handle_rect = |d, offset: &Vec2| {
+                let handle_size = if d == 0 {
+                    from_content(offset.x + inner_rect.width()) - from_content(offset.x)
+                } else {
+                    from_content(offset.y + inner_rect.height()) - from_content(offset.y)
+                }.max(scroll_style.handle_min_length);
+
+                let handle_start_point = remap_clamp(
+                    offset[d],
+                    0.0..=max_offset[d],
+                    scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_size),
+                );
+
+                if d == 0 {
+                    Rect::from_min_max(
+                        pos2(handle_start_point, cross.min),
+                        pos2(handle_start_point + handle_size, cross.max),
+                    )
+                } else {
+                    Rect::from_min_max(
+                        pos2(cross.min, handle_start_point),
+                        pos2(cross.max, handle_start_point + handle_size),
+                    )
+                }
             };
+
+            let handle_rect = calculate_handle_rect(d, &state.offset);
 
             let interact_id = id.with(d);
             let sense = if self.scrolling_enabled {
@@ -1110,8 +1123,8 @@ impl Prepared {
                 let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
                 state.offset[d] = remap(
                     new_handle_top,
-                    scroll_bar_rect.min[d]..=scroll_bar_rect.max[d],
-                    0.0..=content_size[d],
+                    scroll_bar_rect.min[d]..=(scroll_bar_rect.max[d] - handle_rect.size()[d]),
+                    0.0..=max_offset[d],
                 );
 
                 // some manual action taken, scroll not stuck
@@ -1131,44 +1144,7 @@ impl Prepared {
 
             if ui.is_rect_visible(outer_scroll_bar_rect) {
                 // Avoid frame-delay by calculating a new handle rect:
-                let mut handle_rect = if d == 0 {
-                    Rect::from_min_max(
-                        pos2(from_content(state.offset.x), cross.min),
-                        pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
-                    )
-                } else {
-                    Rect::from_min_max(
-                        pos2(cross.min, from_content(state.offset.y)),
-                        pos2(
-                            cross.max,
-                            from_content(state.offset.y + inner_rect.height()),
-                        ),
-                    )
-                };
-                let min_handle_size = scroll_style.handle_min_length;
-                if handle_rect.size()[d] < min_handle_size {
-                    let handle_half_size = min_handle_size / 2.0;
-                    let center_distance = scroll_bar_rect.center()[d] - handle_rect.center()[d];
-
-                    let overlap = if center_distance >= 0.0 {
-                        scroll_bar_rect.min[d] - (handle_rect.center()[d] - handle_half_size)
-                    } else {
-                        (handle_rect.center()[d] + handle_half_size) - scroll_bar_rect.max[d]
-                    }.max(0.0);
-
-                    let center_adjust_vector = vec2(
-                        if d == 0 { overlap.copysign(center_distance) } else { 0.0 },
-                        if d == 1 { overlap.copysign(center_distance) } else { 0.0 },
-                    );
-
-                    handle_rect = Rect::from_center_size(
-                        handle_rect.center() + center_adjust_vector,
-                        vec2(
-                            if d == 0 { min_handle_size } else { handle_rect.size().x },
-                            if d == 1 { min_handle_size } else { handle_rect.size().y },
-                        ),
-                    );
-                }
+                let handle_rect = calculate_handle_rect(d, &state.offset);
 
                 let visuals = if scrolling_enabled {
                     // Pick visuals based on interaction with the handle.
