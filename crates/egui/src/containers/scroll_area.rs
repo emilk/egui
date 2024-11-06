@@ -1,7 +1,7 @@
 #![allow(clippy::needless_range_loop)]
 
 use crate::{
-    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, vec2, Context, Id, NumExt, Pos2,
+    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, Context, Id, NumExt, Pos2,
     Rangef, Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
 };
 
