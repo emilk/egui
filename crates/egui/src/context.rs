@@ -1172,7 +1172,7 @@ impl Context {
             viewport.this_pass.widgets.insert(w.layer_id, w);
 
             if allow_focus && interested_in_focus {
-                ctx.memory.interested_in_focus(w.id);
+                ctx.memory.interested_in_focus(w.id, w.layer_id);
             }
         });
 

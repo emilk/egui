@@ -452,7 +452,7 @@ impl<'a> Widget for DragValue<'a> {
         // in button mode for just one frame. This is important for
         // screen readers.
         let is_kb_editing = ui.memory_mut(|mem| {
-            mem.interested_in_focus(id);
+            mem.interested_in_focus(id, ui.layer_id());
             mem.has_focus(id)
         });
 

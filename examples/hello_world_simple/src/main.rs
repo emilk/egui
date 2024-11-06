@@ -13,8 +13,8 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
 
-    let mut save_modal_open = false;
     let mut user_modal_open = false;
+    let mut save_modal_open = false;
     let mut save_progress = None;
 
     let roles = ["user", "admin"];
@@ -24,15 +24,15 @@ fn main() -> eframe::Result {
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
-            if ui.button("Open Modal A").clicked() {
-                save_modal_open = true;
-            }
-
-            if ui.button("Open Modal B").clicked() {
+            if ui.button("Open User Modal").clicked() {
                 user_modal_open = true;
             }
 
-            if save_modal_open {
+            if ui.button("Open Save Modal").clicked() {
+                save_modal_open = true;
+            }
+
+            if user_modal_open {
                 let modal = Modal::new(Id::new("Modal A")).show(ui.ctx(), |ui| {
                     ui.set_width(250.0);
 
@@ -53,20 +53,20 @@ fn main() -> eframe::Result {
 
                     ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                         if ui.button("Save").clicked() {
-                            user_modal_open = true;
+                            save_modal_open = true;
                         }
                         if ui.button("Cancel").clicked() {
-                            save_modal_open = false;
+                            user_modal_open = false;
                         }
                     });
                 });
 
                 if modal.backdrop_response.clicked() {
-                    save_modal_open = false;
+                    user_modal_open = false;
                 }
             }
 
-            if user_modal_open {
+            if save_modal_open {
                 let modal = Modal::new(Id::new("Modal B")).show(ui.ctx(), |ui| {
                     ui.set_width(200.0);
                     ui.heading("Save? Are you sure?");
@@ -79,13 +79,13 @@ fn main() -> eframe::Result {
                         }
 
                         if ui.button("No Thanks").clicked() {
-                            user_modal_open = false;
+                            save_modal_open = false;
                         }
                     });
                 });
 
                 if modal.backdrop_response.clicked() {
-                    user_modal_open = false;
+                    save_modal_open = false;
                 }
             }
 
@@ -98,8 +98,8 @@ fn main() -> eframe::Result {
 
                     if progress >= 1.0 {
                         save_progress = None;
-                        user_modal_open = false;
                         save_modal_open = false;
+                        user_modal_open = false;
                     } else {
                         save_progress = Some(progress + 0.003);
                         ui.ctx().request_repaint();

@@ -28,6 +28,7 @@ impl Modal {
     }
 
     pub fn show<T>(self, ctx: &Context, content: impl FnOnce(&mut Ui) -> T) -> ModalResponse<T> {
+        ctx.memory_mut(|mem| mem.set_modal_layer(self.area.layer()));
         let InnerResponse {
             inner: (inner, backdrop_response),
             response,

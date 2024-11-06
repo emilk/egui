@@ -513,6 +513,11 @@ pub(crate) struct Focus {
     /// Set when looking for widget with navigational keys like arrows, tab, shift+tab.
     focus_direction: FocusDirection,
 
+    /// The top-most modal layer from the previous frame.
+    top_modal_layer: Option<LayerId>,
+    /// The top-most modal layer from the current frame.
+    top_modal_layer_current_frame: Option<LayerId>,
+
     /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
 }
@@ -623,13 +628,15 @@ impl Focus {
                 self.focused_widget = None;
             }
         }
+
+        self.top_modal_layer = self.top_modal_layer_current_frame.take();
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
         self.id_previous_frame == Some(id)
     }
 
-    fn interested_in_focus(&mut self, id: Id) {
+    fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
         #[cfg(feature = "accesskit")]
         {
             if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
@@ -674,6 +681,10 @@ impl Focus {
         }
 
         self.last_interested = Some(id);
+    }
+
+    fn set_modal_layer(&mut self, layer_id: LayerId) {
+        self.top_modal_layer_current_frame = Some(layer_id);
     }
 
     fn reset_focus(&mut self) {
@@ -884,9 +895,37 @@ impl Memory {
     /// e.g. before deciding which type of underlying widget to use,
     /// as in the [`crate::DragValue`] widget, so a widget can be focused
     /// and rendered correctly in a single frame.
+    ///
+    /// Pass in the `layer_id` of the layer that the widget is in.
     #[inline(always)]
-    pub fn interested_in_focus(&mut self, id: Id) {
-        self.focus_mut().interested_in_focus(id);
+    pub fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
+        // If the widget is on a layer below the current modal layer, ignore it.
+        if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
+            if matches!(
+                self.areas().compare_order(layer_id, modal_layer),
+                std::cmp::Ordering::Less
+            ) {
+                return;
+            }
+        }
+
+        self.focus_mut().interested_in_focus(id, layer_id);
+    }
+
+    /// Limit focus to widgets on the given layer and above.
+    /// If this is called multiple times per frame, the top layer wins.
+    pub fn set_modal_layer(&mut self, layer_id: LayerId) {
+        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame) {
+            dbg!(self.areas().compare_order(layer_id, current));
+            if matches!(
+                self.areas().compare_order(layer_id, current),
+                std::cmp::Ordering::Less
+            ) {
+                return;
+            }
+        }
+
+        self.focus_mut().set_modal_layer(layer_id);
     }
 
     /// Stop editing the active [`TextEdit`](crate::TextEdit) (if any).
@@ -1037,6 +1076,9 @@ impl Memory {
 
 // ----------------------------------------------------------------------------
 
+/// Map containing the index of each layer in the order list, for quick lookups.
+type OrderMap = HashMap<LayerId, usize>;
+
 /// Keeps track of [`Area`](crate::containers::area::Area)s, which are free-floating [`Ui`](crate::Ui)s.
 /// These [`Area`](crate::containers::area::Area)s can be in any [`Order`].
 #[derive(Clone, Debug, Default)]
@@ -1047,6 +1089,9 @@ pub struct Areas {
 
     /// Back-to-front,  top is last.
     order: Vec<LayerId>,
+
+    /// Actual order of the layers, pre-calculated each frame.
+    order_map: OrderMap,
 
     visible_last_frame: ahash::HashSet<LayerId>,
     visible_current_frame: ahash::HashSet<LayerId>,
@@ -1079,8 +1124,24 @@ impl Areas {
     }
 
     /// For each layer, which [`Self::order`] is it in?
-    pub(crate) fn order_map(&self) -> HashMap<LayerId, usize> {
-        self.order
+    pub(crate) fn order_map(&self) -> &OrderMap {
+        &self.order_map
+    }
+
+    /// Compare the order of two layers, based on the order list from last frame.
+    /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
+    pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
+        if let (Some(a), Some(b)) = (self.order_map.get(&a), self.order_map.get(&b)) {
+            a.cmp(b)
+        } else {
+            a.order.cmp(&b.order)
+        }
+    }
+
+    /// Calculate the order map.
+    fn calculate_order_map(&mut self) {
+        self.order_map = self
+            .order
             .iter()
             .enumerate()
             .map(|(i, id)| (*id, i))
@@ -1209,6 +1270,7 @@ impl Areas {
             };
             order.splice(parent_pos..=parent_pos, moved_layers);
         }
+        self.calculate_order_map();
     }
 }
 
