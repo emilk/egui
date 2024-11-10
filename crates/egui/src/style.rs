@@ -1014,6 +1014,7 @@ impl Visuals {
         self.widgets.noninteractive.weak_bg_fill
     }
 
+    #[doc(alias = "grey_out")]
     /// Returned a "grayed out" version of the given color.
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
