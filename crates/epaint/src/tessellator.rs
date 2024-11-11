@@ -470,7 +470,7 @@ impl Path {
                 self.add_point(points[i], n1c / n1c.length_sq());
             } else {
                 // miter join
-                self.add_point(points[i], normal / length_sq);
+                self.add_point(points[i], normal.normalized());
             }
 
             n0 = n1;
