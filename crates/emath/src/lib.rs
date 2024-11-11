@@ -145,7 +145,10 @@ where
 {
     let from = from.into();
     let to = to.into();
-    debug_assert!(from.start() != from.end());
+    debug_assert!(
+        from.start() != from.end(),
+        "start and end of range must be different"
+    );
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
@@ -169,7 +172,10 @@ where
     } else if *from.end() <= x {
         *to.end()
     } else {
-        debug_assert!(from.start() != from.end());
+        debug_assert!(
+            from.start() != from.end(),
+            "start and end of range must be different"
+        );
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
         if T::ONE <= t {
@@ -196,8 +202,11 @@ pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
 pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<usize>) -> String {
     let min_decimals = *decimal_range.start();
     let max_decimals = *decimal_range.end();
-    debug_assert!(min_decimals <= max_decimals);
-    debug_assert!(max_decimals < 100);
+    debug_assert!(
+        min_decimals <= max_decimals,
+        "max_decimals must be >= min_decimals"
+    );
+    debug_assert!(max_decimals < 100, "max_decimals is too large");
     let max_decimals = max_decimals.min(16);
     let min_decimals = min_decimals.min(max_decimals);
 

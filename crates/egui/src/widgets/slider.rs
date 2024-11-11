@@ -1058,7 +1058,7 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             let log = lerp(min_log..=max_log, normalized);
             10.0_f64.powf(log)
         } else {
-            assert!(min < 0.0 && 0.0 < max);
+            assert!(min < 0.0 && 0.0 < max, "You should use a logarithmic range");
             let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if normalized < zero_cutoff {
                 // negative
@@ -1107,7 +1107,7 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             let value_log = value.log10();
             remap_clamp(value_log, min_log..=max_log, 0.0..=1.0)
         } else {
-            assert!(min < 0.0 && 0.0 < max);
+            assert!(min < 0.0 && 0.0 < max, "You should use a logarithmic range");
             let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if value < 0.0 {
                 // negative
@@ -1135,8 +1135,8 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
 }
 
 fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
-    assert!(spec.logarithmic);
-    assert!(min <= max);
+    assert!(spec.logarithmic, "You should use a logarithmic range");
+    assert!(min <= max, "min must be less than or equal to max");
 
     if min == 0.0 && max == INFINITY {
         (spec.smallest_positive.log10(), INF_RANGE_MAGNITUDE)
@@ -1160,7 +1160,7 @@ fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
 /// where to put the zero cutoff for logarithmic sliders
 /// that crosses zero ?
 fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
-    assert!(min < 0.0 && 0.0 < max);
+    assert!(min < 0.0 && 0.0 < max, "min and max must straddle zero");
 
     let min_magnitude = if min == -INFINITY {
         INF_RANGE_MAGNITUDE
