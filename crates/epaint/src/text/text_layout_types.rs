@@ -272,7 +272,7 @@ pub struct TextFormat {
     pub background: Color32,
 
     /// Amount to expand background fill by.
-    /// 
+    ///
     /// Default: 1.0
     pub expand_bg: f32,
 
