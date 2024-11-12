@@ -756,7 +756,6 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
     let mut end_run = |start: Option<(Color32, Rect)>, stop_x: f32| {
         if let Some((color, start_rect)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
-            let rect = rect.expand(1.0); // looks better
             mesh.add_colored_rect(rect, color);
         }
     };
