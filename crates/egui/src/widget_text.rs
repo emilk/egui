@@ -20,7 +20,7 @@ use crate::{
 /// RichText::new("colored").color(Color32::RED);
 /// RichText::new("Large and underlined").size(20.0).underline();
 /// ```
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct RichText {
     text: String,
     size: Option<f32>,
@@ -38,6 +38,29 @@ pub struct RichText {
     underline: bool,
     italics: bool,
     raised: bool,
+}
+
+impl Default for RichText {
+    fn default() -> Self {
+        Self {
+            text: Default::default(),
+            size: Default::default(),
+            extra_letter_spacing: Default::default(),
+            line_height: Default::default(),
+            family: Default::default(),
+            text_style: Default::default(),
+            background_color: Default::default(),
+            expand_bg: 1.0,
+            text_color: Default::default(),
+            code: Default::default(),
+            strong: Default::default(),
+            weak: Default::default(),
+            strikethrough: Default::default(),
+            underline: Default::default(),
+            italics: Default::default(),
+            raised: Default::default(),
+        }
+    }
 }
 
 impl From<&str> for RichText {
