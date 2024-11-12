@@ -753,9 +753,10 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
         return;
     }
 
-    let mut end_run = |start: Option<(Color32, Rect)>, stop_x: f32| {
-        if let Some((color, start_rect)) = start {
+    let mut end_run = |start: Option<(Color32, Rect, f32)>, stop_x: f32| {
+        if let Some((color, start_rect, expand)) = start {
             let rect = Rect::from_min_max(start_rect.left_top(), pos2(stop_x, start_rect.bottom()));
+            let rect = rect.expand(expand);
             mesh.add_colored_rect(rect, color);
         }
     };
@@ -770,18 +771,19 @@ fn add_row_backgrounds(job: &LayoutJob, row: &Row, mesh: &mut Mesh) {
 
         if color == Color32::TRANSPARENT {
             end_run(run_start.take(), last_rect.right());
-        } else if let Some((existing_color, start)) = run_start {
+        } else if let Some((existing_color, start, expand)) = run_start {
             if existing_color == color
                 && start.top() == rect.top()
                 && start.bottom() == rect.bottom()
+                && format.expand_bg == expand
             {
                 // continue the same background rectangle
             } else {
                 end_run(run_start.take(), last_rect.right());
-                run_start = Some((color, rect));
+                run_start = Some((color, rect, format.expand_bg));
             }
         } else {
-            run_start = Some((color, rect));
+            run_start = Some((color, rect, format.expand_bg));
         }
 
         last_rect = rect;

@@ -29,6 +29,7 @@ pub struct RichText {
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
+    expand_bg: f32,
     text_color: Option<Color32>,
     code: bool,
     strong: bool,
@@ -360,6 +361,7 @@ impl RichText {
             family,
             text_style,
             background_color,
+            expand_bg,
             text_color: _, // already used by `get_text_color`
             code,
             strong: _, // already used by `get_text_color`
@@ -425,6 +427,7 @@ impl RichText {
                 underline,
                 strikethrough,
                 valign,
+                expand_bg,
             },
         )
     }

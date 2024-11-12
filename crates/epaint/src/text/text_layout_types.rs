@@ -271,6 +271,11 @@ pub struct TextFormat {
 
     pub background: Color32,
 
+    /// Amount to expand background fill by.
+    /// 
+    /// Default: 1.0
+    pub expand_bg: f32,
+
     pub italics: bool,
 
     pub underline: Stroke,
@@ -298,6 +303,7 @@ impl Default for TextFormat {
             line_height: None,
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
+            expand_bg: 1.0,
             italics: false,
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
@@ -315,6 +321,7 @@ impl std::hash::Hash for TextFormat {
             line_height,
             color,
             background,
+            expand_bg,
             italics,
             underline,
             strikethrough,
@@ -327,6 +334,7 @@ impl std::hash::Hash for TextFormat {
         }
         color.hash(state);
         background.hash(state);
+        emath::OrderedFloat(*expand_bg).hash(state);
         italics.hash(state);
         underline.hash(state);
         strikethrough.hash(state);
