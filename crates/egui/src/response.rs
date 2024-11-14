@@ -1001,6 +1001,9 @@ impl Response {
         if self.sense.focusable {
             builder.add_action(accesskit::Action::Focus);
         }
+        if self.sense.click {
+            builder.add_action(accesskit::Action::Click);
+        }
     }
 
     #[cfg(feature = "accesskit")]
@@ -1036,7 +1039,11 @@ impl Response {
             builder.set_disabled();
         }
         if let Some(label) = info.label {
-            builder.set_label(label);
+            if matches!(builder.role(), Role::Label) {
+                builder.set_value(label);
+            } else {
+                builder.set_label(label);
+            }
         }
         if let Some(value) = info.current_text_value {
             builder.set_value(value);
