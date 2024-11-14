@@ -552,13 +552,13 @@ impl ContextImpl {
             crate::profile_scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
             let id = crate::accesskit_root_id();
-            let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
+            let mut root_node = accesskit::Node::new(accesskit::Role::Window);
             let pixels_per_point = viewport.input.pixels_per_point();
-            builder.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
-            let mut node_builders = IdMap::default();
-            node_builders.insert(id, builder);
+            root_node.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
+            let mut nodes = IdMap::default();
+            nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
-                node_builders,
+                nodes,
                 parent_stack: vec![id],
             });
         }
@@ -640,9 +640,9 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::NodeBuilder {
+    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
         let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
-        let builders = &mut state.node_builders;
+        let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
             let parent_id = state.parent_stack.last().unwrap();
@@ -1279,7 +1279,7 @@ impl Context {
             #[cfg(feature = "accesskit")]
             if enabled
                 && sense.click
-                && input.has_accesskit_action_request(id, accesskit::Action::Default)
+                && input.has_accesskit_action_request(id, accesskit::Action::Click)
             {
                 res.fake_primary_click = true;
             }
@@ -2359,9 +2359,9 @@ impl ContextImpl {
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = {
                     state
-                        .node_builders
+                        .nodes
                         .into_iter()
-                        .map(|(id, builder)| (id.accesskit_id(), builder.build()))
+                        .map(|(id, node)| (id.accesskit_id(), node))
                         .collect()
                 };
                 let focus_id = self
@@ -3270,7 +3270,7 @@ impl Context {
     pub fn accesskit_node_builder<R>(
         &self,
         id: Id,
-        writer: impl FnOnce(&mut accesskit::NodeBuilder) -> R,
+        writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
         self.write(|ctx| {
             ctx.viewport()

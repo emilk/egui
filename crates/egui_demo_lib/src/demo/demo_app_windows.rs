@@ -409,7 +409,7 @@ mod tests {
 
             let window = harness.node().children().next().unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
-            //let window = harness.get_by_name(name);
+            //let window = harness.get_by_label(name);
 
             let size = window.raw_bounds().expect("window bounds").size();
             harness.set_size(Vec2::new(size.width as f32, size.height as f32));

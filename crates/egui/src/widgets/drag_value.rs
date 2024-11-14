@@ -686,7 +686,7 @@ impl<'a> Widget for DragValue<'a> {
             }
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
-            builder.clear_name();
+            builder.clear_label();
             // Always expose the value as a string. This makes the widget
             // more stable to accessibility users as it switches
             // between edit and button modes. This is particularly important
