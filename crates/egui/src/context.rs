@@ -1160,7 +1160,8 @@ impl Context {
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
-        let interested_in_focus = w.enabled && w.sense.focusable && w.layer_id.allow_interaction();
+        let interested_in_focus =
+            w.enabled && w.sense.focusable && self.memory(|mem| mem.allows_interaction(w.layer_id));
 
         // Remember this widget
         self.write(|ctx| {

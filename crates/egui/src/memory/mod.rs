@@ -636,7 +636,7 @@ impl Focus {
         self.id_previous_frame == Some(id)
     }
 
-    fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
+    fn interested_in_focus(&mut self, id: Id) {
         #[cfg(feature = "accesskit")]
         {
             if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
@@ -685,6 +685,10 @@ impl Focus {
 
     fn set_modal_layer(&mut self, layer_id: LayerId) {
         self.top_modal_layer_current_frame = Some(layer_id);
+    }
+
+    pub(crate) fn top_modal_layer(&self) -> Option<LayerId> {
+        self.top_modal_layer
     }
 
     fn reset_focus(&mut self) {
@@ -888,6 +892,24 @@ impl Memory {
         }
     }
 
+    /// Does this layer allow interaction?
+    /// Returns true if
+    ///  - the layer is not behind a modal layer
+    ///  - the [`Order`] allows interaction
+    pub fn allows_interaction(&self, layer_id: LayerId) -> bool {
+        let is_above_modal_layer =
+            if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
+                matches!(
+                    self.areas().compare_order(layer_id, modal_layer),
+                    std::cmp::Ordering::Equal | std::cmp::Ordering::Greater
+                )
+            } else {
+                true
+            };
+        let ordering_allows_interaction = layer_id.order.allow_interaction();
+        is_above_modal_layer && ordering_allows_interaction
+    }
+
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
     /// This is normally done automatically when handling interactions,
@@ -899,24 +921,16 @@ impl Memory {
     /// Pass in the `layer_id` of the layer that the widget is in.
     #[inline(always)]
     pub fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
-        // If the widget is on a layer below the current modal layer, ignore it.
-        if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
-            if matches!(
-                self.areas().compare_order(layer_id, modal_layer),
-                std::cmp::Ordering::Less
-            ) {
-                return;
-            }
+        if !self.allows_interaction(layer_id) {
+            return;
         }
-
-        self.focus_mut().interested_in_focus(id, layer_id);
+        self.focus_mut().interested_in_focus(id);
     }
 
     /// Limit focus to widgets on the given layer and above.
     /// If this is called multiple times per frame, the top layer wins.
     pub fn set_modal_layer(&mut self, layer_id: LayerId) {
         if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame) {
-            dbg!(self.areas().compare_order(layer_id, current));
             if matches!(
                 self.areas().compare_order(layer_id, current),
                 std::cmp::Ordering::Less
