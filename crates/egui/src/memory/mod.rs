@@ -515,6 +515,7 @@ pub(crate) struct Focus {
 
     /// The top-most modal layer from the previous frame.
     top_modal_layer: Option<LayerId>,
+
     /// The top-most modal layer from the current frame.
     top_modal_layer_current_frame: Option<LayerId>,
 
