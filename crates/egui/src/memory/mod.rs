@@ -942,6 +942,11 @@ impl Memory {
         self.focus_mut().set_modal_layer(layer_id);
     }
 
+    /// Get the top modal layer (from the previous frame).
+    pub fn top_modal_layer(&self) -> Option<LayerId> {
+        self.focus()?.top_modal_layer()
+    }
+
     /// Stop editing the active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
@@ -1152,14 +1157,14 @@ impl Areas {
         }
     }
 
-    /// Calculate the order map.
+    /// Calculates the order map.
     fn calculate_order_map(&mut self) {
         self.order_map = self
             .order
             .iter()
             .enumerate()
             .map(|(i, id)| (*id, i))
-            .collect()
+            .collect();
     }
 
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {

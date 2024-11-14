@@ -61,7 +61,7 @@ fn main() -> eframe::Result {
                     });
                 });
 
-                if modal.backdrop_response.clicked() {
+                if modal.should_close() {
                     user_modal_open = false;
                 }
             }
@@ -84,13 +84,13 @@ fn main() -> eframe::Result {
                     });
                 });
 
-                if modal.backdrop_response.clicked() {
+                if modal.should_close() {
                     save_modal_open = false;
                 }
             }
 
             if let Some(progress) = save_progress {
-                let modal = Modal::new(Id::new("Modal C")).show(ui.ctx(), |ui| {
+                Modal::new(Id::new("Modal C")).show(ui.ctx(), |ui| {
                     ui.set_width(70.0);
                     ui.heading("Saving...");
 

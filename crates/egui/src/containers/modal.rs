@@ -9,12 +9,6 @@ pub struct Modal {
     pub frame: Option<Frame>,
 }
 
-pub struct ModalResponse<T> {
-    pub response: Response,
-    pub backdrop_response: Response,
-    pub inner: T,
-}
-
 impl Modal {
     pub fn new(id: Id) -> Self {
         Self {
@@ -28,7 +22,10 @@ impl Modal {
     }
 
     pub fn show<T>(self, ctx: &Context, content: impl FnOnce(&mut Ui) -> T) -> ModalResponse<T> {
-        ctx.memory_mut(|mem| mem.set_modal_layer(self.area.layer()));
+        let is_top_modal = ctx.memory_mut(|mem| {
+            mem.set_modal_layer(self.area.layer());
+            mem.top_modal_layer() == Some(self.area.layer())
+        });
         let InnerResponse {
             inner: (inner, backdrop_response),
             response,
@@ -59,6 +56,7 @@ impl Modal {
             response,
             backdrop_response,
             inner,
+            is_top_modal,
         }
     }
 }
@@ -77,4 +75,26 @@ fn backdrop_ui(ui: &mut Ui, color: Color32) -> Response {
     ui.painter().rect_filled(response.rect, 0.0, color);
 
     response
+}
+
+pub struct ModalResponse<T> {
+    pub response: Response,
+    pub backdrop_response: Response,
+    pub inner: T,
+    pub is_top_modal: bool,
+}
+
+impl<T> ModalResponse<T> {
+    /// Should the modal be closed?
+    /// Returns true if:
+    ///  - the backdrop was clicked
+    ///  - this is the top most modal and the escape key was pressed
+    pub fn should_close(&self) -> bool {
+        self.backdrop_response.clicked()
+            || (self.is_top_modal
+                && self
+                    .response
+                    .ctx
+                    .input(|i| i.key_pressed(crate::Key::Escape)))
+    }
 }
