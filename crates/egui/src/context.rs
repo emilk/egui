@@ -1160,6 +1160,8 @@ impl Context {
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
+        let interested_in_focus = w.enabled && w.sense.focusable && w.layer_id.allow_interaction();
+
         // Remember this widget
         self.write(|ctx| {
             let viewport = ctx.viewport();
@@ -1169,12 +1171,12 @@ impl Context {
             // but also to know when we have reached the widget we are checking for cover.
             viewport.this_pass.widgets.insert(w.layer_id, w);
 
-            if allow_focus && w.sense.focusable {
+            if allow_focus && interested_in_focus {
                 ctx.memory.interested_in_focus(w.id);
             }
         });
 
-        if allow_focus && (!w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction()) {
+        if allow_focus && !interested_in_focus {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }

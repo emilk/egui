@@ -249,6 +249,25 @@ impl<'a, State> Harness<'a, State> {
     pub fn state_mut(&mut self) -> &mut State {
         &mut self.state
     }
+
+    /// Press a key.
+    /// This will create a key down event and a key up event.
+    pub fn press_key(&mut self, key: egui::Key) {
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers: Default::default(),
+            repeat: false,
+            physical_key: None,
+        });
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: false,
+            modifiers: Default::default(),
+            repeat: false,
+            physical_key: None,
+        });
+    }
 }
 
 /// Utilities for stateless harnesses.
