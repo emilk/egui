@@ -22,9 +22,12 @@ impl Modal {
     }
 
     pub fn show<T>(self, ctx: &Context, content: impl FnOnce(&mut Ui) -> T) -> ModalResponse<T> {
-        let is_top_modal = ctx.memory_mut(|mem| {
+        let (is_top_modal, any_popup_open) = ctx.memory_mut(|mem| {
             mem.set_modal_layer(self.area.layer());
-            mem.top_modal_layer() == Some(self.area.layer())
+            (
+                mem.top_modal_layer() == Some(self.area.layer()),
+                mem.any_popup_open(),
+            )
         });
         let InnerResponse {
             inner: (inner, backdrop_response),
@@ -57,6 +60,7 @@ impl Modal {
             backdrop_response,
             inner,
             is_top_modal,
+            any_popup_open,
         }
     }
 }
@@ -82,19 +86,21 @@ pub struct ModalResponse<T> {
     pub backdrop_response: Response,
     pub inner: T,
     pub is_top_modal: bool,
+    /// Is there any popup open?
+    /// We need to check this before the modal contents are shown, so we can know if any popup
+    /// was open when checking if the escape key was clicked.
+    pub any_popup_open: bool,
 }
 
 impl<T> ModalResponse<T> {
     /// Should the modal be closed?
     /// Returns true if:
     ///  - the backdrop was clicked
-    ///  - this is the top most modal and the escape key was pressed
+    ///  - this is the top most modal, no popup is open and the escape key was pressed
     pub fn should_close(&self) -> bool {
+        let ctx = &self.response.ctx;
+        let escape_clicked = ctx.input(|i| i.key_pressed(crate::Key::Escape));
         self.backdrop_response.clicked()
-            || (self.is_top_modal
-                && self
-                    .response
-                    .ctx
-                    .input(|i| i.key_pressed(crate::Key::Escape)))
+            || (self.is_top_modal && !self.any_popup_open && escape_clicked)
     }
 }

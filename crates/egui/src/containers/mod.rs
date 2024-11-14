@@ -19,6 +19,7 @@ pub use {
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
     frame::Frame,
+    modal::{Modal, ModalResponse},
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
