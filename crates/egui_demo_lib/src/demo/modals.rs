@@ -1,4 +1,4 @@
-use egui::{vec2, Align, ComboBox, Context, Id, Layout, Modal, ProgressBar, Ui, Widget, Window};
+use egui::{Align, ComboBox, Context, Id, Layout, Modal, ProgressBar, Ui, Widget, Window};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -36,8 +36,8 @@ impl crate::Demo for Modals {
         use crate::View as _;
         Window::new(self.name())
             .open(open)
-            .default_size(vec2(512.0, 512.0))
             .vscroll(false)
+            .resizable(false)
             .show(ctx, |ui| self.ui(ui));
     }
 }
@@ -52,13 +52,22 @@ impl crate::View for Modals {
             name,
         } = self;
 
-        if ui.button("Open User Modal").clicked() {
-            *user_modal_open = true;
-        }
+        ui.horizontal(|ui| {
+            if ui.button("Open User Modal").clicked() {
+                *user_modal_open = true;
+            }
 
-        if ui.button("Open Save Modal").clicked() {
-            *save_modal_open = true;
-        }
+            if ui.button("Open Save Modal").clicked() {
+                *save_modal_open = true;
+            }
+        });
+
+        ui.label("Click one of the buttons to open a modal.");
+        ui.label("Modals have a backdrop and prevent interaction with the rest of the UI.");
+        ui.label(
+            "You can show modals on top of each other and close the top most modal with \
+            escape or by clicking outside the modal.",
+        );
 
         if *user_modal_open {
             let modal = Modal::new(Id::new("Modal A")).show(ui.ctx(), |ui| {
@@ -134,6 +143,10 @@ impl crate::View for Modals {
                 }
             });
         }
+
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
+        });
     }
 }
 
