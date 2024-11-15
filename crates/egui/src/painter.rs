@@ -243,12 +243,6 @@ impl Painter {
         }
     }
 
-    /// Add a line
-    /// NOTE: all coordinates are screen coordinates!
-    pub fn line(&self, points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> ShapeIdx {
-        self.add(Shape::line(points, stroke))
-    }
-
     /// Add many shapes at once.
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
@@ -348,6 +342,12 @@ impl Painter {
             points,
             stroke: stroke.into(),
         })
+    }
+
+    /// Paints a line connecting the points.
+    /// NOTE: all coordinates are screen coordinates!
+    pub fn line(&self, points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> ShapeIdx {
+        self.add(Shape::line(points, stroke))
     }
 
     /// Paints a horizontal line.
