@@ -13,10 +13,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.76.0
+          toolchain: 1.77.0
 
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
@@ -60,17 +62,11 @@ jobs:
       - name: cargo check -p test_egui_extras_compilation
         run: cargo check -p test_egui_extras_compilation
 
-      - name: Test doc-tests
-        run: cargo test --doc --all-features
-
       - name: cargo doc --lib
         run: cargo doc --lib --no-deps --all-features
 
       - name: cargo doc --document-private-items
         run: cargo doc --document-private-items --no-deps --all-features
-
-      - name: Test
-        run: cargo test --all-features
 
       - name: clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -87,7 +83,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.76.0
+          toolchain: 1.77.0
           targets: wasm32-unknown-unknown
 
       - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
@@ -107,7 +103,7 @@ jobs:
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          version: "0.2.93"
+          version: "0.2.95"
 
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
@@ -159,7 +155,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
-          rust-version: "1.76.0"
+          rust-version: "1.77.0"
           log-level: error
           command: check
           arguments: --target  ${{ matrix.target }}
@@ -174,7 +170,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.76.0
+          toolchain: 1.77.0
           targets: aarch64-linux-android
 
       - name: Set up cargo cache
@@ -193,7 +189,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.76.0
+          toolchain: 1.77.0
           targets: aarch64-apple-ios
 
       - name: Set up cargo cache
@@ -212,7 +208,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.76.0
+          toolchain: 1.77.0
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
@@ -222,3 +218,36 @@ jobs:
 
       - name: Check hello_world
         run: cargo check -p hello_world
+
+  # ---------------------------------------------------------------------------
+
+  tests:
+    name: Run tests
+    # We run the tests on macOS because it will run with a actual GPU
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.77.0
+
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        # TODO(lucasmerlin): Enable --all-features (currently this breaks the rendering in the tests because of the `unity` feature)
+        run: cargo test
+
+      - name: Run doc-tests
+        # TODO(lucasmerlin): Enable --all-features (currently this breaks the rendering in the tests because of the `unity` feature)
+        run: cargo test --doc
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: "**/tests/snapshots"

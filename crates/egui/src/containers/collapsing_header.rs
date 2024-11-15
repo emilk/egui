@@ -87,6 +87,14 @@ impl CollapsingState {
     ) -> Response {
         let (_id, rect) = ui.allocate_space(button_size);
         let response = ui.interact(rect, self.id, Sense::click());
+        response.widget_info(|| {
+            WidgetInfo::labeled(
+                WidgetType::Button,
+                ui.is_enabled(),
+                if self.is_open() { "Hide" } else { "Show" },
+            )
+        });
+
         if response.clicked() {
             self.toggle(ui);
         }

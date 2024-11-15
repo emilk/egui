@@ -1,15 +1,13 @@
-use std::sync::Arc;
-
 use raw_window_handle::{
     DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
     RawWindowHandle, WebDisplayHandle, WebWindowHandle, WindowHandle,
 };
+use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui_wgpu::{RenderState, SurfaceErrorAction};
-
 use crate::WebOptions;
+use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
 
 use super::web_painter::WebPainter;
 
@@ -89,81 +87,48 @@ impl WebPainterWgpu {
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        let mut backends = options.wgpu_options.supported_backends;
+        let instance = match &options.wgpu_options.wgpu_setup {
+            WgpuSetup::CreateNew {
+                supported_backends: backends,
+                power_preference,
+                ..
+            } => {
+                let mut backends = *backends;
 
-        // Don't try WebGPU if we're not in a secure context.
-        if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
-            let is_secure_context = web_sys::window().map_or(false, |w| w.is_secure_context());
-            if !is_secure_context {
-                log::info!(
-                    "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
-                );
+                // Don't try WebGPU if we're not in a secure context.
+                if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
+                    let is_secure_context =
+                        web_sys::window().map_or(false, |w| w.is_secure_context());
+                    if !is_secure_context {
+                        log::info!(
+                            "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
+                        );
 
-                // Don't try WebGPU since we established now that it will fail.
-                backends.remove(wgpu::Backends::BROWSER_WEBGPU);
+                        // Don't try WebGPU since we established now that it will fail.
+                        backends.remove(wgpu::Backends::BROWSER_WEBGPU);
 
-                if backends.is_empty() {
-                    return Err("No available supported graphics backends.".to_owned());
+                        if backends.is_empty() {
+                            return Err("No available supported graphics backends.".to_owned());
+                        }
+                    }
                 }
-            }
-        }
 
-        log::debug!("Creating wgpu instance with backends {:?}", backends);
-        let mut instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends,
-            ..Default::default()
-        });
+                log::debug!("Creating wgpu instance with backends {:?}", backends);
 
-        // It can happen that a browser advertises WebGPU support, but then fails to create a
-        // suitable adapter. As of writing this happens for example on Linux with Chrome 121.
-        //
-        // Since WebGPU is handled in a special way in wgpu, we have to recreate the instance
-        // if we instead want to try with WebGL.
-        //
-        // To make matters worse, once a canvas has been used with either WebGL or WebGPU,
-        // we can't go back and change that without replacing the canvas (which is hard to do from here).
-        // Therefore, we have to create the surface *after* requesting the adapter.
-        // However, wgpu offers to pass in a surface on adapter creation to ensure it is actually compatible with the chosen backend.
-        // This in turn isn't all that important on the web, but it still makes sense for the design of
-        // `egui::RenderState`!
-        // Therefore, we have to first check if it's possible to create a WebGPU adapter,
-        // and if it is not, start over with a WebGL instance.
-        //
-        // Note that we also might needlessly try this here if wgpu already determined that there's no
-        // WebGPU support in the first place. This is not a huge problem since it fails very fast, but
-        // it would be nice to avoid this. See https://github.com/gfx-rs/wgpu/issues/5142
-        if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
-            log::debug!("Attempting to create WebGPU adapter to check for support.");
-            if let Some(adapter) = instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: options.wgpu_options.power_preference,
-                    compatible_surface: None,
-                    force_fallback_adapter: false,
-                })
-                .await
-            {
-                // WebGPU doesn't spec yet a destroy on the adapter, only on the device.
-                //adapter.destroy();
-                log::debug!(
-                    "Successfully created WebGPU adapter, WebGPU confirmed to be supported!"
-                );
-            } else {
-                log::debug!("Failed to create WebGPU adapter.");
-
-                if backends.contains(wgpu::Backends::GL) {
-                    log::debug!("Recreating wgpu instance with WebGL backend only.");
-                    backends = wgpu::Backends::GL;
-                    instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                let instance =
+                    wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
                         backends,
                         ..Default::default()
-                    });
-                } else {
-                    return Err(
-                        "Failed to create WebGPU adapter and WebGL was not enabled.".to_owned()
-                    );
-                }
+                    })
+                    .await;
+
+                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
+                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
+                #[allow(clippy::arc_with_non_send_sync)]
+                Arc::new(instance)
             }
-        }
+            WgpuSetup::Existing { instance, .. } => instance.clone(),
+        };
 
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))

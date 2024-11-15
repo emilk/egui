@@ -152,7 +152,7 @@ winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 egui-wgpu = { workspace = true, optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
-pollster = { version = "0.3", optional = true } # needed for wgpu
+pollster = { workspace = true, optional = true } # needed for wgpu
 
 # we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
 # this can be done at the same time we expose x11/wayland features of winit crate.

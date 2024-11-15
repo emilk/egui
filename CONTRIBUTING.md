@@ -32,6 +32,16 @@ For small things, just go ahead an open a PR. For bigger things, please file an 
 Browse through [`ARCHITECTURE.md`](ARCHITECTURE.md) to get a sense of how all pieces connects.
 
 You can test your code locally by running `./scripts/check.sh`.
+There are snapshots test that might need to be updated. Run the tests with `UPDATE_SNAPSHOTS=true` to update them.
+For more info about the tests see [egui_kittest](./crates/egui_kittest/README.md).
+
+We use [git-lfs](https://git-lfs.com/) to store big files in the repository.
+Make sure you have it installed (running `git lfs ls-files` from the repository root should list some files).
+Don't forget to run `git lfs install` after installing the git-lfs binary.
+You need to add any .png images to `git lfs`.
+If the CI complains about this, make sure you run `git add --renormalize .`.
+
+If you see an `InvalidSignature` error when running snapshot tests, it's probably a problem related to git-lfs.
 
 When you have something that works, open a draft PR. You may get some helpful feedback early!
 When you feel the PR is ready to go, do a self-review of the code, and then open it for review.
