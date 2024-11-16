@@ -800,6 +800,9 @@ pub struct PointerState {
     /// Latest known time
     time: f64,
 
+    /// Latest known zoom factor
+    zoom_factor: f32,
+
     // Consider a finger tapping a touch screen.
     // What position should we report?
     // The location of the touch, or `None`, because the finger is gone?
@@ -876,7 +879,8 @@ pub struct PointerState {
 impl Default for PointerState {
     fn default() -> Self {
         Self {
-            time: -f64::INFINITY,
+            time: f64::NEG_INFINITY,
+            zoom_factor: f32::NEG_INFINITY,
             latest_pos: None,
             interact_pos: None,
             delta: Vec2::ZERO,
@@ -909,6 +913,7 @@ impl PointerState {
         let was_decidedly_dragging = self.is_decidedly_dragging();
 
         self.time = time;
+        self.zoom_factor = options.zoom_factor;
         self.input_options = options.input_options.clone();
 
         self.pointer_events.clear();
@@ -1051,7 +1056,7 @@ impl PointerState {
     /// How much the pointer moved compared to last frame, in points.
     #[inline(always)]
     pub fn delta(&self) -> Vec2 {
-        self.delta
+        self.delta / self.zoom_factor
     }
 
     /// How much the mouse moved since the last frame, in unspecified units.
@@ -1068,7 +1073,7 @@ impl PointerState {
     /// but can be ZERO when frame-rate is bad.
     #[inline(always)]
     pub fn velocity(&self) -> Vec2 {
-        self.velocity
+        self.velocity / self.zoom_factor
     }
 
     /// Current direction of the pointer.
@@ -1083,7 +1088,7 @@ impl PointerState {
     /// `None` if no mouse button is down.
     #[inline(always)]
     pub fn press_origin(&self) -> Option<Pos2> {
-        self.press_origin
+        self.press_origin.map(|p| p / self.zoom_factor)
     }
 
     /// When did the current click/drag originate?
@@ -1097,13 +1102,13 @@ impl PointerState {
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
     pub fn latest_pos(&self) -> Option<Pos2> {
-        self.latest_pos
+        self.latest_pos.map(|p| p / self.zoom_factor)
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
     #[inline(always)]
     pub fn hover_pos(&self) -> Option<Pos2> {
-        self.latest_pos
+        self.latest_pos.map(|p| p / self.zoom_factor)
     }
 
     /// If you detect a click or drag and wants to know where it happened, use this.
@@ -1113,7 +1118,7 @@ impl PointerState {
     /// When tapping a touch screen, this will be the location of the touch.
     #[inline(always)]
     pub fn interact_pos(&self) -> Option<Pos2> {
-        self.interact_pos
+        self.interact_pos.map(|p| p / self.zoom_factor)
     }
 
     /// Do we have a pointer?
@@ -1422,6 +1427,7 @@ impl PointerState {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             time: _,
+            zoom_factor: _,
             latest_pos,
             interact_pos,
             delta,

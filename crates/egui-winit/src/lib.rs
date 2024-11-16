@@ -587,11 +587,11 @@ impl State {
         window: &Window,
         pos_in_pixels: winit::dpi::PhysicalPosition<f64>,
     ) {
-        let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+        let scale_factor = window.scale_factor() as f32;
 
         let pos_in_points = egui::pos2(
-            pos_in_pixels.x as f32 / pixels_per_point,
-            pos_in_pixels.y as f32 / pixels_per_point,
+            pos_in_pixels.x as f32 / scale_factor,
+            pos_in_pixels.y as f32 / scale_factor,
         );
         self.pointer_pos_in_points = Some(pos_in_points);
 
