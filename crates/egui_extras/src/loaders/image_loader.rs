@@ -1,12 +1,15 @@
 use ahash::HashMap;
 use egui::{
     decode_animated_image_uri,
-    load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
+    load::{Bytes, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage,
 };
 use image::ImageFormat;
-use std::{mem::size_of, path::Path, sync::Arc, task::Poll, thread};
+use std::{mem::size_of, path::Path, sync::Arc, task::Poll};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::thread;
 
 type Entry = Poll<Result<Arc<ColorImage>, String>>;
 
@@ -69,7 +72,61 @@ impl ImageLoader for ImageCrateLoader {
             return Err(LoadError::NotSupported);
         }
 
-        let mut cache = self.cache.lock();
+        let cache = self.cache.lock();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        #[allow(clippy::unnecessary_wraps)] // needed here to match other return types
+        fn load_image(
+            ctx: &egui::Context,
+            uri: &str,
+            cache: &Arc<Mutex<HashMap<String, Entry>>>,
+            bytes: Bytes,
+        ) -> ImageLoadResult {
+            let mut cache_lock = cache.lock();
+
+            let uri = uri.to_owned();
+            cache_lock.insert(uri.clone(), Poll::Pending);
+            drop(cache_lock);
+
+            // Do the image parsing on a bg thread
+            thread::Builder::new()
+                .name(format!("egui_extras::ImageLoader::load({uri:?})"))
+                .spawn({
+                    let ctx = ctx.clone();
+                    let cache = cache.clone();
+
+                    let uri = uri.clone();
+                    move || {
+                        log::trace!("ImageLoader - started loading {uri:?}");
+                        let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
+                        log::trace!("ImageLoader - finished loading {uri:?}");
+                        let prev = cache.lock().insert(uri, Poll::Ready(result));
+                        assert!(matches!(prev, Some(Poll::Pending)));
+
+                        ctx.request_repaint();
+                    }
+                })
+                .expect("failed to spawn thread");
+
+            Ok(ImagePoll::Pending { size: None })
+        }
+
+        fn load_image_wasm(
+            uri: &str,
+            cache: &Arc<Mutex<HashMap<String, Entry>>>,
+            bytes: &Bytes,
+        ) -> ImageLoadResult {
+            let mut cache_lock = cache.lock();
+            log::trace!("started loading {uri:?}");
+            let result = crate::image::load_image_bytes(bytes).map(Arc::new);
+            log::trace!("finished loading {uri:?}");
+            cache_lock.insert(uri.into(), std::task::Poll::Ready(result.clone()));
+            match result {
+                Ok(image) => Ok(ImagePoll::Ready { image }),
+                Err(err) => Err(LoadError::Loading(err)),
+            }
+        }
+
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {
                 Poll::Ready(Ok(image)) => Ok(ImagePoll::Ready { image }),
@@ -88,33 +145,14 @@ impl ImageLoader for ImageCrateLoader {
                         }
                     }
 
-                    let uri = uri.to_owned();
-                    cache.insert(uri.clone(), Poll::Pending);
-                    drop(cache);
-
-                    // Do the image parsing on a bg thread
-                    thread::Builder::new()
-                        .name(format!("egui_extras::ImageLoader::load({uri:?})"))
-                        .spawn({
-                            let ctx = ctx.clone();
-                            let cache = self.cache.clone();
-
-                            let uri = uri.clone();
-                            move || {
-                                log::trace!("ImageLoader - started loading {uri:?}");
-                                let result = crate::image::load_image_bytes(&bytes)
-                                    .map(Arc::new)
-                                    .map_err(|e| e.to_string());
-                                log::trace!("ImageLoader - finished loading {uri:?}");
-                                let prev = cache.lock().insert(uri, Poll::Ready(result));
-                                assert!(matches!(prev, Some(Poll::Pending)));
-
-                                ctx.request_repaint();
-                            }
-                        })
-                        .expect("failed to spawn thread");
-
-                    Ok(ImagePoll::Pending { size: None })
+                    if cfg!(target_arch = "wasm32") {
+                        load_image_wasm(uri, &self.cache, &bytes)
+                    } else {
+                        #[cfg(target_arch = "wasm32")]
+                        unreachable!();
+                        #[cfg(not(target_arch = "wasm32"))]
+                        load_image(ctx, uri, &self.cache, bytes)
+                    }
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
                 Err(err) => Err(err),
