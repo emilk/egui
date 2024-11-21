@@ -620,7 +620,7 @@ impl Painter {
                     h as _,
                     src_format,
                     glow::UNSIGNED_BYTE,
-                    glow::PixelUnpackData::Slice(data),
+                    glow::PixelUnpackData::Slice(Some(data)),
                 );
                 check_for_gl_error!(&self.gl, "tex_sub_image_2d");
             } else {
@@ -635,7 +635,7 @@ impl Painter {
                     border,
                     src_format,
                     glow::UNSIGNED_BYTE,
-                    Some(data),
+                    glow::PixelUnpackData::Slice(Some(data)),
                 );
                 check_for_gl_error!(&self.gl, "tex_image_2d");
             }
@@ -686,7 +686,7 @@ impl Painter {
                 h as _,
                 glow::RGBA,
                 glow::UNSIGNED_BYTE,
-                glow::PixelPackData::Slice(&mut pixels),
+                glow::PixelPackData::Slice(Some(&mut pixels)),
             );
         }
         let mut flipped = Vec::with_capacity((w * h * 4) as usize);
@@ -711,7 +711,7 @@ impl Painter {
                 h as _,
                 glow::RGB,
                 glow::UNSIGNED_BYTE,
-                glow::PixelPackData::Slice(&mut pixels),
+                glow::PixelPackData::Slice(Some(&mut pixels)),
             );
         }
         pixels
