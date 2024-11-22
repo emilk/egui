@@ -313,7 +313,7 @@ impl Renderer {
                 label: Some("egui_pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    entry_point: "vs_main",
+                    entry_point: Some("vs_main"),
                     module: &module,
                     buffers: &[wgpu::VertexBufferLayout {
                         array_stride: 5 * 4,
@@ -343,12 +343,12 @@ impl Renderer {
 
                 fragment: Some(wgpu::FragmentState {
                     module: &module,
-                    entry_point: if output_color_format.is_srgb() {
+                    entry_point: Some(if output_color_format.is_srgb() {
                         log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
                         "fs_main_linear_framebuffer"
                     } else {
                         "fs_main_gamma_framebuffer" // this is what we prefer
-                    },
+                    }),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: output_color_format,
                         blend: Some(wgpu::BlendState {

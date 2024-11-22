@@ -6,7 +6,7 @@ use crate::{epi, App};
 
 use super::{events, text_agent::TextAgent, AppRunner, PanicHandler};
 
-/// This is how `eframe` runs your wepp application
+/// This is how `eframe` runs your web application
 ///
 /// This is cheap to clone.
 ///

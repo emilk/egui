@@ -5,7 +5,7 @@ use crate::{Id, LayerId, Layout, Rect, Sense, Style, UiStackInfo};
 #[allow(unused_imports)] // Used for doclinks
 use crate::Ui;
 
-/// Build a [`Ui`] as the chlild of another [`Ui`].
+/// Build a [`Ui`] as the child of another [`Ui`].
 ///
 /// By default, everything is inherited from the parent,
 /// except for `max_rect` which by default is set to

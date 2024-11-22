@@ -37,7 +37,7 @@ default = ["fragile-send-sync-non-atomic-wasm"]
 puffin = ["dep:puffin"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
-winit = ["dep:winit"]
+winit = ["dep:winit", "winit/rwh_06"]
 
 ## Enables Wayland support for winit.
 wayland = ["winit?/wayland"]
@@ -61,7 +61,7 @@ bytemuck.workspace = true
 document-features.workspace = true
 log.workspace = true
 thiserror.workspace = true
-type-map = "0.5.0"
+type-map.workspace = true
 web-time.workspace = true
 wgpu = { workspace = true, features = ["wgsl"] }
 

@@ -87,7 +87,7 @@ pub struct Painter {
     depth_format: Option<wgpu::TextureFormat>,
     screen_capture_state: Option<CaptureState>,
 
-    instance: wgpu::Instance,
+    instance: Arc<wgpu::Instance>,
     render_state: Option<RenderState>,
 
     // Per viewport/window:
@@ -116,10 +116,15 @@ impl Painter {
         support_transparent_backbuffer: bool,
         dithering: bool,
     ) -> Self {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: configuration.supported_backends,
-            ..Default::default()
-        });
+        let instance = match &configuration.wgpu_setup {
+            crate::WgpuSetup::CreateNew {
+                supported_backends, ..
+            } => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
+                backends: *supported_backends,
+                ..Default::default()
+            })),
+            crate::WgpuSetup::Existing { instance, .. } => instance.clone(),
+        };
 
         Self {
             configuration,
@@ -668,13 +673,6 @@ impl Painter {
             );
         }
 
-        {
-            let mut renderer = render_state.renderer.write();
-            for id in &textures_delta.free {
-                renderer.free_texture(id);
-            }
-        }
-
         let encoded = {
             crate::profile_scope!("CommandEncoder::finish");
             encoder.finish()
@@ -690,6 +688,16 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain([encoded]));
             vsync_sec += start.elapsed().as_secs_f32();
         };
+
+        // Free textures marked for destruction **after** queue submit since they might still be used in the current frame.
+        // Calling `wgpu::Texture::destroy` on a texture that is still in use would invalidate the command buffer(s) it is used in.
+        // However, once we called `wgpu::Queue::submit`, it is up for wgpu to determine how long the underlying gpu resource has to live.
+        {
+            let mut renderer = render_state.renderer.write();
+            for id in &textures_delta.free {
+                renderer.free_texture(id);
+            }
+        }
 
         let screenshot = if capture {
             self.screen_capture_state

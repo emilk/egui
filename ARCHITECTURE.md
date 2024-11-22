@@ -50,6 +50,9 @@ This contains a bunch of uses of `egui` and looks like the ui code you would wri
 Thin wrapper around `egui_demo_lib` so we can compile it to a web site or a native app executable.
 Depends on `egui_demo_lib` + `eframe`.
 
+### `egui_kittest`
+A test harness for egui based on [kittest](https://github.com/rerun/kittest) and [AccessKit](https://github.com/AccessKit/accesskit/).
+
 ### Other integrations
 
 There are also many great integrations for game engines such as `bevy` and `miniquad` which you can find at <https://github.com/emilk/egui#integrations>.

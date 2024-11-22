@@ -59,7 +59,7 @@ use super::{TextEditOutput, TextEditState};
 /// See [`TextEdit::show`].
 ///
 /// ## Other
-/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`].
+/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`] or can be set with [`crate::TextEdit::background_color`].
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
@@ -84,6 +84,7 @@ pub struct TextEdit<'t> {
     clip_text: bool,
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
+    background_color: Option<Color32>,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -142,6 +143,7 @@ impl<'t> TextEdit<'t> {
             clip_text: false,
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
+            background_color: None,
         }
     }
 
@@ -198,6 +200,14 @@ impl<'t> TextEdit<'t> {
     #[inline]
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
+        self
+    }
+
+    /// Set the background color of the [`TextEdit`]. The default is [`crate::Visuals::extreme_bg_color`].
+    // TODO(bircni): remove this once #3284 is implemented
+    #[inline]
+    pub fn background_color(mut self, color: Color32) -> Self {
+        self.background_color = Some(color);
         self
     }
 
@@ -409,7 +419,9 @@ impl<'t> TextEdit<'t> {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let where_to_put_background = ui.painter().add(Shape::Noop);
-
+        let background_color = self
+            .background_color
+            .unwrap_or(ui.visuals().extreme_bg_color);
         let margin = self.margin;
         let mut output = self.show_content(ui);
 
@@ -427,14 +439,14 @@ impl<'t> TextEdit<'t> {
                     epaint::RectShape::new(
                         frame_rect,
                         visuals.rounding,
-                        ui.visuals().extreme_bg_color,
+                        background_color,
                         ui.visuals().selection.stroke,
                     )
                 } else {
                     epaint::RectShape::new(
                         frame_rect,
                         visuals.rounding,
-                        ui.visuals().extreme_bg_color,
+                        background_color,
                         visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
@@ -477,6 +489,7 @@ impl<'t> TextEdit<'t> {
             clip_text,
             char_limit,
             return_key,
+            background_color: _,
         } = self;
 
         let text_color = text_color
@@ -512,13 +525,13 @@ impl<'t> TextEdit<'t> {
 
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
-        let desired_width = if clip_text {
+        let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
         } else {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
         let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
         let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
@@ -549,6 +562,7 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
+        response.intrinsic_size = Some(Vec2::new(desired_width, desired_outer_size.y));
 
         response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
 
@@ -964,23 +978,7 @@ fn events(
                     break;
                 }
             }
-            Event::Key {
-                key: Key::Z,
-                pressed: true,
-                modifiers,
-                ..
-            } if modifiers.matches_logically(Modifiers::COMMAND) => {
-                if let Some((undo_ccursor_range, undo_txt)) = state
-                    .undoer
-                    .lock()
-                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
-                {
-                    text.replace_with(undo_txt);
-                    Some(*undo_ccursor_range)
-                } else {
-                    None
-                }
-            }
+
             Event::Key {
                 key,
                 pressed: true,
@@ -997,6 +995,24 @@ fn events(
                 {
                     text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+
+            Event::Key {
+                key: Key::Z,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.matches_logically(Modifiers::COMMAND) => {
+                if let Some((undo_ccursor_range, undo_txt)) = state
+                    .undoer
+                    .lock()
+                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace_with(undo_txt);
+                    Some(*undo_ccursor_range)
                 } else {
                     None
                 }

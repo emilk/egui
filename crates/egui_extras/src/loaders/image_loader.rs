@@ -4,6 +4,7 @@ use egui::{
     mutex::Mutex,
     ColorImage,
 };
+use image::ImageFormat;
 use std::{mem::size_of, path::Path, sync::Arc};
 
 type Entry = Result<Arc<ColorImage>, String>;
@@ -18,18 +19,24 @@ impl ImageCrateLoader {
 }
 
 fn is_supported_uri(uri: &str) -> bool {
-    // TODO(emilk): use https://github.com/image-rs/image/pull/2038 when new `image` crate is released.
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
         // `true` because if there's no extension, assume that we support it
         return true;
     };
 
-    ext != "svg"
+    // Uses only the enabled image crate features
+    ImageFormat::all()
+        .filter(ImageFormat::reading_enabled)
+        .flat_map(ImageFormat::extensions_str)
+        .any(|format_ext| ext == *format_ext)
 }
 
 fn is_unsupported_mime(mime: &str) -> bool {
-    // TODO(emilk): use https://github.com/image-rs/image/pull/2038 when new `image` crate is released.
-    mime.contains("svg")
+    // Uses only the enabled image crate features
+    !ImageFormat::all()
+        .filter(ImageFormat::reading_enabled)
+        .map(|fmt| fmt.to_mime_type())
+        .any(|format_mime| mime == format_mime)
 }
 
 impl ImageLoader for ImageCrateLoader {
@@ -108,7 +115,6 @@ mod tests {
         assert!(is_supported_uri("https://test.png"));
         assert!(is_supported_uri("test.jpeg"));
         assert!(is_supported_uri("http://test.gif"));
-        assert!(is_supported_uri("test.webp"));
         assert!(is_supported_uri("file://test"));
         assert!(!is_supported_uri("test.svg"));
     }

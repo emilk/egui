@@ -435,10 +435,7 @@ fn pixel_test_strokes(ui: &mut Ui) {
         let thickness_pixels = thickness_pixels as f32;
         let thickness_points = thickness_pixels / pixels_per_point;
         let num_squares = (pixels_per_point * 10.0).round().max(10.0) as u32;
-        let size_pixels = vec2(
-            ui.available_width(),
-            num_squares as f32 + thickness_pixels * 2.0,
-        );
+        let size_pixels = vec2(ui.min_size().x, num_squares as f32 + thickness_pixels * 2.0);
         let size_points = size_pixels / pixels_per_point + Vec2::splat(2.0);
         let (response, painter) = ui.allocate_painter(size_points, Sense::hover());
 
@@ -679,4 +676,35 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
         (left.b() as f32 * right.b() as f32 / 255.0).round() as u8,
         (left.a() as f32 * right.a() as f32 / 255.0).round() as u8,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ColorTest;
+    use egui::vec2;
+
+    #[test]
+    pub fn rendering_test() {
+        let mut errors = vec![];
+        for dpi in [1.0, 1.25, 1.5, 1.75, 1.6666667, 2.0] {
+            let mut color_test = ColorTest::default();
+            let mut harness = egui_kittest::Harness::builder()
+                .with_size(vec2(2000.0, 2000.0))
+                .with_pixels_per_point(dpi)
+                .build_ui(|ui| {
+                    color_test.ui(ui);
+                });
+
+            //harness.set_size(harness.ctx.used_size());
+
+            harness.fit_contents();
+
+            let result = harness.try_wgpu_snapshot(&format!("rendering_test/dpi_{dpi:.2}"));
+            if let Err(err) = result {
+                errors.push(err);
+            }
+        }
+
+        assert!(errors.is_empty(), "Errors: {errors:#?}");
+    }
 }

@@ -43,8 +43,11 @@ impl Color32 {
 
     pub const TRANSPARENT: Self = Self::from_rgba_premultiplied(0, 0, 0, 0);
     pub const BLACK: Self = Self::from_rgb(0, 0, 0);
+    #[doc(alias = "DARK_GREY")]
     pub const DARK_GRAY: Self = Self::from_rgb(96, 96, 96);
+    #[doc(alias = "GREY")]
     pub const GRAY: Self = Self::from_rgb(160, 160, 160);
+    #[doc(alias = "LIGHT_GREY")]
     pub const LIGHT_GRAY: Self = Self::from_rgb(220, 220, 220);
     pub const WHITE: Self = Self::from_rgb(255, 255, 255);
 
@@ -108,15 +111,17 @@ impl Color32 {
             // common-case optimization
             255 => Self::from_rgb(r, g, b),
             a => {
-                static LOOKUP_TABLE: OnceLock<[u8; 256 * 256]> = OnceLock::new();
+                static LOOKUP_TABLE: OnceLock<Box<[u8]>> = OnceLock::new();
                 let lut = LOOKUP_TABLE.get_or_init(|| {
                     use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8};
-                    core::array::from_fn(|i| {
-                        let [value, alpha] = (i as u16).to_ne_bytes();
-                        let value_lin = linear_f32_from_gamma_u8(value);
-                        let alpha_lin = linear_f32_from_linear_u8(alpha);
-                        gamma_u8_from_linear_f32(value_lin * alpha_lin)
-                    })
+                    (0..=u16::MAX)
+                        .map(|i| {
+                            let [value, alpha] = i.to_ne_bytes();
+                            let value_lin = linear_f32_from_gamma_u8(value);
+                            let alpha_lin = linear_f32_from_linear_u8(alpha);
+                            gamma_u8_from_linear_f32(value_lin * alpha_lin)
+                        })
+                        .collect()
                 });
 
                 let [r, g, b] =
@@ -126,6 +131,7 @@ impl Color32 {
         }
     }
 
+    #[doc(alias = "from_grey")]
     #[inline]
     pub const fn from_gray(l: u8) -> Self {
         Self([l, l, l, 255])

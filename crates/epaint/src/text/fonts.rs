@@ -224,7 +224,11 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
 ///
 /// // Install my own font (maybe supporting non-latin characters):
 /// fonts.font_data.insert("my_font".to_owned(),
-///    FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))); // .ttf and .otf supported
+///    std::sync::Arc::new(
+///        // .ttf and .otf supported
+///        FontData::from_static(include_bytes!("../../../epaint_default_fonts/fonts/Ubuntu-Light.ttf"))
+///    )
+/// );
 ///
 /// // Put my font first (highest priority):
 /// fonts.families.get_mut(&FontFamily::Proportional).unwrap()
@@ -243,7 +247,7 @@ pub struct FontDefinitions {
     /// List of font names and their definitions.
     ///
     /// `epaint` has built-in-default for these, but you can override them if you like.
-    pub font_data: BTreeMap<String, FontData>,
+    pub font_data: BTreeMap<String, Arc<FontData>>,
 
     /// Which fonts (names) to use for each [`FontFamily`].
     ///
@@ -252,6 +256,50 @@ pub struct FontDefinitions {
     /// the first font and then move to the second, and so on.
     /// So the first font is the primary, and then comes a list of fallbacks in order of priority.
     pub families: BTreeMap<FontFamily, Vec<String>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FontInsert {
+    /// Font name
+    pub name: String,
+
+    /// A `.ttf` or `.otf` file and a font face index.
+    pub data: FontData,
+
+    /// Sets the font family and priority
+    pub families: Vec<InsertFontFamily>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InsertFontFamily {
+    /// Font family
+    pub family: FontFamily,
+
+    /// Fallback or Primary font
+    pub priority: FontPriority,
+}
+
+#[derive(Debug, Clone)]
+pub enum FontPriority {
+    /// Prefer this font before all existing ones.
+    ///
+    /// If a desired glyph exists in this font, it will be used.
+    Highest,
+
+    /// Use this font as a fallback, after all existing ones.
+    ///
+    /// This font will only be used if the glyph is not found in any of the previously installed fonts.
+    Lowest,
+}
+
+impl FontInsert {
+    pub fn new(name: &str, data: FontData, families: Vec<InsertFontFamily>) -> Self {
+        Self {
+            name: name.to_owned(),
+            data,
+            families,
+        }
+    }
 }
 
 impl Default for FontDefinitions {
@@ -266,33 +314,36 @@ impl Default for FontDefinitions {
     /// otherwise this is the same as [`Self::empty`].
     #[cfg(feature = "default_fonts")]
     fn default() -> Self {
-        let mut font_data: BTreeMap<String, FontData> = BTreeMap::new();
+        let mut font_data: BTreeMap<String, Arc<FontData>> = BTreeMap::new();
 
         let mut families = BTreeMap::new();
 
-        font_data.insert("Hack".to_owned(), FontData::from_static(HACK_REGULAR));
+        font_data.insert(
+            "Hack".to_owned(),
+            Arc::new(FontData::from_static(HACK_REGULAR)),
+        );
 
         // Some good looking emojis. Use as first priority:
         font_data.insert(
             "NotoEmoji-Regular".to_owned(),
-            FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
+            Arc::new(FontData::from_static(NOTO_EMOJI_REGULAR).tweak(FontTweak {
                 scale: 0.81, // Make smaller
                 ..Default::default()
-            }),
+            })),
         );
 
         font_data.insert(
             "Ubuntu-Light".to_owned(),
-            FontData::from_static(UBUNTU_LIGHT),
+            Arc::new(FontData::from_static(UBUNTU_LIGHT)),
         );
 
         // Bigger emojis, and more. <http://jslegers.github.io/emoji-icon-font/>:
         font_data.insert(
             "emoji-icon-font".to_owned(),
-            FontData::from_static(EMOJI_ICON).tweak(FontTweak {
+            Arc::new(FontData::from_static(EMOJI_ICON).tweak(FontTweak {
                 scale: 0.90, // Make smaller
                 ..Default::default()
-            }),
+            })),
         );
 
         families.insert(
@@ -589,7 +640,7 @@ impl FontsImpl {
             "pixels_per_point out of range: {pixels_per_point}"
         );
 
-        let texture_width = max_texture_side.at_most(8 * 1024);
+        let texture_width = max_texture_side.at_most(16 * 1024);
         let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height]);
 
@@ -751,7 +802,7 @@ impl FontImplCache {
     pub fn new(
         atlas: Arc<Mutex<TextureAtlas>>,
         pixels_per_point: f32,
-        font_data: &BTreeMap<String, FontData>,
+        font_data: &BTreeMap<String, Arc<FontData>>,
     ) -> Self {
         let ab_glyph_fonts = font_data
             .iter()

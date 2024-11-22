@@ -1015,6 +1015,7 @@ impl Visuals {
     }
 
     /// Returned a "grayed out" version of the given color.
+    #[doc(alias = "grey_out")]
     #[inline(always)]
     pub fn gray_out(&self, color: Color32) -> Color32 {
         crate::ecolor::tint_color_towards(color, self.fade_out_to_color())

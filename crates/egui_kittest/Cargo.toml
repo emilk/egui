@@ -1,0 +1,48 @@
+[package]
+name = "egui_kittest"
+version.workspace = true
+authors = ["Lucas Meurer <lucasmeurer96@gmail.com>", "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+description = "Testing library for egui based on kittest and AccessKit"
+edition.workspace = true
+rust-version.workspace = true
+homepage = "https://github.com/emilk/egui"
+license.workspace = true
+readme = "./README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["gui", "development-tools::testing", "accessibility"]
+keywords = ["gui", "immediate", "egui", "testing", "accesskit"]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+# Adds a wgpu-based test renderer.
+wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image"]
+
+# Adds a dify-based image snapshot utility.
+snapshot = ["dep:dify", "dep:image", "image/png"]
+
+
+[dependencies]
+kittest.workspace = true
+egui = { workspace = true, features = ["accesskit"] }
+
+# wgpu dependencies
+egui-wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+image = { workspace = true, optional = true }
+
+# snapshot dependencies
+dify = { workspace = true, optional = true }
+
+## Enable this when generating docs.
+document-features = { workspace = true, optional = true }
+
+[dev-dependencies]
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
+wgpu = { workspace = true, features = ["metal"] }
+image = { workspace = true, features = ["png"] }
+egui = { workspace = true, features = ["default_fonts"] }
+
+[lints]
+workspace = true

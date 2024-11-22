@@ -9,7 +9,7 @@ use epaint::{
     pos2,
     stats::PaintStats,
     tessellator,
-    text::Fonts,
+    text::{FontInsert, FontPriority, Fonts},
     util::OrderedFloat,
     vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
@@ -585,6 +585,30 @@ impl ContextImpl {
             self.font_definitions = font_definitions;
             #[cfg(feature = "log")]
             log::trace!("Loading new font definitions");
+        }
+
+        if !self.memory.add_fonts.is_empty() {
+            let fonts = self.memory.add_fonts.drain(..);
+            for font in fonts {
+                self.fonts.clear(); // recreate all the fonts
+                for family in font.families {
+                    let fam = self
+                        .font_definitions
+                        .families
+                        .entry(family.family)
+                        .or_default();
+                    match family.priority {
+                        FontPriority::Highest => fam.insert(0, font.name.clone()),
+                        FontPriority::Lowest => fam.push(font.name.clone()),
+                    }
+                }
+                self.font_definitions
+                    .font_data
+                    .insert(font.name, Arc::new(font.data));
+            }
+
+            #[cfg(feature = "log")]
+            log::trace!("Adding new fonts");
         }
 
         let mut is_new = false;
@@ -1422,6 +1446,10 @@ impl Context {
     ///
     /// Empty strings are ignored.
     ///
+    /// Note that in wasm applications, the clipboard is only accessible in secure contexts (e.g.,
+    /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
+    /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
+    ///
     /// Equivalent to:
     /// ```
     /// # let ctx = egui::Context::default();
@@ -1732,6 +1760,7 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass.
+    /// This will overwrite the existing fonts.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         crate::profile_function!();
 
@@ -1750,6 +1779,39 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+        }
+    }
+
+    /// Tell `egui` which fonts to use.
+    ///
+    /// The default `egui` fonts only support latin and cyrillic alphabets,
+    /// but you can call this to install additional fonts that support e.g. korean characters.
+    ///
+    /// The new font will become active at the start of the next pass.
+    /// This will keep the existing fonts.
+    pub fn add_font(&self, new_font: FontInsert) {
+        crate::profile_function!();
+
+        let pixels_per_point = self.pixels_per_point();
+
+        let mut update_fonts = true;
+
+        self.read(|ctx| {
+            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+                if current_fonts
+                    .lock()
+                    .fonts
+                    .definitions()
+                    .font_data
+                    .contains_key(&new_font.name)
+                {
+                    update_fonts = false; // no need to update
+                }
+            }
+        });
+
+        if update_fonts {
+            self.memory_mut(|mem| mem.add_fonts.push(new_font));
         }
     }
 
@@ -2889,7 +2951,9 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                if data.tweak.ui(ui).changed() {
+                let mut tweak = data.tweak;
+                if tweak.ui(ui).changed() {
+                    Arc::make_mut(data).tweak = tweak;
                     changed = true;
                 }
             });
