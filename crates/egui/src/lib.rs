@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.76.0 or later to use `egui`.
+//! You need to have rust 1.77.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -655,6 +655,8 @@ pub enum WidgetType {
     CollapsingHeader,
 
     ProgressIndicator,
+
+    Window,
 
     /// If you cannot fit any of the above slots.
     ///

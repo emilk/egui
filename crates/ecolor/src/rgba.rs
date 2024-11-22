@@ -91,6 +91,7 @@ impl Rgba {
         Self([r, g, b, 1.0])
     }
 
+    #[doc(alias = "from_grey")]
     #[inline]
     pub const fn from_gray(l: f32) -> Self {
         Self([l, l, l, 1.0])

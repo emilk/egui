@@ -19,7 +19,7 @@
 //! ### Deferred viewports
 //! These are created with [`Context::show_viewport_deferred`].
 //! Deferred viewports take a closure that is called by the integration at a later time, perhaps multiple times.
-//! Deferred viewports are repainted independenantly of the parent viewport.
+//! Deferred viewports are repainted independently of the parent viewport.
 //! This means communication with them needs to be done via channels, or `Arc/Mutex`.
 //!
 //! This is the most performant type of child viewport, though a bit more cumbersome to work with compared to immediate viewports.
@@ -534,7 +534,7 @@ impl ViewportBuilder {
     /// See [winit's documentation][drag_and_drop] for information on why you
     /// might want to disable this on windows.
     ///
-    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
+    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowAttributesExtWindows.html#tymethod.with_drag_and_drop
     #[inline]
     pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
@@ -728,7 +728,7 @@ impl ViewportBuilder {
         }
 
         if let Some(new_visible) = new_visible {
-            if Some(new_visible) != self.active {
+            if Some(new_visible) != self.visible {
                 self.visible = Some(new_visible);
                 commands.push(ViewportCommand::Visible(new_visible));
             }

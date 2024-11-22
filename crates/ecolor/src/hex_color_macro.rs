@@ -40,11 +40,10 @@
 macro_rules! hex_color {
     ($s:literal) => {{
         let array = $crate::color_hex::color_from_hex!($s);
-        if array.len() == 3 {
-            $crate::Color32::from_rgb(array[0], array[1], array[2])
-        } else {
-            #[allow(unconditional_panic)]
-            $crate::Color32::from_rgba_unmultiplied(array[0], array[1], array[2], array[3])
+        match array.as_slice() {
+            [r, g, b] => $crate::Color32::from_rgb(*r, *g, *b),
+            [r, g, b, a] => $crate::Color32::from_rgba_unmultiplied(*r, *g, *b, *a),
+            _ => panic!("Invalid hex color length: expected 3 (RGB) or 4 (RGBA) bytes"),
         }
     }};
 }

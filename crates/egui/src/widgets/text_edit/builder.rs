@@ -525,13 +525,13 @@ impl<'t> TextEdit<'t> {
 
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
-        let desired_width = if clip_text {
+        let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
         } else {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
         let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
         let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
@@ -562,6 +562,7 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
+        response.intrinsic_size = Some(Vec2::new(desired_width, desired_outer_size.y));
 
         response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
 
@@ -977,23 +978,7 @@ fn events(
                     break;
                 }
             }
-            Event::Key {
-                key: Key::Z,
-                pressed: true,
-                modifiers,
-                ..
-            } if modifiers.matches_logically(Modifiers::COMMAND) => {
-                if let Some((undo_ccursor_range, undo_txt)) = state
-                    .undoer
-                    .lock()
-                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
-                {
-                    text.replace_with(undo_txt);
-                    Some(*undo_ccursor_range)
-                } else {
-                    None
-                }
-            }
+
             Event::Key {
                 key,
                 pressed: true,
@@ -1010,6 +995,24 @@ fn events(
                 {
                     text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+
+            Event::Key {
+                key: Key::Z,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.matches_logically(Modifiers::COMMAND) => {
+                if let Some((undo_ccursor_range, undo_txt)) = state
+                    .undoer
+                    .lock()
+                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace_with(undo_txt);
+                    Some(*undo_ccursor_range)
                 } else {
                     None
                 }
