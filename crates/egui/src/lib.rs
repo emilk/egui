@@ -1,6 +1,6 @@
 //! `egui`:  an easy-to-use GUI in pure Rust!
 //!
-//! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
+//! Try the live web demo: <https://www.egui.rs/#Demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
 //! You need to have rust 1.77.0 or later to use `egui`.
@@ -18,7 +18,7 @@
 //!
 //! # Using egui
 //!
-//! To see what is possible to build with egui you can check out the online demo at <https://www.egui.rs/#demo>.
+//! To see what is possible to build with egui you can check out the online demo at <https://www.egui.rs/#Demo>.
 //!
 //! If you like the "learning by doing" approach, clone <https://github.com/emilk/eframe_template> and get started using egui right away.
 //!
@@ -591,7 +591,7 @@ pub(crate) const MINUS_CHAR_STR: &str = "−";
 ///
 /// NOTE: In egui all emojis are monochrome!
 ///
-/// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#demo).
+/// You can explore them all in the Font Book in [the online demo](https://www.egui.rs/#Demo).
 ///
 /// In addition, egui supports a few special emojis that are not part of the unicode standard.
 /// This module contains some of them:

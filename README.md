@@ -19,7 +19,7 @@ an SDK for visualizing streams of multimodal data.
 
 ---
 
-👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
+👉 [Click to run the web demo](https://www.egui.rs/#Demo) 👈
 
 egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations).
 
@@ -68,7 +68,7 @@ ui.image(egui::include_image!("ferris.png"));
 
 ## Quick start
 
-There are simple examples in [the `examples/` folder](https://github.com/emilk/egui/blob/master/examples/). If you want to write a web app, then go to <https://github.com/emilk/eframe_template/> and follow the instructions. The official docs are at <https://docs.rs/egui>. For inspiration and more examples, check out the [the egui web demo](https://www.egui.rs/#demo) and follow the links in it to its source code.
+There are simple examples in [the `examples/` folder](https://github.com/emilk/egui/blob/master/examples/). If you want to write a web app, then go to <https://github.com/emilk/eframe_template/> and follow the instructions. The official docs are at <https://docs.rs/egui>. For inspiration and more examples, check out the [the egui web demo](https://www.egui.rs/#Demo) and follow the links in it to its source code.
 
 If you want to integrate egui into an existing engine, go to the [Integrations](#integrations) section.
 
@@ -76,7 +76,7 @@ If you have questions, use [GitHub Discussions](https://github.com/emilk/egui/di
 
 ## Demo
 
-[Click to run egui web demo](https://www.egui.rs/#demo) (works in any browser with Wasm and WebGL support). Uses [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+[Click to run egui web demo](https://www.egui.rs/#Demo) (works in any browser with Wasm and WebGL support). Uses [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
 
 To test the demo app locally, run `cargo run --release -p egui_demo_app`.
 
@@ -301,7 +301,7 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and Wasm. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
 
 ### What about accessibility, such as screen readers?
-egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
+egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#Demo) you can enable it in the "Backend" tab.
 
 The original discussion of accessibility in egui is at <https://github.com/emilk/egui/issues/167>. Now that AccessKit support is merged, providing a strong foundation for future accessibility work, please open new issues on specific accessibility problems.
 
