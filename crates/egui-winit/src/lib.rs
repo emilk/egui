@@ -1083,6 +1083,15 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Delete => Key::Delete,
         NamedKey::Insert => Key::Insert,
         NamedKey::Escape => Key::Escape,
+
+        NamedKey::CapsLock => Key::CapsLock,
+        NamedKey::NumLock => Key::NumLock,
+        NamedKey::ScrollLock => Key::ScrollLock,
+
+        NamedKey::Alt => Key::Alt,
+        NamedKey::Control => Key::Control,
+        NamedKey::Shift => Key::Shift,
+
         NamedKey::Cut => Key::Cut,
         NamedKey::Copy => Key::Copy,
         NamedKey::Paste => Key::Paste,
@@ -1152,6 +1161,17 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::End => Key::End,
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
+
+        KeyCode::CapsLock => Key::CapsLock,
+        KeyCode::NumLock => Key::NumLock,
+        KeyCode::ScrollLock => Key::ScrollLock,
+
+        KeyCode::AltLeft => Key::Alt,
+        KeyCode::AltRight => Key::AltRight,
+        KeyCode::ControlLeft => Key::Control,
+        KeyCode::ControlRight => Key::ControlRight,
+        KeyCode::ShiftLeft => Key::Shift,
+        KeyCode::ShiftRight => Key::ShiftRight,
 
         // Punctuation
         KeyCode::Space => Key::Space,
