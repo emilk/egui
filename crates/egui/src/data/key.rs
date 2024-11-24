@@ -25,6 +25,17 @@ pub enum Key {
     PageUp,
     PageDown,
 
+    CapsLock,
+    NumLock,
+    ScrollLock,
+
+    Alt,
+    AltGraph,
+    Control,
+    ControlRight,
+    Shift,
+    ShiftRight,
+
     Copy,
     Cut,
     Paste,
@@ -473,6 +484,17 @@ impl Key {
             Self::End => "End",
             Self::PageUp => "PageUp",
             Self::PageDown => "PageDown",
+
+            Self::CapsLock => "CapsLock",
+            Self::NumLock => "NumLock",
+            Self::ScrollLock => "ScrollLock",
+
+            Self::Alt => "Alt",
+            Self::AltGraph => "AltGraph",
+            Self::Control => "Control",
+            Self::ControlRight => "ControlRight",
+            Self::Shift => "Shift",
+            Self::ShiftRight => "ShiftRight",
 
             Self::Copy => "Copy",
             Self::Cut => "Cut",
