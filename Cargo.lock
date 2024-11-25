@@ -1239,6 +1239,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-i18n"
+version = "0.1.0"
+source = "git+https://github.com/fewensa/egui-i18n#a1afe3cc6244a7edbe6135fcde0958c0ee6d9d56"
+dependencies = [
+ "log",
+ "once_cell",
+]
+
+[[package]]
 name = "egui-wgpu"
 version = "0.29.1"
 dependencies = [
@@ -2292,6 +2301,16 @@ name = "litrs"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
+
+[[package]]
+name = "localization"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui-i18n",
+ "egui_extras",
+ "env_logger",
+]
 
 [[package]]
 name = "lock_api"
