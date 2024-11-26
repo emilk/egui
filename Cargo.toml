@@ -78,8 +78,8 @@ criterion = { version = "0.5.1", default-features = false }
 dify = { version = "0.7", default-features = false }
 document-features = "0.2.10"
 glow = "0.14"
-glutin = "0.32.0"
-glutin-winit = "0.5.0"
+glutin = { version = "0.32.0", default-features = false }
+glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
 kittest = { git = "https://github.com/rerun-io/kittest", version = "0.1", branch = "main" }
