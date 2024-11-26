@@ -56,7 +56,7 @@ impl<State> HarnessBuilder<State> {
     ///         });
     ///     }, checked);
     ///
-    /// harness.get_by_name("Check me!").click();
+    /// harness.get_by_label("Check me!").click();
     /// harness.run();
     ///
     /// assert_eq!(*harness.state(), true);
@@ -85,7 +85,7 @@ impl<State> HarnessBuilder<State> {
     ///        ui.checkbox(checked, "Check me!");
     ///     }, checked);
     ///
-    /// harness.get_by_name("Check me!").click();
+    /// harness.get_by_label("Check me!").click();
     /// harness.run();
     ///
     /// assert_eq!(*harness.state(), true);

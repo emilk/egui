@@ -29,8 +29,6 @@ pub fn update_accesskit_for_text_widget(
             });
         }
 
-        builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
-
         builder.set_role(role);
 
         parent_id
@@ -44,7 +42,7 @@ pub fn update_accesskit_for_text_widget(
         for (row_index, row) in galley.rows.iter().enumerate() {
             let row_id = parent_id.with(row_index);
             ctx.accesskit_node_builder(row_id, |builder| {
-                builder.set_role(accesskit::Role::InlineTextBox);
+                builder.set_role(accesskit::Role::TextRun);
                 let rect = row.rect.translate(galley_pos.to_vec2());
                 builder.set_bounds(accesskit::Rect {
                     x0: rect.min.x.into(),
