@@ -13,18 +13,18 @@ pub fn focus_should_skip_over_disabled_buttons() {
     harness.press_key(egui::Key::Tab);
     harness.run();
 
-    let button_1 = harness.get_by_name("Button 1");
+    let button_1 = harness.get_by_label("Button 1");
     assert!(button_1.is_focused());
 
     harness.press_key(egui::Key::Tab);
     harness.run();
 
-    let button_3 = harness.get_by_name("Button 3");
+    let button_3 = harness.get_by_label("Button 3");
     assert!(button_3.is_focused());
 
     harness.press_key(egui::Key::Tab);
     harness.run();
 
-    let button_1 = harness.get_by_name("Button 1");
+    let button_1 = harness.get_by_label("Button 1");
     assert!(button_1.is_focused());
 }
