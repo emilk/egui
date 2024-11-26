@@ -51,6 +51,7 @@ skip = [
   { name = "cfg_aliases" },    # old version via wgpu
   { name = "event-listener" }, # TODO(emilk): rustls pulls in two versions of this 😭
   { name = "futures-lite" },   # old version via accesskit_unix and zbus
+  { name = "glow" },           # old version via wgpu
   { name = "memoffset" },      # tiny dependency
   { name = "ndk-sys" },        # old version via wgpu, winit uses newer version
   { name = "quick-xml" },      # old version via wayland-scanner

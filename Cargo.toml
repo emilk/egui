@@ -77,7 +77,7 @@ bytemuck = "1.7.2"
 criterion = { version = "0.5.1", default-features = false }
 dify = { version = "0.7", default-features = false }
 document-features = "0.2.10"
-glow = "0.14"
+glow = "0.16"
 glutin = { version = "0.32.0", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
