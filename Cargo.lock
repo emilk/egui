@@ -2239,7 +2239,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 [[package]]
 name = "kittest"
 version = "0.1.0"
-source = "git+https://github.com/rerun-io/kittest?branch=main#63c5b7d58178900e523428ca5edecbba007a2702"
+source = "git+https://github.com/rerun-io/kittest?branch=main#06e01f17fed36a997e1541f37b2d47e3771d7533"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -2274,7 +2274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
