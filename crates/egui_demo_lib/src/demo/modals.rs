@@ -88,14 +88,18 @@ impl crate::View for Modals {
 
                 ui.separator();
 
-                ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                    if ui.button("Save").clicked() {
-                        *save_modal_open = true;
-                    }
-                    if ui.button("Cancel").clicked() {
-                        *user_modal_open = false;
-                    }
-                });
+                egui::Sides::new().show(
+                    ui,
+                    |ui| {},
+                    |ui| {
+                        if ui.button("Save").clicked() {
+                            *save_modal_open = true;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            *user_modal_open = false;
+                        }
+                    },
+                );
             });
 
             if modal.should_close() {
@@ -110,15 +114,19 @@ impl crate::View for Modals {
 
                 ui.add_space(32.0);
 
-                ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                    if ui.button("Yes Please").clicked() {
-                        *save_progress = Some(0.0);
-                    }
+                egui::Sides::new().show(
+                    ui,
+                    |ui| {},
+                    |ui| {
+                        if ui.button("Yes Please").clicked() {
+                            *save_progress = Some(0.0);
+                        }
 
-                    if ui.button("No Thanks").clicked() {
-                        *save_modal_open = false;
-                    }
-                });
+                        if ui.button("No Thanks").clicked() {
+                            *save_modal_open = false;
+                        }
+                    },
+                );
             });
 
             if modal.should_close() {
