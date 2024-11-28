@@ -762,13 +762,133 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                let galley = super::layout(fonts, job.into());
-                let galley = Arc::new(galley);
-                entry.insert(CachedGalley {
-                    last_used: self.generation,
-                    galley: galley.clone(),
-                });
-                galley
+                if job.break_on_newline {
+                    let mut current_section = 0;
+                    let mut current = 0;
+                    let mut left_max_rows = job.wrap.max_rows;
+                    let mut galleys = Vec::new();
+                    let mut text_left = job.text.as_str();
+                    loop {
+                        let end = text_left
+                            .find('\n')
+                            .map(|i| i + current)
+                            .unwrap_or(job.text.len());
+
+                        let mut line_job = LayoutJob::default();
+                        line_job.text = job.text[current..end].to_string();
+                        line_job.wrap = crate::text::TextWrapping {
+                            max_rows: left_max_rows,
+                            ..job.wrap
+                        };
+                        line_job.halign = job.halign;
+                        line_job.justify = job.justify;
+
+                        let line_start = current;
+                        while current < end {
+                            let mut s = &job.sections[current_section];
+                            while s.byte_range.end <= current {
+                                current_section += 1;
+                                s = &job.sections[current_section];
+                            }
+
+                            assert!(s.byte_range.contains(&current));
+                            let section_end = s.byte_range.end.min(end);
+                            line_job.sections.push(crate::text::LayoutSection {
+                                leading_space: s.leading_space,
+                                byte_range: current - line_start..section_end - line_start,
+                                format: s.format.clone(),
+                            });
+                            current = section_end;
+                        }
+
+                        // Prevent an infinite recursion
+                        line_job.break_on_newline = false;
+
+                        let galley = self.layout(fonts, line_job);
+                        // This will prevent us from invalidating cache entries unnecessarily
+                        if left_max_rows != usize::MAX {
+                            left_max_rows -= galley.rows.len();
+                        }
+                        galleys.push(galley);
+
+                        current = end + 1;
+                        if current >= job.text.len() {
+                            break;
+                        } else {
+                            text_left = &job.text[current..];
+                        }
+                    }
+
+                    let mut merged_galley = Galley {
+                        job: Arc::new(job),
+                        rows: Vec::new(),
+                        elided: false,
+                        rect: emath::Rect::ZERO,
+                        mesh_bounds: emath::Rect::ZERO,
+                        num_vertices: 0,
+                        num_indices: 0,
+                        pixels_per_point: fonts.pixels_per_point,
+                    };
+
+                    for galley in galleys {
+                        let current_offset = emath::vec2(0.0, merged_galley.rect.height());
+                        merged_galley.rows.extend(galley.rows.iter().map(|row| {
+                            super::Row {
+                                // FIXME: what is this???
+                                section_index_at_start: row.section_index_at_start,
+                                glyphs: row
+                                    .glyphs
+                                    .iter()
+                                    .cloned()
+                                    .map(|mut p| {
+                                        p.pos.y += current_offset.y;
+                                        p
+                                    })
+                                    .collect(),
+                                rect: row.rect.translate(current_offset),
+                                visuals: {
+                                    let mut visuals = row.visuals.clone();
+                                    for vertex in visuals.mesh.vertices.iter_mut() {
+                                        vertex.pos.y += current_offset.y;
+                                    }
+                                    visuals.mesh_bounds =
+                                        visuals.mesh_bounds.translate(current_offset);
+                                    merged_galley.mesh_bounds =
+                                        merged_galley.mesh_bounds.union(visuals.mesh_bounds);
+                                    visuals
+                                },
+                                ends_with_newline: row.ends_with_newline,
+                            }
+                        }));
+                        merged_galley.rect = merged_galley
+                            .rect
+                            .union(galley.rect.translate(current_offset));
+                        merged_galley.num_vertices += galley.num_vertices;
+                        merged_galley.num_indices += galley.num_indices;
+                        if galley.elided {
+                            merged_galley.elided = true;
+                            break;
+                        }
+                    }
+
+                    let galley = Arc::new(merged_galley);
+                    self.cache.insert(
+                        hash,
+                        CachedGalley {
+                            last_used: self.generation,
+                            galley: galley.clone(),
+                        },
+                    );
+                    galley
+                } else {
+                    let galley = super::layout(fonts, job.into());
+                    let galley = Arc::new(galley);
+                    entry.insert(CachedGalley {
+                        last_used: self.generation,
+                        galley: galley.clone(),
+                    });
+                    galley
+                }
             }
         }
     }
