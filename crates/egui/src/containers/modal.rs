@@ -7,7 +7,7 @@ use emath::{Align2, Vec2};
 /// Similar to a [`crate::Window`] but centered and with a backdrop that
 /// blocks input to the rest of the UI.
 ///
-/// You can show multiple modals on top of each other. The top most modal will always be
+/// You can show multiple modals on top of each other. The topmost modal will always be
 /// the most recently shown one.
 pub struct Modal {
     pub area: Area,
@@ -129,13 +129,16 @@ pub struct ModalResponse<T> {
     /// The response of the modal contents
     pub response: Response,
 
-    /// The response of the modal backdrop
+    /// The response of the modal backdrop.
+    ///
+    /// A click on this means the user clicked outside the modal,
+    /// in which case you might want to close the modal.
     pub backdrop_response: Response,
 
     /// The inner response from the content closure
     pub inner: T,
 
-    /// Is this the top most modal?
+    /// Is this the topmost modal?
     pub is_top_modal: bool,
 
     /// Is there any popup open?
@@ -148,7 +151,7 @@ impl<T> ModalResponse<T> {
     /// Should the modal be closed?
     /// Returns true if:
     ///  - the backdrop was clicked
-    ///  - this is the top most modal, no popup is open and the escape key was pressed
+    ///  - this is the topmost modal, no popup is open and the escape key was pressed
     pub fn should_close(&self) -> bool {
         let ctx = &self.response.ctx;
         let escape_clicked = ctx.input(|i| i.key_pressed(crate::Key::Escape));

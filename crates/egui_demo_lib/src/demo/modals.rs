@@ -65,7 +65,7 @@ impl crate::View for Modals {
         ui.label("Click one of the buttons to open a modal.");
         ui.label("Modals have a backdrop and prevent interaction with the rest of the UI.");
         ui.label(
-            "You can show modals on top of each other and close the top most modal with \
+            "You can show modals on top of each other and close the topmost modal with \
             escape or by clicking outside the modal.",
         );
 
@@ -129,7 +129,7 @@ impl crate::View for Modals {
         if let Some(progress) = *save_progress {
             Modal::new(Id::new("Modal C")).show(ui.ctx(), |ui| {
                 ui.set_width(70.0);
-                ui.heading("Saving...");
+                ui.heading("Saving…");
 
                 ProgressBar::new(progress).ui(ui);
 
