@@ -640,7 +640,7 @@ impl WidgetText {
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
             Self::Galley(galley) => {
-                if let Some(row) = galley.rows.first() {
+                if let Some((row, _)) = galley.rows.first() {
                     row.height()
                 } else {
                     galley.size().y

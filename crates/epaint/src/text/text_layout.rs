@@ -96,7 +96,8 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     let mut elided = false;
     let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
     if elided {
-        if let Some(last_row) = rows.last_mut() {
+        if let Some((last_row, _)) = rows.last_mut() {
+            let last_row = Arc::get_mut(last_row).unwrap();
             replace_last_glyph_with_overflow_character(fonts, &job, last_row);
             if let Some(last) = last_row.glyphs.last() {
                 last_row.rect.max.x = last.max_x();
@@ -108,12 +109,12 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
 
     if justify || job.halign != Align::LEFT {
         let num_rows = rows.len();
-        for (i, row) in rows.iter_mut().enumerate() {
+        for (i, (row, _)) in rows.iter_mut().enumerate() {
             let is_last_row = i + 1 == num_rows;
             let justify_row = justify && !row.ends_with_newline && !is_last_row;
             halign_and_justify_row(
                 point_scale,
-                row,
+                Arc::get_mut(row).unwrap(),
                 job.halign,
                 job.wrap.max_width,
                 justify_row,
@@ -198,7 +199,7 @@ fn rows_from_paragraphs(
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
     elided: &mut bool,
-) -> Vec<Row> {
+) -> Vec<(Arc<Row>, Pos2)> {
     let num_paragraphs = paragraphs.len();
 
     let mut rows = vec![];
@@ -212,31 +213,38 @@ fn rows_from_paragraphs(
         let is_last_paragraph = (i + 1) == num_paragraphs;
 
         if paragraph.glyphs.is_empty() {
-            rows.push(Row {
-                section_index_at_start: paragraph.section_index_at_start,
-                glyphs: vec![],
-                visuals: Default::default(),
-                rect: Rect::from_min_size(
-                    pos2(paragraph.cursor_x, 0.0),
-                    vec2(0.0, paragraph.empty_paragraph_height),
-                ),
-                ends_with_newline: !is_last_paragraph,
-            });
+            rows.push((
+                Arc::new(Row {
+                    section_index_at_start: paragraph.section_index_at_start,
+                    glyphs: vec![],
+                    visuals: Default::default(),
+                    rect: Rect::from_min_size(
+                        pos2(paragraph.cursor_x, 0.0),
+                        vec2(0.0, paragraph.empty_paragraph_height),
+                    ),
+                    ends_with_newline: !is_last_paragraph,
+                }),
+                Pos2::ZERO,
+            ));
         } else {
             let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
             if paragraph_max_x <= job.effective_wrap_width() {
                 // Early-out optimization: the whole paragraph fits on one row.
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
-                rows.push(Row {
-                    section_index_at_start: paragraph.section_index_at_start,
-                    glyphs: paragraph.glyphs,
-                    visuals: Default::default(),
-                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
-                    ends_with_newline: !is_last_paragraph,
-                });
+                rows.push((
+                    Arc::new(Row {
+                        section_index_at_start: paragraph.section_index_at_start,
+                        glyphs: paragraph.glyphs,
+                        visuals: Default::default(),
+                        rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                        ends_with_newline: !is_last_paragraph,
+                    }),
+                    Pos2::ZERO,
+                ));
             } else {
                 line_break(&paragraph, job, &mut rows, elided);
-                rows.last_mut().unwrap().ends_with_newline = !is_last_paragraph;
+                let last_row = Arc::get_mut(&mut rows.last_mut().unwrap().0).unwrap();
+                last_row.ends_with_newline = !is_last_paragraph;
             }
         }
     }
@@ -244,7 +252,12 @@ fn rows_from_paragraphs(
     rows
 }
 
-fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, elided: &mut bool) {
+fn line_break(
+    paragraph: &Paragraph,
+    job: &LayoutJob,
+    out_rows: &mut Vec<(Arc<Row>, Pos2)>,
+    elided: &mut bool,
+) {
     let wrap_width = job.effective_wrap_width();
 
     // Keeps track of good places to insert row break if we exceed `wrap_width`.
@@ -270,13 +283,16 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
             {
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
                 // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
-                out_rows.push(Row {
-                    section_index_at_start: paragraph.section_index_at_start,
-                    glyphs: vec![],
-                    visuals: Default::default(),
-                    rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
-                    ends_with_newline: false,
-                });
+                out_rows.push((
+                    Arc::new(Row {
+                        section_index_at_start: paragraph.section_index_at_start,
+                        glyphs: vec![],
+                        visuals: Default::default(),
+                        rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
+                        ends_with_newline: false,
+                    }),
+                    Pos2::ZERO,
+                ));
                 row_start_x += first_row_indentation;
                 first_row_indentation = 0.0;
             } else if let Some(last_kept_index) = row_break_candidates.get(job.wrap.break_anywhere)
@@ -294,13 +310,16 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
                 let paragraph_min_x = glyphs[0].pos.x;
                 let paragraph_max_x = glyphs.last().unwrap().max_x();
 
-                out_rows.push(Row {
-                    section_index_at_start,
-                    glyphs,
-                    visuals: Default::default(),
-                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
-                    ends_with_newline: false,
-                });
+                out_rows.push((
+                    Arc::new(Row {
+                        section_index_at_start,
+                        glyphs,
+                        visuals: Default::default(),
+                        rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                        ends_with_newline: false,
+                    }),
+                    Pos2::ZERO,
+                ));
 
                 // Start a new row:
                 row_start_idx = last_kept_index + 1;
@@ -333,13 +352,16 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
             let paragraph_min_x = glyphs[0].pos.x;
             let paragraph_max_x = glyphs.last().unwrap().max_x();
 
-            out_rows.push(Row {
-                section_index_at_start,
-                glyphs,
-                visuals: Default::default(),
-                rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
-                ends_with_newline: false,
-            });
+            out_rows.push((
+                Arc::new(Row {
+                    section_index_at_start,
+                    glyphs,
+                    visuals: Default::default(),
+                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                    ends_with_newline: false,
+                }),
+                Pos2::ZERO,
+            ));
         }
     }
 }
@@ -592,14 +614,15 @@ fn halign_and_justify_row(
 fn galley_from_rows(
     point_scale: PointScale,
     job: Arc<LayoutJob>,
-    mut rows: Vec<Row>,
+    mut rows: Vec<(Arc<Row>, Pos2)>,
     elided: bool,
 ) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
     let mut min_x: f32 = 0.0;
     let mut max_x: f32 = 0.0;
-    for row in &mut rows {
+    for (row, _) in &mut rows {
+        let row = Arc::get_mut(row).unwrap();
         let mut max_row_height = first_row_min_height.max(row.rect.height());
         first_row_min_height = 0.0;
         for glyph in &row.glyphs {
@@ -639,7 +662,8 @@ fn galley_from_rows(
     let mut num_vertices = 0;
     let mut num_indices = 0;
 
-    for row in &mut rows {
+    for (row, _) in &mut rows {
+        let row = Arc::get_mut(row).unwrap();
         row.visuals = tessellate_row(point_scale, &job, &format_summary, row);
         mesh_bounds = mesh_bounds.union(row.visuals.mesh_bounds);
         num_vertices += row.visuals.mesh.vertices.len();
@@ -1072,7 +1096,7 @@ mod tests {
 
                     assert!(galley.elided);
                     assert_eq!(galley.rows.len(), 1);
-                    let row_text = galley.rows[0].text();
+                    let row_text = galley.rows[0].0.text();
                     assert!(
                         row_text.ends_with('…'),
                         "Expected row to end with `…`, got {row_text:?} when line-breaking the text {text:?} with max_width {max_width} and break_anywhere {break_anywhere}.",
@@ -1091,7 +1115,7 @@ mod tests {
 
             assert!(galley.elided);
             assert_eq!(galley.rows.len(), 1);
-            let row_text = galley.rows[0].text();
+            let row_text = galley.rows[0].0.text();
             assert_eq!(row_text, "Hello…");
         }
     }
@@ -1106,7 +1130,11 @@ mod tests {
         layout_job.wrap.max_width = 90.0;
         let galley = layout(&mut fonts, layout_job.into());
         assert_eq!(
-            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
+            galley
+                .rows
+                .iter()
+                .map(|row| row.0.text())
+                .collect::<Vec<_>>(),
             vec!["日本語と", "Englishの混在", "した文章"]
         );
     }
@@ -1121,7 +1149,11 @@ mod tests {
         layout_job.wrap.max_width = 110.0;
         let galley = layout(&mut fonts, layout_job.into());
         assert_eq!(
-            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
+            galley
+                .rows
+                .iter()
+                .map(|row| row.0.text())
+                .collect::<Vec<_>>(),
             vec!["日本語とEnglish", "の混在した文章"]
         );
     }
@@ -1136,10 +1168,14 @@ mod tests {
         let galley = layout(&mut fonts, layout_job.into());
         assert!(galley.elided);
         assert_eq!(
-            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
+            galley
+                .rows
+                .iter()
+                .map(|row| row.0.text())
+                .collect::<Vec<_>>(),
             vec!["# DNA…"]
         );
         let row = &galley.rows[0];
-        assert_eq!(row.rect.max.x, row.glyphs.last().unwrap().max_x());
+        assert_eq!(row.0.rect.max.x, row.0.glyphs.last().unwrap().max_x());
     }
 }

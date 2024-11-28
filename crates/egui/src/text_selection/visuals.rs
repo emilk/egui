@@ -31,7 +31,9 @@ pub fn paint_text_selection(
     let max = max.rcursor;
 
     for ri in min.row..=max.row {
-        let row = &mut galley.rows[ri];
+        let (row, _) = &mut galley.rows[ri];
+        let row = Arc::make_mut(row);
+
         let left = if ri == min.row {
             row.x_offset(min.column)
         } else {

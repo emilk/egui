@@ -433,7 +433,9 @@ impl Shape {
 
                 // Scale text:
                 let galley = Arc::make_mut(&mut text_shape.galley);
-                for row in &mut galley.rows {
+                for (row, offset) in &mut galley.rows {
+                    let row = Arc::make_mut(row);
+                    *offset = *offset * transform.scaling;
                     row.visuals.mesh_bounds = transform.scaling * row.visuals.mesh_bounds;
                     for v in &mut row.visuals.mesh.vertices {
                         v.pos = Pos2::new(transform.scaling * v.pos.x, transform.scaling * v.pos.y);

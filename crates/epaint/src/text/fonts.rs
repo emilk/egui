@@ -832,34 +832,14 @@ impl GalleyCache {
 
                     for galley in galleys {
                         let current_offset = emath::vec2(0.0, merged_galley.rect.height());
-                        merged_galley.rows.extend(galley.rows.iter().map(|row| {
-                            super::Row {
-                                // FIXME: what is this???
-                                section_index_at_start: row.section_index_at_start,
-                                glyphs: row
-                                    .glyphs
-                                    .iter()
-                                    .cloned()
-                                    .map(|mut p| {
-                                        p.pos.y += current_offset.y;
-                                        p
-                                    })
-                                    .collect(),
-                                rect: row.rect.translate(current_offset),
-                                visuals: {
-                                    let mut visuals = row.visuals.clone();
-                                    for vertex in visuals.mesh.vertices.iter_mut() {
-                                        vertex.pos.y += current_offset.y;
-                                    }
-                                    visuals.mesh_bounds =
-                                        visuals.mesh_bounds.translate(current_offset);
-                                    merged_galley.mesh_bounds =
-                                        merged_galley.mesh_bounds.union(visuals.mesh_bounds);
-                                    visuals
-                                },
-                                ends_with_newline: row.ends_with_newline,
-                            }
-                        }));
+                        merged_galley
+                            .rows
+                            .extend(galley.rows.iter().map(|(row, prev_offset)| {
+                                merged_galley.mesh_bounds =
+                                    merged_galley.mesh_bounds.union(row.visuals.mesh_bounds);
+
+                                (row.clone(), *prev_offset + current_offset)
+                            }));
                         merged_galley.rect = merged_galley
                             .rect
                             .union(galley.rect.translate(current_offset));

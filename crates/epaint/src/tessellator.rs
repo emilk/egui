@@ -1778,16 +1778,18 @@ impl Tessellator {
 
         let rotator = Rot2::from_angle(*angle);
 
-        for row in &galley.rows {
+        for (row, row_pos) in &galley.rows {
             if row.visuals.mesh.is_empty() {
                 continue;
             }
+
+            let final_pos = galley_pos + row_pos.to_vec2();
 
             let mut row_rect = row.visuals.mesh_bounds;
             if *angle != 0.0 {
                 row_rect = row_rect.rotate_bb(rotator);
             }
-            row_rect = row_rect.translate(galley_pos.to_vec2());
+            row_rect = row_rect.translate(final_pos.to_vec2());
 
             if self.options.coarse_tessellation_culling && !self.clip_rect.intersects(row_rect) {
                 // culling individual lines of text is important, since a single `Shape::Text`
@@ -1836,7 +1838,7 @@ impl Tessellator {
                         };
 
                         Vertex {
-                            pos: galley_pos + offset,
+                            pos: final_pos + offset,
                             uv: (uv.to_vec2() * uv_normalizer).to_pos2(),
                             color,
                         }
