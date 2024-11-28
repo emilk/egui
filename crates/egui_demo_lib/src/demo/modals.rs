@@ -229,14 +229,14 @@ mod tests {
         harness.run();
         results.push(harness.try_wgpu_snapshot("modals_1"));
 
-        harness.get_by_name("Save").click();
+        harness.get_by_label("Save").click();
         // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
         harness.run();
         harness.run();
         harness.run();
         results.push(harness.try_wgpu_snapshot("modals_2"));
 
-        harness.get_by_name("Yes Please").click();
+        harness.get_by_label("Yes Please").click();
         // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
         harness.run();
         harness.run();
