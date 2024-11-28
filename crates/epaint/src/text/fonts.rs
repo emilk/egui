@@ -733,7 +733,7 @@ impl GalleyCache {
 
             // Say the user asks to wrap at width 200.0.
             // The text layout wraps, and reports that the final width was 196.0 points.
-            // This than trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
+            // This then trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
             // On the next frame, this is then set as the max width for the tooltip,
             // and we end up calling the text layout code again, this time with a wrap width of 196.0.
             // Except, somewhere in the `Ui` chain with added margins etc, a rounding error was introduced,
