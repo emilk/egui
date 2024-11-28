@@ -818,7 +818,15 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.areas().layer_id_at(pos, &self.layer_transforms)
+        self.areas()
+            .layer_id_at(pos, &self.layer_transforms)
+            .and_then(|layer_id| {
+                if self.is_above_modal_layer(layer_id) {
+                    Some(layer_id)
+                } else {
+                    self.top_modal_layer()
+                }
+            })
     }
 
     /// An iterator over all layers. Back-to-front, top is last.
@@ -893,20 +901,26 @@ impl Memory {
         }
     }
 
+    /// Returns true if
+    /// - this layer is the top-most modal layer or above it
+    /// - there is no modal layer
+    pub fn is_above_modal_layer(&self, layer_id: LayerId) -> bool {
+        if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
+            matches!(
+                self.areas().compare_order(layer_id, modal_layer),
+                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater
+            )
+        } else {
+            true
+        }
+    }
+
     /// Does this layer allow interaction?
     /// Returns true if
     ///  - the layer is not behind a modal layer
     ///  - the [`Order`] allows interaction
     pub fn allows_interaction(&self, layer_id: LayerId) -> bool {
-        let is_above_modal_layer =
-            if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
-                matches!(
-                    self.areas().compare_order(layer_id, modal_layer),
-                    std::cmp::Ordering::Equal | std::cmp::Ordering::Greater
-                )
-            } else {
-                true
-            };
+        let is_above_modal_layer = self.is_above_modal_layer(layer_id);
         let ordering_allows_interaction = layer_id.order.allow_interaction();
         is_above_modal_layer && ordering_allows_interaction
     }

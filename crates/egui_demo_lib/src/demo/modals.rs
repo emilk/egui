@@ -1,4 +1,4 @@
-use egui::{Align, ComboBox, Context, Id, Layout, Modal, ProgressBar, Ui, Widget, Window};
+use egui::{ComboBox, Context, Id, Modal, ProgressBar, Ui, Widget, Window};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -90,7 +90,7 @@ impl crate::View for Modals {
 
                 egui::Sides::new().show(
                     ui,
-                    |ui| {},
+                    |_ui| {},
                     |ui| {
                         if ui.button("Save").clicked() {
                             *save_modal_open = true;
@@ -116,7 +116,7 @@ impl crate::View for Modals {
 
                 egui::Sides::new().show(
                     ui,
-                    |ui| {},
+                    |_ui| {},
                     |ui| {
                         if ui.button("Yes Please").clicked() {
                             *save_progress = Some(0.0);
@@ -254,5 +254,34 @@ mod tests {
         for result in results {
             result.unwrap();
         }
+    }
+
+    // This tests whether the backdrop actually prevents interaction with lower layers.
+    #[test]
+    fn backdrop_should_prevent_focusing_lower_area() {
+        let initial_state = Modals {
+            save_modal_open: true,
+            save_progress: Some(0.0),
+            ..Modals::default()
+        };
+
+        let mut harness = Harness::new_state(
+            |ctx, modals| {
+                modals.show(ctx, &mut true);
+            },
+            initial_state,
+        );
+
+        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
+        harness.run();
+        harness.run();
+        harness.run();
+
+        harness.get_by_label("Yes Please").simulate_click();
+
+        harness.run();
+
+        // This snapshots should show the progress bar modal on top of the save modal.
+        harness.wgpu_snapshot("modals_backdrop_should_prevent_focusing_lower_area");
     }
 }
