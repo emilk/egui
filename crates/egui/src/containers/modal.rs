@@ -35,6 +35,7 @@ impl Modal {
             .sense(Sense::hover())
             .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
             .order(Order::Foreground)
+            .interactable(true)
     }
 
     /// Set the frame of the modal.
@@ -66,21 +67,35 @@ impl Modal {
 
     /// Show the modal.
     pub fn show<T>(self, ctx: &Context, content: impl FnOnce(&mut Ui) -> T) -> ModalResponse<T> {
+        let Self {
+            area,
+            backdrop_color,
+            frame,
+        } = self;
+
         let (is_top_modal, any_popup_open) = ctx.memory_mut(|mem| {
-            mem.set_modal_layer(self.area.layer());
+            mem.set_modal_layer(area.layer());
             (
-                mem.top_modal_layer() == Some(self.area.layer()),
+                mem.top_modal_layer() == Some(area.layer()),
                 mem.any_popup_open(),
             )
         });
         let InnerResponse {
             inner: (inner, backdrop_response),
             response,
-        } = self.area.show(ctx, |ui| {
-            let mut backdrop = ui.new_child(UiBuilder::new().max_rect(ui.ctx().screen_rect()));
-            let backdrop_response = backdrop_ui(&mut backdrop, self.backdrop_color);
+        } = area.show(ctx, |ui| {
+            let bg_rect = ui.ctx().screen_rect();
+            let bg_sense = Sense {
+                click: true,
+                drag: true,
+                focusable: false,
+            };
+            let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
+            backdrop.set_min_size(bg_rect.size());
+            ui.painter().rect_filled(bg_rect, 0.0, backdrop_color);
+            let backdrop_response = backdrop.response();
 
-            let frame = self.frame.unwrap_or_else(|| Frame::popup(ui.style()));
+            let frame = frame.unwrap_or_else(|| Frame::popup(ui.style()));
 
             // We need the extra scope with the sense since frame can't have a sense and since we
             // need to prevent the clicks from passing through to the backdrop.
@@ -106,22 +121,6 @@ impl Modal {
             any_popup_open,
         }
     }
-}
-
-fn backdrop_ui(ui: &mut Ui, color: Color32) -> Response {
-    // Ensure we capture any click and drag events
-    let response = ui.allocate_response(
-        ui.available_size(),
-        Sense {
-            click: true,
-            drag: true,
-            focusable: false,
-        },
-    );
-
-    ui.painter().rect_filled(response.rect, 0.0, color);
-
-    response
 }
 
 /// The response of a modal dialog.
