@@ -1301,7 +1301,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ActionRequested {
-    Screenshot,
+    Screenshot(egui::UserData),
     Cut,
     Copy,
     Paste,
@@ -1516,8 +1516,8 @@ fn process_viewport_command(
                 log::warn!("{command:?}: {err}");
             }
         }
-        ViewportCommand::Screenshot => {
-            actions_requested.insert(ActionRequested::Screenshot);
+        ViewportCommand::Screenshot(user_data) => {
+            actions_requested.insert(ActionRequested::Screenshot(user_data));
         }
         ViewportCommand::RequestCut => {
             actions_requested.insert(ActionRequested::Cut);
