@@ -793,7 +793,14 @@ impl GalleyCache {
                             assert!(s.byte_range.contains(&current));
                             let section_end = s.byte_range.end.min(end);
                             line_job.sections.push(crate::text::LayoutSection {
-                                leading_space: s.leading_space,
+                                // Leading space should only be added to the first section
+                                // if the there are multiple sections that will be created
+                                // from splitting the current section.
+                                leading_space: if current == s.byte_range.start {
+                                    s.leading_space
+                                } else {
+                                    0.0
+                                },
                                 byte_range: current - start..section_end - start,
                                 format: s.format.clone(),
                             });
