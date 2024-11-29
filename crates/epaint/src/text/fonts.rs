@@ -769,21 +769,20 @@ impl GalleyCache {
                     let mut galleys = Vec::new();
                     let mut text_left = job.text.as_str();
                     loop {
-                        let end = text_left
-                            .find('\n')
-                            .map(|i| i + current)
-                            .unwrap_or(job.text.len());
+                        let end = text_left.find('\n').map_or(job.text.len(), |i| i + current);
+                        let start = current;
 
-                        let mut line_job = LayoutJob::default();
-                        line_job.text = job.text[current..end].to_string();
-                        line_job.wrap = crate::text::TextWrapping {
-                            max_rows: left_max_rows,
-                            ..job.wrap
+                        let mut line_job = LayoutJob {
+                            text: job.text[current..end].to_string(),
+                            wrap: crate::text::TextWrapping {
+                                max_rows: left_max_rows,
+                                ..job.wrap
+                            },
+                            halign: job.halign,
+                            justify: job.justify,
+                            ..Default::default()
                         };
-                        line_job.halign = job.halign;
-                        line_job.justify = job.justify;
 
-                        let line_start = current;
                         while current < end {
                             let mut s = &job.sections[current_section];
                             while s.byte_range.end <= current {
@@ -795,7 +794,7 @@ impl GalleyCache {
                             let section_end = s.byte_range.end.min(end);
                             line_job.sections.push(crate::text::LayoutSection {
                                 leading_space: s.leading_space,
-                                byte_range: current - line_start..section_end - line_start,
+                                byte_range: current - start..section_end - start,
                                 format: s.format.clone(),
                             });
                             current = section_end;
