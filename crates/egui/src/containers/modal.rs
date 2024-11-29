@@ -154,8 +154,12 @@ impl<T> ModalResponse<T> {
     ///  - this is the topmost modal, no popup is open and the escape key was pressed
     pub fn should_close(&self) -> bool {
         let ctx = &self.response.ctx;
-        let escape_clicked = ctx.input(|i| i.key_pressed(crate::Key::Escape));
+
+        // this is a closure so that `Esc` is consumed only if the modal is topmost
+        let escape_clicked =
+            || ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
+
         self.backdrop_response.clicked()
-            || (self.is_top_modal && !self.any_popup_open && escape_clicked)
+            || (self.is_top_modal && !self.any_popup_open && escape_clicked())
     }
 }
