@@ -284,7 +284,7 @@ fn ccursor_from_accesskit_text_position(
     position: &accesskit::TextPosition,
 ) -> Option<CCursor> {
     let mut total_length = 0usize;
-    for (i, (row, _)) in galley.rows.iter().enumerate() {
+    for (i, row) in galley.rows.iter().enumerate() {
         let row_id = id.with(i);
         if row_id.accesskit_id() == position.node {
             return Some(CCursor {

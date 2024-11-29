@@ -1778,12 +1778,12 @@ impl Tessellator {
 
         let rotator = Rot2::from_angle(*angle);
 
-        for (row, row_pos) in &galley.rows {
+        for row in &galley.rows {
             if row.visuals.mesh.is_empty() {
                 continue;
             }
 
-            let final_pos = galley_pos + row_pos.to_vec2();
+            let final_pos = galley_pos + row.pos.to_vec2();
 
             let mut row_rect = row.visuals.mesh_bounds;
             if *angle != 0.0 {

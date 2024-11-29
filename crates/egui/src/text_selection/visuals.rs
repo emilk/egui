@@ -31,26 +31,27 @@ pub fn paint_text_selection(
     let max = max.rcursor;
 
     for ri in min.row..=max.row {
-        let (row, _) = &mut galley.rows[ri];
-        let row = Arc::make_mut(row);
+        let placed_row = &mut galley.rows[ri];
 
         let left = if ri == min.row {
-            row.x_offset(min.column)
+            placed_row.x_offset(min.column)
         } else {
-            row.rect.left()
+            0.0
         };
         let right = if ri == max.row {
-            row.x_offset(max.column)
+            placed_row.x_offset(max.column)
         } else {
-            let newline_size = if row.ends_with_newline {
-                row.height() / 2.0 // visualize that we select the newline
+            let newline_size = if placed_row.ends_with_newline {
+                placed_row.height() / 2.0 // visualize that we select the newline
             } else {
                 0.0
             };
-            row.rect.right() + newline_size
+            placed_row.size.x + newline_size
         };
 
-        let rect = Rect::from_min_max(pos2(left, row.min_y()), pos2(right, row.max_y()));
+        let rect = Rect::from_min_max(pos2(left, 0.0), pos2(right, placed_row.size.y));
+
+        let row = Arc::make_mut(&mut placed_row.row);
         let mesh = &mut row.visuals.mesh;
 
         // Time to insert the selection rectangle into the row mesh.

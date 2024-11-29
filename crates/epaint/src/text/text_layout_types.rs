@@ -506,7 +506,7 @@ pub struct Galley {
     ///
     /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
-    pub rows: Vec<(Arc<Row>, Pos2)>,
+    pub rows: Vec<PlacedRow>,
 
     /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
@@ -540,6 +540,39 @@ pub struct Galley {
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct PlacedRow {
+    /// The underlying row unpositioned [`Row`].
+    pub row: Arc<Row>,
+
+    /// The position of this [`Row`] relative to the galley.
+    pub pos: Pos2,
+
+    /// If true, this [`PlacedRow`] came from a paragraph ending with a `\n`.
+    /// The `\n` itself is omitted from [`Row::glyphs`].
+    /// A `\n` in the input text always creates a new [`PlacedRow`] below it,
+    /// so that text that ends with `\n` has an empty [`PlacedRow`] last.
+    /// This also implies that the last [`PlacedRow`] in a [`Galley`] always has `ends_with_newline == false`.
+    pub ends_with_newline: bool,
+}
+
+impl PlacedRow {
+    /// Logical bounding rectangle on font heights etc.
+    /// Use this when drawing a selection or similar!
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_size(self.pos, self.row.size)
+    }
+}
+
+impl std::ops::Deref for PlacedRow {
+    type Target = Row;
+
+    fn deref(&self) -> &Self::Target {
+        &self.row
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
     /// This is included in case there are no glyphs
     pub section_index_at_start: u32,
@@ -547,20 +580,12 @@ pub struct Row {
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
 
-    /// Logical bounding rectangle based on font heights etc.
-    /// Use this when drawing a selection or similar!
+    /// Logical size based on font heights etc.
     /// Includes leading and trailing whitespace.
-    pub rect: Rect,
+    pub size: Vec2,
 
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
-
-    /// If true, this [`Row`] came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Self::glyphs`].
-    /// A `\n` in the input text always creates a new [`Row`] below it,
-    /// so that text that ends with `\n` has an empty [`Row`] last.
-    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,
 }
 
 /// The tessellated output of a row.
@@ -668,28 +693,7 @@ impl Row {
         self.glyphs.len()
     }
 
-    /// Includes the implicit `\n` after the [`Row`], if any.
-    #[inline]
-    pub fn char_count_including_newline(&self) -> usize {
-        self.glyphs.len() + (self.ends_with_newline as usize)
-    }
-
-    #[inline]
-    pub fn min_y(&self) -> f32 {
-        self.rect.top()
-    }
-
-    #[inline]
-    pub fn max_y(&self) -> f32 {
-        self.rect.bottom()
-    }
-
-    #[inline]
-    pub fn height(&self) -> f32 {
-        self.rect.height()
-    }
-
-    /// Closest char at the desired x coordinate.
+    /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {
         for (i, glyph) in self.glyphs.iter().enumerate() {
@@ -704,8 +708,31 @@ impl Row {
         if let Some(glyph) = self.glyphs.get(column) {
             glyph.pos.x
         } else {
-            self.rect.right()
+            self.size.x
         }
+    }
+}
+
+impl PlacedRow {
+    /// Includes the implicit `\n` after the [`Row`], if any.
+    #[inline]
+    pub fn char_count_including_newline(&self) -> usize {
+        self.glyphs.len() + (self.ends_with_newline as usize)
+    }
+
+    #[inline]
+    pub fn min_y(&self) -> f32 {
+        self.rect().top()
+    }
+
+    #[inline]
+    pub fn max_y(&self) -> f32 {
+        self.rect().bottom()
+    }
+
+    #[inline]
+    pub fn height(&self) -> f32 {
+        self.row.size.y
     }
 }
 
@@ -755,8 +782,8 @@ impl std::ops::Deref for Galley {
 impl Galley {
     /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
-        if let Some((row, _)) = self.rows.last() {
-            let x = row.rect.right();
+        if let Some(row) = self.rows.last() {
+            let x = row.rect().right();
             Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
         } else {
             // Empty galley
@@ -773,7 +800,7 @@ impl Galley {
     pub fn pos_from_pcursor(&self, pcursor: PCursor) -> Rect {
         let mut it = PCursor::default();
 
-        for (row, offset) in &self.rows {
+        for row in &self.rows {
             if it.paragraph == pcursor.paragraph {
                 // Right paragraph, but is it the right row in the paragraph?
 
@@ -787,11 +814,8 @@ impl Galley {
                         && !row.ends_with_newline
                         && column >= row.char_count_excluding_newline();
                     if !select_next_row_instead {
-                        let x = row.x_offset(column) + offset.x;
-                        return Rect::from_min_max(
-                            pos2(x, row.min_y() + offset.y),
-                            pos2(x, row.max_y() + offset.y),
-                        );
+                        let x = row.x_offset(column);
+                        return Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()));
                     }
                 }
             }
@@ -825,13 +849,13 @@ impl Galley {
     /// same as a cursor at the end.
     /// This allows implementing text-selection by dragging above/below the galley.
     pub fn cursor_from_pos(&self, pos: Vec2) -> Cursor {
-        if let Some((first_row, offset)) = self.rows.first() {
-            if pos.y < first_row.min_y() + offset.y {
+        if let Some(first_row) = self.rows.first() {
+            if pos.y < first_row.min_y() {
                 return self.begin();
             }
         }
-        if let Some((last_row, offset)) = self.rows.last() {
-            if last_row.max_y() + offset.y < pos.y {
+        if let Some(last_row) = self.rows.last() {
+            if last_row.max_y() < pos.y {
                 return self.end();
             }
         }
@@ -842,15 +866,16 @@ impl Galley {
         let mut ccursor_index = 0;
         let mut pcursor_it = PCursor::default();
 
-        for (row_nr, (row, offset)) in self.rows.iter().enumerate() {
-            let min_y = row.min_y() + offset.y;
-            let max_y = row.max_y() + offset.y;
+        for (row_nr, row) in self.rows.iter().enumerate() {
+            let min_y = row.min_y();
+            let max_y = row.max_y();
 
             let is_pos_within_row = min_y <= pos.y && pos.y <= max_y;
             let y_dist = (min_y - pos.y).abs().min((max_y - pos.y).abs());
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
-                let column = row.char_at(pos.x);
+                // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
+                let column = row.char_at(pos.x - row.pos.x);
                 let prefer_next_row = column < row.char_count_excluding_newline();
                 cursor = Cursor {
                     ccursor: CCursor {
@@ -910,7 +935,7 @@ impl Galley {
             offset: 0,
             prefer_next_row: true,
         };
-        for (row, _) in &self.rows {
+        for row in &self.rows {
             let row_char_count = row.char_count_including_newline();
             ccursor.index += row_char_count;
             if row.ends_with_newline {
@@ -928,7 +953,7 @@ impl Galley {
     }
 
     pub fn end_rcursor(&self) -> RCursor {
-        if let Some((last_row, _)) = self.rows.last() {
+        if let Some(last_row) = self.rows.last() {
             RCursor {
                 row: self.rows.len() - 1,
                 column: last_row.char_count_including_newline(),
@@ -954,7 +979,7 @@ impl Galley {
             prefer_next_row,
         };
 
-        for (row_nr, (row, _)) in self.rows.iter().enumerate() {
+        for (row_nr, row) in self.rows.iter().enumerate() {
             let row_char_count = row.char_count_excluding_newline();
 
             if ccursor_it.index <= ccursor.index
@@ -999,7 +1024,7 @@ impl Galley {
         }
 
         let prefer_next_row =
-            rcursor.column < self.rows[rcursor.row].0.char_count_excluding_newline();
+            rcursor.column < self.rows[rcursor.row].char_count_excluding_newline();
         let mut ccursor_it = CCursor {
             index: 0,
             prefer_next_row,
@@ -1010,7 +1035,7 @@ impl Galley {
             prefer_next_row,
         };
 
-        for (row_nr, (row, _)) in self.rows.iter().enumerate() {
+        for (row_nr, row) in self.rows.iter().enumerate() {
             if row_nr == rcursor.row {
                 ccursor_it.index += rcursor.column.at_most(row.char_count_excluding_newline());
 
@@ -1054,7 +1079,7 @@ impl Galley {
             prefer_next_row,
         };
 
-        for (row_nr, (row, _)) in self.rows.iter().enumerate() {
+        for (row_nr, row) in self.rows.iter().enumerate() {
             if pcursor_it.paragraph == pcursor.paragraph {
                 // Right paragraph, but is it the right row in the paragraph?
 
@@ -1128,9 +1153,7 @@ impl Galley {
             let new_row = cursor.rcursor.row - 1;
 
             let cursor_is_beyond_end_of_current_row = cursor.rcursor.column
-                >= self.rows[cursor.rcursor.row]
-                    .0
-                    .char_count_excluding_newline();
+                >= self.rows[cursor.rcursor.row].char_count_excluding_newline();
 
             let new_rcursor = if cursor_is_beyond_end_of_current_row {
                 // keep same column
@@ -1141,8 +1164,8 @@ impl Galley {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let (row, offset) = &self.rows[new_row];
-                let column = if x > row.rect.right() + offset.x {
+                let row = &self.rows[new_row];
+                let column = if x > row.rect().right() {
                     // beyond the end of this row - keep same column
                     cursor.rcursor.column
                 } else {
@@ -1162,9 +1185,7 @@ impl Galley {
             let new_row = cursor.rcursor.row + 1;
 
             let cursor_is_beyond_end_of_current_row = cursor.rcursor.column
-                >= self.rows[cursor.rcursor.row]
-                    .0
-                    .char_count_excluding_newline();
+                >= self.rows[cursor.rcursor.row].char_count_excluding_newline();
 
             let new_rcursor = if cursor_is_beyond_end_of_current_row {
                 // keep same column
@@ -1175,8 +1196,8 @@ impl Galley {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let (row, offset) = &self.rows[new_row];
-                let column = if x > row.rect.right() + offset.x {
+                let row = &self.rows[new_row];
+                let column = if x > row.rect().right() {
                     // beyond the end of the next row - keep same column
                     cursor.rcursor.column
                 } else {
@@ -1204,9 +1225,7 @@ impl Galley {
     pub fn cursor_end_of_row(&self, cursor: &Cursor) -> Cursor {
         self.from_rcursor(RCursor {
             row: cursor.rcursor.row,
-            column: self.rows[cursor.rcursor.row]
-                .0
-                .char_count_excluding_newline(),
+            column: self.rows[cursor.rcursor.row].char_count_excluding_newline(),
         })
     }
 }

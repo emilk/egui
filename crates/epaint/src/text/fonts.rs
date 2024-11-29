@@ -805,12 +805,21 @@ impl GalleyCache {
             let current_offset = emath::vec2(0.0, merged_galley.rect.height());
             merged_galley
                 .rows
-                .extend(galley.rows.iter().map(|(row, prev_offset)| {
-                    merged_galley.mesh_bounds =
-                        merged_galley.mesh_bounds.union(row.visuals.mesh_bounds);
+                .extend(galley.rows.iter().map(|placed_row| {
+                    let new_pos = placed_row.pos + current_offset;
+                    merged_galley.mesh_bounds = merged_galley
+                        .mesh_bounds
+                        .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
 
-                    (row.clone(), *prev_offset + current_offset)
+                    super::PlacedRow {
+                        row: placed_row.row.clone(),
+                        pos: new_pos,
+                        ends_with_newline: placed_row.ends_with_newline,
+                    }
                 }));
+            if let Some(last) = merged_galley.rows.last_mut() {
+                last.ends_with_newline = true;
+            }
             merged_galley.rect = merged_galley
                 .rect
                 .union(galley.rect.translate(current_offset));
@@ -820,6 +829,10 @@ impl GalleyCache {
                 merged_galley.elided = true;
                 break;
             }
+        }
+
+        if let Some(last) = merged_galley.rows.last_mut() {
+            last.ends_with_newline = false;
         }
 
         merged_galley

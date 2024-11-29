@@ -194,13 +194,10 @@ impl Label {
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(!galley.rows.is_empty(), "Galleys are never empty");
             // collect a response from many rows:
-            let rect = galley.rows[0]
-                .0
-                .rect
-                .translate(galley.rows[0].1.to_vec2() + pos.to_vec2());
+            let rect = galley.rows[0].rect().translate(pos.to_vec2());
             let mut response = ui.allocate_rect(rect, sense);
-            for (row, offset) in galley.rows.iter().skip(1) {
-                let rect = row.rect.translate(offset.to_vec2() + pos.to_vec2());
+            for placed_row in galley.rows.iter().skip(1) {
+                let rect = placed_row.rect().translate(pos.to_vec2());
                 response |= ui.allocate_rect(rect, sense);
             }
             (pos, galley, response)

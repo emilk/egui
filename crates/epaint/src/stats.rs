@@ -88,14 +88,10 @@ impl AllocInfo {
     pub fn from_galley(galley: &Galley) -> Self {
         Self::from_slice(galley.text().as_bytes())
             + Self::from_slice(&galley.rows)
-            + galley
-                .rows
-                .iter()
-                .map(|(row, _)| Self::from_galley_row(row))
-                .sum()
+            + galley.rows.iter().map(Self::from_galley_row).sum()
     }
 
-    fn from_galley_row(row: &crate::text::Row) -> Self {
+    fn from_galley_row(row: &crate::text::PlacedRow) -> Self {
         Self::from_mesh(&row.visuals.mesh) + Self::from_slice(&row.glyphs)
     }
 
@@ -217,8 +213,8 @@ impl PaintStats {
                 self.shape_text += AllocInfo::from_galley(&text_shape.galley);
 
                 for row in &text_shape.galley.rows {
-                    self.text_shape_indices += AllocInfo::from_slice(&row.0.visuals.mesh.indices);
-                    self.text_shape_vertices += AllocInfo::from_slice(&row.0.visuals.mesh.vertices);
+                    self.text_shape_indices += AllocInfo::from_slice(&row.visuals.mesh.indices);
+                    self.text_shape_vertices += AllocInfo::from_slice(&row.visuals.mesh.vertices);
                 }
             }
             Shape::Mesh(mesh) => {
