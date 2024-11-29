@@ -24,6 +24,9 @@ pub enum UiKind {
     /// A bottom [`crate::TopBottomPanel`].
     BottomPanel,
 
+    /// A modal [`crate::Modal`].
+    Modal,
+
     /// A [`crate::Frame`].
     Frame,
 
@@ -75,6 +78,7 @@ impl UiKind {
             | Self::RightPanel
             | Self::TopPanel
             | Self::BottomPanel
+            | Self::Modal
             | Self::Frame
             | Self::ScrollArea
             | Self::Resize

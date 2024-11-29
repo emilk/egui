@@ -1,5 +1,5 @@
 use crate::{
-    Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiBuilder,
+    Area, Color32, Context, Frame, Id, InnerResponse, Order, Response, Sense, Ui, UiBuilder, UiKind,
 };
 use emath::{Align2, Vec2};
 
@@ -32,6 +32,7 @@ impl Modal {
     /// - order: foreground
     pub fn default_area(id: Id) -> Area {
         Area::new(id)
+            .kind(UiKind::Modal)
             .sense(Sense::hover())
             .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
             .order(Order::Foreground)
