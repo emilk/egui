@@ -733,6 +733,7 @@ impl GalleyCache {
         let mut left_max_rows = job.wrap.max_rows;
         let mut galleys = Vec::new();
         let mut text_left = job.text.as_str();
+        let mut first_row_min_height = job.first_row_min_height;
         loop {
             let end = text_left.find('\n').map_or(job.text.len(), |i| i + current);
             let start = current;
@@ -743,10 +744,15 @@ impl GalleyCache {
                     max_rows: left_max_rows,
                     ..job.wrap
                 },
+                sections: Vec::new(),
+                // Prevent an infinite recursion
+                break_on_newline: false,
                 halign: job.halign,
                 justify: job.justify,
-                ..Default::default()
+                first_row_min_height,
+                round_output_size_to_nearest_ui_point: job.round_output_size_to_nearest_ui_point,
             };
+            first_row_min_height = 0.0;
 
             while current < end {
                 let mut s = &job.sections[current_section];
@@ -785,9 +791,6 @@ impl GalleyCache {
             } else {
                 0.0
             };
-
-            // Prevent an infinite recursion
-            line_job.break_on_newline = false;
 
             let galley = self.layout(fonts, line_job);
             // This will prevent us from invalidating cache entries unnecessarily
