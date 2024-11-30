@@ -603,6 +603,9 @@ impl<'t> TextEdit<'t> {
 
                 if did_interact || response.clicked() {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
+
+                    let now = ui.ctx().input(|i| i.time);
+                    state.last_edit_time = now;
                 }
             }
         }
