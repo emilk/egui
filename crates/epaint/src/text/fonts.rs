@@ -730,7 +730,7 @@ impl GalleyCache {
     fn layout_multiline(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
         let pixels_per_point = fonts.pixels_per_point;
         let round_to_pixel =
-            move |point: emath::Pos2| (point * pixels_per_point).round() / pixels_per_point;
+            move |point: f32| (point * pixels_per_point).round() / pixels_per_point;
 
         let mut current_section = 0;
         let mut current = 0;
@@ -816,7 +816,8 @@ impl GalleyCache {
             }
 
             merged_galley.rows.extend(rows.map(|placed_row| {
-                let new_pos = round_to_pixel(placed_row.pos + current_offset);
+                let mut new_pos = placed_row.pos + current_offset;
+                new_pos.y = round_to_pixel(new_pos.y);
                 merged_galley.mesh_bounds = merged_galley
                     .mesh_bounds
                     .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));

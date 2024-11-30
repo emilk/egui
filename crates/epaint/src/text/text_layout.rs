@@ -1,4 +1,3 @@
-use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use emath::{pos2, vec2, Align, NumExt, Pos2, Rect, Vec2};
@@ -115,7 +114,6 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
             halign_and_justify_row(
                 point_scale,
                 Arc::get_mut(&mut placed_row.row).unwrap(),
-                &mut placed_row.pos,
                 job.halign,
                 job.wrap.max_width,
                 justify_row,
@@ -190,11 +188,6 @@ fn layout_section(
     }
 }
 
-/// We ignore y at this stage
-fn rect_from_x_range(x_range: RangeInclusive<f32>) -> Rect {
-    Rect::from_x_y_ranges(x_range, 0.0..=0.0)
-}
-
 // Ignores the Y coordinate.
 fn rows_from_paragraphs(
     paragraphs: Vec<Paragraph>,
@@ -222,23 +215,21 @@ fn rows_from_paragraphs(
                     size: vec2(0.0, paragraph.empty_paragraph_height),
                     ends_with_newline: !is_last_paragraph,
                 }),
-                pos: pos2(paragraph.cursor_x, 0.0),
+                pos: pos2(0.0, 0.0),
             });
         } else {
             let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
             if paragraph_max_x <= job.effective_wrap_width() {
                 // Early-out optimization: the whole paragraph fits on one row.
-                let paragraph_min_x = paragraph.glyphs[0].pos.x;
-                let rect = rect_from_x_range(paragraph_min_x..=paragraph_max_x);
                 rows.push(PlacedRow {
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: paragraph.glyphs,
                         visuals: Default::default(),
-                        size: rect.size(),
+                        size: vec2(paragraph_max_x, 0.0),
                         ends_with_newline: !is_last_paragraph,
                     }),
-                    pos: rect.min,
+                    pos: pos2(0.0, f32::NAN),
                 });
             } else {
                 line_break(&paragraph, job, &mut rows, elided);
@@ -283,16 +274,15 @@ fn line_break(
             {
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
                 // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
-                let rect = rect_from_x_range(first_row_indentation..=first_row_indentation);
                 out_rows.push(PlacedRow {
                     row: Arc::new(Row {
                         section_index_at_start: paragraph.section_index_at_start,
                         glyphs: vec![],
                         visuals: Default::default(),
-                        size: rect.size(),
+                        size: vec2(0.0, 0.0),
                         ends_with_newline: false,
                     }),
-                    pos: rect.min,
+                    pos: pos2(0.0, f32::NAN),
                 });
                 row_start_x += first_row_indentation;
                 first_row_indentation = 0.0;
@@ -308,19 +298,17 @@ fn line_break(
                     .collect();
 
                 let section_index_at_start = glyphs[0].section_index;
-                let paragraph_min_x = glyphs[0].pos.x;
                 let paragraph_max_x = glyphs.last().unwrap().max_x();
 
-                let rect = rect_from_x_range(paragraph_min_x..=paragraph_max_x);
                 out_rows.push(PlacedRow {
                     row: Arc::new(Row {
                         section_index_at_start,
                         glyphs,
                         visuals: Default::default(),
-                        size: rect.size(),
+                        size: vec2(paragraph_max_x, 0.0),
                         ends_with_newline: false,
                     }),
-                    pos: rect.min,
+                    pos: pos2(0.0, f32::NAN),
                 });
 
                 // Start a new row:
@@ -354,16 +342,15 @@ fn line_break(
             let paragraph_min_x = glyphs[0].pos.x;
             let paragraph_max_x = glyphs.last().unwrap().max_x();
 
-            let rect = rect_from_x_range(paragraph_min_x..=paragraph_max_x);
             out_rows.push(PlacedRow {
                 row: Arc::new(Row {
                     section_index_at_start,
                     glyphs,
                     visuals: Default::default(),
-                    size: rect.size(),
+                    size: vec2(paragraph_max_x - paragraph_min_x, 0.0),
                     ends_with_newline: false,
                 }),
-                pos: rect.min,
+                pos: pos2(paragraph_min_x, 0.0),
             });
         }
     }
@@ -526,7 +513,6 @@ fn replace_last_glyph_with_overflow_character(
 fn halign_and_justify_row(
     point_scale: PointScale,
     row: &mut Row,
-    pos: &mut Pos2,
     halign: Align,
     wrap_width: f32,
     justify: bool,
@@ -609,8 +595,7 @@ fn halign_and_justify_row(
         }
     }
 
-    // Note we ignore the leading/trailing whitespace here!
-    pos.x = target_min_x;
+    // Note we **don't** ignore the leading/trailing whitespace here!
     row.size.x = target_max_x - target_min_x;
 }
 
@@ -647,10 +632,6 @@ fn galley_from_rows(
                 // When mixing different `FontImpl` (e.g. latin and emojis),
                 // we always center the difference:
                 + 0.5 * (glyph.font_height - glyph.font_impl_height);
-
-            // FIXME(afishhh): HACK! change the proper code above instead!!
-            //                 this should probably not be merged like this!
-            glyph.pos.x -= placed_row.pos.x;
         }
 
         placed_row.pos.y = cursor_y;
