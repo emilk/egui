@@ -220,9 +220,9 @@ fn rows_from_paragraphs(
                     glyphs: vec![],
                     visuals: Default::default(),
                     size: vec2(0.0, paragraph.empty_paragraph_height),
+                    ends_with_newline: !is_last_paragraph,
                 }),
                 pos: pos2(paragraph.cursor_x, 0.0),
-                ends_with_newline: !is_last_paragraph,
             });
         } else {
             let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
@@ -236,13 +236,15 @@ fn rows_from_paragraphs(
                         glyphs: paragraph.glyphs,
                         visuals: Default::default(),
                         size: rect.size(),
+                        ends_with_newline: !is_last_paragraph,
                     }),
                     pos: rect.min,
-                    ends_with_newline: !is_last_paragraph,
                 });
             } else {
                 line_break(&paragraph, job, &mut rows, elided);
-                rows.last_mut().unwrap().ends_with_newline = !is_last_paragraph;
+                let placed_row = rows.last_mut().unwrap();
+                let row = Arc::get_mut(&mut placed_row.row).unwrap();
+                row.ends_with_newline = !is_last_paragraph;
             }
         }
     }
@@ -288,9 +290,9 @@ fn line_break(
                         glyphs: vec![],
                         visuals: Default::default(),
                         size: rect.size(),
+                        ends_with_newline: false,
                     }),
                     pos: rect.min,
-                    ends_with_newline: false,
                 });
                 row_start_x += first_row_indentation;
                 first_row_indentation = 0.0;
@@ -316,9 +318,9 @@ fn line_break(
                         glyphs,
                         visuals: Default::default(),
                         size: rect.size(),
+                        ends_with_newline: false,
                     }),
                     pos: rect.min,
-                    ends_with_newline: false,
                 });
 
                 // Start a new row:
@@ -359,9 +361,9 @@ fn line_break(
                     glyphs,
                     visuals: Default::default(),
                     size: rect.size(),
+                    ends_with_newline: false,
                 }),
                 pos: rect.min,
-                ends_with_newline: false,
             });
         }
     }

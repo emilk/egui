@@ -546,13 +546,6 @@ pub struct PlacedRow {
 
     /// The position of this [`Row`] relative to the galley.
     pub pos: Pos2,
-
-    /// If true, this [`PlacedRow`] came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`Row::glyphs`].
-    /// A `\n` in the input text always creates a new [`PlacedRow`] below it,
-    /// so that text that ends with `\n` has an empty [`PlacedRow`] last.
-    /// This also implies that the last [`PlacedRow`] in a [`Galley`] always has `ends_with_newline == false`.
-    pub ends_with_newline: bool,
 }
 
 impl PlacedRow {
@@ -586,6 +579,13 @@ pub struct Row {
 
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
+
+    /// If true, this [`Row`] came from a paragraph ending with a `\n`.
+    /// The `\n` itself is omitted from [`glyphs`].
+    /// A `\n` in the input text always creates a new [`Row`] below it,
+    /// so that text that ends with `\n` has an empty [`Row`] last.
+    /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.
+    pub ends_with_newline: bool,
 }
 
 /// The tessellated output of a row.

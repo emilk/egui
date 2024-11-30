@@ -739,7 +739,9 @@ impl GalleyCache {
         let mut text_left = job.text.as_str();
         let mut first_row_min_height = job.first_row_min_height;
         loop {
-            let end = text_left.find('\n').map_or(job.text.len(), |i| i + current);
+            let end = text_left
+                .find('\n')
+                .map_or(job.text.len(), |i| i + current + 1);
             let start = current;
 
             let mut line_job = LayoutJob {
@@ -749,8 +751,7 @@ impl GalleyCache {
                     ..job.wrap
                 },
                 sections: Vec::new(),
-                // Prevent an infinite recursion
-                break_on_newline: false,
+                break_on_newline: true,
                 halign: job.halign,
                 justify: job.justify,
                 first_row_min_height,
@@ -782,28 +783,14 @@ impl GalleyCache {
                 current = section_end;
             }
 
-            // If the current line is empty, add an extra offset to make sure it's not omitted
-            // because the resulting galley will have a height of zero.
-            let extra_y_offset = if start == end && end != job.text.len() {
-                while job.sections[current_section].byte_range.end == end {
-                    current_section += 1;
-                }
-                let format = &job.sections[current_section].format;
-                format
-                    .line_height
-                    .unwrap_or(fonts.row_height(&format.font_id))
-            } else {
-                0.0
-            };
-
-            let galley = self.layout(fonts, line_job);
+            let galley = self.layout_component_line(fonts, line_job);
             // This will prevent us from invalidating cache entries unnecessarily
             if left_max_rows != usize::MAX {
                 left_max_rows -= galley.rows.len();
             }
-            galleys.push((galley, extra_y_offset));
+            galleys.push(galley);
 
-            current = end + 1;
+            current = end;
             if current >= job.text.len() {
                 break;
             } else {
@@ -822,29 +809,30 @@ impl GalleyCache {
             pixels_per_point: fonts.pixels_per_point,
         };
 
-        for (galley, extra_y_offset) in galleys {
+        for (i, galley) in galleys.iter().enumerate() {
             let current_offset = emath::vec2(0.0, merged_galley.rect.height());
-            merged_galley
-                .rows
-                .extend(galley.rows.iter().map(|placed_row| {
-                    let new_pos = placed_row.pos + current_offset;
-                    merged_galley.mesh_bounds = merged_galley
-                        .mesh_bounds
-                        .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
 
-                    super::PlacedRow {
-                        row: placed_row.row.clone(),
-                        pos: round_to_pixel(new_pos),
-                        ends_with_newline: placed_row.ends_with_newline,
-                    }
-                }));
-            if let Some(last) = merged_galley.rows.last_mut() {
-                last.ends_with_newline = true;
+            let mut rows = galley.rows.iter();
+            if i != galleys.len() - 1 && !galley.elided {
+                let popped = rows.next_back();
+                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0);
             }
-            merged_galley.rect = merged_galley
-                .rect
-                .union(galley.rect.translate(current_offset));
-            merged_galley.rect.max.y += extra_y_offset;
+
+            merged_galley.rows.extend(rows.map(|placed_row| {
+                let new_pos = round_to_pixel(placed_row.pos + current_offset);
+                merged_galley.mesh_bounds = merged_galley
+                    .mesh_bounds
+                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
+                merged_galley.rect = merged_galley
+                    .rect
+                    .union(emath::Rect::from_min_size(new_pos, placed_row.size));
+
+                super::PlacedRow {
+                    row: placed_row.row.clone(),
+                    pos: new_pos,
+                }
+            }));
+
             merged_galley.num_vertices += galley.num_vertices;
             merged_galley.num_indices += galley.num_indices;
             if galley.elided {
@@ -853,11 +841,28 @@ impl GalleyCache {
             }
         }
 
-        if let Some(last) = merged_galley.rows.last_mut() {
-            last.ends_with_newline = false;
-        }
-
         merged_galley
+    }
+
+    fn layout_component_line(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
+        let hash = crate::util::hash(&job);
+
+        match self.cache.entry(hash) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                let cached = entry.into_mut();
+                cached.last_used = self.generation;
+                cached.galley.clone()
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let galley = super::layout(fonts, job.into());
+                let galley = Arc::new(galley);
+                entry.insert(CachedGalley {
+                    last_used: self.generation,
+                    galley: galley.clone(),
+                });
+                galley
+            }
+        }
     }
 
     fn layout(&mut self, fonts: &mut FontsImpl, mut job: LayoutJob) -> Arc<Galley> {
