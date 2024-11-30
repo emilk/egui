@@ -728,6 +728,10 @@ struct GalleyCache {
 
 impl GalleyCache {
     fn layout_multiline(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
+        let pixels_per_point = fonts.pixels_per_point;
+        let round_to_pixel =
+            move |point: emath::Pos2| (point * pixels_per_point).round() / pixels_per_point;
+
         let mut current_section = 0;
         let mut current = 0;
         let mut left_max_rows = job.wrap.max_rows;
@@ -830,7 +834,7 @@ impl GalleyCache {
 
                     super::PlacedRow {
                         row: placed_row.row.clone(),
-                        pos: new_pos,
+                        pos: round_to_pixel(new_pos),
                         ends_with_newline: placed_row.ends_with_newline,
                     }
                 }));
