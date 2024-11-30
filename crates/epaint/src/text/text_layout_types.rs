@@ -693,6 +693,12 @@ impl Row {
         self.glyphs.len()
     }
 
+    /// Includes the implicit `\n` after the [`Row`], if any.
+    #[inline]
+    pub fn char_count_including_newline(&self) -> usize {
+        self.glyphs.len() + (self.ends_with_newline as usize)
+    }
+
     /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {
@@ -711,15 +717,14 @@ impl Row {
             self.size.x
         }
     }
+
+    #[inline]
+    pub fn height(&self) -> f32 {
+        self.size.y
+    }
 }
 
 impl PlacedRow {
-    /// Includes the implicit `\n` after the [`Row`], if any.
-    #[inline]
-    pub fn char_count_including_newline(&self) -> usize {
-        self.glyphs.len() + (self.ends_with_newline as usize)
-    }
-
     #[inline]
     pub fn min_y(&self) -> f32 {
         self.rect().top()
@@ -728,11 +733,6 @@ impl PlacedRow {
     #[inline]
     pub fn max_y(&self) -> f32 {
         self.rect().bottom()
-    }
-
-    #[inline]
-    pub fn height(&self) -> f32 {
-        self.row.size.y
     }
 }
 
