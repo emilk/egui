@@ -772,6 +772,20 @@ impl GalleyCache {
                 current = section_end;
             }
 
+            // If the current line is empty, add an extra offset to make sure it's not omitted
+            // because the resulting galley will have a height of zero.
+            let extra_y_offset = if start == end && end != job.text.len() {
+                while job.sections[current_section].byte_range.end == end {
+                    current_section += 1;
+                }
+                let format = &job.sections[current_section].format;
+                format
+                    .line_height
+                    .unwrap_or(fonts.row_height(&format.font_id))
+            } else {
+                0.0
+            };
+
             // Prevent an infinite recursion
             line_job.break_on_newline = false;
 
@@ -780,7 +794,7 @@ impl GalleyCache {
             if left_max_rows != usize::MAX {
                 left_max_rows -= galley.rows.len();
             }
-            galleys.push(galley);
+            galleys.push((galley, extra_y_offset));
 
             current = end + 1;
             if current >= job.text.len() {
@@ -801,7 +815,7 @@ impl GalleyCache {
             pixels_per_point: fonts.pixels_per_point,
         };
 
-        for galley in galleys {
+        for (galley, extra_y_offset) in galleys {
             let current_offset = emath::vec2(0.0, merged_galley.rect.height());
             merged_galley
                 .rows
@@ -823,6 +837,7 @@ impl GalleyCache {
             merged_galley.rect = merged_galley
                 .rect
                 .union(galley.rect.translate(current_offset));
+            merged_galley.rect.max.y += extra_y_offset;
             merged_galley.num_vertices += galley.num_vertices;
             merged_galley.num_indices += galley.num_indices;
             if galley.elided {
