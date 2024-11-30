@@ -736,10 +736,9 @@ impl GalleyCache {
         let mut current = 0;
         let mut left_max_rows = job.wrap.max_rows;
         let mut galleys = Vec::new();
-        let mut text_left = job.text.as_str();
         let mut first_row_min_height = job.first_row_min_height;
-        loop {
-            let end = text_left
+        while current != job.text.len() {
+            let end = job.text[current..]
                 .find('\n')
                 .map_or(job.text.len(), |i| i + current + 1);
             let start = current;
@@ -791,11 +790,6 @@ impl GalleyCache {
             galleys.push(galley);
 
             current = end;
-            if current >= job.text.len() {
-                break;
-            } else {
-                text_left = &job.text[current..];
-            }
         }
 
         let mut merged_galley = Galley {
