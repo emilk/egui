@@ -841,6 +841,13 @@ impl GalleyCache {
             }
         }
 
+        if merged_galley.job.round_output_size_to_nearest_ui_point {
+            super::round_output_size_to_nearest_ui_point(
+                &mut merged_galley.rect,
+                &merged_galley.job,
+            );
+        }
+
         merged_galley
     }
 

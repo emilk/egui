@@ -679,20 +679,7 @@ fn galley_from_rows(
     let mut rect = Rect::from_min_max(pos2(min_x, 0.0), pos2(max_x, cursor_y));
 
     if job.round_output_size_to_nearest_ui_point {
-        let did_exceed_wrap_width_by_a_lot = rect.width() > job.wrap.max_width + 1.0;
-
-        // We round the size to whole ui points here (not pixels!) so that the egui layout code
-        // can have the advantage of working in integer units, avoiding rounding errors.
-        rect.min = rect.min.round();
-        rect.max = rect.max.round();
-
-        if did_exceed_wrap_width_by_a_lot {
-            // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
-            // we should let the user know by reporting that our width is wider than the wrap width.
-        } else {
-            // Make sure we don't report being wider than the wrap width the user picked:
-            rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width).floor();
-        }
+        round_output_size_to_nearest_ui_point(&mut rect, &job);
     }
 
     Galley {
@@ -704,6 +691,23 @@ fn galley_from_rows(
         num_vertices,
         num_indices,
         pixels_per_point: point_scale.pixels_per_point,
+    }
+}
+
+pub(crate) fn round_output_size_to_nearest_ui_point(rect: &mut Rect, job: &LayoutJob) {
+    let did_exceed_wrap_width_by_a_lot = rect.width() > job.wrap.max_width + 1.0;
+
+    // We round the size to whole ui points here (not pixels!) so that the egui layout code
+    // can have the advantage of working in integer units, avoiding rounding errors.
+    rect.min = rect.min.round();
+    rect.max = rect.max.round();
+
+    if did_exceed_wrap_width_by_a_lot {
+        // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
+        // we should let the user know by reporting that our width is wider than the wrap width.
+    } else {
+        // Make sure we don't report being wider than the wrap width the user picked:
+        rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width).floor();
     }
 }
 
