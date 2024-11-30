@@ -604,8 +604,7 @@ impl<'t> TextEdit<'t> {
                 if did_interact || response.clicked() {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
 
-                    let now = ui.ctx().input(|i| i.time);
-                    state.last_edit_time = now;
+                    state.last_interaction_time = ui.ctx().input(|i| i.time);
                 }
             }
         }
@@ -749,7 +748,7 @@ impl<'t> TextEdit<'t> {
                     if text.is_mutable() && interactive {
                         let now = ui.ctx().input(|i| i.time);
                         if response.changed || selection_changed {
-                            state.last_edit_time = now;
+                            state.last_interaction_time = now;
                         }
 
                         // Only show (and blink) cursor if the egui viewport has focus.
@@ -762,7 +761,7 @@ impl<'t> TextEdit<'t> {
                                 ui,
                                 &painter,
                                 primary_cursor_rect,
-                                now - state.last_edit_time,
+                                now - state.last_interaction_time,
                             );
                         }
 
