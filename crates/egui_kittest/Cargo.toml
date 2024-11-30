@@ -22,10 +22,15 @@ wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image"]
 # Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "image/png"]
 
+# Allows debugging tests via eframe.
+run_with_eframe = ["dep:eframe"]
+
+default = ["eframe?/wgpu"]
 
 [dependencies]
 kittest.workspace = true
 egui = { workspace = true, features = ["accesskit"] }
+eframe = { workspace = true, features = ["accesskit"], optional = true }
 
 # wgpu dependencies
 egui-wgpu = { workspace = true, optional = true }
