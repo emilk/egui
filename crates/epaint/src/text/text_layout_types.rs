@@ -581,7 +581,7 @@ pub struct Row {
     pub visuals: RowVisuals,
 
     /// If true, this [`Row`] came from a paragraph ending with a `\n`.
-    /// The `\n` itself is omitted from [`glyphs`].
+    /// The `\n` itself is omitted from [`Self::glyphs`].
     /// A `\n` in the input text always creates a new [`Row`] below it,
     /// so that text that ends with `\n` has an empty [`Row`] last.
     /// This also implies that the last [`Row`] in a [`Galley`] always has `ends_with_newline == false`.

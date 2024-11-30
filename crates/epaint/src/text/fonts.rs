@@ -807,6 +807,9 @@ impl GalleyCache {
             let current_offset = emath::vec2(0.0, merged_galley.rect.height());
 
             let mut rows = galley.rows.iter();
+            // As documented in `Row::ends_with_newline`, a '\n' will always create a
+            // new `Row` immediately below the current one. Here it doesn't make sense
+            // for us to append this new row so we just ignore it.
             if i != galleys.len() - 1 && !galley.elided {
                 let popped = rows.next_back();
                 debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0);
