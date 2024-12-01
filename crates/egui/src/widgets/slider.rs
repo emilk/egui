@@ -1030,7 +1030,7 @@ impl<'a> Widget for Slider<'a> {
 // Logarithmic sliders are allowed to include zero and infinity,
 // even though mathematically it doesn't make sense.
 
-use std::f64::INFINITY;
+const INFINITY: f64 = f64::INFINITY;
 
 /// When the user asks for an infinitely large range (e.g. logarithmic from zero),
 /// give a scale that this many orders of magnitude in size.

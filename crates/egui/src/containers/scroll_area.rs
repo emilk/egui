@@ -39,7 +39,7 @@ pub struct State {
     scroll_start_offset_from_top_left: [Option<f32>; 2],
 
     /// Is the scroll sticky. This is true while scroll handle is in the end position
-    /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
+    /// and remains that way until the user moves the `scroll_handle`. Once unstuck (false)
     /// it remains false until the scroll touches the end position, which reenables stickiness.
     scroll_stuck_to_end: Vec2b,
 

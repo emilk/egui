@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Maxim Osipenko <maxim1999max@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.79"
 publish = false
 
 [lints]
@@ -29,6 +29,4 @@ env_logger = { version = "0.10", default-features = false, features = [
 ] }
 # This is normally enabled by eframe/default, which is not being used here
 # because of accesskit, as mentioned above
-winit = { workspace = true, features = [
-    "default"
-] }
+winit = { workspace = true, features = ["default"] }
