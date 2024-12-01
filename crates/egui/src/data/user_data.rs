@@ -42,16 +42,33 @@ impl serde::Serialize for UserData {
     where
         S: serde::Serializer,
     {
-        ().serialize(serializer) // can't serialize an `Any`
+        serializer.serialize_none() // can't serialize an `Any`
     }
 }
 
 #[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for UserData {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Self::default()) // can't serialize an `Any`
+        struct UserDataVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for UserDataVisitor {
+            type Value = UserData;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a None value")
+            }
+
+            fn visit_none<E>(self) -> Result<UserData, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(UserData::default())
+            }
+        }
+
+        deserializer.deserialize_option(UserDataVisitor)
     }
 }
