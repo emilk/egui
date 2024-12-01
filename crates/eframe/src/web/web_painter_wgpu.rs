@@ -11,32 +11,6 @@ use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
 
 use super::web_painter::WebPainter;
 
-struct EguiWebWindow(u32);
-
-#[allow(unsafe_code)]
-impl HasWindowHandle for EguiWebWindow {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        // SAFETY: there is no lifetime here.
-        unsafe {
-            Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(
-                WebWindowHandle::new(self.0),
-            )))
-        }
-    }
-}
-
-#[allow(unsafe_code)]
-impl HasDisplayHandle for EguiWebWindow {
-    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
-        // SAFETY: there is no lifetime here.
-        unsafe {
-            Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(
-                WebDisplayHandle::new(),
-            )))
-        }
-    }
-}
-
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
     surface: wgpu::Surface<'static>,
