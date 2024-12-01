@@ -69,7 +69,7 @@ disallowed-types = [
 
 # Allow-list of words for markdown in docstrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
 doc-valid-idents = [
-    # You must also update the same list in the root `clippy.toml`!
+    # You must also update the same list in `scripts/clippy_wasm/clippy.toml`!
     "AccessKit",
     "WebGL",
     "WebGL1",

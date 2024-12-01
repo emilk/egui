@@ -1,13 +1,11 @@
-use raw_window_handle::{
-    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
-    RawWindowHandle, WebDisplayHandle, WebWindowHandle, WindowHandle,
-};
 use std::sync::Arc;
+
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use crate::WebOptions;
 use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
+
+use crate::WebOptions;
 
 use super::web_painter::WebPainter;
 
