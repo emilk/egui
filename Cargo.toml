@@ -261,12 +261,14 @@ zero_sized_map_values = "warn"
 
 # TODO(emilk): enable more of these lints:
 iter_over_hash_type = "allow"
-let_underscore_untyped = "allow"
 missing_assert_message = "allow"
 should_panic_without_expect = "allow"
 too_many_lines = "allow"
 unwrap_used = "allow"                 # TODO(emilk): We really wanna warn on this one
 
+# These are meh:
+assigning_clones = "allow"            # No please
+let_underscore_untyped = "allow"
 manual_range_contains = "allow"       # this one is just worse imho
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives

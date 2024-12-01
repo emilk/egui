@@ -1,4 +1,3 @@
-use std::f32::INFINITY;
 use std::fmt;
 
 use crate::{lerp, pos2, vec2, Div, Mul, Pos2, Rangef, Rot2, Vec2};
@@ -33,8 +32,8 @@ pub struct Rect {
 impl Rect {
     /// Infinite rectangle that contains every point.
     pub const EVERYTHING: Self = Self {
-        min: pos2(-INFINITY, -INFINITY),
-        max: pos2(INFINITY, INFINITY),
+        min: pos2(-f32::INFINITY, -f32::INFINITY),
+        max: pos2(f32::INFINITY, f32::INFINITY),
     };
 
     /// The inverse of [`Self::EVERYTHING`]: stretches from positive infinity to negative infinity.
@@ -53,8 +52,8 @@ impl Rect {
     /// assert_eq!(rect, Rect::from_min_max(pos2(0.0, 1.0), pos2(2.0, 3.0)))
     /// ```
     pub const NOTHING: Self = Self {
-        min: pos2(INFINITY, INFINITY),
-        max: pos2(-INFINITY, -INFINITY),
+        min: pos2(f32::INFINITY, f32::INFINITY),
+        max: pos2(-f32::INFINITY, -f32::INFINITY),
     };
 
     /// An invalid [`Rect`] filled with [`f32::NAN`].
