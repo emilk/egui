@@ -712,6 +712,11 @@ impl Ui {
         self.painter().layer_id()
     }
 
+    /// Returns the `FontId` corresponding to the given `TextStyle`.
+    pub fn text_style_font_id(&self, style: &TextStyle) -> FontId {
+        style.resolve(&self.style)
+    }
+
     /// The height of text of this text style
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
         self.fonts(|f| f.row_height(&style.resolve(self.style())))
