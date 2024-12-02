@@ -568,5 +568,4 @@ mod test {
             assert!(vn.is_normalized());
         }
     }
-
 }
