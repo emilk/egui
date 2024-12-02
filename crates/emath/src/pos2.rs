@@ -12,7 +12,6 @@ use crate::{lerp, Div, Mul, Vec2};
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
     /// How far to the right.
     pub x: f32,
@@ -336,4 +335,16 @@ impl fmt::Display for Pos2 {
         f.write_str("]")?;
         Ok(())
     }
+}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+mod bytemuck_impl {
+    use super::Pos2;
+    use bytemuck::{Pod, Zeroable};
+
+    // Safety: empty impl
+    unsafe impl Pod for Pos2 {}
+    // Safety: empty impl
+    unsafe impl Zeroable for Pos2 {}
 }
