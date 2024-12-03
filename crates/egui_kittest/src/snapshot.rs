@@ -53,6 +53,9 @@ impl SnapshotOptions {
 pub enum SnapshotError {
     /// Image did not match snapshot
     Diff {
+        /// Name of the test
+        name: String,
+
         /// Count of pixels that were different
         diff: i32,
 
@@ -72,6 +75,9 @@ pub enum SnapshotError {
 
     /// The size of the image did not match the snapshot
     SizeMismatch {
+        /// Name of the test
+        name: String,
+
         /// Expected size
         expected: (u32, u32),
 
@@ -92,10 +98,14 @@ pub enum SnapshotError {
 impl Display for SnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Diff { diff, diff_path } => {
+            Self::Diff {
+                name,
+                diff,
+                diff_path,
+            } => {
                 write!(
                     f,
-                    "Image did not match snapshot. Diff: {diff}, {diff_path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
+                    "'{name}' Image did not match snapshot. Diff: {diff}, {diff_path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
                 )
             }
             Self::OpenSnapshot { path, err } => match err {
@@ -111,10 +121,14 @@ impl Display for SnapshotError {
                     write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.")
                 }
             },
-            Self::SizeMismatch { expected, actual } => {
+            Self::SizeMismatch {
+                name,
+                expected,
+                actual,
+            } => {
                 write!(
                     f,
-                    "Image size did not match snapshot. Expected: {expected:?}, Actual: {actual:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
+                    "'{name}' Image size did not match snapshot. Expected: {expected:?}, Actual: {actual:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
                 )
             }
             Self::WriteSnapshot { path, err } => {
@@ -194,6 +208,7 @@ pub fn try_image_snapshot_options(
     if previous.dimensions() != current.dimensions() {
         maybe_update_snapshot(&path, current)?;
         return Err(SnapshotError::SizeMismatch {
+            name: name.to_owned(),
             expected: previous.dimensions(),
             actual: current.dimensions(),
         });
@@ -217,13 +232,16 @@ pub fn try_image_snapshot_options(
                 err,
             })?;
         maybe_update_snapshot(&path, current)?;
-        return Err(SnapshotError::Diff { diff, diff_path });
+        Err(SnapshotError::Diff {
+            name: name.to_owned(),
+            diff,
+            diff_path,
+        })
     } else {
         // Delete old diff if it exists
         std::fs::remove_file(diff_path).ok();
+        Ok(())
     }
-
-    Ok(())
 }
 
 /// Image snapshot test.
