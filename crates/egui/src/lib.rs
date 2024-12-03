@@ -393,6 +393,7 @@
 #![allow(clippy::manual_range_contains)]
 
 mod animation_manager;
+pub mod cache;
 pub mod containers;
 mod context;
 mod data;

@@ -1,9 +1,4 @@
-//! Computing the same thing each frame can be expensive,
-//! so often you want to save the result from the previous frame and reuse it.
-//!
-//! Enter [`FrameCache`]: it caches the results of a computation for one frame.
-//! If it is still used next frame, it is not recomputed.
-//! If it is not used next frame, it is evicted from the cache to save memory.
+use super::CacheTrait;
 
 /// Something that does an expensive computation that we want to cache
 /// to save us from recomputing it each frame.
@@ -74,17 +69,6 @@ impl<Value, Computer> FrameCache<Value, Computer> {
     }
 }
 
-#[allow(clippy::len_without_is_empty)]
-pub trait CacheTrait: 'static + Send + Sync {
-    /// Call once per frame to evict cache.
-    fn update(&mut self);
-
-    /// Number of values currently in the cache.
-    fn len(&self) -> usize;
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
-}
-
 impl<Value: 'static + Send + Sync, Computer: 'static + Send + Sync> CacheTrait
     for FrameCache<Value, Computer>
 {
@@ -98,67 +82,5 @@ impl<Value: 'static + Send + Sync, Computer: 'static + Send + Sync> CacheTrait
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-/// ```
-/// use egui::util::cache::{CacheStorage, ComputerMut, FrameCache};
-///
-/// #[derive(Default)]
-/// struct CharCounter {}
-/// impl ComputerMut<&str, usize> for CharCounter {
-///     fn compute(&mut self, s: &str) -> usize {
-///         s.chars().count()
-///     }
-/// }
-/// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
-///
-/// # let mut cache_storage = CacheStorage::default();
-/// let mut cache = cache_storage.cache::<CharCountCache<'_>>();
-/// assert_eq!(cache.get("hello"), 5);
-/// ```
-#[derive(Default)]
-pub struct CacheStorage {
-    caches: ahash::HashMap<std::any::TypeId, Box<dyn CacheTrait>>,
-}
-
-impl CacheStorage {
-    pub fn cache<FrameCache: CacheTrait + Default>(&mut self) -> &mut FrameCache {
-        self.caches
-            .entry(std::any::TypeId::of::<FrameCache>())
-            .or_insert_with(|| Box::<FrameCache>::default())
-            .as_any_mut()
-            .downcast_mut::<FrameCache>()
-            .unwrap()
-    }
-
-    /// Total number of cached values
-    fn num_values(&self) -> usize {
-        self.caches.values().map(|cache| cache.len()).sum()
-    }
-
-    /// Call once per frame to evict cache.
-    pub fn update(&mut self) {
-        for cache in self.caches.values_mut() {
-            cache.update();
-        }
-    }
-}
-
-impl Clone for CacheStorage {
-    fn clone(&self) -> Self {
-        // We return an empty cache that can be filled in again.
-        Self::default()
-    }
-}
-
-impl std::fmt::Debug for CacheStorage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "FrameCacheStorage[{} caches with {} elements]",
-            self.caches.len(),
-            self.num_values()
-        )
     }
 }
