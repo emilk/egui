@@ -736,7 +736,7 @@ impl Focus {
 
         let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
 
-        let mut best_score = std::f32::INFINITY;
+        let mut best_score = f32::INFINITY;
         let mut best_id = None;
 
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {

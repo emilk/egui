@@ -14,7 +14,7 @@ impl EventLoopGuard {
                 cell.get().is_none(),
                 "Attempted to set a new event loop while one is already set"
             );
-            cell.set(Some(event_loop as *const ActiveEventLoop));
+            cell.set(Some(std::ptr::from_ref::<ActiveEventLoop>(event_loop)));
         });
         Self
     }

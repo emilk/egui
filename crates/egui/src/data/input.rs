@@ -529,6 +529,10 @@ pub enum Event {
     /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
     Screenshot {
         viewport_id: crate::ViewportId,
+
+        /// Whatever was passed to [`crate::ViewportCommand::Screenshot`].
+        user_data: crate::UserData,
+
         image: std::sync::Arc<ColorImage>,
     },
 }
