@@ -500,8 +500,8 @@ struct Prepared {
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
 
-    /// If there was a scroll target before the ScrollArea was added this frame, it's
-    /// not for us to handle so we save it and restore it after this ScrollArea is done.
+    /// If there was a scroll target before the [`ScrollArea`] was added this frame, it's
+    /// not for us to handle so we save it and restore it after this [`ScrollArea`] is done.
     saved_scroll_target: [Option<pass_state::ScrollTarget>; 2],
 
     animated: bool,
