@@ -13,7 +13,9 @@
 mod cache_storage;
 mod cache_trait;
 mod frame_cache;
+mod frame_publisher;
 
 pub use cache_storage::CacheStorage;
 pub use cache_trait::CacheTrait;
 pub use frame_cache::{ComputerMut, FrameCache};
+pub use frame_publisher::FramePublisher;
