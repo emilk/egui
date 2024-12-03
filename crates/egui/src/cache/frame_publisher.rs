@@ -27,7 +27,7 @@ impl<Key: Eq + Hash, Value> FramePublisher<Key, Value> {
         self.cache.insert(key, (self.generation, value));
     }
 
-    /// Retrieve a value if it was publiushed this or the previous frame.
+    /// Retrieve a value if it was published this or the previous frame.
     pub fn get(&self, key: &Key) -> Option<&Value> {
         self.cache.get(key).map(|(_, value)| value)
     }
