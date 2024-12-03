@@ -426,7 +426,7 @@ mod tests {
 
             let result = harness.try_wgpu_snapshot_options(&format!("demos/{name}"), &options);
             if let Err(err) = result {
-                errors.push(err);
+                errors.push(err.to_string());
             }
         }
 
