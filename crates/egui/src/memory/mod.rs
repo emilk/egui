@@ -54,7 +54,7 @@ pub struct Memory {
     /// so as not to lock the UI thread.
     ///
     /// ```
-    /// use egui::util::cache::{ComputerMut, FrameCache};
+    /// use egui::cache::{ComputerMut, FrameCache};
     ///
     /// #[derive(Default)]
     /// struct CharCounter {}
@@ -72,7 +72,7 @@ pub struct Memory {
     /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub caches: crate::util::cache::CacheStorage,
+    pub caches: crate::cache::CacheStorage,
 
     // ------------------------------------------
     /// new fonts that will be applied at the start of the next frame
