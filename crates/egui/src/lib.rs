@@ -393,6 +393,7 @@
 #![allow(clippy::manual_range_contains)]
 
 mod animation_manager;
+pub mod cache;
 pub mod containers;
 mod context;
 mod data;
@@ -471,7 +472,7 @@ pub use self::{
         output::{
             self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
         },
-        Key,
+        Key, UserData,
     },
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,
