@@ -53,7 +53,7 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) singleline_offset: f32,
 
-    /// When did the user last press a key or click on the TextEdit.
+    /// When did the user last press a key or click on the `TextEdit`.
     /// Used to pause the cursor animation when typing.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) last_interaction_time: f64,
