@@ -95,26 +95,26 @@ impl Display for SnapshotError {
             Self::Diff { diff, diff_path } => {
                 write!(
                     f,
-                    "Image did not match snapshot. Diff: {diff}, {diff_path:?}"
+                    "Image did not match snapshot. Diff: {diff}, {diff_path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
                 )
             }
             Self::OpenSnapshot { path, err } => match err {
                 ImageError::IoError(io) => match io.kind() {
                     ErrorKind::NotFound => {
-                        write!(f, "Missing snapshot: {path:?}")
+                        write!(f, "Missing snapshot: {path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.")
                     }
                     err => {
-                        write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}")
+                        write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.")
                     }
                 },
                 err => {
-                    write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}")
+                    write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.")
                 }
             },
             Self::SizeMismatch { expected, actual } => {
                 write!(
                     f,
-                    "Image size did not match snapshot. Expected: {expected:?}, Actual: {actual:?}"
+                    "Image size did not match snapshot. Expected: {expected:?}, Actual: {actual:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
                 )
             }
             Self::WriteSnapshot { path, err } => {
