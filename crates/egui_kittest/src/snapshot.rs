@@ -95,6 +95,9 @@ pub enum SnapshotError {
     },
 }
 
+const HOW_TO_UPDATE_SCREENSHOTS: &str =
+    "Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.";
+
 impl Display for SnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -105,20 +108,20 @@ impl Display for SnapshotError {
             } => {
                 write!(
                     f,
-                    "'{name}' Image did not match snapshot. Diff: {diff}, {diff_path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
+                    "'{name}' Image did not match snapshot. Diff: {diff}, {diff_path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
                 )
             }
             Self::OpenSnapshot { path, err } => match err {
                 ImageError::IoError(io) => match io.kind() {
                     ErrorKind::NotFound => {
-                        write!(f, "Missing snapshot: {path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.")
+                        write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
                     }
                     err => {
-                        write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.")
+                        write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
                     }
                 },
                 err => {
-                    write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.")
+                    write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/master/CONTRIBUTING.md#making-a-pr")
                 }
             },
             Self::SizeMismatch {
@@ -128,7 +131,7 @@ impl Display for SnapshotError {
             } => {
                 write!(
                     f,
-                    "'{name}' Image size did not match snapshot. Expected: {expected:?}, Actual: {actual:?}. Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots."
+                    "'{name}' Image size did not match snapshot. Expected: {expected:?}, Actual: {actual:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
                 )
             }
             Self::WriteSnapshot { path, err } => {
