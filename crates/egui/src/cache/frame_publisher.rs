@@ -22,7 +22,7 @@ impl<Key: Eq + Hash, Value> FramePublisher<Key, Value> {
         }
     }
 
-    /// Publish the value. It will be available for the duration of the and the next frame.
+    /// Publish the value. It will be available for the duration of this and the next frame.
     pub fn set(&mut self, key: Key, value: Value) {
         self.cache.insert(key, (self.generation, value));
     }
@@ -36,7 +36,7 @@ impl<Key: Eq + Hash, Value> FramePublisher<Key, Value> {
     pub fn evict_cache(&mut self) {
         let current_generation = self.generation;
         self.cache.retain(|_key, cached| {
-            cached.0 == current_generation // only keep those that were used this frame
+            cached.0 == current_generation // only keep those that were published this frame
         });
         self.generation = self.generation.wrapping_add(1);
     }
