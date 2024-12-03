@@ -43,9 +43,10 @@ impl CacheStorage {
 
     /// Call once per frame to evict cache.
     pub fn update(&mut self) {
-        for cache in self.caches.values_mut() {
+        self.caches.retain(|_, cache| {
             cache.update();
-        }
+            cache.len() > 0
+        });
     }
 }
 
