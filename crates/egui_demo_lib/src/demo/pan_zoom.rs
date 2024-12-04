@@ -73,20 +73,29 @@ impl crate::View for PanZoom {
         for (i, (pos, callback)) in [
             (
                 egui::Pos2::new(0.0, 0.0),
-                Box::new(|ui: &mut egui::Ui, _: &mut Self| ui.button("top left!"))
-                    as Box<dyn Fn(&mut egui::Ui, &mut Self) -> egui::Response>,
+                Box::new(|ui: &mut egui::Ui, _: &mut Self| {
+                    ui.button("top left").on_hover_text("Normal tooltip")
+                }) as Box<dyn Fn(&mut egui::Ui, &mut Self) -> egui::Response>,
             ),
             (
                 egui::Pos2::new(0.0, 120.0),
-                Box::new(|ui: &mut egui::Ui, _| ui.button("bottom left?")),
+                Box::new(|ui: &mut egui::Ui, _| {
+                    ui.button("bottom left").on_hover_text("Normal tooltip")
+                }),
             ),
             (
                 egui::Pos2::new(120.0, 120.0),
-                Box::new(|ui: &mut egui::Ui, _| ui.button("right bottom :D")),
+                Box::new(|ui: &mut egui::Ui, _| {
+                    ui.button("right bottom")
+                        .on_hover_text_at_pointer("Tooltip at pointer")
+                }),
             ),
             (
                 egui::Pos2::new(120.0, 0.0),
-                Box::new(|ui: &mut egui::Ui, _| ui.button("right top ):")),
+                Box::new(|ui: &mut egui::Ui, _| {
+                    ui.button("right top")
+                        .on_hover_text_at_pointer("Tooltip at pointer")
+                }),
             ),
             (
                 egui::Pos2::new(60.0, 60.0),
