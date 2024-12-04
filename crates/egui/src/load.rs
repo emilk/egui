@@ -77,16 +77,19 @@ pub enum LoadError {
     /// Programmer error: There are no image loaders installed.
     NoImageLoaders,
 
-    /// A specific loader does not support this scheme, protocol or image format.
+    /// A specific loader does not support this scheme or protocol.
     NotSupported,
+
+    /// A specific loader does not support the format of the image.
+    FormatNotSupported { detected_format: Option<String> },
 
     /// Programmer error: Failed to find the bytes for this image because
     /// there was no [`BytesLoader`] supporting the scheme.
     NoMatchingBytesLoader,
 
     /// Programmer error: Failed to parse the bytes as an image because
-    /// there was no [`ImageLoader`] supporting the scheme.
-    NoMatchingImageLoader,
+    /// there was no [`ImageLoader`] supporting the format.
+    NoMatchingImageLoader { detected_format: Option<String> },
 
     /// Programmer error: no matching [`TextureLoader`].
     /// Because of the [`DefaultTextureLoader`], this error should never happen.
@@ -105,11 +108,14 @@ impl Display for LoadError {
 
             Self::NoMatchingBytesLoader => f.write_str("No matching BytesLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
 
-            Self::NoMatchingImageLoader => f.write_str("No matching ImageLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+            Self::NoMatchingImageLoader { detected_format: None } => f.write_str("No matching ImageLoader. Either no ImageLoader is installed or the image is corrupted / has an unsupported format."),
+            Self::NoMatchingImageLoader { detected_format: Some(detected_format) } => write!(f, "No matching ImageLoader for format: {detected_format:?}. Make sure you enabled the necessary features on the image crate."),
 
             Self::NoMatchingTextureLoader => f.write_str("No matching TextureLoader. Did you remove the default one?"),
 
             Self::NotSupported => f.write_str("Image scheme or URI not supported by this loader"),
+
+            Self::FormatNotSupported { detected_format } => write!(f, "Image format not supported by this loader: {detected_format:?}"),
 
             Self::Loading(message) => f.write_str(message),
         }
