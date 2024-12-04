@@ -758,11 +758,11 @@ impl State {
             physical_key
         );
 
-        // "Logical OR physical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
+        // "physical OR logical key" is a fallback mechanism for keyboard layouts without Latin characters: it lets them
         // emit events as if the corresponding keys from the Latin layout were pressed. In this case, clipboard shortcuts
         // are mapped to the physical keys that normally contain C, X, V, etc.
         // See also: https://github.com/emilk/egui/issues/3653
-        if let Some(active_key) = logical_key.or(physical_key) {
+        if let Some(active_key) = physical_key.or(logical_key) {
             if pressed {
                 if is_cut_command(self.egui_input.modifiers, active_key) {
                     self.egui_input.events.push(egui::Event::Cut);
@@ -1084,13 +1084,13 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Insert => Key::Insert,
         NamedKey::Escape => Key::Escape,
 
-        NamedKey::CapsLock => Key::CapsLock,
-        NamedKey::NumLock => Key::NumLock,
-        NamedKey::ScrollLock => Key::ScrollLock,
-
         NamedKey::Alt => Key::Alt,
         NamedKey::Control => Key::Control,
         NamedKey::Shift => Key::Shift,
+
+        NamedKey::CapsLock => Key::CapsLock,
+        NamedKey::NumLock => Key::NumLock,
+        NamedKey::ScrollLock => Key::ScrollLock,
 
         NamedKey::Cut => Key::Cut,
         NamedKey::Copy => Key::Copy,
@@ -1145,6 +1145,7 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
     use winit::keyboard::KeyCode;
 
     Some(match key {
+        // Commands:
         KeyCode::ArrowDown => Key::ArrowDown,
         KeyCode::ArrowLeft => Key::ArrowLeft,
         KeyCode::ArrowRight => Key::ArrowRight,
@@ -1162,16 +1163,20 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
 
-        KeyCode::CapsLock => Key::CapsLock,
-        KeyCode::NumLock => Key::NumLock,
-        KeyCode::ScrollLock => Key::ScrollLock,
-
         KeyCode::AltLeft => Key::Alt,
         KeyCode::AltRight => Key::AltRight,
         KeyCode::ControlLeft => Key::Control,
         KeyCode::ControlRight => Key::ControlRight,
         KeyCode::ShiftLeft => Key::Shift,
         KeyCode::ShiftRight => Key::ShiftRight,
+
+        KeyCode::CapsLock => Key::CapsLock,
+        KeyCode::NumLock => Key::NumLock,
+        KeyCode::ScrollLock => Key::ScrollLock,
+
+        KeyCode::Cut => Key::Cut,
+        KeyCode::Copy => Key::Copy,
+        KeyCode::Paste => Key::Paste,
 
         // Punctuation
         KeyCode::Space => Key::Space,
@@ -1186,9 +1191,6 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::Backquote => Key::Backtick,
         KeyCode::Quote => Key::Quote,
 
-        KeyCode::Cut => Key::Cut,
-        KeyCode::Copy => Key::Copy,
-        KeyCode::Paste => Key::Paste,
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
         KeyCode::NumpadAdd => Key::Plus,
         KeyCode::Equal => Key::Equals,
@@ -1321,7 +1323,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ActionRequested {
-    Screenshot,
+    Screenshot(egui::UserData),
     Cut,
     Copy,
     Paste,
@@ -1536,8 +1538,8 @@ fn process_viewport_command(
                 log::warn!("{command:?}: {err}");
             }
         }
-        ViewportCommand::Screenshot => {
-            actions_requested.insert(ActionRequested::Screenshot);
+        ViewportCommand::Screenshot(user_data) => {
+            actions_requested.insert(ActionRequested::Screenshot(user_data));
         }
         ViewportCommand::RequestCut => {
             actions_requested.insert(ActionRequested::Cut);
