@@ -1,8 +1,8 @@
 #![allow(clippy::needless_range_loop)]
 
 use crate::{
-    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, Context, Id, NumExt, Pos2, Rangef,
-    Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
+    emath, epaint, lerp, pass_state, pos2, remap, remap_clamp, vec2, Context, CursorIcon, Id,
+    NumExt, Pos2, Rangef, Rect, Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, Vec2b,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -178,6 +178,8 @@ pub struct ScrollArea {
     id_salt: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
+    on_hover_cursor: Option<CursorIcon>,
+    on_drag_cursor: Option<CursorIcon>,
 
     /// If false, we ignore scroll events.
     scrolling_enabled: bool,
@@ -231,6 +233,8 @@ impl ScrollArea {
             id_salt: None,
             offset_x: None,
             offset_y: None,
+            on_hover_cursor: None,
+            on_drag_cursor: None,
             scrolling_enabled: true,
             drag_to_scroll: true,
             stick_to_end: Vec2b::FALSE,
@@ -352,6 +356,30 @@ impl ScrollArea {
     #[inline]
     pub fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
         self.offset_x = Some(offset);
+        self
+    }
+
+    /// Set the cursor used when the mouse pointer is hovering over the [`ScrollArea`].
+    ///
+    /// Only applies if [`Self::drag_to_scroll`] is set to `true`.
+    ///
+    /// Any changes to the mouse cursor made within the contents of the [`ScrollArea`] will
+    /// override this setting.
+    #[inline]
+    pub fn on_hover_cursor(mut self, cursor: CursorIcon) -> Self {
+        self.on_hover_cursor = Some(cursor);
+        self
+    }
+
+    /// Set the cursor used when the [`ScrollArea`] is being dragged.
+    ///
+    /// Only applies if [`Self::drag_to_scroll`] is set to `true`.
+    ///
+    /// Any changes to the mouse cursor made within the contents of the [`ScrollArea`] will
+    /// override this setting.
+    #[inline]
+    pub fn on_drag_cursor(mut self, cursor: CursorIcon) -> Self {
+        self.on_drag_cursor = Some(cursor);
         self
     }
 
@@ -522,6 +550,8 @@ impl ScrollArea {
             id_salt,
             offset_x,
             offset_y,
+            on_hover_cursor,
+            on_drag_cursor,
             scrolling_enabled,
             drag_to_scroll,
             stick_to_end,
@@ -665,6 +695,19 @@ impl ScrollArea {
                         // the velocity, so we subtract it instead of adding it
                         state.offset[d] -= state.vel[d] * dt;
                         ctx.request_repaint();
+                    }
+                }
+            }
+
+            // Set the desired mouse cursors.
+            if let Some(response) = content_response_option {
+                if response.dragged() {
+                    if let Some(cursor) = on_drag_cursor {
+                        response.on_hover_cursor(cursor);
+                    }
+                } else if response.hovered() {
+                    if let Some(cursor) = on_hover_cursor {
+                        response.on_hover_cursor(cursor);
                     }
                 }
             }
