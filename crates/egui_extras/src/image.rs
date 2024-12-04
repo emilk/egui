@@ -190,8 +190,6 @@ impl RetainedImage {
 
 // ----------------------------------------------------------------------------
 
-use egui::load::LoadError;
-
 /// Load a (non-svg) image.
 ///
 /// Requires the "image" feature. You must also opt-in to the image formats you need
@@ -200,16 +198,18 @@ use egui::load::LoadError;
 /// # Errors
 /// On invalid image or unsupported image format.
 #[cfg(feature = "image")]
-pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, LoadError> {
+pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::load::LoadError> {
     crate::profile_function!();
     let image = image::load_from_memory(image_bytes).map_err(|err| match err {
         image::ImageError::Unsupported(err) => match err.kind() {
-            image::error::UnsupportedErrorKind::Format(format) => LoadError::FormatNotSupported {
-                detected_format: Some(format.to_string()),
-            },
-            _ => LoadError::Loading(err.to_string()),
+            image::error::UnsupportedErrorKind::Format(format) => {
+                egui::load::LoadError::FormatNotSupported {
+                    detected_format: Some(format.to_string()),
+                }
+            }
+            _ => egui::load::LoadError::Loading(err.to_string()),
         },
-        err => LoadError::Loading(err.to_string()),
+        err => egui::load::LoadError::Loading(err.to_string()),
     })?;
     let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
