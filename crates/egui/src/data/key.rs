@@ -25,11 +25,11 @@ pub enum Key {
     PageUp,
     PageDown,
 
-    Alt,
+    AltLeft,
     AltRight,
-    Control,
+    ControlLeft,
     ControlRight,
-    Shift,
+    ShiftLeft,
     ShiftRight,
 
     CapsLock,
@@ -213,11 +213,11 @@ impl Key {
         Self::PageUp,
         Self::PageDown,
         // Alt Ctrl Shift
-        Self::Alt,
+        Self::AltLeft,
         Self::AltRight,
-        Self::Control,
+        Self::ControlLeft,
         Self::ControlRight,
-        Self::Shift,
+        Self::ShiftLeft,
         Self::ShiftRight,
         // Lock
         Self::CapsLock,
@@ -352,11 +352,11 @@ impl Key {
             "NumLock" => Self::NumLock,
             "ScrollLock" => Self::ScrollLock,
 
-            "Alt" => Self::Alt,
+            "AltLeft" => Self::AltLeft,
             "AltRight" => Self::AltRight,
-            "Control" => Self::Control,
+            "ControlLeft" => Self::ControlLeft,
             "ControlRight" => Self::ControlRight,
-            "Shift" => Self::Shift,
+            "ShiftLeft" => Self::ShiftLeft,
             "ShiftRight" => Self::ShiftRight,
 
             "Copy" => Self::Copy,
@@ -512,11 +512,11 @@ impl Key {
             Self::NumLock => "NumLock",
             Self::ScrollLock => "ScrollLock",
 
-            Self::Alt => "Alt",
+            Self::AltLeft => "AltLeft",
             Self::AltRight => "AltRight",
-            Self::Control => "Control",
+            Self::ControlLeft => "ControlLeft",
             Self::ControlRight => "ControlRight",
-            Self::Shift => "Shift",
+            Self::ShiftLeft => "ShiftLeft",
             Self::ShiftRight => "ShiftRight",
 
             Self::Copy => "Copy",
