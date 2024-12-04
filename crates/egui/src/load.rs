@@ -100,7 +100,8 @@ pub enum LoadError {
 }
 
 impl LoadError {
-    pub fn size(&self) -> usize {
+    /// Returns the (approximate) size of the error message in bytes.
+    pub fn byte_size(&self) -> usize {
         match self {
             Self::FormatNotSupported { detected_format }
             | Self::NoMatchingImageLoader { detected_format } => {
