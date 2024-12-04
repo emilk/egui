@@ -161,6 +161,9 @@ impl<'a> Button<'a> {
     /// If true, the tint of the image is the same as the text color.
     ///
     /// This makes sense for images that are white, that should have the same color as the text color.
+    /// This will also make the icon color depend on hover state.
+    ///
+    /// Default: `false`.
     #[inline]
     pub fn image_tint_follows_text_color(mut self, image_tint_follows_text_color: bool) -> Self {
         self.image_tint_follows_text_color = image_tint_follows_text_color;
