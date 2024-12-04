@@ -1084,9 +1084,9 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Insert => Key::Insert,
         NamedKey::Escape => Key::Escape,
 
-        NamedKey::Alt => Key::Alt,
-        NamedKey::Control => Key::Control,
-        NamedKey::Shift => Key::Shift,
+        NamedKey::Alt => Key::AltLeft,
+        NamedKey::Control => Key::ControlLeft,
+        NamedKey::Shift => Key::ShiftLeft,
 
         NamedKey::CapsLock => Key::CapsLock,
         NamedKey::NumLock => Key::NumLock,
@@ -1163,11 +1163,11 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
 
-        KeyCode::AltLeft => Key::Alt,
+        KeyCode::AltLeft => Key::AltLeft,
         KeyCode::AltRight => Key::AltRight,
-        KeyCode::ControlLeft => Key::Control,
+        KeyCode::ControlLeft => Key::ControlLeft,
         KeyCode::ControlRight => Key::ControlRight,
-        KeyCode::ShiftLeft => Key::Shift,
+        KeyCode::ShiftLeft => Key::ShiftLeft,
         KeyCode::ShiftRight => Key::ShiftRight,
 
         KeyCode::CapsLock => Key::CapsLock,
