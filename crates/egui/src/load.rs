@@ -99,6 +99,19 @@ pub enum LoadError {
     Loading(String),
 }
 
+impl LoadError {
+    pub fn size(&self) -> usize {
+        match self {
+            Self::FormatNotSupported { detected_format }
+            | Self::NoMatchingImageLoader { detected_format } => {
+                detected_format.as_ref().map_or(0, |s| s.len())
+            }
+            Self::Loading(message) => message.len(),
+            _ => std::mem::size_of::<Self>(),
+        }
+    }
+}
+
 impl Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

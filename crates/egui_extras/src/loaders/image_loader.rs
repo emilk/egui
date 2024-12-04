@@ -105,7 +105,7 @@ impl ImageLoader for ImageCrateLoader {
             .values()
             .map(|result| match result {
                 Ok(image) => image.pixels.len() * size_of::<egui::Color32>(),
-                Err(err) => 0,
+                Err(err) => err.size(),
             })
             .sum()
     }
