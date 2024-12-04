@@ -20,13 +20,13 @@ fn main() {
 
     let mut harness = Harness::builder().with_size(egui::Vec2::new(200.0, 100.0)).build(app);
     
-    let checkbox = harness.get_by_name("Check me!");
+    let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::False));
     checkbox.click();
     
     harness.run();
 
-    let checkbox = harness.get_by_name("Check me!");
+    let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::True));
 
     // You can even render the ui and do image snapshot tests

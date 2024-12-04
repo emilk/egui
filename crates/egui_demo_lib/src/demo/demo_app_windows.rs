@@ -33,6 +33,7 @@ impl Default for Demos {
             Box::<super::highlighting::Highlighting>::default(),
             Box::<super::interactive_container::InteractiveContainerDemo>::default(),
             Box::<super::MiscDemoWindow>::default(),
+            Box::<super::modals::Modals>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
             Box::<super::pan_zoom::PanZoom>::default(),
@@ -409,7 +410,7 @@ mod tests {
 
             let window = harness.node().children().next().unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
-            //let window = harness.get_by_name(name);
+            //let window = harness.get_by_label(name);
 
             let size = window.raw_bounds().expect("window bounds").size();
             harness.set_size(Vec2::new(size.width as f32, size.height as f32));
@@ -425,7 +426,7 @@ mod tests {
 
             let result = harness.try_wgpu_snapshot_options(&format!("demos/{name}"), &options);
             if let Err(err) = result {
-                errors.push(err);
+                errors.push(err.to_string());
             }
         }
 

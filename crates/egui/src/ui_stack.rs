@@ -24,6 +24,9 @@ pub enum UiKind {
     /// A bottom [`crate::TopBottomPanel`].
     BottomPanel,
 
+    /// A modal [`crate::Modal`].
+    Modal,
+
     /// A [`crate::Frame`].
     Frame,
 
@@ -82,6 +85,7 @@ impl UiKind {
 
             Self::Window
             | Self::Menu
+            | Self::Modal
             | Self::Popup
             | Self::Tooltip
             | Self::Picker
@@ -226,6 +230,12 @@ impl UiStack {
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
         self.kind().map_or(false, |kind| kind.is_panel())
+    }
+
+    /// Is this [`crate::Ui`] an [`crate::Area`]?
+    #[inline]
+    pub fn is_area_ui(&self) -> bool {
+        self.kind().map_or(false, |kind| kind.is_area())
     }
 
     /// Is this a root [`crate::Ui`], i.e. created with [`crate::Ui::new()`]?
