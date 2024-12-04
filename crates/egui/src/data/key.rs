@@ -25,16 +25,16 @@ pub enum Key {
     PageUp,
     PageDown,
 
-    CapsLock,
-    NumLock,
-    ScrollLock,
-
     Alt,
     AltRight,
     Control,
     ControlRight,
     Shift,
     ShiftRight,
+
+    CapsLock,
+    NumLock,
+    ScrollLock,
 
     Copy,
     Cut,
@@ -66,7 +66,7 @@ pub enum Key {
     // `]`
     CloseBracket,
 
-    /// \`, also known as "backquote" or "grave"
+    /// Also known as "backquote" or "grave"
     Backtick,
 
     /// `-`
@@ -212,15 +212,18 @@ impl Key {
         Self::End,
         Self::PageUp,
         Self::PageDown,
-        Self::CapsLock,
-        Self::NumLock,
-        Self::ScrollLock,
+        // Alt Ctrl Shift
         Self::Alt,
         Self::AltRight,
         Self::Control,
         Self::ControlRight,
         Self::Shift,
         Self::ShiftRight,
+        // Lock
+        Self::CapsLock,
+        Self::NumLock,
+        Self::ScrollLock,
+        // Copy Cut Paste
         Self::Copy,
         Self::Cut,
         Self::Paste,
