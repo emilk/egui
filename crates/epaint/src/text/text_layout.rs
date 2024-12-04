@@ -595,7 +595,7 @@ fn halign_and_justify_row(
         }
     }
 
-    // Note we **don't** ignore the leading/trailing whitespace here!
+    // Note we ignore the leading/trailing whitespace here!
     row.size.x = target_max_x - target_min_x;
 }
 

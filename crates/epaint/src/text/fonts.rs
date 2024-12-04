@@ -727,6 +727,65 @@ struct GalleyCache {
 }
 
 impl GalleyCache {
+    fn layout(&mut self, fonts: &mut FontsImpl, mut job: LayoutJob) -> Arc<Galley> {
+        if job.wrap.max_width.is_finite() {
+            // Protect against rounding errors in egui layout code.
+
+            // Say the user asks to wrap at width 200.0.
+            // The text layout wraps, and reports that the final width was 196.0 points.
+            // This then trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
+            // On the next frame, this is then set as the max width for the tooltip,
+            // and we end up calling the text layout code again, this time with a wrap width of 196.0.
+            // Except, somewhere in the `Ui` chain with added margins etc, a rounding error was introduced,
+            // so that we actually set a wrap-width of 195.9997 instead.
+            // Now the text that fit perfrectly at 196.0 needs to wrap one word earlier,
+            // and so the text re-wraps and reports a new width of 185.0 points.
+            // And then the cycle continues.
+
+            // So we limit max_width to integers.
+
+            // Related issues:
+            // * https://github.com/emilk/egui/issues/4927
+            // * https://github.com/emilk/egui/issues/4928
+            // * https://github.com/emilk/egui/issues/5084
+            // * https://github.com/emilk/egui/issues/5163
+
+            job.wrap.max_width = job.wrap.max_width.round();
+        }
+
+        let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
+
+        match self.cache.entry(hash) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                let cached = entry.into_mut();
+                cached.last_used = self.generation;
+                cached.galley.clone()
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                if job.break_on_newline {
+                    let galley = self.layout_multiline(fonts, job);
+                    let galley = Arc::new(galley);
+                    self.cache.insert(
+                        hash,
+                        CachedGalley {
+                            last_used: self.generation,
+                            galley: galley.clone(),
+                        },
+                    );
+                    galley
+                } else {
+                    let galley = super::layout(fonts, job.into());
+                    let galley = Arc::new(galley);
+                    entry.insert(CachedGalley {
+                        last_used: self.generation,
+                        galley: galley.clone(),
+                    });
+                    galley
+                }
+            }
+        }
+    }
+
     fn layout_multiline(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
         let pixels_per_point = fonts.pixels_per_point;
         let round_to_pixel =
@@ -866,65 +925,6 @@ impl GalleyCache {
                     galley: galley.clone(),
                 });
                 galley
-            }
-        }
-    }
-
-    fn layout(&mut self, fonts: &mut FontsImpl, mut job: LayoutJob) -> Arc<Galley> {
-        if job.wrap.max_width.is_finite() {
-            // Protect against rounding errors in egui layout code.
-
-            // Say the user asks to wrap at width 200.0.
-            // The text layout wraps, and reports that the final width was 196.0 points.
-            // This then trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
-            // On the next frame, this is then set as the max width for the tooltip,
-            // and we end up calling the text layout code again, this time with a wrap width of 196.0.
-            // Except, somewhere in the `Ui` chain with added margins etc, a rounding error was introduced,
-            // so that we actually set a wrap-width of 195.9997 instead.
-            // Now the text that fit perfrectly at 196.0 needs to wrap one word earlier,
-            // and so the text re-wraps and reports a new width of 185.0 points.
-            // And then the cycle continues.
-
-            // So we limit max_width to integers.
-
-            // Related issues:
-            // * https://github.com/emilk/egui/issues/4927
-            // * https://github.com/emilk/egui/issues/4928
-            // * https://github.com/emilk/egui/issues/5084
-            // * https://github.com/emilk/egui/issues/5163
-
-            job.wrap.max_width = job.wrap.max_width.round();
-        }
-
-        let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
-
-        match self.cache.entry(hash) {
-            std::collections::hash_map::Entry::Occupied(entry) => {
-                let cached = entry.into_mut();
-                cached.last_used = self.generation;
-                cached.galley.clone()
-            }
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                if job.break_on_newline {
-                    let galley = self.layout_multiline(fonts, job);
-                    let galley = Arc::new(galley);
-                    self.cache.insert(
-                        hash,
-                        CachedGalley {
-                            last_used: self.generation,
-                            galley: galley.clone(),
-                        },
-                    );
-                    galley
-                } else {
-                    let galley = super::layout(fonts, job.into());
-                    let galley = Arc::new(galley);
-                    entry.insert(CachedGalley {
-                        last_used: self.generation,
-                        galley: galley.clone(),
-                    });
-                    galley
-                }
             }
         }
     }
