@@ -417,7 +417,7 @@ impl Painter {
         }
     }
 
-    // CaptureState only needs to be updated when the size of the two textures don't match and we want to
+    // CaptureState only needs to be updated when the size of the two textures don't match, and we want to
     // capture a frame
     fn update_capture_state(
         screen_capture_state: &mut Option<CaptureState>,
