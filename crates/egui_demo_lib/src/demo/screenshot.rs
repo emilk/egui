@@ -11,7 +11,7 @@ pub struct Screenshot {
 
 impl crate::Demo for Screenshot {
     fn name(&self) -> &'static str {
-        "📸 Screenshot"
+        "📷 Screenshot"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
@@ -41,7 +41,7 @@ impl crate::View for Screenshot {
         });
 
         ui.horizontal_top(|ui| {
-            if ui.button("📸 Take Screenshot").clicked() {
+            if ui.button("📷 Take Screenshot").clicked() {
                 ui.ctx()
                     .send_viewport_cmd(ViewportCommand::Screenshot(UserData::default()));
             }
