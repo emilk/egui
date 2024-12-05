@@ -22,7 +22,8 @@ pub(crate) trait WebPainter {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
-    ) -> Result<(), JsValue>;
+        capture: bool,
+    ) -> Result<Option<egui::ColorImage>, JsValue>;
 
     /// Destroy all resources.
     fn destroy(&mut self);

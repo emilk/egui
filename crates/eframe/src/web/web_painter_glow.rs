@@ -46,7 +46,8 @@ impl WebPainter for WebPainterGlow {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
-    ) -> Result<(), JsValue> {
+        capture: bool,
+    ) -> Result<Option<egui::ColorImage>, JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
 
         for (id, image_delta) in &textures_delta.set {
@@ -61,7 +62,7 @@ impl WebPainter for WebPainterGlow {
             self.painter.free_texture(id);
         }
 
-        Ok(())
+        Ok(None)
     }
 
     fn destroy(&mut self) {

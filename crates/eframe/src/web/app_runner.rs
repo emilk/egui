@@ -1,4 +1,7 @@
-use egui::TexturesDelta;
+use egui::{TexturesDelta, UserData, ViewportCommand, ViewportId};
+use js_sys::Reflect::is_extensible;
+use std::mem;
+use std::sync::Arc;
 
 use crate::{epi, App};
 
@@ -15,6 +18,9 @@ pub struct AppRunner {
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
     pub(crate) text_agent: TextAgent,
+
+    // If not empty, the painter should capture the next frame
+    screenshot_commands: Vec<UserData>,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -110,6 +116,7 @@ impl AppRunner {
             needs_repaint,
             last_save_time: now_sec(),
             text_agent,
+            screenshot_commands: vec![],
             textures_delta: Default::default(),
             clipped_primitives: None,
         };
@@ -225,12 +232,19 @@ impl AppRunner {
         if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported on the web");
         }
-        for viewport_output in viewport_output.values() {
-            for command in &viewport_output.commands {
-                // TODO(emilk): handle some of the commands
-                log::warn!(
-                    "Unhandled egui viewport command: {command:?} - not implemented in web backend"
-                );
+        for (_viewport_id, viewport_output) in viewport_output {
+            for command in viewport_output.commands {
+                match command {
+                    ViewportCommand::Screenshot(user_data) => {
+                        self.screenshot_commands.push(user_data);
+                    }
+                    _ => {
+                        // TODO(emilk): handle some of the commands
+                        log::warn!(
+                            "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                        );
+                    }
+                }
             }
         }
 
@@ -244,14 +258,40 @@ impl AppRunner {
         let textures_delta = std::mem::take(&mut self.textures_delta);
         let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
+        let screenshot_requested = !self.screenshot_commands.is_empty();
+
         if let Some(clipped_primitives) = clipped_primitives {
-            if let Err(err) = self.painter.paint_and_update_textures(
+            match self.painter.paint_and_update_textures(
                 self.app.clear_color(&self.egui_ctx.style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
                 &textures_delta,
+                screenshot_requested,
             ) {
-                log::error!("Failed to paint: {}", super::string_from_js_value(&err));
+                Err(err) => {
+                    log::error!("Failed to paint: {}", super::string_from_js_value(&err));
+                }
+                Ok(screenshot) => match (screenshot_requested, screenshot) {
+                    (false, None) => {}
+                    (true, Some(screenshot)) => {
+                        let screenshot = Arc::new(screenshot);
+                        for user_data in mem::take(&mut self.screenshot_commands) {
+                            self.input.raw.events.push(egui::Event::Screenshot {
+                                viewport_id: ViewportId::default(),
+                                user_data,
+                                image: screenshot.clone(),
+                            });
+                        }
+                    }
+                    (true, None) => {
+                        log::error!(
+                            "Bug in eframe: screenshot requested, but no screenshot was taken"
+                        );
+                    }
+                    (false, Some(_)) => {
+                        log::warn!("Bug in eframe: Got screenshot without requesting it");
+                    }
+                },
             }
         }
     }
