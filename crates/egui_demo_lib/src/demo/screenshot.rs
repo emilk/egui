@@ -1,6 +1,4 @@
-use egui::{
-    Frame, Image, ImageSource, Label, RichText, Sense, UiBuilder, UserData, ViewportCommand, Widget,
-};
+use egui::{Image, UserData, ViewportCommand, Widget};
 use std::sync::Arc;
 
 /// Showcase [`egui::Ui::response`].
