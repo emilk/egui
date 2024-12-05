@@ -113,7 +113,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
             let justify_row = justify && !placed_row.ends_with_newline && !is_last_row;
             halign_and_justify_row(
                 point_scale,
-                Arc::get_mut(&mut placed_row.row).unwrap(),
+                placed_row,
                 job.halign,
                 job.wrap.max_width,
                 justify_row,
@@ -512,11 +512,13 @@ fn replace_last_glyph_with_overflow_character(
 /// Ignores the Y coordinate.
 fn halign_and_justify_row(
     point_scale: PointScale,
-    row: &mut Row,
+    placed_row: &mut PlacedRow,
     halign: Align,
     wrap_width: f32,
     justify: bool,
 ) {
+    let row = Arc::get_mut(&mut placed_row.row).unwrap();
+
     if row.glyphs.is_empty() {
         return;
     }
@@ -584,7 +586,8 @@ fn halign_and_justify_row(
             / (num_spaces_in_range as f32);
     }
 
-    let mut translate_x = target_min_x - original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
+    placed_row.pos.x = point_scale.round_to_pixel(target_min_x);
+    let mut translate_x = -original_min_x - extra_x_per_glyph * glyph_range.0 as f32;
 
     for glyph in &mut row.glyphs {
         glyph.pos.x += translate_x;
