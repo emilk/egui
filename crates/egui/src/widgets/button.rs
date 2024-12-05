@@ -158,7 +158,7 @@ impl<'a> Button<'a> {
         self
     }
 
-    /// If true, the tint of the image is the same as the text color.
+    /// If true, the tint of the image is multiplied by the widget text color.
     ///
     /// This makes sense for images that are white, that should have the same color as the text color.
     /// This will also make the icon color depend on hover state.
@@ -336,7 +336,7 @@ impl Widget for Button<'_> {
                 let tlr = image.load_for_size(ui.ctx(), image_size);
                 let mut image_options = image.image_options().clone();
                 if image_tint_follows_text_color {
-                    image_options.tint = visuals.text_color();
+                    image_options.tint = image_options.tint * visuals.text_color();
                 }
                 widgets::image::paint_texture_load_result(
                     ui,
