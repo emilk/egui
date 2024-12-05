@@ -75,9 +75,9 @@ pub(crate) struct WebPainterWgpu {
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
-    supports_capture: bool,
-    rx: mpsc::Receiver<(Vec<UserData>, ColorImage)>,
-    tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
+    capture_supported: bool,
+    capture_rx: mpsc::Receiver<(Vec<UserData>, ColorImage)>,
+    capture_tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
     ctx: egui::Context,
 }
 
@@ -144,6 +144,9 @@ impl WebPainterWgpu {
         data: Vec<UserData>,
         tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
     ) {
+        // It would be more efficient to reuse the Buffer, e.g. via some kind of ring buffer, but
+        // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
+        // it might make sense to revisit this and implement a more efficient solution.
         let buffer = Arc::new(render_state.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
             size: (screen_capture_state.padding.padded_bytes_per_row
@@ -152,10 +155,7 @@ impl WebPainterWgpu {
             mapped_at_creation: false,
         }));
         let padding = screen_capture_state.padding;
-        let CaptureState {
-            texture: tex,
-            padding: _,
-        } = screen_capture_state;
+        let tex = &mut screen_capture_state.texture;
 
         let device = &render_state.device;
         let queue = &render_state.queue;
@@ -188,9 +188,7 @@ impl WebPainterWgpu {
         let buffer_clone = buffer.clone();
         let buffer_slice = buffer_clone.slice(..);
         let format = tex.format();
-        let texture_size = tex.size();
         buffer_slice.map_async(wgpu::MapMode::Read, move |v| {
-            let buffer = buffer;
             let to_rgba = match format {
                 wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
                 wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
@@ -201,7 +199,7 @@ impl WebPainterWgpu {
             };
             let buffer_slice = buffer.slice(..);
 
-            let mut pixels = Vec::with_capacity((texture_size.width * texture_size.height) as usize);
+            let mut pixels = Vec::with_capacity((tex_extent.width * tex_extent.height) as usize);
             for padded_row in buffer_slice
                 .get_mapped_range()
                 .chunks(padding.padded_bytes_per_row as usize)
@@ -220,8 +218,8 @@ impl WebPainterWgpu {
 
             tx.send((
                 data,
-                epaint::ColorImage {
-                    size: [texture_size.width as usize, texture_size.height as usize],
+                ColorImage {
+                    size: [tex_extent.width as usize, tex_extent.height as usize],
                     pixels,
                 },
             )).ok();
@@ -302,11 +300,11 @@ impl WebPainterWgpu {
             .get_default_config(&render_state.adapter, 0, 0) // Width/height is set later.
             .ok_or("The surface isn't supported by this adapter")?;
 
-        let supports_capture = surface
+        let capture_supported = surface
             .get_capabilities(&render_state.adapter)
             .usages
             .contains(wgpu::TextureUsages::COPY_DST);
-        let usage = if supports_capture {
+        let usage = if capture_supported {
             default_configuration.usage | wgpu::TextureUsages::COPY_DST
         } else {
             default_configuration.usage
@@ -332,10 +330,10 @@ impl WebPainterWgpu {
             depth_format,
             depth_texture_view: None,
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
-            supports_capture,
+            capture_supported,
             screen_capture_state: None,
-            rx,
-            tx,
+            capture_rx: rx,
+            capture_tx: tx,
             ctx,
         })
     }
@@ -360,9 +358,9 @@ impl WebPainter for WebPainterWgpu {
         textures_delta: &egui::TexturesDelta,
         capture_data: Vec<UserData>,
     ) -> Result<(), JsValue> {
-        let capture = !capture_data.is_empty() && self.supports_capture;
+        let capture = !capture_data.is_empty() && self.capture_supported;
 
-        if !capture_data.is_empty() && !self.supports_capture {
+        if !capture_data.is_empty() && !self.capture_supported {
             log::warn!("Capture requested, but the surface doesn't support it. (Screenshots don't work with egui_wgpu and the wgpu gl backend)");
         }
 
@@ -526,7 +524,7 @@ impl WebPainter for WebPainterWgpu {
                     render_state,
                     frame.as_ref(),
                     capture_data,
-                    self.tx.clone(),
+                    self.capture_tx.clone(),
                 );
             }
         };
@@ -539,7 +537,7 @@ impl WebPainter for WebPainterWgpu {
     }
 
     fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        for (user_data, screenshot) in self.rx.try_iter() {
+        for (user_data, screenshot) in self.capture_rx.try_iter() {
             let screenshot = Arc::new(screenshot);
             for data in user_data {
                 events.push(Event::Screenshot {

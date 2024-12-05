@@ -1,7 +1,5 @@
-use egui::{TexturesDelta, UserData, ViewportCommand, ViewportId};
-use js_sys::Reflect::is_extensible;
+use egui::{TexturesDelta, UserData, ViewportCommand};
 use std::mem;
-use std::sync::Arc;
 
 use crate::{epi, App};
 
