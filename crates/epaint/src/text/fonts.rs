@@ -849,8 +849,17 @@ impl GalleyCache {
             // This will prevent us from invalidating cache entries unnecessarily
             if left_max_rows != usize::MAX {
                 left_max_rows -= galley.rows.len();
+                // Ignore extra trailing row, see merging counterpart below for more details.
+                if end < job.text.len() && !galley.elided {
+                    left_max_rows += 1;
+                }
             }
+
+            let elided = galley.elided;
             galleys.push(galley);
+            if elided {
+                break;
+            }
 
             current = end;
         }
@@ -896,10 +905,9 @@ impl GalleyCache {
 
             merged_galley.num_vertices += galley.num_vertices;
             merged_galley.num_indices += galley.num_indices;
-            if galley.elided {
-                merged_galley.elided = true;
-                break;
-            }
+            // Note that if `galley.elided` is true this will be the last `Galley` in
+            // the vector and the loop will end.
+            merged_galley.elided |= galley.elided;
         }
 
         if merged_galley.job.round_output_size_to_nearest_ui_point {
