@@ -19,7 +19,7 @@ impl crate::View for CursorTest {
         ui.vertical_centered_justified(|ui| {
             ui.heading("Hover to switch cursor icon:");
             for &cursor_icon in &egui::CursorIcon::ALL {
-                let _ = ui
+                _ = ui
                     .button(format!("{cursor_icon:?}"))
                     .on_hover_cursor(cursor_icon);
             }
