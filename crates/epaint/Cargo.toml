@@ -49,6 +49,13 @@ deadlock_detection = ["dep:backtrace"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["epaint_default_fonts"]
 
+## Disable text snapping to remove logic in text layout that rounds glyphs and kerning to
+## the nearest pixel. This is necessary to provide the sharpest text rendering with `ab_glyph`.
+## The side effect of such rounding is that text layout will likely be inconsistent across
+## different values of `pixel_per_point`. Disabling such "snapping" will make the text fuzzy,
+## but the layout will remain constant across `pixels_per_point`.
+disable_text_snapping = []
+
 ## Turn on the `log` feature, that makes egui log some errors using the [`log`](https://docs.rs/log) crate.
 log = ["dep:log"]
 
