@@ -3455,15 +3455,23 @@ impl Context {
             return Err(load::LoadError::NoImageLoaders);
         }
 
+        let mut format = None;
+
         // Try most recently added loaders first (hence `.rev()`)
         for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::FormatNotSupported { detected_format }) => {
+                    format = format.or(detected_format);
+                    continue;
+                }
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NoMatchingImageLoader)
+        Err(load::LoadError::NoMatchingImageLoader {
+            detected_format: format,
+        })
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.
