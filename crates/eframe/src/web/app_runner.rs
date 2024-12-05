@@ -42,7 +42,8 @@ impl AppRunner {
         app_creator: epi::AppCreator<'static>,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
-        let painter = super::ActiveWebPainter::new(canvas, &web_options).await?;
+        let egui_ctx = egui::Context::default();
+        let painter = super::ActiveWebPainter::new(egui_ctx.clone(), canvas, &web_options).await?;
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
@@ -53,7 +54,6 @@ impl AppRunner {
         };
         let storage = LocalStorage::default();
 
-        let egui_ctx = egui::Context::default();
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
             &super::user_agent().unwrap_or_default(),
         ));
@@ -212,6 +212,8 @@ impl AppRunner {
     pub fn logic(&mut self) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
+        // We might have received a screenshot
+        self.painter.handle_screenshots(&mut self.input.raw.events);
 
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
@@ -258,40 +260,15 @@ impl AppRunner {
         let textures_delta = std::mem::take(&mut self.textures_delta);
         let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
-        let screenshot_requested = !self.screenshot_commands.is_empty();
-
         if let Some(clipped_primitives) = clipped_primitives {
-            match self.painter.paint_and_update_textures(
+            if let Err(err) = self.painter.paint_and_update_textures(
                 self.app.clear_color(&self.egui_ctx.style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
                 &textures_delta,
-                screenshot_requested,
+                mem::take(&mut self.screenshot_commands),
             ) {
-                Err(err) => {
-                    log::error!("Failed to paint: {}", super::string_from_js_value(&err));
-                }
-                Ok(screenshot) => match (screenshot_requested, screenshot) {
-                    (false, None) => {}
-                    (true, Some(screenshot)) => {
-                        let screenshot = Arc::new(screenshot);
-                        for user_data in mem::take(&mut self.screenshot_commands) {
-                            self.input.raw.events.push(egui::Event::Screenshot {
-                                viewport_id: ViewportId::default(),
-                                user_data,
-                                image: screenshot.clone(),
-                            });
-                        }
-                    }
-                    (true, None) => {
-                        log::error!(
-                            "Bug in eframe: screenshot requested, but no screenshot was taken"
-                        );
-                    }
-                    (false, Some(_)) => {
-                        log::warn!("Bug in eframe: Got screenshot without requesting it");
-                    }
-                },
+                log::error!("Failed to paint: {}", super::string_from_js_value(&err));
             }
         }
     }

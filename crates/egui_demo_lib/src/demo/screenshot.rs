@@ -67,6 +67,13 @@ impl crate::View for Screenshot {
         if let Some((_, texture)) = &self.image {
             Image::new(texture).shrink_to_fit().ui(ui);
         } else {
+            ui.group(|ui| {
+                ui.set_width(ui.available_width());
+                ui.set_height(100.0);
+                ui.centered_and_justified(|ui| {
+                    ui.label("No screenshot taken yet.");
+                });
+            });
         }
     }
 }

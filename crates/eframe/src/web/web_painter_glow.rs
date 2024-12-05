@@ -1,8 +1,8 @@
+use egui::UserData;
+use egui_glow::glow;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
-
-use egui_glow::glow;
 
 use crate::{WebGlContextOption, WebOptions};
 
@@ -46,8 +46,8 @@ impl WebPainter for WebPainterGlow {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
-        capture: bool,
-    ) -> Result<Option<egui::ColorImage>, JsValue> {
+        capture: Vec<UserData>,
+    ) -> Result<(), JsValue> {
         let canvas_dimension = [self.canvas.width(), self.canvas.height()];
 
         for (id, image_delta) in &textures_delta.set {

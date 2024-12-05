@@ -1,13 +1,14 @@
-use std::sync::Arc;
+use std::mem;
+use std::sync::{mpsc, Arc};
 
+use egui::{Event, UserData, ViewportId};
+use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
-
-use crate::{epaint, WebOptions};
-
 use super::web_painter::WebPainter;
+use crate::epaint::ColorImage;
+use crate::{epaint, WebOptions};
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
@@ -24,7 +25,6 @@ struct SurfaceState {
 /// both the surface texture and the buffer, from where we can pull it back to the cpu.
 struct CaptureState {
     texture: wgpu::Texture,
-    buffer: wgpu::Buffer,
     padding: BufferPadding,
 }
 
@@ -43,21 +43,11 @@ impl CaptureState {
 
         let padding = BufferPadding::new(surface_texture.width());
 
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("egui_screen_capture_buffer"),
-            size: (padding.padded_bytes_per_row * texture.height()) as u64,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
-
-        Self {
-            texture,
-            buffer,
-            padding,
-        }
+        Self { texture, padding }
     }
 }
 
+#[derive(Copy, Clone)]
 struct BufferPadding {
     unpadded_bytes_per_row: u32,
     padded_bytes_per_row: u32,
@@ -85,6 +75,10 @@ pub(crate) struct WebPainterWgpu {
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
+    supports_capture: bool,
+    rx: mpsc::Receiver<(Vec<UserData>, ColorImage)>,
+    tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
+    ctx: egui::Context,
 }
 
 impl WebPainterWgpu {
@@ -143,14 +137,24 @@ impl WebPainterWgpu {
 
     // Handles copying from the CaptureState texture to the surface texture and the cpu
     fn read_screen_rgba(
-        screen_capture_state: &CaptureState,
+        ctx: egui::Context,
+        screen_capture_state: &mut CaptureState,
         render_state: &RenderState,
         output_frame: Option<&wgpu::SurfaceTexture>,
-    ) -> Option<epaint::ColorImage> {
+        data: Vec<UserData>,
+        tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
+    ) {
+        let buffer = Arc::new(render_state.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("egui_screen_capture_buffer"),
+            size: (screen_capture_state.padding.padded_bytes_per_row
+                * screen_capture_state.texture.height()) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        }));
+        let padding = screen_capture_state.padding;
         let CaptureState {
             texture: tex,
-            buffer,
-            padding,
+            padding: _,
         } = screen_capture_state;
 
         let device = &render_state.device;
@@ -162,7 +166,7 @@ impl WebPainterWgpu {
         encoder.copy_texture_to_buffer(
             tex.as_image_copy(),
             wgpu::ImageCopyBuffer {
-                buffer,
+                buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(padding.padded_bytes_per_row),
@@ -181,48 +185,54 @@ impl WebPainterWgpu {
         }
 
         let id = queue.submit(Some(encoder.finish()));
-        let buffer_slice = buffer.slice(..);
-        let (sender, receiver) = std::sync::mpsc::channel();
+        let buffer_clone = buffer.clone();
+        let buffer_slice = buffer_clone.slice(..);
+        let format = tex.format();
+        let texture_size = tex.size();
         buffer_slice.map_async(wgpu::MapMode::Read, move |v| {
-            drop(sender.send(v));
+            let buffer = buffer;
+            let to_rgba = match format {
+                wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
+                wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
+                _ => {
+                    log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", format);
+                    return;
+                }
+            };
+            let buffer_slice = buffer.slice(..);
+
+            let mut pixels = Vec::with_capacity((texture_size.width * texture_size.height) as usize);
+            for padded_row in buffer_slice
+                .get_mapped_range()
+                .chunks(padding.padded_bytes_per_row as usize)
+            {
+                let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
+                for color in row.chunks(4) {
+                    pixels.push(epaint::Color32::from_rgba_premultiplied(
+                        color[to_rgba[0]],
+                        color[to_rgba[1]],
+                        color[to_rgba[2]],
+                        color[to_rgba[3]],
+                    ));
+                }
+            }
+            buffer.unmap();
+
+            tx.send((
+                data,
+                epaint::ColorImage {
+                    size: [texture_size.width as usize, texture_size.height as usize],
+                    pixels,
+                },
+            )).ok();
+            ctx.request_repaint();
         });
         device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
-        receiver.recv().ok()?.ok()?;
-
-        let to_rgba = match tex.format() {
-            wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
-            wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
-            _ => {
-                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", tex.format());
-                return None;
-            }
-        };
-
-        let mut pixels = Vec::with_capacity((tex.width() * tex.height()) as usize);
-        for padded_row in buffer_slice
-            .get_mapped_range()
-            .chunks(padding.padded_bytes_per_row as usize)
-        {
-            let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
-            for color in row.chunks(4) {
-                pixels.push(epaint::Color32::from_rgba_premultiplied(
-                    color[to_rgba[0]],
-                    color[to_rgba[1]],
-                    color[to_rgba[2]],
-                    color[to_rgba[3]],
-                ));
-            }
-        }
-        buffer.unmap();
-
-        Some(epaint::ColorImage {
-            size: [tex.width() as usize, tex.height() as usize],
-            pixels,
-        })
     }
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(
+        ctx: egui::Context,
         canvas: web_sys::HtmlCanvasElement,
         options: &WebOptions,
     ) -> Result<Self, String> {
@@ -288,16 +298,31 @@ impl WebPainterWgpu {
         .await
         .map_err(|err| err.to_string())?;
 
+        let default_configuration = surface
+            .get_default_config(&render_state.adapter, 0, 0) // Width/height is set later.
+            .ok_or("The surface isn't supported by this adapter")?;
+
+        let supports_capture = surface
+            .get_capabilities(&render_state.adapter)
+            .usages
+            .contains(wgpu::TextureUsages::COPY_DST);
+        let usage = if supports_capture {
+            default_configuration.usage | wgpu::TextureUsages::COPY_DST
+        } else {
+            default_configuration.usage
+        };
+
         let surface_configuration = wgpu::SurfaceConfiguration {
             format: render_state.target_format,
             present_mode: options.wgpu_options.present_mode,
             view_formats: vec![render_state.target_format],
-            ..surface
-                .get_default_config(&render_state.adapter, 0, 0) // Width/height is set later.
-                .ok_or("The surface isn't supported by this adapter")?
+            usage,
+            ..default_configuration
         };
 
         log::debug!("wgpu painter initialized.");
+
+        let (tx, rx) = mpsc::channel();
 
         Ok(Self {
             canvas,
@@ -307,7 +332,11 @@ impl WebPainterWgpu {
             depth_format,
             depth_texture_view: None,
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
+            supports_capture,
             screen_capture_state: None,
+            rx,
+            tx,
+            ctx,
         })
     }
 }
@@ -329,8 +358,14 @@ impl WebPainter for WebPainterWgpu {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
-        capture: bool,
-    ) -> Result<Option<egui::ColorImage>, JsValue> {
+        capture_data: Vec<UserData>,
+    ) -> Result<(), JsValue> {
+        let capture = !capture_data.is_empty() && self.supports_capture;
+
+        if !capture_data.is_empty() && !self.supports_capture {
+            log::warn!("Capture requested, but the surface doesn't support it. (Screenshots don't work with egui_wgpu and the wgpu gl backend)");
+        }
+
         let size_in_pixels = [self.canvas.width(), self.canvas.height()];
 
         let Some(render_state) = &self.render_state else {
@@ -397,10 +432,10 @@ impl WebPainter for WebPainterWgpu {
                     SurfaceErrorAction::RecreateSurface => {
                         self.surface
                             .configure(&render_state.device, &self.surface_configuration);
-                        return Ok(None);
+                        return Ok(());
                     }
                     SurfaceErrorAction::SkipFrame => {
-                        return Ok(None);
+                        return Ok(());
                     }
                 },
             };
@@ -483,21 +518,37 @@ impl WebPainter for WebPainterWgpu {
             .queue
             .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
-        let screenshot = if capture {
-            self.screen_capture_state
-                .as_ref()
-                .and_then(|screen_capture_state| {
-                    Self::read_screen_rgba(screen_capture_state, render_state, frame.as_ref())
-                })
-        } else {
-            None
+        if capture {
+            if let Some(capture_state) = &mut self.screen_capture_state {
+                Self::read_screen_rgba(
+                    self.ctx.clone(),
+                    capture_state,
+                    render_state,
+                    frame.as_ref(),
+                    capture_data,
+                    self.tx.clone(),
+                );
+            }
         };
 
         if let Some(frame) = frame {
             frame.present();
         }
 
-        Ok(screenshot)
+        Ok(())
+    }
+
+    fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
+        for (user_data, screenshot) in self.rx.try_iter() {
+            let screenshot = Arc::new(screenshot);
+            for data in user_data {
+                events.push(Event::Screenshot {
+                    viewport_id: ViewportId::default(),
+                    user_data: data,
+                    image: screenshot.clone(),
+                });
+            }
+        }
     }
 
     fn destroy(&mut self) {
