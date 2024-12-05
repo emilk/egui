@@ -762,7 +762,11 @@ impl GalleyCache {
                 cached.galley.clone()
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                if job.break_on_newline {
+                // If the text contains newlines that will always break into a new row then
+                // we can easily lay out all the lines individually and then merge the `Galley`s.
+                // This allows individual lines to be cached separately which means small
+                // modifications to the source text will only cause impacted lines to be laid out again.
+                if job.break_on_newline && job.text.contains('\n') {
                     let galley = self.layout_multiline(fonts, job);
                     let galley = Arc::new(galley);
                     self.cache.insert(
