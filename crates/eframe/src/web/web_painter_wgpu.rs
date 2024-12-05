@@ -1,4 +1,3 @@
-use std::mem;
 use std::sync::{mpsc, Arc};
 
 use egui::{Event, UserData, ViewportId};
@@ -9,14 +8,6 @@ use web_sys::HtmlCanvasElement;
 use super::web_painter::WebPainter;
 use crate::epaint::ColorImage;
 use crate::{epaint, WebOptions};
-
-struct SurfaceState {
-    surface: wgpu::Surface<'static>,
-    alpha_mode: wgpu::CompositeAlphaMode,
-    width: u32,
-    height: u32,
-    supports_screenshot: bool,
-}
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
 /// The texture is required since [`wgpu::TextureUsages::COPY_DST`] is not an allowed
@@ -188,7 +179,11 @@ impl WebPainterWgpu {
         let buffer_clone = buffer.clone();
         let buffer_slice = buffer_clone.slice(..);
         let format = tex.format();
-        buffer_slice.map_async(wgpu::MapMode::Read, move |v| {
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            if let Err(err) = result {
+                log::error!("Failed to map buffer for reading: {:?}", err);
+                return;
+            }
             let to_rgba = match format {
                 wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
                 wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
