@@ -43,8 +43,11 @@ impl Color32 {
 
     pub const TRANSPARENT: Self = Self::from_rgba_premultiplied(0, 0, 0, 0);
     pub const BLACK: Self = Self::from_rgb(0, 0, 0);
+    #[doc(alias = "DARK_GREY")]
     pub const DARK_GRAY: Self = Self::from_rgb(96, 96, 96);
+    #[doc(alias = "GREY")]
     pub const GRAY: Self = Self::from_rgb(160, 160, 160);
+    #[doc(alias = "LIGHT_GREY")]
     pub const LIGHT_GRAY: Self = Self::from_rgb(220, 220, 220);
     pub const WHITE: Self = Self::from_rgb(255, 255, 255);
 
@@ -128,6 +131,7 @@ impl Color32 {
         }
     }
 
+    #[doc(alias = "from_grey")]
     #[inline]
     pub const fn from_gray(l: u8) -> Self {
         Self([l, l, l, 255])
@@ -263,5 +267,20 @@ impl Color32 {
             fast_round(lerp((self[2] as f32)..=(other[2] as f32), t)),
             fast_round(lerp((self[3] as f32)..=(other[3] as f32), t)),
         )
+    }
+}
+
+impl std::ops::Mul for Color32 {
+    type Output = Self;
+
+    /// Fast gamma-space multiplication.
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        Self([
+            fast_round(self[0] as f32 * other[0] as f32 / 255.0),
+            fast_round(self[1] as f32 * other[1] as f32 / 255.0),
+            fast_round(self[2] as f32 * other[2] as f32 / 255.0),
+            fast_round(self[3] as f32 * other[3] as f32 / 255.0),
+        ])
     }
 }

@@ -13,7 +13,7 @@ pub enum Item<'a> {
     // TODO(emilk): add Style here so empty heading still uses up the right amount of space.
     Newline,
 
-    ///
+    /// Text
     Text(Style, &'a str),
 
     /// title, url

@@ -121,12 +121,15 @@ mod tests {
 
     #[test]
     pub fn should_type() {
-        let mut text = "Hello, world!".to_owned();
-        let mut harness = Harness::new(move |ctx| {
-            CentralPanel::default().show(ctx, |ui| {
-                ui.text_edit_singleline(&mut text);
-            });
-        });
+        let text = "Hello, world!".to_owned();
+        let mut harness = Harness::new_state(
+            move |ctx, text| {
+                CentralPanel::default().show(ctx, |ui| {
+                    ui.text_edit_singleline(text);
+                });
+            },
+            text,
+        );
 
         harness.run();
 
@@ -144,5 +147,6 @@ mod tests {
         harness.run();
         let text_edit = harness.get_by_role(accesskit::Role::TextInput);
         assert_eq!(text_edit.value().as_deref(), Some("Hi there!"));
+        assert_eq!(harness.state(), "Hi there!");
     }
 }

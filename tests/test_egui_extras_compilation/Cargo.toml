@@ -3,14 +3,17 @@ name = "test_egui_extras_compilation"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.79"
 publish = false
 
 [lints]
 workspace = true
 
 [package.metadata.cargo-machete]
-ignored = ["eframe", "egui_extras"] # We don't use them, just check that things compile
+ignored = [
+    "eframe",
+    "egui_extras",
+] # We don't use them, just check that things compile
 
 [dependencies]
 eframe = { workspace = true, features = ["default", "persistence"] }

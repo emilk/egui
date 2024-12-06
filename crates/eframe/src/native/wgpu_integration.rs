@@ -643,10 +643,16 @@ impl<'app> WgpuWinitRunning<'app> {
 
         let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
-        let screenshot_requested = viewport
-            .actions_requested
-            .take(&ActionRequested::Screenshot)
-            .is_some();
+        let mut screenshot_commands = vec![];
+        viewport.actions_requested.retain(|cmd| {
+            if let ActionRequested::Screenshot(info) = cmd {
+                screenshot_commands.push(info.clone());
+                false
+            } else {
+                true
+            }
+        });
+        let screenshot_requested = !screenshot_commands.is_empty();
         let (vsync_secs, screenshot) = painter.paint_and_update_textures(
             viewport_id,
             pixels_per_point,
@@ -655,19 +661,32 @@ impl<'app> WgpuWinitRunning<'app> {
             &textures_delta,
             screenshot_requested,
         );
-        if let Some(screenshot) = screenshot {
-            egui_winit
-                .egui_input_mut()
-                .events
-                .push(egui::Event::Screenshot {
-                    viewport_id,
-                    image: screenshot.into(),
-                });
+        match (screenshot_requested, screenshot) {
+            (false, None) => {}
+            (true, Some(screenshot)) => {
+                let screenshot = Arc::new(screenshot);
+                for user_data in screenshot_commands {
+                    egui_winit
+                        .egui_input_mut()
+                        .events
+                        .push(egui::Event::Screenshot {
+                            viewport_id,
+                            user_data,
+                            image: screenshot.clone(),
+                        });
+                }
+            }
+            (true, None) => {
+                log::error!("Bug in egui_wgpu: screenshot requested, but no screenshot was taken");
+            }
+            (false, Some(_)) => {
+                log::warn!("Bug in egui_wgpu: Got screenshot without requesting it");
+            }
         }
 
         for action in viewport.actions_requested.drain() {
             match action {
-                ActionRequested::Screenshot => {
+                ActionRequested::Screenshot { .. } => {
                     // already handled above
                 }
                 ActionRequested::Cut => {
