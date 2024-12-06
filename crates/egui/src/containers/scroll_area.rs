@@ -287,8 +287,8 @@ pub struct ScrollArea {
     offset_y: Option<f32>,
     on_hover_cursor: Option<CursorIcon>,
     on_drag_cursor: Option<CursorIcon>,
-
     scroll_source: ScrollSource,
+    wheel_scroll_multiplier: Vec2,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -341,6 +341,7 @@ impl ScrollArea {
             on_hover_cursor: None,
             on_drag_cursor: None,
             scroll_source: ScrollSource::default(),
+            wheel_scroll_multiplier: Vec2::splat(1.0),
             stick_to_end: Vec2b::FALSE,
             animated: true,
         }
@@ -559,6 +560,17 @@ impl ScrollArea {
         self
     }
 
+    /// The scroll amount caused by a mouse wheel scroll is multiplied by this amount.
+    ///
+    /// Independent for each scroll direction. Defaults to `Vec2{x: 1.0, y: 1.0}`.
+    ///
+    /// This can invert or effectively disable mouse scrolling.
+    #[inline]
+    pub fn wheel_scroll_multiplier(mut self, multiplier: Vec2) -> Self {
+        self.wheel_scroll_multiplier = multiplier;
+        self
+    }
+
     /// For each axis, should the containing area shrink if the content is small?
     ///
     /// * If `true`, egui will add blank space outside the scroll area.
@@ -646,6 +658,7 @@ struct Prepared {
     viewport: Rect,
 
     scroll_source: ScrollSource,
+    wheel_scroll_multiplier: Vec2,
     stick_to_end: Vec2b,
 
     /// If there was a scroll target before the [`ScrollArea`] was added this frame, it's
@@ -670,6 +683,7 @@ impl ScrollArea {
             on_hover_cursor,
             on_drag_cursor,
             scroll_source,
+            wheel_scroll_multiplier,
             stick_to_end,
             animated,
         } = self;
@@ -877,6 +891,7 @@ impl ScrollArea {
             content_ui,
             viewport,
             scroll_source,
+            wheel_scroll_multiplier,
             stick_to_end,
             saved_scroll_target,
             animated,
@@ -991,6 +1006,7 @@ impl Prepared {
             content_ui,
             viewport: _,
             scroll_source,
+            wheel_scroll_multiplier,
             stick_to_end,
             saved_scroll_target,
             animated,
@@ -1122,6 +1138,7 @@ impl Prepared {
                             input.smooth_scroll_delta[d]
                         }
                     });
+                    let scroll_delta = scroll_delta * wheel_scroll_multiplier[d];
 
                     let scrolling_up = state.offset[d] > 0.0 && scroll_delta > 0.0;
                     let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta < 0.0;
