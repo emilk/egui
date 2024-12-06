@@ -395,6 +395,9 @@ pub trait ImageLoader {
 
     /// If the loader caches any data, this should return the size of that cache.
     fn byte_size(&self) -> usize;
+
+    /// Returns the number of frames in the Image.
+    fn frame_count(&self, uri: &str) -> usize;
 }
 
 /// A texture with a known size.
