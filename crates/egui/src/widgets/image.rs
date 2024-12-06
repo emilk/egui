@@ -797,7 +797,7 @@ pub fn paint_texture_at(
 }
 
 /// gif uris contain the uri & the frame that will be displayed
-fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
+pub fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
     format!("{uri}#{frame_index}")
 }
 
@@ -815,7 +815,7 @@ pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
 }
 
 /// checks if uri is a gif file
-fn is_gif_uri(uri: &str) -> bool {
+pub fn is_gif_uri(uri: &str) -> bool {
     uri.ends_with(".gif") || uri.contains(".gif#")
 }
 
