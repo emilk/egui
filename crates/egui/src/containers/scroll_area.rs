@@ -144,8 +144,10 @@ pub struct ScrollSource {
     /// By default the scroll bars remain visible to show current position.
     /// To hide them use [`ScrollArea::scroll_bar_visibility()`].
     pub scroll_bar: bool,
+
     /// Scroll the area by dragging the contents.
     pub drag: bool,
+
     /// Scroll the area by scrolling (or shift scrolling) the mouse wheel with
     /// the mouse cursor over the [`ScrollArea`].
     pub mouse_wheel: bool,
