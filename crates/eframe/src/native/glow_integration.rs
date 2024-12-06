@@ -661,13 +661,14 @@ impl<'app> GlowWinitRunning<'app> {
         {
             for action in viewport.actions_requested.drain() {
                 match action {
-                    ActionRequested::Screenshot => {
+                    ActionRequested::Screenshot(user_data) => {
                         let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
                         egui_winit
                             .egui_input_mut()
                             .events
                             .push(egui::Event::Screenshot {
                                 viewport_id,
+                                user_data,
                                 image: screenshot.into(),
                             });
                     }
@@ -941,7 +942,9 @@ impl GlutinWindowContext {
         // Create GL display. This may probably create a window too on most platforms. Definitely on `MS windows`. Never on Android.
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
-            .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
+            //
+            // The justification for FallbackEgl over PreferEgl is at https://github.com/emilk/egui/pull/2526#issuecomment-1400229576 .
+            .with_preference(glutin_winit::ApiPreference::FallbackEgl)
             .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,

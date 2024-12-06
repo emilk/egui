@@ -125,7 +125,7 @@ pub struct ScreenDescriptor {
     /// Size of the window in physical pixels.
     pub size_in_pixels: [u32; 2],
 
-    /// HiDPI scale factor (pixels per point).
+    /// High-DPI scale factor (pixels per point).
     pub pixels_per_point: f32,
 }
 

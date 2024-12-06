@@ -87,17 +87,22 @@ pub fn show_tooltip_at_pointer<R>(
 
         // Add a small exclusion zone around the pointer to avoid tooltips
         // covering what we're hovering over.
-        let mut exclusion_rect = Rect::from_center_size(pointer_pos, Vec2::splat(24.0));
+        let mut pointer_rect = Rect::from_center_size(pointer_pos, Vec2::splat(24.0));
 
         // Keep the left edge of the tooltip in line with the cursor:
-        exclusion_rect.min.x = pointer_pos.x;
+        pointer_rect.min.x = pointer_pos.x;
+
+        // Transform global coords to layer coords:
+        if let Some(transform) = ctx.memory(|m| m.layer_transforms.get(&parent_layer).copied()) {
+            pointer_rect = transform.inverse() * pointer_rect;
+        }
 
         show_tooltip_at_dyn(
             ctx,
             parent_layer,
             widget_id,
             allow_placing_below,
-            &exclusion_rect,
+            &pointer_rect,
             Box::new(add_contents),
         )
     })
@@ -155,6 +160,7 @@ fn show_tooltip_at_dyn<'c, R>(
     widget_rect: &Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> R {
+    // Transform layer coords to global coords:
     let mut widget_rect = *widget_rect;
     if let Some(transform) = ctx.memory(|m| m.layer_transforms.get(&parent_layer).copied()) {
         widget_rect = transform * widget_rect;

@@ -6,6 +6,7 @@ pub(crate) mod area;
 pub mod collapsing_header;
 mod combo_box;
 pub mod frame;
+pub mod modal;
 pub mod panel;
 pub mod popup;
 pub(crate) mod resize;
@@ -18,6 +19,7 @@ pub use {
     collapsing_header::{CollapsingHeader, CollapsingResponse},
     combo_box::*,
     frame::Frame,
+    modal::{Modal, ModalResponse},
     panel::{CentralPanel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,

@@ -23,22 +23,30 @@ pub struct DragAndDrop {
 
 impl DragAndDrop {
     pub(crate) fn register(ctx: &Context) {
-        ctx.on_end_pass("debug_text", std::sync::Arc::new(Self::end_pass));
+        ctx.on_begin_pass("drag_and_drop_begin_pass", Arc::new(Self::begin_pass));
+        ctx.on_end_pass("drag_and_drop_end_pass", Arc::new(Self::end_pass));
+    }
+
+    fn begin_pass(ctx: &Context) {
+        let has_any_payload = Self::has_any_payload(ctx);
+
+        if has_any_payload {
+            let abort_dnd = ctx.input_mut(|i| {
+                i.pointer.any_released()
+                    || i.consume_key(crate::Modifiers::NONE, crate::Key::Escape)
+            });
+
+            if abort_dnd {
+                Self::clear_payload(ctx);
+            }
+        }
     }
 
     fn end_pass(ctx: &Context) {
-        let abort_dnd =
-            ctx.input(|i| i.pointer.any_released() || i.key_pressed(crate::Key::Escape));
-
         let mut is_dragging = false;
 
         ctx.data_mut(|data| {
             let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
-
-            if abort_dnd {
-                state.payload = None;
-            }
-
             is_dragging = state.payload.is_some();
         });
 

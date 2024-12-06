@@ -344,6 +344,12 @@ impl Painter {
         })
     }
 
+    /// Paints a line connecting the points.
+    /// NOTE: all coordinates are screen coordinates!
+    pub fn line(&self, points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> ShapeIdx {
+        self.add(Shape::line(points, stroke))
+    }
+
     /// Paints a horizontal line.
     pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> ShapeIdx {
         self.add(Shape::hline(x, y, stroke.into()))
