@@ -439,7 +439,7 @@ pub struct WebOptions {
     /// Unused by webgl context as of writing.
     pub depth_buffer: u8,
 
-    /// Which version of WebGl context to select
+    /// Which version of WebGL context to select
     ///
     /// Default: [`WebGlContextOption::BestFirst`].
     #[cfg(feature = "glow")]

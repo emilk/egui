@@ -1,41 +1,13 @@
-use raw_window_handle::{
-    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
-    RawWindowHandle, WebDisplayHandle, WebWindowHandle, WindowHandle,
-};
 use std::sync::Arc;
+
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use crate::WebOptions;
 use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
 
+use crate::WebOptions;
+
 use super::web_painter::WebPainter;
-
-struct EguiWebWindow(u32);
-
-#[allow(unsafe_code)]
-impl HasWindowHandle for EguiWebWindow {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        // SAFETY: there is no lifetime here.
-        unsafe {
-            Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(
-                WebWindowHandle::new(self.0),
-            )))
-        }
-    }
-}
-
-#[allow(unsafe_code)]
-impl HasDisplayHandle for EguiWebWindow {
-    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
-        // SAFETY: there is no lifetime here.
-        unsafe {
-            Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(
-                WebDisplayHandle::new(),
-            )))
-        }
-    }
-}
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,

@@ -661,13 +661,14 @@ impl<'app> GlowWinitRunning<'app> {
         {
             for action in viewport.actions_requested.drain() {
                 match action {
-                    ActionRequested::Screenshot => {
+                    ActionRequested::Screenshot(user_data) => {
                         let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
                         egui_winit
                             .egui_input_mut()
                             .events
                             .push(egui::Event::Screenshot {
                                 viewport_id,
+                                user_data,
                                 image: screenshot.into(),
                             });
                     }
@@ -943,7 +944,7 @@ impl GlutinWindowContext {
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             //
             // The justification for FallbackEgl over PreferEgl is at https://github.com/emilk/egui/pull/2526#issuecomment-1400229576 .
-            .with_preference(glutin_winit::ApiPreference::PreferEgl)
+            .with_preference(glutin_winit::ApiPreference::FallbackEgl)
             .with_window_attributes(Some(egui_winit::create_winit_window_attributes(
                 egui_ctx,
                 event_loop,

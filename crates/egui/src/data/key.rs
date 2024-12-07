@@ -55,7 +55,7 @@ pub enum Key {
     // `]`
     CloseBracket,
 
-    /// \`, also known as "backquote" or "grave"
+    /// Also known as "backquote" or "grave"
     Backtick,
 
     /// `-`

@@ -95,6 +95,7 @@ impl LayerId {
     }
 
     #[inline(always)]
+    #[deprecated = "Use `Memory::allows_interaction` instead"]
     pub fn allow_interaction(&self) -> bool {
         self.order.allow_interaction()
     }

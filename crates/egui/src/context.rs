@@ -1160,7 +1160,8 @@ impl Context {
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
-        let interested_in_focus = w.enabled && w.sense.focusable && w.layer_id.allow_interaction();
+        let interested_in_focus =
+            w.enabled && w.sense.focusable && self.memory(|mem| mem.allows_interaction(w.layer_id));
 
         // Remember this widget
         self.write(|ctx| {
@@ -1172,7 +1173,7 @@ impl Context {
             viewport.this_pass.widgets.insert(w.layer_id, w);
 
             if allow_focus && interested_in_focus {
-                ctx.memory.interested_in_focus(w.id);
+                ctx.memory.interested_in_focus(w.id, w.layer_id);
             }
         });
 
@@ -3454,15 +3455,23 @@ impl Context {
             return Err(load::LoadError::NoImageLoaders);
         }
 
+        let mut format = None;
+
         // Try most recently added loaders first (hence `.rev()`)
         for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::FormatNotSupported { detected_format }) => {
+                    format = format.or(detected_format);
+                    continue;
+                }
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NoMatchingImageLoader)
+        Err(load::LoadError::NoMatchingImageLoader {
+            detected_format: format,
+        })
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.

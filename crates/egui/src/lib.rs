@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.77.0 or later to use `egui`.
+//! You need to have rust 1.79.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -393,6 +393,7 @@
 #![allow(clippy::manual_range_contains)]
 
 mod animation_manager;
+pub mod cache;
 pub mod containers;
 mod context;
 mod data;
@@ -471,7 +472,7 @@ pub use self::{
         output::{
             self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
         },
-        Key,
+        Key, UserData,
     },
     drag_and_drop::DragAndDrop,
     epaint::text::TextWrapMode,

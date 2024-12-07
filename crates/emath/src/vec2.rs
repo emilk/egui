@@ -176,6 +176,12 @@ impl Vec2 {
         }
     }
 
+    /// Checks if `self` has length `1.0` up to a precision of `1e-6`.
+    #[inline(always)]
+    pub fn is_normalized(self) -> bool {
+        (self.length_sq() - 1.0).abs() < 2e-6
+    }
+
     /// Rotates the vector by 90°, i.e positive X to positive Y
     /// (clockwise in egui coordinates).
     #[inline(always)]
@@ -497,8 +503,10 @@ impl fmt::Display for Vec2 {
     }
 }
 
-#[test]
-fn test_vec2() {
+#[cfg(test)]
+mod test {
+    use super::*;
+
     macro_rules! almost_eq {
         ($left: expr, $right: expr) => {
             let left = $left;
@@ -506,32 +514,58 @@ fn test_vec2() {
             assert!((left - right).abs() < 1e-6, "{} != {}", left, right);
         };
     }
-    use std::f32::consts::TAU;
 
-    assert_eq!(Vec2::ZERO.angle(), 0.0);
-    assert_eq!(Vec2::angled(0.0).angle(), 0.0);
-    assert_eq!(Vec2::angled(1.0).angle(), 1.0);
-    assert_eq!(Vec2::X.angle(), 0.0);
-    assert_eq!(Vec2::Y.angle(), 0.25 * TAU);
+    #[test]
+    fn test_vec2() {
+        use std::f32::consts::TAU;
 
-    assert_eq!(Vec2::RIGHT.angle(), 0.0);
-    assert_eq!(Vec2::DOWN.angle(), 0.25 * TAU);
-    almost_eq!(Vec2::LEFT.angle(), 0.50 * TAU);
-    assert_eq!(Vec2::UP.angle(), -0.25 * TAU);
+        assert_eq!(Vec2::ZERO.angle(), 0.0);
+        assert_eq!(Vec2::angled(0.0).angle(), 0.0);
+        assert_eq!(Vec2::angled(1.0).angle(), 1.0);
+        assert_eq!(Vec2::X.angle(), 0.0);
+        assert_eq!(Vec2::Y.angle(), 0.25 * TAU);
 
-    let mut assignment = vec2(1.0, 2.0);
-    assignment += vec2(3.0, 4.0);
-    assert_eq!(assignment, vec2(4.0, 6.0));
+        assert_eq!(Vec2::RIGHT.angle(), 0.0);
+        assert_eq!(Vec2::DOWN.angle(), 0.25 * TAU);
+        almost_eq!(Vec2::LEFT.angle(), 0.50 * TAU);
+        assert_eq!(Vec2::UP.angle(), -0.25 * TAU);
 
-    let mut assignment = vec2(4.0, 6.0);
-    assignment -= vec2(1.0, 2.0);
-    assert_eq!(assignment, vec2(3.0, 4.0));
+        let mut assignment = vec2(1.0, 2.0);
+        assignment += vec2(3.0, 4.0);
+        assert_eq!(assignment, vec2(4.0, 6.0));
 
-    let mut assignment = vec2(1.0, 2.0);
-    assignment *= 2.0;
-    assert_eq!(assignment, vec2(2.0, 4.0));
+        let mut assignment = vec2(4.0, 6.0);
+        assignment -= vec2(1.0, 2.0);
+        assert_eq!(assignment, vec2(3.0, 4.0));
 
-    let mut assignment = vec2(2.0, 4.0);
-    assignment /= 2.0;
-    assert_eq!(assignment, vec2(1.0, 2.0));
+        let mut assignment = vec2(1.0, 2.0);
+        assignment *= 2.0;
+        assert_eq!(assignment, vec2(2.0, 4.0));
+
+        let mut assignment = vec2(2.0, 4.0);
+        assignment /= 2.0;
+        assert_eq!(assignment, vec2(1.0, 2.0));
+    }
+
+    #[test]
+    fn test_vec2_normalized() {
+        fn generate_spiral(n: usize, start: Vec2, end: Vec2) -> impl Iterator<Item = Vec2> {
+            let angle_step = 2.0 * std::f32::consts::PI / n as f32;
+            let radius_step = (end.length() - start.length()) / n as f32;
+
+            (0..n).map(move |i| {
+                let angle = i as f32 * angle_step;
+                let radius = start.length() + i as f32 * radius_step;
+                let x = radius * angle.cos();
+                let y = radius * angle.sin();
+                vec2(x, y)
+            })
+        }
+
+        for v in generate_spiral(40, Vec2::splat(0.1), Vec2::splat(2.0)) {
+            let vn = v.normalized();
+            almost_eq!(vn.length(), 1.0);
+            assert!(vn.is_normalized());
+        }
+    }
 }

@@ -269,3 +269,18 @@ impl Color32 {
         )
     }
 }
+
+impl std::ops::Mul for Color32 {
+    type Output = Self;
+
+    /// Fast gamma-space multiplication.
+    #[inline]
+    fn mul(self, other: Self) -> Self {
+        Self([
+            fast_round(self[0] as f32 * other[0] as f32 / 255.0),
+            fast_round(self[1] as f32 * other[1] as f32 / 255.0),
+            fast_round(self[2] as f32 * other[2] as f32 / 255.0),
+            fast_round(self[3] as f32 * other[3] as f32 / 255.0),
+        ])
+    }
+}
