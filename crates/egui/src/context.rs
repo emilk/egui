@@ -567,7 +567,7 @@ impl ContextImpl {
     }
 
     /// Load fonts unless already loaded.
-    fn update_fonts_mut(&mut self) {
+    pub(crate) fn update_fonts_mut(&mut self) {
         crate::profile_function!();
 
         let input = &self.viewport().input;
@@ -1762,22 +1762,8 @@ impl Context {
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
         crate::profile_function!();
 
-        let pixels_per_point = self.pixels_per_point();
-
-        let mut update_fonts = true;
-
-        self.read(|ctx| {
-            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
-                // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.lock().fonts.definitions() == &font_definitions {
-                    update_fonts = false; // no need to update
-                }
-            }
-        });
-
-        if update_fonts {
-            self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
-        }
+        self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+        self.write(|ctx| ctx.update_fonts_mut());
     }
 
     /// Tell `egui` which fonts to use.
