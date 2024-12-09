@@ -163,7 +163,10 @@ impl RenderState {
                 let (device, queue) = {
                     crate::profile_scope!("request_device");
                     adapter
-                        .request_device(&(*device_descriptor)(&adapter), trace_path.ok().as_ref().map(std::path::Path::new))
+                        .request_device(
+                            &(*device_descriptor)(&adapter),
+                            trace_path.ok().as_ref().map(std::path::Path::new),
+                        )
                         .await?
                 };
 
