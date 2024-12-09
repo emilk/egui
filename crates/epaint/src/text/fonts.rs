@@ -733,7 +733,7 @@ impl GalleyCache {
 
             // Say the user asks to wrap at width 200.0.
             // The text layout wraps, and reports that the final width was 196.0 points.
-            // This than trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
+            // This then trickles up the `Ui` chain and gets stored as the width for a tooltip (say).
             // On the next frame, this is then set as the max width for the tooltip,
             // and we end up calling the text layout code again, this time with a wrap width of 196.0.
             // Except, somewhere in the `Ui` chain with added margins etc, a rounding error was introduced,
@@ -754,6 +754,174 @@ impl GalleyCache {
         }
 
         let hash = crate::util::hash(&job); // TODO(emilk): even faster hasher?
+
+        match self.cache.entry(hash) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                let cached = entry.into_mut();
+                cached.last_used = self.generation;
+                cached.galley.clone()
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                // If the text contains newlines that will always break into a new row then
+                // we can easily lay out all the lines individually and then merge the `Galley`s.
+                // This allows individual lines to be cached separately which means small
+                // modifications to the source text will only cause impacted lines to be laid out again.
+                if job.break_on_newline && job.text.contains('\n') {
+                    let galley = self.layout_multiline(fonts, job);
+                    let galley = Arc::new(galley);
+                    self.cache.insert(
+                        hash,
+                        CachedGalley {
+                            last_used: self.generation,
+                            galley: galley.clone(),
+                        },
+                    );
+                    galley
+                } else {
+                    let galley = super::layout(fonts, job.into());
+                    let galley = Arc::new(galley);
+                    entry.insert(CachedGalley {
+                        last_used: self.generation,
+                        galley: galley.clone(),
+                    });
+                    galley
+                }
+            }
+        }
+    }
+
+    fn layout_multiline(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
+        let pixels_per_point = fonts.pixels_per_point;
+        let round_to_pixel =
+            move |point: f32| (point * pixels_per_point).round() / pixels_per_point;
+
+        let mut current_section = 0;
+        let mut current = 0;
+        let mut left_max_rows = job.wrap.max_rows;
+        let mut galleys = Vec::new();
+        let mut first_row_min_height = job.first_row_min_height;
+        while current != job.text.len() {
+            let end = job.text[current..]
+                .find('\n')
+                .map_or(job.text.len(), |i| i + current + 1);
+            let start = current;
+
+            let mut line_job = LayoutJob {
+                text: job.text[current..end].to_string(),
+                wrap: crate::text::TextWrapping {
+                    max_rows: left_max_rows,
+                    ..job.wrap
+                },
+                sections: Vec::new(),
+                break_on_newline: true,
+                halign: job.halign,
+                justify: job.justify,
+                first_row_min_height,
+                round_output_size_to_nearest_ui_point: job.round_output_size_to_nearest_ui_point,
+            };
+            first_row_min_height = 0.0;
+
+            while current < end {
+                let mut s = &job.sections[current_section];
+                while s.byte_range.end <= current {
+                    current_section += 1;
+                    s = &job.sections[current_section];
+                }
+
+                assert!(s.byte_range.contains(&current));
+                let section_end = s.byte_range.end.min(end);
+                line_job.sections.push(crate::text::LayoutSection {
+                    // Leading space should only be added to the first section
+                    // if the there are multiple sections that will be created
+                    // from splitting the current section.
+                    leading_space: if current == s.byte_range.start {
+                        s.leading_space
+                    } else {
+                        0.0
+                    },
+                    byte_range: current - start..section_end - start,
+                    format: s.format.clone(),
+                });
+                current = section_end;
+            }
+
+            let galley = self.layout_component_line(fonts, line_job);
+            // This will prevent us from invalidating cache entries unnecessarily
+            if left_max_rows != usize::MAX {
+                left_max_rows -= galley.rows.len();
+                // Ignore extra trailing row, see merging counterpart below for more details.
+                if end < job.text.len() && !galley.elided {
+                    left_max_rows += 1;
+                }
+            }
+
+            let elided = galley.elided;
+            galleys.push(galley);
+            if elided {
+                break;
+            }
+
+            current = end;
+        }
+
+        let mut merged_galley = Galley {
+            job: Arc::new(job),
+            rows: Vec::new(),
+            elided: false,
+            rect: emath::Rect::ZERO,
+            mesh_bounds: emath::Rect::ZERO,
+            num_vertices: 0,
+            num_indices: 0,
+            pixels_per_point: fonts.pixels_per_point,
+        };
+
+        for (i, galley) in galleys.iter().enumerate() {
+            let current_offset = emath::vec2(0.0, merged_galley.rect.height());
+
+            let mut rows = galley.rows.iter();
+            // As documented in `Row::ends_with_newline`, a '\n' will always create a
+            // new `Row` immediately below the current one. Here it doesn't make sense
+            // for us to append this new row so we just ignore it.
+            if i != galleys.len() - 1 && !galley.elided {
+                let popped = rows.next_back();
+                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0);
+            }
+
+            merged_galley.rows.extend(rows.map(|placed_row| {
+                let mut new_pos = placed_row.pos + current_offset;
+                new_pos.y = round_to_pixel(new_pos.y);
+                merged_galley.mesh_bounds = merged_galley
+                    .mesh_bounds
+                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
+                merged_galley.rect = merged_galley
+                    .rect
+                    .union(emath::Rect::from_min_size(new_pos, placed_row.size));
+
+                super::PlacedRow {
+                    row: placed_row.row.clone(),
+                    pos: new_pos,
+                }
+            }));
+
+            merged_galley.num_vertices += galley.num_vertices;
+            merged_galley.num_indices += galley.num_indices;
+            // Note that if `galley.elided` is true this will be the last `Galley` in
+            // the vector and the loop will end.
+            merged_galley.elided |= galley.elided;
+        }
+
+        if merged_galley.job.round_output_size_to_nearest_ui_point {
+            super::round_output_size_to_nearest_ui_point(
+                &mut merged_galley.rect,
+                &merged_galley.job,
+            );
+        }
+
+        merged_galley
+    }
+
+    fn layout_component_line(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
+        let hash = crate::util::hash(&job);
 
         match self.cache.entry(hash) {
             std::collections::hash_map::Entry::Occupied(entry) => {
