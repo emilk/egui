@@ -19,7 +19,7 @@ impl ImageCrateLoader {
 }
 
 fn is_supported_uri(uri: &str) -> bool {
-    let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
+    let Some(_ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
         // `true` because if there's no extension, assume that we support it
         return true;
     };
@@ -28,7 +28,7 @@ fn is_supported_uri(uri: &str) -> bool {
     ImageFormat::all()
         .filter(ImageFormat::reading_enabled)
         .flat_map(ImageFormat::extensions_str)
-        .any(|format_ext| ext == *format_ext)
+        .any(|format_ext| uri.contains(*format_ext))
 }
 
 fn is_supported_mime(mime: &str) -> bool {
