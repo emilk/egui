@@ -484,7 +484,7 @@ impl<'open> Window<'open> {
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
             let spacing = window_margin.top + window_margin.bottom;
-            let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
+            let height = ctx.fonts(|f| title.font_height(f, &style)).round() + spacing;
             window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
             window_frame.rounding.nw = window_frame.rounding.nw.clamp(0.0, height / 2.0);
             (height, spacing)
@@ -788,13 +788,12 @@ fn resize_response(
     area: &mut area::Prepared,
     resize_id: Id,
 ) {
-    let Some(new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
+    let Some(mut new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
         return;
     };
-    let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
     if area.constrain() {
-        new_rect = ctx.constrain_window_rect_to_area(new_rect, area.constrain_rect());
+        new_rect = Context::constrain_window_rect_to_area(new_rect, area.constrain_rect());
     }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
@@ -819,18 +818,18 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
     let mut rect = interaction.start_rect; // prevent drift
 
     if interaction.left.drag {
-        rect.min.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.min.x = pointer_pos.x;
     } else if interaction.right.drag {
-        rect.max.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.max.x = pointer_pos.x;
     }
 
     if interaction.top.drag {
-        rect.min.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.min.y = pointer_pos.y;
     } else if interaction.bottom.drag {
-        rect.max.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.max.y = pointer_pos.y;
     }
 
-    Some(rect)
+    Some(rect.round())
 }
 
 fn resize_interaction(
@@ -1064,13 +1063,14 @@ impl TitleBar {
         let inner_response = ui.horizontal(|ui| {
             let height = ui
                 .fonts(|fonts| title.font_height(fonts, ui.style()))
-                .max(ui.spacing().interact_size.y);
+                .max(ui.spacing().interact_size.y)
+                .round();
             ui.set_min_height(height);
 
             let item_spacing = ui.spacing().item_spacing;
             let button_size = Vec2::splat(ui.spacing().icon_width);
 
-            let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
+            let pad = ((height - button_size.y) / 2.0).round(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
             if collapsible {
                 ui.add_space(pad);
