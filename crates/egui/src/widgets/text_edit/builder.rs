@@ -772,6 +772,7 @@ impl<'t> TextEdit<'t> {
 
                         ui.ctx().output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
+                                visible: ui.visuals().text_cursor.ime_visible,
                                 rect: transform * rect,
                                 cursor_rect: transform * primary_cursor_rect,
                             });
