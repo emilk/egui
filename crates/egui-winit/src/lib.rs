@@ -1596,6 +1596,7 @@ pub fn create_winit_window_attributes(
 
         // macOS:
         fullsize_content_view: _fullsize_content_view,
+        movable_by_window_background: _movable_by_window_background,
         title_shown: _title_shown,
         titlebar_buttons_shown: _titlebar_buttons_shown,
         titlebar_shown: _titlebar_shown,
@@ -1742,7 +1743,8 @@ pub fn create_winit_window_attributes(
             .with_title_hidden(!_title_shown.unwrap_or(true))
             .with_titlebar_buttons_hidden(!_titlebar_buttons_shown.unwrap_or(true))
             .with_titlebar_transparent(!_titlebar_shown.unwrap_or(true))
-            .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false));
+            .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false))
+            .with_movable_by_window_background(_movable_by_window_background.unwrap_or(false));
     }
 
     window_attributes
