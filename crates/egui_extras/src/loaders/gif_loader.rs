@@ -131,4 +131,13 @@ impl ImageLoader for GifLoader {
             })
             .sum()
     }
+
+    fn frame_count(&self, uri: &str) -> usize {
+        let cache = self.cache.lock();
+        if let Some(Ok(image)) = cache.get(uri) {
+            image.frames.len()
+        } else {
+            0
+        }
+    }
 }
