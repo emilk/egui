@@ -12,6 +12,8 @@ mod snapshot;
 pub use snapshot::*;
 use std::fmt::{Debug, Formatter};
 mod app_kind;
+#[cfg(feature = "run_with_eframe")]
+mod run_with_eframe;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
@@ -23,7 +25,7 @@ use std::mem;
 use crate::app_kind::AppKind;
 use crate::event::EventState;
 pub use builder::*;
-use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
+use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportBuilder, ViewportId};
 use kittest::{Node, Queryable};
 
 /// The test Harness. This contains everything needed to run the test.
@@ -267,6 +269,19 @@ impl<'a, State> Harness<'a, State> {
             repeat: false,
             physical_key: None,
         });
+    }
+
+    #[cfg(feature = "run_with_eframe")]
+    pub fn run_with_eframe(&mut self) {
+        let native_options = eframe::NativeOptions {
+            viewport: ViewportBuilder::default().with_inner_size(self.ctx.screen_rect().size()),
+            ..Default::default()
+        };
+        eframe::run_native(
+            "egui_debug",
+            native_options,
+            Box::new(|cc| Ok(Box::new(self))),
+        );
     }
 }
 
