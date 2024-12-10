@@ -9,7 +9,7 @@ set -x
 # Checks all tests, lints etc.
 # Basically does what the CI does.
 
-cargo +1.79.0 install --quiet typos-cli
+cargo +1.80.0 install --quiet typos-cli
 
 export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
