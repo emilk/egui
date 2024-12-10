@@ -85,6 +85,7 @@ allow = [
   "MPL-2.0",                        # https://www.mozilla.org/en-US/MPL/2.0/FAQ/ - see Q11. Used by webpki-roots on Linux.
   "OFL-1.1",                        # https://spdx.org/licenses/OFL-1.1.html
   "OpenSSL",                        # https://www.openssl.org/source/license.html - used on Linux
+  "Unicode-3.0",                    # https://www.unicode.org/license.txt
   "Unicode-DFS-2016",               # https://spdx.org/licenses/Unicode-DFS-2016.html
   "Zlib",                           # https://tldrlegal.com/license/zlib-libpng-license-(zlib)
 ]
