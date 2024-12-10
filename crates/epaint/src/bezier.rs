@@ -207,17 +207,21 @@ impl CubicBezierShape {
     /// B.x = (P3.x - 3 * P2.x + 3 * P1.x - P0.x) * t^3 + (3 * P2.x - 6 * P1.x + 3 * P0.x) * t^2 + (3 * P1.x - 3 * P0.x) * t + P0.x
     /// B.y = (P3.y - 3 * P2.y + 3 * P1.y - P0.y) * t^3 + (3 * P2.y - 6 * P1.y + 3 * P0.y) * t^2 + (3 * P1.y - 3 * P0.y) * t + P0.y
     /// Combine the above three equations and iliminate B.x and B.y, we get:
+    /// ```text
     /// t^3 * ( (P3.x - 3*P2.x + 3*P1.x - P0.x) * (P3.y - P0.y) - (P3.y - 3*P2.y + 3*P1.y - P0.y) * (P3.x - P0.x))
     /// + t^2 * ( (3 * P2.x - 6 * P1.x + 3 * P0.x) * (P3.y - P0.y) - (3 * P2.y - 6 * P1.y + 3 * P0.y) * (P3.x - P0.x))
     /// + t^1 * ( (3 * P1.x - 3 * P0.x) * (P3.y - P0.y) - (3 * P1.y - 3 * P0.y) * (P3.x - P0.x))
     /// + (P0.x * (P3.y - P0.y) - P0.y * (P3.x - P0.x)) + P0.x * (P0.y - P3.y) + P0.y * (P3.x - P0.x)
     /// = 0
-    /// or a * t^3 + b * t^2 + c * t + d = 0
+    /// ```
+    /// or `a * t^3 + b * t^2 + c * t + d = 0`
     ///
     /// let x = t - b / (3 * a), then we have:
+    /// ```text
     /// x^3 + p * x + q = 0, where:
     /// p = (3.0 * a * c - b^2) / (3.0 * a^2)
     /// q = (2.0 * b^3 - 9.0 * a * b * c + 27.0 * a^2 * d) / (27.0 * a^3)
+    /// ```
     ///
     /// when p > 0, there will be one real root, two complex roots
     /// when p = 0, there will be two real roots, when p=q=0, there will be three real roots but all 0.
