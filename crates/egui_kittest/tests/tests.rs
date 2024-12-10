@@ -10,5 +10,7 @@ fn test_shrink() {
 
     harness.fit_contents();
 
+    harness.run_with_eframe();
+
     harness.wgpu_snapshot("test_shrink");
 }
