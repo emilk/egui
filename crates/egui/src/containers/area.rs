@@ -467,7 +467,7 @@ impl Area {
                     id: interact_id,
                     layer_id,
                     rect: state.rect(),
-                    interact_rect: state.rect(),
+                    interact_rect: state.rect().intersect(constrain_rect),
                     sense,
                     enabled,
                 },
