@@ -260,7 +260,7 @@ impl AppRunner {
         self.frame.info.cpu_usage = Some(cpu_usage_seconds);
     }
 
-    fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
+    fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
             super::screen_reader::speak(&platform_output.events_description());

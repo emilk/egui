@@ -23,7 +23,7 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.79"
+rust-version = "1.80"
 version = "0.29.1"
 
 
@@ -106,13 +106,13 @@ winit = { version = "0.30.5", default-features = false }
 unsafe_code = "deny"
 
 elided_lifetimes_in_paths = "warn"
-future_incompatible = "warn"
-nonstandard_style = "warn"
-rust_2018_idioms = "warn"
+future_incompatible = { level = "warn", priority = -1 }
+nonstandard_style = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_prelude_collisions = "warn"
 semicolon_in_expressions_from_macros = "warn"
 trivial_numeric_casts = "warn"
-unsafe_op_in_unsafe_fn = "warn"               # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
+unsafe_op_in_unsafe_fn = "warn"                         # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
 unused_extern_crates = "warn"
 unused_import_braces = "warn"
 unused_lifetimes = "warn"
@@ -233,6 +233,7 @@ ref_patterns = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 same_functions_in_if_condition = "warn"
 semicolon_if_nothing_returned = "warn"
+single_char_pattern = "warn"
 single_match_else = "warn"
 str_split_at_newline = "warn"
 str_to_string = "warn"

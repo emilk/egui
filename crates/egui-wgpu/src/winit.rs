@@ -728,7 +728,7 @@ impl Painter {
             .retain(|id, _| active_viewports.contains(id));
     }
 
-    #[allow(clippy::unused_self)]
+    #[allow(clippy::needless_pass_by_ref_mut, clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
     }
