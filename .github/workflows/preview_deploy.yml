@@ -40,11 +40,7 @@ jobs:
       - name: Parse meta.json
         run: |
           echo "PR_NUMBER=$(jq -r .pr_number meta.json)" >> $GITHUB_ENV
-          echo "PR_BRANCH=$(jq -r .pr_branch meta.json)" >> $GITHUB_ENV
-
-      - name: Url slug variable
-        run: |
-          echo "URL_SLUG=${{ env.PR_NUMBER }}-${{ env.PR_BRANCH }}" >> $GITHUB_ENV
+          echo "URL_SLUG=$(jq -r .url_slug meta.json)" >> $GITHUB_ENV
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
