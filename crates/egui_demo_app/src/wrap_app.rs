@@ -115,7 +115,7 @@ impl Anchor {
     #[cfg(target_arch = "wasm32")]
     fn from_str_case_insensitive(anchor: &str) -> Option<Self> {
         let anchor = anchor.to_lowercase();
-        Anchor::all().into_iter().find(|x| x.to_string() == anchor)
+        Self::all().into_iter().find(|x| x.to_string() == anchor)
     }
 }
 
