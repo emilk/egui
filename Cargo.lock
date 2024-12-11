@@ -1313,6 +1313,7 @@ dependencies = [
  "egui_demo_lib",
  "egui_extras",
  "egui_kittest",
+ "rand",
  "serde",
  "unicode_names2",
  "wgpu",
