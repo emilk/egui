@@ -1,8 +1,7 @@
-use crate::RenderState;
 use egui::{UserData, ViewportId};
 use epaint::ColorImage;
 use std::sync::{mpsc, Arc};
-use wgpu::{BindGroupLayout, MultisampleState, Sampler, StoreOp};
+use wgpu::{BindGroupLayout, MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
 /// The texture is required since [`wgpu::TextureUsages::COPY_SRC`] is not an allowed
@@ -16,7 +15,6 @@ pub struct CaptureState {
     pub texture: wgpu::Texture,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
-    buffer: Option<wgpu::Buffer>,
 }
 
 pub type CaptureReceiver = mpsc::Receiver<(ViewportId, Vec<UserData>, ColorImage)>;
@@ -62,7 +60,6 @@ impl CaptureState {
             texture,
             pipeline,
             bind_group,
-            buffer: None,
         }
     }
 

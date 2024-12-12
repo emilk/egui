@@ -655,7 +655,6 @@ impl<'app> WgpuWinitRunning<'app> {
                 true
             }
         });
-        let screenshot_requested = !screenshot_commands.is_empty();
         let vsync_secs = painter.paint_and_update_textures(
             viewport_id,
             pixels_per_point,

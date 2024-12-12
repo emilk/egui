@@ -4,8 +4,6 @@
 use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
-use epaint::ColorImage;
-use std::sync::mpsc;
 use std::{num::NonZeroU32, sync::Arc};
 
 struct SurfaceState {
