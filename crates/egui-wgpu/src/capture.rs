@@ -62,7 +62,7 @@ impl CaptureState {
         });
 
         let (texture, padding, bind_group) =
-            Self::recreate_texture(device, surface_texture, &sampler, &bind_group_layout);
+            Self::create_texture(device, surface_texture, &sampler, &bind_group_layout);
 
         Self {
             padding,
@@ -74,7 +74,7 @@ impl CaptureState {
         }
     }
 
-    fn recreate_texture(
+    fn create_texture(
         device: &wgpu::Device,
         surface_texture: &wgpu::Texture,
         sampler: &Sampler,
@@ -118,7 +118,7 @@ impl CaptureState {
     /// Updates the [`CaptureState`] if the size of the surface texture has changed
     pub fn update(&mut self, device: &wgpu::Device, texture: &wgpu::Texture) {
         if self.texture.size() != texture.size() {
-            let (new_texture, padding, bind_group) = Self::recreate_texture(
+            let (new_texture, padding, bind_group) = Self::create_texture(
                 device,
                 texture,
                 &self.sampler,
