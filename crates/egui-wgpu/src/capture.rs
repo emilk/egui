@@ -5,10 +5,11 @@ use std::sync::{mpsc, Arc};
 use wgpu::{MultisampleState, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
-/// The texture is required since [`wgpu::TextureUsages::COPY_DST`] is not an allowed
+/// The texture is required since [`wgpu::TextureUsages::COPY_SRC`] is not an allowed
 /// flag for the surface texture on all platforms. This means that anytime we want to
 /// capture the frame, we first render it to this texture, and then we can copy it to
-/// both the surface texture and the buffer, from where we can pull it back to the cpu.
+/// both the surface texture (via blit) and the buffer, from where we can pull it back
+/// to the cpu.
 pub struct CaptureState {
     pub texture: wgpu::Texture,
     padding: BufferPadding,
@@ -100,8 +101,7 @@ impl CaptureState {
         }
     }
 
-    // CaptureState only needs to be updated when the size of the two textures don't match, and we want to
-    // capture a frame
+    /// Updates the [`CaptureState`] if the size of the surface texture has changed
     pub fn update_capture_state(
         screen_capture_state: &mut Option<Self>,
         surface_texture: &wgpu::SurfaceTexture,
@@ -120,7 +120,8 @@ impl CaptureState {
         }
     }
 
-    // Handles copying from the CaptureState texture to the surface texture and the cpu
+    /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
+    /// This function is non-blocking and will send the data to the given sender when it's ready
     pub fn read_screen_rgba(
         &mut self,
         ctx: egui::Context,
@@ -230,8 +231,9 @@ impl CaptureState {
         device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
     }
 
-    // Handles copying from the CaptureState texture to the surface texture and the cpu
-    pub(crate) fn read_screen_rgba_blocking(
+    /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
+    /// This function blocks until the buffer is ready to be read from the cpu
+    pub fn read_screen_rgba_blocking(
         &mut self,
         render_state: &RenderState,
         output_frame: &wgpu::SurfaceTexture,
