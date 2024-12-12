@@ -26,6 +26,7 @@ mod renderer;
 pub use renderer::*;
 use wgpu::{Adapter, Device, Instance, Queue};
 
+pub mod capture;
 /// Module for painting [`egui`](https://github.com/emilk/egui) with [`wgpu`] on [`winit`].
 #[cfg(feature = "winit")]
 pub mod winit;

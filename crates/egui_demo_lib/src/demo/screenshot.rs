@@ -5,6 +5,7 @@ use std::sync::Arc;
 #[derive(PartialEq, Eq, Default)]
 pub struct Screenshot {
     image: Option<(Arc<egui::ColorImage>, egui::TextureHandle)>,
+    continuous: bool,
 }
 
 impl crate::Demo for Screenshot {
@@ -39,7 +40,9 @@ impl crate::View for Screenshot {
         });
 
         ui.horizontal_top(|ui| {
-            if ui.button("📷 Take Screenshot").clicked() {
+            let capture = ui.button("📷 Take Screenshot").clicked();
+            ui.checkbox(&mut self.continuous, "Capture continuously");
+            if capture || self.continuous {
                 ui.ctx()
                     .send_viewport_cmd(ViewportCommand::Screenshot(UserData::default()));
             }
