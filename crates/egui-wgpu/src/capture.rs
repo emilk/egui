@@ -190,19 +190,19 @@ impl CaptureState {
         let format = self.texture.format();
         let tex_extent = self.texture.size();
         let padding = self.padding;
+        let to_rgba = match format {
+            wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
+            wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
+            _ => {
+                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", format);
+                return;
+            }
+        };
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             if let Err(err) = result {
                 log::error!("Failed to map buffer for reading: {:?}", err);
                 return;
             }
-            let to_rgba = match format {
-                wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
-                wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
-                _ => {
-                    log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", format);
-                    return;
-                }
-            };
             let buffer_slice = buffer.slice(..);
 
             let mut pixels = Vec::with_capacity((tex_extent.width * tex_extent.height) as usize);
@@ -229,7 +229,8 @@ impl CaptureState {
                     size: [tex_extent.width as usize, tex_extent.height as usize],
                     pixels,
                 },
-            )).ok();
+            ))
+            .ok();
             ctx.request_repaint();
         });
     }
