@@ -33,5 +33,4 @@
         "--all-features",
     ],
     "rust-analyzer.showUnlinkedFileNotification": false,
-    "workbench.colorTheme": "CodeSandbox Black",
 }
