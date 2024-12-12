@@ -75,7 +75,7 @@ mod mutex_impl {
             // Detect if we are recursively taking out a lock on this mutex.
 
             // use a pointer to the inner data as an id for this lock
-            let ptr = (&self.0 as *const parking_lot::Mutex<_>).cast::<()>();
+            let ptr = std::ptr::from_ref::<parking_lot::Mutex<_>>(&self.0).cast::<()>();
 
             // Store it in thread local storage while we have a lock guard taken out
             HELD_LOCKS_TLS.with(|held_locks| {

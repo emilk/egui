@@ -1,5 +1,4 @@
 use egui::{style::HandleShape, Slider, SliderClamping, SliderOrientation, Ui};
-use std::f64::INFINITY;
 
 /// Showcase sliders
 #[derive(PartialEq)]
@@ -77,7 +76,7 @@ impl crate::View for Sliders {
         let (type_min, type_max) = if *integer {
             ((i32::MIN as f64), (i32::MAX as f64))
         } else if *logarithmic {
-            (-INFINITY, INFINITY)
+            (-f64::INFINITY, f64::INFINITY)
         } else {
             (-1e5, 1e5) // linear sliders make little sense with huge numbers
         };

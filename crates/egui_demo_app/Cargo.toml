@@ -27,7 +27,12 @@ web_app = ["http", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
-persistence = ["eframe/persistence", "egui/persistence", "serde", "egui_extras/serde"]
+persistence = [
+  "eframe/persistence",
+  "egui_extras/serde",
+  "egui/persistence",
+  "serde",
+]
 puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
@@ -74,7 +79,7 @@ env_logger = { version = "0.10", default-features = false, features = [
   "auto-color",
   "humantime",
 ] }
-rfd = { version = "0.13", optional = true }
+rfd = { version = "0.15", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

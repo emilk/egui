@@ -1058,8 +1058,8 @@ pub enum ViewportCommand {
 
     /// Take a screenshot.
     ///
-    /// The results are returned in `crate::Event::Screenshot`.
-    Screenshot,
+    /// The results are returned in [`crate::Event::Screenshot`].
+    Screenshot(crate::UserData),
 
     /// Request cut of the current selection
     ///
@@ -1099,6 +1099,8 @@ impl ViewportCommand {
         self == &Self::Close
     }
 }
+
+// ----------------------------------------------------------------------------
 
 /// Describes a viewport, i.e. a native window.
 ///

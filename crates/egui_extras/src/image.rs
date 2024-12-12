@@ -28,7 +28,7 @@ pub struct RetainedImage {
 }
 
 impl RetainedImage {
-    pub fn from_color_image(debug_name: impl Into<String>, image: ColorImage) -> Self {
+    pub fn from_color_image(debug_name: impl Into<String>, image: egui::ColorImage) -> Self {
         Self {
             debug_name: debug_name.into(),
             size: image.size,
@@ -54,7 +54,7 @@ impl RetainedImage {
     ) -> Result<Self, String> {
         Ok(Self::from_color_image(
             debug_name,
-            load_image_bytes(image_bytes)?,
+            load_image_bytes(image_bytes).map_err(|err| err.to_string())?,
         ))
     }
 
@@ -154,7 +154,7 @@ impl RetainedImage {
         self.texture
             .lock()
             .get_or_insert_with(|| {
-                let image: &mut ColorImage = &mut self.image.lock();
+                let image: &mut egui::ColorImage = &mut self.image.lock();
                 let image = std::mem::take(image);
                 ctx.load_texture(&self.debug_name, image, self.options)
             })
@@ -190,8 +190,6 @@ impl RetainedImage {
 
 // ----------------------------------------------------------------------------
 
-use egui::ColorImage;
-
 /// Load a (non-svg) image.
 ///
 /// Requires the "image" feature. You must also opt-in to the image formats you need
@@ -200,9 +198,19 @@ use egui::ColorImage;
 /// # Errors
 /// On invalid image or unsupported image format.
 #[cfg(feature = "image")]
-pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, String> {
+pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::load::LoadError> {
     crate::profile_function!();
-    let image = image::load_from_memory(image_bytes).map_err(|err| err.to_string())?;
+    let image = image::load_from_memory(image_bytes).map_err(|err| match err {
+        image::ImageError::Unsupported(err) => match err.kind() {
+            image::error::UnsupportedErrorKind::Format(format) => {
+                egui::load::LoadError::FormatNotSupported {
+                    detected_format: Some(format.to_string()),
+                }
+            }
+            _ => egui::load::LoadError::Loading(err.to_string()),
+        },
+        err => egui::load::LoadError::Loading(err.to_string()),
+    })?;
     let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();

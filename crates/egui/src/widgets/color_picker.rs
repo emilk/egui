@@ -165,8 +165,11 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
 /// * `x_value` - X axis, either saturation or value (0.0-1.0).
 /// * `y_value` - Y axis, either saturation or value (0.0-1.0).
 /// * `color_at` - A function that dictates how the mix of saturation and value will be displayed in the 2d slider.
-/// E.g.: `|x_value, y_value| HsvaGamma { h: 1.0, s: x_value, v: y_value, a: 1.0 }.into()` displays the colors as follows: top-left: white \[s: 0.0, v: 1.0], top-right: fully saturated color \[s: 1.0, v: 1.0], bottom-right: black \[s: 0.0, v: 1.0].
 ///
+/// e.g.: `|x_value, y_value| HsvaGamma { h: 1.0, s: x_value, v: y_value, a: 1.0 }.into()` displays the colors as follows:
+/// * top-left: white `[s: 0.0, v: 1.0]`
+/// * top-right: fully saturated color `[s: 1.0, v: 1.0]`
+/// * bottom-right: black `[s: 0.0, v: 1.0].`
 fn color_slider_2d(
     ui: &mut Ui,
     x_value: &mut f32,

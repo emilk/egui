@@ -11,9 +11,6 @@ pub enum Order {
     /// Painted behind all floating windows
     Background,
 
-    /// Special layer between panels and windows
-    PanelResizeLine,
-
     /// Normal moveable windows that you reorder by click
     Middle,
 
@@ -30,10 +27,9 @@ pub enum Order {
 }
 
 impl Order {
-    const COUNT: usize = 6;
+    const COUNT: usize = 5;
     const ALL: [Self; Self::COUNT] = [
         Self::Background,
-        Self::PanelResizeLine,
         Self::Middle,
         Self::Foreground,
         Self::Tooltip,
@@ -44,12 +40,9 @@ impl Order {
     #[inline(always)]
     pub fn allow_interaction(&self) -> bool {
         match self {
-            Self::Background
-            | Self::PanelResizeLine
-            | Self::Middle
-            | Self::Foreground
-            | Self::Tooltip
-            | Self::Debug => true,
+            Self::Background | Self::Middle | Self::Foreground | Self::Tooltip | Self::Debug => {
+                true
+            }
         }
     }
 
@@ -57,7 +50,6 @@ impl Order {
     pub fn short_debug_format(&self) -> &'static str {
         match self {
             Self::Background => "backg",
-            Self::PanelResizeLine => "panel",
             Self::Middle => "middl",
             Self::Foreground => "foreg",
             Self::Tooltip => "toolt",
@@ -95,6 +87,7 @@ impl LayerId {
     }
 
     #[inline(always)]
+    #[deprecated = "Use `Memory::allows_interaction` instead"]
     pub fn allow_interaction(&self) -> bool {
         self.order.allow_interaction()
     }

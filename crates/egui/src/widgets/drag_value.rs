@@ -452,7 +452,7 @@ impl<'a> Widget for DragValue<'a> {
         // in button mode for just one frame. This is important for
         // screen readers.
         let is_kb_editing = ui.memory_mut(|mem| {
-            mem.interested_in_focus(id);
+            mem.interested_in_focus(id, ui.layer_id());
             mem.has_focus(id)
         });
 
@@ -686,7 +686,7 @@ impl<'a> Widget for DragValue<'a> {
             }
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
-            builder.clear_name();
+            builder.clear_label();
             // Always expose the value as a string. This makes the widget
             // more stable to accessibility users as it switches
             // between edit and button modes. This is particularly important

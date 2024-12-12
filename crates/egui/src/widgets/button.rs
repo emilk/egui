@@ -37,6 +37,7 @@ pub struct Button<'a> {
     min_size: Vec2,
     rounding: Option<Rounding>,
     selected: bool,
+    image_tint_follows_text_color: bool,
 }
 
 impl<'a> Button<'a> {
@@ -70,6 +71,7 @@ impl<'a> Button<'a> {
             min_size: Vec2::ZERO,
             rounding: None,
             selected: false,
+            image_tint_follows_text_color: false,
         }
     }
 
@@ -156,6 +158,18 @@ impl<'a> Button<'a> {
         self
     }
 
+    /// If true, the tint of the image is multiplied by the widget text color.
+    ///
+    /// This makes sense for images that are white, that should have the same color as the text color.
+    /// This will also make the icon color depend on hover state.
+    ///
+    /// Default: `false`.
+    #[inline]
+    pub fn image_tint_follows_text_color(mut self, image_tint_follows_text_color: bool) -> Self {
+        self.image_tint_follows_text_color = image_tint_follows_text_color;
+        self
+    }
+
     /// Show some text on the right side of the button, in weak color.
     ///
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
@@ -190,6 +204,7 @@ impl Widget for Button<'_> {
             min_size,
             rounding,
             selected,
+            image_tint_follows_text_color,
         } = self;
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
@@ -319,12 +334,16 @@ impl Widget for Button<'_> {
                 let image_rect = Rect::from_min_size(image_pos, image_size);
                 cursor_x += image_size.x;
                 let tlr = image.load_for_size(ui.ctx(), image_size);
+                let mut image_options = image.image_options().clone();
+                if image_tint_follows_text_color {
+                    image_options.tint = image_options.tint * visuals.text_color();
+                }
                 widgets::image::paint_texture_load_result(
                     ui,
                     &tlr,
                     image_rect,
                     image.show_loading_spinner,
-                    image.image_options(),
+                    &image_options,
                 );
                 response = widgets::image::texture_load_result_response(
                     &image.source(ui.ctx()),

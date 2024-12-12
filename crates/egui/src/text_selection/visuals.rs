@@ -96,8 +96,19 @@ pub fn paint_text_selection(
 pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
     let stroke = visuals.text_cursor.stroke;
 
-    let top = cursor_rect.center_top();
-    let bottom = cursor_rect.center_bottom();
+    // Ensure the cursor is aligned to the pixel grid for whole number widths.
+    // See https://github.com/emilk/egui/issues/5164
+    let (top, bottom) = if (stroke.width as usize) % 2 == 0 {
+        (
+            painter.round_pos_to_pixels(cursor_rect.center_top()),
+            painter.round_pos_to_pixels(cursor_rect.center_bottom()),
+        )
+    } else {
+        (
+            painter.round_pos_to_pixel_center(cursor_rect.center_top()),
+            painter.round_pos_to_pixel_center(cursor_rect.center_bottom()),
+        )
+    };
 
     painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
@@ -121,14 +132,14 @@ pub fn paint_text_cursor(
     ui: &Ui,
     painter: &Painter,
     primary_cursor_rect: Rect,
-    time_since_last_edit: f64,
+    time_since_last_interaction: f64,
 ) {
     if ui.visuals().text_cursor.blink {
         let on_duration = ui.visuals().text_cursor.on_duration;
         let off_duration = ui.visuals().text_cursor.off_duration;
         let total_duration = on_duration + off_duration;
 
-        let time_in_cycle = (time_since_last_edit % (total_duration as f64)) as f32;
+        let time_in_cycle = (time_since_last_interaction % (total_duration as f64)) as f32;
 
         let wake_in = if time_in_cycle < on_duration {
             // Cursor is visible

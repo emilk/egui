@@ -46,7 +46,7 @@ fn button_node() {
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Button should exist in the accesskit output");
 
-    assert_eq!(button.name(), Some(button_text));
+    assert_eq!(button.label(), Some(button_text));
     assert!(!button.is_disabled());
 }
 
@@ -72,7 +72,7 @@ fn disabled_button_node() {
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Button should exist in the accesskit output");
 
-    assert_eq!(button.name(), Some(button_text));
+    assert_eq!(button.label(), Some(button_text));
     assert!(button.is_disabled());
 }
 
@@ -97,7 +97,7 @@ fn toggle_button_node() {
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Toggle button should exist in the accesskit output");
 
-    assert_eq!(toggle.name(), Some(button_text));
+    assert_eq!(toggle.label(), Some(button_text));
     assert!(!toggle.is_disabled());
 }
 
@@ -165,14 +165,14 @@ fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&Context)) -> TreeUpdat
 }
 
 #[track_caller]
-fn assert_button_exists(tree: &TreeUpdate, name: &str, parent: NodeId) {
+fn assert_button_exists(tree: &TreeUpdate, label: &str, parent: NodeId) {
     let (node_id, _) = tree
         .nodes
         .iter()
         .find(|(_, node)| {
-            !node.is_hidden() && node.role() == Role::Button && node.name() == Some(name)
+            !node.is_hidden() && node.role() == Role::Button && node.label() == Some(label)
         })
-        .expect("No visible button with that name exists.");
+        .expect("No visible button with that label exists.");
 
     assert_parent_child(tree, parent, *node_id);
 }
@@ -183,7 +183,7 @@ fn assert_window_exists(tree: &TreeUpdate, title: &str, parent: NodeId) -> NodeI
         .nodes
         .iter()
         .find(|(_, node)| {
-            !node.is_hidden() && node.role() == Role::Window && node.name() == Some(title)
+            !node.is_hidden() && node.role() == Role::Window && node.label() == Some(title)
         })
         .expect("No visible window with that title exists.");
 
