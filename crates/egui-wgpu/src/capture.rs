@@ -1,5 +1,5 @@
 use crate::RenderState;
-use egui::UserData;
+use egui::{UserData, ViewportId};
 use epaint::ColorImage;
 use std::sync::{mpsc, Arc};
 use wgpu::{BindGroupLayout, MultisampleState, Sampler, StoreOp};
@@ -18,6 +18,10 @@ pub struct CaptureState {
     bind_group: wgpu::BindGroup,
     buffer: Option<wgpu::Buffer>,
 }
+
+pub type CaptureReceiver = mpsc::Receiver<(ViewportId, Vec<UserData>, ColorImage)>;
+pub type CaptureSender = mpsc::Sender<(ViewportId, Vec<UserData>, ColorImage)>;
+pub use mpsc::channel as capture_channel;
 
 impl CaptureState {
     pub fn new(device: &wgpu::Device, surface_texture: &wgpu::Texture) -> Self {
@@ -111,7 +115,7 @@ impl CaptureState {
     /// Pass the returned buffer to [`CaptureState::read_screen_rgba`] to read the data back to the cpu.
     pub fn copy_textures(
         &mut self,
-        render_state: &RenderState,
+        device: &wgpu::Device,
         output_frame: &wgpu::SurfaceTexture,
         encoder: &mut wgpu::CommandEncoder,
     ) -> wgpu::Buffer {
@@ -125,7 +129,7 @@ impl CaptureState {
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
         #[allow(clippy::arc_with_non_send_sync)]
-        let buffer = render_state.device.create_buffer(&wgpu::BufferDescriptor {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
             size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
@@ -180,7 +184,8 @@ impl CaptureState {
         ctx: egui::Context,
         buffer: wgpu::Buffer,
         data: Vec<UserData>,
-        tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
+        tx: CaptureSender,
+        viewport_id: ViewportId,
     ) {
         let buffer = Arc::new(buffer);
         let buffer_clone = buffer.clone();
@@ -221,6 +226,7 @@ impl CaptureState {
             buffer.unmap();
 
             tx.send((
+                viewport_id,
                 data,
                 ColorImage {
                     size: [tex_extent.width as usize, tex_extent.height as usize],
@@ -229,113 +235,6 @@ impl CaptureState {
             )).ok();
             ctx.request_repaint();
         });
-    }
-
-    /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
-    /// This function blocks until the buffer is ready to be read from the cpu
-    pub(crate) fn read_screen_rgba_blocking(
-        &mut self,
-        render_state: &RenderState,
-        output_frame: &wgpu::SurfaceTexture,
-    ) -> Option<ColorImage> {
-        debug_assert_eq!(
-            self.texture.size(),
-            output_frame.texture.size(),
-            "Texture sizes must match, `CaptureState::update` was probably not called"
-        );
-
-        let buffer = self.buffer.get_or_insert_with(|| {
-            render_state.device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("egui_screen_capture_buffer"),
-                size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
-                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                mapped_at_creation: false,
-            })
-        });
-
-        let device = &render_state.device;
-        let queue = &render_state.queue;
-
-        let tex_extent = self.texture.size();
-
-        let mut encoder = device.create_command_encoder(&Default::default());
-        encoder.copy_texture_to_buffer(
-            self.texture.as_image_copy(),
-            wgpu::ImageCopyBuffer {
-                buffer,
-                layout: wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(self.padding.padded_bytes_per_row),
-                    rows_per_image: None,
-                },
-            },
-            tex_extent,
-        );
-
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("texture_copy"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &output_frame.texture.create_view(&Default::default()),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-
-            pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &self.bind_group, &[]);
-            pass.draw(0..3, 0..1);
-        }
-
-        let id = queue.submit(Some(encoder.finish()));
-        let buffer_slice = buffer.slice(..);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        buffer_slice.map_async(wgpu::MapMode::Read, move |v| {
-            drop(sender.send(v));
-        });
-        device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
-        receiver.recv().ok()?.ok()?;
-
-        let to_rgba = match self.texture.format() {
-            wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
-            wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
-            _ => {
-                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", self.texture.format());
-                return None;
-            }
-        };
-
-        let mut pixels =
-            Vec::with_capacity((self.texture.width() * self.texture.height()) as usize);
-        for padded_row in buffer_slice
-            .get_mapped_range()
-            .chunks(self.padding.padded_bytes_per_row as usize)
-        {
-            let row = &padded_row[..self.padding.unpadded_bytes_per_row as usize];
-            for color in row.chunks(4) {
-                pixels.push(epaint::Color32::from_rgba_premultiplied(
-                    color[to_rgba[0]],
-                    color[to_rgba[1]],
-                    color[to_rgba[2]],
-                    color[to_rgba[3]],
-                ));
-            }
-        }
-        buffer.unmap();
-
-        Some(ColorImage {
-            size: [
-                self.texture.width() as usize,
-                self.texture.height() as usize,
-            ],
-            pixels,
-        })
     }
 }
 

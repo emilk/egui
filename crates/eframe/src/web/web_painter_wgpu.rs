@@ -4,7 +4,7 @@ use super::web_painter::WebPainter;
 use crate::epaint::ColorImage;
 use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
-use egui_wgpu::capture::CaptureState;
+use egui_wgpu::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
 use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
@@ -18,8 +18,8 @@ pub(crate) struct WebPainterWgpu {
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
-    capture_rx: mpsc::Receiver<(Vec<UserData>, ColorImage)>,
-    capture_tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
+    capture_tx: CaptureSender,
+    capture_rx: CaptureReceiver,
     ctx: egui::Context,
 }
 
@@ -137,7 +137,7 @@ impl WebPainterWgpu {
 
         log::debug!("wgpu painter initialized.");
 
-        let (capture_tx, capture_rx) = mpsc::channel();
+        let (capture_tx, capture_rx) = capture_channel();
 
         Ok(Self {
             canvas,
@@ -148,8 +148,8 @@ impl WebPainterWgpu {
             depth_texture_view: None,
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
             screen_capture_state: None,
-            capture_rx,
             capture_tx,
+            capture_rx,
             ctx,
         })
     }
@@ -312,7 +312,7 @@ impl WebPainter for WebPainterWgpu {
             if capture {
                 if let Some(capture_state) = &mut self.screen_capture_state {
                     capture_buffer = Some(capture_state.copy_textures(
-                        render_state,
+                        &render_state.device,
                         &output_frame,
                         &mut encoder,
                     ));
@@ -342,6 +342,7 @@ impl WebPainter for WebPainterWgpu {
                         capture_buffer,
                         capture_data,
                         self.capture_tx.clone(),
+                        ViewportId::ROOT,
                     );
                 }
             }
@@ -353,11 +354,11 @@ impl WebPainter for WebPainterWgpu {
     }
 
     fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
-        for (user_data, screenshot) in self.capture_rx.try_iter() {
+        for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
             let screenshot = Arc::new(screenshot);
             for data in user_data {
                 events.push(Event::Screenshot {
-                    viewport_id: ViewportId::default(),
+                    viewport_id,
                     user_data: data,
                     image: screenshot.clone(),
                 });

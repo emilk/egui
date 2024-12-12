@@ -1,12 +1,12 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use std::{num::NonZeroU32, sync::Arc};
-
-use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
-
-use crate::capture::CaptureState;
+use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
+use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
+use epaint::ColorImage;
+use std::sync::mpsc;
+use std::{num::NonZeroU32, sync::Arc};
 
 struct SurfaceState {
     surface: wgpu::Surface<'static>,
@@ -21,6 +21,7 @@ struct SurfaceState {
 ///
 /// NOTE: all egui viewports share the same painter.
 pub struct Painter {
+    context: Context,
     configuration: WgpuConfiguration,
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
@@ -35,6 +36,8 @@ pub struct Painter {
     depth_texture_view: ViewportIdMap<wgpu::TextureView>,
     msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
     surfaces: ViewportIdMap<SurfaceState>,
+    capture_tx: CaptureSender,
+    capture_rx: CaptureReceiver,
 }
 
 impl Painter {
@@ -51,6 +54,7 @@ impl Painter {
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
     pub fn new(
+        context: Context,
         configuration: WgpuConfiguration,
         msaa_samples: u32,
         depth_format: Option<wgpu::TextureFormat>,
@@ -67,7 +71,10 @@ impl Painter {
             crate::WgpuSetup::Existing { instance, .. } => instance.clone(),
         };
 
+        let (capture_tx, capture_rx) = capture_channel();
+
         Self {
+            context,
             configuration,
             msaa_samples,
             support_transparent_backbuffer,
@@ -81,6 +88,9 @@ impl Painter {
             depth_texture_view: Default::default(),
             surfaces: Default::default(),
             msaa_texture_view: Default::default(),
+
+            capture_tx,
+            capture_rx,
         }
     }
 
@@ -353,6 +363,8 @@ impl Painter {
     ///
     /// The approximate number of seconds spent on vsync-waiting (if any),
     /// and the captures captured screenshot if it was requested.
+    ///
+    /// If capture_data isn't empty, a screenshot will be captured.
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -360,17 +372,18 @@ impl Painter {
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
-        capture: bool,
-    ) -> (f32, Option<epaint::ColorImage>) {
+        capture_data: Vec<UserData>,
+    ) -> f32 {
         crate::profile_function!();
 
+        let capture = !capture_data.is_empty();
         let mut vsync_sec = 0.0;
 
         let Some(render_state) = self.render_state.as_mut() else {
-            return (vsync_sec, None);
+            return vsync_sec;
         };
         let Some(surface_state) = self.surfaces.get(&viewport_id) else {
-            return (vsync_sec, None);
+            return vsync_sec;
         };
 
         let mut encoder =
@@ -420,14 +433,15 @@ impl Painter {
             Err(err) => match (*self.configuration.on_surface_error)(err) {
                 SurfaceErrorAction::RecreateSurface => {
                     Self::configure_surface(surface_state, render_state, &self.configuration);
-                    return (vsync_sec, None);
+                    return vsync_sec;
                 }
                 SurfaceErrorAction::SkipFrame => {
-                    return (vsync_sec, None);
+                    return vsync_sec;
                 }
             },
         };
 
+        let mut capture_buffer = None;
         {
             let renderer = render_state.renderer.read();
 
@@ -489,6 +503,16 @@ impl Painter {
                 clipped_primitives,
                 &screen_descriptor,
             );
+
+            if capture {
+                if let Some(capture_state) = &mut self.screen_capture_state {
+                    capture_buffer = Some(capture_state.copy_textures(
+                        &render_state.device,
+                        &output_frame,
+                        &mut encoder,
+                    ));
+                }
+            }
         }
 
         let encoded = {
@@ -517,15 +541,17 @@ impl Painter {
             }
         }
 
-        let screenshot = if capture {
-            self.screen_capture_state
-                .as_mut()
-                .and_then(|screen_capture_state| {
-                    screen_capture_state.read_screen_rgba_blocking(render_state, &output_frame)
-                })
-        } else {
-            None
-        };
+        if let Some(capture_buffer) = capture_buffer {
+            if let Some(screen_capture_state) = &mut self.screen_capture_state {
+                screen_capture_state.read_screen_rgba(
+                    self.context.clone(),
+                    capture_buffer,
+                    capture_data,
+                    self.capture_tx.clone(),
+                    viewport_id,
+                );
+            }
+        }
 
         {
             crate::profile_scope!("present");
@@ -535,7 +561,21 @@ impl Painter {
             vsync_sec += start.elapsed().as_secs_f32();
         }
 
-        (vsync_sec, screenshot)
+        vsync_sec
+    }
+
+    /// Call this at the beginning of each frame to receive the requested screenshots.
+    pub fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
+        for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
+            let screenshot = Arc::new(screenshot);
+            for data in user_data {
+                events.push(Event::Screenshot {
+                    viewport_id,
+                    user_data: data,
+                    image: screenshot.clone(),
+                });
+            }
+        }
     }
 
     pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
