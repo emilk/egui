@@ -330,9 +330,8 @@ impl WebPainter for WebPainterWgpu {
 
         if capture {
             if let Some(capture_state) = &mut self.screen_capture_state {
-                CaptureState::read_screen_rgba(
+                capture_state.read_screen_rgba(
                     self.ctx.clone(),
-                    capture_state,
                     render_state,
                     frame.as_ref(),
                     capture_data,

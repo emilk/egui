@@ -527,11 +527,7 @@ impl Painter {
             self.screen_capture_state
                 .as_mut()
                 .and_then(|screen_capture_state| {
-                    CaptureState::read_screen_rgba_blocking(
-                        screen_capture_state,
-                        render_state,
-                        &output_frame,
-                    )
+                    screen_capture_state.read_screen_rgba_blocking(render_state, &output_frame)
                 })
         } else {
             None

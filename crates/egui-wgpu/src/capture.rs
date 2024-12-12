@@ -11,10 +11,10 @@ use wgpu::{MultisampleState, StoreOp};
 /// both the surface texture and the buffer, from where we can pull it back to the cpu.
 pub struct CaptureState {
     pub texture: wgpu::Texture,
-    pub padding: BufferPadding,
-    pub pipeline: wgpu::RenderPipeline,
-    pub bind_group: wgpu::BindGroup,
-    pub buffer: Option<wgpu::Buffer>,
+    padding: BufferPadding,
+    pipeline: wgpu::RenderPipeline,
+    bind_group: wgpu::BindGroup,
+    buffer: Option<wgpu::Buffer>,
 }
 
 impl CaptureState {
@@ -103,7 +103,7 @@ impl CaptureState {
     // CaptureState only needs to be updated when the size of the two textures don't match, and we want to
     // capture a frame
     pub fn update_capture_state(
-        screen_capture_state: &mut Option<CaptureState>,
+        screen_capture_state: &mut Option<Self>,
         surface_texture: &wgpu::SurfaceTexture,
         render_state: &RenderState,
     ) {
@@ -111,20 +111,19 @@ impl CaptureState {
         match screen_capture_state {
             Some(capture_state) => {
                 if capture_state.texture.size() != surface_texture.size() {
-                    *capture_state = CaptureState::new(&render_state.device, surface_texture);
+                    *capture_state = Self::new(&render_state.device, surface_texture);
                 }
             }
             None => {
-                *screen_capture_state =
-                    Some(CaptureState::new(&render_state.device, surface_texture));
+                *screen_capture_state = Some(Self::new(&render_state.device, surface_texture));
             }
         }
     }
 
     // Handles copying from the CaptureState texture to the surface texture and the cpu
     pub fn read_screen_rgba(
+        &mut self,
         ctx: egui::Context,
-        screen_capture_state: &mut CaptureState,
         render_state: &RenderState,
         output_frame: Option<&wgpu::SurfaceTexture>,
         data: Vec<UserData>,
@@ -136,13 +135,12 @@ impl CaptureState {
         #[allow(clippy::arc_with_non_send_sync)]
         let buffer = Arc::new(render_state.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
-            size: (screen_capture_state.padding.padded_bytes_per_row
-                * screen_capture_state.texture.height()) as u64,
+            size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         }));
-        let padding = screen_capture_state.padding;
-        let tex = &mut screen_capture_state.texture;
+        let padding = self.padding;
+        let tex = &mut self.texture;
 
         let device = &render_state.device;
         let queue = &render_state.queue;
@@ -179,8 +177,8 @@ impl CaptureState {
                 timestamp_writes: None,
             });
 
-            pass.set_pipeline(&screen_capture_state.pipeline);
-            pass.set_bind_group(0, &screen_capture_state.bind_group, &[]);
+            pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, &self.bind_group, &[]);
             pass.draw(0..3, 0..1);
         }
 
@@ -234,21 +232,14 @@ impl CaptureState {
 
     // Handles copying from the CaptureState texture to the surface texture and the cpu
     pub(crate) fn read_screen_rgba_blocking(
-        screen_capture_state: &mut CaptureState,
+        &mut self,
         render_state: &RenderState,
         output_frame: &wgpu::SurfaceTexture,
-    ) -> Option<epaint::ColorImage> {
-        let CaptureState {
-            texture: tex,
-            buffer,
-            padding,
-            ..
-        } = screen_capture_state;
-
-        let buffer = buffer.get_or_insert_with(|| {
+    ) -> Option<ColorImage> {
+        let buffer = self.buffer.get_or_insert_with(|| {
             render_state.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("egui_screen_capture_buffer"),
-                size: (padding.padded_bytes_per_row * tex.height()) as u64,
+                size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
                 mapped_at_creation: false,
             })
@@ -257,16 +248,16 @@ impl CaptureState {
         let device = &render_state.device;
         let queue = &render_state.queue;
 
-        let tex_extent = tex.size();
+        let tex_extent = self.texture.size();
 
         let mut encoder = device.create_command_encoder(&Default::default());
         encoder.copy_texture_to_buffer(
-            tex.as_image_copy(),
+            self.texture.as_image_copy(),
             wgpu::ImageCopyBuffer {
                 buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(padding.padded_bytes_per_row),
+                    bytes_per_row: Some(self.padding.padded_bytes_per_row),
                     rows_per_image: None,
                 },
             },
@@ -289,8 +280,8 @@ impl CaptureState {
                 timestamp_writes: None,
             });
 
-            pass.set_pipeline(&screen_capture_state.pipeline);
-            pass.set_bind_group(0, &screen_capture_state.bind_group, &[]);
+            pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, &self.bind_group, &[]);
             pass.draw(0..3, 0..1);
         }
 
@@ -303,21 +294,22 @@ impl CaptureState {
         device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
         receiver.recv().ok()?.ok()?;
 
-        let to_rgba = match tex.format() {
+        let to_rgba = match self.texture.format() {
             wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
             wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
             _ => {
-                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", tex.format());
+                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", self.texture.format());
                 return None;
             }
         };
 
-        let mut pixels = Vec::with_capacity((tex.width() * tex.height()) as usize);
+        let mut pixels =
+            Vec::with_capacity((self.texture.width() * self.texture.height()) as usize);
         for padded_row in buffer_slice
             .get_mapped_range()
-            .chunks(padding.padded_bytes_per_row as usize)
+            .chunks(self.padding.padded_bytes_per_row as usize)
         {
-            let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
+            let row = &padded_row[..self.padding.unpadded_bytes_per_row as usize];
             for color in row.chunks(4) {
                 pixels.push(epaint::Color32::from_rgba_premultiplied(
                     color[to_rgba[0]],
@@ -329,8 +321,11 @@ impl CaptureState {
         }
         buffer.unmap();
 
-        Some(epaint::ColorImage {
-            size: [tex.width() as usize, tex.height() as usize],
+        Some(ColorImage {
+            size: [
+                self.texture.width() as usize,
+                self.texture.height() as usize,
+            ],
             pixels,
         })
     }
