@@ -184,6 +184,7 @@ impl CaptureState {
         tx: CaptureSender,
         viewport_id: ViewportId,
     ) {
+        #[allow(clippy::arc_with_non_send_sync)]
         let buffer = Arc::new(buffer);
         let buffer_clone = buffer.clone();
         let buffer_slice = buffer_clone.slice(..);
