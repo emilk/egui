@@ -95,7 +95,12 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
-    /// Transforms per layer
+    /// Transforms per layer.
+    ///
+    /// Instead of using this directly, use:
+    /// * [`Context::set_transform_layer`]
+    /// * [`Context::layer_transform_to_global`]
+    /// * [`Context::layer_transform_from_global`]
     pub to_global: HashMap<LayerId, TSTransform>,
 
     // -------------------------------------------------
