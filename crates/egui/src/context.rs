@@ -518,7 +518,7 @@ impl ContextImpl {
                 crate::hit_test::hit_test(
                     &viewport.prev_pass.widgets,
                     &layers,
-                    &self.memory.layer_transforms,
+                    &self.memory.to_global,
                     pos,
                     interact_radius,
                 )
@@ -1329,11 +1329,11 @@ impl Context {
                 res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(transform), Some(pos)) = (
-                    memory.layer_transforms.get(&res.layer_id),
+                if let (Some(to_global), Some(pos)) = (
+                    memory.to_global.get(&res.layer_id),
                     &mut res.interact_pointer_pos,
                 ) {
-                    *pos = transform.inverse() * *pos;
+                    *pos = to_global.inverse() * *pos;
                 }
             }
 
@@ -2381,7 +2381,7 @@ impl ContextImpl {
 
         let shapes = viewport
             .graphics
-            .drain(self.memory.areas().order(), &self.memory.layer_transforms);
+            .drain(self.memory.areas().order(), &self.memory.to_global);
 
         let mut repaint_needed = false;
 
@@ -2697,6 +2697,7 @@ impl Context {
     /// Transform the graphics of the given layer.
     ///
     /// This will also affect input.
+    /// The direction of the given transform is "into the global coordinate system".
     ///
     /// This is a sticky setting, remembered from one frame to the next.
     ///
@@ -2706,11 +2707,26 @@ impl Context {
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
         self.memory_mut(|m| {
             if transform == TSTransform::IDENTITY {
-                m.layer_transforms.remove(&layer_id)
+                m.to_global.remove(&layer_id)
             } else {
-                m.layer_transforms.insert(layer_id, transform)
+                m.to_global.insert(layer_id, transform)
             }
         });
+    }
+
+    /// Return how to transform the graphics of the given layer into the global coordinate system.
+    ///
+    /// Set this with [`Self::layer_transform_to_global`].
+    pub fn layer_transform_to_global(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.memory(|m| m.to_global.get(&layer_id).copied())
+    }
+
+    /// Return how to transform the graphics of the global coordinate system into the local coordinate system of the given layer.
+    ///
+    /// This returns the inverse of [`Self::layer_transform_to_global`].
+    pub fn layer_transform_from_global(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.layer_transform_to_global(layer_id)
+            .map(|t| t.inverse())
     }
 
     /// Move all the graphics at the given layer.
@@ -2777,12 +2793,11 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let rect =
-            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).copied()) {
-                transform * rect
-            } else {
-                rect
-            };
+        let rect = if let Some(to_global) = self.layer_transform_to_global(layer_id) {
+            to_global * rect
+        } else {
+            rect
+        };
         if !rect.is_positive() {
             return false;
         }

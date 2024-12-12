@@ -96,7 +96,7 @@ pub struct Memory {
     everything_is_visible: bool,
 
     /// Transforms per layer
-    pub layer_transforms: HashMap<LayerId, TSTransform>,
+    pub to_global: HashMap<LayerId, TSTransform>,
 
     // -------------------------------------------------
     // Per-viewport:
@@ -120,7 +120,7 @@ impl Default for Memory {
             focus: Default::default(),
             viewport_id: Default::default(),
             areas: Default::default(),
-            layer_transforms: Default::default(),
+            to_global: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
@@ -819,7 +819,7 @@ impl Memory {
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
         self.areas()
-            .layer_id_at(pos, &self.layer_transforms)
+            .layer_id_at(pos, &self.to_global)
             .and_then(|layer_id| {
                 if self.is_above_modal_layer(layer_id) {
                     Some(layer_id)
@@ -1194,15 +1194,15 @@ impl Areas {
     pub fn layer_id_at(
         &self,
         pos: Pos2,
-        layer_transforms: &HashMap<LayerId, TSTransform>,
+        layer_to_global: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        if let Some(transform) = layer_transforms.get(layer) {
-                            rect = *transform * rect;
+                        if let Some(to_global) = layer_to_global.get(layer) {
+                            rect = *to_global * rect;
                         }
 
                         if rect.contains(pos) {
