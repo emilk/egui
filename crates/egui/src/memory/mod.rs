@@ -95,8 +95,13 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
-    /// Transforms per layer
-    pub layer_transforms: HashMap<LayerId, TSTransform>,
+    /// Transforms per layer.
+    ///
+    /// Instead of using this directly, use:
+    /// * [`crate::Context::set_transform_layer`]
+    /// * [`crate::Context::layer_transform_to_global`]
+    /// * [`crate::Context::layer_transform_from_global`]
+    pub to_global: HashMap<LayerId, TSTransform>,
 
     // -------------------------------------------------
     // Per-viewport:
@@ -120,7 +125,7 @@ impl Default for Memory {
             focus: Default::default(),
             viewport_id: Default::default(),
             areas: Default::default(),
-            layer_transforms: Default::default(),
+            to_global: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
@@ -819,7 +824,7 @@ impl Memory {
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
         self.areas()
-            .layer_id_at(pos, &self.layer_transforms)
+            .layer_id_at(pos, &self.to_global)
             .and_then(|layer_id| {
                 if self.is_above_modal_layer(layer_id) {
                     Some(layer_id)
@@ -827,6 +832,12 @@ impl Memory {
                     self.top_modal_layer()
                 }
             })
+    }
+
+    /// The currently set transform of a layer.
+    #[deprecated = "Use `Context::layer_transform_to_global` instead"]
+    pub fn layer_transforms(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.to_global.get(&layer_id).copied()
     }
 
     /// An iterator over all layers. Back-to-front, top is last.
@@ -1194,15 +1205,15 @@ impl Areas {
     pub fn layer_id_at(
         &self,
         pos: Pos2,
-        layer_transforms: &HashMap<LayerId, TSTransform>,
+        layer_to_global: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        if let Some(transform) = layer_transforms.get(layer) {
-                            rect = *transform * rect;
+                        if let Some(to_global) = layer_to_global.get(layer) {
+                            rect = *to_global * rect;
                         }
 
                         if rect.contains(pos) {

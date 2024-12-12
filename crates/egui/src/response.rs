@@ -392,11 +392,8 @@ impl Response {
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
             let mut delta = self.ctx.input(|i| i.pointer.delta());
-            if let Some(scaling) = self
-                .ctx
-                .memory(|m| m.layer_transforms.get(&self.layer_id).map(|t| t.scaling))
-            {
-                delta /= scaling;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                delta *= from_global.scaling;
             }
             delta
         } else {
@@ -478,11 +475,8 @@ impl Response {
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
             let mut pos = self.ctx.input(|i| i.pointer.hover_pos())?;
-            if let Some(transform) = self
-                .ctx
-                .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
-            {
-                pos = transform.inverse() * pos;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                pos = from_global * pos;
             }
             Some(pos)
         } else {

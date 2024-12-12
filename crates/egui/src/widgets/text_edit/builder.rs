@@ -766,14 +766,15 @@ impl<'t> TextEdit<'t> {
                         }
 
                         // Set IME output (in screen coords) when text is editable and visible
-                        let transform = ui
-                            .memory(|m| m.layer_transforms.get(&ui.layer_id()).copied())
+                        let to_global = ui
+                            .ctx()
+                            .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
 
                         ui.ctx().output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
-                                rect: transform * rect,
-                                cursor_rect: transform * primary_cursor_rect,
+                                rect: to_global * rect,
+                                cursor_rect: to_global * primary_cursor_rect,
                             });
                         });
                     }

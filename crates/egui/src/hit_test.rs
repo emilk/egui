@@ -35,7 +35,7 @@ pub struct WidgetHits {
 pub fn hit_test(
     widgets: &WidgetRects,
     layer_order: &[LayerId],
-    layer_transforms: &HashMap<LayerId, TSTransform>,
+    layer_to_global: &HashMap<LayerId, TSTransform>,
     pos: Pos2,
     search_radius: f32,
 ) -> WidgetHits {
@@ -44,9 +44,9 @@ pub fn hit_test(
     let search_radius_sq = search_radius * search_radius;
 
     // Transform the position into the local coordinate space of each layer:
-    let pos_in_layers: HashMap<LayerId, Pos2> = layer_transforms
+    let pos_in_layers: HashMap<LayerId, Pos2> = layer_to_global
         .iter()
-        .map(|(layer_id, t)| (*layer_id, t.inverse() * pos))
+        .map(|(layer_id, to_global)| (*layer_id, to_global.inverse() * pos))
         .collect();
 
     let mut closest_dist_sq = f32::INFINITY;
