@@ -430,30 +430,24 @@ impl Painter {
 
         {
             let renderer = render_state.renderer.read();
-            let frame_view = if capture {
-                CaptureState::update_capture_state(
-                    &mut self.screen_capture_state,
-                    &output_frame,
-                    render_state,
-                );
-                self.screen_capture_state
-                    .as_ref()
-                    .map_or_else(
-                        || &output_frame.texture,
-                        |capture_state| &capture_state.texture,
-                    )
-                    .create_view(&wgpu::TextureViewDescriptor::default())
+
+            let target_texture = if capture {
+                let capture_state = self.screen_capture_state.get_or_insert_with(|| {
+                    CaptureState::new(&render_state.device, &output_frame.texture)
+                });
+                capture_state.update(&render_state.device, &output_frame.texture);
+
+                &capture_state.texture
             } else {
-                output_frame
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default())
+                &output_frame.texture
             };
+            let target_view = target_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
             let (view, resolve_target) = (self.msaa_samples > 1)
                 .then_some(self.msaa_texture_view.get(&viewport_id))
                 .flatten()
-                .map_or((&frame_view, None), |texture_view| {
-                    (texture_view, Some(&frame_view))
+                .map_or((&target_view, None), |texture_view| {
+                    (texture_view, Some(&target_view))
                 });
 
             let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

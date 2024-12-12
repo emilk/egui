@@ -2,7 +2,7 @@ use crate::RenderState;
 use egui::UserData;
 use epaint::ColorImage;
 use std::sync::{mpsc, Arc};
-use wgpu::{MultisampleState, StoreOp};
+use wgpu::{BindGroupLayout, MultisampleState, Sampler, StoreOp};
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
 /// The texture is required since [`wgpu::TextureUsages::COPY_SRC`] is not an allowed
@@ -11,30 +11,16 @@ use wgpu::{MultisampleState, StoreOp};
 /// both the surface texture (via blit) and the buffer, from where we can pull it back
 /// to the cpu.
 pub struct CaptureState {
-    pub texture: wgpu::Texture,
     padding: BufferPadding,
+    pub texture: wgpu::Texture,
+    sampler: wgpu::Sampler,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     buffer: Option<wgpu::Buffer>,
 }
 
 impl CaptureState {
-    pub fn new(device: &Arc<wgpu::Device>, surface_texture: &wgpu::Texture) -> Self {
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("egui_screen_capture_texture"),
-            size: surface_texture.size(),
-            mip_level_count: surface_texture.mip_level_count(),
-            sample_count: surface_texture.sample_count(),
-            dimension: surface_texture.dimension(),
-            format: surface_texture.format(),
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-
-        let padding = BufferPadding::new(surface_texture.width());
-
+    pub fn new(device: &wgpu::Device, surface_texture: &wgpu::Texture) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("blit.wgsl"));
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -75,10 +61,44 @@ impl CaptureState {
             ..Default::default()
         });
 
+        let (texture, padding, bind_group) =
+            Self::recreate_texture(device, surface_texture, &sampler, &bind_group_layout);
+
+        Self {
+            padding,
+            texture,
+            sampler,
+            pipeline,
+            bind_group,
+            buffer: None,
+        }
+    }
+
+    fn recreate_texture(
+        device: &wgpu::Device,
+        surface_texture: &wgpu::Texture,
+        sampler: &Sampler,
+        layout: &BindGroupLayout,
+    ) -> (wgpu::Texture, BufferPadding, wgpu::BindGroup) {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("egui_screen_capture_texture"),
+            size: surface_texture.size(),
+            mip_level_count: surface_texture.mip_level_count(),
+            sample_count: surface_texture.sample_count(),
+            dimension: surface_texture.dimension(),
+            format: surface_texture.format(),
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+
+        let padding = BufferPadding::new(surface_texture.width());
+
         let view = texture.create_view(&Default::default());
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
+            layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -86,37 +106,27 @@ impl CaptureState {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
+                    resource: wgpu::BindingResource::Sampler(sampler),
                 },
             ],
             label: None,
         });
 
-        Self {
-            texture,
-            padding,
-            pipeline,
-            bind_group,
-            buffer: None,
-        }
+        (texture, padding, bind_group)
     }
 
     /// Updates the [`CaptureState`] if the size of the surface texture has changed
-    pub fn update_capture_state(
-        screen_capture_state: &mut Option<Self>,
-        surface_texture: &wgpu::SurfaceTexture,
-        render_state: &RenderState,
-    ) {
-        let surface_texture = &surface_texture.texture;
-        match screen_capture_state {
-            Some(capture_state) => {
-                if capture_state.texture.size() != surface_texture.size() {
-                    *capture_state = Self::new(&render_state.device, surface_texture);
-                }
-            }
-            None => {
-                *screen_capture_state = Some(Self::new(&render_state.device, surface_texture));
-            }
+    pub fn update(&mut self, device: &wgpu::Device, texture: &wgpu::Texture) {
+        if self.texture.size() != texture.size() {
+            let (new_texture, padding, bind_group) = Self::recreate_texture(
+                device,
+                texture,
+                &self.sampler,
+                &self.pipeline.get_bind_group_layout(0),
+            );
+            self.texture = new_texture;
+            self.padding = padding;
+            self.bind_group = bind_group;
         }
     }
 
@@ -126,10 +136,16 @@ impl CaptureState {
         &mut self,
         ctx: egui::Context,
         render_state: &RenderState,
-        output_frame: Option<&wgpu::SurfaceTexture>,
+        output_frame: &wgpu::SurfaceTexture,
         data: Vec<UserData>,
         tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
     ) {
+        debug_assert_eq!(
+            self.texture.size(),
+            output_frame.texture.size(),
+            "Texture sizes must match, `CaptureState::update` was probably not called"
+        );
+
         // It would be more efficient to reuse the Buffer, e.g. via some kind of ring buffer, but
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
@@ -162,26 +178,24 @@ impl CaptureState {
             tex_extent,
         );
 
-        if let Some(texture) = output_frame {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("blit"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &texture.texture.create_view(&Default::default()),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("blit"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &output_frame.texture.create_view(&Default::default()),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+        });
 
-            pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &self.bind_group, &[]);
-            pass.draw(0..3, 0..1);
-        }
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.draw(0..3, 0..1);
 
         let id = queue.submit(Some(encoder.finish()));
         let buffer_clone = buffer.clone();
@@ -238,6 +252,12 @@ impl CaptureState {
         render_state: &RenderState,
         output_frame: &wgpu::SurfaceTexture,
     ) -> Option<ColorImage> {
+        debug_assert_eq!(
+            self.texture.size(),
+            output_frame.texture.size(),
+            "Texture sizes must match, `CaptureState::update` was probably not called"
+        );
+
         let buffer = self.buffer.get_or_insert_with(|| {
             render_state.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("egui_screen_capture_buffer"),

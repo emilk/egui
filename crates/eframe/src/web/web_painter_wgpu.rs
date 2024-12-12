@@ -137,7 +137,7 @@ impl WebPainterWgpu {
 
         log::debug!("wgpu painter initialized.");
 
-        let (tx, rx) = mpsc::channel();
+        let (capture_tx, capture_rx) = mpsc::channel();
 
         Ok(Self {
             canvas,
@@ -148,8 +148,8 @@ impl WebPainterWgpu {
             depth_texture_view: None,
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
             screen_capture_state: None,
-            capture_rx: rx,
-            capture_tx: tx,
+            capture_rx,
+            capture_tx,
             ctx,
         })
     }
@@ -253,28 +253,22 @@ impl WebPainter for WebPainterWgpu {
             {
                 let renderer = render_state.renderer.read();
 
-                let frame_view = if capture {
-                    CaptureState::update_capture_state(
-                        &mut self.screen_capture_state,
-                        &output_frame,
-                        render_state,
-                    );
-                    self.screen_capture_state
-                        .as_ref()
-                        .map_or_else(
-                            || &output_frame.texture,
-                            |capture_state| &capture_state.texture,
-                        )
-                        .create_view(&wgpu::TextureViewDescriptor::default())
+                let target_texture = if capture {
+                    let capture_state = self.screen_capture_state.get_or_insert_with(|| {
+                        CaptureState::new(&render_state.device, &output_frame.texture)
+                    });
+                    capture_state.update(&render_state.device, &output_frame.texture);
+
+                    &capture_state.texture
                 } else {
-                    output_frame
-                        .texture
-                        .create_view(&wgpu::TextureViewDescriptor::default())
+                    &output_frame.texture
                 };
+                let target_view =
+                    target_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
                 let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &frame_view,
+                        view: &target_view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -328,19 +322,19 @@ impl WebPainter for WebPainterWgpu {
             .queue
             .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
-        if capture {
-            if let Some(capture_state) = &mut self.screen_capture_state {
-                capture_state.read_screen_rgba(
-                    self.ctx.clone(),
-                    render_state,
-                    frame.as_ref(),
-                    capture_data,
-                    self.capture_tx.clone(),
-                );
-            }
-        };
-
         if let Some(frame) = frame {
+            if capture {
+                if let Some(capture_state) = &mut self.screen_capture_state {
+                    capture_state.read_screen_rgba(
+                        self.ctx.clone(),
+                        render_state,
+                        &frame,
+                        capture_data,
+                        self.capture_tx.clone(),
+                    );
+                }
+            };
+
             frame.present();
         }
 
