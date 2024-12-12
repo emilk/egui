@@ -76,37 +76,96 @@ pub fn hit_test(
         .copied()
         .collect();
 
-    // We need to pick one single layer for the interaction.
-    if let Some(closest_hit) = closest_hit {
-        // Select the top layer, and ignore widgets in any other layer:
-        let top_layer = closest_hit.layer_id;
-        close.retain(|w| w.layer_id == top_layer);
-
-        // If the widget is disabled, treat it as if it isn't sensing anything.
-        // This simplifies the code in `hit_test_on_close` so it doesn't have to check
-        // the `enabled` flag everywhere:
-        for w in &mut close {
-            if !w.enabled {
-                w.sense.click = false;
-                w.sense.drag = false;
-            }
+    // Transform to global coordinates:
+    for hit in &mut close {
+        if let Some(to_global) = layer_to_global.get(&hit.layer_id).copied() {
+            *hit = hit.transform(to_global);
         }
-
-        let pos_in_layer = pos_in_layers.get(&top_layer).copied().unwrap_or(pos);
-        let hits = hit_test_on_close(&close, pos_in_layer);
-
-        if let Some(drag) = hits.drag {
-            debug_assert!(drag.sense.drag);
-        }
-        if let Some(click) = hits.click {
-            debug_assert!(click.sense.click);
-        }
-
-        hits
-    } else {
-        // No close widgets.
-        Default::default()
     }
+
+    // When using layer transforms it is common to stack layers close to each other.
+    // For instance, you may have a resize-separator on a panel, with two
+    // transform-layers on either side.
+    // The resize-separator is technically in a layer _behind_ the transform-layers,
+    // but the user doesn't perceive it as such.
+    // So how do we handle this case?
+    //
+    // If we just allow interactions with ALL close widgets,
+    // then we might accidentally allow clicks through windows and other bad stuff.
+    //
+    // Let's try this:
+    // * Set up a hit-area (based on search_radius)
+    // * Iterate over all hits top-to-bottom
+    //   * Stop if any hit covers the whole hit-area, otherwise keep going
+    //   * Collect the layers ids in a set
+    // * Remove all widgets not in the above layer set
+    //
+    // This will most often result in only one layer,
+    // but if the pointer is at the edge of a layer, we might include widgets in
+    // a layer behind it.
+
+    let mut allowed_layers: ahash::HashSet<LayerId> = Default::default();
+    for hit in close.iter().rev() {
+        allowed_layers.insert(hit.layer_id);
+        let hit_covers_search_area = contains_circle(hit.interact_rect, pos, search_radius);
+        if hit_covers_search_area {
+            break; // nothing behind this layer could ever be interacted with
+        }
+    }
+
+    close.retain(|hit| allowed_layers.contains(&hit.layer_id));
+
+    // If a widget is disabled, treat it as if it isn't sensing anything.
+    // This simplifies the code in `hit_test_on_close` so it doesn't have to check
+    // the `enabled` flag everywhere:
+    for w in &mut close {
+        if !w.enabled {
+            w.sense.click = false;
+            w.sense.drag = false;
+        }
+    }
+
+    let mut hits = hit_test_on_close(&close, pos);
+
+    // Trandform back to local coordinates:
+    for wr in &mut hits.contains_pointer {
+        *wr = wr.transform(
+            layer_to_global
+                .get(&wr.layer_id)
+                .copied()
+                .unwrap_or_default()
+                .inverse(),
+        );
+    }
+    if let Some(wr) = &mut hits.drag {
+        debug_assert!(wr.sense.drag);
+
+        *wr = wr.transform(
+            layer_to_global
+                .get(&wr.layer_id)
+                .copied()
+                .unwrap_or_default()
+                .inverse(),
+        );
+    }
+    if let Some(wr) = &mut hits.click {
+        debug_assert!(wr.sense.click);
+
+        *wr = wr.transform(
+            layer_to_global
+                .get(&wr.layer_id)
+                .copied()
+                .unwrap_or_default()
+                .inverse(),
+        );
+    }
+
+    hits
+}
+
+/// Returns true if the rectangle contains the whole circle.
+fn contains_circle(interact_rect: emath::Rect, pos: Pos2, radius: f32) -> bool {
+    interact_rect.shrink(radius).contains(pos)
 }
 
 fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
@@ -175,8 +234,8 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                             drag: Some(closest_click),
                         }
                     } else {
-                        // The drag wiudth is separate from the click wiudth,
-                        // so return only the drag widget
+                        // The drag-widget is separate from the click-widget,
+                        // so return only the drag-widget
                         WidgetHits {
                             contains_pointer: hits,
                             click: None,
@@ -253,7 +312,7 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
             // where when hovering directly over a drag-widget (like a big ScrollArea),
             // we look for close click-widgets (e.g. buttons).
             // This is because big background drag-widgets (ScrollArea, Window) are common,
-            // but bit clickable things aren't.
+            // but big clickable things aren't.
             // Even if they were, I think it would be confusing for a user if clicking
             // a drag-only widget would click something _behind_ it.
 
