@@ -107,16 +107,14 @@ impl CaptureState {
         }
     }
 
-    /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
-    /// This function is non-blocking and will send the data to the given sender when it's ready
-    pub fn read_screen_rgba(
+    /// Handles copying from the [`CaptureState`] texture to the surface texture and the buffer.
+    /// Pass the returned buffer to [`CaptureState::read_screen_rgba`] to read the data back to the cpu.
+    pub fn copy_textures(
         &mut self,
-        ctx: egui::Context,
         render_state: &RenderState,
         output_frame: &wgpu::SurfaceTexture,
-        data: Vec<UserData>,
-        tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
-    ) {
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> wgpu::Buffer {
         debug_assert_eq!(
             self.texture.size(),
             output_frame.texture.size(),
@@ -127,21 +125,17 @@ impl CaptureState {
         // for most screenshot use cases this should be fine. When taking many screenshots (e.g. for a video)
         // it might make sense to revisit this and implement a more efficient solution.
         #[allow(clippy::arc_with_non_send_sync)]
-        let buffer = Arc::new(render_state.device.create_buffer(&wgpu::BufferDescriptor {
+        let buffer = render_state.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("egui_screen_capture_buffer"),
             size: (self.padding.padded_bytes_per_row * self.texture.height()) as u64,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
-        }));
+        });
         let padding = self.padding;
         let tex = &mut self.texture;
 
-        let device = &render_state.device;
-        let queue = &render_state.queue;
-
         let tex_extent = tex.size();
 
-        let mut encoder = device.create_command_encoder(&Default::default());
         encoder.copy_texture_to_buffer(
             tex.as_image_copy(),
             wgpu::ImageCopyBuffer {
@@ -155,31 +149,45 @@ impl CaptureState {
             tex_extent,
         );
 
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("texture_copy"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &output_frame.texture.create_view(&Default::default()),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("texture_copy"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &output_frame.texture.create_view(&Default::default()),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+        });
 
-            pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &self.bind_group, &[]);
-            pass.draw(0..3, 0..1);
-        }
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.draw(0..3, 0..1);
 
-        let id = queue.submit(Some(encoder.finish()));
+        buffer
+    }
+
+    /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
+    /// This function is non-blocking and will send the data to the given sender when it's ready.
+    /// Pass in the buffer returned from [`CaptureState::copy_textures`].
+    /// Make sure to call this after the encoder has been submitted.
+    pub fn read_screen_rgba(
+        &self,
+        ctx: egui::Context,
+        buffer: wgpu::Buffer,
+        data: Vec<UserData>,
+        tx: mpsc::Sender<(Vec<UserData>, ColorImage)>,
+    ) {
+        let buffer = Arc::new(buffer);
         let buffer_clone = buffer.clone();
         let buffer_slice = buffer_clone.slice(..);
-        let format = tex.format();
+        let format = self.texture.format();
+        let tex_extent = self.texture.size();
+        let padding = self.padding;
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             if let Err(err) = result {
                 log::error!("Failed to map buffer for reading: {:?}", err);
@@ -225,7 +233,7 @@ impl CaptureState {
 
     /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
     /// This function blocks until the buffer is ready to be read from the cpu
-    pub fn read_screen_rgba_blocking(
+    pub(crate) fn read_screen_rgba_blocking(
         &mut self,
         render_state: &RenderState,
         output_frame: &wgpu::SurfaceTexture,

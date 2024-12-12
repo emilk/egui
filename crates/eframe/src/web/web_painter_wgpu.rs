@@ -219,7 +219,7 @@ impl WebPainter for WebPainterWgpu {
 
         // Resize surface if needed
         let is_zero_sized_surface = size_in_pixels[0] == 0 || size_in_pixels[1] == 0;
-        let frame = if is_zero_sized_surface {
+        let frame_and_capture_buffer = if is_zero_sized_surface {
             None
         } else {
             if size_in_pixels[0] != self.surface_configuration.width
@@ -307,7 +307,19 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            Some(output_frame)
+            let mut capture_buffer = None;
+
+            if capture {
+                if let Some(capture_state) = &mut self.screen_capture_state {
+                    capture_buffer = Some(capture_state.copy_textures(
+                        render_state,
+                        &output_frame,
+                        &mut encoder,
+                    ));
+                }
+            };
+
+            Some((output_frame, capture_buffer))
         };
 
         {
@@ -322,18 +334,17 @@ impl WebPainter for WebPainterWgpu {
             .queue
             .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
-        if let Some(frame) = frame {
-            if capture {
-                if let Some(capture_state) = &mut self.screen_capture_state {
+        if let Some((frame, capture_buffer)) = frame_and_capture_buffer {
+            if let Some(capture_buffer) = capture_buffer {
+                if let Some(capture_state) = &self.screen_capture_state {
                     capture_state.read_screen_rgba(
                         self.ctx.clone(),
-                        render_state,
-                        &frame,
+                        capture_buffer,
                         capture_data,
                         self.capture_tx.clone(),
                     );
                 }
-            };
+            }
 
             frame.present();
         }
