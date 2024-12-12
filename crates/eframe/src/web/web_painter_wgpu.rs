@@ -1,7 +1,6 @@
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 
 use super::web_painter::WebPainter;
-use crate::epaint::ColorImage;
 use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
 use egui_wgpu::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};

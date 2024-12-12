@@ -362,7 +362,7 @@ impl Painter {
     /// The approximate number of seconds spent on vsync-waiting (if any),
     /// and the captures captured screenshot if it was requested.
     ///
-    /// If capture_data isn't empty, a screenshot will be captured.
+    /// If `capture_data` isn't empty, a screenshot will be captured.
     pub fn paint_and_update_textures(
         &mut self,
         viewport_id: ViewportId,
@@ -563,7 +563,7 @@ impl Painter {
     }
 
     /// Call this at the beginning of each frame to receive the requested screenshots.
-    pub fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
+    pub fn handle_screenshots(&self, events: &mut Vec<Event>) {
         for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
             let screenshot = Arc::new(screenshot);
             for data in user_data {
