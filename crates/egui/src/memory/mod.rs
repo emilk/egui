@@ -829,6 +829,12 @@ impl Memory {
             })
     }
 
+    /// The currently set transform of a layer.
+    #[deprecated = "Use `Context::layer_transform_to_global` instead"]
+    pub fn layer_transforms(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.to_global.get(&layer_id).copied()
+    }
+
     /// An iterator over all layers. Back-to-front, top is last.
     pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
         self.areas().order().iter().copied()
