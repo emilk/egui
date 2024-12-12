@@ -699,7 +699,7 @@ impl MenuState {
             // ensure to repaint once even when pointer is not moving
             ui.ctx().request_repaint();
         } else if !open
-            && (button.hovered() || self.hovering_current_submenu(&pointer) || button.clicked())
+            && (button.hovered() ||  button.clicked())
         {
             // TODO(emilk): open menu to the left if there isn't enough space to the right
             let mut pos = button.rect.right_top();
@@ -710,6 +710,7 @@ impl MenuState {
         } else if open
             && ui.response().contains_pointer()
             && !button.hovered()
+            && !button.clicked()
             && !self.hovering_current_submenu(&pointer)
         {
             // We are hovering something else in the menu, so close the submenu.
