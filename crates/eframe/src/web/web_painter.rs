@@ -17,6 +17,8 @@ pub(crate) trait WebPainter {
     fn max_texture_side(&self) -> usize;
 
     /// Update all internal textures and paint gui.
+    /// When `capture` isn't empty, the rendered screen should be captured.
+    /// Once the screenshot is ready, the screenshot should be returned via [`Self::handle_screenshots`].
     fn paint_and_update_textures(
         &mut self,
         clear_color: [f32; 4],
