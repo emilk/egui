@@ -8,12 +8,12 @@ use wgpu::{BindGroupLayout, MultisampleState, Sampler, StoreOp};
 /// The texture is required since [`wgpu::TextureUsages::COPY_SRC`] is not an allowed
 /// flag for the surface texture on all platforms. This means that anytime we want to
 /// capture the frame, we first render it to this texture, and then we can copy it to
-/// both the surface texture (via blit) and the buffer, from where we can pull it back
+/// both the surface texture (via a render pass) and the buffer (via a texture to buffer copy),
+/// from where we can pull it back
 /// to the cpu.
 pub struct CaptureState {
     padding: BufferPadding,
     pub texture: wgpu::Texture,
-    sampler: wgpu::Sampler,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     buffer: Option<wgpu::Buffer>,
@@ -21,10 +21,10 @@ pub struct CaptureState {
 
 impl CaptureState {
     pub fn new(device: &wgpu::Device, surface_texture: &wgpu::Texture) -> Self {
-        let shader = device.create_shader_module(wgpu::include_wgsl!("blit.wgsl"));
+        let shader = device.create_shader_module(wgpu::include_wgsl!("texture_copy.wgsl"));
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("blit"),
+            label: Some("texture_copy"),
             layout: None,
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -50,24 +50,12 @@ impl CaptureState {
 
         let bind_group_layout = pipeline.get_bind_group_layout(0);
 
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("mip"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
-
         let (texture, padding, bind_group) =
-            Self::create_texture(device, surface_texture, &sampler, &bind_group_layout);
+            Self::create_texture(device, surface_texture, &bind_group_layout);
 
         Self {
             padding,
             texture,
-            sampler,
             pipeline,
             bind_group,
             buffer: None,
@@ -77,7 +65,6 @@ impl CaptureState {
     fn create_texture(
         device: &wgpu::Device,
         surface_texture: &wgpu::Texture,
-        sampler: &Sampler,
         layout: &BindGroupLayout,
     ) -> (wgpu::Texture, BufferPadding, wgpu::BindGroup) {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -99,16 +86,10 @@ impl CaptureState {
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(sampler),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&view),
+            }],
             label: None,
         });
 
@@ -118,12 +99,8 @@ impl CaptureState {
     /// Updates the [`CaptureState`] if the size of the surface texture has changed
     pub fn update(&mut self, device: &wgpu::Device, texture: &wgpu::Texture) {
         if self.texture.size() != texture.size() {
-            let (new_texture, padding, bind_group) = Self::create_texture(
-                device,
-                texture,
-                &self.sampler,
-                &self.pipeline.get_bind_group_layout(0),
-            );
+            let (new_texture, padding, bind_group) =
+                Self::create_texture(device, texture, &self.pipeline.get_bind_group_layout(0));
             self.texture = new_texture;
             self.padding = padding;
             self.bind_group = bind_group;
@@ -180,7 +157,7 @@ impl CaptureState {
 
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("blit"),
+                label: Some("texture_copy"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_frame.texture.create_view(&Default::default()),
                     resolve_target: None,
@@ -244,7 +221,6 @@ impl CaptureState {
             )).ok();
             ctx.request_repaint();
         });
-        device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
     }
 
     /// Handles copying from the [`CaptureState`] texture to the surface texture and the cpu
@@ -290,7 +266,7 @@ impl CaptureState {
 
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("blit"),
+                label: Some("texture_copy"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &output_frame.texture.create_view(&Default::default()),
                     resolve_target: None,
