@@ -5,6 +5,7 @@ use std::{num::NonZeroU32, sync::Arc};
 
 use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
 
+use crate::capture::CaptureState;
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
@@ -12,66 +13,6 @@ struct SurfaceState {
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
-    supports_screenshot: bool,
-}
-
-/// A texture and a buffer for reading the rendered frame back to the cpu.
-/// The texture is required since [`wgpu::TextureUsages::COPY_DST`] is not an allowed
-/// flag for the surface texture on all platforms. This means that anytime we want to
-/// capture the frame, we first render it to this texture, and then we can copy it to
-/// both the surface texture and the buffer, from where we can pull it back to the cpu.
-struct CaptureState {
-    texture: wgpu::Texture,
-    buffer: wgpu::Buffer,
-    padding: BufferPadding,
-}
-
-impl CaptureState {
-    fn new(device: &Arc<wgpu::Device>, surface_texture: &wgpu::Texture) -> Self {
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("egui_screen_capture_texture"),
-            size: surface_texture.size(),
-            mip_level_count: surface_texture.mip_level_count(),
-            sample_count: surface_texture.sample_count(),
-            dimension: surface_texture.dimension(),
-            format: surface_texture.format(),
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-
-        let padding = BufferPadding::new(surface_texture.width());
-
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("egui_screen_capture_buffer"),
-            size: (padding.padded_bytes_per_row * texture.height()) as u64,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
-
-        Self {
-            texture,
-            buffer,
-            padding,
-        }
-    }
-}
-
-struct BufferPadding {
-    unpadded_bytes_per_row: u32,
-    padded_bytes_per_row: u32,
-}
-
-impl BufferPadding {
-    fn new(width: u32) -> Self {
-        let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
-        let unpadded_bytes_per_row = width * bytes_per_pixel;
-        let padded_bytes_per_row =
-            wgpu::util::align_to(unpadded_bytes_per_row, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
-        Self {
-            unpadded_bytes_per_row,
-            padded_bytes_per_row,
-        }
-    }
 }
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
@@ -157,17 +98,11 @@ impl Painter {
     ) {
         crate::profile_function!();
 
-        let usage = if surface_state.supports_screenshot {
-            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
-        } else {
-            wgpu::TextureUsages::RENDER_ATTACHMENT
-        };
-
         let width = surface_state.width;
         let height = surface_state.height;
 
         let mut surf_config = wgpu::SurfaceConfiguration {
-            usage,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
             present_mode: config.present_mode,
             alpha_mode: surface_state.alpha_mode,
@@ -292,8 +227,6 @@ impl Painter {
         } else {
             wgpu::CompositeAlphaMode::Auto
         };
-        let supports_screenshot =
-            !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
         self.surfaces.insert(
             viewport_id,
             SurfaceState {
@@ -301,7 +234,6 @@ impl Painter {
                 width: size.width,
                 height: size.height,
                 alpha_mode,
-                supports_screenshot,
             },
         );
         let Some(width) = NonZeroU32::new(size.width) else {
@@ -417,105 +349,6 @@ impl Painter {
         }
     }
 
-    // CaptureState only needs to be updated when the size of the two textures don't match, and we want to
-    // capture a frame
-    fn update_capture_state(
-        screen_capture_state: &mut Option<CaptureState>,
-        surface_texture: &wgpu::SurfaceTexture,
-        render_state: &RenderState,
-    ) {
-        let surface_texture = &surface_texture.texture;
-        match screen_capture_state {
-            Some(capture_state) => {
-                if capture_state.texture.size() != surface_texture.size() {
-                    *capture_state = CaptureState::new(&render_state.device, surface_texture);
-                }
-            }
-            None => {
-                *screen_capture_state =
-                    Some(CaptureState::new(&render_state.device, surface_texture));
-            }
-        }
-    }
-
-    // Handles copying from the CaptureState texture to the surface texture and the cpu
-    fn read_screen_rgba(
-        screen_capture_state: &CaptureState,
-        render_state: &RenderState,
-        output_frame: &wgpu::SurfaceTexture,
-    ) -> Option<epaint::ColorImage> {
-        let CaptureState {
-            texture: tex,
-            buffer,
-            padding,
-        } = screen_capture_state;
-
-        let device = &render_state.device;
-        let queue = &render_state.queue;
-
-        let tex_extent = tex.size();
-
-        let mut encoder = device.create_command_encoder(&Default::default());
-        encoder.copy_texture_to_buffer(
-            tex.as_image_copy(),
-            wgpu::ImageCopyBuffer {
-                buffer,
-                layout: wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(padding.padded_bytes_per_row),
-                    rows_per_image: None,
-                },
-            },
-            tex_extent,
-        );
-
-        encoder.copy_texture_to_texture(
-            tex.as_image_copy(),
-            output_frame.texture.as_image_copy(),
-            tex.size(),
-        );
-
-        let id = queue.submit(Some(encoder.finish()));
-        let buffer_slice = buffer.slice(..);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        buffer_slice.map_async(wgpu::MapMode::Read, move |v| {
-            drop(sender.send(v));
-        });
-        device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
-        receiver.recv().ok()?.ok()?;
-
-        let to_rgba = match tex.format() {
-            wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
-            wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
-            _ => {
-                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", tex.format());
-                return None;
-            }
-        };
-
-        let mut pixels = Vec::with_capacity((tex.width() * tex.height()) as usize);
-        for padded_row in buffer_slice
-            .get_mapped_range()
-            .chunks(padding.padded_bytes_per_row as usize)
-        {
-            let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
-            for color in row.chunks(4) {
-                pixels.push(epaint::Color32::from_rgba_premultiplied(
-                    color[to_rgba[0]],
-                    color[to_rgba[1]],
-                    color[to_rgba[2]],
-                    color[to_rgba[3]],
-                ));
-            }
-        }
-        buffer.unmap();
-
-        Some(epaint::ColorImage {
-            size: [tex.width() as usize, tex.height() as usize],
-            pixels,
-        })
-    }
-
     /// Returns two things:
     ///
     /// The approximate number of seconds spent on vsync-waiting (if any),
@@ -573,15 +406,6 @@ impl Painter {
             )
         };
 
-        let capture = match (capture, surface_state.supports_screenshot) {
-            (false, _) => false,
-            (true, true) => true,
-            (true, false) => {
-                log::error!("The active render surface doesn't support taking screenshots.");
-                false
-            }
-        };
-
         let output_frame = {
             crate::profile_scope!("get_current_texture");
             // This is what vsync-waiting happens on my Mac.
@@ -607,7 +431,7 @@ impl Painter {
         {
             let renderer = render_state.renderer.read();
             let frame_view = if capture {
-                Self::update_capture_state(
+                CaptureState::update_capture_state(
                     &mut self.screen_capture_state,
                     &output_frame,
                     render_state,
@@ -701,9 +525,13 @@ impl Painter {
 
         let screenshot = if capture {
             self.screen_capture_state
-                .as_ref()
+                .as_mut()
                 .and_then(|screen_capture_state| {
-                    Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+                    CaptureState::read_screen_rgba_blocking(
+                        screen_capture_state,
+                        render_state,
+                        &output_frame,
+                    )
                 })
         } else {
             None

@@ -11,9 +11,10 @@ use wgpu::{MultisampleState, StoreOp};
 /// both the surface texture and the buffer, from where we can pull it back to the cpu.
 pub struct CaptureState {
     pub texture: wgpu::Texture,
-    padding: BufferPadding,
-    pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
+    pub padding: BufferPadding,
+    pub pipeline: wgpu::RenderPipeline,
+    pub bind_group: wgpu::BindGroup,
+    pub buffer: Option<wgpu::Buffer>,
 }
 
 impl CaptureState {
@@ -95,6 +96,7 @@ impl CaptureState {
             padding,
             pipeline,
             bind_group,
+            buffer: None,
         }
     }
 
@@ -228,6 +230,109 @@ impl CaptureState {
             ctx.request_repaint();
         });
         device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
+    }
+
+    // Handles copying from the CaptureState texture to the surface texture and the cpu
+    pub(crate) fn read_screen_rgba_blocking(
+        screen_capture_state: &mut CaptureState,
+        render_state: &RenderState,
+        output_frame: &wgpu::SurfaceTexture,
+    ) -> Option<epaint::ColorImage> {
+        let CaptureState {
+            texture: tex,
+            buffer,
+            padding,
+            ..
+        } = screen_capture_state;
+
+        let buffer = buffer.get_or_insert_with(|| {
+            render_state.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("egui_screen_capture_buffer"),
+                size: (padding.padded_bytes_per_row * tex.height()) as u64,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            })
+        });
+
+        let device = &render_state.device;
+        let queue = &render_state.queue;
+
+        let tex_extent = tex.size();
+
+        let mut encoder = device.create_command_encoder(&Default::default());
+        encoder.copy_texture_to_buffer(
+            tex.as_image_copy(),
+            wgpu::ImageCopyBuffer {
+                buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padding.padded_bytes_per_row),
+                    rows_per_image: None,
+                },
+            },
+            tex_extent,
+        );
+
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("blit"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &output_frame.texture.create_view(&Default::default()),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+
+            pass.set_pipeline(&screen_capture_state.pipeline);
+            pass.set_bind_group(0, &screen_capture_state.bind_group, &[]);
+            pass.draw(0..3, 0..1);
+        }
+
+        let id = queue.submit(Some(encoder.finish()));
+        let buffer_slice = buffer.slice(..);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |v| {
+            drop(sender.send(v));
+        });
+        device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
+        receiver.recv().ok()?.ok()?;
+
+        let to_rgba = match tex.format() {
+            wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
+            wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
+            _ => {
+                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", tex.format());
+                return None;
+            }
+        };
+
+        let mut pixels = Vec::with_capacity((tex.width() * tex.height()) as usize);
+        for padded_row in buffer_slice
+            .get_mapped_range()
+            .chunks(padding.padded_bytes_per_row as usize)
+        {
+            let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
+            for color in row.chunks(4) {
+                pixels.push(epaint::Color32::from_rgba_premultiplied(
+                    color[to_rgba[0]],
+                    color[to_rgba[1]],
+                    color[to_rgba[2]],
+                    color[to_rgba[3]],
+                ));
+            }
+        }
+        buffer.unmap();
+
+        Some(epaint::ColorImage {
+            size: [tex.width() as usize, tex.height() as usize],
+            pixels,
+        })
     }
 }
 
