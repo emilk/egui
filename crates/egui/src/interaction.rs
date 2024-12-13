@@ -249,7 +249,7 @@ pub(crate) fn interact(
             .copied()
             .collect()
     } else {
-        // We may be hovering a an interactive widget or two.
+        // We may be hovering an interactive widget or two.
         // We must also consider the case where non-interactive widgets
         // are _on top_ of an interactive widget.
         // For instance: a label in a draggable window.
