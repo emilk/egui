@@ -1,9 +1,9 @@
 use ahash::HashMap;
 use egui::{
-    decode_gif_uri, has_gif_magic_header,
+    decode_animated_image_uri, has_gif_magic_header,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
-    ColorImage, GifFrameDurations, Id,
+    ColorImage, FrameDurations, Id,
 };
 use image::AnimationDecoder as _;
 use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
@@ -12,7 +12,7 @@ use std::{io::Cursor, mem::size_of, sync::Arc, time::Duration};
 #[derive(Debug, Clone)]
 pub struct AnimatedImage {
     frames: Vec<Arc<ColorImage>>,
-    frame_durations: GifFrameDurations,
+    frame_durations: FrameDurations,
 }
 
 impl AnimatedImage {
@@ -35,7 +35,7 @@ impl AnimatedImage {
         }
         Ok(Self {
             frames: images,
-            frame_durations: GifFrameDurations(Arc::new(durations)),
+            frame_durations: FrameDurations::new(durations),
         })
     }
 }
@@ -75,7 +75,7 @@ impl ImageLoader for GifLoader {
 
     fn load(&self, ctx: &egui::Context, frame_uri: &str, _: SizeHint) -> ImageLoadResult {
         let (image_uri, frame_index) =
-            decode_gif_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;
+            decode_animated_image_uri(frame_uri).map_err(|_err| LoadError::NotSupported)?;
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(image_uri).cloned() {
             match entry {
