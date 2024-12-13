@@ -60,7 +60,7 @@ impl Order {
 
 /// An identifier for a paint layer.
 /// Also acts as an identifier for [`crate::Area`]:s.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayerId {
     pub order: Order,
@@ -99,6 +99,13 @@ impl LayerId {
             self.order.short_debug_format(),
             self.id.short_debug_format()
         )
+    }
+}
+
+impl std::fmt::Debug for LayerId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self { order, id } = self;
+        write!(f, "LayerId {{ {order:?} {id:?} }}")
     }
 }
 
