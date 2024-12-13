@@ -249,7 +249,7 @@ pub(crate) fn interact(
             .copied()
             .collect()
     } else {
-        // We may be hovering a an interactive widget or two.
+        // We may be hovering an interactive widget or two.
         // We must also consider the case where non-interactive widgets
         // are _on top_ of an interactive widget.
         // For instance: a label in a draggable window.
@@ -275,6 +275,11 @@ pub(crate) fn interact(
         let mut hovered: IdSet = hits.click.iter().chain(&hits.drag).map(|w| w.id).collect();
 
         for w in &hits.contains_pointer {
+            if w.sense.click || w.sense.drag {
+                // Interactive widgets are only marked as hover if they are the ones
+                // selected by the hit-test, and those have already been included.
+                continue; // TODO: what implications does this have for tooltips? :/
+            }
             if top_interactive_order <= order(w.id).unwrap_or(0) {
                 hovered.insert(w.id);
             }
