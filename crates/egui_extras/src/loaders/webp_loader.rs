@@ -51,8 +51,7 @@ impl WebP {
             let (width, height) = decoder.dimensions();
             let size = decoder.total_bytes() as usize;
 
-            let mut data = Vec::with_capacity(size);
-            data.resize(size, 0);
+            let mut data = vec![0; size];
             decoder
                 .read_image(&mut data)
                 .map_err(|error| format!("WebP image read failure ({error})"))?;
@@ -121,7 +120,7 @@ impl ImageLoader for WebPLoader {
 
     fn load(&self, ctx: &egui::Context, frame_uri: &str, _: SizeHint) -> ImageLoadResult {
         let (image_uri, frame_index) =
-            decode_animated_image_uri(frame_uri).map_err(|_| LoadError::NotSupported)?;
+            decode_animated_image_uri(frame_uri).map_err(|_error| LoadError::NotSupported)?;
 
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(image_uri).cloned() {

@@ -807,7 +807,7 @@ impl FrameDurations {
         Self(Arc::new(durations))
     }
 
-    pub fn iter(&self) -> Iter<'_, Duration> {
+    pub fn all(&self) -> Iter<'_, Duration> {
         self.0.iter()
     }
 }
@@ -837,7 +837,7 @@ fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
     let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
 
     if let Some(durations) = durations {
-        let frames: Duration = durations.iter().sum();
+        let frames: Duration = durations.all().sum();
         let pos_ms = now.as_millis() % frames.as_millis().max(1);
 
         let mut cumulative_ms = 0;
@@ -858,22 +858,22 @@ fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
     }
 }
 
-/// Checks if uri is a GIF file
+/// Checks if uri is a gif file
 fn is_gif_uri(uri: &str) -> bool {
     uri.ends_with(".gif") || uri.contains(".gif#")
 }
 
-/// Checks if bytes are GIFs
+/// Checks if bytes are gifs
 pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
     bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a")
 }
 
-/// Checks if uri is a WebP file
+/// Checks if uri is a webp file
 fn is_webp_uri(uri: &str) -> bool {
     uri.ends_with(".webp") || uri.contains(".webp#")
 }
 
-/// Checks if bytes are WebP
+/// Checks if bytes are webp
 pub fn has_webp_header(bytes: &[u8]) -> bool {
     bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP"
 }
