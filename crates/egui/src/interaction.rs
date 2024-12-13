@@ -264,9 +264,9 @@ pub(crate) fn interact(
         // but none below it (an interactive widget stops the hover search).
         //
         // To know when to stop we need to first know the order of the widgets,
-        // which luckily we have in the `WidgetRects`.
+        // which luckily we already have in `hits.close`.
 
-        let order = |id| widgets.order(id).map(|(_layer, order)| order); // we ignore the layer, since all widgets at this point is in the same layer
+        let order = |id| hits.close.iter().position(|w| w.id == id);
 
         let click_order = hits.click.and_then(|w| order(w.id)).unwrap_or(0);
         let drag_order = hits.drag.and_then(|w| order(w.id)).unwrap_or(0);

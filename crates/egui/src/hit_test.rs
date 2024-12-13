@@ -12,11 +12,18 @@ use crate::{ahash, emath, LayerId, Pos2, Rect, WidgetRect, WidgetRects};
 /// or if we're currently already dragging something.
 #[derive(Clone, Debug, Default)]
 pub struct WidgetHits {
+    /// All widgets close to the pointer, back-to-front.
+    ///
+    /// This is a superset of all other widgets in this struct.
+    pub close: Vec<WidgetRect>,
+
     /// All widgets that contains the pointer, back-to-front.
     ///
-    /// i.e. both a Window and the button in it can contain the pointer.
+    /// i.e. both a Window and the Button in it can contain the pointer.
     ///
     /// Some of these may be widgets in a layer below the top-most layer.
+    ///
+    /// This will be used for hovering.
     pub contains_pointer: Vec<WidgetRect>,
 
     /// If the user would start a clicking now, this is what would be clicked.
@@ -128,37 +135,36 @@ pub fn hit_test(
 
     let mut hits = hit_test_on_close(&close, pos);
 
-    // Transform back to local coordinates:
-    for wr in &mut hits.contains_pointer {
-        *wr = wr.transform(
-            layer_to_global
-                .get(&wr.layer_id)
-                .copied()
-                .unwrap_or_default()
-                .inverse(),
-        );
-    }
-    if let Some(wr) = &mut hits.drag {
-        debug_assert!(wr.sense.drag);
+    hits.contains_pointer = close
+        .iter()
+        .filter(|widget| widget.interact_rect.contains(pos))
+        .copied()
+        .collect();
 
-        *wr = wr.transform(
-            layer_to_global
-                .get(&wr.layer_id)
-                .copied()
-                .unwrap_or_default()
-                .inverse(),
-        );
-    }
-    if let Some(wr) = &mut hits.click {
-        debug_assert!(wr.sense.click);
+    hits.close = close;
 
-        *wr = wr.transform(
-            layer_to_global
-                .get(&wr.layer_id)
-                .copied()
-                .unwrap_or_default()
-                .inverse(),
-        );
+    {
+        // Undo the to_global-transform we applied earlier,
+        // go back to local layer-coordinates:
+
+        let restore_widget_rect = |w: &mut WidgetRect| {
+            *w = widgets.get(w.id).copied().unwrap_or(*w);
+        };
+
+        for wr in &mut hits.close {
+            restore_widget_rect(wr);
+        }
+        for wr in &mut hits.contains_pointer {
+            restore_widget_rect(wr);
+        }
+        if let Some(wr) = &mut hits.drag {
+            debug_assert!(wr.sense.drag);
+            restore_widget_rect(wr);
+        }
+        if let Some(wr) = &mut hits.click {
+            debug_assert!(wr.sense.click);
+            restore_widget_rect(wr);
+        }
     }
 
     hits
@@ -176,13 +182,6 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
     let hit_click = find_closest_within(close.iter().copied().filter(|w| w.sense.click), pos, 0.0);
     let hit_drag = find_closest_within(close.iter().copied().filter(|w| w.sense.drag), pos, 0.0);
 
-    // Only those widgets directly under the `pos` (will be used for hovering).
-    let hits: Vec<WidgetRect> = close
-        .iter()
-        .filter(|widget| widget.interact_rect.contains(pos))
-        .copied()
-        .collect();
-
     match (hit_click, hit_drag) {
         (None, None) => {
             // No direct hit on anything. Find the closest interactive widget.
@@ -197,16 +196,16 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 
             if let Some(closest) = closest {
                 WidgetHits {
-                    contains_pointer: hits,
                     click: closest.sense.click.then_some(closest),
                     drag: closest.sense.drag.then_some(closest),
+                    ..Default::default()
                 }
             } else {
                 // Found nothing
                 WidgetHits {
-                    contains_pointer: hits,
                     click: None,
                     drag: None,
+                    ..Default::default()
                 }
             }
         }
@@ -231,17 +230,17 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                         // This is a smaller thing on a big background - help the user hit it,
                         // and ignore the big drag background.
                         WidgetHits {
-                            contains_pointer: hits,
                             click: Some(closest_click),
                             drag: Some(closest_click),
+                            ..Default::default()
                         }
                     } else {
                         // The drag-widget is separate from the click-widget,
                         // so return only the drag-widget
                         WidgetHits {
-                            contains_pointer: hits,
                             click: None,
                             drag: Some(hit_drag),
+                            ..Default::default()
                         }
                     }
                 } else {
@@ -255,17 +254,17 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                         // The drag widget is a big background thing (scroll area),
                         // so returning a separate click widget should not be confusing
                         WidgetHits {
-                            contains_pointer: hits,
                             click: Some(closest_click),
                             drag: Some(hit_drag),
+                            ..Default::default()
                         }
                     } else {
                         // The two widgets are just two normal small widgets close to each other.
                         // Highlighting both would be very confusing.
                         WidgetHits {
-                            contains_pointer: hits,
                             click: None,
                             drag: Some(hit_drag),
+                            ..Default::default()
                         }
                     }
                 }
@@ -290,17 +289,17 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
                         // `hit_drag` is a big background thing and `closest_drag` is something small on top of it.
                         // Be helpful and return the small things:
                         return WidgetHits {
-                            contains_pointer: hits,
                             click: None,
                             drag: Some(closest_drag),
+                            ..Default::default()
                         };
                     }
                 }
 
                 WidgetHits {
-                    contains_pointer: hits,
                     click: None,
                     drag: Some(hit_drag),
+                    ..Default::default()
                 }
             }
         }
@@ -319,52 +318,52 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
             // a drag-only widget would click something _behind_ it.
 
             WidgetHits {
-                contains_pointer: hits,
                 click: Some(hit_click),
                 drag: None,
+                ..Default::default()
             }
         }
 
         (Some(hit_click), Some(hit_drag)) => {
             // We have a perfect hit on both click and drag. Which is the topmost?
-            let click_idx = hits.iter().position(|w| *w == hit_click).unwrap();
-            let drag_idx = hits.iter().position(|w| *w == hit_drag).unwrap();
+            let click_idx = close.iter().position(|w| *w == hit_click).unwrap();
+            let drag_idx = close.iter().position(|w| *w == hit_drag).unwrap();
 
             let click_is_on_top_of_drag = drag_idx < click_idx;
             if click_is_on_top_of_drag {
                 if hit_click.sense.drag {
                     // The top thing senses both clicks and drags.
                     WidgetHits {
-                        contains_pointer: hits,
                         click: Some(hit_click),
                         drag: Some(hit_click),
+                        ..Default::default()
                     }
                 } else {
                     // They are interested in different things,
                     // and click is on top. Report both hits,
                     // e.g. the top Button and the ScrollArea behind it.
                     WidgetHits {
-                        contains_pointer: hits,
                         click: Some(hit_click),
                         drag: Some(hit_drag),
+                        ..Default::default()
                     }
                 }
             } else {
                 if hit_drag.sense.click {
                     // The top thing senses both clicks and drags.
                     WidgetHits {
-                        contains_pointer: hits,
                         click: Some(hit_drag),
                         drag: Some(hit_drag),
+                        ..Default::default()
                     }
                 } else {
                     // The top things senses only drags,
                     // so we ignore the click-widget, because it would be confusing
                     // if clicking a drag-widget would actually click something else below it.
                     WidgetHits {
-                        contains_pointer: hits,
                         click: None,
                         drag: Some(hit_drag),
+                        ..Default::default()
                     }
                 }
             }

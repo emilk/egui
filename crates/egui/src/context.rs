@@ -2272,6 +2272,7 @@ impl Context {
         if self.style().debug.show_widget_hits {
             let hits = self.write(|ctx| ctx.viewport().hits.clone());
             let WidgetHits {
+                close: _,
                 contains_pointer,
                 click,
                 drag,
