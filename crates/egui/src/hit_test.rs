@@ -128,7 +128,7 @@ pub fn hit_test(
 
     let mut hits = hit_test_on_close(&close, pos);
 
-    // Trandform back to local coordinates:
+    // Transform back to local coordinates:
     for wr in &mut hits.contains_pointer {
         *wr = wr.transform(
             layer_to_global
