@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{ahash, emath, LayerId, Pos2, WidgetRect, WidgetRects};
+use crate::{ahash, emath, LayerId, Pos2, Rect, WidgetRect, WidgetRects};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -63,6 +63,7 @@ pub fn hit_test(
             }
 
             let pos_in_layer = pos_in_layers.get(&w.layer_id).copied().unwrap_or(pos);
+            // TODO(emilk): we should probably do the distance testing in global space instead
             let dist_sq = w.interact_rect.distance_sq_to_pos(pos_in_layer);
 
             // In tie, pick last = topmost.
@@ -171,15 +172,16 @@ fn contains_circle(interact_rect: emath::Rect, pos: Pos2, radius: f32) -> bool {
 fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
     #![allow(clippy::collapsible_else_if)]
 
-    // Only those widgets directly under the `pos`.
+    // First find the best direct hits:
+    let hit_click = find_closest_within(close.iter().copied().filter(|w| w.sense.click), pos, 0.0);
+    let hit_drag = find_closest_within(close.iter().copied().filter(|w| w.sense.drag), pos, 0.0);
+
+    // Only those widgets directly under the `pos` (will be used for hovering).
     let hits: Vec<WidgetRect> = close
         .iter()
         .filter(|widget| widget.interact_rect.contains(pos))
         .copied()
         .collect();
-
-    let hit_click = hits.iter().copied().filter(|w| w.sense.click).last();
-    let hit_drag = hits.iter().copied().filter(|w| w.sense.drag).last();
 
     match (hit_click, hit_drag) {
         (None, None) => {
@@ -371,14 +373,32 @@ fn hit_test_on_close(close: &[WidgetRect], pos: Pos2) -> WidgetHits {
 }
 
 fn find_closest(widgets: impl Iterator<Item = WidgetRect>, pos: Pos2) -> Option<WidgetRect> {
-    let mut closest = None;
-    let mut closest_dist_sq = f32::INFINITY;
+    find_closest_within(widgets, pos, f32::INFINITY)
+}
+
+fn find_closest_within(
+    widgets: impl Iterator<Item = WidgetRect>,
+    pos: Pos2,
+    max_dist: f32,
+) -> Option<WidgetRect> {
+    let mut closest: Option<WidgetRect> = None;
+    let mut closest_dist_sq = max_dist * max_dist;
     for widget in widgets {
         if widget.interact_rect.is_negative() {
             continue;
         }
 
         let dist_sq = widget.interact_rect.distance_sq_to_pos(pos);
+
+        if let Some(closest) = closest {
+            if dist_sq == closest_dist_sq {
+                // It's a tie! Pick the thin candidate over the thick one.
+                // This makes it easier to hit a thin resize-handle, for instance:
+                if should_prioritizie_hits_on_back(closest.interact_rect, widget.interact_rect) {
+                    continue;
+                }
+            }
+        }
 
         // In case of a tie, take the last one = the one on top.
         if dist_sq <= closest_dist_sq {
@@ -388,6 +408,27 @@ fn find_closest(widgets: impl Iterator<Item = WidgetRect>, pos: Pos2) -> Option<
     }
 
     closest
+}
+
+/// Should we prioritizie hits on `back` over those on `front`?
+///
+/// `back` should be behind the `front` widget.
+///
+/// Returns true if `back` is a small hit-target and `front` is not.
+fn should_prioritizie_hits_on_back(back: Rect, front: Rect) -> bool {
+    if front.contains_rect(back) {
+        return false; // back widget is fully occluded; no way to hit it
+    }
+
+    // Reduce each rect to its width or height, whichever is smaller:
+    let back = back.width().min(back.height());
+    let front = front.width().min(front.height());
+
+    // These are hard-coded heuristics that could surely be improved.
+    let back_is_much_thinner = back <= 0.5 * front;
+    let back_is_thin = back <= 16.0;
+
+    back_is_much_thinner && back_is_thin
 }
 
 #[cfg(test)]
