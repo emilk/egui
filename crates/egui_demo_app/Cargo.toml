@@ -23,7 +23,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["glow", "persistence" ]
+default = ["glow", "persistence"]
 
 # image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
@@ -36,7 +36,7 @@ persistence = [
   "egui/persistence",
   "serde",
 ]
-puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http", "profiling/profile_with_puffin"]
+puffin = ["dep:puffin", "dep:puffin_http", "profiling/profile-with-puffin"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
 

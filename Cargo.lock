@@ -1235,7 +1235,7 @@ dependencies = [
  "parking_lot",
  "percent-encoding",
  "pollster 0.4.0",
- "puffin",
+ "profiling",
  "raw-window-handle 0.6.2",
  "ron",
  "serde",
@@ -1381,7 +1381,7 @@ dependencies = [
  "glutin-winit",
  "log",
  "memoffset",
- "puffin",
+ "profiling",
  "wasm-bindgen",
  "web-sys",
  "winit",
@@ -3110,6 +3110,20 @@ name = "profiling"
 version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "afbdc74edc00b6f6a218ca6a5364d6226a259d4b8ea1af4a0ea063f27e179f4d"
+dependencies = [
+ "profiling-procmacros",
+ "puffin",
+]
+
+[[package]]
+name = "profiling-procmacros"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a65f2e60fbf1063868558d69c6beacf412dc755f9fc020f514b7955fc914fe30"
+dependencies = [
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "puffin"

@@ -20,7 +20,7 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoo
     #[cfg(target_os = "android")]
     use winit::platform::android::EventLoopBuilderExtAndroid as _;
 
-    profiling::profile_function!();
+    profiling::function_scope!();
     let mut builder = winit::event_loop::EventLoop::with_user_event();
 
     #[cfg(target_os = "android")]
