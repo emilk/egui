@@ -1,0 +1,32 @@
+[package]
+name = "hello_android"
+version = "0.1.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.76"
+publish = false
+
+# `unsafe_code` is required for `#[no_mangle]`, disable workspace lints to workaround lint error.
+# [lints]
+# workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+
+[dependencies]
+eframe = { workspace = true, features = [
+    "default",
+    "android-native-activity",
+] }
+
+# For image support:
+egui_extras = { workspace = true, features = ["default", "image"] }
+
+log = { workspace = true }
+winit = { workspace = true }
+android_logger = "0.14"
+
+[package.metadata.android]
+build_targets = [ "armv7-linux-androideabi", "aarch64-linux-android" ]

@@ -17,8 +17,19 @@ use crate::{
 
 // ----------------------------------------------------------------------------
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
-    profiling::function_scope!();
+    #[cfg(target_os = "android")]
+    use winit::platform::android::EventLoopBuilderExtAndroid as _;
+
+    profiling::profile_function!();
     let mut builder = winit::event_loop::EventLoop::with_user_event();
+
+    #[cfg(target_os = "android")]
+    let mut builder =
+        builder.with_android_app(native_options.android_app.take().ok_or_else(|| {
+            crate::Error::AppCreation(Box::from(
+                "`NativeOptions` is missing required `android_app`",
+            ))
+        })?);
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
         hook(&mut builder);
@@ -37,7 +48,7 @@ fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, epi::NativeOptions) -> R,
 ) -> Result<R> {
-    thread_local!(static EVENT_LOOP: std::cell::RefCell<Option<EventLoop<UserEvent>>> = std::cell::RefCell::new(None));
+    thread_local!(static EVENT_LOOP: std::cell::RefCell<Option<EventLoop<UserEvent>>> = const { std::cell::RefCell::new(None) });
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't

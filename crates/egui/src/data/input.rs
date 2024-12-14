@@ -68,8 +68,8 @@ pub struct RawInput {
 
     /// Dragged files dropped into egui.
     ///
-    /// Note: when using `eframe` on Windows you need to enable
-    /// drag-and-drop support using `eframe::NativeOptions`.
+    /// Note: when using `eframe` on Windows, this will always be empty if drag-and-drop support has
+    /// been disabled in [`crate::viewport::ViewportBuilder`].
     pub dropped_files: Vec<DroppedFile>,
 
     /// The native window has the keyboard focus (i.e. is receiving key presses).
@@ -529,6 +529,10 @@ pub enum Event {
     /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
     Screenshot {
         viewport_id: crate::ViewportId,
+
+        /// Whatever was passed to [`crate::ViewportCommand::Screenshot`].
+        user_data: crate::UserData,
+
         image: std::sync::Arc<ColorImage>,
     },
 }

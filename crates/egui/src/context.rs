@@ -518,7 +518,7 @@ impl ContextImpl {
                 crate::hit_test::hit_test(
                     &viewport.prev_pass.widgets,
                     &layers,
-                    &self.memory.layer_transforms,
+                    &self.memory.to_global,
                     pos,
                     interact_radius,
                 )
@@ -552,13 +552,13 @@ impl ContextImpl {
             profiling::scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
             let id = crate::accesskit_root_id();
-            let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
+            let mut root_node = accesskit::Node::new(accesskit::Role::Window);
             let pixels_per_point = viewport.input.pixels_per_point();
-            builder.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
-            let mut node_builders = IdMap::default();
-            node_builders.insert(id, builder);
+            root_node.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
+            let mut nodes = IdMap::default();
+            nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
-                node_builders,
+                nodes,
                 parent_stack: vec![id],
             });
         }
@@ -596,7 +596,9 @@ impl ContextImpl {
                         FontPriority::Lowest => fam.push(font.name.clone()),
                     }
                 }
-                self.font_definitions.font_data.insert(font.name, font.data);
+                self.font_definitions
+                    .font_data
+                    .insert(font.name, Arc::new(font.data));
             }
 
             #[cfg(feature = "log")]
@@ -637,9 +639,9 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::NodeBuilder {
+    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
         let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
-        let builders = &mut state.node_builders;
+        let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
             let parent_id = state.parent_stack.last().unwrap();
@@ -1160,6 +1162,9 @@ impl Context {
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
+        let interested_in_focus =
+            w.enabled && w.sense.focusable && self.memory(|mem| mem.allows_interaction(w.layer_id));
+
         // Remember this widget
         self.write(|ctx| {
             let viewport = ctx.viewport();
@@ -1169,12 +1174,12 @@ impl Context {
             // but also to know when we have reached the widget we are checking for cover.
             viewport.this_pass.widgets.insert(w.layer_id, w);
 
-            if allow_focus && w.sense.focusable {
-                ctx.memory.interested_in_focus(w.id);
+            if allow_focus && interested_in_focus {
+                ctx.memory.interested_in_focus(w.id, w.layer_id);
             }
         });
 
-        if allow_focus && (!w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction()) {
+        if allow_focus && !interested_in_focus {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
@@ -1279,7 +1284,7 @@ impl Context {
             #[cfg(feature = "accesskit")]
             if enabled
                 && sense.click
-                && input.has_accesskit_action_request(id, accesskit::Action::Default)
+                && input.has_accesskit_action_request(id, accesskit::Action::Click)
             {
                 res.fake_primary_click = true;
             }
@@ -1326,11 +1331,11 @@ impl Context {
                 res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(transform), Some(pos)) = (
-                    memory.layer_transforms.get(&res.layer_id),
+                if let (Some(to_global), Some(pos)) = (
+                    memory.to_global.get(&res.layer_id),
                     &mut res.interact_pointer_pos,
                 ) {
-                    *pos = transform.inverse() * *pos;
+                    *pos = to_global.inverse() * *pos;
                 }
             }
 
@@ -1440,6 +1445,10 @@ impl Context {
     /// Copy the given text to the system clipboard.
     ///
     /// Empty strings are ignored.
+    ///
+    /// Note that in wasm applications, the clipboard is only accessible in secure contexts (e.g.,
+    /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
+    /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
     ///
     /// Equivalent to:
     /// ```
@@ -2355,9 +2364,9 @@ impl ContextImpl {
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = {
                     state
-                        .node_builders
+                        .nodes
                         .into_iter()
-                        .map(|(id, builder)| (id.accesskit_id(), builder.build()))
+                        .map(|(id, node)| (id.accesskit_id(), node))
                         .collect()
                 };
                 let focus_id = self
@@ -2374,7 +2383,7 @@ impl ContextImpl {
 
         let shapes = viewport
             .graphics
-            .drain(self.memory.areas().order(), &self.memory.layer_transforms);
+            .drain(self.memory.areas().order(), &self.memory.to_global);
 
         let mut repaint_needed = false;
 
@@ -2690,6 +2699,7 @@ impl Context {
     /// Transform the graphics of the given layer.
     ///
     /// This will also affect input.
+    /// The direction of the given transform is "into the global coordinate system".
     ///
     /// This is a sticky setting, remembered from one frame to the next.
     ///
@@ -2699,11 +2709,26 @@ impl Context {
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
         self.memory_mut(|m| {
             if transform == TSTransform::IDENTITY {
-                m.layer_transforms.remove(&layer_id)
+                m.to_global.remove(&layer_id)
             } else {
-                m.layer_transforms.insert(layer_id, transform)
+                m.to_global.insert(layer_id, transform)
             }
         });
+    }
+
+    /// Return how to transform the graphics of the given layer into the global coordinate system.
+    ///
+    /// Set this with [`Self::layer_transform_to_global`].
+    pub fn layer_transform_to_global(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.memory(|m| m.to_global.get(&layer_id).copied())
+    }
+
+    /// Return how to transform the graphics of the global coordinate system into the local coordinate system of the given layer.
+    ///
+    /// This returns the inverse of [`Self::layer_transform_to_global`].
+    pub fn layer_transform_from_global(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.layer_transform_to_global(layer_id)
+            .map(|t| t.inverse())
     }
 
     /// Move all the graphics at the given layer.
@@ -2770,12 +2795,11 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let rect =
-            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).copied()) {
-                transform * rect
-            } else {
-                rect
-            };
+        let rect = if let Some(to_global) = self.layer_transform_to_global(layer_id) {
+            to_global * rect
+        } else {
+            rect
+        };
         if !rect.is_positive() {
             return false;
         }
@@ -2942,7 +2966,9 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                if data.tweak.ui(ui).changed() {
+                let mut tweak = data.tweak;
+                if tweak.ui(ui).changed() {
+                    Arc::make_mut(data).tweak = tweak;
                     changed = true;
                 }
             });
@@ -3264,7 +3290,7 @@ impl Context {
     pub fn accesskit_node_builder<R>(
         &self,
         id: Id,
-        writer: impl FnOnce(&mut accesskit::NodeBuilder) -> R,
+        writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
         self.write(|ctx| {
             ctx.viewport()
@@ -3446,15 +3472,23 @@ impl Context {
             return Err(load::LoadError::NoImageLoaders);
         }
 
+        let mut format = None;
+
         // Try most recently added loaders first (hence `.rev()`)
         for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::FormatNotSupported { detected_format }) => {
+                    format = format.or(detected_format);
+                    continue;
+                }
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NoMatchingImageLoader)
+        Err(load::LoadError::NoMatchingImageLoader {
+            detected_format: format,
+        })
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.

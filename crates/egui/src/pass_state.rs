@@ -70,7 +70,7 @@ impl ScrollTarget {
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub struct AccessKitPassState {
-    pub node_builders: IdMap<accesskit::NodeBuilder>,
+    pub nodes: IdMap<accesskit::Node>,
     pub parent_stack: Vec<Id>,
 }
 

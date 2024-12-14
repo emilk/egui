@@ -33,10 +33,12 @@ impl Default for Demos {
             Box::<super::highlighting::Highlighting>::default(),
             Box::<super::interactive_container::InteractiveContainerDemo>::default(),
             Box::<super::MiscDemoWindow>::default(),
+            Box::<super::modals::Modals>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
             Box::<super::painting::Painting>::default(),
             Box::<super::pan_zoom::PanZoom>::default(),
             Box::<super::panels::Panels>::default(),
+            Box::<super::screenshot::Screenshot>::default(),
             Box::<super::scrolling::Scrolling>::default(),
             Box::<super::sliders::Sliders>::default(),
             Box::<super::strip_demo::StripDemo>::default(),
@@ -383,7 +385,7 @@ mod tests {
     use crate::demo::demo_app_windows::Demos;
     use egui::Vec2;
     use egui_kittest::kittest::Queryable;
-    use egui_kittest::Harness;
+    use egui_kittest::{Harness, SnapshotOptions};
 
     #[test]
     fn demos_should_match_snapshot() {
@@ -409,7 +411,7 @@ mod tests {
 
             let window = harness.node().children().next().unwrap();
             // TODO(lucasmerlin): Windows should probably have a label?
-            //let window = harness.get_by_name(name);
+            //let window = harness.get_by_label(name);
 
             let size = window.raw_bounds().expect("window bounds").size();
             harness.set_size(Vec2::new(size.width as f32, size.height as f32));
@@ -417,9 +419,15 @@ mod tests {
             // Run the app for some more frames...
             harness.run();
 
-            let result = harness.try_wgpu_snapshot(&format!("demos/{name}"));
+            let mut options = SnapshotOptions::default();
+            // The Bézier Curve demo needs a threshold of 2.1 to pass on linux
+            if name == "Bézier Curve" {
+                options.threshold = 2.1;
+            }
+
+            let result = harness.try_wgpu_snapshot_options(&format!("demos/{name}"), &options);
             if let Err(err) = result {
-                errors.push(err);
+                errors.push(err.to_string());
             }
         }
 

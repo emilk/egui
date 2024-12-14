@@ -84,7 +84,7 @@ nohash-hasher.workspace = true
 profiling.workspace = true
 
 #! ### Optional dependencies
-accesskit = { version = "0.16", optional = true }
+accesskit = { version = "0.17.0", optional = true }
 
 backtrace = { workspace = true, optional = true }
 
@@ -94,3 +94,7 @@ document-features = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
+
+
+[dev-dependencies]
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }

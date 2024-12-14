@@ -467,7 +467,7 @@ impl Area {
                     id: interact_id,
                     layer_id,
                     rect: state.rect(),
-                    interact_rect: state.rect(),
+                    interact_rect: state.rect().intersect(constrain_rect),
                     sense,
                     enabled,
                 },
@@ -567,6 +567,14 @@ impl Prepared {
         }
 
         ui
+    }
+
+    pub(crate) fn with_widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
+        self.move_response.widget_info(make_info);
+    }
+
+    pub(crate) fn id(&self) -> Id {
+        self.move_response.id
     }
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.

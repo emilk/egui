@@ -1,4 +1,5 @@
-use egui::TexturesDelta;
+use egui::{TexturesDelta, UserData, ViewportCommand};
+use std::mem;
 
 use crate::{epi, App};
 
@@ -15,6 +16,9 @@ pub struct AppRunner {
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
     pub(crate) text_agent: TextAgent,
+
+    // If not empty, the painter should capture the next frame
+    screenshot_commands: Vec<UserData>,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -36,7 +40,8 @@ impl AppRunner {
         app_creator: epi::AppCreator<'static>,
         text_agent: TextAgent,
     ) -> Result<Self, String> {
-        let painter = super::ActiveWebPainter::new(canvas, &web_options).await?;
+        let egui_ctx = egui::Context::default();
+        let painter = super::ActiveWebPainter::new(egui_ctx.clone(), canvas, &web_options).await?;
 
         let info = epi::IntegrationInfo {
             web_info: epi::WebInfo {
@@ -47,7 +52,6 @@ impl AppRunner {
         };
         let storage = LocalStorage::default();
 
-        let egui_ctx = egui::Context::default();
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
             &super::user_agent().unwrap_or_default(),
         ));
@@ -110,6 +114,7 @@ impl AppRunner {
             needs_repaint,
             last_save_time: now_sec(),
             text_agent,
+            screenshot_commands: vec![],
             textures_delta: Default::default(),
             clipped_primitives: None,
         };
@@ -205,6 +210,8 @@ impl AppRunner {
     pub fn logic(&mut self) {
         // We sometimes miss blur/focus events due to the text agent, so let's just poll each frame:
         self.update_focus();
+        // We might have received a screenshot
+        self.painter.handle_screenshots(&mut self.input.raw.events);
 
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
@@ -225,12 +232,19 @@ impl AppRunner {
         if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported on the web");
         }
-        for viewport_output in viewport_output.values() {
-            for command in &viewport_output.commands {
-                // TODO(emilk): handle some of the commands
-                log::warn!(
-                    "Unhandled egui viewport command: {command:?} - not implemented in web backend"
-                );
+        for (_viewport_id, viewport_output) in viewport_output {
+            for command in viewport_output.commands {
+                match command {
+                    ViewportCommand::Screenshot(user_data) => {
+                        self.screenshot_commands.push(user_data);
+                    }
+                    _ => {
+                        // TODO(emilk): handle some of the commands
+                        log::warn!(
+                            "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                        );
+                    }
+                }
             }
         }
 
@@ -250,6 +264,7 @@ impl AppRunner {
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
                 &textures_delta,
+                mem::take(&mut self.screenshot_commands),
             ) {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));
             }
@@ -260,7 +275,7 @@ impl AppRunner {
         self.frame.info.cpu_usage = Some(cpu_usage_seconds);
     }
 
-    fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
+    fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
             super::screen_reader::speak(&platform_output.events_description());

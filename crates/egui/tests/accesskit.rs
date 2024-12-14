@@ -1,8 +1,8 @@
 //! Tests the accesskit accessibility output of egui.
 #![cfg(feature = "accesskit")]
 
-use accesskit::{Role, TreeUpdate};
-use egui::{CentralPanel, Context, RawInput};
+use accesskit::{NodeId, Role, TreeUpdate};
+use egui::{CentralPanel, Context, RawInput, Window};
 
 /// Baseline test that asserts there are no spurious nodes in the
 /// accesskit output when the ui is empty.
@@ -46,7 +46,7 @@ fn button_node() {
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Button should exist in the accesskit output");
 
-    assert_eq!(button.name(), Some(button_text));
+    assert_eq!(button.label(), Some(button_text));
     assert!(!button.is_disabled());
 }
 
@@ -72,7 +72,7 @@ fn disabled_button_node() {
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Button should exist in the accesskit output");
 
-    assert_eq!(button.name(), Some(button_text));
+    assert_eq!(button.label(), Some(button_text));
     assert!(button.is_disabled());
 }
 
@@ -97,7 +97,7 @@ fn toggle_button_node() {
         .find(|(_, node)| node.role() == Role::Button)
         .expect("Toggle button should exist in the accesskit output");
 
-    assert_eq!(toggle.name(), Some(button_text));
+    assert_eq!(toggle.label(), Some(button_text));
     assert!(!toggle.is_disabled());
 }
 
@@ -130,8 +130,30 @@ fn multiple_disabled_widgets() {
     );
 }
 
+#[test]
+fn window_children() {
+    let output = accesskit_output_single_egui_frame(|ctx| {
+        let mut open = true;
+        Window::new("test window")
+            .open(&mut open)
+            .resizable(false)
+            .show(ctx, |ui| {
+                let _ = ui.button("A button");
+            });
+    });
+
+    let root = output.tree.as_ref().map(|tree| tree.root).unwrap();
+
+    let window_id = assert_window_exists(&output, "test window", root);
+    assert_button_exists(&output, "A button", window_id);
+    assert_button_exists(&output, "Close window", window_id);
+    assert_button_exists(&output, "Hide", window_id);
+}
+
 fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&Context)) -> TreeUpdate {
     let ctx = Context::default();
+    // Disable animations, so we do not need to wait for animations to end to see the result.
+    ctx.style_mut(|style| style.animation_time = 0.0);
     ctx.enable_accesskit();
 
     let output = ctx.run(RawInput::default(), run_ui);
@@ -140,4 +162,46 @@ fn accesskit_output_single_egui_frame(run_ui: impl FnMut(&Context)) -> TreeUpdat
         .platform_output
         .accesskit_update
         .expect("Missing accesskit update")
+}
+
+#[track_caller]
+fn assert_button_exists(tree: &TreeUpdate, label: &str, parent: NodeId) {
+    let (node_id, _) = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            !node.is_hidden() && node.role() == Role::Button && node.label() == Some(label)
+        })
+        .expect("No visible button with that label exists.");
+
+    assert_parent_child(tree, parent, *node_id);
+}
+
+#[track_caller]
+fn assert_window_exists(tree: &TreeUpdate, title: &str, parent: NodeId) -> NodeId {
+    let (node_id, _) = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            !node.is_hidden() && node.role() == Role::Window && node.label() == Some(title)
+        })
+        .expect("No visible window with that title exists.");
+
+    assert_parent_child(tree, parent, *node_id);
+
+    *node_id
+}
+
+#[track_caller]
+fn assert_parent_child(tree: &TreeUpdate, parent: NodeId, child: NodeId) {
+    let (_, parent) = tree
+        .nodes
+        .iter()
+        .find(|(id, _)| id == &parent)
+        .expect("Parent does not exist.");
+
+    assert!(
+        parent.children().contains(&child),
+        "Node is not a child of the given parent."
+    );
 }

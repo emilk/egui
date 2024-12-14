@@ -84,6 +84,7 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 (cd crates/egui_demo_lib        && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
 (cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
 (cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"
+(cd crates/egui_kittest         && cargo publish --quiet)  &&  echo "✅ egui_kittest"
 ```
 
 ## Announcements

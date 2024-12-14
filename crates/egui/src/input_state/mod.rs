@@ -889,9 +889,9 @@ impl Default for PointerState {
             press_start_time: None,
             has_moved_too_much_for_a_click: false,
             started_decidedly_dragging: false,
-            last_click_time: std::f64::NEG_INFINITY,
-            last_last_click_time: std::f64::NEG_INFINITY,
-            last_move_time: std::f64::NEG_INFINITY,
+            last_click_time: f64::NEG_INFINITY,
+            last_last_click_time: f64::NEG_INFINITY,
+            last_move_time: f64::NEG_INFINITY,
             pointer_events: vec![],
             input_options: Default::default(),
         }

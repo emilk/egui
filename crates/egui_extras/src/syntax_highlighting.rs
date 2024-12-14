@@ -33,9 +33,7 @@ pub fn highlight(
     // performing it at a separate thread (ctx, ctx.style()) can be used and when ui is available
     // (ui.ctx(), ui.style()) can be used
 
-    impl egui::util::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob>
-        for Highlighter
-    {
+    impl egui::cache::ComputerMut<(&egui::FontId, &CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(
             &mut self,
             (font_id, theme, code, lang): (&egui::FontId, &CodeTheme, &str, &str),
@@ -44,7 +42,7 @@ pub fn highlight(
         }
     }
 
-    type HighlightCache = egui::util::cache::FrameCache<LayoutJob, Highlighter>;
+    type HighlightCache = egui::cache::FrameCache<LayoutJob, Highlighter>;
 
     let font_id = style
         .override_font_id

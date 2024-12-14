@@ -60,7 +60,7 @@ impl TestRenderer {
     }
 
     /// Render the [`Harness`] and return the resulting image.
-    pub fn render(&mut self, harness: &Harness<'_>) -> RgbaImage {
+    pub fn render<State>(&self, harness: &Harness<'_, State>) -> RgbaImage {
         // We need to create a new renderer each time we render, since the renderer stores
         // textures related to the Harnesses' egui Context.
         // Calling the renderer from different Harnesses would cause problems if we store the renderer.
@@ -128,7 +128,7 @@ impl TestRenderer {
                         view: &texture_view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                             store: StoreOp::Store,
                         },
                     })],

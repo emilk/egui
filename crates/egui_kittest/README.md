@@ -20,13 +20,13 @@ fn main() {
 
     let mut harness = Harness::builder().with_size(egui::Vec2::new(200.0, 100.0)).build(app);
     
-    let checkbox = harness.get_by_name("Check me!");
+    let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::False));
     checkbox.click();
     
     harness.run();
 
-    let checkbox = harness.get_by_name("Check me!");
+    let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::True));
 
     // You can even render the ui and do image snapshot tests
@@ -45,3 +45,9 @@ Running with `UPDATE_SNAPSHOTS=true` will still cause the tests to fail, but on 
 If you want to have multiple snapshots in the same test, it makes sense to collect the results in a `Vec` 
 ([look here](https://github.com/emilk/egui/blob/70a01138b77f9c5724a35a6ef750b9ae1ab9f2dc/crates/egui_demo_lib/src/demo/demo_app_windows.rs#L388-L427) for an example).
 This way they can all be updated at the same time.
+
+You should add the following to your `.gitignore`:
+```gitignore
+**/tests/snapshots/**/*.diff.png
+**/tests/snapshots/**/*.new.png
+```

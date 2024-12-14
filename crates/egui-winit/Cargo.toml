@@ -24,7 +24,7 @@ rustdoc-args = ["--generate-link-to-definition"]
 default = ["clipboard", "links", "wayland", "winit/default", "x11"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
-accesskit = ["accesskit_winit", "egui/accesskit"]
+accesskit = ["dep:accesskit_winit", "egui/accesskit"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can
@@ -67,7 +67,7 @@ winit = { workspace = true, default-features = false }
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.22", optional = true }
+accesskit_winit = { version = "0.23", optional = true }
 
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }

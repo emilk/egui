@@ -67,6 +67,27 @@ impl From<String> for RichText {
     }
 }
 
+impl From<&Box<str>> for RichText {
+    #[inline]
+    fn from(text: &Box<str>) -> Self {
+        Self::new(text.clone())
+    }
+}
+
+impl From<&mut Box<str>> for RichText {
+    #[inline]
+    fn from(text: &mut Box<str>) -> Self {
+        Self::new(text.clone())
+    }
+}
+
+impl From<Box<str>> for RichText {
+    #[inline]
+    fn from(text: Box<str>) -> Self {
+        Self::new(text)
+    }
+}
+
 impl From<Cow<'_, str>> for RichText {
     #[inline]
     fn from(text: Cow<'_, str>) -> Self {
@@ -359,6 +380,9 @@ impl RichText {
                     || fallback_font.resolve(style),
                     |text_style| text_style.resolve(style),
                 );
+            if let Some(fid) = style.override_font_id.clone() {
+                font_id = fid;
+            }
             if let Some(size) = size {
                 font_id.size = size;
             }
@@ -697,6 +721,20 @@ impl From<&String> for WidgetText {
 impl From<String> for WidgetText {
     #[inline]
     fn from(text: String) -> Self {
+        Self::RichText(RichText::new(text))
+    }
+}
+
+impl From<&Box<str>> for WidgetText {
+    #[inline]
+    fn from(text: &Box<str>) -> Self {
+        Self::RichText(RichText::new(text.clone()))
+    }
+}
+
+impl From<Box<str>> for WidgetText {
+    #[inline]
+    fn from(text: Box<str>) -> Self {
         Self::RichText(RichText::new(text))
     }
 }

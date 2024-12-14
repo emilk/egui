@@ -31,10 +31,8 @@ all-features = true
 [advisories]
 version = 2
 ignore = [
-  "RUSTSEC-2024-0320",        # unmaintaines yaml-rust pulled in by syntect
-  { name = "async-process" }, # yanked crated pulled in by old accesskit
+  "RUSTSEC-2024-0320", # unmaintaines yaml-rust pulled in by syntect
 ]
-
 
 [bans]
 multiple-versions = "deny"
@@ -46,27 +44,25 @@ deny = [
 ]
 
 skip = [
-  { name = "bit-set" },        # wgpu's naga depends on 0.6, syntect's (used by egui_extras) fancy-regex depends on 0.5
+  { name = "base64" },         # Pretty small
+  { name = "bit-set" },        # wgpu's naga depends on 0.8, syntect's (used by egui_extras) fancy-regex depends on 0.5
   { name = "bit-vec" },        # dependency of bit-set in turn, different between 0.6 and 0.5
   { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
   { name = "cfg_aliases" },    # old version via wgpu
   { name = "event-listener" }, # TODO(emilk): rustls pulls in two versions of this 😭
   { name = "futures-lite" },   # old version via accesskit_unix and zbus
+  { name = "glow" },           # old version via wgpu
   { name = "memoffset" },      # tiny dependency
   { name = "ndk-sys" },        # old version via wgpu, winit uses newer version
   { name = "quick-xml" },      # old version via wayland-scanner
   { name = "redox_syscall" },  # old version via winit
   { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
-  { name = "windows-core" },   # old version via accesskit_windows
-  { name = "windows" },        # old version via accesskit_windows
-  { name = "glow" },           # wgpu uses an old `glow`, but realistically no one uses _both_ `egui_wgpu` and `egui_glow`, so we won't get a duplicate dependency
+  { name = "windows-core" },   # Chrono pulls in 0.51, accesskit uses 0.58.0
+  { name = "windows-sys" },    # glutin pulls in 0.52.0, accesskit pulls in 0.59.0, rfd pulls 0.48, webbrowser pulls 0.45.0 (via jni)
 ]
 skip-tree = [
   { name = "criterion" },     # dev-dependency
-  { name = "fastrand" },      # old version via accesskit_unix
   { name = "foreign-types" }, # small crate. Old version via core-graphics (winit).
-  { name = "objc2" },         # old version via accesskit_macos
-  { name = "polling" },       # old version via accesskit_unix
   { name = "rfd" },           # example dependency
 ]
 
@@ -89,6 +85,7 @@ allow = [
   "MPL-2.0",                        # https://www.mozilla.org/en-US/MPL/2.0/FAQ/ - see Q11. Used by webpki-roots on Linux.
   "OFL-1.1",                        # https://spdx.org/licenses/OFL-1.1.html
   "OpenSSL",                        # https://www.openssl.org/source/license.html - used on Linux
+  "Unicode-3.0",                    # https://www.unicode.org/license.txt
   "Unicode-DFS-2016",               # https://spdx.org/licenses/Unicode-DFS-2016.html
   "Zlib",                           # https://tldrlegal.com/license/zlib-libpng-license-(zlib)
 ]
@@ -110,5 +107,5 @@ unknown-registry = "deny"
 unknown-git = "deny"
 
 allow-git = [
-  "https://github.com/rerun-io/kittest",  # TODO(lucasmerlin): remove this once the kittest crate is published"
+  "https://github.com/rerun-io/kittest", # TODO(lucasmerlin): remove this once the kittest crate is published"
 ]

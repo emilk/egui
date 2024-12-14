@@ -184,6 +184,7 @@ impl<'app> WgpuWinitApp<'app> {
         profiling::function_scope!();
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
         let mut painter = egui_wgpu::winit::Painter::new(
+            egui_ctx.clone(),
             self.native_options.wgpu_options.clone(),
             self.native_options.multisampling.max(1) as _,
             egui_wgpu::depth_format_from_bits(
@@ -591,6 +592,8 @@ impl<'app> WgpuWinitRunning<'app> {
                 .map(|(id, viewport)| (*id, viewport.info.clone()))
                 .collect();
 
+            painter.handle_screenshots(&mut raw_input.events);
+
             (viewport_ui_cb, raw_input)
         };
 
@@ -641,31 +644,27 @@ impl<'app> WgpuWinitRunning<'app> {
 
         let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
-        let screenshot_requested = viewport
-            .actions_requested
-            .take(&ActionRequested::Screenshot)
-            .is_some();
-        let (vsync_secs, screenshot) = painter.paint_and_update_textures(
+        let mut screenshot_commands = vec![];
+        viewport.actions_requested.retain(|cmd| {
+            if let ActionRequested::Screenshot(info) = cmd {
+                screenshot_commands.push(info.clone());
+                false
+            } else {
+                true
+            }
+        });
+        let vsync_secs = painter.paint_and_update_textures(
             viewport_id,
             pixels_per_point,
             app.clear_color(&egui_ctx.style().visuals),
             &clipped_primitives,
             &textures_delta,
-            screenshot_requested,
+            screenshot_commands,
         );
-        if let Some(screenshot) = screenshot {
-            egui_winit
-                .egui_input_mut()
-                .events
-                .push(egui::Event::Screenshot {
-                    viewport_id,
-                    image: screenshot.into(),
-                });
-        }
 
         for action in viewport.actions_requested.drain() {
             match action {
-                ActionRequested::Screenshot => {
+                ActionRequested::Screenshot { .. } => {
                     // already handled above
                 }
                 ActionRequested::Cut => {
@@ -1003,7 +1002,7 @@ fn render_immediate_viewport(
         [0.0, 0.0, 0.0, 0.0],
         &clipped_primitives,
         &textures_delta,
-        false,
+        vec![],
     );
 
     egui_winit.handle_platform_output(window, platform_output);

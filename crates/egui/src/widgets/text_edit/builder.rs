@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use emath::Rect;
 use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
@@ -525,13 +526,13 @@ impl<'t> TextEdit<'t> {
 
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
-        let desired_width = if clip_text {
+        let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
         } else {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
         let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
         let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
@@ -562,7 +563,7 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
-        response.intrinsic_size = Some(desired_outer_size);
+        response.intrinsic_size = Some(Vec2::new(desired_width, desired_outer_size.y));
 
         response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
 
@@ -602,6 +603,8 @@ impl<'t> TextEdit<'t> {
 
                 if did_interact || response.clicked() {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
+
+                    state.last_interaction_time = ui.ctx().input(|i| i.time);
                 }
             }
         }
@@ -720,6 +723,16 @@ impl<'t> TextEdit<'t> {
                 }
             }
 
+            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+            // if there's a ScrollArea, it can properly scroll to the cursor.
+            let extra_size = galley.size() - rect.size();
+            if extra_size.x > 0.0 || extra_size.y > 0.0 {
+                ui.allocate_rect(
+                    Rect::from_min_size(outer_rect.max, extra_size),
+                    Sense::hover(),
+                );
+            }
+
             painter.galley(galley_pos, galley.clone(), text_color);
 
             if has_focus {
@@ -727,16 +740,15 @@ impl<'t> TextEdit<'t> {
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
-                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO(emilk): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
-                    if (response.changed || selection_changed) && !is_fully_visible {
+                    if response.changed || selection_changed {
                         // Scroll to keep primary cursor in view:
-                        ui.scroll_to_rect(primary_cursor_rect, None);
+                        ui.scroll_to_rect(primary_cursor_rect + margin, None);
                     }
 
                     if text.is_mutable() && interactive {
                         let now = ui.ctx().input(|i| i.time);
                         if response.changed || selection_changed {
-                            state.last_edit_time = now;
+                            state.last_interaction_time = now;
                         }
 
                         // Only show (and blink) cursor if the egui viewport has focus.
@@ -749,19 +761,20 @@ impl<'t> TextEdit<'t> {
                                 ui,
                                 &painter,
                                 primary_cursor_rect,
-                                now - state.last_edit_time,
+                                now - state.last_interaction_time,
                             );
                         }
 
                         // Set IME output (in screen coords) when text is editable and visible
-                        let transform = ui
-                            .memory(|m| m.layer_transforms.get(&ui.layer_id()).copied())
+                        let to_global = ui
+                            .ctx()
+                            .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
 
                         ui.ctx().output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
-                                rect: transform * rect,
-                                cursor_rect: transform * primary_cursor_rect,
+                                rect: to_global * rect,
+                                cursor_rect: to_global * primary_cursor_rect,
                             });
                         });
                     }

@@ -54,7 +54,7 @@ pub struct Memory {
     /// so as not to lock the UI thread.
     ///
     /// ```
-    /// use egui::util::cache::{ComputerMut, FrameCache};
+    /// use egui::cache::{ComputerMut, FrameCache};
     ///
     /// #[derive(Default)]
     /// struct CharCounter {}
@@ -72,7 +72,7 @@ pub struct Memory {
     /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub caches: crate::util::cache::CacheStorage,
+    pub caches: crate::cache::CacheStorage,
 
     // ------------------------------------------
     /// new fonts that will be applied at the start of the next frame
@@ -95,8 +95,13 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
-    /// Transforms per layer
-    pub layer_transforms: HashMap<LayerId, TSTransform>,
+    /// Transforms per layer.
+    ///
+    /// Instead of using this directly, use:
+    /// * [`crate::Context::set_transform_layer`]
+    /// * [`crate::Context::layer_transform_to_global`]
+    /// * [`crate::Context::layer_transform_from_global`]
+    pub to_global: HashMap<LayerId, TSTransform>,
 
     // -------------------------------------------------
     // Per-viewport:
@@ -120,7 +125,7 @@ impl Default for Memory {
             focus: Default::default(),
             viewport_id: Default::default(),
             areas: Default::default(),
-            layer_transforms: Default::default(),
+            to_global: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
             add_fonts: Default::default(),
@@ -513,6 +518,12 @@ pub(crate) struct Focus {
     /// Set when looking for widget with navigational keys like arrows, tab, shift+tab.
     focus_direction: FocusDirection,
 
+    /// The top-most modal layer from the previous frame.
+    top_modal_layer: Option<LayerId>,
+
+    /// The top-most modal layer from the current frame.
+    top_modal_layer_current_frame: Option<LayerId>,
+
     /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
 }
@@ -623,6 +634,8 @@ impl Focus {
                 self.focused_widget = None;
             }
         }
+
+        self.top_modal_layer = self.top_modal_layer_current_frame.take();
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
@@ -676,6 +689,14 @@ impl Focus {
         self.last_interested = Some(id);
     }
 
+    fn set_modal_layer(&mut self, layer_id: LayerId) {
+        self.top_modal_layer_current_frame = Some(layer_id);
+    }
+
+    pub(crate) fn top_modal_layer(&self) -> Option<LayerId> {
+        self.top_modal_layer
+    }
+
     fn reset_focus(&mut self) {
         self.focus_direction = FocusDirection::None;
     }
@@ -720,7 +741,7 @@ impl Focus {
 
         let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
 
-        let mut best_score = std::f32::INFINITY;
+        let mut best_score = f32::INFINITY;
         let mut best_id = None;
 
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
@@ -802,7 +823,21 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.areas().layer_id_at(pos, &self.layer_transforms)
+        self.areas()
+            .layer_id_at(pos, &self.to_global)
+            .and_then(|layer_id| {
+                if self.is_above_modal_layer(layer_id) {
+                    Some(layer_id)
+                } else {
+                    self.top_modal_layer()
+                }
+            })
+    }
+
+    /// The currently set transform of a layer.
+    #[deprecated = "Use `Context::layer_transform_to_global` instead"]
+    pub fn layer_transforms(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.to_global.get(&layer_id).copied()
     }
 
     /// An iterator over all layers. Back-to-front, top is last.
@@ -877,6 +912,30 @@ impl Memory {
         }
     }
 
+    /// Returns true if
+    /// - this layer is the top-most modal layer or above it
+    /// - there is no modal layer
+    pub fn is_above_modal_layer(&self, layer_id: LayerId) -> bool {
+        if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
+            matches!(
+                self.areas().compare_order(layer_id, modal_layer),
+                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater
+            )
+        } else {
+            true
+        }
+    }
+
+    /// Does this layer allow interaction?
+    /// Returns true if
+    ///  - the layer is not behind a modal layer
+    ///  - the [`Order`] allows interaction
+    pub fn allows_interaction(&self, layer_id: LayerId) -> bool {
+        let is_above_modal_layer = self.is_above_modal_layer(layer_id);
+        let ordering_allows_interaction = layer_id.order.allow_interaction();
+        is_above_modal_layer && ordering_allows_interaction
+    }
+
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
     /// This is normally done automatically when handling interactions,
@@ -884,9 +943,34 @@ impl Memory {
     /// e.g. before deciding which type of underlying widget to use,
     /// as in the [`crate::DragValue`] widget, so a widget can be focused
     /// and rendered correctly in a single frame.
+    ///
+    /// Pass in the `layer_id` of the layer that the widget is in.
     #[inline(always)]
-    pub fn interested_in_focus(&mut self, id: Id) {
+    pub fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
+        if !self.allows_interaction(layer_id) {
+            return;
+        }
         self.focus_mut().interested_in_focus(id);
+    }
+
+    /// Limit focus to widgets on the given layer and above.
+    /// If this is called multiple times per frame, the top layer wins.
+    pub fn set_modal_layer(&mut self, layer_id: LayerId) {
+        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame) {
+            if matches!(
+                self.areas().compare_order(layer_id, current),
+                std::cmp::Ordering::Less
+            ) {
+                return;
+            }
+        }
+
+        self.focus_mut().set_modal_layer(layer_id);
+    }
+
+    /// Get the top modal layer (from the previous frame).
+    pub fn top_modal_layer(&self) -> Option<LayerId> {
+        self.focus()?.top_modal_layer()
     }
 
     /// Stop editing the active [`TextEdit`](crate::TextEdit) (if any).
@@ -1037,6 +1121,9 @@ impl Memory {
 
 // ----------------------------------------------------------------------------
 
+/// Map containing the index of each layer in the order list, for quick lookups.
+type OrderMap = HashMap<LayerId, usize>;
+
 /// Keeps track of [`Area`](crate::containers::area::Area)s, which are free-floating [`Ui`](crate::Ui)s.
 /// These [`Area`](crate::containers::area::Area)s can be in any [`Order`].
 #[derive(Clone, Debug, Default)]
@@ -1047,6 +1134,9 @@ pub struct Areas {
 
     /// Back-to-front,  top is last.
     order: Vec<LayerId>,
+
+    /// Actual order of the layers, pre-calculated each frame.
+    order_map: OrderMap,
 
     visible_last_frame: ahash::HashSet<LayerId>,
     visible_current_frame: ahash::HashSet<LayerId>,
@@ -1079,12 +1169,28 @@ impl Areas {
     }
 
     /// For each layer, which [`Self::order`] is it in?
-    pub(crate) fn order_map(&self) -> HashMap<LayerId, usize> {
-        self.order
+    pub(crate) fn order_map(&self) -> &OrderMap {
+        &self.order_map
+    }
+
+    /// Compare the order of two layers, based on the order list from last frame.
+    /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
+    pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
+        if let (Some(a), Some(b)) = (self.order_map.get(&a), self.order_map.get(&b)) {
+            a.cmp(b)
+        } else {
+            a.order.cmp(&b.order)
+        }
+    }
+
+    /// Calculates the order map.
+    fn calculate_order_map(&mut self) {
+        self.order_map = self
+            .order
             .iter()
             .enumerate()
             .map(|(i, id)| (*id, i))
-            .collect()
+            .collect();
     }
 
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
@@ -1099,15 +1205,15 @@ impl Areas {
     pub fn layer_id_at(
         &self,
         pos: Pos2,
-        layer_transforms: &HashMap<LayerId, TSTransform>,
+        layer_to_global: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        if let Some(transform) = layer_transforms.get(layer) {
-                            rect = *transform * rect;
+                        if let Some(to_global) = layer_to_global.get(layer) {
+                            rect = *to_global * rect;
                         }
 
                         if rect.contains(pos) {
@@ -1209,6 +1315,7 @@ impl Areas {
             };
             order.splice(parent_pos..=parent_pos, moved_layers);
         }
+        self.calculate_order_map();
     }
 }
 

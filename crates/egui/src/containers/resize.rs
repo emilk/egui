@@ -205,7 +205,7 @@ struct Prepared {
 }
 
 impl Resize {
-    fn begin(&mut self, ui: &mut Ui) -> Prepared {
+    fn begin(&self, ui: &mut Ui) -> Prepared {
         let position = ui.available_rect_before_wrap().min;
         let id = self.id.unwrap_or_else(|| {
             let id_salt = self.id_salt.unwrap_or_else(|| Id::new("resize"));
@@ -295,7 +295,7 @@ impl Resize {
         }
     }
 
-    pub fn show<R>(mut self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn show<R>(self, ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
         let mut prepared = self.begin(ui);
         let ret = add_contents(&mut prepared.content_ui);
         self.end(ui, prepared);

@@ -87,17 +87,22 @@ pub fn show_tooltip_at_pointer<R>(
 
         // Add a small exclusion zone around the pointer to avoid tooltips
         // covering what we're hovering over.
-        let mut exclusion_rect = Rect::from_center_size(pointer_pos, Vec2::splat(24.0));
+        let mut pointer_rect = Rect::from_center_size(pointer_pos, Vec2::splat(24.0));
 
         // Keep the left edge of the tooltip in line with the cursor:
-        exclusion_rect.min.x = pointer_pos.x;
+        pointer_rect.min.x = pointer_pos.x;
+
+        // Transform global coords to layer coords:
+        if let Some(from_global) = ctx.layer_transform_from_global(parent_layer) {
+            pointer_rect = from_global * pointer_rect;
+        }
 
         show_tooltip_at_dyn(
             ctx,
             parent_layer,
             widget_id,
             allow_placing_below,
-            &exclusion_rect,
+            &pointer_rect,
             Box::new(add_contents),
         )
     })
@@ -155,9 +160,10 @@ fn show_tooltip_at_dyn<'c, R>(
     widget_rect: &Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> R {
+    // Transform layer coords to global coords:
     let mut widget_rect = *widget_rect;
-    if let Some(transform) = ctx.memory(|m| m.layer_transforms.get(&parent_layer).copied()) {
-        widget_rect = transform * widget_rect;
+    if let Some(to_global) = ctx.layer_transform_to_global(parent_layer) {
+        widget_rect = to_global * widget_rect;
     }
 
     remember_that_tooltip_was_shown(ctx);
@@ -398,16 +404,17 @@ pub fn popup_above_or_below_widget<R>(
         AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
         AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
     };
-    if let Some(transform) = parent_ui
+
+    if let Some(to_global) = parent_ui
         .ctx()
-        .memory(|m| m.layer_transforms.get(&parent_ui.layer_id()).copied())
+        .layer_transform_to_global(parent_ui.layer_id())
     {
-        pos = transform * pos;
+        pos = to_global * pos;
     }
 
     let frame = Frame::popup(parent_ui.style());
     let frame_margin = frame.total_margin();
-    let inner_width = widget_response.rect.width() - frame_margin.sum().x;
+    let inner_width = (widget_response.rect.width() - frame_margin.sum().x).max(0.0);
 
     parent_ui.ctx().pass_state_mut(|fs| {
         fs.layers
