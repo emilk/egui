@@ -85,11 +85,11 @@ wayland = [
 ## Enables wayland support and fixes clipboard issue.
 wayland = [
   "egui-winit/wayland",
+  "egui-winit/clipboard-wayland",
   "egui-wgpu?/wayland",
   "egui_glow?/wayland",
   "glutin?/wayland",
   "glutin-winit?/wayland",
-  "egui-winit/clipboard-wayland",
 ]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
@@ -118,13 +118,13 @@ wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 ## Enables compiling for x11.
 x11 = [
   "egui-winit/x11",
+  "egui-winit/clipboard-nonwayland",
   "egui-wgpu?/x11",
   "egui_glow?/x11",
   "glutin?/x11",
   "glutin?/glx",
   "glutin-winit?/x11",
   "glutin-winit?/glx",
-  "egui-winit/clipboard-nonwayland",
 ]
 
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
