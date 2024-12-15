@@ -164,7 +164,7 @@ impl RenderState {
 
                 let trace_path = std::env::var("WGPU_TRACE");
                 let (device, queue) = {
-                    crate::profile_scope!("request_device");
+                    profiling::scope!("request_device");
                     adapter
                         .request_device(
                             &(*device_descriptor)(&adapter),
@@ -187,7 +187,7 @@ impl RenderState {
         };
 
         let capabilities = {
-            crate::profile_scope!("get_capabilities");
+            profiling::scope!("get_capabilities");
             surface.get_capabilities(&adapter).formats
         };
         let target_format = crate::preferred_framebuffer_format(&capabilities)?;
