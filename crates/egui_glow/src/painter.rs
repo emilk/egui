@@ -144,7 +144,7 @@ impl Painter {
         shader_version: Option<ShaderVersion>,
         dithering: bool,
     ) -> Result<Self, PainterError> {
-        crate::profile_function!();
+        profiling::function_scope!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
         // some useful debug info. all three of them are present in gl 1.1.
@@ -366,7 +366,7 @@ impl Painter {
         clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(*id, image_delta);
@@ -405,7 +405,7 @@ impl Painter {
         pixels_per_point: f32,
         clipped_primitives: &[egui::ClippedPrimitive],
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
         self.assert_not_destroyed();
 
         unsafe { self.prepare_painting(screen_size_px, pixels_per_point) };
@@ -423,7 +423,7 @@ impl Painter {
                 }
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
-                        crate::profile_scope!("callback");
+                        profiling::scope!("callback");
 
                         let info = egui::PaintCallbackInfo {
                             viewport: callback.rect,
@@ -508,7 +508,7 @@ impl Painter {
     // ------------------------------------------------------------------------
 
     pub fn set_texture(&mut self, tex_id: egui::TextureId, delta: &egui::epaint::ImageDelta) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         self.assert_not_destroyed();
 
@@ -540,7 +540,7 @@ impl Painter {
                 );
 
                 let data: Vec<u8> = {
-                    crate::profile_scope!("font -> sRGBA");
+                    profiling::scope!("font -> sRGBA");
                     image
                         .srgba_pixels(None)
                         .flat_map(|a| a.to_array())
@@ -559,7 +559,7 @@ impl Painter {
         options: egui::TextureOptions,
         data: &[u8],
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
         assert_eq!(data.len(), w * h * 4);
         assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
@@ -610,7 +610,7 @@ impl Painter {
 
             let level = 0;
             if let Some([x, y]) = pos {
-                crate::profile_scope!("gl.tex_sub_image_2d");
+                profiling::scope!("gl.tex_sub_image_2d");
                 self.gl.tex_sub_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -625,7 +625,7 @@ impl Painter {
                 check_for_gl_error!(&self.gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
-                crate::profile_scope!("gl.tex_image_2d");
+                profiling::scope!("gl.tex_image_2d");
                 self.gl.tex_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -675,7 +675,7 @@ impl Painter {
     }
 
     pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> egui::ColorImage {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let mut pixels = vec![0_u8; (w * h * 4) as usize];
         unsafe {
@@ -700,8 +700,7 @@ impl Painter {
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {
-        crate::profile_function!();
-
+        profiling::function_scope!();
         let mut pixels = vec![0_u8; (w * h * 3) as usize];
         unsafe {
             self.gl.read_pixels(
@@ -748,7 +747,7 @@ impl Painter {
 }
 
 pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: [f32; 4]) {
-    crate::profile_function!();
+    profiling::function_scope!();
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
 

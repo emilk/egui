@@ -8,6 +8,9 @@ rust-version.workspace = true
 publish = false
 default-run = "egui_demo_app"
 
+[package.metadata.cargo-machete]
+ignored = ["profiling"]
+
 [lints]
 workspace = true
 
@@ -33,7 +36,7 @@ persistence = [
   "egui/persistence",
   "serde",
 ]
-puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http"]
+puffin = ["dep:puffin", "dep:puffin_http", "profiling/profile-with-puffin"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
 
@@ -54,6 +57,7 @@ egui = { workspace = true, features = ["callstack", "default", "log"] }
 egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
 log.workspace = true
+profiling.workspace = true
 
 # Optional dependencies:
 

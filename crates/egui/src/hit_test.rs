@@ -39,7 +39,7 @@ pub fn hit_test(
     pos: Pos2,
     search_radius: f32,
 ) -> WidgetHits {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     let search_radius_sq = search_radius * search_radius;
 

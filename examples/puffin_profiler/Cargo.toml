@@ -7,6 +7,9 @@ edition = "2021"
 rust-version = "1.80"
 publish = false
 
+[package.metadata.cargo-machete]
+ignored = ["profiling"]
+
 [lints]
 workspace = true
 
@@ -18,7 +21,6 @@ wgpu = ["eframe/wgpu"]
 [dependencies]
 eframe = { workspace = true, features = [
     "default",
-    "puffin",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
 env_logger = { version = "0.10", default-features = false, features = [
@@ -28,3 +30,4 @@ env_logger = { version = "0.10", default-features = false, features = [
 log = { workspace = true }
 puffin = "0.19"
 puffin_http = "0.16"
+profiling = {workspace = true, features = ["profile-with-puffin"] }

@@ -87,6 +87,7 @@ log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
 parking_lot = "0.12"
 pollster = "0.4"
+profiling = {version = "1.0", default-features = false }
 puffin = "0.19"
 puffin_http = "0.16"
 raw-window-handle = "0.6.0"

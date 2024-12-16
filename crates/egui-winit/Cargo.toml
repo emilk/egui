@@ -45,9 +45,6 @@ clipboard = ["arboard", "smithay-clipboard"]
 ## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin", "egui/puffin"]
-
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 
@@ -62,6 +59,7 @@ egui = { workspace = true, default-features = false, features = ["log"] }
 
 ahash.workspace = true
 log.workspace = true
+profiling.workspace = true
 raw-window-handle.workspace = true
 web-time.workspace = true
 winit = { workspace = true, default-features = false }
@@ -74,7 +72,6 @@ accesskit_winit = { version = "0.23", optional = true }
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
-puffin = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 webbrowser = { version = "1.0.0", optional = true }
 

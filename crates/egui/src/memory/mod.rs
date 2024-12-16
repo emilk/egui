@@ -779,7 +779,7 @@ impl Focus {
 
 impl Memory {
     pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         self.viewport_id = new_raw_input.viewport_id;
 
