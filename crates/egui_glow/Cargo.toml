@@ -74,8 +74,8 @@ wasm-bindgen.workspace = true
 
 
 [dev-dependencies]
-glutin = { workspace = true, default-features = true }       # examples/pure_glow
-glutin-winit = { workspace = true, default-features = true }
+glutin.workspace = true       # examples/pure_glow
+glutin-winit.workspace = true
 
 [[example]]
 name = "pure_glow"
