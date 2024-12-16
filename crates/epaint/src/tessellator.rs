@@ -1707,7 +1707,7 @@ impl Tessellator {
                 self.tessellate_line(line, stroke, out); // …and forth
             }
         } else {
-            let rect = if !stroke.is_empty() && stroke.width <= self.feathering {
+            let rect = if !stroke.is_empty() && stroke.width < self.feathering {
                 // Very thin rectangle strokes create extreme aliasing when they move around.
                 // We can fix that by rounding the rectangle corners to pixel centers.
                 // TODO(#5164): maybe do this for all shapes and stroke sizes
