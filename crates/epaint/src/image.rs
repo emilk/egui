@@ -154,8 +154,10 @@ impl ColorImage {
         let max_x = (region.max.x * pixels_per_point) as usize;
         let min_y = (region.min.y * pixels_per_point) as usize;
         let max_y = (region.max.y * pixels_per_point) as usize;
-        assert!(min_x <= max_x);
-        assert!(min_y <= max_y);
+        assert!(
+            min_x <= max_x && min_y <= max_y,
+            "Screenshot region is invalid: {region:?}"
+        );
         let width = max_x - min_x;
         let height = max_y - min_y;
         let mut output = Vec::with_capacity(width * height);
