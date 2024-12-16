@@ -502,6 +502,8 @@ impl Path {
     /// Calling this may reverse the vertices in the path if they are wrong winding order.
     ///
     /// The preferred winding order is clockwise.
+    ///
+    /// The stroke colors is used for color-correct feathering.
     pub fn fill(&mut self, feathering: f32, color: Color32, stroke: &PathStroke, out: &mut Mesh) {
         fill_closed_path(feathering, &mut self.0, color, stroke, out);
     }
@@ -918,7 +920,7 @@ fn stroke_path(
 ) {
     let n = path.len() as u32;
 
-    if stroke.width <= 0.0 || stroke.color == ColorMode::TRANSPARENT || n < 2 {
+    if stroke.is_empty() || n < 2 {
         return;
     }
 
