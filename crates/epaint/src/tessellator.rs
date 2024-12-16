@@ -1278,6 +1278,11 @@ impl Tessellator {
     }
 
     #[inline(always)]
+    pub fn round_pos_to_pixel(&self, pos: Pos2) -> Pos2 {
+        pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
+    }
+
+    #[inline(always)]
     pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
         pos2(
             self.round_to_pixel_center(pos.x),
@@ -1707,8 +1712,8 @@ impl Tessellator {
                 // We can fix that by rounding the rectangle corners to pixel centers.
                 // TODO(#5164): maybe do this for all shapes and stroke sizes
                 Rect {
-                    min: self.round_pos_to_pixel_center(rect.min),
-                    max: self.round_pos_to_pixel_center(rect.max),
+                    min: self.round_pos_to_pixel(rect.min),
+                    max: self.round_pos_to_pixel(rect.max),
                 }
             } else {
                 rect
