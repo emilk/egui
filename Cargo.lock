@@ -1394,7 +1394,6 @@ dependencies = [
  "document-features",
  "egui",
  "egui-wgpu",
- "egui_kittest",
  "image",
  "kittest",
  "pollster 0.4.0",
