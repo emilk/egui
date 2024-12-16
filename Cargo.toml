@@ -82,12 +82,12 @@ glutin = { version = "0.32.0", default-features = false }
 glutin-winit = { version = "0.5.0", default-features = false }
 home = "0.5.9"
 image = { version = "0.25", default-features = false }
-kittest = { git = "https://github.com/rerun-io/kittest", version = "0.1", branch = "main" }
+kittest = { version = "0.1" }
 log = { version = "0.4", features = ["std"] }
 nohash-hasher = "0.2"
 parking_lot = "0.12"
 pollster = "0.4"
-profiling = {version = "1.0", default-features = false }
+profiling = { version = "1.0", default-features = false }
 puffin = "0.19"
 puffin_http = "0.16"
 raw-window-handle = "0.6.0"
