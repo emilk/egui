@@ -1339,7 +1339,6 @@ dependencies = [
  "criterion",
  "document-features",
  "egui",
- "egui_demo_lib",
  "egui_extras",
  "egui_kittest",
  "serde",

@@ -286,6 +286,7 @@ fn doc_link_label_with_crate<'a>(
     }
 }
 
+#[cfg(feature = "chrono")]
 #[cfg(test)]
 mod tests {
     use super::*;
