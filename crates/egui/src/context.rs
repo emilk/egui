@@ -2235,7 +2235,8 @@ impl Context {
                     for id in contains_pointer {
                         let mut widget_text = format!("{id:?}");
                         if let Some(rect) = widget_rects.get(id) {
-                            widget_text += &format!(" {:?} {:?}", rect.rect, rect.sense);
+                            widget_text +=
+                                &format!(" {:?} {:?} {:?}", rect.layer_id, rect.rect, rect.sense);
                         }
                         if let Some(info) = widget_rects.info(id) {
                             widget_text += &format!(" {info:?}");
@@ -2261,12 +2262,17 @@ impl Context {
         if self.style().debug.show_widget_hits {
             let hits = self.write(|ctx| ctx.viewport().hits.clone());
             let WidgetHits {
-                close: _,
+                close,
                 contains_pointer,
                 click,
                 drag,
             } = hits;
 
+            if false {
+                for widget in &close {
+                    paint_widget(widget, "close", Color32::from_gray(70));
+                }
+            }
             if true {
                 for widget in &contains_pointer {
                     paint_widget(widget, "contains_pointer", Color32::BLUE);
@@ -3149,28 +3155,26 @@ impl Context {
                 self.memory_mut(|mem| *mem.areas_mut() = Default::default());
             }
         });
-        ui.indent("areas", |ui| {
-            ui.label("Visible areas, ordered back to front.");
-            ui.label("Hover to highlight");
+        ui.indent("layers", |ui| {
+            ui.label("Layers, ordered back to front.");
             let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
             for layer_id in layers_ids {
-                let area = AreaState::load(self, layer_id.id);
-                if let Some(area) = area {
+                if let Some(area) = AreaState::load(self, layer_id.id) {
                     let is_visible = self.memory(|mem| mem.areas().is_visible(&layer_id));
                     if !is_visible {
                         continue;
                     }
                     let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
                     // TODO(emilk): `Sense::hover_highlight()`
-                    if ui
-                        .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
-                        .hovered
-                        && is_visible
-                    {
+                    let response =
+                        ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
+                    if response.hovered && is_visible {
                         ui.ctx()
                             .debug_painter()
                             .debug_rect(area.rect(), Color32::RED, "");
                     }
+                } else {
+                    ui.monospace(layer_id.short_debug_format());
                 }
             }
         });
