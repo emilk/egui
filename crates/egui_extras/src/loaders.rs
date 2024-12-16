@@ -98,7 +98,7 @@ pub fn install_image_loaders(ctx: &egui::Context) {
     ))]
     log::warn!("`install_image_loaders` was called, but no loaders are enabled");
 
-    let _ = ctx;
+    _ = ctx;
 }
 
 #[cfg(not(target_arch = "wasm32"))]

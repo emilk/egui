@@ -1077,7 +1077,7 @@ impl Response {
         });
         #[cfg(not(feature = "accesskit"))]
         {
-            let _ = id;
+            _ = id;
         }
 
         self

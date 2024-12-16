@@ -12,7 +12,7 @@ pub const DRAG_AND_DROP_TEST: bool = false;
 fn main() {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
-    let _ = eframe::run_native(
+    _ = eframe::run_native(
         "Viewports",
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default().with_inner_size([450.0, 400.0]),
