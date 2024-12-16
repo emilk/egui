@@ -94,7 +94,3 @@ document-features = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
-
-
-[dev-dependencies]
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
