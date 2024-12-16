@@ -1702,6 +1702,18 @@ impl Tessellator {
                 self.tessellate_line(line, stroke, out); // …and forth
             }
         } else {
+            let rect = if !stroke.is_empty() && stroke.width <= self.feathering {
+                // Very thin rectangle strokes create extreme aliasing when they move around.
+                // We can fix that by rounding the rectangle corners to pixel centers.
+                // TODO(#5164): maybe do this for all shapes and stroke sizes
+                Rect {
+                    min: self.round_pos_to_pixel_center(rect.min),
+                    max: self.round_pos_to_pixel_center(rect.max),
+                }
+            } else {
+                rect
+            };
+
             let path = &mut self.scratchpad_path;
             path.clear();
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
