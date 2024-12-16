@@ -112,16 +112,16 @@ pub fn hit_test(
     // but if the pointer is at the edge of a layer, we might include widgets in
     // a layer behind it.
 
-    let mut allowed_layers: ahash::HashSet<LayerId> = Default::default();
+    let mut included_layers: ahash::HashSet<LayerId> = Default::default();
     for hit in close.iter().rev() {
-        allowed_layers.insert(hit.layer_id);
+        included_layers.insert(hit.layer_id);
         let hit_covers_search_area = contains_circle(hit.interact_rect, pos, search_radius);
         if hit_covers_search_area {
             break; // nothing behind this layer could ever be interacted with
         }
     }
 
-    close.retain(|hit| allowed_layers.contains(&hit.layer_id));
+    close.retain(|hit| included_layers.contains(&hit.layer_id));
 
     // If a widget is disabled, treat it as if it isn't sensing anything.
     // This simplifies the code in `hit_test_on_close` so it doesn't have to check
