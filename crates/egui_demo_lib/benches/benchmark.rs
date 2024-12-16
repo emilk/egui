@@ -1,7 +1,10 @@
+use std::fmt::Write as _;
+
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use egui::epaint::TextShape;
 use egui_demo_lib::LOREM_IPSUM_LONG;
+use rand::Rng as _;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     use egui::RawInput;
@@ -119,6 +122,34 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     text_color,
                     wrap_width,
                 )
+            });
+        });
+
+        c.bench_function("text_layout_cached_with_modify", |b| {
+            const MAX_REMOVED_BYTES: usize = 5000;
+
+            let mut string = String::new();
+            // 2000 lines * 200 bytes * ~3 characters = 1.2MB
+            string.reserve(2000 * 200 * 3 + 2000);
+            for _ in 0..2000 {
+                for i in 0..200u8 {
+                    write!(string, "{i:02X} ").unwrap();
+                }
+                string.push('\n');
+            }
+
+            let mut rng = rand::thread_rng();
+            b.iter(|| {
+                fonts.begin_pass(pixels_per_point, max_texture_side);
+                let mut temp_string = String::with_capacity(string.len());
+                let modified_start = rng.gen_range(0..string.len());
+                let max_end = (modified_start + MAX_REMOVED_BYTES).min(string.len());
+                let modified_end = rng.gen_range(modified_start..max_end);
+
+                temp_string.push_str(&string[..modified_start]);
+                temp_string.push_str(&string[modified_end..]);
+
+                fonts.layout(temp_string, font_id.clone(), text_color, wrap_width);
             });
         });
 
