@@ -4,11 +4,8 @@ Ui testing library for egui, based on [kittest](https://github.com/rerun-io/kitt
 
 ## Example usage
 ```rust
-use egui::accesskit::{Role, Toggled};
-use egui::{CentralPanel, Context, TextEdit, Vec2};
-use egui_kittest::Harness;
-use kittest::Queryable;
-use std::cell::RefCell;
+use egui::accesskit::Toggled;
+use egui_kittest::{Harness, kittest::Queryable};
 
 fn main() {
     let mut checked = false;
