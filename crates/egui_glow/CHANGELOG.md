@@ -6,6 +6,10 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 
+## 0.30.0 - 2024-12-16
+* Update glow to 0.16 [#5395](https://github.com/emilk/egui/pull/5395) by [@sagudev](https://github.com/sagudev)
+
+
 ## 0.29.1 - 2024-10-01
 Nothing new
 

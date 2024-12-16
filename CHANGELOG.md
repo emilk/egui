@@ -14,6 +14,94 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.30.0 - 2024-12-16 - Modals and better layer support
+
+### ✨ Highlights
+* Add `Modal`, a popup that blocks input to the rest of the application ([#5358](https://github.com/emilk/egui/pull/5358) by [@lucasmerlin](https://github.com/lucasmerlin))
+* Improved support for transform layers ([#5465](https://github.com/emilk/egui/pull/5465), [#5468](https://github.com/emilk/egui/pull/5468), [#5429](https://github.com/emilk/egui/pull/5429))
+
+#### `egui_kittest`
+This release welcomes a new crate to the family: [egui_kittest](https://github.com/emilk/egui/tree/master/crates/egui_kittest).
+`egui_kittest` is a testing framework for egui, allowing you to test both automation (simulated clicks and other events),
+and also do screenshot testing (useful for regression tests).
+`egui_kittest` is built using [`kittest`](https://github.com/rerun-io/kittest), which is a general GUI testing framework that aims to work with any Rust GUI (not just egui!).
+`kittest` uses the accessibility library [`AccessKit`](https://github.com/AccessKit/accesskit/) for automatation and to query the widget tree.
+
+`kittest` and `egui_kittest` are written by [@lucasmerlin](https://github.com/lucasmerlin).
+
+Here's a quick example of how to use `egui_kittest` to test a checkbox:
+
+```rust
+use egui::accesskit::Toggled;
+use egui_kittest::{Harness, kittest::Queryable};
+
+fn main() {
+    let mut checked = false;
+    let app = |ui: &mut egui::Ui| {
+        ui.checkbox(&mut checked, "Check me!");
+    };
+
+    let mut harness = egui_kittest::Harness::new_ui(app);
+
+    let checkbox = harness.get_by_label("Check me!");
+    assert_eq!(checkbox.toggled(), Some(Toggled::False));
+    checkbox.click();
+
+    harness.run();
+
+    let checkbox = harness.get_by_label("Check me!");
+    assert_eq!(checkbox.toggled(), Some(Toggled::True));
+
+    // You can even render the ui and do image snapshot tests
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    harness.wgpu_snapshot("readme_example");
+}
+```
+
+### ⭐ Added
+* Add `Modal` and `Memory::set_modal_layer` [#5358](https://github.com/emilk/egui/pull/5358) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Add `UiBuilder::layer_id` and remove `layer_id` from `Ui::new` [#5195](https://github.com/emilk/egui/pull/5195) by [@emilk](https://github.com/emilk)
+* Allow easier setting of background color for `TextEdit` [#5203](https://github.com/emilk/egui/pull/5203) by [@bircni](https://github.com/bircni)
+* Set `Response::intrinsic_size` for `TextEdit` [#5266](https://github.com/emilk/egui/pull/5266) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Expose center position in `MultiTouchInfo` [#5247](https://github.com/emilk/egui/pull/5247) by [@lucasmerlin](https://github.com/lucasmerlin)
+* `Context::add_font` [#5228](https://github.com/emilk/egui/pull/5228) by [@frederik-uni](https://github.com/frederik-uni)
+* Impl from `Box<str>` for `WidgetText`, `RichText` [#5309](https://github.com/emilk/egui/pull/5309) by [@dimtpap](https://github.com/dimtpap)
+* Add `Window::scroll_bar_visibility` [#5231](https://github.com/emilk/egui/pull/5231) by [@Zeenobit](https://github.com/Zeenobit)
+* Add `ComboBox::close_behavior` [#5305](https://github.com/emilk/egui/pull/5305) by [@avalsch](https://github.com/avalsch)
+* Add `painter.line()` [#5291](https://github.com/emilk/egui/pull/5291) by [@bircni](https://github.com/bircni)
+* Allow attaching custom user data to a screenshot command [#5416](https://github.com/emilk/egui/pull/5416) by [@emilk](https://github.com/emilk)
+* Add `Button::image_tint_follows_text_color` [#5430](https://github.com/emilk/egui/pull/5430) by [@emilk](https://github.com/emilk)
+* Consume escape keystroke when bailing out from a drag operation [#5433](https://github.com/emilk/egui/pull/5433) by [@abey79](https://github.com/abey79)
+* Add `Context::layer_transform_to_global` & `layer_transform_from_global` [#5465](https://github.com/emilk/egui/pull/5465) by [@emilk](https://github.com/emilk)
+
+### 🔧 Changed
+* Update MSRV to Rust 1.80 [#5421](https://github.com/emilk/egui/pull/5421), [#5457](https://github.com/emilk/egui/pull/5457) by [@emilk](https://github.com/emilk)
+* Expand max font atlas size from 8k to 16k [#5257](https://github.com/emilk/egui/pull/5257) by [@rustbasic](https://github.com/rustbasic)
+* Put font data into `Arc` to reduce memory consumption [#5276](https://github.com/emilk/egui/pull/5276) by [@StarStarJ](https://github.com/StarStarJ)
+* Move `egui::util::cache` to `egui::cache`; add `FramePublisher` [#5426](https://github.com/emilk/egui/pull/5426) by [@emilk](https://github.com/emilk)
+* Remove `Order::PanelResizeLine` [#5455](https://github.com/emilk/egui/pull/5455) by [@emilk](https://github.com/emilk)
+* Drag-and-drop: keep cursor set by user, if any [#5467](https://github.com/emilk/egui/pull/5467) by [@abey79](https://github.com/abey79)
+* Use `profiling` crate to support more profiler backends [#5150](https://github.com/emilk/egui/pull/5150) by [@teddemunnik](https://github.com/teddemunnik)
+* Improve hit-test of thin widgets, and widgets across layers [#5468](https://github.com/emilk/egui/pull/5468) by [@emilk](https://github.com/emilk)
+
+### 🐛 Fixed
+* Update `ScrollArea` drag velocity when drag stopped [#5175](https://github.com/emilk/egui/pull/5175) by [@valadaptive](https://github.com/valadaptive)
+* Fix bug causing wrong-fire of `ViewportCommand::Visible` [#5244](https://github.com/emilk/egui/pull/5244) by [@rustbasic](https://github.com/rustbasic)
+* Fix: `Ui::new_child` does not consider the `sizing_pass` field of `UiBuilder` [#5262](https://github.com/emilk/egui/pull/5262) by [@zhatuokun](https://github.com/zhatuokun)
+* Fix Ctrl+Shift+Z redo shortcut [#5258](https://github.com/emilk/egui/pull/5258) by [@YgorSouza](https://github.com/YgorSouza)
+* Fix: `Window::default_pos` does not work [#5315](https://github.com/emilk/egui/pull/5315) by [@rustbasic](https://github.com/rustbasic)
+* Fix: `Sides` did not apply the layout position correctly [#5303](https://github.com/emilk/egui/pull/5303) by [@zhatuokun](https://github.com/zhatuokun)
+* Respect `Style::override_font_id` in `RichText` [#5310](https://github.com/emilk/egui/pull/5310) by [@MStarha](https://github.com/MStarha)
+* Fix disabled widgets "eating" focus [#5370](https://github.com/emilk/egui/pull/5370) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Fix cursor clipping in `TextEdit` inside a `ScrollArea` [#3660](https://github.com/emilk/egui/pull/3660) by [@juancampa](https://github.com/juancampa)
+* Make text cursor always appear on click  [#5420](https://github.com/emilk/egui/pull/5420) by [@juancampa](https://github.com/juancampa)
+* Fix `on_hover_text_at_pointer` for transformed layers [#5429](https://github.com/emilk/egui/pull/5429) by [@emilk](https://github.com/emilk)
+* Fix: don't interact with `Area` outside its `constrain_rect` [#5459](https://github.com/emilk/egui/pull/5459) by [@MScottMcBee](https://github.com/MScottMcBee)
+* Fix broken images on egui.rs (move from git lfs to normal git) [#5480](https://github.com/emilk/egui/pull/5480) by [@emilk](https://github.com/emilk)
+* Fix: `ui.new_child` should now respect `disabled` [#5483](https://github.com/emilk/egui/pull/5483) by [@emilk](https://github.com/emilk)
+* Fix zero-width strokes still affecting the feathering color of boxes [#5485](https://github.com/emilk/egui/pull/5485) by [@emilk](https://github.com/emilk)
+
+
 ## 0.29.1 - 2024-10-01 - Bug fixes
 * Remove debug-assert triggered by `with_layer_id/dnd_drag_source` [#5191](https://github.com/emilk/egui/pull/5191) by [@emilk](https://github.com/emilk)
 * Fix id clash in `Ui::response` [#5192](https://github.com/emilk/egui/pull/5192) by [@emilk](https://github.com/emilk)
