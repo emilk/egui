@@ -1278,6 +1278,11 @@ impl Tessellator {
     }
 
     #[inline(always)]
+    pub fn round_pos_to_pixel(&self, pos: Pos2) -> Pos2 {
+        pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
+    }
+
+    #[inline(always)]
     pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
         pos2(
             self.round_to_pixel_center(pos.x),
@@ -1702,6 +1707,20 @@ impl Tessellator {
                 self.tessellate_line(line, stroke, out); // …and forth
             }
         } else {
+            let rect = if !stroke.is_empty() && stroke.width < self.feathering {
+                // Very thin rectangle strokes create extreme aliasing when they move around.
+                // We can fix that by rounding the rectangle corners to pixel centers.
+                // TODO(#5164): maybe do this for all shapes and stroke sizes
+                // TODO(emilk): since we use StrokeKind::Outside, we should probably round the
+                // corners after offsetting them with half the stroke width (see `translate_stroke_point`).
+                Rect {
+                    min: self.round_pos_to_pixel_center(rect.min),
+                    max: self.round_pos_to_pixel_center(rect.max),
+                }
+            } else {
+                rect
+            };
+
             let path = &mut self.scratchpad_path;
             path.clear();
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
