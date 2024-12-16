@@ -78,6 +78,12 @@ impl ImageLoader for ImageCrateLoader {
                         }
                     }
 
+                    if bytes.starts_with(b"version https://git-lfs") {
+                        return Err(LoadError::FormatNotSupported {
+                            detected_format: Some("git-lfs".to_owned()),
+                        });
+                    }
+
                     // (3)
                     log::trace!("started loading {uri:?}");
                     let result = crate::image::load_image_bytes(&bytes).map(Arc::new);

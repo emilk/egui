@@ -28,8 +28,8 @@ default = ["glow", "persistence"]
 # image_viewer adds about 0.9 MB of WASM
 web_app = ["http", "persistence"]
 
-http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
-image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
+http = ["ehttp", "image/jpeg", "poll-promise", "egui_extras/image"]
+image_viewer = ["image/jpeg", "egui_extras/all_loaders", "rfd"]
 persistence = [
   "eframe/persistence",
   "egui_extras/serde",
@@ -56,6 +56,10 @@ eframe = { workspace = true, default-features = false, features = [
 egui = { workspace = true, features = ["callstack", "default", "log"] }
 egui_demo_lib = { workspace = true, features = ["default", "chrono"] }
 egui_extras = { workspace = true, features = ["default", "image"] }
+image = { workspace = true, default-features = false, features = [
+  # Ensure we can display the test images
+  "png",
+] }
 log.workspace = true
 profiling.workspace = true
 
@@ -70,7 +74,6 @@ wgpu = { workspace = true, features = ["webgpu", "webgl"], optional = true }
 
 # feature "http":
 ehttp = { version = "0.5", optional = true }
-image = { workspace = true, optional = true, features = ["jpeg", "png"] }
 poll-promise = { version = "0.3", optional = true, default-features = false }
 
 # feature "persistence":
