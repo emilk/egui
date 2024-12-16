@@ -42,12 +42,14 @@ impl crate::View for FontBook {
             ui.add(crate::egui_github_link_file!());
         });
 
+        let available_glyphs = self
+            .available_glyphs
+            .entry(self.font_id.family.clone())
+            .or_insert_with(|| available_characters(ui, &self.font_id));
+
         ui.label(format!(
             "The selected font supports {} characters.",
-            self.available_glyphs
-                .get(&self.font_id.family)
-                .map(|map| map.len())
-                .unwrap_or_default()
+            available_glyphs.len()
         ));
 
         ui.horizontal_wrapped(|ui| {
@@ -67,17 +69,12 @@ impl crate::View for FontBook {
         ui.horizontal(|ui| {
             ui.label("Filter:");
             ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0));
-            self.filter = self.filter.to_lowercase();
             if ui.button("ｘ").clicked() {
                 self.filter.clear();
             }
         });
 
         let filter = &self.filter;
-        let available_glyphs = self
-            .available_glyphs
-            .entry(self.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
 
         ui.separator();
 
@@ -105,7 +102,7 @@ impl crate::View for FontBook {
                             ));
                         };
 
-                        if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
+                        if ui.add(button).on_hover_ui_at_pointer(tooltip_ui).clicked() {
                             ui.ctx().copy_text(chr.to_string());
                         }
                     }
@@ -115,11 +112,11 @@ impl crate::View for FontBook {
     }
 }
 
-fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
+fn available_characters(ui: &egui::Ui, font_id: &egui::FontId) -> BTreeMap<char, GlyphInfo> {
     ui.fonts(|f| {
         f.lock()
             .fonts
-            .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
+            .font(font_id)
             .characters()
             .iter()
             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control())
