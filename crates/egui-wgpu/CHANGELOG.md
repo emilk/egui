@@ -6,6 +6,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.30.0 - 2024-12-16
+* Fix docs.rs build [#5204](https://github.com/emilk/egui/pull/5204) by [@lucasmerlin](https://github.com/lucasmerlin)
+* Free textures after submitting queue instead of before with wgpu renderer [#5226](https://github.com/emilk/egui/pull/5226) by [@Rusty-Cube](https://github.com/Rusty-Cube)
+* Add option to initialize with existing wgpu instance/adapter/device/queue [#5319](https://github.com/emilk/egui/pull/5319) by [@ArthurBrussee](https://github.com/ArthurBrussee)
+* Updare to `wgpu` 23.0.0 and `wasm-bindgen` to 0.2.95 [#5330](https://github.com/emilk/egui/pull/5330) by [@torokati44](https://github.com/torokati44)
+* Support wgpu-tracing with same mechanism as wgpu examples [#5450](https://github.com/emilk/egui/pull/5450) by [@EriKWDev](https://github.com/EriKWDev)
+
+
 ## 0.29.1 - 2024-10-01
 Nothing new
 

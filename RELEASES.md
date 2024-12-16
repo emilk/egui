@@ -53,8 +53,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a tweet
 * [ ] record gif for `CHANGELOG.md` release note (and later twitter post)
-* [ ] update changelogs using `scripts/generate_changelog.py --write`
-  - For major releases, always diff to the latest MAJOR release, e.g. `--commit-range 0.29.0..HEAD`
+* [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
 * [ ] bump version numbers in workspace `Cargo.toml`
 
 ## Actual release
