@@ -1,5 +1,4 @@
 use egui::{TexturesDelta, UserData, ViewportCommand};
-use std::mem;
 
 use crate::{epi, App};
 
@@ -17,8 +16,9 @@ pub struct AppRunner {
     last_save_time: f64,
     pub(crate) text_agent: TextAgent,
 
-    // If not empty, the painter should capture the next frame
-    screenshot_commands: Vec<UserData>,
+    // If not empty, the painter should capture n frames from now.
+    // zero means capture the exact next frame.
+    screenshot_commands_with_frame_delay: Vec<(UserData, usize)>,
 
     // Output for the last run:
     textures_delta: TexturesDelta,
@@ -114,7 +114,7 @@ impl AppRunner {
             needs_repaint,
             last_save_time: now_sec(),
             text_agent,
-            screenshot_commands: vec![],
+            screenshot_commands_with_frame_delay: vec![],
             textures_delta: Default::default(),
             clipped_primitives: None,
         };
@@ -236,7 +236,8 @@ impl AppRunner {
             for command in viewport_output.commands {
                 match command {
                     ViewportCommand::Screenshot(user_data) => {
-                        self.screenshot_commands.push(user_data);
+                        self.screenshot_commands_with_frame_delay
+                            .push((user_data, 1));
                     }
                     _ => {
                         // TODO(emilk): handle some of the commands
@@ -259,12 +260,27 @@ impl AppRunner {
         let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
         if let Some(clipped_primitives) = clipped_primitives {
+            let mut screenshot_commands = vec![];
+            self.screenshot_commands_with_frame_delay
+                .retain_mut(|(user_data, frame_delay)| {
+                    if *frame_delay == 0 {
+                        screenshot_commands.push(user_data.clone());
+                        false
+                    } else {
+                        *frame_delay -= 1;
+                        true
+                    }
+                });
+            if !self.screenshot_commands_with_frame_delay.is_empty() {
+                self.egui_ctx().request_repaint();
+            }
+
             if let Err(err) = self.painter.paint_and_update_textures(
                 self.app.clear_color(&self.egui_ctx.style().visuals),
                 &clipped_primitives,
                 self.egui_ctx.pixels_per_point(),
                 &textures_delta,
-                mem::take(&mut self.screenshot_commands),
+                screenshot_commands,
             ) {
                 log::error!("Failed to paint: {}", super::string_from_js_value(&err));
             }
