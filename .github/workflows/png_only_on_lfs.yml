@@ -13,11 +13,18 @@ jobs:
     - name: Check that png files are on git LFS
       run: |
         binary_extensions="png"
-        exclude="crates/eframe/data"
+        exclude_paths=(
+          "crates/eframe/data"
+          "crates/egui_demo_lib/data/"
+          "crates/egui/assets/"
+        )
 
         # Find binary files that are not tracked by Git LFS
         for ext in $binary_extensions; do
-          if comm -23 <(git ls-files | grep -v "^$exclude" | sort) <(git lfs ls-files -n | sort) | grep "\.${ext}$"; then
+          # Create grep pattern to exclude multiple paths
+          exclude_pattern=$(printf "|^%s" "${exclude_paths[@]}" | sed 's/^|//')
+
+          if comm -23 <(git ls-files | grep -Ev "$exclude_pattern" | sort) <(git lfs ls-files -n | sort) | grep "\.${ext}$"; then
             echo "Error: Found binary file with extension .$ext not tracked by git LFS. See CONTRIBUTING.md"
             exit 1
           fi
