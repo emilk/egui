@@ -1393,6 +1393,7 @@ version = "0.29.1"
 dependencies = [
  "dify",
  "document-features",
+ "eframe",
  "egui",
  "egui-wgpu",
  "egui_kittest",
