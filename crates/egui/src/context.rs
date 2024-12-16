@@ -498,19 +498,8 @@ impl ContextImpl {
         viewport.this_pass.begin_pass(screen_rect);
 
         {
-            let area_order = self.memory.areas().order_map();
-
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
-
-            layers.sort_by(|a, b| {
-                if a.order == b.order {
-                    // Maybe both are windows, so respect area order:
-                    area_order.get(a).cmp(&area_order.get(b))
-                } else {
-                    // comparing e.g. background to tooltips
-                    a.order.cmp(&b.order)
-                }
-            });
+            layers.sort_by(|&a, &b| self.memory.areas().compare_order(a, b));
 
             viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
                 let interact_radius = self.memory.options.style().interaction.interact_radius;
