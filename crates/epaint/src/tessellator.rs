@@ -1711,6 +1711,10 @@ impl Tessellator {
                 // Very thin rectangle strokes create extreme aliasing when they move around.
                 // We can fix that by rounding the rectangle corners to pixel centers.
                 // TODO(#5164): maybe do this for all shapes and stroke sizes
+                // TODO(emilk): since we use StrokeKind::Outside, we should probably round the
+                // corners after offsetting them with half the stroke width (see `translate_stroke_point`).
+                // The current code can create an effect where the top and left edges are thicker than the bottom and right edges,
+                // but at least they won't alias when translated.
                 Rect {
                     min: self.round_pos_to_pixel(rect.min),
                     max: self.round_pos_to_pixel(rect.max),
