@@ -12,13 +12,11 @@ use std::cell::RefCell;
 
 fn main() {
     let mut checked = false;
-    let app = |ctx: &Context| {
-        CentralPanel::default().show(ctx, |ui| {
-            ui.checkbox(&mut checked, "Check me!");
-        });
+    let app = |ui: &mut egui::Ui| {
+        ui.checkbox(&mut checked, "Check me!");
     };
 
-    let mut harness = Harness::builder().with_size(egui::Vec2::new(200.0, 100.0)).build(app);
+    let mut harness = Harness::new_ui(app);
     
     let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::False));
@@ -28,6 +26,9 @@ fn main() {
 
     let checkbox = harness.get_by_label("Check me!");
     assert_eq!(checkbox.toggled(), Some(Toggled::True));
+    
+    // Shrink the window size to the smallest size possible
+    harness.fit_contents();
 
     // You can even render the ui and do image snapshot tests
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
