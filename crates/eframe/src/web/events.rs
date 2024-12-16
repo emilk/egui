@@ -870,15 +870,7 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
     let mut dpr = web_sys::window().unwrap().device_pixel_ratio();
 
     let entry: web_sys::ResizeObserverEntry = resize_observer_entries.at(0).dyn_into()?;
-    // TODO(lucasmerlin): This is disabled because of https://github.com/emilk/egui/issues/5246
-    // Not only does it break on chrome when moving the window across screens, but it also
-    // completely breaks in firefox because for some reason firefox reports the devicePixelRatio
-    // as 2.0 when it should be 1.0.
-    // The proper fix would probably be to calculate the correct device pixel ratio based on
-    // the inline_size and the content_rect.width, and use that
-    // wherever we access window.devicePixelRatio
-    #[allow(clippy::overly_complex_bool_expr)]
-    if JsValue::from_str("devicePixelContentBoxSize").js_in(entry.as_ref()) && false {
+    if JsValue::from_str("devicePixelContentBoxSize").js_in(entry.as_ref()) {
         // NOTE: Only this path gives the correct answer for most browsers.
         // Unfortunately this doesn't work perfectly everywhere.
         let size: web_sys::ResizeObserverSize =
