@@ -29,6 +29,34 @@ and also do screenshot testing (useful for regression tests).
 
 `kittest` and `egui_kittest` are written by [@lucasmerlin](https://github.com/lucasmerlin).
 
+Here's a quick example of how to use `egui_kittest` to test a checkbox:
+
+```rust
+use egui::accesskit::Toggled;
+use egui_kittest::{Harness, kittest::Queryable};
+
+fn main() {
+    let mut checked = false;
+    let app = |ui: &mut egui::Ui| {
+        ui.checkbox(&mut checked, "Check me!");
+    };
+
+    let mut harness = egui_kittest::Harness::new_ui(app);
+
+    let checkbox = harness.get_by_label("Check me!");
+    assert_eq!(checkbox.toggled(), Some(Toggled::False));
+    checkbox.click();
+
+    harness.run();
+
+    let checkbox = harness.get_by_label("Check me!");
+    assert_eq!(checkbox.toggled(), Some(Toggled::True));
+
+    // You can even render the ui and do image snapshot tests
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    harness.wgpu_snapshot("readme_example");
+}
+```
 
 ### ⭐ Added
 * Add `Modal` and `Memory::set_modal_layer` [#5358](https://github.com/emilk/egui/pull/5358) by [@lucasmerlin](https://github.com/lucasmerlin)
