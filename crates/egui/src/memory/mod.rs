@@ -1132,14 +1132,17 @@ type OrderMap = HashMap<LayerId, usize>;
 pub struct Areas {
     areas: IdMap<area::AreaState>,
 
+    visible_areas_last_frame: ahash::HashSet<LayerId>,
+    visible_areas_current_frame: ahash::HashSet<LayerId>,
+
+    // ----------------------------
+    // Everything below this is general to all layers, not just areas.
+    // TODO(emilk): move this to a separate struct.
     /// Back-to-front,  top is last.
     order: Vec<LayerId>,
 
-    /// Actual order of the layers, pre-calculated each frame.
+    /// Inverse of [`Self::order`], calculated at the end of the frame.
     order_map: OrderMap,
-
-    visible_last_frame: ahash::HashSet<LayerId>,
-    visible_current_frame: ahash::HashSet<LayerId>,
 
     /// When an area wants to be on top, it is assigned here.
     /// This is used to reorder the layers at the end of the frame.
@@ -1148,9 +1151,9 @@ pub struct Areas {
     /// results in them being sent to the top and keeping their previous internal order.
     wants_to_be_on_top: ahash::HashSet<LayerId>,
 
-    /// List of sublayers for each layer.
+    /// The sublayers that each layer has.
     ///
-    /// When a layer has sublayers, they are moved directly above it in the ordering.
+    /// The parent sublayer is moved directly above the child sublayers in the ordering.
     sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
 }
 
@@ -1163,17 +1166,13 @@ impl Areas {
         self.areas.get(&id)
     }
 
-    /// Back-to-front, top is last.
+    /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
     }
 
-    /// For each layer, which [`Self::order`] is it in?
-    pub(crate) fn order_map(&self) -> &OrderMap {
-        &self.order_map
-    }
-
     /// Compare the order of two layers, based on the order list from last frame.
+    ///
     /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
     pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
         if let (Some(a), Some(b)) = (self.order_map.get(&a), self.order_map.get(&b)) {
@@ -1183,18 +1182,8 @@ impl Areas {
         }
     }
 
-    /// Calculates the order map.
-    fn calculate_order_map(&mut self) {
-        self.order_map = self
-            .order
-            .iter()
-            .enumerate()
-            .map(|(i, id)| (*id, i))
-            .collect();
-    }
-
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
-        self.visible_current_frame.insert(layer_id);
+        self.visible_areas_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
         if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
@@ -1227,18 +1216,19 @@ impl Areas {
     }
 
     pub fn visible_last_frame(&self, layer_id: &LayerId) -> bool {
-        self.visible_last_frame.contains(layer_id)
+        self.visible_areas_last_frame.contains(layer_id)
     }
 
     pub fn is_visible(&self, layer_id: &LayerId) -> bool {
-        self.visible_last_frame.contains(layer_id) || self.visible_current_frame.contains(layer_id)
+        self.visible_areas_last_frame.contains(layer_id)
+            || self.visible_areas_current_frame.contains(layer_id)
     }
 
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
-        self.visible_last_frame
+        self.visible_areas_last_frame
             .iter()
             .copied()
-            .chain(self.visible_current_frame.iter().copied())
+            .chain(self.visible_areas_current_frame.iter().copied())
             .collect()
     }
 
@@ -1251,7 +1241,7 @@ impl Areas {
     }
 
     pub fn move_to_top(&mut self, layer_id: LayerId) {
-        self.visible_current_frame.insert(layer_id);
+        self.visible_areas_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
         if !self.order.iter().any(|x| *x == layer_id) {
@@ -1266,8 +1256,21 @@ impl Areas {
     ///
     /// This currently only supports one level of nesting. If `parent` is a sublayer of another
     /// layer, the behavior is unspecified.
+    ///
+    /// The two layers must have the same [`LayerId::order`].
     pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
+        debug_assert_eq!(parent.order, child.order,
+            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui", parent.order, child.order);
+
         self.sublayers.entry(parent).or_default().insert(child);
+
+        // Make sure the layers are in the order list:
+        if !self.order.iter().any(|x| *x == parent) {
+            self.order.push(parent);
+        }
+        if !self.order.iter().any(|x| *x == child) {
+            self.order.push(child);
+        }
     }
 
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
@@ -1278,26 +1281,42 @@ impl Areas {
             .copied()
     }
 
+    /// If this layer is the sublayer of another layer, return the parent.
+    pub fn parent_layer(&self, layer_id: LayerId) -> Option<LayerId> {
+        self.sublayers.iter().find_map(|(parent, children)| {
+            if children.contains(&layer_id) {
+                Some(*parent)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// All the child layers of this layer.
+    pub fn child_layers(&self, layer_id: LayerId) -> impl Iterator<Item = LayerId> + '_ {
+        self.sublayers.get(&layer_id).into_iter().flatten().copied()
+    }
+
     pub(crate) fn is_sublayer(&self, layer: &LayerId) -> bool {
-        self.sublayers
-            .iter()
-            .any(|(_, children)| children.contains(layer))
+        self.parent_layer(*layer).is_some()
     }
 
     pub(crate) fn end_pass(&mut self) {
         let Self {
-            visible_last_frame,
-            visible_current_frame,
+            visible_areas_last_frame,
+            visible_areas_current_frame,
             order,
             wants_to_be_on_top,
             sublayers,
             ..
         } = self;
 
-        std::mem::swap(visible_last_frame, visible_current_frame);
-        visible_current_frame.clear();
+        std::mem::swap(visible_areas_last_frame, visible_areas_current_frame);
+        visible_areas_current_frame.clear();
+
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
+
         // For all layers with sublayers, put the sublayers directly after the parent layer:
         let sublayers = std::mem::take(sublayers);
         for (parent, children) in sublayers {
@@ -1315,7 +1334,13 @@ impl Areas {
             };
             order.splice(parent_pos..=parent_pos, moved_layers);
         }
-        self.calculate_order_map();
+
+        self.order_map = self
+            .order
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (*id, i))
+            .collect();
     }
 }
 
