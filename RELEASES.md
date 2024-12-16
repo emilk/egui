@@ -42,7 +42,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
   - test on chromium
   - check the in-browser profiler
 * [ ] check the color test
-* [ ] update `eframe_template` and test
+* [ ] IMPORTANT: `eframe_template` with a commit hash, and make a PR to check that it passes CI!
 * [ ] update `egui_plot` and test
 * [ ] update `egui_tiles` and test
 * [ ] test with Rerun

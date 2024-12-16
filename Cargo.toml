@@ -24,7 +24,7 @@ members = [
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.80"
-version = "0.30.0"
+version = "0.30.1"
 
 
 [profile.release]
@@ -66,7 +66,7 @@ egui-wgpu = { version = "0.30.0", path = "crates/egui-wgpu", default-features = 
 egui_demo_lib = { version = "0.30.0", path = "crates/egui_demo_lib", default-features = false }
 egui_glow = { version = "0.30.0", path = "crates/egui_glow", default-features = false }
 egui_kittest = { version = "0.30.0", path = "crates/egui_kittest", default-features = false }
-eframe = { version = "0.30.0", path = "crates/eframe", default-features = false }
+eframe = { version = "0.30.1", path = "crates/eframe", default-features = false }
 
 ahash = { version = "0.8.11", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead

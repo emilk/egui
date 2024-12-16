@@ -7,6 +7,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.30.1 - 2024-12-16 - Fix glow backend on Linux
+* Revert "forward x11 and wayland features to glutin" ([#5391](https://github.com/emilk/egui/pull/5391)) to fix glow backend
+
+
 ## 0.30.0 - 2024-12-16 - Android support
 ### ⭐ Added
 * Support `ViewportCommand::Screenshot` on web [#5438](https://github.com/emilk/egui/pull/5438) by [@lucasmerlin](https://github.com/lucasmerlin)
