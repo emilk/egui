@@ -312,7 +312,7 @@ impl<'a> Image<'a> {
                 ImageSource::Uri(Cow::Owned(frame_uri))
             }
 
-            ImageSource::Bytes { uri, bytes } if are_animated_image_bytes(uri, bytes) => {
+            ImageSource::Bytes { uri, bytes } if are_animated_image_bytes(bytes) => {
                 let frame_uri =
                     encode_animated_image_uri(uri, animated_image_frame_index(ctx, uri));
                 ctx.include_bytes(uri.clone(), bytes.clone());
@@ -882,6 +882,6 @@ fn is_animated_image_uri(uri: &str) -> bool {
     is_gif_uri(uri) || is_webp_uri(uri)
 }
 
-fn are_animated_image_bytes(uri: &str, bytes: &[u8]) -> bool {
-    (is_gif_uri(uri) && has_gif_magic_header(bytes)) || (is_webp_uri(uri) && has_webp_header(bytes))
+fn are_animated_image_bytes(bytes: &[u8]) -> bool {
+    has_gif_magic_header(bytes) || has_webp_header(bytes)
 }
