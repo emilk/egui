@@ -53,8 +53,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a tweet
 * [ ] record gif for `CHANGELOG.md` release note (and later twitter post)
-* [ ] update changelogs using `scripts/generate_changelog.py --write`
-  - For major releases, always diff to the latest MAJOR release, e.g. `--commit-range 0.29.0..HEAD`
+* [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
 * [ ] bump version numbers in workspace `Cargo.toml`
 
 ## Actual release
@@ -79,8 +78,9 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 (cd crates/epaint               && cargo publish --quiet)  &&  echo "✅ epaint"
 (cd crates/egui                 && cargo publish --quiet)  &&  echo "✅ egui"
 (cd crates/egui-winit           && cargo publish --quiet)  &&  echo "✅ egui-winit"
-(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
 (cd crates/egui-wgpu            && cargo publish --quiet)  &&  echo "✅ egui-wgpu"
+(cd crates/egui_kittest         && cargo publish --quiet)  &&  echo "✅ egui_kittest"
+(cd crates/egui_extras          && cargo publish --quiet)  &&  echo "✅ egui_extras"
 (cd crates/egui_demo_lib        && cargo publish --quiet)  &&  echo "✅ egui_demo_lib"
 (cd crates/egui_glow            && cargo publish --quiet)  &&  echo "✅ egui_glow"
 (cd crates/eframe               && cargo publish --quiet)  &&  echo "✅ eframe"

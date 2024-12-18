@@ -467,7 +467,7 @@ impl Area {
                     id: interact_id,
                     layer_id,
                     rect: state.rect(),
-                    interact_rect: state.rect(),
+                    interact_rect: state.rect().intersect(constrain_rect),
                     sense,
                     enabled,
                 },
@@ -540,6 +540,7 @@ impl Prepared {
 
         let mut ui_builder = UiBuilder::new()
             .ui_stack_info(UiStackInfo::new(self.kind))
+            .layer_id(self.layer_id)
             .max_rect(max_rect);
 
         if !self.enabled {
@@ -549,7 +550,7 @@ impl Prepared {
             ui_builder = ui_builder.sizing_pass().invisible();
         }
 
-        let mut ui = Ui::new(ctx.clone(), self.layer_id, self.layer_id.id, ui_builder);
+        let mut ui = Ui::new(ctx.clone(), self.layer_id.id, ui_builder);
         ui.set_clip_rect(self.constrain_rect); // Don't paint outside our bounds
 
         if self.fade_in {
@@ -566,6 +567,14 @@ impl Prepared {
         }
 
         ui
+    }
+
+    pub(crate) fn with_widget_info(&self, make_info: impl Fn() -> crate::WidgetInfo) {
+        self.move_response.widget_info(make_info);
+    }
+
+    pub(crate) fn id(&self) -> Id {
+        self.move_response.id
     }
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.

@@ -34,7 +34,7 @@ fn set(get_set_value: &mut GetSetValue<'_>, value: f64) {
 /// ui.add(egui::DragValue::new(&mut my_f32).speed(0.1));
 /// # });
 /// ```
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct DragValue<'a> {
     get_set_value: GetSetValue<'a>,
     speed: f64,
@@ -452,7 +452,7 @@ impl<'a> Widget for DragValue<'a> {
         // in button mode for just one frame. This is important for
         // screen readers.
         let is_kb_editing = ui.memory_mut(|mem| {
-            mem.interested_in_focus(id);
+            mem.interested_in_focus(id, ui.layer_id());
             mem.has_focus(id)
         });
 
@@ -686,7 +686,7 @@ impl<'a> Widget for DragValue<'a> {
             }
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
-            builder.clear_name();
+            builder.clear_label();
             // Always expose the value as a string. This makes the widget
             // more stable to accessibility users as it switches
             // between edit and button modes. This is particularly important

@@ -1,43 +1,12 @@
 use std::sync::Arc;
 
-use raw_window_handle::{
-    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
-    RawWindowHandle, WebDisplayHandle, WebWindowHandle, WindowHandle,
-};
+use super::web_painter::WebPainter;
+use crate::WebOptions;
+use egui::{Event, UserData, ViewportId};
+use egui_wgpu::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
+use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
-
-use egui_wgpu::{RenderState, SurfaceErrorAction};
-
-use crate::WebOptions;
-
-use super::web_painter::WebPainter;
-
-struct EguiWebWindow(u32);
-
-#[allow(unsafe_code)]
-impl HasWindowHandle for EguiWebWindow {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        // SAFETY: there is no lifetime here.
-        unsafe {
-            Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(
-                WebWindowHandle::new(self.0),
-            )))
-        }
-    }
-}
-
-#[allow(unsafe_code)]
-impl HasDisplayHandle for EguiWebWindow {
-    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
-        // SAFETY: there is no lifetime here.
-        unsafe {
-            Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(
-                WebDisplayHandle::new(),
-            )))
-        }
-    }
-}
 
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
@@ -47,6 +16,10 @@ pub(crate) struct WebPainterWgpu {
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
+    screen_capture_state: Option<CaptureState>,
+    capture_tx: CaptureSender,
+    capture_rx: CaptureReceiver,
+    ctx: egui::Context,
 }
 
 impl WebPainterWgpu {
@@ -84,86 +57,54 @@ impl WebPainterWgpu {
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(
+        ctx: egui::Context,
         canvas: web_sys::HtmlCanvasElement,
         options: &WebOptions,
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        let mut backends = options.wgpu_options.supported_backends;
+        let instance = match &options.wgpu_options.wgpu_setup {
+            WgpuSetup::CreateNew {
+                supported_backends: backends,
+                power_preference,
+                ..
+            } => {
+                let mut backends = *backends;
 
-        // Don't try WebGPU if we're not in a secure context.
-        if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
-            let is_secure_context = web_sys::window().map_or(false, |w| w.is_secure_context());
-            if !is_secure_context {
-                log::info!(
-                    "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
-                );
+                // Don't try WebGPU if we're not in a secure context.
+                if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
+                    let is_secure_context =
+                        web_sys::window().map_or(false, |w| w.is_secure_context());
+                    if !is_secure_context {
+                        log::info!(
+                            "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
+                        );
 
-                // Don't try WebGPU since we established now that it will fail.
-                backends.remove(wgpu::Backends::BROWSER_WEBGPU);
+                        // Don't try WebGPU since we established now that it will fail.
+                        backends.remove(wgpu::Backends::BROWSER_WEBGPU);
 
-                if backends.is_empty() {
-                    return Err("No available supported graphics backends.".to_owned());
+                        if backends.is_empty() {
+                            return Err("No available supported graphics backends.".to_owned());
+                        }
+                    }
                 }
-            }
-        }
 
-        log::debug!("Creating wgpu instance with backends {:?}", backends);
-        let mut instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends,
-            ..Default::default()
-        });
+                log::debug!("Creating wgpu instance with backends {:?}", backends);
 
-        // It can happen that a browser advertises WebGPU support, but then fails to create a
-        // suitable adapter. As of writing this happens for example on Linux with Chrome 121.
-        //
-        // Since WebGPU is handled in a special way in wgpu, we have to recreate the instance
-        // if we instead want to try with WebGL.
-        //
-        // To make matters worse, once a canvas has been used with either WebGL or WebGPU,
-        // we can't go back and change that without replacing the canvas (which is hard to do from here).
-        // Therefore, we have to create the surface *after* requesting the adapter.
-        // However, wgpu offers to pass in a surface on adapter creation to ensure it is actually compatible with the chosen backend.
-        // This in turn isn't all that important on the web, but it still makes sense for the design of
-        // `egui::RenderState`!
-        // Therefore, we have to first check if it's possible to create a WebGPU adapter,
-        // and if it is not, start over with a WebGL instance.
-        //
-        // Note that we also might needlessly try this here if wgpu already determined that there's no
-        // WebGPU support in the first place. This is not a huge problem since it fails very fast, but
-        // it would be nice to avoid this. See https://github.com/gfx-rs/wgpu/issues/5142
-        if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
-            log::debug!("Attempting to create WebGPU adapter to check for support.");
-            if let Some(adapter) = instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: options.wgpu_options.power_preference,
-                    compatible_surface: None,
-                    force_fallback_adapter: false,
-                })
-                .await
-            {
-                // WebGPU doesn't spec yet a destroy on the adapter, only on the device.
-                //adapter.destroy();
-                log::debug!(
-                    "Successfully created WebGPU adapter, WebGPU confirmed to be supported!"
-                );
-            } else {
-                log::debug!("Failed to create WebGPU adapter.");
-
-                if backends.contains(wgpu::Backends::GL) {
-                    log::debug!("Recreating wgpu instance with WebGL backend only.");
-                    backends = wgpu::Backends::GL;
-                    instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                let instance =
+                    wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
                         backends,
                         ..Default::default()
-                    });
-                } else {
-                    return Err(
-                        "Failed to create WebGPU adapter and WebGL was not enabled.".to_owned()
-                    );
-                }
+                    })
+                    .await;
+
+                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
+                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
+                #[allow(clippy::arc_with_non_send_sync)]
+                Arc::new(instance)
             }
-        }
+            WgpuSetup::Existing { instance, .. } => instance.clone(),
+        };
 
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
@@ -182,16 +123,20 @@ impl WebPainterWgpu {
         .await
         .map_err(|err| err.to_string())?;
 
+        let default_configuration = surface
+            .get_default_config(&render_state.adapter, 0, 0) // Width/height is set later.
+            .ok_or("The surface isn't supported by this adapter")?;
+
         let surface_configuration = wgpu::SurfaceConfiguration {
             format: render_state.target_format,
             present_mode: options.wgpu_options.present_mode,
             view_formats: vec![render_state.target_format],
-            ..surface
-                .get_default_config(&render_state.adapter, 0, 0) // Width/height is set later.
-                .ok_or("The surface isn't supported by this adapter")?
+            ..default_configuration
         };
 
         log::debug!("wgpu painter initialized.");
+
+        let (capture_tx, capture_rx) = capture_channel();
 
         Ok(Self {
             canvas,
@@ -201,6 +146,10 @@ impl WebPainterWgpu {
             depth_format,
             depth_texture_view: None,
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
+            screen_capture_state: None,
+            capture_tx,
+            capture_rx,
+            ctx,
         })
     }
 }
@@ -222,7 +171,10 @@ impl WebPainter for WebPainterWgpu {
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
+        capture_data: Vec<UserData>,
     ) -> Result<(), JsValue> {
+        let capture = !capture_data.is_empty();
+
         let size_in_pixels = [self.canvas.width(), self.canvas.height()];
 
         let Some(render_state) = &self.render_state else {
@@ -266,7 +218,7 @@ impl WebPainter for WebPainterWgpu {
 
         // Resize surface if needed
         let is_zero_sized_surface = size_in_pixels[0] == 0 || size_in_pixels[1] == 0;
-        let frame = if is_zero_sized_surface {
+        let frame_and_capture_buffer = if is_zero_sized_surface {
             None
         } else {
             if size_in_pixels[0] != self.surface_configuration.width
@@ -283,7 +235,7 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            let frame = match self.surface.get_current_texture() {
+            let output_frame = match self.surface.get_current_texture() {
                 Ok(frame) => frame,
                 Err(err) => match (*self.on_surface_error)(err) {
                     SurfaceErrorAction::RecreateSurface => {
@@ -299,12 +251,23 @@ impl WebPainter for WebPainterWgpu {
 
             {
                 let renderer = render_state.renderer.read();
-                let frame_view = frame
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
+
+                let target_texture = if capture {
+                    let capture_state = self.screen_capture_state.get_or_insert_with(|| {
+                        CaptureState::new(&render_state.device, &output_frame.texture)
+                    });
+                    capture_state.update(&render_state.device, &output_frame.texture);
+
+                    &capture_state.texture
+                } else {
+                    &output_frame.texture
+                };
+                let target_view =
+                    target_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
                 let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &frame_view,
+                        view: &target_view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -343,7 +306,19 @@ impl WebPainter for WebPainterWgpu {
                 );
             }
 
-            Some(frame)
+            let mut capture_buffer = None;
+
+            if capture {
+                if let Some(capture_state) = &mut self.screen_capture_state {
+                    capture_buffer = Some(capture_state.copy_textures(
+                        &render_state.device,
+                        &output_frame,
+                        &mut encoder,
+                    ));
+                }
+            };
+
+            Some((output_frame, capture_buffer))
         };
 
         {
@@ -358,11 +333,36 @@ impl WebPainter for WebPainterWgpu {
             .queue
             .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
-        if let Some(frame) = frame {
+        if let Some((frame, capture_buffer)) = frame_and_capture_buffer {
+            if let Some(capture_buffer) = capture_buffer {
+                if let Some(capture_state) = &self.screen_capture_state {
+                    capture_state.read_screen_rgba(
+                        self.ctx.clone(),
+                        capture_buffer,
+                        capture_data,
+                        self.capture_tx.clone(),
+                        ViewportId::ROOT,
+                    );
+                }
+            }
+
             frame.present();
         }
 
         Ok(())
+    }
+
+    fn handle_screenshots(&mut self, events: &mut Vec<Event>) {
+        for (viewport_id, user_data, screenshot) in self.capture_rx.try_iter() {
+            let screenshot = Arc::new(screenshot);
+            for data in user_data {
+                events.push(Event::Screenshot {
+                    viewport_id,
+                    user_data: data,
+                    image: screenshot.clone(),
+                });
+            }
+        }
     }
 
     fn destroy(&mut self) {

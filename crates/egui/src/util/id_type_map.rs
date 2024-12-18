@@ -308,7 +308,7 @@ fn from_ron_str<T: serde::de::DeserializeOwned>(ron: &str) -> Option<T> {
 use crate::Id;
 
 // TODO(emilk): make IdTypeMap generic over the key (`Id`), and make a library of IdTypeMap.
-/// Stores values identified by an [`Id`] AND a the [`std::any::TypeId`] of the value.
+/// Stores values identified by an [`Id`] AND the [`std::any::TypeId`] of the value.
 ///
 /// In other words, it maps `(Id, TypeId)` to any value you want.
 ///
@@ -574,7 +574,7 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 #[cfg(feature = "persistence")]
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         use std::collections::BTreeMap;
 
@@ -593,7 +593,7 @@ impl PersistedMap {
         let max_bytes_per_type = map.max_bytes_per_type;
 
         {
-            crate::profile_scope!("gather");
+            profiling::scope!("gather");
             for (hash, element) in &map.map {
                 if let Some(element) = element.to_serialize() {
                     let stats = types_map.entry(element.type_id).or_default();
@@ -610,7 +610,7 @@ impl PersistedMap {
         let mut persisted = vec![];
 
         {
-            crate::profile_scope!("gc");
+            profiling::scope!("gc");
             for stats in types_map.values() {
                 let mut bytes_written = 0;
 
@@ -634,7 +634,7 @@ impl PersistedMap {
     }
 
     fn into_map(self) -> IdTypeMap {
-        crate::profile_function!();
+        profiling::function_scope!();
         let map = self
             .0
             .into_iter()
@@ -671,7 +671,7 @@ impl serde::Serialize for IdTypeMap {
     where
         S: serde::Serializer,
     {
-        crate::profile_scope!("IdTypeMap::serialize");
+        profiling::scope!("IdTypeMap::serialize");
         PersistedMap::from_map(self).serialize(serializer)
     }
 }
@@ -682,7 +682,7 @@ impl<'de> serde::Deserialize<'de> for IdTypeMap {
     where
         D: serde::Deserializer<'de>,
     {
-        crate::profile_scope!("IdTypeMap::deserialize");
+        profiling::scope!("IdTypeMap::deserialize");
         <PersistedMap>::deserialize(deserializer).map(PersistedMap::into_map)
     }
 }

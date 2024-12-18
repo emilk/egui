@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use emath::Rect;
 use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
@@ -59,8 +60,8 @@ use super::{TextEditOutput, TextEditState};
 /// See [`TextEdit::show`].
 ///
 /// ## Other
-/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+/// The background color of a [`crate::TextEdit`] is [`crate::Visuals::extreme_bg_color`] or can be set with [`crate::TextEdit::background_color`].
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct TextEdit<'t> {
     text: &'t mut dyn TextBuffer,
     hint_text: WidgetText,
@@ -84,6 +85,7 @@ pub struct TextEdit<'t> {
     clip_text: bool,
     char_limit: usize,
     return_key: Option<KeyboardShortcut>,
+    background_color: Option<Color32>,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -142,6 +144,7 @@ impl<'t> TextEdit<'t> {
             clip_text: false,
             char_limit: usize::MAX,
             return_key: Some(KeyboardShortcut::new(Modifiers::NONE, Key::Enter)),
+            background_color: None,
         }
     }
 
@@ -198,6 +201,14 @@ impl<'t> TextEdit<'t> {
     #[inline]
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
+        self
+    }
+
+    /// Set the background color of the [`TextEdit`]. The default is [`crate::Visuals::extreme_bg_color`].
+    // TODO(bircni): remove this once #3284 is implemented
+    #[inline]
+    pub fn background_color(mut self, color: Color32) -> Self {
+        self.background_color = Some(color);
         self
     }
 
@@ -409,7 +420,9 @@ impl<'t> TextEdit<'t> {
         let is_mutable = self.text.is_mutable();
         let frame = self.frame;
         let where_to_put_background = ui.painter().add(Shape::Noop);
-
+        let background_color = self
+            .background_color
+            .unwrap_or(ui.visuals().extreme_bg_color);
         let margin = self.margin;
         let mut output = self.show_content(ui);
 
@@ -427,14 +440,14 @@ impl<'t> TextEdit<'t> {
                     epaint::RectShape::new(
                         frame_rect,
                         visuals.rounding,
-                        ui.visuals().extreme_bg_color,
+                        background_color,
                         ui.visuals().selection.stroke,
                     )
                 } else {
                     epaint::RectShape::new(
                         frame_rect,
                         visuals.rounding,
-                        ui.visuals().extreme_bg_color,
+                        background_color,
                         visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
                     )
                 }
@@ -477,6 +490,7 @@ impl<'t> TextEdit<'t> {
             clip_text,
             char_limit,
             return_key,
+            background_color: _,
         } = self;
 
         let text_color = text_color
@@ -512,13 +526,13 @@ impl<'t> TextEdit<'t> {
 
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
-        let desired_width = if clip_text {
+        let desired_inner_width = if clip_text {
             wrap_width // visual clipping with scroll in singleline input.
         } else {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_inner_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_inner_size = vec2(desired_inner_width, galley.size().y.max(desired_height));
         let desired_outer_size = (desired_inner_size + margin.sum()).at_least(min_size);
         let (auto_id, outer_rect) = ui.allocate_space(desired_outer_size);
         let rect = outer_rect - margin; // inner rect (excluding frame/margin).
@@ -549,6 +563,7 @@ impl<'t> TextEdit<'t> {
             Sense::hover()
         };
         let mut response = ui.interact(outer_rect, id, sense);
+        response.intrinsic_size = Some(Vec2::new(desired_width, desired_outer_size.y));
 
         response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
 
@@ -588,6 +603,8 @@ impl<'t> TextEdit<'t> {
 
                 if did_interact || response.clicked() {
                     ui.memory_mut(|mem| mem.request_focus(response.id));
+
+                    state.last_interaction_time = ui.ctx().input(|i| i.time);
                 }
             }
         }
@@ -706,6 +723,16 @@ impl<'t> TextEdit<'t> {
                 }
             }
 
+            // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+            // if there's a ScrollArea, it can properly scroll to the cursor.
+            let extra_size = galley.size() - rect.size();
+            if extra_size.x > 0.0 || extra_size.y > 0.0 {
+                ui.allocate_rect(
+                    Rect::from_min_size(outer_rect.max, extra_size),
+                    Sense::hover(),
+                );
+            }
+
             painter.galley(galley_pos, galley.clone(), text_color);
 
             if has_focus {
@@ -713,16 +740,15 @@ impl<'t> TextEdit<'t> {
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
-                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO(emilk): remove this HACK workaround for https://github.com/emilk/egui/issues/1531
-                    if (response.changed || selection_changed) && !is_fully_visible {
+                    if response.changed || selection_changed {
                         // Scroll to keep primary cursor in view:
-                        ui.scroll_to_rect(primary_cursor_rect, None);
+                        ui.scroll_to_rect(primary_cursor_rect + margin, None);
                     }
 
                     if text.is_mutable() && interactive {
                         let now = ui.ctx().input(|i| i.time);
                         if response.changed || selection_changed {
-                            state.last_edit_time = now;
+                            state.last_interaction_time = now;
                         }
 
                         // Only show (and blink) cursor if the egui viewport has focus.
@@ -735,19 +761,20 @@ impl<'t> TextEdit<'t> {
                                 ui,
                                 &painter,
                                 primary_cursor_rect,
-                                now - state.last_edit_time,
+                                now - state.last_interaction_time,
                             );
                         }
 
                         // Set IME output (in screen coords) when text is editable and visible
-                        let transform = ui
-                            .memory(|m| m.layer_transforms.get(&ui.layer_id()).copied())
+                        let to_global = ui
+                            .ctx()
+                            .layer_transform_to_global(ui.layer_id())
                             .unwrap_or_default();
 
                         ui.ctx().output_mut(|o| {
                             o.ime = Some(crate::output::IMEOutput {
-                                rect: transform * rect,
-                                cursor_rect: transform * primary_cursor_rect,
+                                rect: to_global * rect,
+                                cursor_rect: to_global * primary_cursor_rect,
                             });
                         });
                     }
@@ -964,23 +991,7 @@ fn events(
                     break;
                 }
             }
-            Event::Key {
-                key: Key::Z,
-                pressed: true,
-                modifiers,
-                ..
-            } if modifiers.matches_logically(Modifiers::COMMAND) => {
-                if let Some((undo_ccursor_range, undo_txt)) = state
-                    .undoer
-                    .lock()
-                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
-                {
-                    text.replace_with(undo_txt);
-                    Some(*undo_ccursor_range)
-                } else {
-                    None
-                }
-            }
+
             Event::Key {
                 key,
                 pressed: true,
@@ -997,6 +1008,24 @@ fn events(
                 {
                     text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+
+            Event::Key {
+                key: Key::Z,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.matches_logically(Modifiers::COMMAND) => {
+                if let Some((undo_ccursor_range, undo_txt)) = state
+                    .undoer
+                    .lock()
+                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace_with(undo_txt);
+                    Some(*undo_ccursor_range)
                 } else {
                     None
                 }

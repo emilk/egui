@@ -55,11 +55,6 @@ log = ["dep:log"]
 ## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["emath/mint"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin"]
-
 ## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
 ##
 ## This can help performance for graphics-intense applications.
@@ -79,6 +74,7 @@ ab_glyph = "0.2.11"
 ahash.workspace = true
 nohash-hasher.workspace = true
 parking_lot.workspace = true   # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
+profiling = { workspace = true}
 
 #! ### Optional dependencies
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
@@ -87,7 +83,6 @@ bytemuck = { workspace = true, optional = true, features = ["derive"] }
 document-features = { workspace = true, optional = true }
 
 log = { workspace = true, optional = true }
-puffin = { workspace = true, optional = true }
 rayon = { version = "1.7", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .

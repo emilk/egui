@@ -161,10 +161,15 @@ where
 
 impl From<Stroke> for PathStroke {
     fn from(value: Stroke) -> Self {
-        Self {
-            width: value.width,
-            color: ColorMode::Solid(value.color),
-            kind: StrokeKind::default(),
+        if value.is_empty() {
+            // Important, since we use the stroke color when doing feathering of the fill!
+            Self::NONE
+        } else {
+            Self {
+                width: value.width,
+                color: ColorMode::Solid(value.color),
+                kind: StrokeKind::default(),
+            }
         }
     }
 }

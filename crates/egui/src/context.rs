@@ -9,7 +9,7 @@ use epaint::{
     pos2,
     stats::PaintStats,
     tessellator,
-    text::Fonts,
+    text::{FontInsert, FontPriority, Fonts},
     util::OrderedFloat,
     vec2, ClippedPrimitive, ClippedShape, Color32, ImageData, ImageDelta, Pos2, Rect,
     TessellationOptions, TextureAtlas, TextureId, Vec2,
@@ -109,13 +109,13 @@ struct Plugins {
 
 impl Plugins {
     fn call(ctx: &Context, _cb_name: &str, callbacks: &[NamedContextCallback]) {
-        crate::profile_scope!("plugins", _cb_name);
+        profiling::scope!("plugins", _cb_name);
         for NamedContextCallback {
             debug_name: _name,
             callback,
         } in callbacks
         {
-            crate::profile_scope!("plugin", _name);
+            profiling::scope!("plugin", _name);
             (callback)(ctx);
         }
     }
@@ -498,19 +498,8 @@ impl ContextImpl {
         viewport.this_pass.begin_pass(screen_rect);
 
         {
-            let area_order = self.memory.areas().order_map();
-
             let mut layers: Vec<LayerId> = viewport.prev_pass.widgets.layer_ids().collect();
-
-            layers.sort_by(|a, b| {
-                if a.order == b.order {
-                    // Maybe both are windows, so respect area order:
-                    area_order.get(a).cmp(&area_order.get(b))
-                } else {
-                    // comparing e.g. background to tooltips
-                    a.order.cmp(&b.order)
-                }
-            });
+            layers.sort_by(|&a, &b| self.memory.areas().compare_order(a, b));
 
             viewport.hits = if let Some(pos) = viewport.input.pointer.interact_pos() {
                 let interact_radius = self.memory.options.style().interaction.interact_radius;
@@ -518,7 +507,7 @@ impl ContextImpl {
                 crate::hit_test::hit_test(
                     &viewport.prev_pass.widgets,
                     &layers,
-                    &self.memory.layer_transforms,
+                    &self.memory.to_global,
                     pos,
                     interact_radius,
                 )
@@ -549,16 +538,16 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
-            crate::profile_scope!("accesskit");
+            profiling::scope!("accesskit");
             use crate::pass_state::AccessKitPassState;
             let id = crate::accesskit_root_id();
-            let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
+            let mut root_node = accesskit::Node::new(accesskit::Role::Window);
             let pixels_per_point = viewport.input.pixels_per_point();
-            builder.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
-            let mut node_builders = IdMap::default();
-            node_builders.insert(id, builder);
+            root_node.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
+            let mut nodes = IdMap::default();
+            nodes.insert(id, root_node);
             viewport.this_pass.accesskit_state = Some(AccessKitPassState {
-                node_builders,
+                nodes,
                 parent_stack: vec![id],
             });
         }
@@ -568,8 +557,7 @@ impl ContextImpl {
 
     /// Load fonts unless already loaded.
     fn update_fonts_mut(&mut self) {
-        crate::profile_function!();
-
+        profiling::function_scope!();
         let input = &self.viewport().input;
         let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
@@ -582,6 +570,30 @@ impl ContextImpl {
             log::trace!("Loading new font definitions");
         }
 
+        if !self.memory.add_fonts.is_empty() {
+            let fonts = self.memory.add_fonts.drain(..);
+            for font in fonts {
+                self.fonts.clear(); // recreate all the fonts
+                for family in font.families {
+                    let fam = self
+                        .font_definitions
+                        .families
+                        .entry(family.family)
+                        .or_default();
+                    match family.priority {
+                        FontPriority::Highest => fam.insert(0, font.name.clone()),
+                        FontPriority::Lowest => fam.push(font.name.clone()),
+                    }
+                }
+                self.font_definitions
+                    .font_data
+                    .insert(font.name, Arc::new(font.data));
+            }
+
+            #[cfg(feature = "log")]
+            log::trace!("Adding new fonts");
+        }
+
         let mut is_new = false;
 
         let fonts = self
@@ -592,7 +604,7 @@ impl ContextImpl {
                 log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
 
                 is_new = true;
-                crate::profile_scope!("Fonts::new");
+                profiling::scope!("Fonts::new");
                 Fonts::new(
                     pixels_per_point,
                     max_texture_side,
@@ -601,12 +613,12 @@ impl ContextImpl {
             });
 
         {
-            crate::profile_scope!("Fonts::begin_pass");
+            profiling::scope!("Fonts::begin_pass");
             fonts.begin_pass(pixels_per_point, max_texture_side);
         }
 
         if is_new && self.memory.options.preload_font_glyphs {
-            crate::profile_scope!("preload_font_glyphs");
+            profiling::scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
             for font_id in self.memory.options.style().text_styles.values() {
@@ -616,9 +628,9 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::NodeBuilder {
+    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::Node {
         let state = self.viewport().this_pass.accesskit_state.as_mut().unwrap();
-        let builders = &mut state.node_builders;
+        let builders = &mut state.nodes;
         if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
             let parent_id = state.parent_stack.last().unwrap();
@@ -788,8 +800,7 @@ impl Context {
     /// ```
     #[must_use]
     pub fn run(&self, mut new_input: RawInput, mut run_ui: impl FnMut(&Self)) -> FullOutput {
-        crate::profile_function!();
-
+        profiling::function_scope!();
         let viewport_id = new_input.viewport_id;
         let max_passes = self.write(|ctx| ctx.memory.options.max_passes.get());
 
@@ -797,9 +808,13 @@ impl Context {
         debug_assert_eq!(output.platform_output.num_completed_passes, 0);
 
         loop {
-            crate::profile_scope!(
+            profiling::scope!(
                 "pass",
-                output.platform_output.num_completed_passes.to_string()
+                output
+                    .platform_output
+                    .num_completed_passes
+                    .to_string()
+                    .as_str()
             );
 
             // We must move the `num_passes` (back) to the viewport output so that [`Self::will_discard`]
@@ -862,7 +877,7 @@ impl Context {
     /// // handle full_output
     /// ```
     pub fn begin_pass(&self, new_input: RawInput) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         self.write(|ctx| ctx.begin_pass(new_input));
 
@@ -1136,6 +1151,9 @@ impl Context {
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
+        let interested_in_focus =
+            w.enabled && w.sense.focusable && self.memory(|mem| mem.allows_interaction(w.layer_id));
+
         // Remember this widget
         self.write(|ctx| {
             let viewport = ctx.viewport();
@@ -1145,12 +1163,12 @@ impl Context {
             // but also to know when we have reached the widget we are checking for cover.
             viewport.this_pass.widgets.insert(w.layer_id, w);
 
-            if allow_focus && w.sense.focusable {
-                ctx.memory.interested_in_focus(w.id);
+            if allow_focus && interested_in_focus {
+                ctx.memory.interested_in_focus(w.id, w.layer_id);
             }
         });
 
-        if allow_focus && (!w.enabled || !w.sense.focusable || !w.layer_id.allow_interaction()) {
+        if allow_focus && !interested_in_focus {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
@@ -1255,7 +1273,7 @@ impl Context {
             #[cfg(feature = "accesskit")]
             if enabled
                 && sense.click
-                && input.has_accesskit_action_request(id, accesskit::Action::Default)
+                && input.has_accesskit_action_request(id, accesskit::Action::Click)
             {
                 res.fake_primary_click = true;
             }
@@ -1302,11 +1320,11 @@ impl Context {
                 res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
-                if let (Some(transform), Some(pos)) = (
-                    memory.layer_transforms.get(&res.layer_id),
+                if let (Some(to_global), Some(pos)) = (
+                    memory.to_global.get(&res.layer_id),
                     &mut res.interact_pointer_pos,
                 ) {
-                    *pos = transform.inverse() * *pos;
+                    *pos = to_global.inverse() * *pos;
                 }
             }
 
@@ -1416,6 +1434,10 @@ impl Context {
     /// Copy the given text to the system clipboard.
     ///
     /// Empty strings are ignored.
+    ///
+    /// Note that in wasm applications, the clipboard is only accessible in secure contexts (e.g.,
+    /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
+    /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
     ///
     /// Equivalent to:
     /// ```
@@ -1727,8 +1749,9 @@ impl Context {
     /// but you can call this to install additional fonts that support e.g. korean characters.
     ///
     /// The new fonts will become active at the start of the next pass.
+    /// This will overwrite the existing fonts.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let pixels_per_point = self.pixels_per_point();
 
@@ -1745,6 +1768,39 @@ impl Context {
 
         if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+        }
+    }
+
+    /// Tell `egui` which fonts to use.
+    ///
+    /// The default `egui` fonts only support latin and cyrillic alphabets,
+    /// but you can call this to install additional fonts that support e.g. korean characters.
+    ///
+    /// The new font will become active at the start of the next pass.
+    /// This will keep the existing fonts.
+    pub fn add_font(&self, new_font: FontInsert) {
+        profiling::function_scope!();
+
+        let pixels_per_point = self.pixels_per_point();
+
+        let mut update_fonts = true;
+
+        self.read(|ctx| {
+            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
+                if current_fonts
+                    .lock()
+                    .fonts
+                    .definitions()
+                    .font_data
+                    .contains_key(&new_font.name)
+                {
+                    update_fonts = false; // no need to update
+                }
+            }
+        });
+
+        if update_fonts {
+            self.memory_mut(|mem| mem.add_fonts.push(new_font));
         }
     }
 
@@ -2087,7 +2143,7 @@ impl Context {
     /// Call at the end of each frame if you called [`Context::begin_pass`].
     #[must_use]
     pub fn end_pass(&self) -> FullOutput {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
@@ -2181,7 +2237,8 @@ impl Context {
                     for id in contains_pointer {
                         let mut widget_text = format!("{id:?}");
                         if let Some(rect) = widget_rects.get(id) {
-                            widget_text += &format!(" {:?} {:?}", rect.rect, rect.sense);
+                            widget_text +=
+                                &format!(" {:?} {:?} {:?}", rect.layer_id, rect.rect, rect.sense);
                         }
                         if let Some(info) = widget_rects.info(id) {
                             widget_text += &format!(" {info:?}");
@@ -2207,11 +2264,17 @@ impl Context {
         if self.style().debug.show_widget_hits {
             let hits = self.write(|ctx| ctx.viewport().hits.clone());
             let WidgetHits {
+                close,
                 contains_pointer,
                 click,
                 drag,
             } = hits;
 
+            if false {
+                for widget in &close {
+                    paint_widget(widget, "close", Color32::from_gray(70));
+                }
+            }
             if true {
                 for widget in &contains_pointer {
                     paint_widget(widget, "contains_pointer", Color32::BLUE);
@@ -2277,7 +2340,7 @@ impl ContextImpl {
                 // https://github.com/emilk/egui/issues/3664
                 // at the cost of a lot of performance.
                 // (This will override any smaller delta that was uploaded above.)
-                crate::profile_scope!("full_font_atlas_update");
+                profiling::scope!("full_font_atlas_update");
                 let full_delta = ImageDelta::full(fonts.image(), TextureAtlas::texture_options());
                 tex_mngr.set(TextureId::default(), full_delta);
             }
@@ -2291,15 +2354,15 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         {
-            crate::profile_scope!("accesskit");
+            profiling::scope!("accesskit");
             let state = viewport.this_pass.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = {
                     state
-                        .node_builders
+                        .nodes
                         .into_iter()
-                        .map(|(id, builder)| (id.accesskit_id(), builder.build()))
+                        .map(|(id, node)| (id.accesskit_id(), node))
                         .collect()
                 };
                 let focus_id = self
@@ -2316,12 +2379,12 @@ impl ContextImpl {
 
         let shapes = viewport
             .graphics
-            .drain(self.memory.areas().order(), &self.memory.layer_transforms);
+            .drain(self.memory.areas().order(), &self.memory.to_global);
 
         let mut repaint_needed = false;
 
         if self.memory.options.repaint_on_widget_change {
-            crate::profile_function!("compare-widget-rects");
+            profiling::scope!("compare-widget-rects");
             if viewport.prev_pass.widgets != viewport.this_pass.widgets {
                 repaint_needed = true; // Some widget has moved
             }
@@ -2460,7 +2523,7 @@ impl Context {
         shapes: Vec<ClippedShape>,
         pixels_per_point: f32,
     ) -> Vec<ClippedPrimitive> {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
@@ -2487,7 +2550,7 @@ impl Context {
 
             let paint_stats = PaintStats::from_shapes(&shapes);
             let clipped_primitives = {
-                crate::profile_scope!("tessellator::tessellate_shapes");
+                profiling::scope!("tessellator::tessellate_shapes");
                 tessellator::Tessellator::new(
                     pixels_per_point,
                     tessellation_options,
@@ -2632,6 +2695,7 @@ impl Context {
     /// Transform the graphics of the given layer.
     ///
     /// This will also affect input.
+    /// The direction of the given transform is "into the global coordinate system".
     ///
     /// This is a sticky setting, remembered from one frame to the next.
     ///
@@ -2641,11 +2705,26 @@ impl Context {
     pub fn set_transform_layer(&self, layer_id: LayerId, transform: TSTransform) {
         self.memory_mut(|m| {
             if transform == TSTransform::IDENTITY {
-                m.layer_transforms.remove(&layer_id)
+                m.to_global.remove(&layer_id)
             } else {
-                m.layer_transforms.insert(layer_id, transform)
+                m.to_global.insert(layer_id, transform)
             }
         });
+    }
+
+    /// Return how to transform the graphics of the given layer into the global coordinate system.
+    ///
+    /// Set this with [`Self::layer_transform_to_global`].
+    pub fn layer_transform_to_global(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.memory(|m| m.to_global.get(&layer_id).copied())
+    }
+
+    /// Return how to transform the graphics of the global coordinate system into the local coordinate system of the given layer.
+    ///
+    /// This returns the inverse of [`Self::layer_transform_to_global`].
+    pub fn layer_transform_from_global(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.layer_transform_to_global(layer_id)
+            .map(|t| t.inverse())
     }
 
     /// Move all the graphics at the given layer.
@@ -2712,12 +2791,11 @@ impl Context {
     ///
     /// See also [`Response::contains_pointer`].
     pub fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let rect =
-            if let Some(transform) = self.memory(|m| m.layer_transforms.get(&layer_id).copied()) {
-                transform * rect
-            } else {
-                rect
-            };
+        let rect = if let Some(to_global) = self.layer_transform_to_global(layer_id) {
+            to_global * rect
+        } else {
+            rect
+        };
         if !rect.is_positive() {
             return false;
         }
@@ -2884,7 +2962,9 @@ impl Context {
 
         for (name, data) in &mut font_definitions.font_data {
             ui.collapsing(name, |ui| {
-                if data.tweak.ui(ui).changed() {
+                let mut tweak = data.tweak;
+                if tweak.ui(ui).changed() {
+                    Arc::make_mut(data).tweak = tweak;
                     changed = true;
                 }
             });
@@ -3077,28 +3157,26 @@ impl Context {
                 self.memory_mut(|mem| *mem.areas_mut() = Default::default());
             }
         });
-        ui.indent("areas", |ui| {
-            ui.label("Visible areas, ordered back to front.");
-            ui.label("Hover to highlight");
+        ui.indent("layers", |ui| {
+            ui.label("Layers, ordered back to front.");
             let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
             for layer_id in layers_ids {
-                let area = AreaState::load(self, layer_id.id);
-                if let Some(area) = area {
+                if let Some(area) = AreaState::load(self, layer_id.id) {
                     let is_visible = self.memory(|mem| mem.areas().is_visible(&layer_id));
                     if !is_visible {
                         continue;
                     }
                     let text = format!("{} - {:?}", layer_id.short_debug_format(), area.rect(),);
                     // TODO(emilk): `Sense::hover_highlight()`
-                    if ui
-                        .add(Label::new(RichText::new(text).monospace()).sense(Sense::click()))
-                        .hovered
-                        && is_visible
-                    {
+                    let response =
+                        ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
+                    if response.hovered && is_visible {
                         ui.ctx()
                             .debug_painter()
                             .debug_rect(area.rect(), Color32::RED, "");
                     }
+                } else {
+                    ui.monospace(layer_id.short_debug_format());
                 }
             }
         });
@@ -3206,7 +3284,7 @@ impl Context {
     pub fn accesskit_node_builder<R>(
         &self,
         id: Id,
-        writer: impl FnOnce(&mut accesskit::NodeBuilder) -> R,
+        writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
         self.write(|ctx| {
             ctx.viewport()
@@ -3286,7 +3364,7 @@ impl Context {
     pub fn forget_image(&self, uri: &str) {
         use load::BytesLoader as _;
 
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let loaders = self.loaders();
 
@@ -3308,7 +3386,7 @@ impl Context {
     pub fn forget_all_images(&self) {
         use load::BytesLoader as _;
 
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let loaders = self.loaders();
 
@@ -3343,7 +3421,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
-        crate::profile_function!(uri);
+        profiling::function_scope!(uri);
 
         let loaders = self.loaders();
         let bytes_loaders = loaders.bytes.lock();
@@ -3380,7 +3458,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
-        crate::profile_function!(uri);
+        profiling::function_scope!(uri);
 
         let loaders = self.loaders();
         let image_loaders = loaders.image.lock();
@@ -3388,15 +3466,23 @@ impl Context {
             return Err(load::LoadError::NoImageLoaders);
         }
 
+        let mut format = None;
+
         // Try most recently added loaders first (hence `.rev()`)
         for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
+                Err(load::LoadError::FormatNotSupported { detected_format }) => {
+                    format = format.or(detected_format);
+                    continue;
+                }
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NoMatchingImageLoader)
+        Err(load::LoadError::NoMatchingImageLoader {
+            detected_format: format,
+        })
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.
@@ -3423,7 +3509,7 @@ impl Context {
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        crate::profile_function!(uri);
+        profiling::function_scope!(uri);
 
         let loaders = self.loaders();
         let texture_loaders = loaders.texture.lock();
@@ -3441,7 +3527,7 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        crate::profile_function!();
+        profiling::function_scope!();
         self.read(|this| this.loaders.clone())
     }
 }
@@ -3573,7 +3659,7 @@ impl Context {
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Self, ViewportClass) + Send + Sync + 'static,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         if self.embed_viewports() {
             viewport_ui_cb(self, ViewportClass::Embedded);
@@ -3597,7 +3683,7 @@ impl Context {
     ///
     /// This is the easier type of viewport to use, but it is less performant
     /// at it requires both parent and child to repaint if any one of them needs repainting,
-    /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
+    /// which effectively produce double work for two viewports, and triple work for three viewports, etc.
     /// To avoid this, use [`Self::show_viewport_deferred`] instead.
     ///
     /// The given id must be unique for each viewport.
@@ -3625,7 +3711,7 @@ impl Context {
         builder: ViewportBuilder,
         mut viewport_ui_cb: impl FnMut(&Self, ViewportClass) -> T,
     ) -> T {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         if self.embed_viewports() {
             return viewport_ui_cb(self, ViewportClass::Embedded);

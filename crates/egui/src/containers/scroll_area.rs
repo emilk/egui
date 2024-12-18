@@ -39,7 +39,7 @@ pub struct State {
     scroll_start_offset_from_top_left: [Option<f32>; 2],
 
     /// Is the scroll sticky. This is true while scroll handle is in the end position
-    /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
+    /// and remains that way until the user moves the `scroll_handle`. Once unstuck (false)
     /// it remains false until the scroll touches the end position, which reenables stickiness.
     scroll_stuck_to_end: Vec2b,
 
@@ -499,6 +499,11 @@ struct Prepared {
 
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
+
+    /// If there was a scroll target before the [`ScrollArea`] was added this frame, it's
+    /// not for us to handle so we save it and restore it after this [`ScrollArea`] is done.
+    saved_scroll_target: [Option<pass_state::ScrollTarget>; 2],
+
     animated: bool,
 }
 
@@ -621,20 +626,28 @@ impl ScrollArea {
                 .interact_rect
                 .map(|rect| ui.interact(rect, id.with("area"), Sense::drag()));
 
-            if content_response_option.map(|response| response.dragged()) == Some(true) {
+            if content_response_option
+                .as_ref()
+                .is_some_and(|response| response.dragged())
+            {
                 for d in 0..2 {
                     if scroll_enabled[d] {
                         ui.input(|input| {
                             state.offset[d] -= input.pointer.delta()[d];
-                            state.vel[d] = input.pointer.velocity()[d];
                         });
                         state.scroll_stuck_to_end[d] = false;
                         state.offset_target[d] = None;
-                    } else {
-                        state.vel[d] = 0.0;
                     }
                 }
             } else {
+                // Apply the cursor velocity to the scroll area when the user releases the drag.
+                if content_response_option
+                    .as_ref()
+                    .is_some_and(|response| response.drag_stopped())
+                {
+                    state.vel =
+                        scroll_enabled.to_vec2() * ui.input(|input| input.pointer.velocity());
+                }
                 for d in 0..2 {
                     // Kinetic scrolling
                     let stop_speed = 20.0; // Pixels per second.
@@ -685,6 +698,10 @@ impl ScrollArea {
             }
         }
 
+        let saved_scroll_target = content_ui
+            .ctx()
+            .pass_state_mut(|state| std::mem::take(&mut state.scroll_target));
+
         Prepared {
             id,
             state,
@@ -699,6 +716,7 @@ impl ScrollArea {
             viewport,
             scrolling_enabled,
             stick_to_end,
+            saved_scroll_target,
             animated,
         }
     }
@@ -812,6 +830,7 @@ impl Prepared {
             viewport: _,
             scrolling_enabled,
             stick_to_end,
+            saved_scroll_target,
             animated,
         } = self;
 
@@ -845,7 +864,7 @@ impl Prepared {
                     let (start, end) = (range.min, range.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
-                    let mut spacing = ui.spacing().item_spacing[d];
+                    let mut spacing = content_ui.spacing().item_spacing[d];
 
                     let delta_update = if let Some(align) = align {
                         let center_factor = align.to_factor();
@@ -893,6 +912,15 @@ impl Prepared {
                 }
             }
         }
+
+        // Restore scroll target meant for ScrollAreas up the stack (if any)
+        ui.ctx().pass_state_mut(|state| {
+            for d in 0..2 {
+                if saved_scroll_target[d].is_some() {
+                    state.scroll_target[d] = saved_scroll_target[d].clone();
+                };
+            }
+        });
 
         let inner_rect = {
             // At this point this is the available size for the inner rect.

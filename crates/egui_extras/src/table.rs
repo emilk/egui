@@ -743,6 +743,7 @@ impl<'a> Table<'a> {
         let cursor_position = ui.cursor().min;
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
+            .id_salt(state_id.with("__scroll_area"))
             .drag_to_scroll(drag_to_scroll)
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
@@ -1226,7 +1227,7 @@ impl<'a> TableBody<'a> {
 
     // Capture the hover information for the just created row. This is used in the next render
     // to ensure that the entire row is highlighted.
-    fn capture_hover_state(&mut self, response: &Option<Response>, row_index: usize) {
+    fn capture_hover_state(&self, response: &Option<Response>, row_index: usize) {
         let is_row_hovered = response.as_ref().map_or(false, |r| r.hovered());
         if is_row_hovered {
             self.layout

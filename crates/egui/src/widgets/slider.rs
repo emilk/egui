@@ -94,7 +94,7 @@ pub enum SliderClamping {
 /// ```
 ///
 /// The default [`Slider`] size is set by [`crate::style::Spacing::slider_width`].
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
+#[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct Slider<'a> {
     get_set_value: GetSetValue<'a>,
     range: RangeInclusive<f64>,
@@ -1030,7 +1030,7 @@ impl<'a> Widget for Slider<'a> {
 // Logarithmic sliders are allowed to include zero and infinity,
 // even though mathematically it doesn't make sense.
 
-use std::f64::INFINITY;
+const INFINITY: f64 = f64::INFINITY;
 
 /// When the user asks for an infinitely large range (e.g. logarithmic from zero),
 /// give a scale that this many orders of magnitude in size.

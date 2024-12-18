@@ -6,7 +6,7 @@ use crate::{epi, App};
 
 use super::{events, text_agent::TextAgent, AppRunner, PanicHandler};
 
-/// This is how `eframe` runs your wepp application
+/// This is how `eframe` runs your web application
 ///
 /// This is cheap to clone.
 ///
@@ -16,7 +16,7 @@ pub struct WebRunner {
     /// Have we ever panicked?
     panic_handler: PanicHandler,
 
-    /// If we ever panic during running, this RefCell is poisoned.
+    /// If we ever panic during running, this `RefCell` is poisoned.
     /// So before we use it, we need to check [`Self::panic_handler`].
     runner: Rc<RefCell<Option<AppRunner>>>,
 

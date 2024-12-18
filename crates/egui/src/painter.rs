@@ -74,6 +74,9 @@ impl Painter {
     }
 
     /// Redirect where you are painting.
+    ///
+    /// It is undefined behavior to change the [`LayerId`]
+    /// of [`crate::Ui::painter`].
     pub fn set_layer_id(&mut self, layer_id: LayerId) {
         self.layer_id = layer_id;
     }
@@ -339,6 +342,12 @@ impl Painter {
             points,
             stroke: stroke.into(),
         })
+    }
+
+    /// Paints a line connecting the points.
+    /// NOTE: all coordinates are screen coordinates!
+    pub fn line(&self, points: Vec<Pos2>, stroke: impl Into<PathStroke>) -> ShapeIdx {
+        self.add(Shape::line(points, stroke))
     }
 
     /// Paints a horizontal line.

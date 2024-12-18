@@ -392,11 +392,8 @@ impl Response {
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
             let mut delta = self.ctx.input(|i| i.pointer.delta());
-            if let Some(scaling) = self
-                .ctx
-                .memory(|m| m.layer_transforms.get(&self.layer_id).map(|t| t.scaling))
-            {
-                delta /= scaling;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                delta *= from_global.scaling;
             }
             delta
         } else {
@@ -478,11 +475,8 @@ impl Response {
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
             let mut pos = self.ctx.input(|i| i.pointer.hover_pos())?;
-            if let Some(transform) = self
-                .ctx
-                .memory(|m| m.layer_transforms.get(&self.layer_id).copied())
-            {
-                pos = transform.inverse() * pos;
+            if let Some(from_global) = self.ctx.layer_transform_from_global(self.layer_id) {
+                pos = from_global * pos;
             }
             Some(pos)
         } else {
@@ -988,7 +982,7 @@ impl Response {
     }
 
     #[cfg(feature = "accesskit")]
-    pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::NodeBuilder) {
+    pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::Node) {
         if !self.enabled {
             builder.set_disabled();
         }
@@ -1001,15 +995,15 @@ impl Response {
         if self.sense.focusable {
             builder.add_action(accesskit::Action::Focus);
         }
-        if self.sense.click && builder.default_action_verb().is_none() {
-            builder.set_default_action_verb(accesskit::DefaultActionVerb::Click);
+        if self.sense.click {
+            builder.add_action(accesskit::Action::Click);
         }
     }
 
     #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
-        builder: &mut accesskit::NodeBuilder,
+        builder: &mut accesskit::Node,
         info: crate::WidgetInfo,
     ) {
         use crate::WidgetType;
@@ -1032,13 +1026,18 @@ impl Response {
             WidgetType::DragValue => Role::SpinButton,
             WidgetType::ColorButton => Role::ColorWell,
             WidgetType::ProgressIndicator => Role::ProgressIndicator,
+            WidgetType::Window => Role::Window,
             WidgetType::Other => Role::Unknown,
         });
         if !info.enabled {
             builder.set_disabled();
         }
         if let Some(label) = info.label {
-            builder.set_name(label);
+            if matches!(builder.role(), Role::Label) {
+                builder.set_value(label);
+            } else {
+                builder.set_label(label);
+            }
         }
         if let Some(value) = info.current_text_value {
             builder.set_value(value);

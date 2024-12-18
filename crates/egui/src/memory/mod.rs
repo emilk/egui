@@ -54,7 +54,7 @@ pub struct Memory {
     /// so as not to lock the UI thread.
     ///
     /// ```
-    /// use egui::util::cache::{ComputerMut, FrameCache};
+    /// use egui::cache::{ComputerMut, FrameCache};
     ///
     /// #[derive(Default)]
     /// struct CharCounter {}
@@ -72,12 +72,16 @@ pub struct Memory {
     /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub caches: crate::util::cache::CacheStorage,
+    pub caches: crate::cache::CacheStorage,
 
     // ------------------------------------------
     /// new fonts that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
+
+    /// add new font that will be applied at the start of the next frame
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) add_fonts: Vec<epaint::text::FontInsert>,
 
     // Current active viewport
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -91,8 +95,13 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
 
-    /// Transforms per layer
-    pub layer_transforms: HashMap<LayerId, TSTransform>,
+    /// Transforms per layer.
+    ///
+    /// Instead of using this directly, use:
+    /// * [`crate::Context::set_transform_layer`]
+    /// * [`crate::Context::layer_transform_to_global`]
+    /// * [`crate::Context::layer_transform_from_global`]
+    pub to_global: HashMap<LayerId, TSTransform>,
 
     // -------------------------------------------------
     // Per-viewport:
@@ -116,9 +125,10 @@ impl Default for Memory {
             focus: Default::default(),
             viewport_id: Default::default(),
             areas: Default::default(),
-            layer_transforms: Default::default(),
+            to_global: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
+            add_fonts: Default::default(),
         };
         slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
@@ -508,6 +518,12 @@ pub(crate) struct Focus {
     /// Set when looking for widget with navigational keys like arrows, tab, shift+tab.
     focus_direction: FocusDirection,
 
+    /// The top-most modal layer from the previous frame.
+    top_modal_layer: Option<LayerId>,
+
+    /// The top-most modal layer from the current frame.
+    top_modal_layer_current_frame: Option<LayerId>,
+
     /// A cache of widget IDs that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
 }
@@ -618,6 +634,8 @@ impl Focus {
                 self.focused_widget = None;
             }
         }
+
+        self.top_modal_layer = self.top_modal_layer_current_frame.take();
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
@@ -671,6 +689,14 @@ impl Focus {
         self.last_interested = Some(id);
     }
 
+    fn set_modal_layer(&mut self, layer_id: LayerId) {
+        self.top_modal_layer_current_frame = Some(layer_id);
+    }
+
+    pub(crate) fn top_modal_layer(&self) -> Option<LayerId> {
+        self.top_modal_layer
+    }
+
     fn reset_focus(&mut self) {
         self.focus_direction = FocusDirection::None;
     }
@@ -715,7 +741,7 @@ impl Focus {
 
         let current_rect = self.focus_widgets_cache.get(&current_focused.id)?;
 
-        let mut best_score = std::f32::INFINITY;
+        let mut best_score = f32::INFINITY;
         let mut best_id = None;
 
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
@@ -753,7 +779,7 @@ impl Focus {
 
 impl Memory {
     pub(crate) fn begin_pass(&mut self, new_raw_input: &RawInput, viewports: &ViewportIdSet) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         self.viewport_id = new_raw_input.viewport_id;
 
@@ -797,7 +823,21 @@ impl Memory {
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
-        self.areas().layer_id_at(pos, &self.layer_transforms)
+        self.areas()
+            .layer_id_at(pos, &self.to_global)
+            .and_then(|layer_id| {
+                if self.is_above_modal_layer(layer_id) {
+                    Some(layer_id)
+                } else {
+                    self.top_modal_layer()
+                }
+            })
+    }
+
+    /// The currently set transform of a layer.
+    #[deprecated = "Use `Context::layer_transform_to_global` instead"]
+    pub fn layer_transforms(&self, layer_id: LayerId) -> Option<TSTransform> {
+        self.to_global.get(&layer_id).copied()
     }
 
     /// An iterator over all layers. Back-to-front, top is last.
@@ -872,6 +912,30 @@ impl Memory {
         }
     }
 
+    /// Returns true if
+    /// - this layer is the top-most modal layer or above it
+    /// - there is no modal layer
+    pub fn is_above_modal_layer(&self, layer_id: LayerId) -> bool {
+        if let Some(modal_layer) = self.focus().and_then(|f| f.top_modal_layer) {
+            matches!(
+                self.areas().compare_order(layer_id, modal_layer),
+                std::cmp::Ordering::Equal | std::cmp::Ordering::Greater
+            )
+        } else {
+            true
+        }
+    }
+
+    /// Does this layer allow interaction?
+    /// Returns true if
+    ///  - the layer is not behind a modal layer
+    ///  - the [`Order`] allows interaction
+    pub fn allows_interaction(&self, layer_id: LayerId) -> bool {
+        let is_above_modal_layer = self.is_above_modal_layer(layer_id);
+        let ordering_allows_interaction = layer_id.order.allow_interaction();
+        is_above_modal_layer && ordering_allows_interaction
+    }
+
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
     /// This is normally done automatically when handling interactions,
@@ -879,9 +943,34 @@ impl Memory {
     /// e.g. before deciding which type of underlying widget to use,
     /// as in the [`crate::DragValue`] widget, so a widget can be focused
     /// and rendered correctly in a single frame.
+    ///
+    /// Pass in the `layer_id` of the layer that the widget is in.
     #[inline(always)]
-    pub fn interested_in_focus(&mut self, id: Id) {
+    pub fn interested_in_focus(&mut self, id: Id, layer_id: LayerId) {
+        if !self.allows_interaction(layer_id) {
+            return;
+        }
         self.focus_mut().interested_in_focus(id);
+    }
+
+    /// Limit focus to widgets on the given layer and above.
+    /// If this is called multiple times per frame, the top layer wins.
+    pub fn set_modal_layer(&mut self, layer_id: LayerId) {
+        if let Some(current) = self.focus().and_then(|f| f.top_modal_layer_current_frame) {
+            if matches!(
+                self.areas().compare_order(layer_id, current),
+                std::cmp::Ordering::Less
+            ) {
+                return;
+            }
+        }
+
+        self.focus_mut().set_modal_layer(layer_id);
+    }
+
+    /// Get the top modal layer (from the previous frame).
+    pub fn top_modal_layer(&self) -> Option<LayerId> {
+        self.focus()?.top_modal_layer()
     }
 
     /// Stop editing the active [`TextEdit`](crate::TextEdit) (if any).
@@ -1032,6 +1121,9 @@ impl Memory {
 
 // ----------------------------------------------------------------------------
 
+/// Map containing the index of each layer in the order list, for quick lookups.
+type OrderMap = HashMap<LayerId, usize>;
+
 /// Keeps track of [`Area`](crate::containers::area::Area)s, which are free-floating [`Ui`](crate::Ui)s.
 /// These [`Area`](crate::containers::area::Area)s can be in any [`Order`].
 #[derive(Clone, Debug, Default)]
@@ -1040,11 +1132,17 @@ impl Memory {
 pub struct Areas {
     areas: IdMap<area::AreaState>,
 
+    visible_areas_last_frame: ahash::HashSet<LayerId>,
+    visible_areas_current_frame: ahash::HashSet<LayerId>,
+
+    // ----------------------------
+    // Everything below this is general to all layers, not just areas.
+    // TODO(emilk): move this to a separate struct.
     /// Back-to-front,  top is last.
     order: Vec<LayerId>,
 
-    visible_last_frame: ahash::HashSet<LayerId>,
-    visible_current_frame: ahash::HashSet<LayerId>,
+    /// Inverse of [`Self::order`], calculated at the end of the frame.
+    order_map: OrderMap,
 
     /// When an area wants to be on top, it is assigned here.
     /// This is used to reorder the layers at the end of the frame.
@@ -1053,9 +1151,9 @@ pub struct Areas {
     /// results in them being sent to the top and keeping their previous internal order.
     wants_to_be_on_top: ahash::HashSet<LayerId>,
 
-    /// List of sublayers for each layer.
+    /// The sublayers that each layer has.
     ///
-    /// When a layer has sublayers, they are moved directly above it in the ordering.
+    /// The parent sublayer is moved directly above the child sublayers in the ordering.
     sublayers: ahash::HashMap<LayerId, HashSet<LayerId>>,
 }
 
@@ -1068,22 +1166,24 @@ impl Areas {
         self.areas.get(&id)
     }
 
-    /// Back-to-front, top is last.
+    /// All layers back-to-front, top is last.
     pub(crate) fn order(&self) -> &[LayerId] {
         &self.order
     }
 
-    /// For each layer, which [`Self::order`] is it in?
-    pub(crate) fn order_map(&self) -> HashMap<LayerId, usize> {
-        self.order
-            .iter()
-            .enumerate()
-            .map(|(i, id)| (*id, i))
-            .collect()
+    /// Compare the order of two layers, based on the order list from last frame.
+    ///
+    /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
+    pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
+        if let (Some(a), Some(b)) = (self.order_map.get(&a), self.order_map.get(&b)) {
+            a.cmp(b)
+        } else {
+            a.order.cmp(&b.order)
+        }
     }
 
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
-        self.visible_current_frame.insert(layer_id);
+        self.visible_areas_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
         if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
@@ -1094,15 +1194,15 @@ impl Areas {
     pub fn layer_id_at(
         &self,
         pos: Pos2,
-        layer_transforms: &HashMap<LayerId, TSTransform>,
+        layer_to_global: &HashMap<LayerId, TSTransform>,
     ) -> Option<LayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        if let Some(transform) = layer_transforms.get(layer) {
-                            rect = *transform * rect;
+                        if let Some(to_global) = layer_to_global.get(layer) {
+                            rect = *to_global * rect;
                         }
 
                         if rect.contains(pos) {
@@ -1116,18 +1216,19 @@ impl Areas {
     }
 
     pub fn visible_last_frame(&self, layer_id: &LayerId) -> bool {
-        self.visible_last_frame.contains(layer_id)
+        self.visible_areas_last_frame.contains(layer_id)
     }
 
     pub fn is_visible(&self, layer_id: &LayerId) -> bool {
-        self.visible_last_frame.contains(layer_id) || self.visible_current_frame.contains(layer_id)
+        self.visible_areas_last_frame.contains(layer_id)
+            || self.visible_areas_current_frame.contains(layer_id)
     }
 
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
-        self.visible_last_frame
+        self.visible_areas_last_frame
             .iter()
             .copied()
-            .chain(self.visible_current_frame.iter().copied())
+            .chain(self.visible_areas_current_frame.iter().copied())
             .collect()
     }
 
@@ -1140,7 +1241,7 @@ impl Areas {
     }
 
     pub fn move_to_top(&mut self, layer_id: LayerId) {
-        self.visible_current_frame.insert(layer_id);
+        self.visible_areas_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 
         if !self.order.iter().any(|x| *x == layer_id) {
@@ -1155,8 +1256,21 @@ impl Areas {
     ///
     /// This currently only supports one level of nesting. If `parent` is a sublayer of another
     /// layer, the behavior is unspecified.
+    ///
+    /// The two layers must have the same [`LayerId::order`].
     pub fn set_sublayer(&mut self, parent: LayerId, child: LayerId) {
+        debug_assert_eq!(parent.order, child.order,
+            "DEBUG ASSERT: Trying to set sublayers across layers of different order ({:?}, {:?}), which is currently undefined behavior in egui", parent.order, child.order);
+
         self.sublayers.entry(parent).or_default().insert(child);
+
+        // Make sure the layers are in the order list:
+        if !self.order.iter().any(|x| *x == parent) {
+            self.order.push(parent);
+        }
+        if !self.order.iter().any(|x| *x == child) {
+            self.order.push(child);
+        }
     }
 
     pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
@@ -1167,26 +1281,42 @@ impl Areas {
             .copied()
     }
 
+    /// If this layer is the sublayer of another layer, return the parent.
+    pub fn parent_layer(&self, layer_id: LayerId) -> Option<LayerId> {
+        self.sublayers.iter().find_map(|(parent, children)| {
+            if children.contains(&layer_id) {
+                Some(*parent)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// All the child layers of this layer.
+    pub fn child_layers(&self, layer_id: LayerId) -> impl Iterator<Item = LayerId> + '_ {
+        self.sublayers.get(&layer_id).into_iter().flatten().copied()
+    }
+
     pub(crate) fn is_sublayer(&self, layer: &LayerId) -> bool {
-        self.sublayers
-            .iter()
-            .any(|(_, children)| children.contains(layer))
+        self.parent_layer(*layer).is_some()
     }
 
     pub(crate) fn end_pass(&mut self) {
         let Self {
-            visible_last_frame,
-            visible_current_frame,
+            visible_areas_last_frame,
+            visible_areas_current_frame,
             order,
             wants_to_be_on_top,
             sublayers,
             ..
         } = self;
 
-        std::mem::swap(visible_last_frame, visible_current_frame);
-        visible_current_frame.clear();
+        std::mem::swap(visible_areas_last_frame, visible_areas_current_frame);
+        visible_areas_current_frame.clear();
+
         order.sort_by_key(|layer| (layer.order, wants_to_be_on_top.contains(layer)));
         wants_to_be_on_top.clear();
+
         // For all layers with sublayers, put the sublayers directly after the parent layer:
         let sublayers = std::mem::take(sublayers);
         for (parent, children) in sublayers {
@@ -1204,6 +1334,13 @@ impl Areas {
             };
             order.splice(parent_pos..=parent_pos, moved_layers);
         }
+
+        self.order_map = self
+            .order
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (*id, i))
+            .collect();
     }
 }
 

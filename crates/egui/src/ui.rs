@@ -49,14 +49,26 @@ use crate::Stroke;
 /// # });
 /// ```
 pub struct Ui {
-    /// ID of this ui.
+    /// Generated based on id of parent ui together with an optional id salt.
     ///
-    /// Generated based on id of parent ui together with
-    /// another source of child identity (e.g. window title).
-    /// Acts like a namespace for child uis.
-    /// Should be unique and persist predictably from one frame to next
-    /// so it can be used as a source for storing state (e.g. window position, or if a collapsing header is open).
+    /// This should be stable from one frame to next
+    /// so it can be used as a source for storing state
+    /// (e.g. window position, or if a collapsing header is open).
+    ///
+    /// However, it is not necessarily globally unique.
+    /// For instance, sibling `Ui`s share the same [`Self::id`]
+    /// unless they where explicitly given different id salts using
+    /// [`UiBuilder::id_salt`].
     id: Id,
+
+    /// This is a globally unique ID of this `Ui`,
+    /// based on where in the hierarchy of widgets this Ui is in.
+    ///
+    /// This means it is not _stable_, as it can change if new widgets
+    /// are added or removed prior to this one.
+    /// It should therefore only be used for transient interactions (clicks etc),
+    /// not for storing state over time.
+    unique_id: Id,
 
     /// This is used to create a unique interact ID for some widgets.
     ///
@@ -108,10 +120,11 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`crate::SidePanel`], [`crate::TopBottomPanel`], [`crate::CentralPanel`], [`crate::Window`] or [`crate::Area`].
-    pub fn new(ctx: Context, layer_id: LayerId, id: Id, ui_builder: UiBuilder) -> Self {
+    pub fn new(ctx: Context, id: Id, ui_builder: UiBuilder) -> Self {
         let UiBuilder {
             id_salt,
             ui_stack_info,
+            layer_id,
             max_rect,
             layout,
             disabled,
@@ -120,6 +133,8 @@ impl Ui {
             style,
             sense,
         } = ui_builder;
+
+        let layer_id = layer_id.unwrap_or(LayerId::background());
 
         debug_assert!(
             id_salt.is_none(),
@@ -144,6 +159,7 @@ impl Ui {
         };
         let mut ui = Ui {
             id,
+            unique_id: id,
             next_auto_id_salt: id.with("auto").value(),
             painter: Painter::new(ctx, layer_id, clip_rect),
             style,
@@ -157,10 +173,10 @@ impl Ui {
         };
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
+        let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         ui.ctx().create_widget(
             WidgetRect {
-                id: ui.id,
+                id: ui.unique_id,
                 layer_id: ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -234,6 +250,7 @@ impl Ui {
         let UiBuilder {
             id_salt,
             ui_stack_info,
+            layer_id,
             max_rect,
             layout,
             disabled,
@@ -249,6 +266,9 @@ impl Ui {
         let max_rect = max_rect.unwrap_or_else(|| self.available_rect_before_wrap());
         let mut layout = layout.unwrap_or(*self.layout());
         let enabled = self.enabled && !disabled && !invisible;
+        if let Some(layer_id) = layer_id {
+            painter.set_layer_id(layer_id);
+        }
         if invisible {
             painter.set_invisible();
         }
@@ -256,7 +276,7 @@ impl Ui {
         let style = style.unwrap_or_else(|| self.style.clone());
         let sense = sense.unwrap_or(Sense::hover());
 
-        if self.sizing_pass {
+        if sizing_pass {
             // During the sizing pass we want widgets to use up as little space as possible,
             // so that we measure the only the space we _need_.
             layout.cross_justify = false;
@@ -266,22 +286,24 @@ impl Ui {
         }
 
         debug_assert!(!max_rect.any_nan());
-        let new_id = self.id.with(id_salt);
-        let next_auto_id_salt = new_id.with(self.next_auto_id_salt).value();
+        let stable_id = self.id.with(id_salt);
+        let unique_id = stable_id.with(self.next_auto_id_salt);
+        let next_auto_id_salt = unique_id.value().wrapping_add(1);
 
         self.next_auto_id_salt = self.next_auto_id_salt.wrapping_add(1);
 
         let placer = Placer::new(max_rect, layout);
         let ui_stack = UiStack {
-            id: new_id,
+            id: unique_id,
             layout_direction: layout.main_dir,
             info: ui_stack_info,
             parent: Some(self.stack.clone()),
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
-        let child_ui = Ui {
-            id: new_id,
+        let mut child_ui = Ui {
+            id: stable_id,
+            unique_id,
             next_auto_id_salt,
             painter,
             style,
@@ -294,11 +316,15 @@ impl Ui {
             min_rect_already_remembered: false,
         };
 
+        if disabled {
+            child_ui.disable();
+        }
+
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
-        let start_rect = Rect::NOTHING; // This will be overwritten when/if `interact_bg` is called
+        let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called
         child_ui.ctx().create_widget(
             WidgetRect {
-                id: child_ui.id,
+                id: child_ui.unique_id,
                 layer_id: child_ui.layer_id(),
                 rect: start_rect,
                 interact_rect: start_rect,
@@ -334,10 +360,31 @@ impl Ui {
 
     // -------------------------------------------------
 
-    /// A unique identity of this [`Ui`].
+    /// Generated based on id of parent ui together with an optional id salt.
+    ///
+    /// This should be stable from one frame to next
+    /// so it can be used as a source for storing state
+    /// (e.g. window position, or if a collapsing header is open).
+    ///
+    /// However, it is not necessarily globally unique.
+    /// For instance, sibling `Ui`s share the same [`Self::id`]
+    /// unless they where explicitly given different id salts using
+    /// [`UiBuilder::id_salt`].
     #[inline]
     pub fn id(&self) -> Id {
         self.id
+    }
+
+    /// This is a globally unique ID of this `Ui`,
+    /// based on where in the hierarchy of widgets this Ui is in.
+    ///
+    /// This means it is not _stable_, as it can change if new widgets
+    /// are added or removed prior to this one.
+    /// It should therefore only be used for transient interactions (clicks etc),
+    /// not for storing state over time.
+    #[inline]
+    pub fn unique_id(&self) -> Id {
+        self.unique_id
     }
 
     /// Style options for this [`Ui`] and its children.
@@ -916,13 +963,13 @@ impl Ui {
     }
 
     /// Ensure we are big enough to contain the given x-coordinate.
-    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_x(&mut self, x: f32) {
         self.placer.expand_to_include_x(x);
     }
 
     /// Ensure we are big enough to contain the given y-coordinate.
-    /// This is sometimes useful to expand an ui to stretch to a certain place.
+    /// This is sometimes useful to expand a ui to stretch to a certain place.
     pub fn expand_to_include_y(&mut self, y: f32) {
         self.placer.expand_to_include_y(y);
     }
@@ -1044,8 +1091,8 @@ impl Ui {
                 viewport
                     .prev_pass
                     .widgets
-                    .get(self.id)
-                    .or_else(|| viewport.this_pass.widgets.get(self.id))
+                    .get(self.unique_id)
+                    .or_else(|| viewport.this_pass.widgets.get(self.unique_id))
                     .copied()
             })
             .map(|widget_rect| self.ctx().get_response(widget_rect))
@@ -1062,12 +1109,12 @@ impl Ui {
         // when the ui was created with `UiBuilder::sense`.
         // This is a bit hacky, is there a better way?
         self.ctx().pass_state_mut(|fs| {
-            fs.used_ids.remove(&self.id);
+            fs.used_ids.remove(&self.unique_id);
         });
         // This will update the WidgetRect that was first created in `Ui::new`.
         self.ctx().create_widget(
             WidgetRect {
-                id: self.id,
+                id: self.unique_id,
                 layer_id: self.layer_id(),
                 rect: self.min_rect(),
                 interact_rect: self.clip_rect().intersect(self.min_rect()),
@@ -1085,7 +1132,7 @@ impl Ui {
     #[deprecated = "Use UiBuilder::sense with Ui::response instead"]
     pub fn interact_bg(&self, sense: Sense) -> Response {
         // This will update the WidgetRect that was first created in `Ui::new`.
-        self.interact(self.min_rect(), self.id, sense)
+        self.interact(self.min_rect(), self.unique_id, sense)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -1372,7 +1419,7 @@ impl Ui {
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
-        let response = self.interact(rect, child_ui.id, Sense::hover());
+        let response = self.interact(rect, child_ui.unique_id, Sense::hover());
         InnerResponse::new(inner, response)
     }
 
@@ -2260,15 +2307,23 @@ impl Ui {
     }
 
     /// Redirect shapes to another paint layer.
+    ///
+    /// ```
+    /// # use egui::{LayerId, Order, Id};
+    /// # egui::__run_test_ui(|ui| {
+    /// let layer_id = LayerId::new(Order::Tooltip, Id::new("my_floating_ui"));
+    /// ui.with_layer_id(layer_id, |ui| {
+    ///     ui.label("This is now in a different layer");
+    /// });
+    /// # });
+    /// ```
+    #[deprecated = "Use ui.scope_builder(UiBuilder::new().layer_id(…), …) instead"]
     pub fn with_layer_id<R>(
         &mut self,
         layer_id: LayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
-        self.scope(|ui| {
-            ui.painter.set_layer_id(layer_id);
-            add_contents(ui)
-        })
+        self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents)
     }
 
     /// A [`CollapsingHeader`] that starts out collapsed.
@@ -2714,7 +2769,8 @@ impl Ui {
 
             // Paint the body to a new layer:
             let layer_id = LayerId::new(Order::Tooltip, id);
-            let InnerResponse { inner, response } = self.with_layer_id(layer_id, add_contents);
+            let InnerResponse { inner, response } =
+                self.scope_builder(UiBuilder::new().layer_id(layer_id), add_contents);
 
             // Now we move the visuals of the body to where the mouse is.
             // Normally you need to decide a location for a widget first,

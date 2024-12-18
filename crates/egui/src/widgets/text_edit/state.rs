@@ -53,10 +53,10 @@ pub struct TextEditState {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) singleline_offset: f32,
 
-    /// When did the user last press a key?
+    /// When did the user last press a key or click on the `TextEdit`.
     /// Used to pause the cursor animation when typing.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) last_edit_time: f64,
+    pub(crate) last_interaction_time: f64,
 }
 
 impl TextEditState {
@@ -89,6 +89,7 @@ impl TextEditState {
         self.undoer.lock().clone()
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
     pub fn set_undoer(&mut self, undoer: TextEditUndoer) {
         *self.undoer.lock() = undoer;
     }

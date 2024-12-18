@@ -32,7 +32,7 @@ impl FrameHistory {
         1.0 / self.frame_times.mean_time_interval().unwrap_or_default()
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&self, ui: &mut egui::Ui) {
         ui.label(format!(
             "Mean CPU usage: {:.2} ms / frame",
             1e3 * self.mean_frame_time()
