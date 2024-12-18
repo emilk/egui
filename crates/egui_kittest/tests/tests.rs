@@ -10,5 +10,6 @@ fn test_shrink() {
 
     harness.fit_contents();
 
+    #[cfg(all(feature = "snapshot", feature = "wgpu"))]
     harness.wgpu_snapshot("test_shrink");
 }

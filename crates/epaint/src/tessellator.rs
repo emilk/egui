@@ -502,6 +502,8 @@ impl Path {
     /// Calling this may reverse the vertices in the path if they are wrong winding order.
     ///
     /// The preferred winding order is clockwise.
+    ///
+    /// The stroke colors is used for color-correct feathering.
     pub fn fill(&mut self, feathering: f32, color: Color32, stroke: &PathStroke, out: &mut Mesh) {
         fill_closed_path(feathering, &mut self.0, color, stroke, out);
     }
@@ -918,7 +920,7 @@ fn stroke_path(
 ) {
     let n = path.len() as u32;
 
-    if stroke.width <= 0.0 || stroke.color == ColorMode::TRANSPARENT || n < 2 {
+    if stroke.is_empty() || n < 2 {
         return;
     }
 
@@ -1278,6 +1280,11 @@ impl Tessellator {
     }
 
     #[inline(always)]
+    pub fn round_pos_to_pixel(&self, pos: Pos2) -> Pos2 {
+        pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
+    }
+
+    #[inline(always)]
     pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
         pos2(
             self.round_to_pixel_center(pos.x),
@@ -1363,7 +1370,7 @@ impl Tessellator {
                 self.tessellate_ellipse(ellipse, out);
             }
             Shape::Mesh(mesh) => {
-                crate::profile_scope!("mesh");
+                profiling::scope!("mesh");
 
                 if self.options.validate_meshes && !mesh.is_valid() {
                     debug_assert!(false, "Invalid Mesh in Shape::Mesh");
@@ -1596,7 +1603,7 @@ impl Tessellator {
             return;
         }
 
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let PathShape {
             points,
@@ -1702,6 +1709,20 @@ impl Tessellator {
                 self.tessellate_line(line, stroke, out); // …and forth
             }
         } else {
+            let rect = if !stroke.is_empty() && stroke.width < self.feathering {
+                // Very thin rectangle strokes create extreme aliasing when they move around.
+                // We can fix that by rounding the rectangle corners to pixel centers.
+                // TODO(#5164): maybe do this for all shapes and stroke sizes
+                // TODO(emilk): since we use StrokeKind::Outside, we should probably round the
+                // corners after offsetting them with half the stroke width (see `translate_stroke_point`).
+                Rect {
+                    min: self.round_pos_to_pixel_center(rect.min),
+                    max: self.round_pos_to_pixel_center(rect.max),
+                }
+            } else {
+                rect
+            };
+
             let path = &mut self.scratchpad_path;
             path.clear();
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
@@ -1977,7 +1998,7 @@ impl Tessellator {
     /// A list of clip rectangles with matching [`Mesh`].
     #[allow(unused_mut)]
     pub fn tessellate_shapes(&mut self, mut shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         #[cfg(feature = "rayon")]
         if self.options.parallel_tessellation {
@@ -1987,7 +2008,7 @@ impl Tessellator {
         let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::default();
 
         {
-            crate::profile_scope!("tessellate");
+            profiling::scope!("tessellate");
             for clipped_shape in shapes {
                 self.tessellate_clipped_shape(clipped_shape, &mut clipped_primitives);
             }
@@ -2024,7 +2045,7 @@ impl Tessellator {
     /// then replace the original shape with their tessellated meshes.
     #[cfg(feature = "rayon")]
     fn parallel_tessellation_of_large_shapes(&self, shapes: &mut [ClippedShape]) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         use rayon::prelude::*;
 
@@ -2054,7 +2075,7 @@ impl Tessellator {
             .enumerate()
             .filter(|(_, clipped_shape)| should_parallelize(&clipped_shape.shape))
             .map(|(index, clipped_shape)| {
-                crate::profile_scope!("tessellate_big_shape");
+                profiling::scope!("tessellate_big_shape");
                 // TODO(emilk): reuse tessellator in a thread local
                 let mut tessellator = (*self).clone();
                 let mut mesh = Mesh::default();
@@ -2063,7 +2084,7 @@ impl Tessellator {
             })
             .collect();
 
-        crate::profile_scope!("distribute results", tessellated.len().to_string());
+        profiling::scope!("distribute results", tessellated.len().to_string());
         for (index, mesh) in tessellated {
             shapes[index].shape = Shape::Mesh(mesh);
         }

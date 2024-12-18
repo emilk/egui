@@ -5,6 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.30.0 - 2024-12-16
+* Use `Table::id_salt` on `ScrollArea` [#5282](https://github.com/emilk/egui/pull/5282) by [@jwhear](https://github.com/jwhear)
+* Use proper `image` crate URI and MIME support detection [#5324](https://github.com/emilk/egui/pull/5324) by [@xangelix](https://github.com/xangelix)
+* Support loading images with weird urls and improve error message [#5431](https://github.com/emilk/egui/pull/5431) by [@lucasmerlin](https://github.com/lucasmerlin)
+
+
 ## 0.29.1 - 2024-10-01 - Fix table interaction
 * Bug fix: click anywhere on a `Table` row to select it [#5193](https://github.com/emilk/egui/pull/5193) by [@emilk](https://github.com/emilk)
 

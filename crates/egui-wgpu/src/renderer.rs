@@ -214,14 +214,14 @@ impl Renderer {
         msaa_samples: u32,
         dithering: bool,
     ) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("egui"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
         };
         let module = {
-            crate::profile_scope!("create_shader_module");
+            profiling::scope!("create_shader_module");
             device.create_shader_module(shader)
         };
 
@@ -236,7 +236,7 @@ impl Renderer {
         });
 
         let uniform_bind_group_layout = {
-            crate::profile_scope!("create_bind_group_layout");
+            profiling::scope!("create_bind_group_layout");
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("egui_uniform_bind_group_layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -253,7 +253,7 @@ impl Renderer {
         };
 
         let uniform_bind_group = {
-            crate::profile_scope!("create_bind_group");
+            profiling::scope!("create_bind_group");
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("egui_uniform_bind_group"),
                 layout: &uniform_bind_group_layout,
@@ -269,7 +269,7 @@ impl Renderer {
         };
 
         let texture_bind_group_layout = {
-            crate::profile_scope!("create_bind_group_layout");
+            profiling::scope!("create_bind_group_layout");
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("egui_texture_bind_group_layout"),
                 entries: &[
@@ -308,7 +308,7 @@ impl Renderer {
         });
 
         let pipeline = {
-            crate::profile_scope!("create_render_pipeline");
+            profiling::scope!("create_render_pipeline");
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("egui_pipeline"),
                 layout: Some(&pipeline_layout),
@@ -420,7 +420,7 @@ impl Renderer {
         paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let pixels_per_point = screen_descriptor.pixels_per_point;
         let size_in_pixels = screen_descriptor.size_in_pixels;
@@ -506,7 +506,7 @@ impl Renderer {
 
                     let viewport_px = info.viewport_in_pixels();
                     if viewport_px.width_px > 0 && viewport_px.height_px > 0 {
-                        crate::profile_scope!("callback");
+                        profiling::scope!("callback");
 
                         needs_reset = true;
 
@@ -544,7 +544,7 @@ impl Renderer {
         id: epaint::TextureId,
         image_delta: &epaint::ImageDelta,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let width = image_delta.image.width() as u32;
         let height = image_delta.image.height() as u32;
@@ -570,14 +570,14 @@ impl Renderer {
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
-                crate::profile_scope!("font -> sRGBA");
+                profiling::scope!("font -> sRGBA");
                 Cow::Owned(image.srgba_pixels(None).collect::<Vec<epaint::Color32>>())
             }
         };
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
 
         let queue_write_data_to_texture = |texture, origin| {
-            crate::profile_scope!("write_texture");
+            profiling::scope!("write_texture");
             queue.write_texture(
                 wgpu::ImageCopyTexture {
                     texture,
@@ -631,7 +631,7 @@ impl Renderer {
         } else {
             // allocate a new texture
             let texture = {
-                crate::profile_scope!("create_texture");
+                profiling::scope!("create_texture");
                 device.create_texture(&wgpu::TextureDescriptor {
                     label,
                     size,
@@ -756,7 +756,7 @@ impl Renderer {
         texture: &wgpu::TextureView,
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
     ) -> epaint::TextureId {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             compare: None,
@@ -804,7 +804,7 @@ impl Renderer {
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
         id: epaint::TextureId,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let Texture {
             bind_group: user_texture_binding,
@@ -849,7 +849,7 @@ impl Renderer {
         paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) -> Vec<wgpu::CommandBuffer> {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
@@ -859,7 +859,7 @@ impl Renderer {
             _padding: Default::default(),
         };
         if uniform_buffer_content != self.previous_uniform_buffer_content {
-            crate::profile_scope!("update uniforms");
+            profiling::scope!("update uniforms");
             queue.write_buffer(
                 &self.uniform_buffer,
                 0,
@@ -871,7 +871,7 @@ impl Renderer {
         // Determine how many vertices & indices need to be rendered, and gather prepare callbacks
         let mut callbacks = Vec::new();
         let (vertex_count, index_count) = {
-            crate::profile_scope!("count_vertices_indices");
+            profiling::scope!("count_vertices_indices");
             paint_jobs.iter().fold((0, 0), |acc, clipped_primitive| {
                 match &clipped_primitive.primitive {
                     Primitive::Mesh(mesh) => {
@@ -890,7 +890,7 @@ impl Renderer {
         };
 
         if index_count > 0 {
-            crate::profile_scope!("indices", index_count.to_string());
+            profiling::scope!("indices", index_count.to_string().as_str());
 
             self.index_buffer.slices.clear();
 
@@ -928,7 +928,7 @@ impl Renderer {
             }
         }
         if vertex_count > 0 {
-            crate::profile_scope!("vertices", vertex_count.to_string());
+            profiling::scope!("vertices", vertex_count.to_string().as_str());
 
             self.vertex_buffer.slices.clear();
 
@@ -969,7 +969,7 @@ impl Renderer {
 
         let mut user_cmd_bufs = Vec::new();
         {
-            crate::profile_scope!("prepare callbacks");
+            profiling::scope!("prepare callbacks");
             for callback in &callbacks {
                 user_cmd_bufs.extend(callback.prepare(
                     device,
@@ -981,7 +981,7 @@ impl Renderer {
             }
         }
         {
-            crate::profile_scope!("finish prepare callbacks");
+            profiling::scope!("finish prepare callbacks");
             for callback in &callbacks {
                 user_cmd_bufs.extend(callback.finish_prepare(
                     device,
@@ -1026,7 +1026,7 @@ fn create_sampler(
 }
 
 fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
-    crate::profile_function!();
+    profiling::function_scope!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_vertex_buffer"),
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -1036,7 +1036,7 @@ fn create_vertex_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
 }
 
 fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
-    crate::profile_function!();
+    profiling::function_scope!();
     device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("egui_index_buffer"),
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,

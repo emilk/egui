@@ -57,7 +57,13 @@ impl DragAndDrop {
             if abort_dnd_due_to_mouse_release {
                 Self::clear_payload(ctx);
             } else {
-                ctx.set_cursor_icon(CursorIcon::Grabbing);
+                // We set the cursor icon only if its default, as the user code might have
+                // explicitly set it already.
+                ctx.output_mut(|o| {
+                    if o.cursor_icon == CursorIcon::Default {
+                        o.cursor_icon = CursorIcon::Grabbing;
+                    }
+                });
             }
         }
     }

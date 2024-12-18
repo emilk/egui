@@ -199,7 +199,7 @@ impl RetainedImage {
 /// On invalid image or unsupported image format.
 #[cfg(feature = "image")]
 pub fn load_image_bytes(image_bytes: &[u8]) -> Result<egui::ColorImage, egui::load::LoadError> {
-    crate::profile_function!();
+    profiling::function_scope!();
     let image = image::load_from_memory(image_bytes).map_err(|err| match err {
         image::ImageError::Unsupported(err) => match err.kind() {
             image::error::UnsupportedErrorKind::Format(format) => {
@@ -245,7 +245,8 @@ pub fn load_svg_bytes_with_size(
     use resvg::tiny_skia::{IntSize, Pixmap};
     use resvg::usvg::{Options, Tree, TreeParsing};
 
-    crate::profile_function!();
+    profiling::function_scope!();
+
     let opt = Options::default();
 
     let mut rtree = Tree::from_data(svg_bytes, &opt).map_err(|err| err.to_string())?;

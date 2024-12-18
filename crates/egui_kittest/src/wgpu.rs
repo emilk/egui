@@ -60,7 +60,7 @@ impl TestRenderer {
     }
 
     /// Render the [`Harness`] and return the resulting image.
-    pub fn render<State>(&mut self, harness: &Harness<'_, State>) -> RgbaImage {
+    pub fn render<State>(&self, harness: &Harness<'_, State>) -> RgbaImage {
         // We need to create a new renderer each time we render, since the renderer stores
         // textures related to the Harnesses' egui Context.
         // Calling the renderer from different Harnesses would cause problems if we store the renderer.

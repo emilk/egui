@@ -1,6 +1,5 @@
 use egui::Button;
-use egui_kittest::kittest::Queryable;
-use egui_kittest::Harness;
+use egui_kittest::{kittest::Queryable, Harness};
 
 #[test]
 pub fn focus_should_skip_over_disabled_buttons() {

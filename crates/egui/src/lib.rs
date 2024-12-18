@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.79.0 or later to use `egui`.
+//! You need to have rust 1.80.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -388,6 +388,18 @@
 //! ## Installing additional fonts
 //! The default egui fonts only support latin and cryllic characters, and some emojis.
 //! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
+//!
+//! ## Instrumentation
+//! This crate supports using the [profiling](https://crates.io/crates/profiling) crate for instrumentation.
+//! You can enable features on the profiling crates in your application to add instrumentation for all
+//! crates that support it, including egui. See the profiling crate docs for more information.
+//! ```toml
+//! [dependencies]
+//! profiling = "1.0"
+//! [features]
+//! profile-with-puffin = ["profiling/profile-with-puffin"]
+//! ```
+//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -691,33 +703,3 @@ pub fn __run_test_ui(add_contents: impl Fn(&mut Ui)) {
 pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
 }
-
-// ---------------------------------------------------------------------------
-
-mod profiling_scopes {
-    #![allow(unused_macros)]
-    #![allow(unused_imports)]
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_function {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_function!($($arg)*);
-        };
-    }
-    pub(crate) use profile_function;
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_scope {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_scope!($($arg)*);
-        };
-    }
-    pub(crate) use profile_scope;
-}
-
-#[allow(unused_imports)]
-pub(crate) use profiling_scopes::{profile_function, profile_scope};

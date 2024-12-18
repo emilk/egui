@@ -364,6 +364,16 @@ pub struct NativeOptions {
     ///
     /// Defaults to true.
     pub dithering: bool,
+
+    /// Android application for `winit`'s event loop.
+    ///
+    /// This value is required on Android to correctly create the event loop. See
+    /// [`EventLoopBuilder::build`] and [`with_android_app`] for details.
+    ///
+    /// [`EventLoopBuilder::build`]: winit::event_loop::EventLoopBuilder::build
+    /// [`with_android_app`]: winit::platform::android::EventLoopBuilderExtAndroid::with_android_app
+    #[cfg(target_os = "android")]
+    pub android_app: Option<winit::platform::android::activity::AndroidApp>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -382,6 +392,9 @@ impl Clone for NativeOptions {
             wgpu_options: self.wgpu_options.clone(),
 
             persistence_path: self.persistence_path.clone(),
+
+            #[cfg(target_os = "android")]
+            android_app: self.android_app.clone(),
 
             ..*self
         }
@@ -424,6 +437,9 @@ impl Default for NativeOptions {
             persistence_path: None,
 
             dithering: true,
+
+            #[cfg(target_os = "android")]
+            android_app: None,
         }
     }
 }
@@ -772,8 +788,7 @@ pub struct IntegrationInfo {
     ///
     /// This includes [`App::update`] as well as rendering (except for vsync waiting).
     ///
-    /// For a more detailed view of cpu usage, use the [`puffin`](https://crates.io/crates/puffin)
-    /// profiler together with the `puffin` feature of `eframe`.
+    /// For a more detailed view of cpu usage, connect your preferred profiler by enabling it's feature in [`profiling`](https://crates.io/crates/profiling).
     ///
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
@@ -815,7 +830,7 @@ impl Storage for DummyStorage {
 /// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
-    crate::profile_function!(key);
+    profiling::function_scope!(key);
     storage
         .get_string(key)
         .and_then(|value| match ron::from_str(&value) {
@@ -831,7 +846,7 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
 #[cfg(feature = "ron")]
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
-    crate::profile_function!(key);
+    profiling::function_scope!(key);
     match ron::ser::to_string(value) {
         Ok(string) => storage.set_string(key, string),
         Err(err) => log::error!("eframe failed to encode data using ron: {}", err),
