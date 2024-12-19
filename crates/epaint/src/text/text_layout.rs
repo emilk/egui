@@ -26,9 +26,16 @@ impl PointScale {
         self.pixels_per_point
     }
 
+    #[cfg(not(feature = "disable_text_snapping"))]
     #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    #[cfg(feature = "disable_text_snapping")]
+    #[inline(always)]
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        point
     }
 
     #[inline(always)]

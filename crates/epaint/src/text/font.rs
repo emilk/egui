@@ -69,6 +69,10 @@ pub struct FontImpl {
     ab_glyph_font: ab_glyph::FontArc,
 
     /// Maximum character height
+    #[cfg(feature = "disable_text_snapping")]
+    scale_in_pixels: f32,
+
+    #[cfg(not(feature = "disable_text_snapping"))]
     scale_in_pixels: u32,
 
     height_in_points: f32,
@@ -108,21 +112,23 @@ impl FontImpl {
             scale_in_points * tweak.baseline_offset_factor
         };
 
-        let y_offset_points = {
+        let y_offset_in_points = {
             let scale_in_points = scale_in_pixels / pixels_per_point;
             scale_in_points * tweak.y_offset_factor
         } + tweak.y_offset;
 
         // Center scaled glyphs properly:
         let height = ascent + descent;
-        let y_offset_points = y_offset_points - (1.0 - tweak.scale) * 0.5 * height;
+        let y_offset_in_points = y_offset_in_points - (1.0 - tweak.scale) * 0.5 * height;
 
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
+        #[cfg(not(feature = "disable_text_snapping"))]
         let scale_in_pixels = scale_in_pixels.round() as u32;
 
         // Round to closest pixel:
-        let y_offset_in_points = (y_offset_points * pixels_per_point).round() / pixels_per_point;
+        #[cfg(not(feature = "disable_text_snapping"))]
+        let y_offset_in_points = (y_offset_in_points * pixels_per_point).round() / pixels_per_point;
 
         Self {
             name,
@@ -233,6 +239,21 @@ impl FontImpl {
         }
     }
 
+    #[cfg(feature = "disable_text_snapping")]
+    #[inline]
+    pub fn pair_kerning(
+        &self,
+        last_glyph_id: ab_glyph::GlyphId,
+        glyph_id: ab_glyph::GlyphId,
+    ) -> f32 {
+        use ab_glyph::{Font as _, ScaleFont};
+        self.ab_glyph_font
+            .as_scaled(self.scale_in_pixels)
+            .kern(last_glyph_id, glyph_id)
+            / self.pixels_per_point
+    }
+
+    #[cfg(not(feature = "disable_text_snapping"))]
     #[inline]
     pub fn pair_kerning(
         &self,
@@ -265,6 +286,7 @@ impl FontImpl {
         self.ascent
     }
 
+    #[allow(trivial_numeric_casts, clippy::unnecessary_cast)]
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
         assert!(glyph_id.0 != 0);
         use ab_glyph::{Font as _, ScaleFont};
@@ -335,6 +357,7 @@ pub struct Font {
     characters: Option<BTreeMap<char, Vec<String>>>,
 
     replacement_glyph: (FontIndex, GlyphInfo),
+    #[cfg(not(feature = "disable_text_snapping"))]
     pixels_per_point: f32,
     row_height: f32,
     glyph_info_cache: ahash::HashMap<char, (FontIndex, GlyphInfo)>,
@@ -347,12 +370,14 @@ impl Font {
                 fonts,
                 characters: None,
                 replacement_glyph: Default::default(),
+                #[cfg(not(feature = "disable_text_snapping"))]
                 pixels_per_point: 1.0,
                 row_height: 0.0,
                 glyph_info_cache: Default::default(),
             };
         }
 
+        #[cfg(not(feature = "disable_text_snapping"))]
         let pixels_per_point = fonts[0].pixels_per_point();
         let row_height = fonts[0].row_height();
 
@@ -360,6 +385,7 @@ impl Font {
             fonts,
             characters: None,
             replacement_glyph: Default::default(),
+            #[cfg(not(feature = "disable_text_snapping"))]
             pixels_per_point,
             row_height,
             glyph_info_cache: Default::default(),
@@ -413,9 +439,17 @@ impl Font {
         })
     }
 
+    #[cfg(not(feature = "disable_text_snapping"))]
     #[inline(always)]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         (point * self.pixels_per_point).round() / self.pixels_per_point
+    }
+
+    #[cfg(feature = "disable_text_snapping")]
+    #[inline(always)]
+    #[allow(clippy::unused_self)]
+    pub fn round_to_pixel(&self, point: f32) -> f32 {
+        point
     }
 
     /// Height of one row of text. In points
