@@ -76,6 +76,7 @@ persistence = [
 ## If you are compiling for Linux (or want to test on a CI system using Linux), you should enable this feature.
 wayland = [
   "egui-winit/wayland",
+  "egui-winit/clipboard-wayland",
   "egui-wgpu?/wayland",
   "egui_glow?/wayland",
   "glutin?/wayland",
@@ -108,6 +109,7 @@ wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 ## Enables compiling for x11.
 x11 = [
   "egui-winit/x11",
+  "egui-winit/clipboard-nonwayland",
   "egui-wgpu?/x11",
   "egui_glow?/x11",
   "glutin?/x11",
@@ -146,7 +148,6 @@ serde = { workspace = true, optional = true }
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { workspace = true, default-features = false, features = [
-  "clipboard",
   "links",
 ] }
 image = { workspace = true, features = ["png"] } # Needed for app icon
@@ -176,6 +177,10 @@ wgpu = { workspace = true, optional = true, features = [
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
+egui-winit = { workspace = true, default-features = false, features = [
+  "clipboard-nonwayland",
+  "links",
+] }
 objc2 = "0.5.1"
 objc2-foundation = { version = "0.2.0", features = [
   "block2",
@@ -192,6 +197,10 @@ objc2-app-kit = { version = "0.2.0", features = [
 
 # windows:
 [target.'cfg(any(target_os = "windows"))'.dependencies]
+egui-winit = { workspace = true, default-features = false, features = [
+  "clipboard-nonwayland",
+  "links",
+] }
 winapi = { version = "0.3.9", features = ["winuser"] }
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",

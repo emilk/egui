@@ -47,6 +47,8 @@ impl Clipboard {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)] // for implementation consistency
+    #[allow(clippy::needless_pass_by_ref_mut)] // for implementation consistency
     pub fn get(&mut self) -> Option<String> {
         #[cfg(all(
             any(
