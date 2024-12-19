@@ -25,9 +25,6 @@ pub use window_settings::WindowSettings;
 use ahash::HashSet;
 use raw_window_handle::HasDisplayHandle;
 
-#[allow(unused_imports)]
-pub(crate) use profiling_scopes::{profile_function, profile_scope};
-
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::ElementState,
@@ -121,7 +118,7 @@ impl State {
         theme: Option<winit::window::Theme>,
         max_texture_side: Option<usize>,
     ) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let egui_input = egui::RawInput {
             focused: false, // winit will tell us when we have focus
@@ -172,7 +169,7 @@ impl State {
         window: &Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         self.accesskit = Some(accesskit_winit::Adapter::with_event_loop_proxy(
             window,
@@ -233,7 +230,7 @@ impl State {
     /// Use [`update_viewport_info`] to update the info for each
     /// viewport.
     pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
 
@@ -268,7 +265,7 @@ impl State {
         window: &Window,
         event: &winit::event::WindowEvent,
     ) -> EventResponse {
-        crate::profile_function!(short_window_event_description(event));
+        profiling::function_scope!(short_window_event_description(event));
 
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_mut() {
@@ -823,7 +820,7 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let egui::PlatformOutput {
             cursor_icon,
@@ -851,7 +848,7 @@ impl State {
         let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
-            crate::profile_scope!("set_ime_allowed");
+            profiling::scope!("set_ime_allowed");
             window.set_ime_allowed(allow_ime);
         }
 
@@ -862,7 +859,7 @@ impl State {
                 || self.egui_ctx.input(|i| !i.events.is_empty())
             {
                 self.ime_rect_px = Some(ime_rect_px);
-                crate::profile_scope!("set_ime_cursor_area");
+                profiling::scope!("set_ime_cursor_area");
                 window.set_ime_cursor_area(
                     winit::dpi::PhysicalPosition {
                         x: ime_rect_px.min.x,
@@ -881,7 +878,7 @@ impl State {
         #[cfg(feature = "accesskit")]
         if let Some(accesskit) = self.accesskit.as_mut() {
             if let Some(update) = accesskit_update {
-                crate::profile_scope!("accesskit");
+                profiling::scope!("accesskit");
                 accesskit.update_if_active(|| update);
             }
         }
@@ -953,8 +950,7 @@ pub fn update_viewport_info(
     window: &Window,
     is_init: bool,
 ) {
-    crate::profile_function!();
-
+    profiling::function_scope!();
     let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
@@ -975,7 +971,7 @@ pub fn update_viewport_info(
     };
 
     let monitor_size = {
-        crate::profile_scope!("monitor_size");
+        profiling::scope!("monitor_size");
         if let Some(monitor) = window.current_monitor() {
             let size = monitor.size().to_logical::<f32>(pixels_per_point.into());
             Some(egui::vec2(size.width, size.height))
@@ -1326,7 +1322,7 @@ fn process_viewport_command(
     info: &mut ViewportInfo,
     actions_requested: &mut HashSet<ActionRequested>,
 ) {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     use winit::window::ResizeDirection;
 
@@ -1542,7 +1538,7 @@ pub fn create_window(
     event_loop: &ActiveEventLoop,
     viewport_builder: &ViewportBuilder,
 ) -> Result<Window, winit::error::OsError> {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     let window_attributes =
         create_winit_window_attributes(egui_ctx, event_loop, viewport_builder.clone());
@@ -1556,7 +1552,7 @@ pub fn create_winit_window_attributes(
     event_loop: &ActiveEventLoop,
     viewport_builder: ViewportBuilder,
 ) -> winit::window::WindowAttributes {
-    crate::profile_function!();
+    profiling::function_scope!();
 
     // We set sizes and positions in egui:s own ui points, which depends on the egui
     // zoom_factor and the native pixels per point, so we need to know that here.
@@ -1752,7 +1748,7 @@ fn to_winit_icon(icon: &egui::IconData) -> Option<winit::window::Icon> {
     if icon.is_empty() {
         None
     } else {
-        crate::profile_function!();
+        profiling::function_scope!();
         match winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height) {
             Ok(winit_icon) => Some(winit_icon),
             Err(err) => {
@@ -1866,31 +1862,4 @@ pub fn short_window_event_description(event: &winit::event::WindowEvent) -> &'st
         WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
         WindowEvent::PanGesture { .. } => "WindowEvent::PanGesture",
     }
-}
-
-// ---------------------------------------------------------------------------
-
-mod profiling_scopes {
-    #![allow(unused_macros)]
-    #![allow(unused_imports)]
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_function {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_function!($($arg)*);
-        };
-    }
-    pub(crate) use profile_function;
-
-    /// Profiling macro for feature "puffin"
-    macro_rules! profile_scope {
-        ($($arg: tt)*) => {
-            #[cfg(feature = "puffin")]
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
-            puffin::profile_scope!($($arg)*);
-        };
-    }
-    pub(crate) use profile_scope;
 }

@@ -35,7 +35,7 @@ default = [
   "accesskit",
   "default_fonts",
   "glow",
-  "wayland",
+  "wayland",                                      # Required for Linux support (including CI!)
   "web_screen_reader",
   "winit/default",
   "x11",
@@ -71,21 +71,16 @@ persistence = [
   "serde",
 ]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = [
-  "dep:puffin",
-  "egui/puffin",
-  "egui_glow?/puffin",
-  "egui-wgpu?/puffin",
-  "egui-winit/puffin",
-]
-
 ## Enables wayland support and fixes clipboard issue.
-wayland = ["egui-winit/wayland", "egui-wgpu?/wayland", "egui_glow?/wayland", "glutin?/wayland", "glutin-winit?/wayland"]
+##
+## If you are compiling for Linux (or want to test on a CI system using Linux), you should enable this feature.
+wayland = [
+  "egui-winit/wayland",
+  "egui-wgpu?/wayland",
+  "egui_glow?/wayland",
+  "glutin?/wayland",
+  "glutin-winit?/wayland",
+]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##
@@ -111,7 +106,15 @@ web_screen_reader = [
 wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
 ## Enables compiling for x11.
-x11 = ["egui-winit/x11", "egui-wgpu?/x11", "egui_glow?/x11", "glutin?/x11", "glutin?/glx", "glutin-winit?/x11", "glutin-winit?/glx"]
+x11 = [
+  "egui-winit/x11",
+  "egui-wgpu?/x11",
+  "egui_glow?/x11",
+  "glutin?/x11",
+  "glutin?/glx",
+  "glutin-winit?/x11",
+  "glutin-winit?/glx",
+]
 
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
 ## This is used to generate images for examples.
@@ -127,6 +130,7 @@ ahash.workspace = true
 document-features.workspace = true
 log.workspace = true
 parking_lot.workspace = true
+profiling.workspace = true
 raw-window-handle.workspace = true
 static_assertions = "1.1.0"
 web-time.workspace = true
@@ -154,10 +158,15 @@ egui-wgpu = { workspace = true, optional = true, features = [
 ] } # if wgpu is used, use it with winit
 pollster = { workspace = true, optional = true } # needed for wgpu
 
-glutin = { workspace = true, optional = true, default-features = false, features = ["egl", "wgl"] }
-glutin-winit = { workspace = true, optional = true, default-features = false, features = ["egl", "wgl"] }
+glutin = { workspace = true, optional = true, default-features = false, features = [
+  "egl",
+  "wgl",
+] }
+glutin-winit = { workspace = true, optional = true, default-features = false, features = [
+  "egl",
+  "wgl",
+] }
 home = { workspace = true, optional = true }
-puffin = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true, features = [
   # Let's enable some backends so that users can use `eframe` out-of-the-box
   # without having to explicitly opt-in to backends

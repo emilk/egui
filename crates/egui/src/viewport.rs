@@ -188,7 +188,7 @@ impl std::fmt::Debug for IconData {
 
 impl From<IconData> for epaint::ColorImage {
     fn from(icon: IconData) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,
@@ -200,7 +200,7 @@ impl From<IconData> for epaint::ColorImage {
 
 impl From<&IconData> for epaint::ColorImage {
     fn from(icon: &IconData) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
         let IconData {
             rgba,
             width,
@@ -1056,7 +1056,7 @@ pub enum ViewportCommand {
     /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
     MousePassthrough(bool),
 
-    /// Take a screenshot.
+    /// Take a screenshot of the next frame after this.
     ///
     /// The results are returned in [`crate::Event::Screenshot`].
     Screenshot(crate::UserData),

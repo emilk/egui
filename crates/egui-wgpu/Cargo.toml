@@ -33,9 +33,6 @@ rustdoc-args = ["--generate-link-to-definition"]
 [features]
 default = ["fragile-send-sync-non-atomic-wasm"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin"]
-
 ## Enable [`winit`](https://docs.rs/winit) integration. On Linux, requires either `wayland` or `x11`
 winit = ["dep:winit", "winit/rwh_06"]
 
@@ -60,6 +57,7 @@ ahash.workspace = true
 bytemuck.workspace = true
 document-features.workspace = true
 log.workspace = true
+profiling.workspace = true
 thiserror.workspace = true
 type-map.workspace = true
 web-time.workspace = true
@@ -68,7 +66,3 @@ wgpu = { workspace = true, features = ["wgsl"] }
 # Optional dependencies:
 
 winit = { workspace = true, optional = true, default-features = false }
-
-# Native:
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-puffin = { workspace = true, optional = true }

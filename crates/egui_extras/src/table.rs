@@ -1227,7 +1227,7 @@ impl<'a> TableBody<'a> {
 
     // Capture the hover information for the just created row. This is used in the next render
     // to ensure that the entire row is highlighted.
-    fn capture_hover_state(&mut self, response: &Option<Response>, row_index: usize) {
+    fn capture_hover_state(&self, response: &Option<Response>, row_index: usize) {
         let is_row_hovered = response.as_ref().map_or(false, |r| r.hovered());
         if is_row_hovered {
             self.layout

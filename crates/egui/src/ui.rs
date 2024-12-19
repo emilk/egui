@@ -301,7 +301,7 @@ impl Ui {
             min_rect: placer.min_rect(),
             max_rect: placer.max_rect(),
         };
-        let child_ui = Ui {
+        let mut child_ui = Ui {
             id: stable_id,
             unique_id,
             next_auto_id_salt,
@@ -315,6 +315,10 @@ impl Ui {
             sense,
             min_rect_already_remembered: false,
         };
+
+        if disabled {
+            child_ui.disable();
+        }
 
         // Register in the widget stack early, to ensure we are behind all widgets we contain:
         let start_rect = Rect::NOTHING; // This will be overwritten when `remember_min_rect` is called

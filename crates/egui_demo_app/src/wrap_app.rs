@@ -111,11 +111,19 @@ impl Anchor {
             Self::Rendering,
         ]
     }
+
+    #[cfg(target_arch = "wasm32")]
+    fn from_str_case_insensitive(anchor: &str) -> Option<Self> {
+        let anchor = anchor.to_lowercase();
+        Self::all().into_iter().find(|x| x.to_string() == anchor)
+    }
 }
 
 impl std::fmt::Display for Anchor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        let mut name = format!("{self:?}");
+        name.make_ascii_lowercase();
+        f.write_str(&name)
     }
 }
 
@@ -263,11 +271,15 @@ impl eframe::App for WrapApp {
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_arch = "wasm32")]
-        if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
-            let anchor = Anchor::all().into_iter().find(|x| x.to_string() == anchor);
-            if let Some(v) = anchor {
-                self.state.selected_anchor = v;
-            }
+        if let Some(anchor) = frame
+            .info()
+            .web_info
+            .location
+            .hash
+            .strip_prefix('#')
+            .and_then(Anchor::from_str_case_insensitive)
+        {
+            self.state.selected_anchor = anchor;
         }
 
         #[cfg(not(target_arch = "wasm32"))]

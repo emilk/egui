@@ -269,7 +269,7 @@ impl InputState {
         pixels_per_point: f32,
         options: &crate::Options,
     ) -> Self {
-        crate::profile_function!();
+        profiling::function_scope!();
 
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;

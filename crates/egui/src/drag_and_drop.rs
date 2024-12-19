@@ -27,31 +27,44 @@ impl DragAndDrop {
         ctx.on_end_pass("drag_and_drop_end_pass", Arc::new(Self::end_pass));
     }
 
+    /// Interrupt drag-and-drop if the user presses the escape key.
+    ///
+    /// This needs to happen at frame start so we can properly capture the escape key.
     fn begin_pass(ctx: &Context) {
         let has_any_payload = Self::has_any_payload(ctx);
 
         if has_any_payload {
-            let abort_dnd = ctx.input_mut(|i| {
-                i.pointer.any_released()
-                    || i.consume_key(crate::Modifiers::NONE, crate::Key::Escape)
-            });
+            let abort_dnd_due_to_escape_key =
+                ctx.input_mut(|i| i.consume_key(crate::Modifiers::NONE, crate::Key::Escape));
 
-            if abort_dnd {
+            if abort_dnd_due_to_escape_key {
                 Self::clear_payload(ctx);
             }
         }
     }
 
+    /// Interrupt drag-and-drop if the user releases the mouse button.
+    ///
+    /// This is a catch-all safety net in case user code doesn't capture the drag payload itself.
+    /// This must happen at end-of-frame such that we don't shadow the mouse release event from user
+    /// code.
     fn end_pass(ctx: &Context) {
-        let mut is_dragging = false;
+        let has_any_payload = Self::has_any_payload(ctx);
 
-        ctx.data_mut(|data| {
-            let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
-            is_dragging = state.payload.is_some();
-        });
+        if has_any_payload {
+            let abort_dnd_due_to_mouse_release = ctx.input_mut(|i| i.pointer.any_released());
 
-        if is_dragging {
-            ctx.set_cursor_icon(CursorIcon::Grabbing);
+            if abort_dnd_due_to_mouse_release {
+                Self::clear_payload(ctx);
+            } else {
+                // We set the cursor icon only if its default, as the user code might have
+                // explicitly set it already.
+                ctx.output_mut(|o| {
+                    if o.cursor_icon == CursorIcon::Default {
+                        o.cursor_icon = CursorIcon::Grabbing;
+                    }
+                });
+            }
         }
     }
 

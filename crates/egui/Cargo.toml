@@ -62,10 +62,6 @@ mint = ["epaint/mint"]
 ## Enable persistence of memory (window positions etc).
 persistence = ["serde", "epaint/serde", "ron"]
 
-## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-##
-## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin", "epaint/puffin"]
 
 ## Enable parallel tessellation using [`rayon`](https://docs.rs/rayon).
 ##
@@ -85,6 +81,7 @@ epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
 nohash-hasher.workspace = true
+profiling.workspace = true
 
 #! ### Optional dependencies
 accesskit = { version = "0.17.0", optional = true }
@@ -95,10 +92,5 @@ backtrace = { workspace = true, optional = true }
 document-features = { workspace = true, optional = true }
 
 log = { workspace = true, optional = true }
-puffin = { workspace = true, optional = true }
 ron = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive", "rc"] }
-
-
-[dev-dependencies]
-egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
