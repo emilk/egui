@@ -84,6 +84,12 @@ pub fn install_image_loaders(ctx: &egui::Context) {
         log::trace!("installed GifLoader");
     }
 
+    #[cfg(feature = "webp")]
+    if !ctx.is_loader_installed(self::webp_loader::WebPLoader::ID) {
+        ctx.add_image_loader(std::sync::Arc::new(self::webp_loader::WebPLoader::default()));
+        log::trace!("installed WebPLoader");
+    }
+
     #[cfg(feature = "svg")]
     if !ctx.is_loader_installed(self::svg_loader::SvgLoader::ID) {
         ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
@@ -113,3 +119,5 @@ mod gif_loader;
 mod image_loader;
 #[cfg(feature = "svg")]
 mod svg_loader;
+#[cfg(feature = "webp")]
+mod webp_loader;
