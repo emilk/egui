@@ -25,6 +25,17 @@ pub enum Key {
     PageUp,
     PageDown,
 
+    AltLeft,
+    AltRight,
+    ControlLeft,
+    ControlRight,
+    ShiftLeft,
+    ShiftRight,
+
+    CapsLock,
+    NumLock,
+    ScrollLock,
+
     Copy,
     Cut,
     Paste,
@@ -201,6 +212,18 @@ impl Key {
         Self::End,
         Self::PageUp,
         Self::PageDown,
+        // Alt Ctrl Shift
+        Self::AltLeft,
+        Self::AltRight,
+        Self::ControlLeft,
+        Self::ControlRight,
+        Self::ShiftLeft,
+        Self::ShiftRight,
+        // Lock
+        Self::CapsLock,
+        Self::NumLock,
+        Self::ScrollLock,
+        // Copy Cut Paste
         Self::Copy,
         Self::Cut,
         Self::Paste,
@@ -324,6 +347,17 @@ impl Key {
             "End" => Self::End,
             "PageUp" => Self::PageUp,
             "PageDown" => Self::PageDown,
+
+            "CapsLock" => Self::CapsLock,
+            "NumLock" => Self::NumLock,
+            "ScrollLock" => Self::ScrollLock,
+
+            "AltLeft" => Self::AltLeft,
+            "AltRight" => Self::AltRight,
+            "ControlLeft" => Self::ControlLeft,
+            "ControlRight" => Self::ControlRight,
+            "ShiftLeft" => Self::ShiftLeft,
+            "ShiftRight" => Self::ShiftRight,
 
             "Copy" => Self::Copy,
             "Cut" => Self::Cut,
@@ -473,6 +507,17 @@ impl Key {
             Self::End => "End",
             Self::PageUp => "PageUp",
             Self::PageDown => "PageDown",
+
+            Self::CapsLock => "CapsLock",
+            Self::NumLock => "NumLock",
+            Self::ScrollLock => "ScrollLock",
+
+            Self::AltLeft => "AltLeft",
+            Self::AltRight => "AltRight",
+            Self::ControlLeft => "ControlLeft",
+            Self::ControlRight => "ControlRight",
+            Self::ShiftLeft => "ShiftLeft",
+            Self::ShiftRight => "ShiftRight",
 
             Self::Copy => "Copy",
             Self::Cut => "Cut",
