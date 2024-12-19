@@ -60,8 +60,8 @@ impl eframe::App for MyApp {
                         if !file.mime.is_empty() {
                             additional_info.push(format!("type: {}", file.mime));
                         }
-                        if let Some(bytes) = &file.bytes {
-                            additional_info.push(format!("{} bytes", bytes.len()));
+                        if let Some(file_stream_url) = &file.stream_url {
+                            additional_info.push(format!("File accessible at {file_stream_url}"));
                         }
                         if !additional_info.is_empty() {
                             info += &format!(" ({})", additional_info.join(", "));
