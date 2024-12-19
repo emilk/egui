@@ -13,6 +13,7 @@ pub(crate) mod resize;
 pub mod scroll_area;
 mod sides;
 pub(crate) mod window;
+pub mod zoom_pan_area;
 
 pub use {
     area::{Area, AreaState},
