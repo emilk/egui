@@ -4,7 +4,7 @@ use super::web_painter::WebPainter;
 use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
 use egui_wgpu::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
+use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup, WgpuSetupCreateNew};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -64,11 +64,11 @@ impl WebPainterWgpu {
         log::debug!("Creating wgpu painter");
 
         let instance = match &options.wgpu_options.wgpu_setup {
-            WgpuSetup::CreateNew {
+            WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 supported_backends: backends,
                 power_preference,
                 ..
-            } => {
+            }) => {
                 let mut backends = *backends;
 
                 // Don't try WebGPU if we're not in a secure context.

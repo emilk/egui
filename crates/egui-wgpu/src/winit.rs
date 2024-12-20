@@ -2,7 +2,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
+use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration, WgpuSetupCreateNew};
 use egui::{Context, Event, UserData, ViewportId, ViewportIdMap, ViewportIdSet};
 use std::{num::NonZeroU32, sync::Arc};
 
@@ -60,9 +60,9 @@ impl Painter {
         dithering: bool,
     ) -> Self {
         let instance = match &configuration.wgpu_setup {
-            crate::WgpuSetup::CreateNew {
+            crate::WgpuSetup::CreateNew(WgpuSetupCreateNew {
                 supported_backends, ..
-            } => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
+            }) => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends: *supported_backends,
                 ..Default::default()
             })),

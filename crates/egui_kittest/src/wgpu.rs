@@ -1,48 +1,73 @@
-use crate::texture_to_image::texture_to_image;
-use crate::Harness;
-use egui_wgpu::wgpu::{Backends, InstanceDescriptor, StoreOp, TextureFormat};
-use egui_wgpu::{wgpu, ScreenDescriptor};
+use std::{iter::once, sync::Arc};
+
 use image::RgbaImage;
-use std::iter::once;
-use wgpu::Maintain;
+
+use egui_wgpu::{
+    wgpu::{self, StoreOp, TextureFormat},
+    ScreenDescriptor,
+};
+
+use crate::{texture_to_image::texture_to_image, Harness};
 
 /// Utility to render snapshots from a [`Harness`] using [`egui_wgpu`].
 pub struct TestRenderer {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    device: Arc<wgpu::Device>,
+    queue: Arc<wgpu::Queue>,
     dithering: bool,
 }
 
-impl Default for TestRenderer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl TestRenderer {
-    /// Create a new [`TestRenderer`] using a default [`wgpu::Instance`].
-    pub fn new() -> Self {
-        let instance = wgpu::Instance::new(InstanceDescriptor::default());
+    /// Create a new [`TestRenderer`] using a [`egui_wgpu::WgpuSetup`].
+    pub fn new(wgpu_setup: &egui_wgpu::WgpuSetup) -> Self {
+        let (device, queue) = match wgpu_setup {
+            egui_wgpu::WgpuSetup::CreateNew(egui_wgpu::WgpuSetupCreateNew {
+                supported_backends,
+                power_preference,
+                device_descriptor,
+                trace_path,
+                native_adapter_selector,
+            }) => {
+                let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                    backends: *supported_backends,
+                    ..Default::default()
+                });
 
-        let adapters = instance.enumerate_adapters(Backends::all());
-        let adapter = adapters.first().expect("No adapter found");
+                let adapter = if let Some(native_adapter_selector) = native_adapter_selector {
+                    let adapters = instance
+                        .enumerate_adapters(*supported_backends)
+                        .into_iter()
+                        .map(Arc::new)
+                        .collect::<Vec<_>>();
+                    native_adapter_selector(&adapters, None).expect("No adapter found.")
+                } else {
+                    Arc::new(
+                        pollster::block_on(instance.request_adapter(
+                            &wgpu::RequestAdapterOptions {
+                                power_preference: *power_preference,
+                                force_fallback_adapter: false,
+                                compatible_surface: None,
+                            },
+                        ))
+                        .expect("No adapter found using `request_adapter`"),
+                    )
+                };
 
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                label: Some("Egui Device"),
-                memory_hints: Default::default(),
-                required_limits: Default::default(),
-                required_features: Default::default(),
-            },
-            None,
-        ))
-        .expect("Failed to create device");
+                let device_descriptor = device_descriptor(&adapter);
+                let (device, queue) = pollster::block_on(
+                    adapter.request_device(&device_descriptor, trace_path.as_deref()),
+                )
+                .expect("Failed to request device");
+
+                (Arc::new(device), Arc::new(queue))
+            }
+            egui_wgpu::WgpuSetup::Existing { device, queue, .. } => (device.clone(), queue.clone()),
+        };
 
         Self::create(device, queue)
     }
 
     /// Create a new [`TestRenderer`] using the provided [`wgpu::Device`] and [`wgpu::Queue`].
-    pub fn create(device: wgpu::Device, queue: wgpu::Queue) -> Self {
+    pub fn create(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>) -> Self {
         Self {
             device,
             queue,
@@ -132,9 +157,7 @@ impl TestRenderer {
                             store: StoreOp::Store,
                         },
                     })],
-                    depth_stencil_attachment: None,
-                    occlusion_query_set: None,
-                    timestamp_writes: None,
+                    ..Default::default()
                 })
                 .forget_lifetime();
 
@@ -144,7 +167,7 @@ impl TestRenderer {
         self.queue
             .submit(user_buffers.into_iter().chain(once(encoder.finish())));
 
-        self.device.poll(Maintain::Wait);
+        self.device.poll(wgpu::Maintain::Wait);
 
         texture_to_image(&self.device, &self.queue, &texture)
     }
