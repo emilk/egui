@@ -154,24 +154,32 @@ impl GuiRounding for crate::Pos2 {
 }
 
 impl GuiRounding for crate::Rect {
+    /// Rounded so that two adjacent rects that tile perfectly
+    /// will continue to tile perfectly.
     #[inline]
     fn round_ui(self) -> Self {
-        Self::from_min_size(self.min.round_ui(), self.size().round_ui())
+        Self::from_min_max(self.min.round_ui(), self.max.round_ui())
     }
 
+    /// Rounded so that two adjacent rects that tile perfectly
+    /// will continue to tile perfectly.
     #[inline]
     fn floor_ui(self) -> Self {
-        Self::from_min_size(self.min.floor_ui(), self.size().floor_ui())
+        Self::from_min_max(self.min.floor_ui(), self.max.floor_ui())
     }
 
+    /// Rounded so that two adjacent rects that tile perfectly
+    /// will continue to tile perfectly.
     #[inline]
     fn round_to_pixels(self, pixels_per_point: f32) -> Self {
-        Self::from_min_size(
+        Self::from_min_max(
             self.min.round_to_pixels(pixels_per_point),
-            self.size().round_to_pixels(pixels_per_point),
+            self.max.round_to_pixels(pixels_per_point),
         )
     }
 
+    /// Rounded so that two adjacent rects that tile perfectly
+    /// will continue to tile perfectly.
     #[inline]
     fn round_to_pixel_center(self, pixels_per_point: f32) -> Self {
         Self::from_min_max(
