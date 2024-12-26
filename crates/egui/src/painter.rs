@@ -22,7 +22,7 @@ pub struct Painter {
     /// Source of fonts and destination of shapes
     ctx: Context,
 
-    /// For quick access, without having to go via [`self::ctx`].
+    /// For quick access, without having to go via [`Self::ctx`].
     pixels_per_point: f32,
 
     /// Where we paint

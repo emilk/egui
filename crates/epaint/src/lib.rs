@@ -53,7 +53,7 @@ pub use self::{
         Rounding, Shape, TextShape,
     },
     stats::PaintStats,
-    stroke::{PathStroke, Stroke},
+    stroke::{PathStroke, Stroke, StrokeKind},
     tessellator::{TessellationOptions, Tessellator},
     text::{FontFamily, FontId, Fonts, Galley},
     texture_atlas::TextureAtlas,

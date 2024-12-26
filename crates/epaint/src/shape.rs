@@ -670,7 +670,7 @@ pub struct RectShape {
     /// The thickness and color of the outline.
     ///
     /// The stroke extends _outside_ the edge of [`Self::rect`],
-    /// i.e. using [`StrokeKind::Outside`].
+    /// i.e. using [`crate::StrokeKind::Outside`].
     ///
     /// This means the [`Self::visual_bounding_rect`] is `rect.size() + 2.0 * stroke.width`.
     pub stroke: Stroke,
