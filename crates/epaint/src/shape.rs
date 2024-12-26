@@ -370,32 +370,17 @@ impl Shape {
                 stroke,
                 points: [a, b],
             } => {
-                let pixel_size = 1.0 / pixels_per_point;
-                if stroke.is_empty() {
-                    return;
-                }
                 if a.x == b.x {
                     // Vertical line
                     let mut x = a.x;
-                    if stroke.width <= 1.5 * pixel_size {
-                        // Approximately one pixel wide - put it in the middle of the pixel:
-                        x = x.round_to_pixel_center(pixels_per_point);
-                    } else if stroke.width <= 2.5 * pixel_size {
-                        // Approximately two pixels wide - make it cover two pixels:
-                        x = x.round_to_pixels(pixels_per_point);
-                    }
+                    round_line_segment(&mut x, stroke, pixels_per_point);
                     a.x = x;
                     b.x = x;
-                } else if a.y == b.y {
+                }
+                if a.y == b.y {
                     // Horizontal line
                     let mut y = a.y;
-                    if stroke.width <= 1.5 * pixel_size {
-                        // Approximately one pixel wide - put it in the middle of the pixel:
-                        y = y.round_to_pixel_center(pixels_per_point);
-                    } else if stroke.width <= 2.5 * pixel_size {
-                        // Approximately two pixels wide - make it cover two pixels:
-                        y = y.round_to_pixels(pixels_per_point);
-                    }
+                    round_line_segment(&mut y, stroke, pixels_per_point);
                     a.y = y;
                     b.y = y;
                 }
@@ -418,6 +403,49 @@ impl Shape {
             }
         }
     }
+}
+
+fn round_line_segment(coord: &mut f32, stroke: &Stroke, pixels_per_point: f32) {
+    if stroke.is_empty() {
+        return;
+    }
+
+    // If the stroke is an odd number of pixels wide,
+    // we want to round the center of it to the center of a pixel.
+    //
+    // If however it is an even number of pixels wide,
+    // we want to round the center to be between two pixels.
+    //
+    // We also want to treat strokes that are _almost_ odd as it it was odd,
+    // to make it symmetric. Same for strokes that are _almost_ even.
+    //
+    // For strokes less than a pixel wide we also round to the center,
+    // because it will rendered as a single row of pixels by the tessellator.
+
+    let pixel_size = 1.0 / pixels_per_point;
+
+    if stroke.width <= pixel_size || is_nearest_integer_odd(pixels_per_point * stroke.width) {
+        *coord = coord.round_to_pixel_center(pixels_per_point);
+    } else {
+        *coord = coord.round_to_pixels(pixels_per_point);
+    }
+}
+
+fn is_nearest_integer_odd(width: f32) -> bool {
+    (width * 0.5 + 0.25).fract() > 0.5
+}
+
+#[test]
+fn test_is_nearest_integer_odd() {
+    assert!(is_nearest_integer_odd(0.6));
+    assert!(is_nearest_integer_odd(1.0));
+    assert!(is_nearest_integer_odd(1.4));
+    assert!(!is_nearest_integer_odd(1.6));
+    assert!(!is_nearest_integer_odd(2.0));
+    assert!(!is_nearest_integer_odd(2.4));
+    assert!(is_nearest_integer_odd(2.6));
+    assert!(is_nearest_integer_odd(3.0));
+    assert!(is_nearest_integer_odd(3.4));
 }
 
 /// ## Inspection and transforms
