@@ -596,7 +596,7 @@ impl<'open> Window<'open> {
                         },
                     );
 
-                    title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
+                    title_rect = title_rect.round_to_pixels(area_content_ui.pixels_per_point());
 
                     if on_top && area_content_ui.visuals().window_highlight_topmost {
                         let mut round = window_frame.rounding;
