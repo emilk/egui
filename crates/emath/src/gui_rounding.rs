@@ -41,6 +41,16 @@ pub trait GuiRounding {
     /// The argument `pixels_per_point` is the number of _physical pixels_ per logical UI point.
     /// For instance, on a high-DPI screen, `pixels_per_point` could be `2.0`.
     fn round_to_pixels(self, pixels_per_point: f32) -> Self;
+
+    /// Will round the position to be in the center of a pixel.
+    ///
+    /// The pixel size is `1.0 / pixels_per_point`.
+    ///
+    /// So if `pixels_per_point = 2` (i.e. `pixel size = 0.5`),
+    /// then the position will be rounded to the closest of `…, 0.25, 0.75, 1.25, …`.
+    ///
+    /// This is useful, for instance, when picking the center of a line that is one pixel wide.
+    fn round_to_pixel_center(self, pixels_per_point: f32) -> Self;
 }
 
 impl GuiRounding for f32 {
@@ -58,6 +68,11 @@ impl GuiRounding for f32 {
     fn round_to_pixels(self, pixels_per_point: f32) -> Self {
         (self * pixels_per_point).round() / pixels_per_point
     }
+
+    #[inline]
+    fn round_to_pixel_center(self, pixels_per_point: f32) -> Self {
+        ((self * pixels_per_point - 0.5).round() + 0.5) / pixels_per_point
+    }
 }
 
 impl GuiRounding for f64 {
@@ -74,6 +89,11 @@ impl GuiRounding for f64 {
     #[inline]
     fn round_to_pixels(self, pixels_per_point: f32) -> Self {
         (self * pixels_per_point as Self).round() / pixels_per_point as Self
+    }
+
+    #[inline]
+    fn round_to_pixel_center(self, pixels_per_point: f32) -> Self {
+        ((self * pixels_per_point as Self - 0.5).round() + 0.5) / pixels_per_point as Self
     }
 }
 
@@ -93,6 +113,14 @@ impl GuiRounding for crate::Vec2 {
         Self::new(
             self.x.round_to_pixels(pixels_per_point),
             self.y.round_to_pixels(pixels_per_point),
+        )
+    }
+
+    #[inline]
+    fn round_to_pixel_center(self, pixels_per_point: f32) -> Self {
+        Self::new(
+            self.x.round_to_pixel_center(pixels_per_point),
+            self.y.round_to_pixel_center(pixels_per_point),
         )
     }
 }
@@ -115,6 +143,14 @@ impl GuiRounding for crate::Pos2 {
             self.y.round_to_pixels(pixels_per_point),
         )
     }
+
+    #[inline]
+    fn round_to_pixel_center(self, pixels_per_point: f32) -> Self {
+        Self::new(
+            self.x.round_to_pixel_center(pixels_per_point),
+            self.y.round_to_pixel_center(pixels_per_point),
+        )
+    }
 }
 
 impl GuiRounding for crate::Rect {
@@ -135,6 +171,14 @@ impl GuiRounding for crate::Rect {
             self.size().round_to_pixels(pixels_per_point),
         )
     }
+
+    #[inline]
+    fn round_to_pixel_center(self, pixels_per_point: f32) -> Self {
+        Self::from_min_max(
+            self.min.round_to_pixel_center(pixels_per_point),
+            self.max.round_to_pixel_center(pixels_per_point),
+        )
+    }
 }
 
 #[test]
@@ -144,4 +188,6 @@ fn test_round_point() {
     assert_eq!((-GUI_ROUNDING * 1.11).round_point(), -GUI_ROUNDING);
     assert_eq!(f32::NEG_INFINITY.round_point(), f32::NEG_INFINITY);
     assert_eq!(f32::INFINITY.round_point(), f32::INFINITY);
+
+    assert_eq!(0.17_f32.round_to_pixel_center(2.0), 0.25);
 }
