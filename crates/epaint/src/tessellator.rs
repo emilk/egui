@@ -1740,7 +1740,7 @@ impl Tessellator {
             self.feathering = self.feathering.max(blur_width);
         }
 
-        if rect.width() < self.feathering {
+        if rect.width() < 0.5 * self.feathering {
             // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
             if fill != Color32::TRANSPARENT {
@@ -1750,7 +1750,7 @@ impl Tessellator {
                 self.tessellate_line_segment(line, stroke, out); // back…
                 self.tessellate_line_segment(line, stroke, out); // …and forth
             }
-        } else if rect.height() < self.feathering {
+        } else if rect.height() < 0.5 * self.feathering {
             // Very thin - approximate by a horizontal line-segment:
             let line = [rect.left_center(), rect.right_center()];
             if fill != Color32::TRANSPARENT {
@@ -1766,6 +1766,7 @@ impl Tessellator {
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
             path.add_line_loop(&self.scratchpad_points);
             let path_stroke = PathStroke::from(stroke).outside();
+
             if uv.is_positive() {
                 // Textured
                 let uv_from_pos = |p: Pos2| {
