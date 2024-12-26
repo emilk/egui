@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use emath::GuiRounding;
+use emath::GuiRounding as _;
 
 use crate::{
     text::{LayoutJob, TextWrapping},

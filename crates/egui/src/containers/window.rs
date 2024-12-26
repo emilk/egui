@@ -7,6 +7,7 @@ use crate::{
     Align, Align2, Context, CursorIcon, Id, InnerResponse, LayerId, NumExt, Order, Response, Sense,
     TextStyle, Ui, UiKind, Vec2b, WidgetInfo, WidgetRect, WidgetText, WidgetType,
 };
+use emath::GuiRounding as _;
 use epaint::{emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Shape, Stroke, Vec2};
 
 use super::scroll_area::ScrollBarVisibility;
@@ -788,10 +789,9 @@ fn resize_response(
     area: &mut area::Prepared,
     resize_id: Id,
 ) {
-    let Some(new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
+    let Some(mut new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
         return;
     };
-    let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
     if area.constrain() {
         new_rect = Context::constrain_window_rect_to_area(new_rect, area.constrain_rect());
@@ -819,18 +819,18 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
     let mut rect = interaction.start_rect; // prevent drift
 
     if interaction.left.drag {
-        rect.min.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.min.x = pointer_pos.x;
     } else if interaction.right.drag {
-        rect.max.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.max.x = pointer_pos.x;
     }
 
     if interaction.top.drag {
-        rect.min.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.min.y = pointer_pos.y;
     } else if interaction.bottom.drag {
-        rect.max.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.max.y = pointer_pos.y;
     }
 
-    Some(rect)
+    Some(rect.round_point())
 }
 
 fn resize_interaction(
@@ -1070,7 +1070,7 @@ impl TitleBar {
             let item_spacing = ui.spacing().item_spacing;
             let button_size = Vec2::splat(ui.spacing().icon_width);
 
-            let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
+            let pad = ((height - button_size.y) / 2.0).round_point(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
             if collapsible {
                 ui.add_space(pad);

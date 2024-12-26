@@ -3,6 +3,7 @@
 
 use std::{any::Any, hash::Hash, sync::Arc};
 
+use emath::GuiRounding as _;
 use epaint::mutex::RwLock;
 
 use crate::{
@@ -716,7 +717,9 @@ impl Ui {
         self.painter().layer_id()
     }
 
-    /// The height of text of this text style
+    /// The height of text of this text style.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
         self.fonts(|f| f.row_height(&style.resolve(self.style())))
     }
@@ -1295,6 +1298,7 @@ impl Ui {
     /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
+        let rect = rect.round_point();
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -1302,6 +1306,8 @@ impl Ui {
     /// Allocate a rect without interacting with it.
     pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         debug_assert!(!rect.any_nan());
+        let rect = rect.round_point();
+
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
         register_rect(self, rect);
