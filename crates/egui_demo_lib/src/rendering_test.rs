@@ -681,7 +681,7 @@ fn mul_color_gamma(left: Color32, right: Color32) -> Color32 {
 #[cfg(test)]
 mod tests {
     use crate::ColorTest;
-    use egui::vec2;
+    use egui_kittest::kittest::Queryable as _;
 
     #[test]
     pub fn rendering_test() {
@@ -689,13 +689,16 @@ mod tests {
         for dpi in [1.0, 1.25, 1.5, 1.75, 1.6666667, 2.0] {
             let mut color_test = ColorTest::default();
             let mut harness = egui_kittest::Harness::builder()
-                .with_size(vec2(2000.0, 2000.0))
                 .with_pixels_per_point(dpi)
                 .build_ui(|ui| {
                     color_test.ui(ui);
                 });
 
-            //harness.set_size(harness.ctx.used_size());
+            {
+                // Expand color-test collapsing header
+                harness.get_by_label("Color test").click();
+                harness.run();
+            }
 
             harness.fit_contents();
 
