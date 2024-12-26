@@ -1386,7 +1386,9 @@ impl Tessellator {
 
                 out.append(mesh);
             }
-            Shape::LineSegment { points, stroke } => self.tessellate_line(points, stroke, out),
+            Shape::LineSegment { points, stroke } => {
+                self.tessellate_line_segment(points, stroke, out)
+            }
             Shape::Path(path_shape) => {
                 self.tessellate_path(&path_shape, out);
             }
@@ -1563,10 +1565,10 @@ impl Tessellator {
     ///
     /// * `shape`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_line(
+    pub fn tessellate_line_segment(
         &mut self,
         points: [Pos2; 2],
-        stroke: impl Into<PathStroke>,
+        stroke: impl Into<Stroke>,
         out: &mut Mesh,
     ) {
         let stroke = stroke.into();
@@ -1585,7 +1587,17 @@ impl Tessellator {
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_segment(points);
         self.scratchpad_path
-            .stroke_open(self.feathering, &stroke, out);
+            .stroke_open(self.feathering, &stroke.into(), out);
+    }
+
+    #[deprecated = "Use `tessellate_line_segment` instead"]
+    pub fn tessellate_line(
+        &mut self,
+        points: [Pos2; 2],
+        stroke: impl Into<Stroke>,
+        out: &mut Mesh,
+    ) {
+        self.tessellate_line_segment(points, stroke, out);
     }
 
     /// Tessellate a single [`PathShape`] into a [`Mesh`].
@@ -1692,21 +1704,21 @@ impl Tessellator {
             // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
             if fill != Color32::TRANSPARENT {
-                self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
+                self.tessellate_line_segment(line, Stroke::new(rect.width(), fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out); // back…
-                self.tessellate_line(line, stroke, out); // …and forth
+                self.tessellate_line_segment(line, stroke, out); // back…
+                self.tessellate_line_segment(line, stroke, out); // …and forth
             }
         } else if rect.height() < self.feathering {
             // Very thin - approximate by a horizontal line-segment:
             let line = [rect.left_center(), rect.right_center()];
             if fill != Color32::TRANSPARENT {
-                self.tessellate_line(line, Stroke::new(rect.height(), fill), out);
+                self.tessellate_line_segment(line, Stroke::new(rect.height(), fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out); // back…
-                self.tessellate_line(line, stroke, out); // …and forth
+                self.tessellate_line_segment(line, stroke, out); // back…
+                self.tessellate_line_segment(line, stroke, out); // …and forth
             }
         } else {
             let rect = if !stroke.is_empty() && stroke.width < self.feathering {
