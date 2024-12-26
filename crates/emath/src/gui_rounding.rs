@@ -4,7 +4,7 @@
 /// When rendering, you may want to round to an integer multiple of the physical _pixels_ instead,
 /// using [`GuiRounding::round_to_pixels`].
 ///
-/// See [`GuiRounding::round_point`] for more information.
+/// See [`GuiRounding::round_ui`] for more information.
 ///
 /// This constant has to be a (negative) power of two so that it can be represented exactly
 /// by a floating point number.
@@ -19,7 +19,7 @@ pub const GUI_ROUNDING: f32 = 1.0 / 32.0;
 
 /// Trait for rounding coordinates and sizes to align with either .
 ///
-/// See [`GuiRounding::round_point`] for more information.
+/// See [`GuiRounding::round_ui`] for more information.
 pub trait GuiRounding {
     /// Rounds floating point numbers to an even multiple of the GUI rounding factor, [`crate::GUI_ROUNDING`].
     ///
@@ -28,10 +28,10 @@ pub trait GuiRounding {
     /// Rounding sizes and positions prevent rounding errors when doing sizing calculations.
     /// We don't round to integers, because that would be too coarse (causing visible juddering when scrolling, for instance).
     /// Instead we round to an even multiple of [`GUI_ROUNDING`].
-    fn round_point(self) -> Self;
+    fn round_ui(self) -> Self;
 
-    /// Like [`Self::round_point`], but always rounds towards negative infinity.
-    fn floor_point(self) -> Self;
+    /// Like [`Self::round_ui`], but always rounds towards negative infinity.
+    fn floor_ui(self) -> Self;
 
     /// Round a size or position to an even multiple of the physical pixel size.
     ///
@@ -55,12 +55,12 @@ pub trait GuiRounding {
 
 impl GuiRounding for f32 {
     #[inline]
-    fn round_point(self) -> Self {
+    fn round_ui(self) -> Self {
         (self / GUI_ROUNDING).round() * GUI_ROUNDING
     }
 
     #[inline]
-    fn floor_point(self) -> Self {
+    fn floor_ui(self) -> Self {
         (self / GUI_ROUNDING).floor() * GUI_ROUNDING
     }
 
@@ -77,12 +77,12 @@ impl GuiRounding for f32 {
 
 impl GuiRounding for f64 {
     #[inline]
-    fn round_point(self) -> Self {
+    fn round_ui(self) -> Self {
         (self / GUI_ROUNDING as Self).round() * GUI_ROUNDING as Self
     }
 
     #[inline]
-    fn floor_point(self) -> Self {
+    fn floor_ui(self) -> Self {
         (self / GUI_ROUNDING as Self).floor() * GUI_ROUNDING as Self
     }
 
@@ -99,13 +99,13 @@ impl GuiRounding for f64 {
 
 impl GuiRounding for crate::Vec2 {
     #[inline]
-    fn round_point(self) -> Self {
-        Self::new(self.x.round_point(), self.y.round_point())
+    fn round_ui(self) -> Self {
+        Self::new(self.x.round_ui(), self.y.round_ui())
     }
 
     #[inline]
-    fn floor_point(self) -> Self {
-        Self::new(self.x.floor_point(), self.y.floor_point())
+    fn floor_ui(self) -> Self {
+        Self::new(self.x.floor_ui(), self.y.floor_ui())
     }
 
     #[inline]
@@ -127,13 +127,13 @@ impl GuiRounding for crate::Vec2 {
 
 impl GuiRounding for crate::Pos2 {
     #[inline]
-    fn round_point(self) -> Self {
-        Self::new(self.x.round_point(), self.y.round_point())
+    fn round_ui(self) -> Self {
+        Self::new(self.x.round_ui(), self.y.round_ui())
     }
 
     #[inline]
-    fn floor_point(self) -> Self {
-        Self::new(self.x.floor_point(), self.y.floor_point())
+    fn floor_ui(self) -> Self {
+        Self::new(self.x.floor_ui(), self.y.floor_ui())
     }
 
     #[inline]
@@ -155,13 +155,13 @@ impl GuiRounding for crate::Pos2 {
 
 impl GuiRounding for crate::Rect {
     #[inline]
-    fn round_point(self) -> Self {
-        Self::from_min_size(self.min.round_point(), self.size().round_point())
+    fn round_ui(self) -> Self {
+        Self::from_min_size(self.min.round_ui(), self.size().round_ui())
     }
 
     #[inline]
-    fn floor_point(self) -> Self {
-        Self::from_min_size(self.min.floor_point(), self.size().floor_point())
+    fn floor_ui(self) -> Self {
+        Self::from_min_size(self.min.floor_ui(), self.size().floor_ui())
     }
 
     #[inline]
@@ -182,12 +182,12 @@ impl GuiRounding for crate::Rect {
 }
 
 #[test]
-fn test_round_point() {
-    assert_eq!(0.0_f32.round_point(), 0.0);
-    assert_eq!((GUI_ROUNDING * 1.11).round_point(), GUI_ROUNDING);
-    assert_eq!((-GUI_ROUNDING * 1.11).round_point(), -GUI_ROUNDING);
-    assert_eq!(f32::NEG_INFINITY.round_point(), f32::NEG_INFINITY);
-    assert_eq!(f32::INFINITY.round_point(), f32::INFINITY);
+fn test_gui_rounding() {
+    assert_eq!(0.0_f32.round_ui(), 0.0);
+    assert_eq!((GUI_ROUNDING * 1.11).round_ui(), GUI_ROUNDING);
+    assert_eq!((-GUI_ROUNDING * 1.11).round_ui(), -GUI_ROUNDING);
+    assert_eq!(f32::NEG_INFINITY.round_ui(), f32::NEG_INFINITY);
+    assert_eq!(f32::INFINITY.round_ui(), f32::INFINITY);
 
     assert_eq!(0.17_f32.round_to_pixel_center(2.0), 0.25);
 }

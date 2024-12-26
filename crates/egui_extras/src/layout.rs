@@ -123,7 +123,7 @@ impl<'l> StripLayout<'l> {
 
         // Make sure we don't have a gap in the stripe/frame/selection background:
         let item_spacing = self.ui.spacing().item_spacing;
-        let gapless_rect = max_rect.expand2(0.5 * item_spacing).round_point();
+        let gapless_rect = max_rect.expand2(0.5 * item_spacing).round_ui();
 
         if flags.striped {
             self.ui.painter().rect_filled(

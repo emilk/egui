@@ -181,7 +181,7 @@ impl GridLayout {
         let width = self.prev_state.col_width(self.col).unwrap_or(0.0);
         let height = self.prev_row_height(self.row);
         let size = child_size.max(vec2(width, height));
-        Rect::from_min_size(cursor.min, size).round_point()
+        Rect::from_min_size(cursor.min, size).round_ui()
     }
 
     #[allow(clippy::unused_self)]
@@ -189,7 +189,7 @@ impl GridLayout {
         // TODO(emilk): allow this alignment to be customized
         Align2::LEFT_CENTER
             .align_size_within_rect(size, frame)
-            .round_point()
+            .round_ui()
     }
 
     pub(crate) fn justify_and_align(&self, frame: Rect, size: Vec2) -> Rect {

@@ -650,12 +650,12 @@ fn galley_from_rows(
 
     if job.round_output_to_gui {
         for row in &mut rows {
-            row.rect = row.rect.round_point();
+            row.rect = row.rect.round_ui();
         }
 
         let did_exceed_wrap_width_by_a_lot = rect.width() > job.wrap.max_width + 1.0;
 
-        rect = rect.round_point();
+        rect = rect.round_ui();
 
         if did_exceed_wrap_width_by_a_lot {
             // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
@@ -666,7 +666,7 @@ fn galley_from_rows(
                 .max
                 .x
                 .at_most(rect.min.x + job.wrap.max_width)
-                .floor_point();
+                .floor_ui();
         }
     }
 

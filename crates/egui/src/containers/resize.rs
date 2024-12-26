@@ -222,7 +222,7 @@ impl Resize {
                 .at_most(
                     ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
                 )
-                .round_point();
+                .round_ui();
 
             State {
                 desired_size: default_size,
@@ -235,7 +235,7 @@ impl Resize {
             .desired_size
             .at_least(self.min_size)
             .at_most(self.max_size)
-            .round_point();
+            .round_ui();
 
         let mut user_requested_size = state.requested_size.take();
 

@@ -1298,7 +1298,7 @@ impl Ui {
     /// Ignore the layout of the [`Ui`]: just put my widget here!
     /// The layout cursor will advance to past this `rect`.
     pub fn allocate_rect(&mut self, rect: Rect, sense: Sense) -> Response {
-        let rect = rect.round_point();
+        let rect = rect.round_ui();
         let id = self.advance_cursor_after_rect(rect);
         self.interact(rect, id, sense)
     }
@@ -1306,7 +1306,7 @@ impl Ui {
     /// Allocate a rect without interacting with it.
     pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         debug_assert!(!rect.any_nan());
-        let rect = rect.round_point();
+        let rect = rect.round_ui();
 
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
@@ -3037,16 +3037,16 @@ fn register_rect(ui: &Ui, rect: Rect) {
                 .text(p0, Align2::LEFT_TOP, "Unaligned", font_id, color);
         };
 
-        if rect.left() != rect.left().round_point() {
+        if rect.left() != rect.left().round_ui() {
             unaligned_line(rect.left_top(), rect.left_bottom());
         }
-        if rect.right() != rect.right().round_point() {
+        if rect.right() != rect.right().round_ui() {
             unaligned_line(rect.right_top(), rect.right_bottom());
         }
-        if rect.top() != rect.top().round_point() {
+        if rect.top() != rect.top().round_ui() {
             unaligned_line(rect.left_top(), rect.right_top());
         }
-        if rect.bottom() != rect.bottom().round_point() {
+        if rect.bottom() != rect.bottom().round_ui() {
             unaligned_line(rect.left_bottom(), rect.right_bottom());
         }
     }

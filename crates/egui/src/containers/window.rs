@@ -830,7 +830,7 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
         rect.max.y = pointer_pos.y;
     }
 
-    Some(rect.round_point())
+    Some(rect.round_ui())
 }
 
 fn resize_interaction(
@@ -1070,7 +1070,7 @@ impl TitleBar {
             let item_spacing = ui.spacing().item_spacing;
             let button_size = Vec2::splat(ui.spacing().icon_width);
 
-            let pad = ((height - button_size.y) / 2.0).round_point(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
+            let pad = ((height - button_size.y) / 2.0).round_ui(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
             if collapsible {
                 ui.add_space(pad);

@@ -266,7 +266,7 @@ impl SidePanel {
             }
         }
 
-        panel_rect = panel_rect.round_point();
+        panel_rect = panel_rect.round_ui();
 
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
@@ -760,7 +760,7 @@ impl TopBottomPanel {
             }
         }
 
-        panel_rect = panel_rect.round_point();
+        panel_rect = panel_rect.round_ui();
 
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
@@ -1143,7 +1143,7 @@ impl CentralPanel {
             id,
             UiBuilder::new()
                 .layer_id(LayerId::background())
-                .max_rect(ctx.available_rect().round_point()),
+                .max_rect(ctx.available_rect().round_ui()),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 

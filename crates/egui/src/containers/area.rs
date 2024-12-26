@@ -68,7 +68,7 @@ impl AreaState {
             pivot_pos.x - self.pivot.x().to_factor() * size.x,
             pivot_pos.y - self.pivot.y().to_factor() * size.y,
         )
-        .round_point()
+        .round_ui()
     }
 
     /// Move the left top positions of the area.
@@ -83,7 +83,7 @@ impl AreaState {
     /// Where the area is on screen.
     pub fn rect(&self) -> Rect {
         let size = self.size.unwrap_or_default();
-        Rect::from_min_size(self.left_top_pos(), size).round_point()
+        Rect::from_min_size(self.left_top_pos(), size).round_ui()
     }
 }
 

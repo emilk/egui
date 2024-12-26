@@ -2134,7 +2134,7 @@ impl Context {
         pos.y = pos.y.at_most(area.bottom() + margin_y - window.height()); // move right if needed
         pos.y = pos.y.at_least(area.top() - margin_y); // move down if needed
 
-        Rect::from_min_size(pos, window.size()).round_point()
+        Rect::from_min_size(pos, window.size()).round_ui()
     }
 }
 
@@ -2567,7 +2567,7 @@ impl Context {
 
     /// Position and size of the egui area.
     pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.screen_rect()).round_point()
+        self.input(|i| i.screen_rect()).round_ui()
     }
 
     /// How much space is still available after panels has been added.
@@ -2575,7 +2575,7 @@ impl Context {
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
-        self.pass_state(|s| s.available_rect()).round_point()
+        self.pass_state(|s| s.available_rect()).round_ui()
     }
 
     /// How much space is used by panels and windows.
@@ -2585,7 +2585,7 @@ impl Context {
             for (_id, window) in ctx.memory.areas().visible_windows() {
                 used = used.union(window.rect());
             }
-            used.round_point()
+            used.round_ui()
         })
     }
 
@@ -2593,7 +2593,7 @@ impl Context {
     ///
     /// You can shrink your egui area to this size and still fit all egui components.
     pub fn used_size(&self) -> Vec2 {
-        (self.used_rect().max - Pos2::ZERO).round_point()
+        (self.used_rect().max - Pos2::ZERO).round_ui()
     }
 
     // ---------------------------------------------------------------------

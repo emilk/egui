@@ -96,18 +96,18 @@ impl FontImpl {
 
         use ab_glyph::{Font, ScaleFont};
         let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
-        let ascent = (scaled.ascent() / pixels_per_point).round_point();
-        let descent = (scaled.descent() / pixels_per_point).round_point();
-        let line_gap = (scaled.line_gap() / pixels_per_point).round_point();
+        let ascent = (scaled.ascent() / pixels_per_point).round_ui();
+        let descent = (scaled.descent() / pixels_per_point).round_ui();
+        let line_gap = (scaled.line_gap() / pixels_per_point).round_ui();
 
         // Tweak the scale as the user desired
         let scale_in_pixels = scale_in_pixels * tweak.scale;
         let scale_in_points = scale_in_pixels / pixels_per_point;
 
-        let baseline_offset = (scale_in_points * tweak.baseline_offset_factor).round_point();
+        let baseline_offset = (scale_in_points * tweak.baseline_offset_factor).round_ui();
 
         let y_offset_points =
-            ((scale_in_points * tweak.y_offset_factor) + tweak.y_offset).round_point();
+            ((scale_in_points * tweak.y_offset_factor) + tweak.y_offset).round_ui();
 
         // Center scaled glyphs properly:
         let height = ascent + descent;
