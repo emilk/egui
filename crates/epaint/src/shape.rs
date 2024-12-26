@@ -758,8 +758,7 @@ impl RectShape {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            self.rect
-                .expand((self.stroke.width + self.blur_width) / 2.0)
+            self.rect.expand(self.stroke.width + self.blur_width / 2.0)
         }
     }
 }
