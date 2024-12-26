@@ -11,7 +11,7 @@ use crate::{
     EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Rounding, Shape,
     Stroke, TextShape, TextureId, Vertex, WHITE_UV,
 };
-use emath::{pos2, remap, vec2, NumExt, Pos2, Rect, Rot2, Vec2};
+use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
 
 use self::color::ColorMode;
 use self::stroke::PathStroke;
@@ -671,9 +671,20 @@ pub struct TessellationOptions {
     /// from the font atlas.
     pub prerasterized_discs: bool,
 
-    /// If `true` (default) align text to mesh grid.
+    /// If `true` (default) align text to the physical pixel grid.
     /// This makes the text sharper on most platforms.
     pub round_text_to_pixels: bool,
+
+    /// If `true` (default), align right-angled line segments to the physical pixel grid.
+    ///
+    /// This makes the line segments appear crisp on any display.
+    pub round_line_segments_to_pixels: bool,
+
+    /// If `true` (default), align rectangles to the physical pixel grid.
+    ///
+    /// This makes the rectangle strokes more crisp,
+    /// and makes filled rectangles tile perfectly (without feathering).
+    pub round_rects_to_pixels: bool,
 
     /// Output the clip rectangles to be painted.
     pub debug_paint_clip_rects: bool,
@@ -708,6 +719,8 @@ impl Default for TessellationOptions {
             coarse_tessellation_culling: true,
             prerasterized_discs: true,
             round_text_to_pixels: true,
+            round_line_segments_to_pixels: true,
+            round_rects_to_pixels: true,
             debug_paint_text_rects: false,
             debug_paint_clip_rects: false,
             debug_ignore_clip_rects: false,
@@ -754,8 +767,11 @@ fn fill_closed_path(
 
     // TODO(juancampa): This bounding box is computed twice per shape: once here and another when tessellating the
     // stroke, consider hoisting that logic to the tessellator/scratchpad.
-    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-        .expand((stroke.width / 2.0) + feathering);
+    let bbox = if matches!(stroke.color, ColorMode::UV(_)) {
+        Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>()).expand(feathering)
+    } else {
+        Rect::NAN
+    };
 
     let stroke_color = &stroke.color;
     let get_stroke_color: Box<dyn Fn(Pos2) -> Color32> = match stroke_color {
@@ -900,7 +916,7 @@ fn fill_closed_path_with_uv(
 #[inline(always)]
 fn translate_stroke_point(p: &mut PathPoint, stroke: &PathStroke) {
     match stroke.kind {
-        stroke::StrokeKind::Middle => { /* Nothingn to do */ }
+        stroke::StrokeKind::Middle => { /* Nothing to do */ }
         stroke::StrokeKind::Outside => {
             p.pos += p.normal * stroke.width * 0.5;
         }
@@ -932,9 +948,13 @@ fn stroke_path(
             .for_each(|p| translate_stroke_point(p, stroke));
     }
 
-    // expand the bounding box to include the thickness of the path
-    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-        .expand((stroke.width / 2.0) + feathering);
+    // Expand the bounding box to include the thickness of the path
+    let bbox = if matches!(stroke.color, ColorMode::UV(_)) {
+        Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
+            .expand((stroke.width / 2.0) + feathering)
+    } else {
+        Rect::NAN
+    };
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
@@ -1386,7 +1406,9 @@ impl Tessellator {
 
                 out.append(mesh);
             }
-            Shape::LineSegment { points, stroke } => self.tessellate_line(points, stroke, out),
+            Shape::LineSegment { points, stroke } => {
+                self.tessellate_line_segment(points, stroke, out);
+            }
             Shape::Path(path_shape) => {
                 self.tessellate_path(&path_shape, out);
             }
@@ -1563,10 +1585,10 @@ impl Tessellator {
     ///
     /// * `shape`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_line(
+    pub fn tessellate_line_segment(
         &mut self,
-        points: [Pos2; 2],
-        stroke: impl Into<PathStroke>,
+        mut points: [Pos2; 2],
+        stroke: impl Into<Stroke>,
         out: &mut Mesh,
     ) {
         let stroke = stroke.into();
@@ -1582,10 +1604,38 @@ impl Tessellator {
             return;
         }
 
+        if self.options.round_line_segments_to_pixels {
+            let [a, b] = &mut points;
+            if a.x == b.x {
+                // Vertical line
+                let mut x = a.x;
+                round_line_segment(&mut x, &stroke, self.pixels_per_point);
+                a.x = x;
+                b.x = x;
+            }
+            if a.y == b.y {
+                // Horizontal line
+                let mut y = a.y;
+                round_line_segment(&mut y, &stroke, self.pixels_per_point);
+                a.y = y;
+                b.y = y;
+            }
+        }
+
         self.scratchpad_path.clear();
         self.scratchpad_path.add_line_segment(points);
         self.scratchpad_path
-            .stroke_open(self.feathering, &stroke, out);
+            .stroke_open(self.feathering, &stroke.into(), out);
+    }
+
+    #[deprecated = "Use `tessellate_line_segment` instead"]
+    pub fn tessellate_line(
+        &mut self,
+        points: [Pos2; 2],
+        stroke: impl Into<Stroke>,
+        out: &mut Mesh,
+    ) {
+        self.tessellate_line_segment(points, stroke, out);
     }
 
     /// Tessellate a single [`PathShape`] into a [`Mesh`].
@@ -1660,6 +1710,14 @@ impl Tessellator {
             return;
         }
 
+        if self.options.round_rects_to_pixels {
+            // Since the stroke extends outside of the rectangle,
+            // we can round the rectangle sides to the physical pixel edges,
+            // and the filled rect will appear crisp, as will the inside of the stroke.
+            let Stroke { .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
+            rect = rect.round_to_pixels(self.pixels_per_point);
+        }
+
         // It is common to (sometimes accidentally) create an infinitely sized rectangle.
         // Make sure we can handle that:
         rect.min = rect.min.at_least(pos2(-1e7, -1e7));
@@ -1688,46 +1746,33 @@ impl Tessellator {
             self.feathering = self.feathering.max(blur_width);
         }
 
-        if rect.width() < self.feathering {
+        if rect.width() < 0.5 * self.feathering {
             // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
             if fill != Color32::TRANSPARENT {
-                self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
+                self.tessellate_line_segment(line, Stroke::new(rect.width(), fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out); // back…
-                self.tessellate_line(line, stroke, out); // …and forth
+                self.tessellate_line_segment(line, stroke, out); // back…
+                self.tessellate_line_segment(line, stroke, out); // …and forth
             }
-        } else if rect.height() < self.feathering {
+        } else if rect.height() < 0.5 * self.feathering {
             // Very thin - approximate by a horizontal line-segment:
             let line = [rect.left_center(), rect.right_center()];
             if fill != Color32::TRANSPARENT {
-                self.tessellate_line(line, Stroke::new(rect.height(), fill), out);
+                self.tessellate_line_segment(line, Stroke::new(rect.height(), fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out); // back…
-                self.tessellate_line(line, stroke, out); // …and forth
+                self.tessellate_line_segment(line, stroke, out); // back…
+                self.tessellate_line_segment(line, stroke, out); // …and forth
             }
         } else {
-            let rect = if !stroke.is_empty() && stroke.width < self.feathering {
-                // Very thin rectangle strokes create extreme aliasing when they move around.
-                // We can fix that by rounding the rectangle corners to pixel centers.
-                // TODO(#5164): maybe do this for all shapes and stroke sizes
-                // TODO(emilk): since we use StrokeKind::Outside, we should probably round the
-                // corners after offsetting them with half the stroke width (see `translate_stroke_point`).
-                Rect {
-                    min: self.round_pos_to_pixel_center(rect.min),
-                    max: self.round_pos_to_pixel_center(rect.max),
-                }
-            } else {
-                rect
-            };
-
             let path = &mut self.scratchpad_path;
             path.clear();
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
             path.add_line_loop(&self.scratchpad_points);
             let path_stroke = PathStroke::from(stroke).outside();
+
             if uv.is_positive() {
                 // Textured
                 let uv_from_pos = |p: Pos2| {
@@ -1741,6 +1786,7 @@ impl Tessellator {
                 // Untextured
                 path.fill(self.feathering, fill, &path_stroke, out);
             }
+
             path.stroke_closed(self.feathering, &path_stroke, out);
         }
 
@@ -1966,6 +2012,45 @@ impl Tessellator {
         self.scratchpad_path
             .stroke(self.feathering, typ, stroke, out);
     }
+}
+
+fn round_line_segment(coord: &mut f32, stroke: &Stroke, pixels_per_point: f32) {
+    // If the stroke is an odd number of pixels wide,
+    // we want to round the center of it to the center of a pixel.
+    //
+    // If however it is an even number of pixels wide,
+    // we want to round the center to be between two pixels.
+    //
+    // We also want to treat strokes that are _almost_ odd as it it was odd,
+    // to make it symmetric. Same for strokes that are _almost_ even.
+    //
+    // For strokes less than a pixel wide we also round to the center,
+    // because it will rendered as a single row of pixels by the tessellator.
+
+    let pixel_size = 1.0 / pixels_per_point;
+
+    if stroke.width <= pixel_size || is_nearest_integer_odd(pixels_per_point * stroke.width) {
+        *coord = coord.round_to_pixel_center(pixels_per_point);
+    } else {
+        *coord = coord.round_to_pixels(pixels_per_point);
+    }
+}
+
+fn is_nearest_integer_odd(width: f32) -> bool {
+    (width * 0.5 + 0.25).fract() > 0.5
+}
+
+#[test]
+fn test_is_nearest_integer_odd() {
+    assert!(is_nearest_integer_odd(0.6));
+    assert!(is_nearest_integer_odd(1.0));
+    assert!(is_nearest_integer_odd(1.4));
+    assert!(!is_nearest_integer_odd(1.6));
+    assert!(!is_nearest_integer_odd(2.0));
+    assert!(!is_nearest_integer_odd(2.4));
+    assert!(is_nearest_integer_odd(2.6));
+    assert!(is_nearest_integer_odd(3.0));
+    assert!(is_nearest_integer_odd(3.4));
 }
 
 #[deprecated = "Use `Tessellator::new(…).tessellate_shapes(…)` instead"]

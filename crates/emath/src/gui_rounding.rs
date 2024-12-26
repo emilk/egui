@@ -116,6 +116,7 @@ impl GuiRounding for crate::Vec2 {
         )
     }
 
+    // This doesn't really make sense for a Vec2, but 🤷‍♂️
     #[inline]
     fn round_to_pixel_center(self, pixels_per_point: f32) -> Self {
         Self::new(

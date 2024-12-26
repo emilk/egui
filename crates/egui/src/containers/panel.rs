@@ -78,6 +78,13 @@ impl Side {
             Self::Right => rect.right(),
         }
     }
+
+    fn sign(self) -> f32 {
+        match self {
+            Self::Left => -1.0,
+            Self::Right => 1.0,
+        }
+    }
 }
 
 /// A panel that covers the entire left or right side of a [`Ui`] or screen.
@@ -349,12 +356,8 @@ impl SidePanel {
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_x = side.opposite().side_x(rect);
 
-            // This makes it pixel-perfect for odd-sized strokes (width=1.0, width=3.0, etc)
-            let resize_x = ui.painter().round_to_pixel_center(resize_x);
-
-            // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
-            // left-side panels
-            let resize_x = resize_x - if side == Side::Left { 1.0 } else { 0.0 };
+            // Make sure the line is on the inside of the panel:
+            let resize_x = resize_x + 0.5 * side.sign() * stroke.width;
             ui.painter().vline(resize_x, panel_rect.y_range(), stroke);
         }
 
@@ -560,6 +563,13 @@ impl TopBottomSide {
         match self {
             Self::Top => rect.top(),
             Self::Bottom => rect.bottom(),
+        }
+    }
+
+    fn sign(self) -> f32 {
+        match self {
+            Self::Top => -1.0,
+            Self::Bottom => 1.0,
         }
     }
 }
@@ -843,12 +853,8 @@ impl TopBottomPanel {
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_y = side.opposite().side_y(rect);
 
-            // This makes it pixel-perfect for odd-sized strokes (width=1.0, width=3.0, etc)
-            let resize_y = ui.painter().round_to_pixel_center(resize_y);
-
-            // We want the line exactly on the last pixel but rust rounds away from zero so we bring it back a bit for
-            // top-side panels
-            let resize_y = resize_y - if side == TopBottomSide::Top { 1.0 } else { 0.0 };
+            // Make sure the line is on the inside of the panel:
+            let resize_y = resize_y + 0.5 * side.sign() * stroke.width;
             ui.painter().hline(panel_rect.x_range(), resize_y, stroke);
         }
 

@@ -400,7 +400,9 @@ pub fn paint_resize_corner_with_style(
     corner: Align2,
 ) {
     let painter = ui.painter();
-    let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
+    let cp = corner
+        .pos_in_rect(rect)
+        .round_to_pixels(ui.pixels_per_point());
     let mut w = 2.0;
     let stroke = Stroke {
         width: 1.0, // Set width to 1.0 to prevent overlapping

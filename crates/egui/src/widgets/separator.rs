@@ -116,12 +116,12 @@ impl Widget for Separator {
             if is_horizontal_line {
                 painter.hline(
                     (rect.left() - grow)..=(rect.right() + grow),
-                    painter.round_to_pixel_center(rect.center().y),
+                    rect.center().y,
                     stroke,
                 );
             } else {
                 painter.vline(
-                    painter.round_to_pixel_center(rect.center().x),
+                    rect.center().x,
                     (rect.top() - grow)..=(rect.bottom() + grow),
                     stroke,
                 );
