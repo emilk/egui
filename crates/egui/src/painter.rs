@@ -49,14 +49,9 @@ impl Painter {
 
     /// Redirect where you are painting.
     #[must_use]
-    pub fn with_layer_id(self, layer_id: LayerId) -> Self {
-        Self {
-            ctx: self.ctx,
-            layer_id,
-            clip_rect: self.clip_rect,
-            fade_to_color: None,
-            opacity_factor: 1.0,
-        }
+    pub fn with_layer_id(mut self, layer_id: LayerId) -> Self {
+        self.layer_id = layer_id;
+        self
     }
 
     /// Create a painter for a sub-region of this [`Painter`].
@@ -64,13 +59,9 @@ impl Painter {
     /// The clip-rect of the returned [`Painter`] will be the intersection
     /// of the given rectangle and the `clip_rect()` of the parent [`Painter`].
     pub fn with_clip_rect(&self, rect: Rect) -> Self {
-        Self {
-            ctx: self.ctx.clone(),
-            layer_id: self.layer_id,
-            clip_rect: rect.intersect(self.clip_rect),
-            fade_to_color: self.fade_to_color,
-            opacity_factor: self.opacity_factor,
-        }
+        let mut new_self = self.clone();
+        new_self.clip_rect = rect.intersect(self.clip_rect);
+        new_self
     }
 
     /// Redirect where you are painting.
