@@ -15,7 +15,7 @@
 /// `f32` has 23 bits of mantissa, so if we use e.g. 1/8 as the rounding factor,
 /// we can represent all numbers up to 2^20 exactly, which is plenty
 /// (to my knowledge there are no displays that are a million pixels wide).
-pub const GUI_ROUNDING: f32 = 1.0 / 8.0;
+pub const GUI_ROUNDING: f32 = 1.0 / 32.0;
 
 /// Trait for rounding coordinates and sizes to align with either .
 ///
