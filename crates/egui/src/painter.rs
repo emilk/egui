@@ -400,6 +400,7 @@ impl Painter {
         })
     }
 
+    /// The stroke extends _outside_ the [`Rect`].
     pub fn rect(
         &self,
         rect: Rect,
@@ -419,6 +420,7 @@ impl Painter {
         self.add(RectShape::filled(rect, rounding, fill_color))
     }
 
+    /// The stroke extends _outside_ the [`Rect`].
     pub fn rect_stroke(
         &self,
         rect: Rect,

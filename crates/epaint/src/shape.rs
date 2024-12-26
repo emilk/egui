@@ -259,6 +259,7 @@ impl Shape {
         Self::Rect(RectShape::filled(rect, rounding, fill_color))
     }
 
+    /// The stroke extends _outside_ the [`Rect`].
     #[inline]
     pub fn rect_stroke(
         rect: Rect,
@@ -667,7 +668,12 @@ pub struct RectShape {
     pub fill: Color32,
 
     /// The thickness and color of the outline.
-    pub stroke: Stroke,
+    ///
+    /// The stroke extends _outside_ the edge of [`Self::rect`],
+    /// i.e. using [`StrokeKind::Outside`].
+    ///
+    /// This means the [`Self::visual_bounding_rect`] is `rect.size() + 2.0 * stroke.width`.
+    pub stroke: Stroke, // NOTE: if you change this to using [`PathStroke`], then remember to also update all member functions
 
     /// If larger than zero, the edges of the rectangle
     /// (for both fill and stroke) will be blurred.
@@ -692,6 +698,7 @@ pub struct RectShape {
 }
 
 impl RectShape {
+    /// The stroke extends _outside_ the [`Rect`].
     #[inline]
     pub fn new(
         rect: Rect,
@@ -727,6 +734,7 @@ impl RectShape {
         }
     }
 
+    /// The stroke extends _outside_ the [`Rect`].
     #[inline]
     pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
         Self {
