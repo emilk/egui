@@ -37,7 +37,7 @@ pub trait GuiRounding {
     ///
     /// This can be useful for crisp rendering.
     ///
-    /// The [`self`] should be in coorinates of _logical UI points_.
+    /// The [`self`] should be in coordinates of _logical UI points_.
     /// The argument [`pixels_per_point`] is the number of _physical pixels_ per logical UI point.
     /// For instance, on a high-DPI screen, `pixels_per_point` could be `2.0`.
     fn round_to_pixels(self, pixels_per_point: f32) -> Self;
