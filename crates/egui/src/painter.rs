@@ -40,13 +40,6 @@ pub struct Painter {
     /// this value as the factor.
     /// This is used to make interfaces semi-transparent.
     opacity_factor: f32,
-
-    /// If true, certain shapes will be aligned to lie perfectly on the physical pixel grid.
-    ///
-    /// This will help these shapes appear more sharp and crisp on screen.
-    ///
-    /// Only rectangles and horizontal and vertical lines are affected.
-    round_to_pixels: bool,
 }
 
 impl Painter {
@@ -60,7 +53,6 @@ impl Painter {
             clip_rect,
             fade_to_color: None,
             opacity_factor: 1.0,
-            round_to_pixels: true,
         }
     }
 
@@ -133,22 +125,6 @@ impl Painter {
     /// If `false`, nothing added to the painter will be visible
     pub fn set_invisible(&mut self) {
         self.fade_to_color = Some(Color32::TRANSPARENT);
-    }
-
-    /// Whether or not to round certain shapes to the physical pixel grid to make them sharper.
-    ///
-    /// This is on by default, but you can turn it off from more smoothly animating rectangles and line segments.
-    #[inline]
-    pub fn set_round_to_pixels(&mut self, round_to_pixels: bool) {
-        self.round_to_pixels = round_to_pixels;
-    }
-
-    /// Whether or not to round certain shapes to the physical pixel grid to make them sharper.
-    ///
-    /// This is on by default, but you can turn it off from more smoothly animating rectangles and line segments.
-    #[inline]
-    pub fn round_to_pixels(&self) -> bool {
-        self.round_to_pixels
     }
 
     /// Get a reference to the parent [`Context`].
@@ -254,9 +230,6 @@ impl Painter {
         }
         if self.opacity_factor < 1.0 {
             multiply_opacity(shape, self.opacity_factor);
-        }
-        if self.round_to_pixels {
-            shape.round_to_pixels(self.pixels_per_point);
         }
     }
 

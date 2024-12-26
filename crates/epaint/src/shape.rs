@@ -7,7 +7,7 @@ use crate::{
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke, TextureId,
 };
-use emath::{pos2, Align2, GuiRounding as _, Pos2, Rangef, Rect, TSTransform, Vec2};
+use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 pub use crate::{CubicBezierShape, QuadraticBezierShape};
 
@@ -356,96 +356,6 @@ impl Shape {
             Self::Callback(custom) => custom.rect,
         }
     }
-
-    /// Make the shape crisp by rounding it to the physical pixel grid.
-    pub fn round_to_pixels(&mut self, pixels_per_point: f32) {
-        match self {
-            Self::Vec(shapes) => {
-                for shape in shapes {
-                    shape.round_to_pixels(pixels_per_point);
-                }
-            }
-
-            Self::LineSegment {
-                stroke,
-                points: [a, b],
-            } => {
-                if a.x == b.x {
-                    // Vertical line
-                    let mut x = a.x;
-                    round_line_segment(&mut x, stroke, pixels_per_point);
-                    a.x = x;
-                    b.x = x;
-                }
-                if a.y == b.y {
-                    // Horizontal line
-                    let mut y = a.y;
-                    round_line_segment(&mut y, stroke, pixels_per_point);
-                    a.y = y;
-                    b.y = y;
-                }
-            }
-
-            Self::Rect(rect_shape) => {
-                rect_shape.round_to_pixels(pixels_per_point);
-            }
-
-            Self::Noop
-            | Self::Circle { .. }
-            | Self::Ellipse { .. }
-            | Self::Path { .. }
-            | Self::Text { .. }
-            | Self::Mesh { .. }
-            | Self::QuadraticBezier { .. }
-            | Self::CubicBezier { .. }
-            | Self::Callback { .. } => {
-                // No need to round these, or not easily done.
-            }
-        }
-    }
-}
-
-fn round_line_segment(coord: &mut f32, stroke: &Stroke, pixels_per_point: f32) {
-    if stroke.is_empty() {
-        return;
-    }
-
-    // If the stroke is an odd number of pixels wide,
-    // we want to round the center of it to the center of a pixel.
-    //
-    // If however it is an even number of pixels wide,
-    // we want to round the center to be between two pixels.
-    //
-    // We also want to treat strokes that are _almost_ odd as it it was odd,
-    // to make it symmetric. Same for strokes that are _almost_ even.
-    //
-    // For strokes less than a pixel wide we also round to the center,
-    // because it will rendered as a single row of pixels by the tessellator.
-
-    let pixel_size = 1.0 / pixels_per_point;
-
-    if stroke.width <= pixel_size || is_nearest_integer_odd(pixels_per_point * stroke.width) {
-        *coord = coord.round_to_pixel_center(pixels_per_point);
-    } else {
-        *coord = coord.round_to_pixels(pixels_per_point);
-    }
-}
-
-fn is_nearest_integer_odd(width: f32) -> bool {
-    (width * 0.5 + 0.25).fract() > 0.5
-}
-
-#[test]
-fn test_is_nearest_integer_odd() {
-    assert!(is_nearest_integer_odd(0.6));
-    assert!(is_nearest_integer_odd(1.0));
-    assert!(is_nearest_integer_odd(1.4));
-    assert!(!is_nearest_integer_odd(1.6));
-    assert!(!is_nearest_integer_odd(2.0));
-    assert!(!is_nearest_integer_odd(2.4));
-    assert!(is_nearest_integer_odd(2.6));
-    assert!(is_nearest_integer_odd(3.0));
-    assert!(is_nearest_integer_odd(3.4));
 }
 
 /// ## Inspection and transforms
@@ -859,14 +769,6 @@ impl RectShape {
             let Stroke { width, .. } = self.stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
             self.rect.expand(width + self.blur_width / 2.0)
         }
-    }
-
-    /// Round the shape so that it looks crisp on the physical pixel grid.
-    pub fn round_to_pixels(&mut self, pixels_per_point: f32) {
-        let Self { rect, stroke, .. } = self;
-        let Stroke { .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-        rect.min.x = rect.min.x.round_to_pixels(pixels_per_point);
-        rect.max.x = rect.max.x.round_to_pixels(pixels_per_point);
     }
 }
 
