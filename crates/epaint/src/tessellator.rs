@@ -767,8 +767,11 @@ fn fill_closed_path(
 
     // TODO(juancampa): This bounding box is computed twice per shape: once here and another when tessellating the
     // stroke, consider hoisting that logic to the tessellator/scratchpad.
-    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-        .expand((stroke.width / 2.0) + feathering);
+    let bbox = if matches!(stroke.color, ColorMode::UV(_)) {
+        Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>()).expand(feathering)
+    } else {
+        Rect::NAN
+    };
 
     let stroke_color = &stroke.color;
     let get_stroke_color: Box<dyn Fn(Pos2) -> Color32> = match stroke_color {
@@ -913,7 +916,7 @@ fn fill_closed_path_with_uv(
 #[inline(always)]
 fn translate_stroke_point(p: &mut PathPoint, stroke: &PathStroke) {
     match stroke.kind {
-        stroke::StrokeKind::Middle => { /* Nothingn to do */ }
+        stroke::StrokeKind::Middle => { /* Nothing to do */ }
         stroke::StrokeKind::Outside => {
             p.pos += p.normal * stroke.width * 0.5;
         }
@@ -945,9 +948,13 @@ fn stroke_path(
             .for_each(|p| translate_stroke_point(p, stroke));
     }
 
-    // expand the bounding box to include the thickness of the path
-    let bbox = Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
-        .expand((stroke.width / 2.0) + feathering);
+    // Expand the bounding box to include the thickness of the path
+    let bbox = if matches!(stroke.color, ColorMode::UV(_)) {
+        Rect::from_points(&path.iter().map(|p| p.pos).collect::<Vec<Pos2>>())
+            .expand((stroke.width / 2.0) + feathering)
+    } else {
+        Rect::NAN
+    };
 
     let get_color = |col: &ColorMode, pos: Pos2| match col {
         ColorMode::Solid(col) => *col,
