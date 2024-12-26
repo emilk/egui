@@ -493,8 +493,7 @@ impl Area {
 
         if constrain {
             state.set_left_top_pos(
-                ctx.constrain_window_rect_to_area(state.rect(), constrain_rect)
-                    .min,
+                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
             );
         }
 

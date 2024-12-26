@@ -794,7 +794,7 @@ fn resize_response(
     let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
     if area.constrain() {
-        new_rect = ctx.constrain_window_rect_to_area(new_rect, area.constrain_rect());
+        new_rect = Context::constrain_window_rect_to_area(new_rect, area.constrain_rect());
     }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
