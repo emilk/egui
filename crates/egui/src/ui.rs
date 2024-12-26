@@ -3018,7 +3018,7 @@ impl Drop for Ui {
 /// Show this rectangle to the user if certain debug options are set.
 #[cfg(debug_assertions)]
 fn register_rect(ui: &Ui, rect: Rect) {
-    use emath::Align2;
+    use emath::{Align2, GuiRounding};
 
     let debug = ui.style().debug;
 
@@ -3031,16 +3031,16 @@ fn register_rect(ui: &Ui, rect: Rect) {
                 .text(p0, Align2::LEFT_TOP, "Unaligned", font_id, color);
         };
 
-        if rect.left().fract() != 0.0 {
+        if rect.left() != rect.left().round_point() {
             unaligned_line(rect.left_top(), rect.left_bottom());
         }
-        if rect.right().fract() != 0.0 {
+        if rect.right() != rect.right().round_point() {
             unaligned_line(rect.right_top(), rect.right_bottom());
         }
-        if rect.top().fract() != 0.0 {
+        if rect.top() != rect.top().round_point() {
             unaligned_line(rect.left_top(), rect.right_top());
         }
-        if rect.bottom().fract() != 0.0 {
+        if rect.bottom() != rect.bottom().round_point() {
             unaligned_line(rect.left_bottom(), rect.right_bottom());
         }
     }
