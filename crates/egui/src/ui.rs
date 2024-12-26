@@ -483,6 +483,12 @@ impl Ui {
         &self.painter
     }
 
+    /// Number of physical pixels for each logical UI point.
+    #[inline]
+    pub fn pixels_per_point(&self) -> f32 {
+        self.painter.pixels_per_point()
+    }
+
     /// If `false`, the [`Ui`] does not allow any interaction and
     /// the widgets in it will draw with a gray look.
     #[inline]
