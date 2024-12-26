@@ -339,7 +339,7 @@ impl Painter {
 /// # Paint different primitives
 impl Painter {
     /// Paints a line from the first point to the second.
-    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<PathStroke>) -> ShapeIdx {
+    pub fn line_segment(&self, points: [Pos2; 2], stroke: impl Into<Stroke>) -> ShapeIdx {
         self.add(Shape::LineSegment {
             points,
             stroke: stroke.into(),
@@ -353,13 +353,13 @@ impl Painter {
     }
 
     /// Paints a horizontal line.
-    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> ShapeIdx {
-        self.add(Shape::hline(x, y, stroke.into()))
+    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> ShapeIdx {
+        self.add(Shape::hline(x, y, stroke))
     }
 
     /// Paints a vertical line.
-    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<PathStroke>) -> ShapeIdx {
-        self.add(Shape::vline(x, y, stroke.into()))
+    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> ShapeIdx {
+        self.add(Shape::vline(x, y, stroke))
     }
 
     pub fn circle(

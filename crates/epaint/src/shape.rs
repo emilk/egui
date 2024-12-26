@@ -35,10 +35,7 @@ pub enum Shape {
     Ellipse(EllipseShape),
 
     /// A line between two points.
-    LineSegment {
-        points: [Pos2; 2],
-        stroke: PathStroke,
-    },
+    LineSegment { points: [Pos2; 2], stroke: Stroke },
 
     /// A series of lines between points.
     /// The path can have a stroke and/or fill (if closed).
@@ -92,7 +89,7 @@ impl Shape {
     /// A line between two points.
     /// More efficient than calling [`Self::line`].
     #[inline]
-    pub fn line_segment(points: [Pos2; 2], stroke: impl Into<PathStroke>) -> Self {
+    pub fn line_segment(points: [Pos2; 2], stroke: impl Into<Stroke>) -> Self {
         Self::LineSegment {
             points,
             stroke: stroke.into(),
@@ -100,7 +97,7 @@ impl Shape {
     }
 
     /// A horizontal line.
-    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<PathStroke>) -> Self {
+    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> Self {
         let x = x.into();
         Self::LineSegment {
             points: [pos2(x.min, y), pos2(x.max, y)],
@@ -109,7 +106,7 @@ impl Shape {
     }
 
     /// A vertical line.
-    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<PathStroke>) -> Self {
+    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> Self {
         let y = y.into();
         Self::LineSegment {
             points: [pos2(x, y.min), pos2(x, y.max)],
