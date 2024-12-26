@@ -7,7 +7,7 @@ use crate::{
     text::{FontId, Fonts, Galley},
     Color32, Mesh, Stroke, TextureId,
 };
-use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
+use emath::{pos2, Align2, GuiRounding as _, Pos2, Rangef, Rect, TSTransform, Vec2};
 
 pub use crate::{CubicBezierShape, QuadraticBezierShape};
 
@@ -356,6 +356,68 @@ impl Shape {
             Self::Callback(custom) => custom.rect,
         }
     }
+
+    /// Make the shape crisp by rounding it to the physical pixel grid.
+    pub fn round_to_pixels(&mut self, pixels_per_points: f32) {
+        match self {
+            Self::Vec(shapes) => {
+                for shape in shapes {
+                    shape.round_to_pixels(pixels_per_points);
+                }
+            }
+
+            Self::LineSegment {
+                stroke,
+                points: [a, b],
+            } => {
+                let pixel_size = 1.0 / pixels_per_points;
+                if stroke.is_empty() {
+                    return;
+                }
+                if a.x == b.x {
+                    // Vertical line
+                    let mut x = a.x;
+                    if stroke.width <= 1.5 * pixel_size {
+                        // Approximately one pixel wide - put it in the middle of the pixel:
+                        x = x.round_to_pixel_center(pixels_per_points);
+                    } else if stroke.width <= 2.5 * pixel_size {
+                        // Approximately two pixels wide - make it cover two pixels:
+                        x = x.round_to_pixels(pixels_per_points);
+                    }
+                    a.x = x;
+                    b.x = x;
+                } else if a.y == b.y {
+                    // Horizontal line
+                    let mut y = a.y;
+                    if stroke.width <= 1.5 * pixel_size {
+                        // Approximately one pixel wide - put it in the middle of the pixel:
+                        y = y.round_to_pixel_center(pixels_per_points);
+                    } else if stroke.width <= 2.5 * pixel_size {
+                        // Approximately two pixels wide - make it cover two pixels:
+                        y = y.round_to_pixels(pixels_per_points);
+                    }
+                    a.y = y;
+                    b.y = y;
+                }
+            }
+
+            Self::Rect(rect_shape) => {
+                rect_shape.round_to_pixels(pixels_per_points);
+            }
+
+            Self::Noop
+            | Self::Circle { .. }
+            | Self::Ellipse { .. }
+            | Self::Path { .. }
+            | Self::Text { .. }
+            | Self::Mesh { .. }
+            | Self::QuadraticBezier { .. }
+            | Self::CubicBezier { .. }
+            | Self::Callback { .. } => {
+                // No need to round these, or not easily done.
+            }
+        }
+    }
 }
 
 /// ## Inspection and transforms
@@ -673,7 +735,7 @@ pub struct RectShape {
     /// i.e. using [`StrokeKind::Outside`].
     ///
     /// This means the [`Self::visual_bounding_rect`] is `rect.size() + 2.0 * stroke.width`.
-    pub stroke: Stroke, // NOTE: if you change this to using [`PathStroke`], then remember to also update all member functions
+    pub stroke: Stroke,
 
     /// If larger than zero, the edges of the rectangle
     /// (for both fill and stroke) will be blurred.
@@ -766,8 +828,17 @@ impl RectShape {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            self.rect.expand(self.stroke.width + self.blur_width / 2.0)
+            let Stroke { width, .. } = self.stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
+            self.rect.expand(width + self.blur_width / 2.0)
         }
+    }
+
+    /// Round the shape so that it looks crisp on the physical pixel grid.
+    pub fn round_to_pixels(&mut self, pixels_per_points: f32) {
+        let Self { rect, stroke, .. } = self;
+        let Stroke { .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
+        rect.min.x = rect.min.x.round_to_pixels(pixels_per_points);
+        rect.max.x = rect.max.x.round_to_pixels(pixels_per_points);
     }
 }
 
