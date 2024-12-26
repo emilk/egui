@@ -58,6 +58,7 @@ impl Painter {
 
     /// Redirect where you are painting.
     #[must_use]
+    #[inline]
     pub fn with_layer_id(mut self, layer_id: LayerId) -> Self {
         self.layer_id = layer_id;
         self
