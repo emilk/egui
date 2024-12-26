@@ -1138,6 +1138,7 @@ mod tests {
             LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
         layout_job.wrap.max_width = f32::INFINITY;
         layout_job.wrap.max_rows = 1;
+        layout_job.round_output_to_gui = false;
         let galley = layout(&mut fonts, layout_job.into());
         assert!(galley.elided);
         assert_eq!(
