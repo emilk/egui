@@ -358,11 +358,11 @@ impl Shape {
     }
 
     /// Make the shape crisp by rounding it to the physical pixel grid.
-    pub fn round_to_pixels(&mut self, pixels_per_points: f32) {
+    pub fn round_to_pixels(&mut self, pixels_per_point: f32) {
         match self {
             Self::Vec(shapes) => {
                 for shape in shapes {
-                    shape.round_to_pixels(pixels_per_points);
+                    shape.round_to_pixels(pixels_per_point);
                 }
             }
 
@@ -370,7 +370,7 @@ impl Shape {
                 stroke,
                 points: [a, b],
             } => {
-                let pixel_size = 1.0 / pixels_per_points;
+                let pixel_size = 1.0 / pixels_per_point;
                 if stroke.is_empty() {
                     return;
                 }
@@ -379,10 +379,10 @@ impl Shape {
                     let mut x = a.x;
                     if stroke.width <= 1.5 * pixel_size {
                         // Approximately one pixel wide - put it in the middle of the pixel:
-                        x = x.round_to_pixel_center(pixels_per_points);
+                        x = x.round_to_pixel_center(pixels_per_point);
                     } else if stroke.width <= 2.5 * pixel_size {
                         // Approximately two pixels wide - make it cover two pixels:
-                        x = x.round_to_pixels(pixels_per_points);
+                        x = x.round_to_pixels(pixels_per_point);
                     }
                     a.x = x;
                     b.x = x;
@@ -391,10 +391,10 @@ impl Shape {
                     let mut y = a.y;
                     if stroke.width <= 1.5 * pixel_size {
                         // Approximately one pixel wide - put it in the middle of the pixel:
-                        y = y.round_to_pixel_center(pixels_per_points);
+                        y = y.round_to_pixel_center(pixels_per_point);
                     } else if stroke.width <= 2.5 * pixel_size {
                         // Approximately two pixels wide - make it cover two pixels:
-                        y = y.round_to_pixels(pixels_per_points);
+                        y = y.round_to_pixels(pixels_per_point);
                     }
                     a.y = y;
                     b.y = y;
@@ -402,7 +402,7 @@ impl Shape {
             }
 
             Self::Rect(rect_shape) => {
-                rect_shape.round_to_pixels(pixels_per_points);
+                rect_shape.round_to_pixels(pixels_per_point);
             }
 
             Self::Noop
@@ -834,11 +834,11 @@ impl RectShape {
     }
 
     /// Round the shape so that it looks crisp on the physical pixel grid.
-    pub fn round_to_pixels(&mut self, pixels_per_points: f32) {
+    pub fn round_to_pixels(&mut self, pixels_per_point: f32) {
         let Self { rect, stroke, .. } = self;
         let Stroke { .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-        rect.min.x = rect.min.x.round_to_pixels(pixels_per_points);
-        rect.max.x = rect.max.x.round_to_pixels(pixels_per_points);
+        rect.min.x = rect.min.x.round_to_pixels(pixels_per_point);
+        rect.max.x = rect.max.x.round_to_pixels(pixels_per_point);
     }
 }
 

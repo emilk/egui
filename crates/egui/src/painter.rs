@@ -23,7 +23,7 @@ pub struct Painter {
     ctx: Context,
 
     /// For quick access, without having to go via [`self::ctx`].
-    pixels_per_points: f32,
+    pixels_per_point: f32,
 
     /// Where we paint
     layer_id: LayerId,
@@ -45,10 +45,10 @@ pub struct Painter {
 impl Painter {
     /// Create a painter to a specific layer within a certain clip rectangle.
     pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
-        let pixels_per_points = ctx.pixels_per_point();
+        let pixels_per_point = ctx.pixels_per_point();
         Self {
             ctx,
-            pixels_per_points,
+            pixels_per_point,
             layer_id,
             clip_rect,
             fade_to_color: None,
@@ -134,8 +134,9 @@ impl Painter {
     }
 
     /// Number of physical pixels for each logical UI point.
-    pub fn pixels_per_points(&self) -> f32 {
-        self.pixels_per_points
+    #[inline]
+    pub fn pixels_per_point(&self) -> f32 {
+        self.pixels_per_point
     }
 
     /// Read-only access to the shared [`Fonts`].
@@ -182,37 +183,37 @@ impl Painter {
     /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub fn round_to_pixel_center(&self, point: f32) -> f32 {
-        point.round_to_pixel_center(self.pixels_per_points())
+        point.round_to_pixel_center(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
-        pos.round_to_pixel_center(self.pixels_per_points())
+        pos.round_to_pixel_center(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering of filled shapes.
     #[inline]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
-        point.round_to_pixels(self.pixels_per_points())
+        point.round_to_pixels(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering.
     #[inline]
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        vec.round_to_pixels(self.pixels_per_points())
+        vec.round_to_pixels(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering.
     #[inline]
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
-        pos.round_to_pixels(self.pixels_per_points())
+        pos.round_to_pixels(self.pixels_per_point())
     }
 
     /// Useful for pixel-perfect rendering.
     #[inline]
     pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
-        rect.round_to_pixels(self.pixels_per_points())
+        rect.round_to_pixels(self.pixels_per_point())
     }
 }
 
