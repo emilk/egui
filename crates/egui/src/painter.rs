@@ -1,22 +1,29 @@
 use std::sync::Arc;
 
-use crate::{
-    emath::{Align2, Pos2, Rangef, Rect, Vec2},
-    layers::{LayerId, PaintList, ShapeIdx},
-    Color32, Context, FontId,
-};
+use emath::GuiRounding as _;
 use epaint::{
     text::{Fonts, Galley, LayoutJob},
     CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke,
 };
 
+use crate::{
+    emath::{Align2, Pos2, Rangef, Rect, Vec2},
+    layers::{LayerId, PaintList, ShapeIdx},
+    Color32, Context, FontId,
+};
+
 /// Helper to paint shapes and text to a specific region on a specific layer.
 ///
 /// All coordinates are screen coordinates in the unit points (one point can consist of many physical pixels).
+///
+/// A [`Painter`] never outlive a single frame/pass.
 #[derive(Clone)]
 pub struct Painter {
     /// Source of fonts and destination of shapes
     ctx: Context,
+
+    /// For quick access, without having to go via [`self::ctx`].
+    pixels_per_points: f32,
 
     /// Where we paint
     layer_id: LayerId,
@@ -38,8 +45,10 @@ pub struct Painter {
 impl Painter {
     /// Create a painter to a specific layer within a certain clip rectangle.
     pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
+        let pixels_per_points = ctx.pixels_per_point();
         Self {
             ctx,
+            pixels_per_points,
             layer_id,
             clip_rect,
             fade_to_color: None,
@@ -117,14 +126,16 @@ impl Painter {
     pub fn set_invisible(&mut self) {
         self.fade_to_color = Some(Color32::TRANSPARENT);
     }
-}
 
-/// ## Accessors etc
-impl Painter {
     /// Get a reference to the parent [`Context`].
     #[inline]
     pub fn ctx(&self) -> &Context {
         &self.ctx
+    }
+
+    /// Number of physical pixels for each logical UI point.
+    pub fn pixels_per_points(&self) -> f32 {
+        self.pixels_per_points
     }
 
     /// Read-only access to the shared [`Fonts`].
@@ -171,37 +182,37 @@ impl Painter {
     /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub fn round_to_pixel_center(&self, point: f32) -> f32 {
-        self.ctx().round_to_pixel_center(point)
+        point.round_to_pixel_center(self.pixels_per_points())
     }
 
     /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
     #[inline]
     pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
-        self.ctx().round_pos_to_pixel_center(pos)
+        pos.round_to_pixel_center(self.pixels_per_points())
     }
 
     /// Useful for pixel-perfect rendering of filled shapes.
     #[inline]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
-        self.ctx().round_to_pixel(point)
+        point.round_to_pixels(self.pixels_per_points())
     }
 
     /// Useful for pixel-perfect rendering.
     #[inline]
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        self.ctx().round_vec_to_pixels(vec)
+        vec.round_to_pixels(self.pixels_per_points())
     }
 
     /// Useful for pixel-perfect rendering.
     #[inline]
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
-        self.ctx().round_pos_to_pixels(pos)
+        pos.round_to_pixels(self.pixels_per_points())
     }
 
     /// Useful for pixel-perfect rendering.
     #[inline]
     pub fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
-        self.ctx().round_rect_to_pixels(rect)
+        rect.round_to_pixels(self.pixels_per_points())
     }
 }
 
