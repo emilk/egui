@@ -2,6 +2,8 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
+use emath::GuiRounding as _;
+
 use crate::{
     emath, pos2, Align2, Context, Id, InnerResponse, LayerId, NumExt, Order, Pos2, Rect, Response,
     Sense, Ui, UiBuilder, UiKind, UiStackInfo, Vec2, WidgetRect, WidgetWithState,
@@ -66,6 +68,7 @@ impl AreaState {
             pivot_pos.x - self.pivot.x().to_factor() * size.x,
             pivot_pos.y - self.pivot.y().to_factor() * size.y,
         )
+        .round_ui()
     }
 
     /// Move the left top positions of the area.
@@ -80,7 +83,7 @@ impl AreaState {
     /// Where the area is on screen.
     pub fn rect(&self) -> Rect {
         let size = self.size.unwrap_or_default();
-        Rect::from_min_size(self.left_top_pos(), size)
+        Rect::from_min_size(self.left_top_pos(), size).round_ui()
     }
 }
 
@@ -493,12 +496,11 @@ impl Area {
 
         if constrain {
             state.set_left_top_pos(
-                ctx.constrain_window_rect_to_area(state.rect(), constrain_rect)
-                    .min,
+                Context::constrain_window_rect_to_area(state.rect(), constrain_rect).min,
             );
         }
 
-        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
+        state.set_left_top_pos(state.left_top_pos());
 
         // Update response with possibly moved/constrained rect:
         move_response.rect = state.rect();

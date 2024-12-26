@@ -221,7 +221,8 @@ impl Resize {
                 .at_most(self.max_size)
                 .at_most(
                     ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
-                );
+                )
+                .round_ui();
 
             State {
                 desired_size: default_size,
@@ -233,7 +234,8 @@ impl Resize {
         state.desired_size = state
             .desired_size
             .at_least(self.min_size)
-            .at_most(self.max_size);
+            .at_most(self.max_size)
+            .round_ui();
 
         let mut user_requested_size = state.requested_size.take();
 
@@ -383,6 +385,7 @@ impl Resize {
     }
 }
 
+use emath::GuiRounding as _;
 use epaint::Stroke;
 
 pub fn paint_resize_corner(ui: &Ui, response: &Response) {

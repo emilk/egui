@@ -1,5 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
+use emath::GuiRounding as _;
+
 use crate::{
     text::{LayoutJob, TextWrapping},
     Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, TextWrapMode, Ui, Visuals,
@@ -278,6 +280,8 @@ impl RichText {
     }
 
     /// Read the font height of the selected text style.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         let mut font_id = self.text_style.as_ref().map_or_else(
             || FontSelection::Default.resolve(style),
@@ -635,15 +639,16 @@ impl WidgetText {
         }
     }
 
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub(crate) fn font_height(&self, fonts: &epaint::Fonts, style: &Style) -> f32 {
         match self {
             Self::RichText(text) => text.font_height(fonts, style),
             Self::LayoutJob(job) => job.font_height(fonts),
             Self::Galley(galley) => {
                 if let Some(row) = galley.rows.first() {
-                    row.height()
+                    row.height().round_ui()
                 } else {
-                    galley.size().y
+                    galley.size().y.round_ui()
                 }
             }
         }

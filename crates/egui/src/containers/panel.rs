@@ -15,6 +15,8 @@
 //!
 //! Add your [`crate::Window`]:s after any top-level panels.
 
+use emath::GuiRounding as _;
+
 use crate::{
     lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
     Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
@@ -263,6 +265,8 @@ impl SidePanel {
                 }
             }
         }
+
+        panel_rect = panel_rect.round_ui();
 
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
@@ -756,6 +760,8 @@ impl TopBottomPanel {
             }
         }
 
+        panel_rect = panel_rect.round_ui();
+
         let mut panel_ui = ui.new_child(
             UiBuilder::new()
                 .id_salt(id)
@@ -1130,7 +1136,6 @@ impl CentralPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let available_rect = ctx.available_rect();
         let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let mut panel_ui = Ui::new(
@@ -1138,7 +1143,7 @@ impl CentralPanel {
             id,
             UiBuilder::new()
                 .layer_id(LayerId::background())
-                .max_rect(available_rect),
+                .max_rect(ctx.available_rect().round_ui()),
         );
         panel_ui.set_clip_rect(ctx.screen_rect());
 
