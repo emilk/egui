@@ -917,30 +917,51 @@ fn resize_interaction(
     }
 
     // ----------------------------------------
-    // Now check corners:
+    // Now check corners.
+    // We check any corner that has either side resizable,
+    // because we shrink the side resize handled by the corner width.
+    // Also, even if we can only change the width (or height) of a window,
+    // we show one of the corners as a grab-handle, so it makes sense that
+    // the whole corner is grabbable:
 
-    if possible.resize_right && possible.resize_bottom {
+    if possible.resize_right || possible.resize_bottom {
         let response = side_response(corner_rect(rect.right_bottom()), id.with("right_bottom"));
+        if possible.resize_right {
         right |= response;
+        }
+        if possible.resize_bottom {
         bottom |= response;
     }
+    }
 
-    if possible.resize_right && possible.resize_top {
+    if possible.resize_right || possible.resize_top {
         let response = side_response(corner_rect(rect.right_top()), id.with("right_top"));
+        if possible.resize_right {
         right |= response;
+        }
+        if possible.resize_top {
         top |= response;
     }
+    }
 
-    if possible.resize_left && possible.resize_bottom {
+    if possible.resize_left || possible.resize_bottom {
         let response = side_response(corner_rect(rect.left_bottom()), id.with("left_bottom"));
+        if possible.resize_left {
         left |= response;
+        }
+        if possible.resize_bottom {
         bottom |= response;
     }
+    }
 
-    if possible.resize_left && possible.resize_top {
+    if possible.resize_left || possible.resize_top {
         let response = side_response(corner_rect(rect.left_top()), id.with("left_top"));
+        if possible.resize_left {
         left |= response;
+        }
+        if possible.resize_top {
         top |= response;
+    }
     }
 
     let interaction = ResizeInteraction {
