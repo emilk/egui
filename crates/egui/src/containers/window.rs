@@ -849,7 +849,7 @@ fn resize_interaction(
         };
     }
 
-    let is_dragging = |rect, id| {
+    let side_response = |rect, id| {
         let response = ctx.create_widget(
             WidgetRect {
                 layer_id,
@@ -872,6 +872,12 @@ fn resize_interaction(
     let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
     let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
 
+    let vetrtical_rect = |a: Pos2, b: Pos2| {
+        Rect::from_min_max(a, b).expand2(vec2(side_grab_radius, -corner_grab_radius))
+    };
+    let horizontal_rect = |a: Pos2, b: Pos2| {
+        Rect::from_min_max(a, b).expand2(vec2(-corner_grab_radius, side_grab_radius))
+    };
     let corner_rect =
         |center: Pos2| Rect::from_center_size(center, Vec2::splat(2.0 * corner_grab_radius));
 
@@ -882,29 +888,29 @@ fn resize_interaction(
     // Check sides first, so that corners are on top, covering the sides (i.e. corners have priority)
 
     if possible.resize_right {
-        let response = is_dragging(
-            Rect::from_min_max(rect.right_top(), rect.right_bottom()).expand(side_grab_radius),
+        let response = side_response(
+            vetrtical_rect(rect.right_top(), rect.right_bottom()),
             id.with("right"),
         );
         right |= response;
     }
     if possible.resize_left {
-        let response = is_dragging(
-            Rect::from_min_max(rect.left_top(), rect.left_bottom()).expand(side_grab_radius),
+        let response = side_response(
+            vetrtical_rect(rect.left_top(), rect.left_bottom()),
             id.with("left"),
         );
         left |= response;
     }
     if possible.resize_bottom {
-        let response = is_dragging(
-            Rect::from_min_max(rect.left_bottom(), rect.right_bottom()).expand(side_grab_radius),
+        let response = side_response(
+            horizontal_rect(rect.left_bottom(), rect.right_bottom()),
             id.with("bottom"),
         );
         bottom |= response;
     }
     if possible.resize_top {
-        let response = is_dragging(
-            Rect::from_min_max(rect.left_top(), rect.right_top()).expand(side_grab_radius),
+        let response = side_response(
+            horizontal_rect(rect.left_top(), rect.right_top()),
             id.with("top"),
         );
         top |= response;
@@ -914,25 +920,25 @@ fn resize_interaction(
     // Now check corners:
 
     if possible.resize_right && possible.resize_bottom {
-        let response = is_dragging(corner_rect(rect.right_bottom()), id.with("right_bottom"));
+        let response = side_response(corner_rect(rect.right_bottom()), id.with("right_bottom"));
         right |= response;
         bottom |= response;
     }
 
     if possible.resize_right && possible.resize_top {
-        let response = is_dragging(corner_rect(rect.right_top()), id.with("right_top"));
+        let response = side_response(corner_rect(rect.right_top()), id.with("right_top"));
         right |= response;
         top |= response;
     }
 
     if possible.resize_left && possible.resize_bottom {
-        let response = is_dragging(corner_rect(rect.left_bottom()), id.with("left_bottom"));
+        let response = side_response(corner_rect(rect.left_bottom()), id.with("left_bottom"));
         left |= response;
         bottom |= response;
     }
 
     if possible.resize_left && possible.resize_top {
-        let response = is_dragging(corner_rect(rect.left_top()), id.with("left_top"));
+        let response = side_response(corner_rect(rect.left_top()), id.with("left_top"));
         left |= response;
         top |= response;
     }
