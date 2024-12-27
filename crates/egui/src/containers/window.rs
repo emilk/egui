@@ -583,6 +583,7 @@ impl<'open> Window<'open> {
                     outer_rect,
                     frame_stroke,
                     window_frame.rounding,
+                    resize_interaction,
                 );
 
                 // END FRAME --------------------------------
@@ -651,29 +652,30 @@ fn paint_resize_corner(
     outer_rect: Rect,
     stroke: impl Into<Stroke>,
     rounding: impl Into<Rounding>,
+    i: ResizeInteraction,
 ) {
-    let stroke = stroke.into();
+    let inactive_stroke = stroke.into();
     let rounding = rounding.into();
-    let (corner, radius) = if possible.resize_right && possible.resize_bottom {
-        (Align2::RIGHT_BOTTOM, rounding.se)
+    let (corner, radius, corner_response) = if possible.resize_right && possible.resize_bottom {
+        (Align2::RIGHT_BOTTOM, rounding.se, i.right & i.bottom)
     } else if possible.resize_left && possible.resize_bottom {
-        (Align2::LEFT_BOTTOM, rounding.sw)
+        (Align2::LEFT_BOTTOM, rounding.sw, i.left & i.bottom)
     } else if possible.resize_left && possible.resize_top {
-        (Align2::LEFT_TOP, rounding.nw)
+        (Align2::LEFT_TOP, rounding.nw, i.left & i.top)
     } else if possible.resize_right && possible.resize_top {
-        (Align2::RIGHT_TOP, rounding.ne)
+        (Align2::RIGHT_TOP, rounding.ne, i.right & i.top)
     } else {
         // We're not in two directions, but it is still nice to tell the user
         // we're resizable by painting the resize corner in the expected place
         // (i.e. for windows only resizable in one direction):
         if possible.resize_right || possible.resize_bottom {
-            (Align2::RIGHT_BOTTOM, rounding.se)
+            (Align2::RIGHT_BOTTOM, rounding.se, i.right & i.bottom)
         } else if possible.resize_left || possible.resize_bottom {
-            (Align2::LEFT_BOTTOM, rounding.sw)
+            (Align2::LEFT_BOTTOM, rounding.sw, i.left & i.bottom)
         } else if possible.resize_left || possible.resize_top {
-            (Align2::LEFT_TOP, rounding.nw)
+            (Align2::LEFT_TOP, rounding.nw, i.left & i.top)
         } else if possible.resize_right || possible.resize_top {
-            (Align2::RIGHT_TOP, rounding.ne)
+            (Align2::RIGHT_TOP, rounding.ne, i.right & i.top)
         } else {
             return;
         }
@@ -682,6 +684,14 @@ fn paint_resize_corner(
     // Adjust the corner offset to accommodate for window rounding
     let offset =
         ((2.0_f32.sqrt() * (1.0 + radius) - radius) * 45.0_f32.to_radians().cos()).max(2.0);
+
+    let stroke = if corner_response.drag {
+        ui.visuals().widgets.active.fg_stroke
+    } else if corner_response.hover {
+        ui.visuals().widgets.hovered.fg_stroke
+    } else {
+        inactive_stroke
+    };
 
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
@@ -741,6 +751,17 @@ struct SideResponse {
 impl SideResponse {
     pub fn any(&self) -> bool {
         self.hover || self.drag
+    }
+}
+
+impl std::ops::BitAnd for SideResponse {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self {
+            hover: self.hover && rhs.hover,
+            drag: self.drag && rhs.drag,
+        }
     }
 }
 
@@ -927,41 +948,41 @@ fn resize_interaction(
     if possible.resize_right || possible.resize_bottom {
         let response = side_response(corner_rect(rect.right_bottom()), id.with("right_bottom"));
         if possible.resize_right {
-        right |= response;
+            right |= response;
         }
         if possible.resize_bottom {
-        bottom |= response;
-    }
+            bottom |= response;
+        }
     }
 
     if possible.resize_right || possible.resize_top {
         let response = side_response(corner_rect(rect.right_top()), id.with("right_top"));
         if possible.resize_right {
-        right |= response;
+            right |= response;
         }
         if possible.resize_top {
-        top |= response;
-    }
+            top |= response;
+        }
     }
 
     if possible.resize_left || possible.resize_bottom {
         let response = side_response(corner_rect(rect.left_bottom()), id.with("left_bottom"));
         if possible.resize_left {
-        left |= response;
+            left |= response;
         }
         if possible.resize_bottom {
-        bottom |= response;
-    }
+            bottom |= response;
+        }
     }
 
     if possible.resize_left || possible.resize_top {
         let response = side_response(corner_rect(rect.left_top()), id.with("left_top"));
         if possible.resize_left {
-        left |= response;
+            left |= response;
         }
         if possible.resize_top {
-        top |= response;
-    }
+            top |= response;
+        }
     }
 
     let interaction = ResizeInteraction {
