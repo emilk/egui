@@ -256,10 +256,6 @@ pub(crate) fn interact(
         // In that case we want to hover _both_ widgets,
         // otherwise we won't see tooltips for the label.
         //
-        // Because of how `Ui` work, we will often allocate the `Ui` rect
-        // _after_ adding the children in it (once we know the size it will occopy)
-        // so we will also have a lot of such `Ui` widgets rects covering almost any widget.
-        //
         // So: we want to hover _all_ widgets above the interactive widget (if any),
         // but none below it (an interactive widget stops the hover search).
         //
@@ -275,8 +271,16 @@ pub(crate) fn interact(
         let mut hovered: IdSet = hits.click.iter().chain(&hits.drag).map(|w| w.id).collect();
 
         for w in &hits.contains_pointer {
-            if top_interactive_order <= order(w.id).unwrap_or(0) {
-                hovered.insert(w.id);
+            let is_interactive = w.sense.click || w.sense.drag;
+            if is_interactive {
+                // The only interactive widgets we mark as hovered are the ones
+                // in `hits.click` and `hits.drag`!
+            } else {
+                let is_on_top_of_the_interactive_widget =
+                    top_interactive_order <= order(w.id).unwrap_or(0);
+                if is_on_top_of_the_interactive_widget {
+                    hovered.insert(w.id);
+                }
             }
         }
 
