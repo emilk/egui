@@ -157,6 +157,9 @@ impl Default for DemoWindows {
         let mut open = BTreeSet::new();
 
         // Explains egui very well
+        set_open(&mut open, About::default().name(), true);
+
+        // Explains egui very well
         set_open(
             &mut open,
             super::code_example::CodeExample::default().name(),
