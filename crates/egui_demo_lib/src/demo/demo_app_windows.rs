@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
+use egui::{Context, Modifiers, ScrollArea, Ui};
 
 use super::About;
 use crate::is_mobile;
@@ -199,30 +199,23 @@ impl DemoWindows {
 
     fn mobile_ui(&mut self, ctx: &Context) {
         if self.about_is_open {
-            let screen_size = ctx.input(|i| i.screen_rect.size());
-            let default_width = (screen_size.x - 32.0).at_most(400.0);
-
             let mut close = false;
-            egui::Window::new(self.about.name())
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .default_width(default_width)
-                .default_height(ctx.available_rect().height() - 46.0)
-                .vscroll(true)
-                .open(&mut self.about_is_open)
-                .resizable(false)
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    self.about.ui(ui);
-                    ui.add_space(12.0);
-                    ui.vertical_centered_justified(|ui| {
-                        if ui
-                            .button(egui::RichText::new("Continue to the demo!").size(20.0))
-                            .clicked()
-                        {
-                            close = true;
-                        }
+            egui::CentralPanel::default().show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .auto_shrink(false)
+                    .show(ui, |ui| {
+                        self.about.ui(ui);
+                        ui.add_space(12.0);
+                        ui.vertical_centered_justified(|ui| {
+                            if ui
+                                .button(egui::RichText::new("Continue to the demo!").size(20.0))
+                                .clicked()
+                            {
+                                close = true;
+                            }
+                        });
                     });
-                });
+            });
             self.about_is_open &= !close;
         } else {
             self.mobile_top_bar(ctx);
