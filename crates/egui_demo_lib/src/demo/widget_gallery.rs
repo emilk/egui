@@ -50,7 +50,7 @@ impl crate::Demo for WidgetGallery {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable([true, false])
+            .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .default_width(280.0)
             .show(ctx, |ui| {
                 use crate::View as _;
@@ -254,7 +254,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.hyperlink_to(
-            "Custom widget:",
+            "Custom widget",
             super::toggle_switch::url_to_file_source_code(),
         );
         ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
@@ -274,10 +274,9 @@ fn doc_link_label_with_crate<'a>(
     title: &'a str,
     search_term: &'a str,
 ) -> impl egui::Widget + 'a {
-    let label = format!("{title}:");
     let url = format!("https://docs.rs/{crate_name}?search={search_term}");
     move |ui: &mut egui::Ui| {
-        ui.hyperlink_to(label, url).on_hover_ui(|ui| {
+        ui.hyperlink_to(title, url).on_hover_ui(|ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Search egui docs for");
                 ui.code(search_term);

@@ -111,7 +111,7 @@ impl crate::Demo for CodeExample {
             .min_width(375.0)
             .default_size([390.0, 500.0])
             .scroll(false)
-            .resizable([true, false])
+            .resizable([true, false]) // resizable so we can shrink if the text edit grows
             .show(ctx, |ui| self.ui(ui));
     }
 }
