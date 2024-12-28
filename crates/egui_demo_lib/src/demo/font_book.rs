@@ -85,7 +85,7 @@ impl crate::View for FontBook {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::Vec2::splat(2.0);
 
-                for (&chr, glyph_info) in available_glyphs {
+                for (&chr, glyph_info) in available_glyphs.iter() {
                     if filter.is_empty()
                         || glyph_info.name.contains(filter)
                         || *filter == chr.to_string()
@@ -96,13 +96,9 @@ impl crate::View for FontBook {
                         .frame(false);
 
                         let tooltip_ui = |ui: &mut egui::Ui| {
-                            ui.label(
-                                egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
-                            );
-                            ui.label(format!(
-                                "{}\nU+{:X}\n\nFound in: {:?}\n\nClick to copy",
-                                glyph_info.name, chr as u32, glyph_info.fonts
-                            ));
+                            let font_id = self.font_id.clone();
+
+                            char_info_ui(ui, chr, glyph_info, font_id);
                         };
 
                         if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
@@ -113,6 +109,35 @@ impl crate::View for FontBook {
             });
         });
     }
+}
+
+fn char_info_ui(ui: &mut egui::Ui, chr: char, glyph_info: &GlyphInfo, font_id: egui::FontId) {
+    let resp = ui.label(egui::RichText::new(chr.to_string()).font(font_id));
+
+    egui::Grid::new("char_info")
+        .num_columns(2)
+        .striped(true)
+        .show(ui, |ui| {
+            ui.label("Name");
+            ui.label(glyph_info.name.clone());
+            ui.end_row();
+
+            ui.label("Hex");
+            ui.label(format!("{:X}", chr as u32));
+            ui.end_row();
+
+            ui.label("Width");
+            ui.label(format!("{:.1} pts", resp.rect.width()));
+            ui.end_row();
+
+            ui.label("Fonts");
+            ui.label(
+                format!("{:?}", glyph_info.fonts)
+                    .trim_start_matches('[')
+                    .trim_end_matches(']'),
+            );
+            ui.end_row();
+        });
 }
 
 fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, GlyphInfo> {
