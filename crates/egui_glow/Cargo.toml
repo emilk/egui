@@ -33,7 +33,7 @@ default = []
 ## enable cut/copy/paste to os clipboard.
 ##
 ## if disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["egui-winit?/clipboard"]
+clipboard = ["egui-winit?/clipboard-nonwayland"]
 
 ## For the `winit` integration:
 ## enable opening links in a browser when an egui hyperlink is clicked.
@@ -43,7 +43,7 @@ links = ["egui-winit?/links"]
 winit = ["egui-winit", "dep:winit"]
 
 ## Enables Wayland support for winit.
-wayland = ["winit?/wayland"]
+wayland = ["winit?/wayland", "egui-winit/clipboard-wayland"]
 
 ## Enables x11 support for winit.
 x11 = ["winit?/x11"]

@@ -21,7 +21,7 @@ all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
 
 [features]
-default = ["clipboard", "links", "wayland", "winit/default", "x11"]
+default = ["clipboard-nonwayland", "links", "wayland", "winit/default", "x11"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["dep:accesskit_winit", "egui/accesskit"]
@@ -40,7 +40,13 @@ bytemuck = ["egui/bytemuck"]
 
 ## Enable cut/copy/paste to OS clipboard.
 ## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["arboard", "smithay-clipboard"]
+clipboard = ["clipboard-nonwayland", "clipboard-wayland"]
+## Enable cut/copy/paste to OS clipboard on **non-wayland** systems.
+## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard-nonwayland = ["arboard"]
+## Enable cut/copy/paste to OS clipboard on **wayland** systems.
+## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
+clipboard-wayland = ["wayland", "smithay-clipboard"]
 
 ## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
