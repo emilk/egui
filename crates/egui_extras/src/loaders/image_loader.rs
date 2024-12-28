@@ -118,6 +118,10 @@ impl ImageLoader for ImageCrateLoader {
             })
             .sum()
     }
+
+    fn frame_count(&self, _uri: &str) -> usize {
+        1
+    }
 }
 
 #[cfg(test)]

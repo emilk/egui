@@ -3320,6 +3320,11 @@ impl Context {
 
         profiling::function_scope!();
 
+        if uri.is_empty() {
+            return;
+        }
+
+        let mut frame_count: usize = 0;
         let loaders = self.loaders();
 
         loaders.include.forget(uri);
@@ -3327,9 +3332,18 @@ impl Context {
             loader.forget(uri);
         }
         for loader in loaders.image.lock().iter() {
+            if crate::is_gif_uri(uri) {
+                frame_count = loader.frame_count(uri).max(frame_count);
+            }
             loader.forget(uri);
         }
         for loader in loaders.texture.lock().iter() {
+            if crate::is_gif_uri(uri) {
+                for frame_index in 0..frame_count {
+                    let frame_uri = crate::encode_gif_uri(uri, frame_index);
+                    loader.forget(&frame_uri);
+                }
+            }
             loader.forget(uri);
         }
     }
