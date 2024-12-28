@@ -10,17 +10,72 @@ use crate::View;
 // ----------------------------------------------------------------------------
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-struct Demos {
+struct DemoGroup {
     #[cfg_attr(feature = "serde", serde(skip))]
     demos: Vec<Box<dyn Demo>>,
 
     open: BTreeSet<String>,
 }
 
-impl Default for Demos {
+impl DemoGroup {
+    pub fn new(demos: Vec<Box<dyn Demo>>) -> Self {
+        Self {
+            demos,
+            open: Default::default(),
+        }
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn set_open(&mut self, demo: impl Demo + 'static, is_open: bool) {
+        set_open(&mut self.open, demo.name(), is_open);
+    }
+
+    pub fn checkboxes(&mut self, ui: &mut Ui) {
+        let Self { demos, open } = self;
+        for demo in demos {
+            if demo.is_enabled(ui.ctx()) {
+                let mut is_open = open.contains(demo.name());
+                ui.toggle_value(&mut is_open, demo.name());
+                set_open(open, demo.name(), is_open);
+            }
+        }
+    }
+
+    pub fn windows(&mut self, ctx: &Context) {
+        let Self { demos, open } = self;
+        for demo in demos {
+            let mut is_open = open.contains(demo.name());
+            demo.show(ctx, &mut is_open);
+            set_open(open, demo.name(), is_open);
+        }
+    }
+}
+
+fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
+    if is_open {
+        if !open.contains(key) {
+            open.insert(key.to_owned());
+        }
+    } else {
+        open.remove(key);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A menu bar in which you can select different demo windows to show.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct DemoWindows {
+    about_is_open: bool,
+    about: About,
+    demos: DemoGroup,
+    tests: DemoGroup,
+}
+
+impl Default for DemoWindows {
     fn default() -> Self {
-        Self::from_demos(vec![
+        let mut demos = DemoGroup::new(vec![
             Box::<super::paint_bezier::PaintBezier>::default(),
             Box::<super::code_editor::CodeEditor>::default(),
             Box::<super::code_example::CodeExample>::default(),
@@ -49,66 +104,15 @@ impl Default for Demos {
             Box::<super::undo_redo::UndoRedoDemo>::default(),
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
-        ])
-    }
-}
-
-impl Demos {
-    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
-        let mut open = BTreeSet::new();
+        ]);
 
         // Explains egui very well
-        open.insert(
-            super::code_example::CodeExample::default()
-                .name()
-                .to_owned(),
-        );
+        demos.set_open(super::code_example::CodeExample::default(), true);
 
         // Shows off the features
-        open.insert(
-            super::widget_gallery::WidgetGallery::default()
-                .name()
-                .to_owned(),
-        );
+        demos.set_open(super::widget_gallery::WidgetGallery::default(), true);
 
-        Self { demos, open }
-    }
-
-    pub fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self { demos, open } = self;
-        for demo in demos {
-            if demo.is_enabled(ui.ctx()) {
-                let mut is_open = open.contains(demo.name());
-                ui.toggle_value(&mut is_open, demo.name());
-                set_open(open, demo.name(), is_open);
-            }
-        }
-    }
-
-    pub fn windows(&mut self, ctx: &Context) {
-        let Self { demos, open } = self;
-        for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            demo.show(ctx, &mut is_open);
-            set_open(open, demo.name(), is_open);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-struct Tests {
-    #[cfg_attr(feature = "serde", serde(skip))]
-    demos: Vec<Box<dyn Demo>>,
-
-    open: BTreeSet<String>,
-}
-
-impl Default for Tests {
-    fn default() -> Self {
-        Self::from_demos(vec![
+        let tests = DemoGroup::new(vec![
             Box::<super::tests::CursorTest>::default(),
             Box::<super::tests::GridTest>::default(),
             Box::<super::tests::IdTest>::default(),
@@ -117,72 +121,13 @@ impl Default for Tests {
             Box::<super::tests::LayoutTest>::default(),
             Box::<super::tests::ManualLayoutTest>::default(),
             Box::<super::tests::WindowResizeTest>::default(),
-        ])
-    }
-}
+        ]);
 
-impl Tests {
-    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
-        let mut open = BTreeSet::new();
-        open.insert(
-            super::widget_gallery::WidgetGallery::default()
-                .name()
-                .to_owned(),
-        );
-
-        Self { demos, open }
-    }
-
-    pub fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self { demos, open } = self;
-        for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            ui.toggle_value(&mut is_open, demo.name());
-            set_open(open, demo.name(), is_open);
-        }
-    }
-
-    pub fn windows(&mut self, ctx: &Context) {
-        let Self { demos, open } = self;
-        for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            demo.show(ctx, &mut is_open);
-            set_open(open, demo.name(), is_open);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
-    if is_open {
-        if !open.contains(key) {
-            open.insert(key.to_owned());
-        }
-    } else {
-        open.remove(key);
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// A menu bar in which you can select different demo windows to show.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct DemoWindows {
-    about_is_open: bool,
-    about: About,
-    demos: Demos,
-    tests: Tests,
-}
-
-impl Default for DemoWindows {
-    fn default() -> Self {
         Self {
             about_is_open: true,
             about: Default::default(),
-            demos: Default::default(),
-            tests: Default::default(),
+            demos,
+            tests,
         }
     }
 }
@@ -375,18 +320,18 @@ fn file_menu_button(ui: &mut Ui) {
 
 #[cfg(test)]
 mod tests {
-    use crate::demo::demo_app_windows::Demos;
+    use crate::{demo::demo_app_windows::DemoWindows, Demo};
     use egui::Vec2;
     use egui_kittest::kittest::Queryable;
     use egui_kittest::{Harness, SnapshotOptions};
 
     #[test]
     fn demos_should_match_snapshot() {
-        let demos = Demos::default();
+        let demos = DemoWindows::default();
 
         let mut errors = Vec::new();
 
-        for mut demo in demos.demos {
+        for mut demo in demos.demos.demos {
             // Remove the emoji from the demo name
             let name = demo
                 .name()
@@ -394,7 +339,7 @@ mod tests {
                 .map_or(demo.name(), |(_, name)| name);
 
             // Widget Gallery needs to be customized (to set a specific date) and has its own test
-            if name == "Widget Gallery" {
+            if name == crate::WidgetGallery::default().name() {
                 continue;
             }
 
