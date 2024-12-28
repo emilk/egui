@@ -519,7 +519,9 @@ impl Fonts {
         self.lock().fonts.has_glyphs(font_id, s)
     }
 
-    /// Height of one row of text in points
+    /// Height of one row of text in points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline]
     pub fn row_height(&self, font_id: &FontId) -> f32 {
         self.lock().fonts.row_height(font_id)
@@ -706,6 +708,8 @@ impl FontsImpl {
     }
 
     /// Height of one row of text in points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.font(font_id).row_height()
     }
@@ -817,7 +821,7 @@ impl GalleyCache {
                 halign: job.halign,
                 justify: job.justify,
                 first_row_min_height,
-                round_output_size_to_nearest_ui_point: job.round_output_size_to_nearest_ui_point,
+                round_output_to_gui: job.round_output_to_gui,
             };
             first_row_min_height = 0.0;
 
@@ -910,11 +914,8 @@ impl GalleyCache {
             merged_galley.elided |= galley.elided;
         }
 
-        if merged_galley.job.round_output_size_to_nearest_ui_point {
-            super::round_output_size_to_nearest_ui_point(
-                &mut merged_galley.rect,
-                &merged_galley.job,
-            );
+        if merged_galley.job.round_output_to_gui {
+            super::round_output_to_gui(&mut merged_galley.rect, &merged_galley.job);
         }
 
         merged_galley

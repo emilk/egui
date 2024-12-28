@@ -3,10 +3,10 @@
 use std::{borrow::Cow, cell::RefCell, panic::Location, sync::Arc, time::Duration};
 
 use containers::area::AreaState;
+use emath::GuiRounding as _;
 use epaint::{
     emath::{self, TSTransform},
     mutex::RwLock,
-    pos2,
     stats::PaintStats,
     tessellator,
     text::{FontInsert, FontPriority, Fonts},
@@ -2003,50 +2003,6 @@ impl Context {
         });
     }
 
-    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
-    #[inline]
-    pub(crate) fn round_to_pixel_center(&self, point: f32) -> f32 {
-        let pixels_per_point = self.pixels_per_point();
-        ((point * pixels_per_point - 0.5).round() + 0.5) / pixels_per_point
-    }
-
-    /// Useful for pixel-perfect rendering of lines that are one pixel wide (or any odd number of pixels).
-    #[inline]
-    pub(crate) fn round_pos_to_pixel_center(&self, point: Pos2) -> Pos2 {
-        pos2(
-            self.round_to_pixel_center(point.x),
-            self.round_to_pixel_center(point.y),
-        )
-    }
-
-    /// Useful for pixel-perfect rendering of filled shapes
-    #[inline]
-    pub(crate) fn round_to_pixel(&self, point: f32) -> f32 {
-        let pixels_per_point = self.pixels_per_point();
-        (point * pixels_per_point).round() / pixels_per_point
-    }
-
-    /// Useful for pixel-perfect rendering of filled shapes
-    #[inline]
-    pub(crate) fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
-        pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
-    }
-
-    /// Useful for pixel-perfect rendering of filled shapes
-    #[inline]
-    pub(crate) fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
-        vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
-    }
-
-    /// Useful for pixel-perfect rendering of filled shapes
-    #[inline]
-    pub(crate) fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
-        Rect {
-            min: self.round_pos_to_pixels(rect.min),
-            max: self.round_pos_to_pixels(rect.max),
-        }
-    }
-
     /// Allocate a texture.
     ///
     /// This is for advanced users.
@@ -2121,7 +2077,7 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Constrain the position of a window/area so it fits within the provided boundary.
-    pub(crate) fn constrain_window_rect_to_area(&self, window: Rect, area: Rect) -> Rect {
+    pub(crate) fn constrain_window_rect_to_area(window: Rect, area: Rect) -> Rect {
         let mut pos = window.min;
 
         // Constrain to screen, unless window is too large to fit:
@@ -2133,9 +2089,7 @@ impl Context {
         pos.y = pos.y.at_most(area.bottom() + margin_y - window.height()); // move right if needed
         pos.y = pos.y.at_least(area.top() - margin_y); // move down if needed
 
-        pos = self.round_pos_to_pixels(pos);
-
-        Rect::from_min_size(pos, window.size())
+        Rect::from_min_size(pos, window.size()).round_ui()
     }
 }
 
@@ -2568,7 +2522,7 @@ impl Context {
 
     /// Position and size of the egui area.
     pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.screen_rect())
+        self.input(|i| i.screen_rect()).round_ui()
     }
 
     /// How much space is still available after panels has been added.
@@ -2576,7 +2530,7 @@ impl Context {
     /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
-        self.pass_state(|s| s.available_rect())
+        self.pass_state(|s| s.available_rect()).round_ui()
     }
 
     /// How much space is used by panels and windows.
@@ -2586,7 +2540,7 @@ impl Context {
             for (_id, window) in ctx.memory.areas().visible_windows() {
                 used = used.union(window.rect());
             }
-            used
+            used.round_ui()
         })
     }
 
@@ -2594,7 +2548,7 @@ impl Context {
     ///
     /// You can shrink your egui area to this size and still fit all egui components.
     pub fn used_size(&self) -> Vec2 {
-        self.used_rect().max - Pos2::ZERO
+        (self.used_rect().max - Pos2::ZERO).round_ui()
     }
 
     // ---------------------------------------------------------------------

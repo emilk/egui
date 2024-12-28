@@ -21,7 +21,7 @@ pub fn adjust_colors(
         }
 
         Shape::LineSegment { stroke, points: _ } => {
-            adjust_color_mode(&mut stroke.color, adjust_color);
+            adjust_color(&mut stroke.color);
         }
 
         Shape::Path(PathShape {

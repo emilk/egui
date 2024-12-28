@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use emath::{pos2, vec2, Align, NumExt, Pos2, Rect, Vec2};
+use emath::{pos2, vec2, Align, GuiRounding as _, NumExt, Pos2, Rect, Vec2};
 
 use crate::{stroke::PathStroke, text::font::Font, Color32, Mesh, Stroke, Vertex};
 
@@ -643,7 +643,7 @@ fn galley_from_rows(
         min_x = min_x.min(placed_row.rect().min.x);
         max_x = max_x.max(placed_row.rect().max.x);
         cursor_y += max_row_height;
-        cursor_y = point_scale.round_to_pixel(cursor_y);
+        cursor_y = point_scale.round_to_pixel(cursor_y); // TODO(emilk): it would be better to do the calculations in pixels instead.
     }
 
     let format_summary = format_summary(&job);
@@ -662,8 +662,13 @@ fn galley_from_rows(
 
     let mut rect = Rect::from_min_max(pos2(min_x, 0.0), pos2(max_x, cursor_y));
 
-    if job.round_output_size_to_nearest_ui_point {
-        round_output_size_to_nearest_ui_point(&mut rect, &job);
+    if job.round_output_to_gui {
+        for placed_row in &mut rows {
+            placed_row.pos = placed_row.pos.round_ui();
+            let row = Arc::get_mut(&mut placed_row.row).unwrap();
+            row.size = row.size.round_ui();
+        }
+        round_output_to_gui(&mut rect, &job);
     }
 
     Galley {
@@ -678,20 +683,21 @@ fn galley_from_rows(
     }
 }
 
-pub(crate) fn round_output_size_to_nearest_ui_point(rect: &mut Rect, job: &LayoutJob) {
+pub(crate) fn round_output_to_gui(rect: &mut Rect, job: &LayoutJob) {
     let did_exceed_wrap_width_by_a_lot = rect.width() > job.wrap.max_width + 1.0;
 
-    // We round the size to whole ui points here (not pixels!) so that the egui layout code
-    // can have the advantage of working in integer units, avoiding rounding errors.
-    rect.min = rect.min.round();
-    rect.max = rect.max.round();
+    *rect = rect.round_ui();
 
     if did_exceed_wrap_width_by_a_lot {
         // If the user picked a too aggressive wrap width (e.g. more narrow than any individual glyph),
         // we should let the user know by reporting that our width is wider than the wrap width.
     } else {
         // Make sure we don't report being wider than the wrap width the user picked:
-        rect.max.x = rect.max.x.at_most(rect.min.x + job.wrap.max_width).floor();
+        rect.max.x = rect
+            .max
+            .x
+            .at_most(rect.min.x + job.wrap.max_width)
+            .floor_ui();
     }
 }
 
@@ -1151,6 +1157,7 @@ mod tests {
             LayoutJob::single_section("# DNA\nMore text".into(), TextFormat::default());
         layout_job.wrap.max_width = f32::INFINITY;
         layout_job.wrap.max_rows = 1;
+        layout_job.round_output_to_gui = false;
         let galley = layout(&mut fonts, layout_job.into());
         assert!(galley.elided);
         assert_eq!(

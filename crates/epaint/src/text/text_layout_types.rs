@@ -78,9 +78,8 @@ pub struct LayoutJob {
     /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
 
-    /// Rounding to the closest ui point (not pixel!) allows the rest of the
-    /// layout code to run on perfect integers, avoiding rounding errors.
-    pub round_output_size_to_nearest_ui_point: bool,
+    /// Round output sizes using [`emath::GuiRounding`], to avoid rounding errors in layout code.
+    pub round_output_to_gui: bool,
 }
 
 impl Default for LayoutJob {
@@ -94,7 +93,7 @@ impl Default for LayoutJob {
             break_on_newline: true,
             halign: Align::LEFT,
             justify: false,
-            round_output_size_to_nearest_ui_point: true,
+            round_output_to_gui: true,
         }
     }
 }
@@ -168,6 +167,8 @@ impl LayoutJob {
     }
 
     /// The height of the tallest font used in the job.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
@@ -178,7 +179,7 @@ impl LayoutJob {
 
     /// The wrap with, with a small margin in some cases.
     pub fn effective_wrap_width(&self) -> f32 {
-        if self.round_output_size_to_nearest_ui_point {
+        if self.round_output_to_gui {
             // On a previous pass we may have rounded down by at most 0.5 and reported that as a width.
             // egui may then set that width as the max width for subsequent frames, and it is important
             // that we then don't wrap earlier.
@@ -200,7 +201,7 @@ impl std::hash::Hash for LayoutJob {
             break_on_newline,
             halign,
             justify,
-            round_output_size_to_nearest_ui_point,
+            round_output_to_gui,
         } = self;
 
         text.hash(state);
@@ -210,7 +211,7 @@ impl std::hash::Hash for LayoutJob {
         break_on_newline.hash(state);
         halign.hash(state);
         justify.hash(state);
-        round_output_size_to_nearest_ui_point.hash(state);
+        round_output_to_gui.hash(state);
     }
 }
 

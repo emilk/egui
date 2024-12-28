@@ -1168,11 +1168,9 @@ pub struct DebugOptions {
     /// Show interesting widgets under the mouse cursor.
     pub show_widget_hits: bool,
 
-    /// If true, highlight widgets that are not aligned to integer point coordinates.
+    /// If true, highlight widgets that are not aligned to [`emath::GUI_ROUNDING`].
     ///
-    /// It's usually a good idea to keep to integer coordinates to avoid rounding issues.
-    ///
-    /// See <https://github.com/emilk/egui/issues/5163> for more.
+    /// See [`emath::GuiRounding`] for more.
     pub show_unaligned: bool,
 }
 
@@ -1189,7 +1187,7 @@ impl Default for DebugOptions {
             show_resize: false,
             show_interactive_widgets: false,
             show_widget_hits: false,
-            show_unaligned: false,
+            show_unaligned: cfg!(debug_assertions),
         }
     }
 }
@@ -2487,12 +2485,8 @@ impl Widget for &mut Stroke {
 
             // stroke preview:
             let (_id, stroke_rect) = ui.allocate_space(ui.spacing().interact_size);
-            let left = ui
-                .painter()
-                .round_pos_to_pixel_center(stroke_rect.left_center());
-            let right = ui
-                .painter()
-                .round_pos_to_pixel_center(stroke_rect.right_center());
+            let left = stroke_rect.left_center();
+            let right = stroke_rect.right_center();
             ui.painter().line_segment([left, right], (*width, *color));
         })
         .response

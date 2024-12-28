@@ -7,6 +7,7 @@ use crate::{
     Align, Align2, Context, CursorIcon, Id, InnerResponse, LayerId, NumExt, Order, Response, Sense,
     TextStyle, Ui, UiKind, Vec2b, WidgetInfo, WidgetRect, WidgetText, WidgetType,
 };
+use emath::GuiRounding as _;
 use epaint::{emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Shape, Stroke, Vec2};
 
 use super::scroll_area::ScrollBarVisibility;
@@ -582,6 +583,7 @@ impl<'open> Window<'open> {
                     outer_rect,
                     frame_stroke,
                     window_frame.rounding,
+                    resize_interaction,
                 );
 
                 // END FRAME --------------------------------
@@ -595,7 +597,7 @@ impl<'open> Window<'open> {
                         },
                     );
 
-                    title_rect = area_content_ui.painter().round_rect_to_pixels(title_rect);
+                    title_rect = title_rect.round_to_pixels(area_content_ui.pixels_per_point());
 
                     if on_top && area_content_ui.visuals().window_highlight_topmost {
                         let mut round = window_frame.rounding;
@@ -650,29 +652,30 @@ fn paint_resize_corner(
     outer_rect: Rect,
     stroke: impl Into<Stroke>,
     rounding: impl Into<Rounding>,
+    i: ResizeInteraction,
 ) {
-    let stroke = stroke.into();
+    let inactive_stroke = stroke.into();
     let rounding = rounding.into();
-    let (corner, radius) = if possible.resize_right && possible.resize_bottom {
-        (Align2::RIGHT_BOTTOM, rounding.se)
+    let (corner, radius, corner_response) = if possible.resize_right && possible.resize_bottom {
+        (Align2::RIGHT_BOTTOM, rounding.se, i.right & i.bottom)
     } else if possible.resize_left && possible.resize_bottom {
-        (Align2::LEFT_BOTTOM, rounding.sw)
+        (Align2::LEFT_BOTTOM, rounding.sw, i.left & i.bottom)
     } else if possible.resize_left && possible.resize_top {
-        (Align2::LEFT_TOP, rounding.nw)
+        (Align2::LEFT_TOP, rounding.nw, i.left & i.top)
     } else if possible.resize_right && possible.resize_top {
-        (Align2::RIGHT_TOP, rounding.ne)
+        (Align2::RIGHT_TOP, rounding.ne, i.right & i.top)
     } else {
         // We're not in two directions, but it is still nice to tell the user
         // we're resizable by painting the resize corner in the expected place
         // (i.e. for windows only resizable in one direction):
         if possible.resize_right || possible.resize_bottom {
-            (Align2::RIGHT_BOTTOM, rounding.se)
+            (Align2::RIGHT_BOTTOM, rounding.se, i.right & i.bottom)
         } else if possible.resize_left || possible.resize_bottom {
-            (Align2::LEFT_BOTTOM, rounding.sw)
+            (Align2::LEFT_BOTTOM, rounding.sw, i.left & i.bottom)
         } else if possible.resize_left || possible.resize_top {
-            (Align2::LEFT_TOP, rounding.nw)
+            (Align2::LEFT_TOP, rounding.nw, i.left & i.top)
         } else if possible.resize_right || possible.resize_top {
-            (Align2::RIGHT_TOP, rounding.ne)
+            (Align2::RIGHT_TOP, rounding.ne, i.right & i.top)
         } else {
             return;
         }
@@ -681,6 +684,14 @@ fn paint_resize_corner(
     // Adjust the corner offset to accommodate for window rounding
     let offset =
         ((2.0_f32.sqrt() * (1.0 + radius) - radius) * 45.0_f32.to_radians().cos()).max(2.0);
+
+    let stroke = if corner_response.drag {
+        ui.visuals().widgets.active.fg_stroke
+    } else if corner_response.hover {
+        ui.visuals().widgets.hovered.fg_stroke
+    } else {
+        inactive_stroke
+    };
 
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
     let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
@@ -743,6 +754,17 @@ impl SideResponse {
     }
 }
 
+impl std::ops::BitAnd for SideResponse {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self {
+            hover: self.hover && rhs.hover,
+            drag: self.drag && rhs.drag,
+        }
+    }
+}
+
 impl std::ops::BitOrAssign for SideResponse {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = Self {
@@ -788,13 +810,12 @@ fn resize_response(
     area: &mut area::Prepared,
     resize_id: Id,
 ) {
-    let Some(new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
+    let Some(mut new_rect) = move_and_resize_window(ctx, &resize_interaction) else {
         return;
     };
-    let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
     if area.constrain() {
-        new_rect = ctx.constrain_window_rect_to_area(new_rect, area.constrain_rect());
+        new_rect = Context::constrain_window_rect_to_area(new_rect, area.constrain_rect());
     }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
@@ -819,18 +840,18 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
     let mut rect = interaction.start_rect; // prevent drift
 
     if interaction.left.drag {
-        rect.min.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.min.x = pointer_pos.x;
     } else if interaction.right.drag {
-        rect.max.x = ctx.round_to_pixel(pointer_pos.x);
+        rect.max.x = pointer_pos.x;
     }
 
     if interaction.top.drag {
-        rect.min.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.min.y = pointer_pos.y;
     } else if interaction.bottom.drag {
-        rect.max.y = ctx.round_to_pixel(pointer_pos.y);
+        rect.max.y = pointer_pos.y;
     }
 
-    Some(rect)
+    Some(rect.round_ui())
 }
 
 fn resize_interaction(
@@ -849,7 +870,7 @@ fn resize_interaction(
         };
     }
 
-    let is_dragging = |rect, id| {
+    let side_response = |rect, id| {
         let response = ctx.create_widget(
             WidgetRect {
                 layer_id,
@@ -872,6 +893,12 @@ fn resize_interaction(
     let side_grab_radius = ctx.style().interaction.resize_grab_radius_side;
     let corner_grab_radius = ctx.style().interaction.resize_grab_radius_corner;
 
+    let vetrtical_rect = |a: Pos2, b: Pos2| {
+        Rect::from_min_max(a, b).expand2(vec2(side_grab_radius, -corner_grab_radius))
+    };
+    let horizontal_rect = |a: Pos2, b: Pos2| {
+        Rect::from_min_max(a, b).expand2(vec2(-corner_grab_radius, side_grab_radius))
+    };
     let corner_rect =
         |center: Pos2| Rect::from_center_size(center, Vec2::splat(2.0 * corner_grab_radius));
 
@@ -882,59 +909,80 @@ fn resize_interaction(
     // Check sides first, so that corners are on top, covering the sides (i.e. corners have priority)
 
     if possible.resize_right {
-        let response = is_dragging(
-            Rect::from_min_max(rect.right_top(), rect.right_bottom()).expand(side_grab_radius),
+        let response = side_response(
+            vetrtical_rect(rect.right_top(), rect.right_bottom()),
             id.with("right"),
         );
         right |= response;
     }
     if possible.resize_left {
-        let response = is_dragging(
-            Rect::from_min_max(rect.left_top(), rect.left_bottom()).expand(side_grab_radius),
+        let response = side_response(
+            vetrtical_rect(rect.left_top(), rect.left_bottom()),
             id.with("left"),
         );
         left |= response;
     }
     if possible.resize_bottom {
-        let response = is_dragging(
-            Rect::from_min_max(rect.left_bottom(), rect.right_bottom()).expand(side_grab_radius),
+        let response = side_response(
+            horizontal_rect(rect.left_bottom(), rect.right_bottom()),
             id.with("bottom"),
         );
         bottom |= response;
     }
     if possible.resize_top {
-        let response = is_dragging(
-            Rect::from_min_max(rect.left_top(), rect.right_top()).expand(side_grab_radius),
+        let response = side_response(
+            horizontal_rect(rect.left_top(), rect.right_top()),
             id.with("top"),
         );
         top |= response;
     }
 
     // ----------------------------------------
-    // Now check corners:
+    // Now check corners.
+    // We check any corner that has either side resizable,
+    // because we shrink the side resize handled by the corner width.
+    // Also, even if we can only change the width (or height) of a window,
+    // we show one of the corners as a grab-handle, so it makes sense that
+    // the whole corner is grabbable:
 
-    if possible.resize_right && possible.resize_bottom {
-        let response = is_dragging(corner_rect(rect.right_bottom()), id.with("right_bottom"));
-        right |= response;
-        bottom |= response;
+    if possible.resize_right || possible.resize_bottom {
+        let response = side_response(corner_rect(rect.right_bottom()), id.with("right_bottom"));
+        if possible.resize_right {
+            right |= response;
+        }
+        if possible.resize_bottom {
+            bottom |= response;
+        }
     }
 
-    if possible.resize_right && possible.resize_top {
-        let response = is_dragging(corner_rect(rect.right_top()), id.with("right_top"));
-        right |= response;
-        top |= response;
+    if possible.resize_right || possible.resize_top {
+        let response = side_response(corner_rect(rect.right_top()), id.with("right_top"));
+        if possible.resize_right {
+            right |= response;
+        }
+        if possible.resize_top {
+            top |= response;
+        }
     }
 
-    if possible.resize_left && possible.resize_bottom {
-        let response = is_dragging(corner_rect(rect.left_bottom()), id.with("left_bottom"));
-        left |= response;
-        bottom |= response;
+    if possible.resize_left || possible.resize_bottom {
+        let response = side_response(corner_rect(rect.left_bottom()), id.with("left_bottom"));
+        if possible.resize_left {
+            left |= response;
+        }
+        if possible.resize_bottom {
+            bottom |= response;
+        }
     }
 
-    if possible.resize_left && possible.resize_top {
-        let response = is_dragging(corner_rect(rect.left_top()), id.with("left_top"));
-        left |= response;
-        top |= response;
+    if possible.resize_left || possible.resize_top {
+        let response = side_response(corner_rect(rect.left_top()), id.with("left_top"));
+        if possible.resize_left {
+            left |= response;
+        }
+        if possible.resize_top {
+            top |= response;
+        }
     }
 
     let interaction = ResizeInteraction {
@@ -1070,7 +1118,7 @@ impl TitleBar {
             let item_spacing = ui.spacing().item_spacing;
             let button_size = Vec2::splat(ui.spacing().icon_width);
 
-            let pad = (height - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
+            let pad = ((height - button_size.y) / 2.0).round_ui(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
             if collapsible {
                 ui.add_space(pad);
