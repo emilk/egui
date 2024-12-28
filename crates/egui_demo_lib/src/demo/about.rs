@@ -50,7 +50,10 @@ impl crate::View for About {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("egui development is sponsored by ");
             ui.hyperlink_to("Rerun.io", "https://www.rerun.io/");
-            ui.label(", a startup building an SDK for visualizing streams of multimodal data.");
+            ui.label(", a startup building an SDK for visualizing streams of multimodal data. ");
+            ui.label("For an example of a real-world egui app, see ");
+            ui.hyperlink_to("rerun.io/viewer", "https://www.rerun.io/viewer");
+            ui.label(" (runs in your browser).");
         });
 
         ui.add_space(12.0);
