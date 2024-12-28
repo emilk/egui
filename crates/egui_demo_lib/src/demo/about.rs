@@ -36,11 +36,13 @@ impl crate::View for About {
         ));
         ui.label("egui is designed to be easy to use, portable, and fast.");
 
-        ui.add_space(12.0); // ui.separator();
+        ui.add_space(12.0);
+
         ui.heading("Immediate mode");
         about_immediate_mode(ui);
 
-        ui.add_space(12.0); // ui.separator();
+        ui.add_space(12.0);
+
         ui.heading("Links");
         links(ui);
 
@@ -97,12 +99,12 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
 fn links(ui: &mut egui::Ui) {
     use egui::special_emojis::{GITHUB, TWITTER};
     ui.hyperlink_to(
-        format!("{GITHUB} egui on GitHub"),
+        format!("{GITHUB} github.com/emilk/egui"),
         "https://github.com/emilk/egui",
     );
     ui.hyperlink_to(
         format!("{TWITTER} @ernerfeldt"),
         "https://twitter.com/ernerfeldt",
     );
-    ui.hyperlink_to("egui documentation", "https://docs.rs/egui/");
+    ui.hyperlink_to("📓 egui documentation", "https://docs.rs/egui/");
 }
