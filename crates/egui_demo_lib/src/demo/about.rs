@@ -14,6 +14,7 @@ impl crate::Demo for About {
             .default_height(480.0)
             .open(open)
             .resizable([true, false])
+            .scroll(false)
             .show(ctx, |ui| {
                 use crate::View as _;
                 self.ui(ui);
