@@ -66,6 +66,10 @@ serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 ## Change Vertex layout to be compatible with unity
 unity = []
 
+## Override and disable the unity feature
+## This exists, so that when testing with --all-features, snapshots render correctly.
+_override_unity = []
+
 [dependencies]
 emath.workspace = true
 ecolor.workspace = true
