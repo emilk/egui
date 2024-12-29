@@ -290,8 +290,7 @@ impl Widget for Button<'_> {
         });
 
         if ui.is_rect_visible(rect) {
-            let style = ui.style().clone();
-            let visuals = style.interact(&response);
+            let visuals = ui.style().interact(&response);
 
             let (frame_expansion, frame_rounding, frame_fill, frame_stroke) = if selected {
                 let selection = ui.visuals().selection;

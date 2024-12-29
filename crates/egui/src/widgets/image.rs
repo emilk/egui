@@ -8,8 +8,8 @@ use epaint::{
 
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2, Align2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape,
-    Spinner, Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    pos2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape, Spinner,
+    Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
 };
 
 /// A widget which displays an image.
@@ -357,7 +357,7 @@ impl<'a> Image<'a> {
     /// # });
     /// ```
     #[inline]
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
         paint_texture_load_result(
             ui,
             &self.load_for_size(ui.ctx(), rect.size()),
@@ -614,7 +614,7 @@ impl<'a> ImageSource<'a> {
 }
 
 pub fn paint_texture_load_result(
-    ui: &mut Ui,
+    ui: &Ui,
     tlr: &TextureLoadResult,
     rect: Rect,
     show_loading_spinner: Option<bool>,
@@ -634,9 +634,11 @@ pub fn paint_texture_load_result(
         }
         Err(_) => {
             let font_id = TextStyle::Body.resolve(ui.style());
-            let mut job = LayoutJob::default();
-            job.wrap = TextWrapping::truncate_at_width(rect.width());
-            job.halign = Align::Center;
+            let mut job = LayoutJob {
+                wrap: TextWrapping::truncate_at_width(rect.width()),
+                halign: Align::Center,
+                ..Default::default()
+            };
             job.append(
                 "⚠",
                 0.0,

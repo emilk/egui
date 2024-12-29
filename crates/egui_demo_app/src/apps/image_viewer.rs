@@ -186,7 +186,7 @@ impl eframe::App for ImageViewer {
             ui.add_space(5.0);
             ui.label("Aspect ratio is maintained by scaling both sides as necessary");
             ui.checkbox(&mut self.maintain_aspect_ratio, "Maintain aspect ratio");
-            
+
             // alt text
             ui.add_space(5.0);
             ui.label("Alt text");
