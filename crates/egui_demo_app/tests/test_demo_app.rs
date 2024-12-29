@@ -16,6 +16,14 @@ fn test_demo_app() {
         .map(|(name, anchor, _)| (name, anchor))
         .collect::<Vec<_>>();
 
+    #[cfg(feature = "wgpu")]
+    assert!(
+        apps.iter()
+            .find(|(_, anchor)| matches!(anchor, Anchor::Custom3d))
+            .is_some(),
+        "Expected to find the Custom3d app.",
+    );
+
     let mut results = vec![];
 
     for (name, anchor) in apps {
@@ -28,10 +36,15 @@ fn test_demo_app() {
 
         harness.run();
 
-        results.push(harness.try_wgpu_snapshot(&anchor.to_string()));
+        harness
+            .try_wgpu_snapshot(&anchor.to_string())
+            .err()
+            .map(|e| {
+                results.push(e);
+            });
     }
 
-    for result in results {
-        result.unwrap()
+    for error in results {
+        panic!("{error}");
     }
 }
