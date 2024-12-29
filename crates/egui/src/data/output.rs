@@ -85,10 +85,13 @@ pub struct IMEOutput {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum OutputCommand {
-    /// Put this text in the system clipboard.
+    /// Put this text to the system clipboard.
     ///
     /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
     CopyText(String),
+
+    /// Put this image to the system clipboard.
+    CopyImage(crate::ColorImage),
 
     /// Open this url in a browser.
     OpenUrl(OpenUrl),
