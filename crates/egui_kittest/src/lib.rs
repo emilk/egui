@@ -25,6 +25,7 @@ use crate::event::EventState;
 pub use builder::*;
 use egui::{Modifiers, Pos2, Rect, TexturesDelta, Vec2, ViewportId};
 use kittest::{Node, Queryable};
+use egui_wgpu::RenderState;
 
 /// The test Harness. This contains everything needed to run the test.
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
@@ -42,6 +43,8 @@ pub struct Harness<'a, State = ()> {
     event_state: EventState,
     response: Option<egui::Response>,
     state: State,
+    #[cfg(feature = "wgpu")]
+    render_state: Option<RenderState>,
 }
 
 impl<'a, State> Debug for Harness<'a, State> {
@@ -56,6 +59,10 @@ impl<'a, State> Harness<'a, State> {
         mut app: AppKind<'a, State>,
         mut state: State,
         ctx: Option<egui::Context>,
+        #[cfg(feature = "wgpu")]
+        wgpu_render_state: Option<RenderState>,
+        #[cfg(not(feature = "wgpu"))]
+        _: Option<()>,
     ) -> Self {
         let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
@@ -90,6 +97,8 @@ impl<'a, State> Harness<'a, State> {
             response,
             event_state: EventState::default(),
             state,
+            #[cfg(feature = "wgpu")]
+            render_state: wgpu_render_state,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run();

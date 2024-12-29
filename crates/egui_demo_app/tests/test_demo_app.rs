@@ -1,10 +1,16 @@
+use eframe::egui_wgpu::WgpuSetup;
 use egui::accesskit::Role;
+use egui::Vec2;
 use egui_demo_app::{Anchor, WrapApp};
 use egui_kittest::kittest::Queryable;
+use std::sync::Arc;
 
 #[test]
 fn test_demo_app() {
-    let mut harness = egui_kittest::Harness::builder().build_eframe(|cc| WrapApp::new(cc));
+    let mut harness = egui_kittest::Harness::builder()
+        .with_size(Vec2::new(900.0, 600.0))
+        .wgpu()
+        .build_eframe(|cc| WrapApp::new(cc));
 
     let app = harness.state_mut();
 
@@ -16,13 +22,12 @@ fn test_demo_app() {
         .map(|(name, anchor, _)| (name, anchor))
         .collect::<Vec<_>>();
 
-    // #[cfg(feature = "wgpu")]
-    // assert!(
-    //     apps.iter()
-    //         .find(|(_, anchor)| matches!(anchor, Anchor::Custom3d))
-    //         .is_some(),
-    //     "Expected to find the Custom3d app.",
-    // );
+    #[cfg(feature = "wgpu")]
+    assert!(
+        apps.iter()
+            .any(|(_, anchor)| matches!(anchor, Anchor::Custom3d)),
+        "Expected to find the Custom3d app.",
+    );
 
     let mut results = vec![];
 

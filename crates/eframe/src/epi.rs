@@ -639,7 +639,8 @@ pub struct Frame {
 
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
+    #[doc(hidden)]
+    pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]

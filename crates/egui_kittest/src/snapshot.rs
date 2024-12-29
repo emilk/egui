@@ -329,11 +329,11 @@ impl<State> Harness<'_, State> {
     /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
     /// reading or writing the snapshot.
     pub fn try_wgpu_snapshot_options(
-        &self,
+        &mut self,
         name: &str,
         options: &SnapshotOptions,
     ) -> Result<(), SnapshotError> {
-        let image = crate::wgpu::TestRenderer::new().render(self);
+        let image = crate::wgpu::TestRenderer::render(self);
         try_image_snapshot_options(&image, name, options)
     }
 
@@ -345,8 +345,8 @@ impl<State> Harness<'_, State> {
     /// # Errors
     /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
     /// reading or writing the snapshot.
-    pub fn try_wgpu_snapshot(&self, name: &str) -> Result<(), SnapshotError> {
-        let image = crate::wgpu::TestRenderer::new().render(self);
+    pub fn try_wgpu_snapshot(&mut self, name: &str) -> Result<(), SnapshotError> {
+        let image = crate::wgpu::TestRenderer::render(self);
         try_image_snapshot(&image, name)
     }
 
@@ -369,7 +369,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot or if there was an error reading or writing the
     /// snapshot.
     #[track_caller]
-    pub fn wgpu_snapshot_options(&self, name: &str, options: &SnapshotOptions) {
+    pub fn wgpu_snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
         match self.try_wgpu_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
@@ -387,7 +387,7 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot or if there was an error reading or writing the
     /// snapshot.
     #[track_caller]
-    pub fn wgpu_snapshot(&self, name: &str) {
+    pub fn wgpu_snapshot(&mut self, name: &str) {
         match self.try_wgpu_snapshot(name) {
             Ok(_) => {}
             Err(err) => {

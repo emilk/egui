@@ -24,7 +24,7 @@ pub use wgpu;
 mod renderer;
 
 pub use renderer::*;
-use wgpu::{Adapter, Device, Instance, Queue};
+use wgpu::{Adapter, Device, Instance, Queue, TextureFormat};
 
 /// Helpers for capturing screenshots of the UI.
 pub mod capture;
@@ -91,7 +91,7 @@ impl RenderState {
     pub async fn create(
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
-        surface: &wgpu::Surface<'static>,
+        surface: Option<&wgpu::Surface<'static>>,
         depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
         dithering: bool,
@@ -113,7 +113,7 @@ impl RenderState {
                     instance
                         .request_adapter(&wgpu::RequestAdapterOptions {
                             power_preference,
-                            compatible_surface: Some(surface),
+                            compatible_surface: surface,
                             force_fallback_adapter: false,
                         })
                         .await
@@ -188,7 +188,7 @@ impl RenderState {
 
         let capabilities = {
             profiling::scope!("get_capabilities");
-            surface.get_capabilities(&adapter).formats
+            surface.map_or_else(|| vec![TextureFormat::Rgba8Unorm], |s| s.get_capabilities(&adapter).formats)
         };
         let target_format = crate::preferred_framebuffer_format(&capabilities)?;
 

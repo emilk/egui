@@ -2,12 +2,15 @@ use crate::app_kind::AppKind;
 use crate::Harness;
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 /// Builder for [`Harness`].
 pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
     pub(crate) state: PhantomData<State>,
+    #[cfg(feature = "wgpu")]
+    pub(crate) wgpu: Option<egui_wgpu::WgpuSetup>,
 }
 
 impl<State> Default for HarnessBuilder<State> {
@@ -16,6 +19,8 @@ impl<State> Default for HarnessBuilder<State> {
             screen_rect: Rect::from_min_size(Pos2::ZERO, Vec2::new(800.0, 600.0)),
             pixels_per_point: 1.0,
             state: PhantomData,
+            #[cfg(feature = "wgpu")]
+            wgpu: None,
         }
     }
 }
@@ -34,6 +39,24 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_pixels_per_point(mut self, pixels_per_point: f32) -> Self {
         self.pixels_per_point = pixels_per_point;
+        self
+    }
+
+    /// Enable wgpu rendering with a default setup suitable for testing.
+    #[cfg(feature = "wgpu")]
+    pub fn wgpu(mut self) -> Self {
+        self.wgpu = Some(egui_wgpu::WgpuSetup::CreateNew {
+            supported_backends: egui_wgpu::wgpu::Backends::all(),
+            device_descriptor: Arc::new(|a| egui_wgpu::wgpu::DeviceDescriptor::default()),
+            power_preference: egui_wgpu::wgpu::PowerPreference::default(),
+        });
+        self
+    }
+
+    /// Enable wgpu rendering with the given setup.
+    #[cfg(feature = "wgpu")]
+    pub fn wgpu_setup(mut self, setup: impl Into<Option<egui_wgpu::WgpuSetup>>) -> Self {
+        self.wgpu = setup.into();
         self
     }
 
@@ -66,7 +89,13 @@ impl<State> HarnessBuilder<State> {
         app: impl FnMut(&egui::Context, &mut State) + 'a,
         state: State,
     ) -> Harness<'a, State> {
-        Harness::from_builder(&self, AppKind::ContextState(Box::new(app)), state, None)
+        Harness::from_builder(
+            &self,
+            AppKind::ContextState(Box::new(app)),
+            state,
+            None,
+            None,
+        )
     }
 
     /// Create a new Harness with the given ui closure and a state.
@@ -95,14 +124,14 @@ impl<State> HarnessBuilder<State> {
         app: impl FnMut(&mut egui::Ui, &mut State) + 'a,
         state: State,
     ) -> Harness<'a, State> {
-        Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state, None)
+        Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state, None, None)
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
     /// The app can be accessed via the [Harness::state] / [Harness::state_mut] methods.
     #[cfg(feature = "eframe")]
     pub fn build_eframe<'a>(
-        self,
+        mut self,
         build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
     ) -> Harness<'a, State>
     where
@@ -111,13 +140,22 @@ impl<State> HarnessBuilder<State> {
         let ctx = egui::Context::default();
 
         let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());
+        let mut frame = eframe::Frame::_new_kittest();
+
+        #[cfg(feature = "wgpu")]
+        let render_state = {
+            let render_state = self.wgpu.take().map(crate::wgpu::create_render_state);
+            cc.wgpu_render_state = render_state.clone();
+            frame.wgpu_render_state = render_state.clone();
+            render_state
+        };
+        #[cfg(not(feature = "wgpu"))]
+        let render_state = None;
 
         let app = build(&mut cc);
 
-        let frame = eframe::Frame::_new_kittest();
-
         let kind = AppKind::Eframe((|state| state, frame));
-        Harness::from_builder(&self, kind, app, Some(ctx))
+        Harness::from_builder(&self, kind, app, Some(ctx), render_state)
     }
 }
 
@@ -141,7 +179,7 @@ impl HarnessBuilder {
     ///     });
     /// ```
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, AppKind::Context(Box::new(app)), (), None)
+        Harness::from_builder(&self, AppKind::Context(Box::new(app)), (), None, None)
     }
 
     /// Create a new Harness with the given ui closure.
@@ -160,6 +198,6 @@ impl HarnessBuilder {
     ///     });
     /// ```
     pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, AppKind::Ui(Box::new(app)), (), None)
+        Harness::from_builder(&self, AppKind::Ui(Box::new(app)), (), None, None)
     }
 }

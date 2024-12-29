@@ -1,10 +1,41 @@
 use crate::texture_to_image::texture_to_image;
 use crate::Harness;
 use egui_wgpu::wgpu::{Backends, InstanceDescriptor, StoreOp, TextureFormat};
-use egui_wgpu::{wgpu, ScreenDescriptor};
+use egui_wgpu::{wgpu, ScreenDescriptor, WgpuSetup};
 use image::RgbaImage;
 use std::iter::once;
+use std::sync::Arc;
 use wgpu::Maintain;
+
+// TODO: Replace this with the setup from https://github.com/emilk/egui/pull/5506
+pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
+    egui_wgpu::WgpuSetup::CreateNew {
+        supported_backends: Backends::all(),
+        device_descriptor: Arc::new(|a| wgpu::DeviceDescriptor::default()),
+        power_preference: wgpu::PowerPreference::default(),
+    }
+}
+
+
+pub(crate) fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
+    let instance = match &setup {
+        WgpuSetup::Existing { instance, .. } => instance.clone(),
+        _ => Default::default(),
+    };
+
+    pollster::block_on(egui_wgpu::RenderState::create(
+        &egui_wgpu::WgpuConfiguration {
+            wgpu_setup: setup,
+            ..Default::default()
+        },
+        &instance,
+        None,
+        None,
+        1,
+        false,
+    ))
+        .expect("Failed to create render state")
+}
 
 /// Utility to render snapshots from a [`Harness`] using [`egui_wgpu`].
 pub struct TestRenderer {
@@ -60,25 +91,20 @@ impl TestRenderer {
     }
 
     /// Render the [`Harness`] and return the resulting image.
-    pub fn render<State>(&self, harness: &Harness<'_, State>) -> RgbaImage {
-        // We need to create a new renderer each time we render, since the renderer stores
-        // textures related to the Harnesses' egui Context.
-        // Calling the renderer from different Harnesses would cause problems if we store the renderer.
-        let mut renderer = egui_wgpu::Renderer::new(
-            &self.device,
-            TextureFormat::Rgba8Unorm,
-            None,
-            1,
-            self.dithering,
-        );
+    pub fn render<State>(harness: &mut Harness<'_, State>) -> RgbaImage {
+        let render_state = harness.render_state.get_or_insert_with(|| {
+            create_render_state(default_wgpu_setup())
+        }).clone();
+
+        let mut renderer = render_state.renderer.write();
 
         for delta in &harness.texture_deltas {
             for (id, image_delta) in &delta.set {
-                renderer.update_texture(&self.device, &self.queue, *id, image_delta);
+                renderer.update_texture(&render_state.device, &render_state.queue, *id, image_delta);
             }
         }
 
-        let mut encoder = self
+        let mut encoder = render_state
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Egui Command Encoder"),
@@ -96,14 +122,14 @@ impl TestRenderer {
         );
 
         let user_buffers = renderer.update_buffers(
-            &self.device,
-            &self.queue,
+            &render_state.device,
+            &render_state.queue,
             &mut encoder,
             &tessellated,
             &screen,
         );
 
-        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+        let texture = render_state.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Egui Texture"),
             size: wgpu::Extent3d {
                 width: screen.size_in_pixels[0],
@@ -141,11 +167,11 @@ impl TestRenderer {
             renderer.render(&mut pass, &tessellated, &screen);
         }
 
-        self.queue
+        render_state.queue
             .submit(user_buffers.into_iter().chain(once(encoder.finish())));
 
-        self.device.poll(Maintain::Wait);
+        render_state.device.poll(Maintain::Wait);
 
-        texture_to_image(&self.device, &self.queue, &texture)
+        texture_to_image(&render_state.device, &render_state.queue, &texture)
     }
 }
