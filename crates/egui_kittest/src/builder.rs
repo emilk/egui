@@ -99,6 +99,8 @@ impl<State> HarnessBuilder<State> {
     }
     
     /// Create a new [Harness] from the given eframe creation closure.
+    /// The app can be accessed via the [Harness::state] / [Harness::state_mut] methods.
+    #[cfg(feature = "eframe")]
     pub fn build_eframe<'a>(
         self,
         build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,

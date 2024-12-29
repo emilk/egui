@@ -4,6 +4,11 @@ type AppKindContextState<'a, State> = Box<dyn FnMut(&egui::Context, &mut State) 
 type AppKindUiState<'a, State> = Box<dyn FnMut(&mut egui::Ui, &mut State) + 'a>;
 type AppKindContext<'a> = Box<dyn FnMut(&egui::Context) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
+
+/// In order to access the [eframe::App] trait from the generic [State], we store a function pointer
+/// here that will return the dyn trait from the struct. In the builder we have the correct where 
+/// clause to be able to create this.
+/// Later we can use it anywhere to get the [eframe::App] from the [State].
 #[cfg(feature = "eframe")]
 type AppKindEframe<'a, State> = (fn(&mut State) -> &mut dyn eframe::App, eframe::Frame);
 
@@ -15,30 +20,6 @@ pub(crate) enum AppKind<'a, State> {
     #[cfg(feature = "eframe")]
     Eframe(AppKindEframe<'a, State>),
 }
-
-// TODO(lucasmerlin): These aren't working unfortunately :(
-// I think they should work though: https://geo-ant.github.io/blog/2021/rust-traits-and-variadic-functions/
-// pub trait IntoAppKind<'a, UiKind> {
-//     fn into_harness_kind(self) -> AppKind<'a>;
-// }
-//
-// impl<'a, F> IntoAppKind<'a, &egui::Context> for F
-// where
-//     F: FnMut(&egui::Context) + 'a,
-// {
-//     fn into_harness_kind(self) -> AppKind<'a> {
-//         AppKind::Context(Box::new(self))
-//     }
-// }
-//
-// impl<'a, F> IntoAppKind<'a, &mut egui::Ui> for F
-// where
-//     F: FnMut(&mut egui::Ui) + 'a,
-// {
-//     fn into_harness_kind(self) -> AppKind<'a> {
-//         AppKind::Ui(Box::new(self))
-//     }
-// }
 
 impl<'a, State> AppKind<'a, State> {
     pub fn run(

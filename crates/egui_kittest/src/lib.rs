@@ -155,6 +155,7 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
+    #[cfg(feature = "eframe")]
     pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
         State: eframe::App,
