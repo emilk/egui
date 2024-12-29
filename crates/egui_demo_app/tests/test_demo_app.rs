@@ -60,7 +60,7 @@ fn test_demo_app() {
 
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
-                    .type_text(format!("file://../eframe/data/icon.png"));
+                    .type_text("file://../eframe/data/icon.png");
 
                 harness.get_by_role_and_label(Role::Button, "✔").click();
             }

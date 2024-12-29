@@ -16,6 +16,7 @@ mod app_kind;
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
+mod renderer;
 
 pub use kittest;
 use std::mem;
@@ -23,6 +24,7 @@ use std::mem;
 use crate::app_kind::AppKind;
 use crate::event::EventState;
 pub use builder::*;
+pub use renderer::*;
 use egui::{Modifiers, Pos2, Rect, TexturesDelta, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 use egui_wgpu::RenderState;
@@ -38,13 +40,11 @@ pub struct Harness<'a, State = ()> {
     input: egui::RawInput,
     kittest: kittest::State,
     output: egui::FullOutput,
-    texture_deltas: Vec<TexturesDelta>,
     app: AppKind<'a, State>,
     event_state: EventState,
     response: Option<egui::Response>,
     state: State,
-    #[cfg(feature = "wgpu")]
-    render_state: Option<RenderState>,
+    renderer: Box<dyn TestRenderer>,
 }
 
 impl<'a, State> Debug for Harness<'a, State> {
@@ -55,14 +55,10 @@ impl<'a, State> Debug for Harness<'a, State> {
 
 impl<'a, State> Harness<'a, State> {
     pub(crate) fn from_builder(
-        builder: &HarnessBuilder<State>,
+        builder: HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
         mut state: State,
         ctx: Option<egui::Context>,
-        #[cfg(feature = "wgpu")]
-        wgpu_render_state: Option<RenderState>,
-        #[cfg(not(feature = "wgpu"))]
-        _: Option<()>,
     ) -> Self {
         let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
@@ -81,6 +77,9 @@ impl<'a, State> Harness<'a, State> {
             response = app.run(ctx, &mut state, false);
         });
 
+        let mut renderer = builder.renderer;
+        renderer.handle_delta(&output.textures_delta);
+
         let mut harness = Self {
             app,
             ctx,
@@ -92,13 +91,11 @@ impl<'a, State> Harness<'a, State> {
                     .take()
                     .expect("AccessKit was disabled"),
             ),
-            texture_deltas: vec![mem::take(&mut output.textures_delta)],
             output,
             response,
             event_state: EventState::default(),
             state,
-            #[cfg(feature = "wgpu")]
-            render_state: wgpu_render_state,
+            renderer,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run();
@@ -213,8 +210,7 @@ impl<'a, State> Harness<'a, State> {
                 .take()
                 .expect("AccessKit was disabled"),
         );
-        self.texture_deltas
-            .push(mem::take(&mut output.textures_delta));
+        self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
     }
 
@@ -305,6 +301,14 @@ impl<'a, State> Harness<'a, State> {
             repeat: false,
             physical_key: None,
         });
+    }
+
+    /// Render the last output to an image.
+    ///
+    /// # Errors
+    /// Returns an error if the rendering fails.
+    pub fn render(&mut self) -> Result<image::RgbaImage, String> {
+        self.renderer.render(&self.ctx, &self.output)
     }
 }
 

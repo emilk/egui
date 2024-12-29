@@ -93,6 +93,12 @@ pub enum SnapshotError {
         /// The error that occurred
         err: ImageError,
     },
+
+    /// Error rendering the image
+    RenderError {
+        /// The error that occurred
+        err: String,
+    },
 }
 
 const HOW_TO_UPDATE_SCREENSHOTS: &str =
@@ -136,6 +142,9 @@ impl Display for SnapshotError {
             }
             Self::WriteSnapshot { path, err } => {
                 write!(f, "Error writing snapshot: {err:?}\nAt: {path:?}")
+            }
+            Self::RenderError { err } => {
+                write!(f, "Error rendering image: {err:?}")
             }
         }
     }
@@ -326,14 +335,16 @@ impl<State> Harness<'_, State> {
     /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Errors
-    /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
-    /// reading or writing the snapshot.
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an 
+    /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_wgpu_snapshot_options(
         &mut self,
         name: &str,
         options: &SnapshotOptions,
     ) -> Result<(), SnapshotError> {
-        let image = crate::wgpu::TestRenderer::render(self);
+        let image = self
+            .render()
+            .map_err(|err| SnapshotError::RenderError { err })?;
         try_image_snapshot_options(&image, name, options)
     }
 
@@ -343,10 +354,12 @@ impl<State> Harness<'_, State> {
     /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Errors
-    /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
-    /// reading or writing the snapshot.
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an 
+    /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
     pub fn try_wgpu_snapshot(&mut self, name: &str) -> Result<(), SnapshotError> {
-        let image = crate::wgpu::TestRenderer::render(self);
+        let image = self
+            .render()
+            .map_err(|err| SnapshotError::RenderError { err })?;
         try_image_snapshot(&image, name)
     }
 
@@ -366,8 +379,8 @@ impl<State> Harness<'_, State> {
     /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Panics
-    /// Panics if the image does not match the snapshot or if there was an error reading or writing the
-    /// snapshot.
+    /// Panics if the image does not match the snapshot, if there was an error reading or writing the
+    /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
     pub fn wgpu_snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
         match self.try_wgpu_snapshot_options(name, options) {
@@ -378,14 +391,14 @@ impl<State> Harness<'_, State> {
         }
     }
 
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// Render a image using a default [`crate::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Panics
-    /// Panics if the image does not match the snapshot or if there was an error reading or writing the
-    /// snapshot.
+    /// Panics if the image does not match the snapshot, if there was an error reading or writing the
+    /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
     pub fn wgpu_snapshot(&mut self, name: &str) {
         match self.try_wgpu_snapshot(name) {
