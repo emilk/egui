@@ -16,6 +16,9 @@ pub trait TestRenderer {
     fn render(&mut self, ctx: &Context, output: &FullOutput) -> Result<RgbaImage, String>;
 }
 
+/// A lazy renderer that initializes the renderer on the first render call.
+///
+/// By default, this will create a wgpu renderer if the wgpu feature is enabled.
 pub enum LazyRenderer {
     Uninitialized {
         texture_ops: Vec<egui::TexturesDelta>,

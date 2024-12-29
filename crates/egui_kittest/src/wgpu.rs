@@ -1,4 +1,5 @@
 use crate::texture_to_image::texture_to_image;
+use eframe::epaint::TextureId;
 use egui::TexturesDelta;
 use egui_wgpu::wgpu::{Backends, StoreOp, TextureFormat};
 use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
@@ -16,7 +17,7 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
     }
 }
 
-pub(crate) fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
+pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
     let instance = match &setup {
         WgpuSetup::Existing { instance, .. } => instance.clone(),
         WgpuSetup::CreateNew { .. } => Default::default(),
@@ -33,7 +34,7 @@ pub(crate) fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
         1,
         false,
     ))
-        .expect("Failed to create render state")
+    .expect("Failed to create render state")
 }
 
 /// Utility to render snapshots from a [`crate::Harness`] using [`egui_wgpu`].
@@ -60,6 +61,22 @@ impl WgpuTestRenderer {
         Self {
             render_state: create_render_state(setup),
         }
+    }
+
+    /// Create a new [`WgpuTestRenderer`] from an existing [`RenderState`].
+    ///
+    /// # Panics
+    /// Panics if the [`RenderState`] has been used before.
+    pub fn from_render_state(render_state: RenderState) -> Self {
+        assert!(
+            render_state
+                .renderer
+                .read()
+                .texture(&TextureId::Managed(0))
+                .is_none(),
+            "The RenderState passed in has been used before, pass in a fresh RenderState instead."
+        );
+        Self { render_state }
     }
 }
 
