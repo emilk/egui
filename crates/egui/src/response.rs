@@ -1017,6 +1017,7 @@ impl Response {
             WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
                 Role::Button
             }
+            WidgetType::Image => Role::Image,
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
             WidgetType::RadioGroup => Role::RadioGroup,

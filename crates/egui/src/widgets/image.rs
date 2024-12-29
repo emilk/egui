@@ -6,7 +6,7 @@ use epaint::RectShape;
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
     pos2, Align2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape,
-    Spinner, Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget,
+    Spinner, Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
 };
 
 /// A widget which displays an image.
@@ -363,6 +363,7 @@ impl<'a> Widget for Image<'a> {
         let ui_size = self.calc_size(ui.available_size(), original_image_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
+        response.widget_info(|| WidgetInfo::new(WidgetType::Image));
         if ui.is_rect_visible(rect) {
             paint_texture_load_result(
                 ui,
