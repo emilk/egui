@@ -4,12 +4,16 @@ type AppKindContextState<'a, State> = Box<dyn FnMut(&egui::Context, &mut State) 
 type AppKindUiState<'a, State> = Box<dyn FnMut(&mut egui::Ui, &mut State) + 'a>;
 type AppKindContext<'a> = Box<dyn FnMut(&egui::Context) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
+#[cfg(feature = "eframe")]
+type AppKindEframe<'a, State> = (fn(&mut State) -> &mut dyn eframe::App, eframe::Frame);
 
 pub(crate) enum AppKind<'a, State> {
     Context(AppKindContext<'a>),
     Ui(AppKindUi<'a>),
     ContextState(AppKindContextState<'a, State>),
     UiState(AppKindUiState<'a, State>),
+    #[cfg(feature = "eframe")]
+    Eframe(AppKindEframe<'a, State>),
 }
 
 // TODO(lucasmerlin): These aren't working unfortunately :(
@@ -54,6 +58,12 @@ impl<'a, State> AppKind<'a, State> {
                 f(ctx, state);
                 None
             }
+            #[cfg(feature = "eframe")]
+            AppKind::Eframe((get_app, frame)) => {
+                let app = get_app(state);
+                app.update(ctx, frame);
+                None
+            }
             kind_ui => Some(kind_ui.run_ui(ctx, state, sizing_pass)),
         }
     }
@@ -78,7 +88,9 @@ impl<'a, State> AppKind<'a, State> {
                         .show(ui, |ui| match self {
                             AppKind::Ui(f) => f(ui),
                             AppKind::UiState(f) => f(ui, state),
-                            _ => unreachable!(),
+                            _ => unreachable!(
+                                "run_ui should only be called with AppKind::Ui or AppKind UiState"
+                            ),
                         });
                 })
                 .response

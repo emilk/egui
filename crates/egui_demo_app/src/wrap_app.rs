@@ -38,6 +38,7 @@ impl eframe::App for DemoApp {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FractalClockApp {
     fractal_clock: crate::apps::FractalClock,
+    pub mock_time: Option<f64>,
 }
 
 impl eframe::App for FractalClockApp {
@@ -46,7 +47,7 @@ impl eframe::App for FractalClockApp {
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
                 self.fractal_clock
-                    .ui(ui, Some(crate::seconds_since_midnight()));
+                    .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
             });
     }
 }
@@ -77,7 +78,7 @@ impl eframe::App for ColorTestApp {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-enum Anchor {
+pub enum Anchor {
     Demo,
 
     EasyMarkEditor,
@@ -161,7 +162,7 @@ pub struct State {
     http: crate::apps::HttpApp,
     #[cfg(feature = "image_viewer")]
     image_viewer: crate::apps::ImageViewer,
-    clock: FractalClockApp,
+    pub clock: FractalClockApp,
     rendering_test: ColorTestApp,
 
     selected_anchor: Anchor,
@@ -170,7 +171,7 @@ pub struct State {
 
 /// Wraps many demo/test apps into one.
 pub struct WrapApp {
-    state: State,
+    pub state: State,
 
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     custom3d: Option<crate::apps::Custom3d>,
@@ -203,7 +204,9 @@ impl WrapApp {
         slf
     }
 
-    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, Anchor, &mut dyn eframe::App)> {
+    pub fn apps_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&'static str, Anchor, &mut dyn eframe::App)> {
         let mut vec = vec![
             (
                 "✨ Demos",

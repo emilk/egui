@@ -55,8 +55,9 @@ impl<'a, State> Harness<'a, State> {
         builder: &HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
         mut state: State,
+        ctx: Option<egui::Context>,
     ) -> Self {
-        let ctx = egui::Context::default();
+        let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
         let mut input = egui::RawInput {
             screen_rect: Some(builder.screen_rect),
@@ -151,6 +152,14 @@ impl<'a, State> Harness<'a, State> {
     /// ```
     pub fn new_ui_state(app: impl FnMut(&mut egui::Ui, &mut State) + 'a, state: State) -> Self {
         Self::builder().build_ui_state(app, state)
+    }
+
+    /// Create a new [Harness] from the given eframe creation closure.
+    pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext) -> State) -> Self
+    where
+        State: eframe::App,
+    {
+        Self::builder().build_eframe(builder)
     }
 
     /// Set the size of the window.

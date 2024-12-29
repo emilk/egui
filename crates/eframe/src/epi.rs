@@ -109,6 +109,25 @@ impl HasDisplayHandle for CreationContext<'_> {
     }
 }
 
+impl CreationContext<'_> {
+    /// Create a new empty [CreationContext] for testing [App]s in kittest.
+    #[doc(hidden)]
+    pub fn _new_kittest(egui_ctx: egui::Context) -> Self {
+        Self {
+            egui_ctx,
+            integration_info: IntegrationInfo {
+                cpu_usage: None,
+            },
+            storage: None,
+            gl: None,
+            get_proc_address: None,
+            wgpu_render_state: None,
+            raw_window_handle: Err(HandleError::NotSupported),
+            raw_display_handle: Err(HandleError::NotSupported),
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
@@ -651,6 +670,22 @@ impl HasDisplayHandle for Frame {
 }
 
 impl Frame {
+    /// Create a new empty [Frame] for testing [App]s in kittest.
+    #[doc(hidden)]
+    pub fn _new_kittest() -> Self {
+        Self {
+            gl: None,
+            glow_register_native_texture: None,
+            info: IntegrationInfo {
+                cpu_usage: None,
+            },
+            raw_display_handle: Err(HandleError::NotSupported),
+            raw_window_handle: Err(HandleError::NotSupported),
+            storage: None,
+            wgpu_render_state: None,
+        }
+    }
+    
     /// True if you are in a web environment.
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`

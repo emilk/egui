@@ -66,7 +66,7 @@ impl<State> HarnessBuilder<State> {
         app: impl FnMut(&egui::Context, &mut State) + 'a,
         state: State,
     ) -> Harness<'a, State> {
-        Harness::from_builder(&self, AppKind::ContextState(Box::new(app)), state)
+        Harness::from_builder(&self, AppKind::ContextState(Box::new(app)), state, None)
     }
 
     /// Create a new Harness with the given ui closure and a state.
@@ -95,7 +95,30 @@ impl<State> HarnessBuilder<State> {
         app: impl FnMut(&mut egui::Ui, &mut State) + 'a,
         state: State,
     ) -> Harness<'a, State> {
-        Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state)
+        Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state, None)
+    }
+    
+    /// Create a new [Harness] from the given eframe creation closure.
+    /// If the wgpu feature is enabled and [HarnessBuilder::wgpu] was called, the 
+    /// [eframe::CreationContext] and [eframe::Frame] will have a [egui_wgpu::RenderState] 
+    /// attached.
+    pub fn build_eframe<'a>(
+        self,
+        build: impl FnOnce(&mut eframe::CreationContext) -> State,
+    ) -> Harness<'a, State>
+    where
+        State: eframe::App,
+    {
+        let ctx = egui::Context::default();
+
+        let mut cc = eframe::CreationContext::_new_kittest(ctx.clone());
+
+        let app = build(&mut cc);
+
+        let frame = eframe::Frame::_new_kittest();
+
+        let kind = AppKind::Eframe((|state| state, frame));
+        Harness::from_builder(&self, kind, app, Some(ctx))
     }
 }
 
@@ -119,7 +142,7 @@ impl HarnessBuilder {
     ///     });
     /// ```
     pub fn build<'a>(self, app: impl FnMut(&egui::Context) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, AppKind::Context(Box::new(app)), ())
+        Harness::from_builder(&self, AppKind::Context(Box::new(app)), (), None)
     }
 
     /// Create a new Harness with the given ui closure.
@@ -138,6 +161,6 @@ impl HarnessBuilder {
     ///     });
     /// ```
     pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
-        Harness::from_builder(&self, AppKind::Ui(Box::new(app)), ())
+        Harness::from_builder(&self, AppKind::Ui(Box::new(app)), (), None)
     }
 }
