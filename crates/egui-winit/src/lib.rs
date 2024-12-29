@@ -820,9 +820,11 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
+        #![allow(deprecated)]
         profiling::function_scope!();
 
         let egui::PlatformOutput {
+            commands,
             cursor_icon,
             open_url,
             copied_text,
@@ -834,6 +836,17 @@ impl State {
             num_completed_passes: _,    // `egui::Context::run` handles this
             request_discard_reasons: _, // `egui::Context::run` handles this
         } = platform_output;
+
+        for command in commands {
+            match command {
+                egui::OutputCommand::CopyText(text) => {
+                    self.clipboard.set(text);
+                }
+                egui::OutputCommand::OpenUrl(open_url) => {
+                    open_url_in_browser(&open_url.url);
+                }
+            }
+        }
 
         self.set_cursor_icon(window, cursor_icon);
 
