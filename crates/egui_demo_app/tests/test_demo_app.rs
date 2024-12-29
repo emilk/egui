@@ -40,10 +40,12 @@ fn test_demo_app() {
                 continue;
             }
             // We don't want to rely on a network connection for tests
+            #[cfg(feature = "http")]
             Anchor::Http => {
                 continue;
             }
             // Load a local image where we know it exists and loads quickly
+            #[cfg(feature = "image_viewer")]
             Anchor::ImageViewer => {
                 harness.run();
 

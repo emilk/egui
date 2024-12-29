@@ -115,15 +115,17 @@ impl CreationContext<'_> {
     pub fn _new_kittest(egui_ctx: egui::Context) -> Self {
         Self {
             egui_ctx,
-            integration_info: IntegrationInfo {
-                cpu_usage: None,
-            },
+            integration_info: IntegrationInfo::mock(),
             storage: None,
+            #[cfg(feature = "glow")]
             gl: None,
+            #[cfg(feature = "glow")]
             get_proc_address: None,
             #[cfg(feature = "wgpu")]
             wgpu_render_state: None,
+            #[cfg(not(target_arch = "wasm32"))]
             raw_window_handle: Err(HandleError::NotSupported),
+            #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
         }
     }
@@ -675,12 +677,14 @@ impl Frame {
     #[doc(hidden)]
     pub fn _new_kittest() -> Self {
         Self {
+            #[cfg(feature = "glow")]
             gl: None,
+            #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
             glow_register_native_texture: None,
-            info: IntegrationInfo {
-                cpu_usage: None,
-            },
+            info: IntegrationInfo::mock(),
+            #[cfg(not(target_arch = "wasm32"))]
             raw_display_handle: Err(HandleError::NotSupported),
+            #[cfg(not(target_arch = "wasm32"))]
             raw_window_handle: Err(HandleError::NotSupported),
             storage: None,
             #[cfg(feature = "wgpu")]
@@ -829,6 +833,29 @@ pub struct IntegrationInfo {
     ///
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
+}
+
+impl IntegrationInfo {
+    fn mock() -> Self {
+        Self {
+            #[cfg(target_arch = "wasm32")]
+            web_info: WebInfo {
+                user_agent: "kittest".to_owned(),
+                location: Location {
+                    url: "http://localhost".to_owned(),
+                    protocol: "http:".to_owned(),
+                    host: "localhost".to_owned(),
+                    hostname: "localhost".to_owned(),
+                    port: "80".to_owned(),
+                    hash: "".to_owned(),
+                    query: "".to_owned(),
+                    query_map: Default::default(),
+                    origin: "http://localhost".to_owned(),
+                }
+            },
+            cpu_usage: None,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
