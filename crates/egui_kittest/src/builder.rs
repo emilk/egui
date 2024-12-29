@@ -99,12 +99,9 @@ impl<State> HarnessBuilder<State> {
     }
     
     /// Create a new [Harness] from the given eframe creation closure.
-    /// If the wgpu feature is enabled and [HarnessBuilder::wgpu] was called, the 
-    /// [eframe::CreationContext] and [eframe::Frame] will have a [egui_wgpu::RenderState] 
-    /// attached.
     pub fn build_eframe<'a>(
         self,
-        build: impl FnOnce(&mut eframe::CreationContext) -> State,
+        build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
     ) -> Harness<'a, State>
     where
         State: eframe::App,

@@ -121,6 +121,7 @@ impl CreationContext<'_> {
             storage: None,
             gl: None,
             get_proc_address: None,
+            #[cfg(feature = "wgpu")]
             wgpu_render_state: None,
             raw_window_handle: Err(HandleError::NotSupported),
             raw_display_handle: Err(HandleError::NotSupported),
@@ -682,6 +683,7 @@ impl Frame {
             raw_display_handle: Err(HandleError::NotSupported),
             raw_window_handle: Err(HandleError::NotSupported),
             storage: None,
+            #[cfg(feature = "wgpu")]
             wgpu_render_state: None,
         }
     }

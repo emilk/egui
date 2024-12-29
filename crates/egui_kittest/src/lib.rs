@@ -23,7 +23,7 @@ use std::mem;
 use crate::app_kind::AppKind;
 use crate::event::EventState;
 pub use builder::*;
-use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
+use egui::{Modifiers, Pos2, Rect, TexturesDelta, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 
 /// The test Harness. This contains everything needed to run the test.
@@ -155,7 +155,7 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
-    pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext) -> State) -> Self
+    pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
     where
         State: eframe::App,
     {
@@ -273,6 +273,25 @@ impl<'a, State> Harness<'a, State> {
             key,
             pressed: false,
             modifiers: Default::default(),
+            repeat: false,
+            physical_key: None,
+        });
+    }
+    
+    /// Press a key with modifiers.
+    /// This will create a key down event and a key up event.
+    pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers,
+            repeat: false,
+            physical_key: None,
+        });
+        self.input.events.push(egui::Event::Key {
+            key,
+            pressed: false,
+            modifiers,
             repeat: false,
             physical_key: None,
         });
