@@ -263,6 +263,7 @@ impl<'a> Image<'a> {
 
     /// Set alt text for the image. This will be shown when the image fails to load.
     /// It will also be read to screen readers.
+    #[inline]
     pub fn alt_text(mut self, label: impl Into<String>) -> Self {
         self.alt_text = Some(label.into());
         self
