@@ -97,7 +97,7 @@ impl<State> HarnessBuilder<State> {
     ) -> Harness<'a, State> {
         Harness::from_builder(&self, AppKind::UiState(Box::new(app)), state, None)
     }
-    
+
     /// Create a new [Harness] from the given eframe creation closure.
     /// The app can be accessed via the [Harness::state] / [Harness::state_mut] methods.
     #[cfg(feature = "eframe")]

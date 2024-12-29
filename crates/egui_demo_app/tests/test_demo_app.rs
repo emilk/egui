@@ -1,5 +1,4 @@
 use egui::accesskit::Role;
-use egui::{Key, Modifiers};
 use egui_demo_app::{Anchor, WrapApp};
 use egui_kittest::kittest::Queryable;
 
@@ -52,7 +51,7 @@ fn test_demo_app() {
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
                     .focus();
-                harness.press_key_modifiers(Modifiers::COMMAND, Key::A);
+                harness.press_key_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
 
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
@@ -65,15 +64,12 @@ fn test_demo_app() {
 
         harness.run();
 
-        harness
-            .try_wgpu_snapshot(&anchor.to_string())
-            .err()
-            .map(|e| {
-                results.push(e);
-            });
+        if let Err(e) = harness.try_wgpu_snapshot(&anchor.to_string()) {
+            results.push(e);
+        }
     }
 
-    for error in results {
+    if let Some(error) = results.first() {
         panic!("{error}");
     }
 }

@@ -691,7 +691,7 @@ impl Frame {
             wgpu_render_state: None,
         }
     }
-    
+
     /// True if you are in a web environment.
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`
@@ -847,11 +847,11 @@ impl IntegrationInfo {
                     host: "localhost".to_owned(),
                     hostname: "localhost".to_owned(),
                     port: "80".to_owned(),
-                    hash: "".to_owned(),
-                    query: "".to_owned(),
+                    hash: String::new(),
+                    query: String::new(),
                     query_map: Default::default(),
                     origin: "http://localhost".to_owned(),
-                }
+                },
             },
             cpu_usage: None,
         }

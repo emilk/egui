@@ -278,7 +278,7 @@ impl<'a, State> Harness<'a, State> {
             physical_key: None,
         });
     }
-    
+
     /// Press a key with modifiers.
     /// This will create a key down event and a key up event.
     pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
