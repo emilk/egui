@@ -1,7 +1,10 @@
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use emath::{Float as _, Rot2};
-use epaint::RectShape;
+use epaint::{
+    text::{LayoutJob, TextFormat, TextWrapping},
+    RectShape,
+};
 
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
@@ -51,6 +54,7 @@ pub struct Image<'a> {
     sense: Sense,
     size: ImageSize,
     pub(crate) show_loading_spinner: Option<bool>,
+    alt_text: Option<String>,
 }
 
 impl<'a> Image<'a> {
@@ -76,6 +80,7 @@ impl<'a> Image<'a> {
                 sense: Sense::hover(),
                 size,
                 show_loading_spinner: None,
+                alt_text: None,
             }
         }
 
@@ -255,6 +260,13 @@ impl<'a> Image<'a> {
         self.show_loading_spinner = Some(show);
         self
     }
+
+    /// Set alt text for the image. This will be shown when the image fails to load.
+    /// It will also be read to screen readers.
+    pub fn alt_text(mut self, label: impl Into<String>) -> Self {
+        self.alt_text = Some(label.into());
+        self
+    }
 }
 
 impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
@@ -345,13 +357,14 @@ impl<'a> Image<'a> {
     /// # });
     /// ```
     #[inline]
-    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
         paint_texture_load_result(
             ui,
             &self.load_for_size(ui.ctx(), rect.size()),
             rect,
             self.show_loading_spinner,
             &self.image_options,
+            self.alt_text.as_deref(),
         );
     }
 }
@@ -363,7 +376,11 @@ impl<'a> Widget for Image<'a> {
         let ui_size = self.calc_size(ui.available_size(), original_image_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
-        response.widget_info(|| WidgetInfo::new(WidgetType::Image));
+        response.widget_info(|| {
+            let mut info = WidgetInfo::new(WidgetType::Image);
+            info.label = self.alt_text.clone();
+            info
+        });
         if ui.is_rect_visible(rect) {
             paint_texture_load_result(
                 ui,
@@ -371,6 +388,7 @@ impl<'a> Widget for Image<'a> {
                 rect,
                 self.show_loading_spinner,
                 &self.image_options,
+                self.alt_text.as_deref(),
             );
         }
         texture_load_result_response(&self.source(ui.ctx()), &tlr, response)
@@ -596,11 +614,12 @@ impl<'a> ImageSource<'a> {
 }
 
 pub fn paint_texture_load_result(
-    ui: &Ui,
+    ui: &mut Ui,
     tlr: &TextureLoadResult,
     rect: Rect,
     show_loading_spinner: Option<bool>,
     options: &ImageOptions,
+    alt: Option<&str>,
 ) {
     match tlr {
         Ok(TexturePoll::Ready { texture }) => {
@@ -615,12 +634,33 @@ pub fn paint_texture_load_result(
         }
         Err(_) => {
             let font_id = TextStyle::Body.resolve(ui.style());
-            ui.painter().text(
-                rect.center(),
-                Align2::CENTER_CENTER,
+            let mut job = LayoutJob::default();
+            job.wrap = TextWrapping::wrap_at_width(rect.width());
+            job.append(
                 "⚠",
-                font_id,
-                ui.visuals().error_fg_color,
+                0.0,
+                TextFormat {
+                    color: ui.visuals().error_fg_color,
+                    font_id: font_id.clone(),
+                    ..Default::default()
+                },
+            );
+            if let Some(alt) = alt {
+                job.append(
+                    alt,
+                    ui.spacing().item_spacing.x,
+                    TextFormat {
+                        color: ui.visuals().text_color(),
+                        font_id,
+                        ..Default::default()
+                    },
+                );
+            }
+            let galley = ui.painter().layout_job(job);
+            ui.painter().galley(
+                rect.center() - 0.5 * galley.size(),
+                galley,
+                ui.visuals().text_color(),
             );
         }
     }
