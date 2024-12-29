@@ -318,6 +318,9 @@ impl AppRunner {
                 egui::OutputCommand::CopyText(text) => {
                     super::set_clipboard_text(&text);
                 }
+                egui::OutputCommand::CopyImage(image) => {
+                    super::set_clipboard_image(&image);
+                }
                 egui::OutputCommand::OpenUrl(open_url) => {
                     super::open_url(&open_url.url, open_url.new_tab);
                 }
