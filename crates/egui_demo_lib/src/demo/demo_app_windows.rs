@@ -92,6 +92,7 @@ impl Default for DemoGroups {
                 Box::<super::window_options::WindowOptions>::default(),
             ]),
             tests: DemoGroup::new(vec![
+                Box::<super::tests::ClipboardTest>::default(),
                 Box::<super::tests::CursorTest>::default(),
                 Box::<super::tests::GridTest>::default(),
                 Box::<super::tests::IdTest>::default(),

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use egui::{
-    emath::GuiRounding, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
+    emath::GuiRounding as _, epaint, lerp, pos2, vec2, widgets::color_picker::show_color, Align2,
     Color32, FontId, Image, Mesh, Pos2, Rect, Response, Rgba, RichText, Sense, Shape, Stroke,
     TextureHandle, TextureOptions, Ui, Vec2,
 };

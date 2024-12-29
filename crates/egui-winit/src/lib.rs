@@ -190,7 +190,7 @@ impl State {
 
     /// Places the text onto the clipboard.
     pub fn set_clipboard_text(&mut self, text: String) {
-        self.clipboard.set(text);
+        self.clipboard.set_text(text);
     }
 
     /// Returns [`false`] or the last value that [`Window::set_ime_allowed()`] was called with, used for debouncing.
@@ -840,7 +840,10 @@ impl State {
         for command in commands {
             match command {
                 egui::OutputCommand::CopyText(text) => {
-                    self.clipboard.set(text);
+                    self.clipboard.set_text(text);
+                }
+                egui::OutputCommand::CopyImage(image) => {
+                    self.clipboard.set_image(&image);
                 }
                 egui::OutputCommand::OpenUrl(open_url) => {
                     open_url_in_browser(&open_url.url);
@@ -855,7 +858,7 @@ impl State {
         }
 
         if !copied_text.is_empty() {
-            self.clipboard.set(copied_text);
+            self.clipboard.set_text(copied_text);
         }
 
         let allow_ime = ime.is_some();
