@@ -5,10 +5,10 @@ type AppKindUiState<'a, State> = Box<dyn FnMut(&mut egui::Ui, &mut State) + 'a>;
 type AppKindContext<'a> = Box<dyn FnMut(&egui::Context) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 
-/// In order to access the [eframe::App] trait from the generic [State], we store a function pointer
+/// In order to access the [`eframe::App`] trait from the generic `State`, we store a function pointer
 /// here that will return the dyn trait from the struct. In the builder we have the correct where
 /// clause to be able to create this.
-/// Later we can use it anywhere to get the [eframe::App] from the [State].
+/// Later we can use it anywhere to get the [`eframe::App`] from the `State`.
 #[cfg(feature = "eframe")]
 type AppKindEframe<'a, State> = (fn(&mut State) -> &mut dyn eframe::App, eframe::Frame);
 

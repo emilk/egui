@@ -1,17 +1,17 @@
 use crate::texture_to_image::texture_to_image;
+use egui::TexturesDelta;
 use egui_wgpu::wgpu::{Backends, StoreOp, TextureFormat};
 use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
 use image::RgbaImage;
 use std::iter::once;
 use std::sync::Arc;
 use wgpu::Maintain;
-use egui::TexturesDelta;
 
-// TODO: Replace this with the setup from https://github.com/emilk/egui/pull/5506
+// TODO(#5506): Replace this with the setup from https://github.com/emilk/egui/pull/5506
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
     egui_wgpu::WgpuSetup::CreateNew {
         supported_backends: Backends::all(),
-        device_descriptor: Arc::new(|a| wgpu::DeviceDescriptor::default()),
+        device_descriptor: Arc::new(|_| wgpu::DeviceDescriptor::default()),
         power_preference: wgpu::PowerPreference::default(),
     }
 }
@@ -19,7 +19,7 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
 pub(crate) fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
     let instance = match &setup {
         WgpuSetup::Existing { instance, .. } => instance.clone(),
-        _ => Default::default(),
+        WgpuSetup::CreateNew { .. } => Default::default(),
     };
 
     pollster::block_on(egui_wgpu::RenderState::create(
@@ -36,7 +36,7 @@ pub(crate) fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
         .expect("Failed to create render state")
 }
 
-/// Utility to render snapshots from a [`Harness`] using [`egui_wgpu`].
+/// Utility to render snapshots from a [`crate::Harness`] using [`egui_wgpu`].
 pub struct WgpuTestRenderer {
     render_state: RenderState,
 }
@@ -82,7 +82,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
         }
     }
 
-    /// Render the [`Harness`] and return the resulting image.
+    /// Render the [`crate::Harness`] and return the resulting image.
     fn render(
         &mut self,
         ctx: &egui::Context,

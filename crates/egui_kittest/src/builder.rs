@@ -1,8 +1,8 @@
 use crate::app_kind::AppKind;
+use crate::wgpu::WgpuTestRenderer;
 use crate::{Harness, LazyRenderer, TestRenderer};
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
-use crate::wgpu::WgpuTestRenderer;
 
 /// Builder for [`Harness`].
 pub struct HarnessBuilder<State = ()> {
@@ -40,20 +40,26 @@ impl<State> HarnessBuilder<State> {
         self
     }
 
+    /// Set the [`TestRenderer`] to use for rendering.
+    ///
+    /// By default, a [`LazyRenderer`] is used.
+    #[inline]
     pub fn renderer(mut self, renderer: impl TestRenderer + 'static) -> Self {
         self.renderer = Box::new(renderer);
         self
     }
 
     /// Enable wgpu rendering with a default setup suitable for testing.
+    ///
+    /// This sets up a [`WgpuTestRenderer`] with the default setup.
     #[cfg(feature = "wgpu")]
-    pub fn wgpu(mut self) -> Self {
+    pub fn wgpu(self) -> Self {
         self.renderer(WgpuTestRenderer::default())
     }
 
     /// Enable wgpu rendering with the given setup.
     #[cfg(feature = "wgpu")]
-    pub fn wgpu_setup(mut self, setup: egui_wgpu::WgpuSetup) -> Self {
+    pub fn wgpu_setup(self, setup: egui_wgpu::WgpuSetup) -> Self {
         self.renderer(WgpuTestRenderer::from_setup(setup))
     }
 
@@ -86,12 +92,7 @@ impl<State> HarnessBuilder<State> {
         app: impl FnMut(&egui::Context, &mut State) + 'a,
         state: State,
     ) -> Harness<'a, State> {
-        Harness::from_builder(
-            self,
-            AppKind::ContextState(Box::new(app)),
-            state,
-            None,
-        )
+        Harness::from_builder(self, AppKind::ContextState(Box::new(app)), state, None)
     }
 
     /// Create a new Harness with the given ui closure and a state.
@@ -124,10 +125,10 @@ impl<State> HarnessBuilder<State> {
     }
 
     /// Create a new [Harness] from the given eframe creation closure.
-    /// The app can be accessed via the [Harness::state] / [Harness::state_mut] methods.
+    /// The app can be accessed via the [`Harness::state`] / [`Harness::state_mut`] methods.
     #[cfg(feature = "eframe")]
     pub fn build_eframe<'a>(
-        mut self,
+        self,
         build: impl FnOnce(&mut eframe::CreationContext<'a>) -> State,
     ) -> Harness<'a, State>
     where

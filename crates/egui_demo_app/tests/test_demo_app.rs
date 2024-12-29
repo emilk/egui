@@ -1,9 +1,7 @@
-use eframe::egui_wgpu::WgpuSetup;
 use egui::accesskit::Role;
 use egui::Vec2;
 use egui_demo_app::{Anchor, WrapApp};
 use egui_kittest::kittest::Queryable;
-use std::sync::Arc;
 
 #[test]
 fn test_demo_app() {
@@ -69,7 +67,7 @@ fn test_demo_app() {
 
         harness.run();
 
-        if let Err(e) = harness.try_wgpu_snapshot(&anchor.to_string()) {
+        if let Err(e) = harness.try_snapshot(&anchor.to_string()) {
             results.push(e);
         }
     }

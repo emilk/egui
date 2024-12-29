@@ -2,22 +2,18 @@ use egui::{Context, FullOutput, TexturesDelta};
 use image::RgbaImage;
 
 pub trait TestRenderer {
-    /// We use this to pass the glow / wgpu render state to [eframe::Frame].
+    /// We use this to pass the glow / wgpu render state to [`eframe::Frame`].
     #[cfg(feature = "eframe")]
-    fn setup_eframe(&self, cc: &mut eframe::CreationContext<'_>, frame: &mut eframe::Frame) {}
+    fn setup_eframe(&self, _cc: &mut eframe::CreationContext<'_>, _frame: &mut eframe::Frame) {}
 
     /// Handle a [`TexturesDelta`] by updating the renderer's textures.
     fn handle_delta(&mut self, delta: &TexturesDelta);
 
-    /// Render the [`Harness`] and return the resulting image.
+    /// Render the [`crate::Harness`] and return the resulting image.
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
-    fn render(
-        &mut self,
-        ctx: &egui::Context,
-        output: &egui::FullOutput,
-    ) -> Result<image::RgbaImage, String>;
+    fn render(&mut self, ctx: &Context, output: &FullOutput) -> Result<RgbaImage, String>;
 }
 
 pub enum LazyRenderer {

@@ -12,22 +12,20 @@ mod snapshot;
 pub use snapshot::*;
 use std::fmt::{Debug, Formatter};
 mod app_kind;
+mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
-mod renderer;
 
 pub use kittest;
-use std::mem;
 
 use crate::app_kind::AppKind;
 use crate::event::EventState;
 pub use builder::*;
-pub use renderer::*;
-use egui::{Modifiers, Pos2, Rect, TexturesDelta, Vec2, ViewportId};
+use egui::{Modifiers, Pos2, Rect, Vec2, ViewportId};
 use kittest::{Node, Queryable};
-use egui_wgpu::RenderState;
+pub use renderer::*;
 
 /// The test Harness. This contains everything needed to run the test.
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].

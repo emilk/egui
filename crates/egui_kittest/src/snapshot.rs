@@ -319,7 +319,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
 
 #[cfg(feature = "wgpu")]
 impl<State> Harness<'_, State> {
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
     /// If you want to change the default options for your whole project, you could create an
@@ -327,7 +327,7 @@ impl<State> Harness<'_, State> {
     /// new `my_image_snapshot` function on the Harness that calls this function with the desired options.
     /// You could additionally use the
     /// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
-    /// lint to disable use of the [`Harness::wgpu_snapshot`] to prevent accidentally using the wrong defaults.
+    /// lint to disable use of the [`Harness::snapshot`] to prevent accidentally using the wrong defaults.
     ///
     /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
     /// The snapshot will be saved under `{output_path}/{name}.png`.
@@ -335,9 +335,9 @@ impl<State> Harness<'_, State> {
     /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Errors
-    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an 
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
-    pub fn try_wgpu_snapshot_options(
+    pub fn try_snapshot_options(
         &mut self,
         name: &str,
         options: &SnapshotOptions,
@@ -348,22 +348,22 @@ impl<State> Harness<'_, State> {
         try_image_snapshot_options(&image, name, options)
     }
 
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Errors
-    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an 
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
     /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
-    pub fn try_wgpu_snapshot(&mut self, name: &str) -> Result<(), SnapshotError> {
+    pub fn try_snapshot(&mut self, name: &str) -> Result<(), SnapshotError> {
         let image = self
             .render()
             .map_err(|err| SnapshotError::RenderError { err })?;
         try_image_snapshot(&image, name)
     }
 
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
     /// If you want to change the default options for your whole project, you could create an
@@ -371,7 +371,7 @@ impl<State> Harness<'_, State> {
     /// new `my_image_snapshot` function on the Harness that calls this function with the desired options.
     /// You could additionally use the
     /// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
-    /// lint to disable use of the [`Harness::wgpu_snapshot`] to prevent accidentally using the wrong defaults.
+    /// lint to disable use of the [`Harness::snapshot`] to prevent accidentally using the wrong defaults.
     ///
     /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
     /// The snapshot will be saved under `{output_path}/{name}.png`.
@@ -382,8 +382,8 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn wgpu_snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
-        match self.try_wgpu_snapshot_options(name, options) {
+    pub fn snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+        match self.try_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
                 panic!("{}", err);
@@ -391,7 +391,7 @@ impl<State> Harness<'_, State> {
         }
     }
 
-    /// Render a image using a default [`crate::TestRenderer`] and compare it to the snapshot.
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
@@ -400,8 +400,8 @@ impl<State> Harness<'_, State> {
     /// Panics if the image does not match the snapshot, if there was an error reading or writing the
     /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn wgpu_snapshot(&mut self, name: &str) {
-        match self.try_wgpu_snapshot(name) {
+    pub fn snapshot(&mut self, name: &str) {
+        match self.try_snapshot(name) {
             Ok(_) => {}
             Err(err) => {
                 panic!("{}", err);

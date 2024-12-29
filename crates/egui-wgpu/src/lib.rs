@@ -188,7 +188,10 @@ impl RenderState {
 
         let capabilities = {
             profiling::scope!("get_capabilities");
-            surface.map_or_else(|| vec![TextureFormat::Rgba8Unorm], |s| s.get_capabilities(&adapter).formats)
+            surface.map_or_else(
+                || vec![TextureFormat::Rgba8Unorm],
+                |s| s.get_capabilities(&adapter).formats,
+            )
         };
         let target_format = crate::preferred_framebuffer_format(&capabilities)?;
 
