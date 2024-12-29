@@ -20,7 +20,7 @@ use epaint::{Color32, Margin, Rect, Rounding, Shadow, Shape, Stroke};
 ///
 /// ## Dynamic color
 /// If you want to change the color of the frame based on the response of
-/// the widget, you needs to break it up into multiple steps:
+/// the widget, you need to break it up into multiple steps:
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
