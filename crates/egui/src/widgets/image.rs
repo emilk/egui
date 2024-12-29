@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc, time::Duration};
 
-use emath::{Float as _, Rot2};
+use emath::{Align, Float as _, Rot2};
 use epaint::{
     text::{LayoutJob, TextFormat, TextWrapping},
     RectShape,
@@ -635,7 +635,8 @@ pub fn paint_texture_load_result(
         Err(_) => {
             let font_id = TextStyle::Body.resolve(ui.style());
             let mut job = LayoutJob::default();
-            job.wrap = TextWrapping::wrap_at_width(rect.width());
+            job.wrap = TextWrapping::truncate_at_width(rect.width());
+            job.halign = Align::Center;
             job.append(
                 "⚠",
                 0.0,
@@ -658,7 +659,7 @@ pub fn paint_texture_load_result(
             }
             let galley = ui.painter().layout_job(job);
             ui.painter().galley(
-                rect.center() - 0.5 * galley.size(),
+                rect.center() - Vec2::Y * galley.size().y * 0.5,
                 galley,
                 ui.visuals().text_color(),
             );
