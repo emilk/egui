@@ -38,21 +38,24 @@ impl crate::View for ClipboardTest {
             })
             .inner;
 
-        ui.horizontal(|ui| {
-            for (name, cmd) in [
-                ("Copy", egui::ViewportCommand::RequestCopy),
-                ("Cut", egui::ViewportCommand::RequestCut),
-                ("Paste", egui::ViewportCommand::RequestPaste),
-            ] {
-                if ui.button(name).clicked() {
-                    // Next frame we should get a copy/cut/paste-event…
-                    ui.ctx().send_viewport_cmd(cmd);
+        if !cfg!(target_arch = "wasm32") {
+            // These commands are not yet implemented on web
+            ui.horizontal(|ui| {
+                for (name, cmd) in [
+                    ("Copy", egui::ViewportCommand::RequestCopy),
+                    ("Cut", egui::ViewportCommand::RequestCut),
+                    ("Paste", egui::ViewportCommand::RequestPaste),
+                ] {
+                    if ui.button(name).clicked() {
+                        // Next frame we should get a copy/cut/paste-event…
+                        ui.ctx().send_viewport_cmd(cmd);
 
-                    // …that should en up here:
-                    text_edit_response.request_focus();
+                        // …that should en up here:
+                        text_edit_response.request_focus();
+                    }
                 }
-            }
-        });
+            });
+        }
 
         ui.separator();
 
