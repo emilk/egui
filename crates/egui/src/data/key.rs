@@ -49,13 +49,23 @@ pub enum Key {
     /// `?`
     Questionmark,
 
+    // '!'
+    Exclamationmark,
+
     // `[`
     OpenBracket,
 
     // `]`
     CloseBracket,
 
-    /// Also known as "backquote" or "grave"
+    // `{`
+    OpenCurlyBracket,
+
+    // `}`
+    CloseCurlyBracket,
+
+    #[allow(clippy::doc_markdown)] // single backquote
+    /// '`' Also known as "backquote" or "grave"
     Backtick,
 
     /// `-`
@@ -215,11 +225,14 @@ impl Key {
         Self::Semicolon,
         Self::OpenBracket,
         Self::CloseBracket,
+        Self::OpenCurlyBracket,
+        Self::CloseCurlyBracket,
         Self::Backtick,
         Self::Backslash,
         Self::Slash,
         Self::Pipe,
         Self::Questionmark,
+        Self::Exclamationmark,
         Self::Quote,
         // Digits:
         Self::Num0,
@@ -341,8 +354,11 @@ impl Key {
             "/" | "Slash" => Self::Slash,
             "|" | "Pipe" => Self::Pipe,
             "?" | "Questionmark" => Self::Questionmark,
+            "!" | "Exclamationmark" => Self::Exclamationmark,
             "[" | "OpenBracket" => Self::OpenBracket,
             "]" | "CloseBracket" => Self::CloseBracket,
+            "{" | "OpenCurlyBracket" => Self::OpenCurlyBracket,
+            "}" | "CloseCurlyBracket" => Self::CloseCurlyBracket,
             "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
             "'" | "Quote" => Self::Quote,
 
@@ -446,8 +462,11 @@ impl Key {
             Self::Slash => "/",
             Self::Pipe => "|",
             Self::Questionmark => "?",
+            Self::Exclamationmark => "!",
             Self::OpenBracket => "[",
             Self::CloseBracket => "]",
+            Self::OpenCurlyBracket => "{",
+            Self::CloseCurlyBracket => "}",
             Self::Backtick => "`",
 
             _ => self.name(),
@@ -490,8 +509,11 @@ impl Key {
             Self::Slash => "Slash",
             Self::Pipe => "Pipe",
             Self::Questionmark => "Questionmark",
+            Self::Exclamationmark => "Exclamationmark",
             Self::OpenBracket => "OpenBracket",
             Self::CloseBracket => "CloseBracket",
+            Self::OpenCurlyBracket => "OpenCurlyBracket",
+            Self::CloseCurlyBracket => "CloseCurlyBracket",
             Self::Backtick => "Backtick",
             Self::Quote => "Quote",
 
