@@ -666,6 +666,8 @@ pub enum WidgetType {
 
     ImageButton,
 
+    Image,
+
     CollapsingHeader,
 
     ProgressIndicator,

@@ -11,6 +11,7 @@ pub struct ImageButton<'a> {
     sense: Sense,
     frame: bool,
     selected: bool,
+    alt_text: Option<String>,
 }
 
 impl<'a> ImageButton<'a> {
@@ -20,6 +21,7 @@ impl<'a> ImageButton<'a> {
             sense: Sense::click(),
             frame: true,
             selected: false,
+            alt_text: None,
         }
     }
 
@@ -87,7 +89,11 @@ impl<'a> Widget for ImageButton<'a> {
 
         let padded_size = image_size + 2.0 * padding;
         let (rect, response) = ui.allocate_exact_size(padded_size, self.sense);
-        response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
+        response.widget_info(|| {
+            let mut info = WidgetInfo::new(WidgetType::ImageButton);
+            info.label = self.alt_text.clone();
+            info
+        });
 
         if ui.is_rect_visible(rect) {
             let (expansion, rounding, fill, stroke) = if self.selected {
@@ -121,7 +127,14 @@ impl<'a> Widget for ImageButton<'a> {
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
             let image_options = self.image.image_options().clone();
 
-            widgets::image::paint_texture_load_result(ui, &tlr, image_rect, None, &image_options);
+            widgets::image::paint_texture_load_result(
+                ui,
+                &tlr,
+                image_rect,
+                None,
+                &image_options,
+                self.alt_text.as_deref(),
+            );
 
             // Draw frame outline:
             ui.painter()

@@ -344,6 +344,7 @@ impl Widget for Button<'_> {
                     image_rect,
                     image.show_loading_spinner,
                     &image_options,
+                    None,
                 );
                 response = widgets::image::texture_load_result_response(
                     &image.source(ui.ctx()),

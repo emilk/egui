@@ -1,12 +1,15 @@
 use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
-use emath::{Float as _, Rot2};
-use epaint::RectShape;
+use emath::{Align, Float as _, Rot2};
+use epaint::{
+    text::{LayoutJob, TextFormat, TextWrapping},
+    RectShape,
+};
 
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2, Align2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape,
-    Spinner, Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget,
+    pos2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape, Spinner,
+    Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
 };
 
 /// A widget which displays an image.
@@ -51,6 +54,7 @@ pub struct Image<'a> {
     sense: Sense,
     size: ImageSize,
     pub(crate) show_loading_spinner: Option<bool>,
+    alt_text: Option<String>,
 }
 
 impl<'a> Image<'a> {
@@ -76,6 +80,7 @@ impl<'a> Image<'a> {
                 sense: Sense::hover(),
                 size,
                 show_loading_spinner: None,
+                alt_text: None,
             }
         }
 
@@ -255,6 +260,14 @@ impl<'a> Image<'a> {
         self.show_loading_spinner = Some(show);
         self
     }
+
+    /// Set alt text for the image. This will be shown when the image fails to load.
+    /// It will also be read to screen readers.
+    #[inline]
+    pub fn alt_text(mut self, label: impl Into<String>) -> Self {
+        self.alt_text = Some(label.into());
+        self
+    }
 }
 
 impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
@@ -354,6 +367,7 @@ impl<'a> Image<'a> {
             rect,
             self.show_loading_spinner,
             &self.image_options,
+            self.alt_text.as_deref(),
         );
     }
 }
@@ -365,6 +379,11 @@ impl<'a> Widget for Image<'a> {
         let ui_size = self.calc_size(ui.available_size(), original_image_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
+        response.widget_info(|| {
+            let mut info = WidgetInfo::new(WidgetType::Image);
+            info.label = self.alt_text.clone();
+            info
+        });
         if ui.is_rect_visible(rect) {
             paint_texture_load_result(
                 ui,
@@ -372,6 +391,7 @@ impl<'a> Widget for Image<'a> {
                 rect,
                 self.show_loading_spinner,
                 &self.image_options,
+                self.alt_text.as_deref(),
             );
         }
         texture_load_result_response(&self.source(ui.ctx()), &tlr, response)
@@ -602,6 +622,7 @@ pub fn paint_texture_load_result(
     rect: Rect,
     show_loading_spinner: Option<bool>,
     options: &ImageOptions,
+    alt: Option<&str>,
 ) {
     match tlr {
         Ok(TexturePoll::Ready { texture }) => {
@@ -616,12 +637,28 @@ pub fn paint_texture_load_result(
         }
         Err(_) => {
             let font_id = TextStyle::Body.resolve(ui.style());
-            ui.painter().text(
-                rect.center(),
-                Align2::CENTER_CENTER,
+            let mut job = LayoutJob {
+                wrap: TextWrapping::truncate_at_width(rect.width()),
+                halign: Align::Center,
+                ..Default::default()
+            };
+            job.append(
                 "⚠",
-                font_id,
-                ui.visuals().error_fg_color,
+                0.0,
+                TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
+            );
+            if let Some(alt) = alt {
+                job.append(
+                    alt,
+                    ui.spacing().item_spacing.x,
+                    TextFormat::simple(font_id, ui.visuals().text_color()),
+                );
+            }
+            let galley = ui.painter().layout_job(job);
+            ui.painter().galley(
+                rect.center() - Vec2::Y * galley.size().y * 0.5,
+                galley,
+                ui.visuals().text_color(),
             );
         }
     }
