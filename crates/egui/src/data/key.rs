@@ -64,8 +64,7 @@ pub enum Key {
     // `}`
     CloseCurlyBracket,
 
-    #[allow(clippy::doc_markdown)] // single backquote
-    /// '`' Also known as "backquote" or "grave"
+    /// Also known as "backquote" or "grave"
     Backtick,
 
     /// `-`
