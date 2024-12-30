@@ -266,20 +266,7 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     /// This will create a key down event and a key up event.
     pub fn press_key(&mut self, key: egui::Key) {
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: true,
-            modifiers: Default::default(),
-            repeat: false,
-            physical_key: None,
-        });
-        self.input.events.push(egui::Event::Key {
-            key,
-            pressed: false,
-            modifiers: Default::default(),
-            repeat: false,
-            physical_key: None,
-        });
+        self.press_key_modifiers(Modifiers::default(), key);
     }
 
     /// Press a key with modifiers.
