@@ -643,21 +643,13 @@ pub fn paint_texture_load_result(
             job.append(
                 "⚠",
                 0.0,
-                TextFormat {
-                    color: ui.visuals().error_fg_color,
-                    font_id: font_id.clone(),
-                    ..Default::default()
-                },
+                TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
             );
             if let Some(alt) = alt {
                 job.append(
                     alt,
                     ui.spacing().item_spacing.x,
-                    TextFormat {
-                        color: ui.visuals().text_color(),
-                        font_id,
-                        ..Default::default()
-                    },
+                    TextFormat::simple(font_id, ui.visuals().text_color()),
                 );
             }
             let galley = ui.painter().layout_job(job);
