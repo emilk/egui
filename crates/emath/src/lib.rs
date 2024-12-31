@@ -27,7 +27,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
 pub mod align;
 pub mod easing;
-mod gui_rounding;
+pub mod gui_rounding;
 mod history;
 mod numeric;
 mod ordered_float;
