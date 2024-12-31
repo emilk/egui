@@ -1824,6 +1824,9 @@ pub fn apply_viewport_builder_to_window(
             let pos = PhysicalPosition::new(pixels_per_point * pos.x, pixels_per_point * pos.y);
             window.set_outer_position(pos);
         }
+        if let Some(maximized) = builder.maximized {
+            window.set_maximized(maximized);
+        }
     }
 }
 
