@@ -146,7 +146,7 @@ impl Label {
             } else {
                 Sense::click()
             };
-            select_sense.focusable = false; // Don't move focus to labels with TAB key.
+            select_sense -= Sense::FOCUSABLE; // Don't move focus to labels with TAB key.
 
             sense = sense.union(select_sense);
         }

@@ -1151,8 +1151,9 @@ impl Context {
     /// same widget, then `allow_focus` should only be true once (like in [`Ui::new`] (true) and [`Ui::remember_min_rect`] (false)).
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_widget(&self, w: WidgetRect, allow_focus: bool) -> Response {
-        let interested_in_focus =
-            w.enabled && w.sense.focusable && self.memory(|mem| mem.allows_interaction(w.layer_id));
+        let interested_in_focus = w.enabled
+            && w.sense.is_focusable()
+            && self.memory(|mem| mem.allows_interaction(w.layer_id));
 
         // Remember this widget
         self.write(|ctx| {
@@ -1173,7 +1174,7 @@ impl Context {
             self.memory_mut(|mem| mem.surrender_focus(w.id));
         }
 
-        if w.sense.interactive() || w.sense.focusable {
+        if w.sense.interactive() || w.sense.is_focusable() {
             self.check_for_id_clash(w.id, w.rect, "widget");
         }
 
@@ -1181,7 +1182,7 @@ impl Context {
         let res = self.get_response(w);
 
         #[cfg(feature = "accesskit")]
-        if allow_focus && w.sense.focusable {
+        if allow_focus && w.sense.is_focusable() {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
@@ -1257,7 +1258,7 @@ impl Context {
             let memory = &mut ctx.memory;
 
             if enabled
-                && sense.click
+                && sense.senses_click()
                 && memory.has_focus(id)
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
@@ -1267,13 +1268,14 @@ impl Context {
 
             #[cfg(feature = "accesskit")]
             if enabled
-                && sense.click
+                && sense.senses_click()
                 && input.has_accesskit_action_request(id, accesskit::Action::Click)
             {
                 res.flags.set(response::Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
-            if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
+            if enabled && sense.senses_click() && Some(id) == viewport.interact_widgets.long_touched
+            {
                 res.flags.set(response::Flags::LONG_TOUCHED, true);
             }
 
@@ -1314,7 +1316,7 @@ impl Context {
                         any_press = true;
                     }
                     PointerEvent::Released { click, .. } => {
-                        if enabled && sense.click && clicked && click.is_some() {
+                        if enabled && sense.senses_click() && clicked && click.is_some() {
                             res.flags.set(response::Flags::CLICKED, true);
                         }
 
@@ -2165,11 +2167,12 @@ impl Context {
                 let painter = Painter::new(self.clone(), *layer_id, Rect::EVERYTHING);
                 for rect in rects {
                     if rect.sense.interactive() {
-                        let (color, text) = if rect.sense.click && rect.sense.drag {
+                        let (color, text) = if rect.sense.senses_click() && rect.sense.senses_drag()
+                        {
                             (Color32::from_rgb(0x88, 0, 0x88), "click+drag")
-                        } else if rect.sense.click {
+                        } else if rect.sense.senses_click() {
                             (Color32::from_rgb(0x88, 0, 0), "click")
-                        } else if rect.sense.drag {
+                        } else if rect.sense.senses_drag() {
                             (Color32::from_rgb(0, 0, 0x88), "drag")
                         } else {
                             // unreachable since we only show interactive
