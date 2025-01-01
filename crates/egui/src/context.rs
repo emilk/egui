@@ -30,7 +30,7 @@ use crate::{
     os::OperatingSystem,
     output::FullOutput,
     pass_state::PassState,
-    resize, scroll_area,
+    resize, response, scroll_area,
     util::IdTypeMap,
     viewport::ViewportClass,
     Align2, CursorIcon, DeferredViewportUiCallback, FontDefinitions, Grid, Id, ImmediateViewport,
@@ -1213,7 +1213,7 @@ impl Context {
     #[deprecated = "Use Response.contains_pointer or Context::read_response instead"]
     pub fn widget_contains_pointer(&self, id: Id) -> bool {
         self.read_response(id)
-            .map_or(false, |response| response.contains_pointer)
+            .map_or(false, |response| response.contains_pointer())
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.
@@ -1237,26 +1237,21 @@ impl Context {
             rect,
             interact_rect,
             sense,
-            enabled,
-            contains_pointer: false,
-            hovered: false,
-            highlighted,
-            clicked: false,
-            fake_primary_click: false,
-            long_touched: false,
-            drag_started: false,
-            dragged: false,
-            drag_stopped: false,
-            is_pointer_button_down_on: false,
+            flags: response::Flags::empty(),
             interact_pointer_pos: None,
-            changed: false,
             intrinsic_size: None,
         };
+
+        res.flags.set(response::Flags::ENABLED, enabled);
+        res.flags.set(response::Flags::HIGHLIGHTED, highlighted);
 
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
-            res.contains_pointer = viewport.interact_widgets.contains_pointer.contains(&id);
+            res.flags.set(
+                response::Flags::CONTAINS_POINTER,
+                viewport.interact_widgets.contains_pointer.contains(&id),
+            );
 
             let input = &viewport.input;
             let memory = &mut ctx.memory;
@@ -1267,7 +1262,7 @@ impl Context {
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                res.fake_primary_click = true;
+                res.flags.set(response::Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
             #[cfg(feature = "accesskit")]
@@ -1275,23 +1270,38 @@ impl Context {
                 && sense.click
                 && input.has_accesskit_action_request(id, accesskit::Action::Click)
             {
-                res.fake_primary_click = true;
+                res.flags.set(response::Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
             if enabled && sense.click && Some(id) == viewport.interact_widgets.long_touched {
-                res.long_touched = true;
+                res.flags.set(response::Flags::LONG_TOUCHED, true);
             }
 
             let interaction = memory.interaction();
 
-            res.is_pointer_button_down_on = interaction.potential_click_id == Some(id)
-                || interaction.potential_drag_id == Some(id);
+            res.flags.set(
+                response::Flags::IS_POINTER_BUTTON_DOWN_ON,
+                interaction.potential_click_id == Some(id)
+                    || interaction.potential_drag_id == Some(id),
+            );
 
-            if res.enabled {
-                res.hovered = viewport.interact_widgets.hovered.contains(&id);
-                res.dragged = Some(id) == viewport.interact_widgets.dragged;
-                res.drag_started = Some(id) == viewport.interact_widgets.drag_started;
-                res.drag_stopped = Some(id) == viewport.interact_widgets.drag_stopped;
+            if res.enabled() {
+                res.flags.set(
+                    response::Flags::HOVERED,
+                    viewport.interact_widgets.hovered.contains(&id),
+                );
+                res.flags.set(
+                    response::Flags::DRAGGED,
+                    Some(id) == viewport.interact_widgets.dragged,
+                );
+                res.flags.set(
+                    response::Flags::DRAG_STARTED,
+                    Some(id) == viewport.interact_widgets.drag_started,
+                );
+                res.flags.set(
+                    response::Flags::DRAG_STOPPED,
+                    Some(id) == viewport.interact_widgets.drag_stopped,
+                );
             }
 
             let clicked = Some(id) == viewport.interact_widgets.clicked;
@@ -1305,19 +1315,22 @@ impl Context {
                     }
                     PointerEvent::Released { click, .. } => {
                         if enabled && sense.click && clicked && click.is_some() {
-                            res.clicked = true;
+                            res.flags.set(response::Flags::CLICKED, true);
                         }
 
-                        res.is_pointer_button_down_on = false;
-                        res.dragged = false;
+                        res.flags
+                            .set(response::Flags::IS_POINTER_BUTTON_DOWN_ON, false);
+                        res.flags.set(response::Flags::DRAGGED, false);
                     }
                 }
             }
 
             // is_pointer_button_down_on is false when released, but we want interact_pointer_pos
             // to still work.
-            let is_interacted_with =
-                res.is_pointer_button_down_on || res.long_touched || clicked || res.drag_stopped;
+            let is_interacted_with = res.is_pointer_button_down_on()
+                || res.long_touched()
+                || clicked
+                || res.drag_stopped();
             if is_interacted_with {
                 res.interact_pointer_pos = input.pointer.interact_pos();
                 if let (Some(to_global), Some(pos)) = (
@@ -1330,10 +1343,10 @@ impl Context {
 
             if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
-                res.hovered = false;
+                res.flags.set(response::Flags::HOVERED, false);
             }
 
-            let pointer_pressed_elsewhere = any_press && !res.hovered;
+            let pointer_pressed_elsewhere = any_press && !res.hovered();
             if pointer_pressed_elsewhere && memory.has_focus(id) {
                 memory.surrender_focus(id);
             }
@@ -3131,7 +3144,7 @@ impl Context {
                     // TODO(emilk): `Sense::hover_highlight()`
                     let response =
                         ui.add(Label::new(RichText::new(text).monospace()).sense(Sense::click()));
-                    if response.hovered && is_visible {
+                    if response.hovered() && is_visible {
                         ui.ctx()
                             .debug_painter()
                             .debug_rect(area.rect(), Color32::RED, "");
