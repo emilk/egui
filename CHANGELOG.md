@@ -13,6 +13,9 @@ This is just the changelog for the core `egui` crate. Every crate in this reposi
 This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
+## Unreleased
+### Added ⭐
+* Add `ProgressBar::track_fill` if you want to set the fill color of the track manually. [#4872](https://github.com/emilk/egui/pull/4872) by [@andrewbrey](https://github.com/andrewbrey)
 
 ## 0.30.0 - 2024-12-16 - Modals and better layer support
 
