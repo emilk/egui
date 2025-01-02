@@ -86,67 +86,70 @@ fn frame_size() {
 }
 
 impl Frame {
-    pub fn none() -> Self {
-        Self::default()
+    /// No colors, no margins, no border.
+    ///
+    /// This is also the default.
+    pub const NONE: Self = Self {
+        inner_margin: Margin::ZERO,
+        outer_margin: Margin::ZERO,
+        rounding: Rounding::ZERO,
+        shadow: Shadow::NONE,
+        fill: Color32::TRANSPARENT,
+        stroke: Stroke::NONE,
+    };
+
+    pub const fn new() -> Self {
+        Self::NONE
+    }
+
+    #[deprecated = "Use `Frame::NONE` or `Frame::new()` instead."]
+    pub const fn none() -> Self {
+        Self::NONE
     }
 
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::same(6), // same and symmetric looks best in corners when nesting groups
-            rounding: style.visuals.widgets.noninteractive.rounding,
-            stroke: style.visuals.widgets.noninteractive.bg_stroke,
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(6)
+            .rounding(style.visuals.widgets.noninteractive.rounding)
+            .stroke(style.visuals.widgets.noninteractive.bg_stroke)
     }
 
     pub fn side_top_panel(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::symmetric(8, 2),
-            fill: style.visuals.panel_fill,
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(Margin::symmetric(8, 2))
+            .fill(style.visuals.panel_fill)
     }
 
     pub fn central_panel(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::same(8),
-            fill: style.visuals.panel_fill,
-            ..Default::default()
-        }
+        Self::new().inner_margin(8).fill(style.visuals.panel_fill)
     }
 
     pub fn window(style: &Style) -> Self {
-        Self {
-            inner_margin: style.spacing.window_margin,
-            rounding: style.visuals.window_rounding,
-            shadow: style.visuals.window_shadow,
-            fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(style.spacing.window_margin)
+            .rounding(style.visuals.window_rounding)
+            .shadow(style.visuals.window_shadow)
+            .fill(style.visuals.window_fill())
+            .stroke(style.visuals.window_stroke())
     }
 
     pub fn menu(style: &Style) -> Self {
-        Self {
-            inner_margin: style.spacing.menu_margin,
-            rounding: style.visuals.menu_rounding,
-            shadow: style.visuals.popup_shadow,
-            fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(style.spacing.menu_margin)
+            .rounding(style.visuals.menu_rounding)
+            .shadow(style.visuals.popup_shadow)
+            .fill(style.visuals.window_fill())
+            .stroke(style.visuals.window_stroke())
     }
 
     pub fn popup(style: &Style) -> Self {
-        Self {
-            inner_margin: style.spacing.menu_margin,
-            rounding: style.visuals.menu_rounding,
-            shadow: style.visuals.popup_shadow,
-            fill: style.visuals.window_fill(),
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(style.spacing.menu_margin)
+            .rounding(style.visuals.menu_rounding)
+            .shadow(style.visuals.popup_shadow)
+            .fill(style.visuals.window_fill())
+            .stroke(style.visuals.window_stroke())
     }
 
     /// A canvas to draw on.
@@ -154,25 +157,24 @@ impl Frame {
     /// In bright mode this will be very bright,
     /// and in dark mode this will be very dark.
     pub fn canvas(style: &Style) -> Self {
-        Self {
-            inner_margin: Margin::same(2),
-            rounding: style.visuals.widgets.noninteractive.rounding,
-            fill: style.visuals.extreme_bg_color,
-            stroke: style.visuals.window_stroke(),
-            ..Default::default()
-        }
+        Self::new()
+            .inner_margin(2)
+            .rounding(style.visuals.widgets.noninteractive.rounding)
+            .fill(style.visuals.extreme_bg_color)
+            .stroke(style.visuals.window_stroke())
     }
 
     /// A dark canvas to draw on.
     pub fn dark_canvas(style: &Style) -> Self {
-        Self {
-            fill: Color32::from_black_alpha(250),
-            ..Self::canvas(style)
-        }
+        Self::canvas(style).fill(Color32::from_black_alpha(250))
     }
 }
 
 impl Frame {
+    /// The background fill color of the frame, within the [`Self::stroke`].
+    ///
+    /// Known as `background` in CSS.
+    #[doc(alias = "background")]
     #[inline]
     pub fn fill(mut self, fill: Color32) -> Self {
         self.fill = fill;
@@ -192,6 +194,9 @@ impl Frame {
     }
 
     /// Margin within the painted frame.
+    ///
+    /// Known as `padding` in CSS.
+    #[doc(alias = "padding")]
     #[inline]
     pub fn inner_margin(mut self, inner_margin: impl Into<Margin>) -> Self {
         self.inner_margin = inner_margin.into();
@@ -199,12 +204,25 @@ impl Frame {
     }
 
     /// Margin outside the painted frame.
+    ///
+    /// Similar to what is called `margin` in CSS.
+    /// However, egui does NOT do "Margin Collapse" like in CSS,
+    /// i.e. when placing two frames next to each other,
+    /// the distance between their borders is the SUM
+    /// of their other margins.
+    /// In CSS the distance would be the MAX of their outer margins.
+    /// Supporting margin collapse is difficult, and would
+    /// requires complicating the already complicated egui layout code.
+    ///
+    /// Consider using [`egui::Spacing::item_spacing`]
+    /// for adding space between widgets.
     #[inline]
     pub fn outer_margin(mut self, outer_margin: impl Into<Margin>) -> Self {
         self.outer_margin = outer_margin.into();
         self
     }
 
+    /// Optional drop-shadow behind the frame.
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = shadow;
