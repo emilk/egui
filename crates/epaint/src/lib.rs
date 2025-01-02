@@ -41,6 +41,7 @@ mod texture_atlas;
 mod texture_handle;
 pub mod textures;
 pub mod util;
+mod viewport;
 
 pub use self::{
     color::ColorMode,
@@ -61,6 +62,7 @@ pub use self::{
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
+    viewport::ViewportInPixels,
 };
 
 #[allow(deprecated)]
