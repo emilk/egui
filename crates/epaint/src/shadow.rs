@@ -1,4 +1,4 @@
-use super::{Color32, Margin, Rect, RectShape, Rounding, Vec2};
+use crate::{Color32, Marginf, Rect, RectShape, Rounding, Vec2};
 
 /// The color and fuzziness of a fuzzy shape.
 ///
@@ -53,14 +53,14 @@ impl Shadow {
     }
 
     /// How much larger than the parent rect are we in each direction?
-    pub fn margin(&self) -> Margin {
+    pub fn margin(&self) -> Marginf {
         let Self {
             offset,
             blur,
             spread,
             color: _,
         } = *self;
-        Margin {
+        Marginf {
             left: spread + 0.5 * blur - offset.x,
             right: spread + 0.5 * blur + offset.x,
             top: spread + 0.5 * blur - offset.y,

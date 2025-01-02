@@ -64,8 +64,8 @@ impl eframe::App for MyApp {
                 ui.add_space(20.0);
                 egui::Frame {
                     stroke: ui.visuals().noninteractive().bg_stroke,
-                    inner_margin: egui::Margin::same(4.0),
-                    outer_margin: egui::Margin::same(4.0),
+                    inner_margin: egui::Margin::same(4),
+                    outer_margin: egui::Margin::same(4),
                     ..Default::default()
                 }
                 .show(ui, |ui| {
@@ -74,8 +74,8 @@ impl eframe::App for MyApp {
 
                     egui::Frame {
                         stroke: ui.visuals().noninteractive().bg_stroke,
-                        inner_margin: egui::Margin::same(8.0),
-                        outer_margin: egui::Margin::same(6.0),
+                        inner_margin: egui::Margin::same(8),
+                        outer_margin: egui::Margin::same(6),
                         ..Default::default()
                     }
                     .show(ui, |ui| {
@@ -128,7 +128,7 @@ impl eframe::App for MyApp {
                 ui.label("UI nesting test:");
                 egui::Frame {
                     stroke: ui.visuals().noninteractive().bg_stroke,
-                    inner_margin: egui::Margin::same(4.0),
+                    inner_margin: egui::Margin::same(4),
                     ..Default::default()
                 }
                 .show(ui, |ui| {
@@ -267,7 +267,7 @@ fn stack_ui(ui: &mut egui::Ui) {
 fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
     egui::Frame {
         stroke: ui.style().noninteractive().fg_stroke,
-        inner_margin: egui::Margin::same(4.0),
+        inner_margin: egui::Margin::same(4),
         ..Default::default()
     }
     .show(ui, |ui| {

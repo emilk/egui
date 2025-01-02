@@ -1238,8 +1238,8 @@ impl Default for Spacing {
     fn default() -> Self {
         Self {
             item_spacing: vec2(8.0, 3.0),
-            window_margin: Margin::same(6.0),
-            menu_margin: Margin::same(6.0),
+            window_margin: Margin::same(6),
+            menu_margin: Margin::same(6),
             button_padding: vec2(4.0, 1.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
@@ -2371,9 +2371,17 @@ impl Widget for &mut Margin {
 
         // Apply the checkbox:
         if same {
-            *self = Margin::same((self.left + self.right + self.top + self.bottom) / 4.0);
-        } else if self.is_same() {
-            self.right *= 1.00001; // prevent collapsing into sameness
+            *self =
+                Margin::from((self.leftf() + self.rightf() + self.topf() + self.bottomf()) / 4.0);
+        } else {
+            // Make sure it is not same:
+            if self.is_same() {
+                if self.right == i8::MAX {
+                    self.right = i8::MAX - 1;
+                } else {
+                    self.right += 1;
+                }
+            }
         }
 
         response

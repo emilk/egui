@@ -27,6 +27,7 @@ mod brush;
 pub mod color;
 pub mod image;
 mod margin;
+mod marginf;
 mod mesh;
 pub mod mutex;
 mod rounding;
@@ -49,6 +50,7 @@ pub use self::{
     color::ColorMode,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
+    marginf::Marginf,
     mesh::{Mesh, Mesh16, Vertex},
     rounding::Rounding,
     roundingf::Roundingf,
