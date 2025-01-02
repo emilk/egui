@@ -49,7 +49,7 @@ fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOn
         fill: ctx.style().visuals.window_fill(),
         rounding: 10.0.into(),
         stroke: ctx.style().visuals.widgets.noninteractive.fg_stroke,
-        outer_margin: 0.5.into(), // so the stroke is within the bounds
+        outer_margin: 1.0.into(), // so the stroke is within the bounds
         ..Default::default()
     };
 
