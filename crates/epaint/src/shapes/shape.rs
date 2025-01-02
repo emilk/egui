@@ -69,6 +69,14 @@ pub enum Shape {
 }
 
 #[test]
+fn shape_size() {
+    assert_eq!(
+        std::mem::size_of::<Shape>(), 72,
+        "Shape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
+    );
+}
+
+#[test]
 fn shape_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Shape>();

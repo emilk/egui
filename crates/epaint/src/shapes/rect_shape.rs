@@ -42,6 +42,14 @@ pub struct RectShape {
     pub uv: Rect,
 }
 
+#[test]
+fn rect_shape_size() {
+    assert_eq!(
+        std::mem::size_of::<RectShape>(), 72,
+        "RectShape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
+    );
+}
+
 impl RectShape {
     /// The stroke extends _outside_ the [`Rect`].
     #[inline]
