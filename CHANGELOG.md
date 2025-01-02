@@ -1230,7 +1230,7 @@ egui_extras::install_image_loaders(egui_ctx);
 * [Tweaked the default visuals style](https://github.com/emilk/egui/pull/450).
 * Plot: Renamed `Curve` to `Line`.
 * `TopPanel::top` is now `TopBottomPanel::top`.
-* `SidePanel::left` no longet takes the default width by argument, but by a builder call.
+* `SidePanel::left` no longer takes the default width by argument, but by a builder call.
 * `SidePanel::left` is resizable by default.
 
 ### 🐛 Fixed
