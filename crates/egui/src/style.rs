@@ -1293,9 +1293,9 @@ impl Visuals {
 
             window_rounding: Rounding::same(6),
             window_shadow: Shadow {
-                offset: vec2(10.0, 20.0),
-                blur: 15.0,
-                spread: 0.0,
+                offset: [10, 20],
+                blur: 15,
+                spread: 0,
                 color: Color32::from_black_alpha(96),
             },
             window_fill: Color32::from_gray(27),
@@ -1307,9 +1307,9 @@ impl Visuals {
             panel_fill: Color32::from_gray(27),
 
             popup_shadow: Shadow {
-                offset: vec2(6.0, 10.0),
-                blur: 8.0,
-                spread: 0.0,
+                offset: [6, 10],
+                blur: 8,
+                spread: 0,
                 color: Color32::from_black_alpha(96),
             },
 
@@ -1349,9 +1349,9 @@ impl Visuals {
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
             window_shadow: Shadow {
-                offset: vec2(10.0, 20.0),
-                blur: 15.0,
-                spread: 0.0,
+                offset: [10, 20],
+                blur: 15,
+                spread: 0,
                 color: Color32::from_black_alpha(25),
             },
             window_fill: Color32::from_gray(248),
@@ -1360,9 +1360,9 @@ impl Visuals {
             panel_fill: Color32::from_gray(248),
 
             popup_shadow: Shadow {
-                offset: vec2(6.0, 10.0),
-                blur: 8.0,
-                spread: 0.0,
+                offset: [6, 10],
+                blur: 8,
+                spread: 0,
                 color: Color32::from_black_alpha(25),
             },
 
@@ -2456,13 +2456,13 @@ impl Widget for &mut Shadow {
         ui.vertical(|ui| {
             crate::Grid::new("shadow_ui").show(ui, |ui| {
                 ui.add(
-                    DragValue::new(&mut offset.x)
+                    DragValue::new(&mut offset[0])
                         .speed(1.0)
                         .range(-100.0..=100.0)
                         .prefix("x: "),
                 );
                 ui.add(
-                    DragValue::new(&mut offset.y)
+                    DragValue::new(&mut offset[1])
                         .speed(1.0)
                         .range(-100.0..=100.0)
                         .prefix("y: "),
