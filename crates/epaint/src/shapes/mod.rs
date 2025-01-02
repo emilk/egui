@@ -1,19 +1,19 @@
-mod bezier;
-mod circle;
-mod ellipse;
+mod bezier_shape;
+mod circle_shape;
+mod ellipse_shape;
 mod paint_callback;
-mod path;
-mod rect;
+mod path_shape;
+mod rect_shape;
 mod shape;
-mod text;
+mod text_shape;
 
 pub use self::{
-    bezier::{CubicBezierShape, QuadraticBezierShape},
-    circle::CircleShape,
-    ellipse::EllipseShape,
+    bezier_shape::{CubicBezierShape, QuadraticBezierShape},
+    circle_shape::CircleShape,
+    ellipse_shape::EllipseShape,
     paint_callback::{PaintCallback, PaintCallbackInfo},
-    path::PathShape,
-    rect::RectShape,
+    path_shape::PathShape,
+    rect_shape::RectShape,
     shape::Shape,
-    text::TextShape,
+    text_shape::TextShape,
 };
