@@ -23,7 +23,6 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod bezier;
 pub mod color;
 pub mod image;
 mod margin;
@@ -44,7 +43,6 @@ pub mod textures;
 pub mod util;
 
 pub use self::{
-    bezier::{CubicBezierShape, QuadraticBezierShape},
     color::ColorMode,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
@@ -53,8 +51,8 @@ pub use self::{
     roundingf::Roundingf,
     shadow::Shadow,
     shapes::{
-        CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Shape,
-        TextShape,
+        CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
+        QuadraticBezierShape, RectShape, Shape, TextShape,
     },
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
