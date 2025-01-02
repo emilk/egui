@@ -56,7 +56,14 @@ pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
 pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
     let instance = match &setup {
         WgpuSetup::Existing { instance, .. } => instance.clone(),
-        WgpuSetup::CreateNew { .. } => Default::default(),
+        WgpuSetup::CreateNew(egui_wgpu::WgpuSetupCreateNew {
+            supported_backends, ..
+        }) => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: *supported_backends,
+            flags: wgpu::InstanceFlags::default(),
+            dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
+            gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
+        })),
     };
 
     pollster::block_on(egui_wgpu::RenderState::create(
