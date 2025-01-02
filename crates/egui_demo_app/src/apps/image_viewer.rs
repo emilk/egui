@@ -54,8 +54,9 @@ impl eframe::App for ImageViewer {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::TopBottomPanel::new(TopBottomSide::Top, "url bar").show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
-                ui.label("URI:");
-                ui.text_edit_singleline(&mut self.uri_edit_text);
+                let label = ui.label("URI:");
+                ui.text_edit_singleline(&mut self.uri_edit_text)
+                    .labelled_by(label.id);
                 if ui.small_button("✔").clicked() {
                     ctx.forget_image(&self.current_uri);
                     self.uri_edit_text = self.uri_edit_text.trim().to_owned();

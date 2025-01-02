@@ -115,7 +115,7 @@ impl WebPainterWgpu {
         let render_state = RenderState::create(
             &options.wgpu_options,
             &instance,
-            &surface,
+            Some(&surface),
             depth_format,
             1,
             options.dithering,

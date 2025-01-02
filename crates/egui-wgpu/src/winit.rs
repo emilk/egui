@@ -212,7 +212,7 @@ impl Painter {
             let render_state = RenderState::create(
                 &self.configuration,
                 &self.instance,
-                &surface,
+                Some(&surface),
                 self.depth_format,
                 self.msaa_samples,
                 self.dithering,
