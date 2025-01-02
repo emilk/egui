@@ -22,10 +22,12 @@ pub use kittest;
 
 use crate::app_kind::AppKind;
 use crate::event::EventState;
+
 pub use builder::*;
+pub use renderer::*;
+
 use egui::{Modifiers, Pos2, Rect, Vec2, ViewportId};
 use kittest::{Node, Queryable};
-pub use renderer::*;
 
 /// The test Harness. This contains everything needed to run the test.
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].

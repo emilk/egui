@@ -42,10 +42,10 @@ impl Default for LazyRenderer {
 }
 
 impl LazyRenderer {
-    pub fn new<T: TestRenderer + 'static>(renderer: impl FnOnce() -> T + 'static) -> Self {
+    pub fn new<T: TestRenderer + 'static>(create_renderer: impl FnOnce() -> T + 'static) -> Self {
         Self::Uninitialized {
             texture_ops: Vec::new(),
-            builder: Some(Box::new(move || Box::new(renderer()))),
+            builder: Some(Box::new(move || Box::new(create_renderer()))),
         }
     }
 }
