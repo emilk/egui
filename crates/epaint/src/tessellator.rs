@@ -548,6 +548,8 @@ pub mod path {
             // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
             let eps = f32::EPSILON * rect.size().max_elem();
 
+            let r = crate::Roundingf::from(r);
+
             add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0); // south east
 
             if rect.width() <= r.se + r.sw + eps {
@@ -628,7 +630,7 @@ pub mod path {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
-        rounding.at_most(max_cr).at_least(0.0)
+        rounding.at_most(max_cr.floor() as _).at_least(0)
     }
 }
 
@@ -1741,7 +1743,7 @@ impl Tessellator {
                 .at_most(rect.size().min_elem() - eps)
                 .at_least(0.0);
 
-            rounding += Rounding::same(0.5 * blur_width);
+            rounding += Rounding::from(0.5 * blur_width);
 
             self.feathering = self.feathering.max(blur_width);
         }

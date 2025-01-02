@@ -1291,7 +1291,7 @@ impl Visuals {
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
-            window_rounding: Rounding::same(6.0),
+            window_rounding: Rounding::same(6),
             window_shadow: Shadow {
                 offset: vec2(10.0, 20.0),
                 blur: 15.0,
@@ -1302,7 +1302,7 @@ impl Visuals {
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
             window_highlight_topmost: true,
 
-            menu_rounding: Rounding::same(6.0),
+            menu_rounding: Rounding::same(6),
 
             panel_fill: Color32::from_gray(27),
 
@@ -1412,7 +1412,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
@@ -1420,7 +1420,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(60),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1428,7 +1428,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                rounding: Rounding::same(3.0),
+                rounding: Rounding::same(3),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
@@ -1436,7 +1436,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
@@ -1444,7 +1444,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
         }
@@ -1457,7 +1457,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(248),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
@@ -1465,7 +1465,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1473,7 +1473,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
-                rounding: Rounding::same(3.0),
+                rounding: Rounding::same(3),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
@@ -1481,7 +1481,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
@@ -1489,7 +1489,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
         }
@@ -2420,9 +2420,16 @@ impl Widget for &mut Rounding {
 
         // Apply the checkbox:
         if same {
-            *self = Rounding::same((self.nw + self.ne + self.sw + self.se) / 4.0);
-        } else if self.is_same() {
-            self.se *= 1.00001; // prevent collapsing into sameness
+            *self = Rounding::from(self.average());
+        } else {
+            // Make sure we aren't same:
+            if self.is_same() {
+                if self.average() == 0.0 {
+                    self.se = 1;
+                } else {
+                    self.se -= 1;
+                }
+            }
         }
 
         response

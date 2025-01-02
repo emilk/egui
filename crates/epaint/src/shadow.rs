@@ -47,7 +47,7 @@ impl Shadow {
         } = *self;
 
         let rect = rect.translate(offset).expand(spread);
-        let rounding = rounding.into() + Rounding::same(spread.abs());
+        let rounding = rounding.into() + Rounding::from(spread.abs());
 
         RectShape::filled(rect, rounding, color).with_blur_width(blur)
     }

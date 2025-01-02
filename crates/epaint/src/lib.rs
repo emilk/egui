@@ -30,6 +30,7 @@ mod margin;
 mod mesh;
 pub mod mutex;
 mod rounding;
+mod roundingf;
 mod shadow;
 mod shape;
 pub mod shape_transform;
@@ -49,6 +50,7 @@ pub use self::{
     margin::Margin,
     mesh::{Mesh, Mesh16, Vertex},
     rounding::Rounding,
+    roundingf::Roundingf,
     shadow::Shadow,
     shape::{
         CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Shape,
