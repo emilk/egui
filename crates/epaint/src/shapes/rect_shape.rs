@@ -97,6 +97,7 @@ impl RectShape {
     }
 
     /// Set the texture to use when painting this rectangle, if any.
+    #[inline]
     pub fn with_texture(mut self, fill_texture_id: TextureId, uv: Rect) -> Self {
         self.brush = Some(Arc::new(Brush {
             fill_texture_id,
