@@ -1693,14 +1693,14 @@ impl Tessellator {
     /// * `rect`: the rectangle to tessellate.
     /// * `out`: triangles are appended to this.
     pub fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
+        let brush = rect.brush.as_ref();
         let RectShape {
             mut rect,
             mut rounding,
             fill,
             stroke,
             mut blur_width,
-            fill_texture_id,
-            uv,
+            ..
         } = *rect;
 
         if self.options.coarse_tessellation_culling
@@ -1775,7 +1775,11 @@ impl Tessellator {
             path.add_line_loop(&self.scratchpad_points);
             let path_stroke = PathStroke::from(stroke).outside();
 
-            if uv.is_positive() {
+            if let Some(brush) = brush {
+                let crate::Brush {
+                    fill_texture_id,
+                    uv,
+                } = **brush;
                 // Textured
                 let uv_from_pos = |p: Pos2| {
                     pos2(

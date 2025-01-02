@@ -64,8 +64,7 @@ pub fn adjust_colors(
             fill,
             stroke,
             blur_width: _,
-            fill_texture_id: _,
-            uv: _,
+            brush: _,
         }) => {
             adjust_color(fill);
             adjust_color(&mut stroke.color);

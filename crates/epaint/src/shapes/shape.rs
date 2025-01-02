@@ -377,7 +377,7 @@ impl Shape {
         if let Self::Mesh(mesh) = self {
             mesh.texture_id
         } else if let Self::Rect(rect_shape) = self {
-            rect_shape.fill_texture_id
+            rect_shape.fill_texture_id()
         } else {
             crate::TextureId::default()
         }

@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use crate::*;
 
 /// How to paint a rectangle.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RectShape {
     pub rect: Rect,
@@ -28,25 +30,22 @@ pub struct RectShape {
     /// The blur is currently implemented using a simple linear blur in sRGBA gamma space.
     pub blur_width: f32,
 
-    /// If the rect should be filled with a texture, which one?
+    /// Controls texturing, if any.
     ///
-    /// The texture is multiplied with [`Self::fill`].
-    pub fill_texture_id: TextureId,
-
-    /// What UV coordinates to use for the texture?
-    ///
-    /// To display a texture, set [`Self::fill_texture_id`],
-    /// and set this to `Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))`.
-    ///
-    /// Use [`Rect::ZERO`] to turn off texturing.
-    pub uv: Rect,
+    /// Since most rectangles do not have a texture, this is optional and in an `Arc`,
+    /// so that [`RectShape`] is kept small..
+    pub brush: Option<Arc<Brush>>,
 }
 
 #[test]
 fn rect_shape_size() {
     assert_eq!(
-        std::mem::size_of::<RectShape>(), 72,
+        std::mem::size_of::<RectShape>(), 48,
         "RectShape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
+    );
+    assert!(
+        std::mem::size_of::<RectShape>() <= 64,
+        "RectShape is getting way too big!"
     );
 }
 
@@ -65,8 +64,7 @@ impl RectShape {
             fill: fill_color.into(),
             stroke: stroke.into(),
             blur_width: 0.0,
-            fill_texture_id: Default::default(),
-            uv: Rect::ZERO,
+            brush: Default::default(),
         }
     }
 
@@ -76,29 +74,14 @@ impl RectShape {
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: Default::default(),
-            blur_width: 0.0,
-            fill_texture_id: Default::default(),
-            uv: Rect::ZERO,
-        }
+        Self::new(rect, rounding, fill_color, Stroke::NONE)
     }
 
     /// The stroke extends _outside_ the [`Rect`].
     #[inline]
     pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
-        Self {
-            rect,
-            rounding: rounding.into(),
-            fill: Default::default(),
-            stroke: stroke.into(),
-            blur_width: 0.0,
-            fill_texture_id: Default::default(),
-            uv: Rect::ZERO,
-        }
+        let fill = Color32::TRANSPARENT;
+        Self::new(rect, rounding, fill, stroke)
     }
 
     /// If larger than zero, the edges of the rectangle
@@ -113,6 +96,15 @@ impl RectShape {
         self
     }
 
+    /// Set the texture to use when painting this rectangle, if any.
+    pub fn with_texture(mut self, fill_texture_id: TextureId, uv: Rect) -> Self {
+        self.brush = Some(Arc::new(Brush {
+            fill_texture_id,
+            uv,
+        }));
+        self
+    }
+
     /// The visual bounding rectangle (includes stroke width)
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
@@ -122,6 +114,15 @@ impl RectShape {
             let Stroke { width, .. } = self.stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
             self.rect.expand(width + self.blur_width / 2.0)
         }
+    }
+
+    /// The texture to use when painting this rectangle, if any.
+    ///
+    /// If no texture is set, this will return [`TextureId::default`].
+    pub fn fill_texture_id(&self) -> TextureId {
+        self.brush
+            .as_ref()
+            .map_or_else(TextureId::default, |brush| brush.fill_texture_id)
     }
 }
 
