@@ -102,7 +102,7 @@ pub enum SnapshotError {
 }
 
 const HOW_TO_UPDATE_SCREENSHOTS: &str =
-    "Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.";
+    "Run `UPDATE_SNAPSHOTS=1 cargo test --all-features` to update the snapshots.";
 
 impl Display for SnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
