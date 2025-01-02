@@ -106,24 +106,28 @@ impl Display for SnapshotError {
                 diff,
                 diff_path,
             } => {
+                let diff_path = std::path::absolute(diff_path).unwrap_or(diff_path.clone());
                 write!(
                     f,
                     "'{name}' Image did not match snapshot. Diff: {diff}, {diff_path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
                 )
             }
-            Self::OpenSnapshot { path, err } => match err {
-                ImageError::IoError(io) => match io.kind() {
-                    ErrorKind::NotFound => {
-                        write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
-                    }
+            Self::OpenSnapshot { path, err } => {
+                let path = std::path::absolute(path).unwrap_or(path.clone());
+                match err {
+                    ImageError::IoError(io) => match io.kind() {
+                        ErrorKind::NotFound => {
+                            write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                        }
+                        err => {
+                            write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                        }
+                    },
                     err => {
-                        write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                        write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/master/CONTRIBUTING.md#making-a-pr")
                     }
-                },
-                err => {
-                    write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/master/CONTRIBUTING.md#making-a-pr")
                 }
-            },
+            }
             Self::SizeMismatch {
                 name,
                 expected,
@@ -135,6 +139,7 @@ impl Display for SnapshotError {
                 )
             }
             Self::WriteSnapshot { path, err } => {
+                let path = std::path::absolute(path).unwrap_or(path.clone());
                 write!(f, "Error writing snapshot: {err:?}\nAt: {path:?}")
             }
         }
