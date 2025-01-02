@@ -1238,8 +1238,8 @@ impl Default for Spacing {
     fn default() -> Self {
         Self {
             item_spacing: vec2(8.0, 3.0),
-            window_margin: Margin::same(6.0),
-            menu_margin: Margin::same(6.0),
+            window_margin: Margin::same(6),
+            menu_margin: Margin::same(6),
             button_padding: vec2(4.0, 1.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
@@ -1291,25 +1291,25 @@ impl Visuals {
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
-            window_rounding: Rounding::same(6.0),
+            window_rounding: Rounding::same(6),
             window_shadow: Shadow {
-                offset: vec2(10.0, 20.0),
-                blur: 15.0,
-                spread: 0.0,
+                offset: [10, 20],
+                blur: 15,
+                spread: 0,
                 color: Color32::from_black_alpha(96),
             },
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
             window_highlight_topmost: true,
 
-            menu_rounding: Rounding::same(6.0),
+            menu_rounding: Rounding::same(6),
 
             panel_fill: Color32::from_gray(27),
 
             popup_shadow: Shadow {
-                offset: vec2(6.0, 10.0),
-                blur: 8.0,
-                spread: 0.0,
+                offset: [6, 10],
+                blur: 8,
+                spread: 0,
                 color: Color32::from_black_alpha(96),
             },
 
@@ -1349,9 +1349,9 @@ impl Visuals {
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
 
             window_shadow: Shadow {
-                offset: vec2(10.0, 20.0),
-                blur: 15.0,
-                spread: 0.0,
+                offset: [10, 20],
+                blur: 15,
+                spread: 0,
                 color: Color32::from_black_alpha(25),
             },
             window_fill: Color32::from_gray(248),
@@ -1360,9 +1360,9 @@ impl Visuals {
             panel_fill: Color32::from_gray(248),
 
             popup_shadow: Shadow {
-                offset: vec2(6.0, 10.0),
-                blur: 8.0,
-                spread: 0.0,
+                offset: [6, 10],
+                blur: 8,
+                spread: 0,
                 color: Color32::from_black_alpha(25),
             },
 
@@ -1412,7 +1412,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
@@ -1420,7 +1420,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(60),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1428,7 +1428,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
-                rounding: Rounding::same(3.0),
+                rounding: Rounding::same(3),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
@@ -1436,7 +1436,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
@@ -1444,7 +1444,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
         }
@@ -1457,7 +1457,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(248),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
@@ -1465,7 +1465,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
@@ -1473,7 +1473,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
-                rounding: Rounding::same(3.0),
+                rounding: Rounding::same(3),
                 expansion: 1.0,
             },
             active: WidgetVisuals {
@@ -1481,7 +1481,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 1.0,
             },
             open: WidgetVisuals {
@@ -1489,7 +1489,7 @@ impl Widgets {
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
-                rounding: Rounding::same(2.0),
+                rounding: Rounding::same(2),
                 expansion: 0.0,
             },
         }
@@ -2371,9 +2371,17 @@ impl Widget for &mut Margin {
 
         // Apply the checkbox:
         if same {
-            *self = Margin::same((self.left + self.right + self.top + self.bottom) / 4.0);
-        } else if self.is_same() {
-            self.right *= 1.00001; // prevent collapsing into sameness
+            *self =
+                Margin::from((self.leftf() + self.rightf() + self.topf() + self.bottomf()) / 4.0);
+        } else {
+            // Make sure it is not same:
+            if self.is_same() {
+                if self.right == i8::MAX {
+                    self.right = i8::MAX - 1;
+                } else {
+                    self.right += 1;
+                }
+            }
         }
 
         response
@@ -2420,9 +2428,16 @@ impl Widget for &mut Rounding {
 
         // Apply the checkbox:
         if same {
-            *self = Rounding::same((self.nw + self.ne + self.sw + self.se) / 4.0);
-        } else if self.is_same() {
-            self.se *= 1.00001; // prevent collapsing into sameness
+            *self = Rounding::from(self.average());
+        } else {
+            // Make sure we aren't same:
+            if self.is_same() {
+                if self.average() == 0.0 {
+                    self.se = 1;
+                } else {
+                    self.se -= 1;
+                }
+            }
         }
 
         response
@@ -2441,13 +2456,13 @@ impl Widget for &mut Shadow {
         ui.vertical(|ui| {
             crate::Grid::new("shadow_ui").show(ui, |ui| {
                 ui.add(
-                    DragValue::new(&mut offset.x)
+                    DragValue::new(&mut offset[0])
                         .speed(1.0)
                         .range(-100.0..=100.0)
                         .prefix("x: "),
                 );
                 ui.add(
-                    DragValue::new(&mut offset.y)
+                    DragValue::new(&mut offset[1])
                         .speed(1.0)
                         .range(-100.0..=100.0)
                         .prefix("y: "),

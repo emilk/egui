@@ -4,7 +4,7 @@ use crate::{
     epaint, layers::ShapeIdx, InnerResponse, Response, Sense, Style, Ui, UiBuilder, UiKind,
     UiStackInfo,
 };
-use epaint::{Color32, Margin, Rect, Rounding, Shadow, Shape, Stroke};
+use epaint::{Color32, Margin, Marginf, Rect, Rounding, Shadow, Shape, Stroke};
 
 /// Add a background, frame and/or margin to a rectangular background of a [`Ui`].
 ///
@@ -73,6 +73,18 @@ pub struct Frame {
     pub stroke: Stroke,
 }
 
+#[test]
+fn frame_size() {
+    assert_eq!(
+        std::mem::size_of::<Frame>(), 32,
+        "Frame changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
+    );
+    assert!(
+        std::mem::size_of::<Frame>() <= 64,
+        "Frame is getting way too big!"
+    );
+}
+
 impl Frame {
     pub fn none() -> Self {
         Self::default()
@@ -81,7 +93,7 @@ impl Frame {
     /// For when you want to group a few widgets together within a frame.
     pub fn group(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::same(6.0), // same and symmetric looks best in corners when nesting groups
+            inner_margin: Margin::same(6), // same and symmetric looks best in corners when nesting groups
             rounding: style.visuals.widgets.noninteractive.rounding,
             stroke: style.visuals.widgets.noninteractive.bg_stroke,
             ..Default::default()
@@ -90,7 +102,7 @@ impl Frame {
 
     pub fn side_top_panel(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::symmetric(8.0, 2.0),
+            inner_margin: Margin::symmetric(8, 2),
             fill: style.visuals.panel_fill,
             ..Default::default()
         }
@@ -98,7 +110,7 @@ impl Frame {
 
     pub fn central_panel(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::same(8.0),
+            inner_margin: Margin::same(8),
             fill: style.visuals.panel_fill,
             ..Default::default()
         }
@@ -143,7 +155,7 @@ impl Frame {
     /// and in dark mode this will be very dark.
     pub fn canvas(style: &Style) -> Self {
         Self {
-            inner_margin: Margin::same(2.0),
+            inner_margin: Margin::same(2),
             rounding: style.visuals.widgets.noninteractive.rounding,
             fill: style.visuals.extreme_bg_color,
             stroke: style.visuals.window_stroke(),
@@ -213,10 +225,10 @@ impl Frame {
 }
 
 impl Frame {
-    /// inner margin plus outer margin.
+    /// Inner margin plus outer margin.
     #[inline]
-    pub fn total_margin(&self) -> Margin {
-        self.inner_margin + self.outer_margin
+    pub fn total_margin(&self) -> Marginf {
+        Marginf::from(self.inner_margin) + Marginf::from(self.outer_margin)
     }
 }
 

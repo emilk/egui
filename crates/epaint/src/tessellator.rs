@@ -525,7 +525,7 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::shape::Rounding;
+    use crate::Rounding;
     use emath::{pos2, Pos2, Rect};
 
     /// overwrites existing points
@@ -547,6 +547,8 @@ pub mod path {
             // We need to avoid duplicated vertices, because that leads to visual artifacts later.
             // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
             let eps = f32::EPSILON * rect.size().max_elem();
+
+            let r = crate::Roundingf::from(r);
 
             add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0); // south east
 
@@ -628,7 +630,7 @@ pub mod path {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
-        rounding.at_most(max_cr).at_least(0.0)
+        rounding.at_most(max_cr.floor() as _).at_least(0)
     }
 }
 
@@ -1404,7 +1406,7 @@ impl Tessellator {
                     return;
                 }
 
-                out.append(mesh);
+                out.append_ref(&mesh);
             }
             Shape::LineSegment { points, stroke } => {
                 self.tessellate_line_segment(points, stroke, out);
@@ -1691,14 +1693,14 @@ impl Tessellator {
     /// * `rect`: the rectangle to tessellate.
     /// * `out`: triangles are appended to this.
     pub fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
+        let brush = rect.brush.as_ref();
         let RectShape {
             mut rect,
             mut rounding,
             fill,
             stroke,
             mut blur_width,
-            fill_texture_id,
-            uv,
+            ..
         } = *rect;
 
         if self.options.coarse_tessellation_culling
@@ -1741,7 +1743,7 @@ impl Tessellator {
                 .at_most(rect.size().min_elem() - eps)
                 .at_least(0.0);
 
-            rounding += Rounding::same(0.5 * blur_width);
+            rounding += Rounding::from(0.5 * blur_width);
 
             self.feathering = self.feathering.max(blur_width);
         }
@@ -1773,7 +1775,11 @@ impl Tessellator {
             path.add_line_loop(&self.scratchpad_points);
             let path_stroke = PathStroke::from(stroke).outside();
 
-            if uv.is_positive() {
+            if let Some(brush) = brush {
+                let crate::Brush {
+                    fill_texture_id,
+                    uv,
+                } = **brush;
                 // Textured
                 let uv_from_pos = |p: Pos2| {
                     pos2(
@@ -2171,7 +2177,7 @@ impl Tessellator {
 
         profiling::scope!("distribute results", tessellated.len().to_string());
         for (index, mesh) in tessellated {
-            shapes[index].shape = Shape::Mesh(mesh);
+            shapes[index].shape = Shape::Mesh(mesh.into());
         }
     }
 

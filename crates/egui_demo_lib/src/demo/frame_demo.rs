@@ -12,9 +12,9 @@ impl Default for FrameDemo {
                 outer_margin: 24.0.into(),
                 rounding: 14.0.into(),
                 shadow: egui::Shadow {
-                    offset: [8.0, 12.0].into(),
-                    blur: 16.0,
-                    spread: 0.0,
+                    offset: [8, 12],
+                    blur: 16,
+                    spread: 0,
                     color: egui::Color32::from_black_alpha(180),
                 },
                 fill: egui::Color32::from_rgba_unmultiplied(97, 0, 255, 128),

@@ -64,8 +64,7 @@ pub fn adjust_colors(
             fill,
             stroke,
             blur_width: _,
-            fill_texture_id: _,
-            uv: _,
+            brush: _,
         }) => {
             adjust_color(fill);
             adjust_color(&mut stroke.color);
@@ -87,7 +86,7 @@ pub fn adjust_colors(
             }
 
             if !galley.is_empty() {
-                let galley = std::sync::Arc::make_mut(galley);
+                let galley = Arc::make_mut(galley);
                 for row in &mut galley.rows {
                     for vertex in &mut row.visuals.mesh.vertices {
                         adjust_color(&mut vertex.color);
@@ -96,11 +95,13 @@ pub fn adjust_colors(
             }
         }
 
-        Shape::Mesh(Mesh {
-            indices: _,
-            vertices,
-            texture_id: _,
-        }) => {
+        Shape::Mesh(mesh) => {
+            let Mesh {
+                indices: _,
+                vertices,
+                texture_id: _,
+            } = Arc::make_mut(mesh);
+
             for v in vertices {
                 adjust_color(&mut v.color);
             }

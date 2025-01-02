@@ -8,7 +8,9 @@ use crate::{
     TextStyle, Ui, UiKind, Vec2b, WidgetInfo, WidgetRect, WidgetText, WidgetType,
 };
 use emath::GuiRounding as _;
-use epaint::{emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Shape, Stroke, Vec2};
+use epaint::{
+    emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Roundingf, Shape, Stroke, Vec2,
+};
 
 use super::scroll_area::ScrollBarVisibility;
 use super::{area, resize, Area, Frame, Resize, ScrollArea};
@@ -484,10 +486,11 @@ impl<'open> Window<'open> {
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
-            let spacing = window_margin.top + window_margin.bottom;
+            let spacing = window_margin.sum().y;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
-            window_frame.rounding.ne = window_frame.rounding.ne.clamp(0.0, height / 2.0);
-            window_frame.rounding.nw = window_frame.rounding.nw.clamp(0.0, height / 2.0);
+            let half_height = (height / 2.0).round() as _;
+            window_frame.rounding.ne = window_frame.rounding.ne.clamp(0, half_height);
+            window_frame.rounding.nw = window_frame.rounding.nw.clamp(0, half_height);
             (height, spacing)
         } else {
             (0.0, 0.0)
@@ -603,8 +606,8 @@ impl<'open> Window<'open> {
                         let mut round = window_frame.rounding;
 
                         if !is_collapsed {
-                            round.se = 0.0;
-                            round.sw = 0.0;
+                            round.se = 0;
+                            round.sw = 0;
                         }
 
                         area_content_ui.painter().set(
@@ -682,6 +685,7 @@ fn paint_resize_corner(
     };
 
     // Adjust the corner offset to accommodate for window rounding
+    let radius = radius as f32;
     let offset =
         ((2.0_f32.sqrt() * (1.0 + radius) - radius) * 45.0_f32.to_radians().cos()).max(2.0);
 
@@ -1022,7 +1026,7 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
         bottom = interaction.bottom.hover;
     }
 
-    let rounding = ui.visuals().window_rounding;
+    let rounding = Roundingf::from(ui.visuals().window_rounding);
     let Rect { min, max } = rect;
 
     let mut points = Vec::new();
