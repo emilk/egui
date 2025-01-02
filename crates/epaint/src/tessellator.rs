@@ -1406,7 +1406,7 @@ impl Tessellator {
                     return;
                 }
 
-                out.append(mesh);
+                out.append_ref(&mesh);
             }
             Shape::LineSegment { points, stroke } => {
                 self.tessellate_line_segment(points, stroke, out);
@@ -2177,7 +2177,7 @@ impl Tessellator {
 
         profiling::scope!("distribute results", tessellated.len().to_string());
         for (index, mesh) in tessellated {
-            shapes[index].shape = Shape::Mesh(mesh);
+            shapes[index].shape = Shape::Mesh(mesh.into());
         }
     }
 
