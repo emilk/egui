@@ -203,6 +203,7 @@ windows-sys = { workspace = true, features = [
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bytemuck.workspace = true
+image = { workspace = true, features = ["png"] } # For copying images
 js-sys = "0.3"
 percent-encoding = "2.1"
 wasm-bindgen.workspace = true
@@ -210,8 +211,10 @@ wasm-bindgen-futures.workspace = true
 web-sys = { workspace = true, features = [
   "BinaryType",
   "Blob",
+  "BlobPropertyBag",
   "Clipboard",
   "ClipboardEvent",
+  "ClipboardItem",
   "CompositionEvent",
   "console",
   "CssStyleDeclaration",

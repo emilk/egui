@@ -14,6 +14,7 @@ impl crate::Demo for About {
             .default_height(480.0)
             .open(open)
             .resizable([true, false])
+            .scroll(false)
             .show(ctx, |ui| {
                 use crate::View as _;
                 self.ui(ui);
@@ -36,11 +37,13 @@ impl crate::View for About {
         ));
         ui.label("egui is designed to be easy to use, portable, and fast.");
 
-        ui.add_space(12.0); // ui.separator();
+        ui.add_space(12.0);
+
         ui.heading("Immediate mode");
         about_immediate_mode(ui);
 
-        ui.add_space(12.0); // ui.separator();
+        ui.add_space(12.0);
+
         ui.heading("Links");
         links(ui);
 
@@ -50,7 +53,10 @@ impl crate::View for About {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("egui development is sponsored by ");
             ui.hyperlink_to("Rerun.io", "https://www.rerun.io/");
-            ui.label(", a startup building an SDK for visualizing streams of multimodal data.");
+            ui.label(", a startup building an SDK for visualizing streams of multimodal data. ");
+            ui.label("For an example of a real-world egui app, see ");
+            ui.hyperlink_to("rerun.io/viewer", "https://www.rerun.io/viewer");
+            ui.label(" (runs in your browser).");
         });
 
         ui.add_space(12.0);
@@ -94,12 +100,12 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
 fn links(ui: &mut egui::Ui) {
     use egui::special_emojis::{GITHUB, TWITTER};
     ui.hyperlink_to(
-        format!("{GITHUB} egui on GitHub"),
+        format!("{GITHUB} github.com/emilk/egui"),
         "https://github.com/emilk/egui",
     );
     ui.hyperlink_to(
         format!("{TWITTER} @ernerfeldt"),
         "https://twitter.com/ernerfeldt",
     );
-    ui.hyperlink_to("egui documentation", "https://docs.rs/egui/");
+    ui.hyperlink_to("📓 egui documentation", "https://docs.rs/egui/");
 }

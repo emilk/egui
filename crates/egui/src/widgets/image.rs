@@ -1,12 +1,15 @@
-use std::{borrow::Cow, sync::Arc, time::Duration};
+use std::{borrow::Cow, slice::Iter, sync::Arc, time::Duration};
 
-use emath::{Float as _, Rot2};
-use epaint::RectShape;
+use emath::{Align, Float as _, Rot2};
+use epaint::{
+    text::{LayoutJob, TextFormat, TextWrapping},
+    RectShape,
+};
 
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
-    pos2, Align2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape,
-    Spinner, Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget,
+    pos2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape, Spinner,
+    Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
 };
 
 /// A widget which displays an image.
@@ -51,6 +54,7 @@ pub struct Image<'a> {
     sense: Sense,
     size: ImageSize,
     pub(crate) show_loading_spinner: Option<bool>,
+    alt_text: Option<String>,
 }
 
 impl<'a> Image<'a> {
@@ -76,6 +80,7 @@ impl<'a> Image<'a> {
                 sense: Sense::hover(),
                 size,
                 show_loading_spinner: None,
+                alt_text: None,
             }
         }
 
@@ -255,6 +260,14 @@ impl<'a> Image<'a> {
         self.show_loading_spinner = Some(show);
         self
     }
+
+    /// Set alt text for the image. This will be shown when the image fails to load.
+    /// It will also be read to screen readers.
+    #[inline]
+    pub fn alt_text(mut self, label: impl Into<String>) -> Self {
+        self.alt_text = Some(label.into());
+        self
+    }
 }
 
 impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
@@ -286,12 +299,12 @@ impl<'a> Image<'a> {
 
     /// Returns the URI of the image.
     ///
-    /// For GIFs, returns the URI without the frame number.
+    /// For animated images, returns the URI without the frame number.
     #[inline]
     pub fn uri(&self) -> Option<&str> {
         let uri = self.source.uri()?;
 
-        if let Ok((gif_uri, _index)) = decode_gif_uri(uri) {
+        if let Ok((gif_uri, _index)) = decode_animated_image_uri(uri) {
             Some(gif_uri)
         } else {
             Some(uri)
@@ -306,13 +319,15 @@ impl<'a> Image<'a> {
     #[inline]
     pub fn source(&'a self, ctx: &Context) -> ImageSource<'a> {
         match &self.source {
-            ImageSource::Uri(uri) if is_gif_uri(uri) => {
-                let frame_uri = encode_gif_uri(uri, gif_frame_index(ctx, uri));
+            ImageSource::Uri(uri) if is_animated_image_uri(uri) => {
+                let frame_uri =
+                    encode_animated_image_uri(uri, animated_image_frame_index(ctx, uri));
                 ImageSource::Uri(Cow::Owned(frame_uri))
             }
 
-            ImageSource::Bytes { uri, bytes } if is_gif_uri(uri) || has_gif_magic_header(bytes) => {
-                let frame_uri = encode_gif_uri(uri, gif_frame_index(ctx, uri));
+            ImageSource::Bytes { uri, bytes } if are_animated_image_bytes(bytes) => {
+                let frame_uri =
+                    encode_animated_image_uri(uri, animated_image_frame_index(ctx, uri));
                 ctx.include_bytes(uri.clone(), bytes.clone());
                 ImageSource::Uri(Cow::Owned(frame_uri))
             }
@@ -352,6 +367,7 @@ impl<'a> Image<'a> {
             rect,
             self.show_loading_spinner,
             &self.image_options,
+            self.alt_text.as_deref(),
         );
     }
 }
@@ -363,6 +379,11 @@ impl<'a> Widget for Image<'a> {
         let ui_size = self.calc_size(ui.available_size(), original_image_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
+        response.widget_info(|| {
+            let mut info = WidgetInfo::new(WidgetType::Image);
+            info.label = self.alt_text.clone();
+            info
+        });
         if ui.is_rect_visible(rect) {
             paint_texture_load_result(
                 ui,
@@ -370,6 +391,7 @@ impl<'a> Widget for Image<'a> {
                 rect,
                 self.show_loading_spinner,
                 &self.image_options,
+                self.alt_text.as_deref(),
             );
         }
         texture_load_result_response(&self.source(ui.ctx()), &tlr, response)
@@ -600,6 +622,7 @@ pub fn paint_texture_load_result(
     rect: Rect,
     show_loading_spinner: Option<bool>,
     options: &ImageOptions,
+    alt: Option<&str>,
 ) {
     match tlr {
         Ok(TexturePoll::Ready { texture }) => {
@@ -614,12 +637,28 @@ pub fn paint_texture_load_result(
         }
         Err(_) => {
             let font_id = TextStyle::Body.resolve(ui.style());
-            ui.painter().text(
-                rect.center(),
-                Align2::CENTER_CENTER,
+            let mut job = LayoutJob {
+                wrap: TextWrapping::truncate_at_width(rect.width()),
+                halign: Align::Center,
+                ..Default::default()
+            };
+            job.append(
                 "⚠",
-                font_id,
-                ui.visuals().error_fg_color,
+                0.0,
+                TextFormat::simple(font_id.clone(), ui.visuals().error_fg_color),
+            );
+            if let Some(alt) = alt {
+                job.append(
+                    alt,
+                    ui.spacing().item_spacing.x,
+                    TextFormat::simple(font_id, ui.visuals().text_color()),
+                );
+            }
+            let galley = ui.painter().layout_job(job);
+            ui.painter().galley(
+                rect.center() - Vec2::Y * galley.size().y * 0.5,
+                galley,
+                ui.visuals().text_color(),
             );
         }
     }
@@ -796,57 +835,90 @@ pub fn paint_texture_at(
     }
 }
 
-/// gif uris contain the uri & the frame that will be displayed
-fn encode_gif_uri(uri: &str, frame_index: usize) -> String {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+/// Stores the durations between each frame of an animated image
+pub struct FrameDurations(Arc<Vec<Duration>>);
+
+impl FrameDurations {
+    pub fn new(durations: Vec<Duration>) -> Self {
+        Self(Arc::new(durations))
+    }
+
+    pub fn all(&self) -> Iter<'_, Duration> {
+        self.0.iter()
+    }
+}
+
+/// Animated image uris contain the uri & the frame that will be displayed
+fn encode_animated_image_uri(uri: &str, frame_index: usize) -> String {
     format!("{uri}#{frame_index}")
 }
 
-/// extracts uri and frame index
+/// Extracts uri and frame index
 /// # Errors
 /// Will return `Err` if `uri` does not match pattern {uri}-{frame_index}
-pub fn decode_gif_uri(uri: &str) -> Result<(&str, usize), String> {
+pub fn decode_animated_image_uri(uri: &str) -> Result<(&str, usize), String> {
     let (uri, index) = uri
         .rsplit_once('#')
         .ok_or("Failed to find index separator '#'")?;
-    let index: usize = index
-        .parse()
-        .map_err(|_err| format!("Failed to parse gif frame index: {index:?} is not an integer"))?;
+    let index: usize = index.parse().map_err(|_err| {
+        format!("Failed to parse animated image frame index: {index:?} is not an integer")
+    })?;
     Ok((uri, index))
 }
 
-/// checks if uri is a gif file
-fn is_gif_uri(uri: &str) -> bool {
-    uri.ends_with(".gif") || uri.contains(".gif#")
-}
+/// Calculates at which frame the animated image is
+fn animated_image_frame_index(ctx: &Context, uri: &str) -> usize {
+    let now = ctx.input(|input| Duration::from_secs_f64(input.time));
 
-/// checks if bytes are gifs
-pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
-    bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a")
-}
+    let durations: Option<FrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
 
-/// calculates at which frame the gif is
-fn gif_frame_index(ctx: &Context, uri: &str) -> usize {
-    let now = ctx.input(|i| Duration::from_secs_f64(i.time));
-
-    let durations: Option<GifFrameDurations> = ctx.data(|data| data.get_temp(Id::new(uri)));
     if let Some(durations) = durations {
-        let frames: Duration = durations.0.iter().sum();
+        let frames: Duration = durations.all().sum();
         let pos_ms = now.as_millis() % frames.as_millis().max(1);
+
         let mut cumulative_ms = 0;
-        for (i, duration) in durations.0.iter().enumerate() {
+
+        for (index, duration) in durations.all().enumerate() {
             cumulative_ms += duration.as_millis();
+
             if pos_ms < cumulative_ms {
                 let ms_until_next_frame = cumulative_ms - pos_ms;
                 ctx.request_repaint_after(Duration::from_millis(ms_until_next_frame as u64));
-                return i;
+                return index;
             }
         }
+
         0
     } else {
         0
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-/// Stores the durations between each frame of a gif
-pub struct GifFrameDurations(pub Arc<Vec<Duration>>);
+/// Checks if uri is a gif file
+fn is_gif_uri(uri: &str) -> bool {
+    uri.ends_with(".gif") || uri.contains(".gif#")
+}
+
+/// Checks if bytes are gifs
+pub fn has_gif_magic_header(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a")
+}
+
+/// Checks if uri is a webp file
+fn is_webp_uri(uri: &str) -> bool {
+    uri.ends_with(".webp") || uri.contains(".webp#")
+}
+
+/// Checks if bytes are webp
+pub fn has_webp_header(bytes: &[u8]) -> bool {
+    bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP"
+}
+
+fn is_animated_image_uri(uri: &str) -> bool {
+    is_gif_uri(uri) || is_webp_uri(uri)
+}
+
+fn are_animated_image_bytes(bytes: &[u8]) -> bool {
+    has_gif_magic_header(bytes) || has_webp_header(bytes)
+}

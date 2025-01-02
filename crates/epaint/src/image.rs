@@ -143,37 +143,6 @@ impl ColorImage {
         bytemuck::cast_slice_mut(&mut self.pixels)
     }
 
-    /// Create a new Image from a patch of the current image. This method is especially convenient for screenshotting a part of the app
-    /// since `region` can be interpreted as screen coordinates of the entire screenshot if `pixels_per_point` is provided for the native application.
-    /// The floats of [`emath::Rect`] are cast to usize, rounding them down in order to interpret them as indices to the image data.
-    ///
-    /// Panics if `region.min.x > region.max.x || region.min.y > region.max.y`, or if a region larger than the image is passed.
-    pub fn region(&self, region: &emath::Rect, pixels_per_point: Option<f32>) -> Self {
-        let pixels_per_point = pixels_per_point.unwrap_or(1.0);
-        let min_x = (region.min.x * pixels_per_point) as usize;
-        let max_x = (region.max.x * pixels_per_point) as usize;
-        let min_y = (region.min.y * pixels_per_point) as usize;
-        let max_y = (region.max.y * pixels_per_point) as usize;
-        assert!(
-            min_x <= max_x && min_y <= max_y,
-            "Screenshot region is invalid: {region:?}"
-        );
-        let width = max_x - min_x;
-        let height = max_y - min_y;
-        let mut output = Vec::with_capacity(width * height);
-        let row_stride = self.size[0];
-
-        for row in min_y..max_y {
-            output.extend_from_slice(
-                &self.pixels[row * row_stride + min_x..row * row_stride + max_x],
-            );
-        }
-        Self {
-            size: [width, height],
-            pixels: output,
-        }
-    }
-
     /// Create a [`ColorImage`] from flat RGB data.
     ///
     /// This is what you want to use after having loaded an image file (and if
@@ -214,6 +183,39 @@ impl ColorImage {
     #[inline]
     pub fn height(&self) -> usize {
         self.size[1]
+    }
+
+    /// Create a new image from a patch of the current image.
+    ///
+    /// This method is especially convenient for screenshotting a part of the app
+    /// since `region` can be interpreted as screen coordinates of the entire screenshot if `pixels_per_point` is provided for the native application.
+    /// The floats of [`emath::Rect`] are cast to usize, rounding them down in order to interpret them as indices to the image data.
+    ///
+    /// Panics if `region.min.x > region.max.x || region.min.y > region.max.y`, or if a region larger than the image is passed.
+    pub fn region(&self, region: &emath::Rect, pixels_per_point: Option<f32>) -> Self {
+        let pixels_per_point = pixels_per_point.unwrap_or(1.0);
+        let min_x = (region.min.x * pixels_per_point) as usize;
+        let max_x = (region.max.x * pixels_per_point) as usize;
+        let min_y = (region.min.y * pixels_per_point) as usize;
+        let max_y = (region.max.y * pixels_per_point) as usize;
+        assert!(
+            min_x <= max_x && min_y <= max_y,
+            "Screenshot region is invalid: {region:?}"
+        );
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+        let mut output = Vec::with_capacity(width * height);
+        let row_stride = self.size[0];
+
+        for row in min_y..max_y {
+            output.extend_from_slice(
+                &self.pixels[row * row_stride + min_x..row * row_stride + max_x],
+            );
+        }
+        Self {
+            size: [width, height],
+            pixels: output,
+        }
     }
 }
 

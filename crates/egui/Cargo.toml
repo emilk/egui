@@ -74,6 +74,10 @@ serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
+## Override and disable the unity feature
+## This exists, so that when testing with --all-features, snapshots render correctly.
+_override_unity = ["epaint/_override_unity"]
+
 
 [dependencies]
 emath = { workspace = true, default-features = false }

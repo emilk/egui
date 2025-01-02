@@ -1419,6 +1419,12 @@ impl Context {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
     }
 
+    /// Add a command to [`PlatformOutput::commands`],
+    /// for the integration to execute at the end of the frame.
+    pub fn send_cmd(&self, cmd: crate::OutputCommand) {
+        self.output_mut(|o| o.commands.push(cmd));
+    }
+
     /// Open an URL in a browser.
     ///
     /// Equivalent to:
@@ -1428,24 +1434,25 @@ impl Context {
     /// ctx.output_mut(|o| o.open_url = Some(open_url));
     /// ```
     pub fn open_url(&self, open_url: crate::OpenUrl) {
-        self.output_mut(|o| o.open_url = Some(open_url));
+        self.send_cmd(crate::OutputCommand::OpenUrl(open_url));
     }
 
     /// Copy the given text to the system clipboard.
     ///
-    /// Empty strings are ignored.
-    ///
-    /// Note that in wasm applications, the clipboard is only accessible in secure contexts (e.g.,
+    /// Note that in web applications, the clipboard is only accessible in secure contexts (e.g.,
     /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
     /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
-    ///
-    /// Equivalent to:
-    /// ```
-    /// # let ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned());
-    /// ```
     pub fn copy_text(&self, text: String) {
-        self.output_mut(|o| o.copied_text = text);
+        self.send_cmd(crate::OutputCommand::CopyText(text));
+    }
+
+    /// Copy the given image to the system clipboard.
+    ///
+    /// Note that in web applications, the clipboard is only accessible in secure contexts (e.g.,
+    /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
+    /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
+    pub fn copy_image(&self, image: crate::ColorImage) {
+        self.send_cmd(crate::OutputCommand::CopyImage(image));
     }
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).

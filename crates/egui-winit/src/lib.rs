@@ -190,7 +190,7 @@ impl State {
 
     /// Places the text onto the clipboard.
     pub fn set_clipboard_text(&mut self, text: String) {
-        self.clipboard.set(text);
+        self.clipboard.set_text(text);
     }
 
     /// Returns [`false`] or the last value that [`Window::set_ime_allowed()`] was called with, used for debouncing.
@@ -333,43 +333,45 @@ impl State {
             }
 
             WindowEvent::Ime(ime) => {
-                if cfg!(target_os = "linux") {
-                    // We ignore IME events on linux, because of https://github.com/emilk/egui/issues/5008
-                } else {
-                    // on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
-                    // So no need to check is_mac_cmd.
-                    //
-                    // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
-                    // and Windows.
-                    //
-                    // - On Windows, before and after each Commit will produce an Enable/Disabled
-                    // event.
-                    // - On MacOS, only when user explicit enable/disable ime. No Disabled
-                    // after Commit.
-                    //
-                    // We use input_method_editor_started to manually insert CompositionStart
-                    // between Commits.
-                    match ime {
-                        winit::event::Ime::Enabled => {
+                // on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
+                // So no need to check is_mac_cmd.
+                //
+                // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
+                // and Windows.
+                //
+                // - On Windows, before and after each Commit will produce an Enable/Disabled
+                // event.
+                // - On MacOS, only when user explicit enable/disable ime. No Disabled
+                // after Commit.
+                //
+                // We use input_method_editor_started to manually insert CompositionStart
+                // between Commits.
+                match ime {
+                    winit::event::Ime::Enabled => {
+                        if cfg!(target_os = "linux") {
+                            // This event means different things in X11 and Wayland, but we can just
+                            // ignore it and enable IME on the preedit event.
+                            // See <https://github.com/rust-windowing/winit/issues/2498>
+                        } else {
                             self.ime_event_enable();
                         }
-                        winit::event::Ime::Preedit(text, Some(_cursor)) => {
-                            self.ime_event_enable();
-                            self.egui_input
-                                .events
-                                .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
-                        }
-                        winit::event::Ime::Commit(text) => {
-                            self.egui_input
-                                .events
-                                .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
-                            self.ime_event_disable();
-                        }
-                        winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
-                            self.ime_event_disable();
-                        }
-                    };
-                }
+                    }
+                    winit::event::Ime::Preedit(text, Some(_cursor)) => {
+                        self.ime_event_enable();
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::ImeEvent::Preedit(text.clone())));
+                    }
+                    winit::event::Ime::Commit(text) => {
+                        self.egui_input
+                            .events
+                            .push(egui::Event::Ime(egui::ImeEvent::Commit(text.clone())));
+                        self.ime_event_disable();
+                    }
+                    winit::event::Ime::Disabled | winit::event::Ime::Preedit(_, None) => {
+                        self.ime_event_disable();
+                    }
+                };
 
                 EventResponse {
                     repaint: true,
@@ -820,9 +822,11 @@ impl State {
         window: &Window,
         platform_output: egui::PlatformOutput,
     ) {
+        #![allow(deprecated)]
         profiling::function_scope!();
 
         let egui::PlatformOutput {
+            commands,
             cursor_icon,
             open_url,
             copied_text,
@@ -835,6 +839,20 @@ impl State {
             request_discard_reasons: _, // `egui::Context::run` handles this
         } = platform_output;
 
+        for command in commands {
+            match command {
+                egui::OutputCommand::CopyText(text) => {
+                    self.clipboard.set_text(text);
+                }
+                egui::OutputCommand::CopyImage(image) => {
+                    self.clipboard.set_image(&image);
+                }
+                egui::OutputCommand::OpenUrl(open_url) => {
+                    open_url_in_browser(&open_url.url);
+                }
+            }
+        }
+
         self.set_cursor_icon(window, cursor_icon);
 
         if let Some(open_url) = open_url {
@@ -842,7 +860,7 @@ impl State {
         }
 
         if !copied_text.is_empty() {
-            self.clipboard.set(copied_text);
+            self.clipboard.set_text(copied_text);
         }
 
         let allow_ime = ime.is_some();

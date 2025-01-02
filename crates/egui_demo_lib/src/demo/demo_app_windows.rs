@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
+use egui::{Context, Modifiers, ScrollArea, Ui};
 
 use super::About;
 use crate::is_mobile;
@@ -9,73 +9,17 @@ use crate::View;
 
 // ----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-struct Demos {
-    #[cfg_attr(feature = "serde", serde(skip))]
+struct DemoGroup {
     demos: Vec<Box<dyn Demo>>,
-
-    open: BTreeSet<String>,
 }
 
-impl Default for Demos {
-    fn default() -> Self {
-        Self::from_demos(vec![
-            Box::<super::paint_bezier::PaintBezier>::default(),
-            Box::<super::code_editor::CodeEditor>::default(),
-            Box::<super::code_example::CodeExample>::default(),
-            Box::<super::context_menu::ContextMenus>::default(),
-            Box::<super::dancing_strings::DancingStrings>::default(),
-            Box::<super::drag_and_drop::DragAndDropDemo>::default(),
-            Box::<super::extra_viewport::ExtraViewport>::default(),
-            Box::<super::font_book::FontBook>::default(),
-            Box::<super::frame_demo::FrameDemo>::default(),
-            Box::<super::highlighting::Highlighting>::default(),
-            Box::<super::interactive_container::InteractiveContainerDemo>::default(),
-            Box::<super::MiscDemoWindow>::default(),
-            Box::<super::modals::Modals>::default(),
-            Box::<super::multi_touch::MultiTouch>::default(),
-            Box::<super::painting::Painting>::default(),
-            Box::<super::pan_zoom::PanZoom>::default(),
-            Box::<super::panels::Panels>::default(),
-            Box::<super::screenshot::Screenshot>::default(),
-            Box::<super::scrolling::Scrolling>::default(),
-            Box::<super::sliders::Sliders>::default(),
-            Box::<super::strip_demo::StripDemo>::default(),
-            Box::<super::table_demo::TableDemo>::default(),
-            Box::<super::text_edit::TextEditDemo>::default(),
-            Box::<super::text_layout::TextLayoutDemo>::default(),
-            Box::<super::tooltips::Tooltips>::default(),
-            Box::<super::undo_redo::UndoRedoDemo>::default(),
-            Box::<super::widget_gallery::WidgetGallery>::default(),
-            Box::<super::window_options::WindowOptions>::default(),
-        ])
-    }
-}
-
-impl Demos {
-    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
-        let mut open = BTreeSet::new();
-
-        // Explains egui very well
-        open.insert(
-            super::code_example::CodeExample::default()
-                .name()
-                .to_owned(),
-        );
-
-        // Shows off the features
-        open.insert(
-            super::widget_gallery::WidgetGallery::default()
-                .name()
-                .to_owned(),
-        );
-
-        Self { demos, open }
+impl DemoGroup {
+    pub fn new(demos: Vec<Box<dyn Demo>>) -> Self {
+        Self { demos }
     }
 
-    pub fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self { demos, open } = self;
+    pub fn checkboxes(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
+        let Self { demos } = self;
         for demo in demos {
             if demo.is_enabled(ui.ctx()) {
                 let mut is_open = open.contains(demo.name());
@@ -85,8 +29,8 @@ impl Demos {
         }
     }
 
-    pub fn windows(&mut self, ctx: &Context) {
-        let Self { demos, open } = self;
+    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+        let Self { demos } = self;
         for demo in demos {
             let mut is_open = open.contains(demo.name());
             demo.show(ctx, &mut is_open);
@@ -94,65 +38,6 @@ impl Demos {
         }
     }
 }
-
-// ----------------------------------------------------------------------------
-
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-struct Tests {
-    #[cfg_attr(feature = "serde", serde(skip))]
-    demos: Vec<Box<dyn Demo>>,
-
-    open: BTreeSet<String>,
-}
-
-impl Default for Tests {
-    fn default() -> Self {
-        Self::from_demos(vec![
-            Box::<super::tests::CursorTest>::default(),
-            Box::<super::tests::GridTest>::default(),
-            Box::<super::tests::IdTest>::default(),
-            Box::<super::tests::InputEventHistory>::default(),
-            Box::<super::tests::InputTest>::default(),
-            Box::<super::tests::LayoutTest>::default(),
-            Box::<super::tests::ManualLayoutTest>::default(),
-            Box::<super::tests::WindowResizeTest>::default(),
-        ])
-    }
-}
-
-impl Tests {
-    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
-        let mut open = BTreeSet::new();
-        open.insert(
-            super::widget_gallery::WidgetGallery::default()
-                .name()
-                .to_owned(),
-        );
-
-        Self { demos, open }
-    }
-
-    pub fn checkboxes(&mut self, ui: &mut Ui) {
-        let Self { demos, open } = self;
-        for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            ui.toggle_value(&mut is_open, demo.name());
-            set_open(open, demo.name(), is_open);
-        }
-    }
-
-    pub fn windows(&mut self, ctx: &Context) {
-        let Self { demos, open } = self;
-        for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            demo.show(ctx, &mut is_open);
-            set_open(open, demo.name(), is_open);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
 
 fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
     if is_open {
@@ -166,23 +51,132 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 
 // ----------------------------------------------------------------------------
 
+pub struct DemoGroups {
+    about: About,
+    demos: DemoGroup,
+    tests: DemoGroup,
+}
+
+impl Default for DemoGroups {
+    fn default() -> Self {
+        Self {
+            about: About::default(),
+            demos: DemoGroup::new(vec![
+                Box::<super::paint_bezier::PaintBezier>::default(),
+                Box::<super::code_editor::CodeEditor>::default(),
+                Box::<super::code_example::CodeExample>::default(),
+                Box::<super::context_menu::ContextMenus>::default(),
+                Box::<super::dancing_strings::DancingStrings>::default(),
+                Box::<super::drag_and_drop::DragAndDropDemo>::default(),
+                Box::<super::extra_viewport::ExtraViewport>::default(),
+                Box::<super::font_book::FontBook>::default(),
+                Box::<super::frame_demo::FrameDemo>::default(),
+                Box::<super::highlighting::Highlighting>::default(),
+                Box::<super::interactive_container::InteractiveContainerDemo>::default(),
+                Box::<super::MiscDemoWindow>::default(),
+                Box::<super::modals::Modals>::default(),
+                Box::<super::multi_touch::MultiTouch>::default(),
+                Box::<super::painting::Painting>::default(),
+                Box::<super::pan_zoom::PanZoom>::default(),
+                Box::<super::panels::Panels>::default(),
+                Box::<super::screenshot::Screenshot>::default(),
+                Box::<super::scrolling::Scrolling>::default(),
+                Box::<super::sliders::Sliders>::default(),
+                Box::<super::strip_demo::StripDemo>::default(),
+                Box::<super::table_demo::TableDemo>::default(),
+                Box::<super::text_edit::TextEditDemo>::default(),
+                Box::<super::text_layout::TextLayoutDemo>::default(),
+                Box::<super::tooltips::Tooltips>::default(),
+                Box::<super::undo_redo::UndoRedoDemo>::default(),
+                Box::<super::widget_gallery::WidgetGallery>::default(),
+                Box::<super::window_options::WindowOptions>::default(),
+            ]),
+            tests: DemoGroup::new(vec![
+                Box::<super::tests::ClipboardTest>::default(),
+                Box::<super::tests::CursorTest>::default(),
+                Box::<super::tests::GridTest>::default(),
+                Box::<super::tests::IdTest>::default(),
+                Box::<super::tests::InputEventHistory>::default(),
+                Box::<super::tests::InputTest>::default(),
+                Box::<super::tests::LayoutTest>::default(),
+                Box::<super::tests::ManualLayoutTest>::default(),
+                Box::<super::tests::WindowResizeTest>::default(),
+            ]),
+        }
+    }
+}
+
+impl DemoGroups {
+    pub fn checkboxes(&mut self, ui: &mut Ui, open: &mut BTreeSet<String>) {
+        let Self {
+            about,
+            demos,
+            tests,
+        } = self;
+
+        {
+            let mut is_open = open.contains(about.name());
+            ui.toggle_value(&mut is_open, about.name());
+            set_open(open, about.name(), is_open);
+        }
+        ui.separator();
+        demos.checkboxes(ui, open);
+        ui.separator();
+        tests.checkboxes(ui, open);
+    }
+
+    pub fn windows(&mut self, ctx: &Context, open: &mut BTreeSet<String>) {
+        let Self {
+            about,
+            demos,
+            tests,
+        } = self;
+        {
+            let mut is_open = open.contains(about.name());
+            about.show(ctx, &mut is_open);
+            set_open(open, about.name(), is_open);
+        }
+        demos.windows(ctx, open);
+        tests.windows(ctx, open);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A menu bar in which you can select different demo windows to show.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoWindows {
-    about_is_open: bool,
-    about: About,
-    demos: Demos,
-    tests: Tests,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    groups: DemoGroups,
+
+    open: BTreeSet<String>,
 }
 
 impl Default for DemoWindows {
     fn default() -> Self {
+        let mut open = BTreeSet::new();
+
+        // Explains egui very well
+        set_open(&mut open, About::default().name(), true);
+
+        // Explains egui very well
+        set_open(
+            &mut open,
+            super::code_example::CodeExample::default().name(),
+            true,
+        );
+
+        // Shows off the features
+        set_open(
+            &mut open,
+            super::widget_gallery::WidgetGallery::default().name(),
+            true,
+        );
+
         Self {
-            about_is_open: true,
-            about: Default::default(),
-            demos: Default::default(),
-            tests: Default::default(),
+            groups: Default::default(),
+            open,
         }
     }
 }
@@ -197,36 +191,35 @@ impl DemoWindows {
         }
     }
 
-    fn mobile_ui(&mut self, ctx: &Context) {
-        if self.about_is_open {
-            let screen_size = ctx.input(|i| i.screen_rect.size());
-            let default_width = (screen_size.x - 32.0).at_most(400.0);
+    fn about_is_open(&self) -> bool {
+        self.open.contains(About::default().name())
+    }
 
+    fn mobile_ui(&mut self, ctx: &Context) {
+        if self.about_is_open() {
             let mut close = false;
-            egui::Window::new(self.about.name())
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .default_width(default_width)
-                .default_height(ctx.available_rect().height() - 46.0)
-                .vscroll(true)
-                .open(&mut self.about_is_open)
-                .resizable(false)
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    self.about.ui(ui);
-                    ui.add_space(12.0);
-                    ui.vertical_centered_justified(|ui| {
-                        if ui
-                            .button(egui::RichText::new("Continue to the demo!").size(20.0))
-                            .clicked()
-                        {
-                            close = true;
-                        }
+            egui::CentralPanel::default().show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .auto_shrink(false)
+                    .show(ui, |ui| {
+                        self.groups.about.ui(ui);
+                        ui.add_space(12.0);
+                        ui.vertical_centered_justified(|ui| {
+                            if ui
+                                .button(egui::RichText::new("Continue to the demo!").size(20.0))
+                                .clicked()
+                            {
+                                close = true;
+                            }
+                        });
                     });
-                });
-            self.about_is_open &= !close;
+            });
+            if close {
+                set_open(&mut self.open, About::default().name(), false);
+            }
         } else {
             self.mobile_top_bar(ctx);
-            self.show_windows(ctx);
+            self.groups.windows(ctx, &mut self.open);
         }
     }
 
@@ -292,27 +285,14 @@ impl DemoWindows {
             });
         });
 
-        self.show_windows(ctx);
-    }
-
-    /// Show the open windows.
-    fn show_windows(&mut self, ctx: &Context) {
-        self.about.show(ctx, &mut self.about_is_open);
-        self.demos.windows(ctx);
-        self.tests.windows(ctx);
+        self.groups.windows(ctx, &mut self.open);
     }
 
     fn demo_list_ui(&mut self, ui: &mut egui::Ui) {
         ScrollArea::vertical().show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-                ui.toggle_value(&mut self.about_is_open, self.about.name());
-
+                self.groups.checkboxes(ui, &mut self.open);
                 ui.separator();
-                self.demos.checkboxes(ui);
-                ui.separator();
-                self.tests.checkboxes(ui);
-                ui.separator();
-
                 if ui.button("Organize windows").clicked() {
                     ui.ctx().memory_mut(|mem| mem.reset_areas());
                 }
@@ -382,28 +362,28 @@ fn file_menu_button(ui: &mut Ui) {
 
 #[cfg(test)]
 mod tests {
-    use crate::demo::demo_app_windows::Demos;
+    use crate::{demo::demo_app_windows::DemoGroups, Demo};
     use egui::Vec2;
     use egui_kittest::kittest::Queryable;
     use egui_kittest::{Harness, SnapshotOptions};
 
     #[test]
     fn demos_should_match_snapshot() {
-        let demos = Demos::default();
+        let demos = DemoGroups::default().demos;
 
         let mut errors = Vec::new();
 
         for mut demo in demos.demos {
+            // Widget Gallery needs to be customized (to set a specific date) and has its own test
+            if demo.name() == crate::WidgetGallery::default().name() {
+                continue;
+            }
+
             // Remove the emoji from the demo name
             let name = demo
                 .name()
                 .split_once(' ')
                 .map_or(demo.name(), |(_, name)| name);
-
-            // Widget Gallery needs to be customized (to set a specific date) and has its own test
-            if name == "Widget Gallery" {
-                continue;
-            }
 
             let mut harness = Harness::new(|ctx| {
                 demo.show(ctx, &mut true);

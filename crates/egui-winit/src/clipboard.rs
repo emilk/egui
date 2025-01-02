@@ -82,7 +82,7 @@ impl Clipboard {
         Some(self.clipboard.clone())
     }
 
-    pub fn set(&mut self, text: String) {
+    pub fn set_text(&mut self, text: String) {
         #[cfg(all(
             any(
                 target_os = "linux",
@@ -107,6 +107,24 @@ impl Clipboard {
         }
 
         self.clipboard = text;
+    }
+
+    pub fn set_image(&mut self, image: &egui::ColorImage) {
+        #[cfg(all(feature = "arboard", not(target_os = "android")))]
+        if let Some(clipboard) = &mut self.arboard {
+            if let Err(err) = clipboard.set_image(arboard::ImageData {
+                width: image.width(),
+                height: image.height(),
+                bytes: std::borrow::Cow::Borrowed(bytemuck::cast_slice(&image.pixels)),
+            }) {
+                log::error!("arboard copy/cut error: {err}");
+            }
+            log::debug!("Copied image to clipboard");
+            return;
+        }
+
+        log::error!("Copying images is not supported. Enable the 'clipboard' feature of `egui-winit` to enable it.");
+        _ = image;
     }
 }
 

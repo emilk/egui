@@ -32,7 +32,8 @@ For small things, just go ahead an open a PR. For bigger things, please file an 
 Browse through [`ARCHITECTURE.md`](ARCHITECTURE.md) to get a sense of how all pieces connects.
 
 You can test your code locally by running `./scripts/check.sh`.
-There are snapshots test that might need to be updated. Run the tests with `UPDATE_SNAPSHOTS=true` to update them.
+There are snapshots test that might need to be updated. 
+Run the tests with `UPDATE_SNAPSHOTS=true cargo test --workspace --all-features` to update all of them.
 For more info about the tests see [egui_kittest](./crates/egui_kittest/README.md).
 
 We use [git-lfs](https://git-lfs.com/) to store big files in the repository.
