@@ -525,7 +525,7 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::shape::Rounding;
+    use crate::Rounding;
     use emath::{pos2, Pos2, Rect};
 
     /// overwrites existing points
