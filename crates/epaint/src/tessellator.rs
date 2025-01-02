@@ -1291,29 +1291,6 @@ impl Tessellator {
         self.clip_rect = clip_rect;
     }
 
-    #[inline(always)]
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        (point * self.pixels_per_point).round() / self.pixels_per_point
-    }
-
-    #[inline(always)]
-    pub fn round_to_pixel_center(&self, point: f32) -> f32 {
-        ((point * self.pixels_per_point - 0.5).round() + 0.5) / self.pixels_per_point
-    }
-
-    #[inline(always)]
-    pub fn round_pos_to_pixel(&self, pos: Pos2) -> Pos2 {
-        pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
-    }
-
-    #[inline(always)]
-    pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
-        pos2(
-            self.round_to_pixel_center(pos.x),
-            self.round_to_pixel_center(pos.y),
-        )
-    }
-
     /// Tessellate a clipped shape into a list of primitives.
     pub fn tessellate_clipped_shape(
         &mut self,
@@ -1727,7 +1704,7 @@ impl Tessellator {
 
         let old_feathering = self.feathering;
 
-        if old_feathering < blur_width {
+        if self.feathering < blur_width {
             // We accomplish the blur by using a larger-than-normal feathering.
             // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
 
@@ -1836,10 +1813,7 @@ impl Tessellator {
         // The contents of the galley are already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
         let galley_pos = if self.options.round_text_to_pixels {
-            pos2(
-                self.round_to_pixel(galley_pos.x),
-                self.round_to_pixel(galley_pos.y),
-            )
+            galley_pos.round_to_pixels(self.pixels_per_point)
         } else {
             *galley_pos
         };
@@ -1917,13 +1891,11 @@ impl Tessellator {
             );
 
             if *underline != Stroke::NONE {
-                self.scratchpad_path.clear();
-                self.scratchpad_path.add_line_segment([
-                    self.round_pos_to_pixel_center(row_rect.left_bottom()),
-                    self.round_pos_to_pixel_center(row_rect.right_bottom()),
-                ]);
-                self.scratchpad_path
-                    .stroke_open(0.0, &PathStroke::from(*underline), out);
+                self.tessellate_line_segment(
+                    [row_rect.left_bottom(), row_rect.right_bottom()],
+                    *underline,
+                    out,
+                );
             }
         }
     }
