@@ -2,15 +2,11 @@
 
 use std::sync::Arc;
 
-use crate::collapsing_header::CollapsingState;
-use crate::{
-    Align, Align2, Context, CursorIcon, Id, InnerResponse, LayerId, NumExt, Order, Response, Sense,
-    TextStyle, Ui, UiKind, Vec2b, WidgetInfo, WidgetRect, WidgetText, WidgetType,
-};
 use emath::GuiRounding as _;
-use epaint::{
-    emath, pos2, vec2, Galley, Pos2, Rect, RectShape, Rounding, Roundingf, Shape, Stroke, Vec2,
-};
+use epaint::{RectShape, Roundingf};
+
+use crate::collapsing_header::CollapsingState;
+use crate::*;
 
 use super::scroll_area::ScrollBarVisibility;
 use super::{area, resize, Area, Frame, Resize, ScrollArea};
@@ -508,12 +504,18 @@ impl<'open> Window<'open> {
         // First check for resize to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
         let resize_interaction = ctx.with_accessibility_parent(area.id(), || {
-            resize_interaction(ctx, possible, area_layer_id, last_frame_outer_rect)
+            resize_interaction(
+                ctx,
+                possible,
+                area_layer_id,
+                last_frame_outer_rect,
+                window_frame,
+            )
         });
 
-        let margins = window_frame.outer_margin.sum()
-            + window_frame.inner_margin.sum()
-            + vec2(0.0, title_bar_height);
+        let margins = window_frame.total_margin().sum()
+            + vec2(0.0, title_bar_height)
+            + Vec2::Y * window_frame.stroke.width; // separator line
 
         resize_response(
             resize_interaction,
@@ -535,7 +537,6 @@ impl<'open> Window<'open> {
         let content_inner = {
             ctx.with_accessibility_parent(area.id(), || {
                 // BEGIN FRAME --------------------------------
-                let frame_stroke = window_frame.stroke;
                 let mut frame = window_frame.begin(&mut area_content_ui);
 
                 let show_close_button = open.is_some();
@@ -554,8 +555,20 @@ impl<'open> Window<'open> {
                         show_close_button,
                         &mut collapsing,
                         collapsible,
+                        window_frame,
                     );
                     resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+
+                    if collapsing.is_open() {
+                        // Allocate space for the separator between title and content:
+                        let title_bar_and_separator_rect = title_bar
+                            .rect
+                            .with_max_y(title_bar.rect.max.y + window_frame.stroke.width); // TODO
+                        frame
+                            .content_ui
+                            .advance_cursor_after_rect(title_bar_and_separator_rect);
+                    }
+
                     Some(title_bar)
                 } else {
                     None
@@ -564,7 +577,7 @@ impl<'open> Window<'open> {
                 // Remove item spacing after the title bar
                 frame.content_ui.spacing_mut().item_spacing.y = 0.0;
 
-                let (content_inner, mut content_response) = collapsing
+                let (content_inner, content_response) = collapsing
                     .show_body_unindented(&mut frame.content_ui, |ui| {
                         // Restore item spacing for the content
                         ui.spacing_mut().item_spacing.y = item_spacing.y;
@@ -584,23 +597,18 @@ impl<'open> Window<'open> {
                     &area_content_ui,
                     &possible,
                     outer_rect,
-                    frame_stroke,
-                    window_frame.rounding,
+                    &window_frame,
                     resize_interaction,
                 );
 
                 // END FRAME --------------------------------
 
-                if let Some(title_bar) = title_bar {
-                    let mut title_rect = Rect::from_min_size(
-                        outer_rect.min,
-                        Vec2 {
-                            x: outer_rect.size().x,
-                            y: title_bar_height,
-                        },
-                    );
-
-                    title_rect = title_rect.round_to_pixels(area_content_ui.pixels_per_point());
+                if let Some(mut title_bar) = title_bar {
+                    title_bar.rect = outer_rect.shrink(window_frame.stroke.width);
+                    title_bar.rect.max.y = title_bar.rect.min.y + title_bar_height;
+                    title_bar.rect = title_bar
+                        .rect
+                        .round_to_pixels(area_content_ui.pixels_per_point());
 
                     if on_top && area_content_ui.visuals().window_highlight_topmost {
                         let mut round = window_frame.rounding;
@@ -612,18 +620,20 @@ impl<'open> Window<'open> {
 
                         area_content_ui.painter().set(
                             *where_to_put_header_background,
-                            RectShape::filled(title_rect, round, header_color),
+                            RectShape::filled(title_bar.rect, round, header_color),
                         );
                     };
 
-                    // Fix title bar separator line position
-                    if let Some(response) = &mut content_response {
-                        response.rect.min.y = outer_rect.min.y + title_bar_height;
+                    if false {
+                        ctx.debug_painter().debug_rect(
+                            title_bar.rect,
+                            Color32::LIGHT_BLUE,
+                            "title_bar.rect",
+                        );
                     }
 
                     title_bar.ui(
                         &mut area_content_ui,
-                        title_rect,
                         &content_response,
                         open,
                         &mut collapsing,
@@ -653,12 +663,11 @@ fn paint_resize_corner(
     ui: &Ui,
     possible: &PossibleInteractions,
     outer_rect: Rect,
-    stroke: impl Into<Stroke>,
-    rounding: impl Into<Rounding>,
+    window_frame: &Frame,
     i: ResizeInteraction,
 ) {
-    let inactive_stroke = stroke.into();
-    let rounding = rounding.into();
+    let rounding = window_frame.rounding;
+
     let (corner, radius, corner_response) = if possible.resize_right && possible.resize_bottom {
         (Align2::RIGHT_BOTTOM, rounding.se, i.right & i.bottom)
     } else if possible.resize_left && possible.resize_bottom {
@@ -694,11 +703,12 @@ fn paint_resize_corner(
     } else if corner_response.hover {
         ui.visuals().widgets.hovered.fg_stroke
     } else {
-        inactive_stroke
+        window_frame.stroke
     };
 
+    let fill_rect = outer_rect.shrink(window_frame.stroke.width);
     let corner_size = Vec2::splat(ui.visuals().resize_corner_size);
-    let corner_rect = corner.align_size_within_rect(corner_size, outer_rect);
+    let corner_rect = corner.align_size_within_rect(corner_size, fill_rect);
     let corner_rect = corner_rect.translate(-offset * corner.to_sign()); // move away from corner
     crate::resize::paint_resize_corner_with_style(ui, &corner_rect, stroke.color, corner);
 }
@@ -738,7 +748,11 @@ impl PossibleInteractions {
 /// Resizing the window edges.
 #[derive(Clone, Copy, Debug)]
 struct ResizeInteraction {
-    start_rect: Rect,
+    /// Outer rect (outside the stroke)
+    outer_rect: Rect,
+
+    window_frame: Frame,
+
     left: SideResponse,
     right: SideResponse,
     top: SideResponse,
@@ -835,13 +849,17 @@ fn resize_response(
     ctx.memory_mut(|mem| mem.areas_mut().move_to_top(area_layer_id));
 }
 
+/// Acts on outer rect (outside the stroke)
 fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Option<Rect> {
     if !interaction.any_dragged() {
         return None;
     }
 
     let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
-    let mut rect = interaction.start_rect; // prevent drift
+    let mut rect = interaction.outer_rect; // prevent drift
+
+    // Put the rect in the center of the stroke:
+    rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
 
     if interaction.left.drag {
         rect.min.x = pointer_pos.x;
@@ -855,6 +873,9 @@ fn move_and_resize_window(ctx: &Context, interaction: &ResizeInteraction) -> Opt
         rect.max.y = pointer_pos.y;
     }
 
+    // Return to having the rect outside the stroke:
+    rect = rect.expand(interaction.window_frame.stroke.width / 2.0);
+
     Some(rect.round_ui())
 }
 
@@ -862,17 +883,22 @@ fn resize_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
     layer_id: LayerId,
-    rect: Rect,
+    outer_rect: Rect,
+    window_frame: Frame,
 ) -> ResizeInteraction {
     if !possible.resizable() {
         return ResizeInteraction {
-            start_rect: rect,
+            outer_rect,
+            window_frame,
             left: Default::default(),
             right: Default::default(),
             top: Default::default(),
             bottom: Default::default(),
         };
     }
+
+    // The rect that is in the middle of the stroke:
+    let rect = outer_rect.shrink(window_frame.stroke.width / 2.0);
 
     let side_response = |rect, id| {
         let response = ctx.create_widget(
@@ -990,7 +1016,8 @@ fn resize_interaction(
     }
 
     let interaction = ResizeInteraction {
-        start_rect: rect,
+        outer_rect,
+        window_frame,
         left,
         right,
         top,
@@ -1027,6 +1054,10 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
     }
 
     let rounding = Roundingf::from(ui.visuals().window_rounding);
+
+    // Put the rect in the center of the stroke:
+    let rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
+
     let Rect { min, max } = rect;
 
     let mut points = Vec::new();
@@ -1083,25 +1114,25 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
         points.push(pos2(max.x, min.y + rounding.ne));
         points.push(pos2(max.x, max.y - rounding.se));
     }
+
     ui.painter().add(Shape::line(points, visuals.bg_stroke));
 }
 
 // ----------------------------------------------------------------------------
 
 struct TitleBar {
+    window_frame: Frame,
+
     /// A title Id used for dragging windows
     id: Id,
 
     /// Prepared text in the title
     title_galley: Arc<Galley>,
 
-    /// Size of the title bar in a collapsed state (if window is collapsible),
-    /// which includes all necessary space for showing the expand button, the
-    /// title and the close button.
-    min_rect: Rect,
-
     /// Size of the title bar in an expanded state. This size become known only
-    /// after expanding window and painting its content
+    /// after expanding window and painting its content.
+    ///
+    /// Does not include the line between the title bar and the window contents.
     rect: Rect,
 }
 
@@ -1112,17 +1143,18 @@ impl TitleBar {
         show_close_button: bool,
         collapsing: &mut CollapsingState,
         collapsible: bool,
+        window_frame: Frame,
     ) -> Self {
         let inner_response = ui.horizontal(|ui| {
-            let height = ui
+            let inner_height = ui
                 .fonts(|fonts| title.font_height(fonts, ui.style()))
                 .max(ui.spacing().interact_size.y);
-            ui.set_min_height(height);
+            ui.set_min_height(inner_height);
 
             let item_spacing = ui.spacing().item_spacing;
             let button_size = Vec2::splat(ui.spacing().icon_width);
 
-            let pad = ((height - button_size.y) / 2.0).round_ui(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
+            let pad = ((inner_height - button_size.y) / 2.0).round_ui(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
             if collapsible {
                 ui.add_space(pad);
@@ -1142,14 +1174,21 @@ impl TitleBar {
             } else {
                 pad + title_galley.size().x + pad
             };
-            let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
+            let min_rect =
+                Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, inner_height));
             let id = ui.advance_cursor_after_rect(min_rect);
 
+            if false {
+                ui.ctx()
+                    .debug_painter()
+                    .debug_rect(min_rect, Color32::LIGHT_BLUE, "min_rect");
+            }
+
             Self {
+                window_frame,
                 id,
                 title_galley,
-                min_rect,
-                rect: Rect::NAN, // Will be filled in later
+                rect: Rect::NAN, // Will be filled in below
             }
         });
 
@@ -1174,18 +1213,15 @@ impl TitleBar {
     /// - `collapsible`: if `true`, double click on the title bar will be handled for a change
     ///   of `collapsing` state
     fn ui(
-        mut self,
+        self,
         ui: &mut Ui,
-        outer_rect: Rect,
         content_response: &Option<Response>,
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
     ) {
-        if let Some(content_response) = &content_response {
-            // Now we know how large we got to be:
-            self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
-        }
+        let window_frame = self.window_frame;
+        let title_inner_rect = self.rect;
 
         if let Some(open) = open {
             // Add close button now that we know our full width:
@@ -1194,9 +1230,9 @@ impl TitleBar {
             }
         }
 
-        let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
         let text_pos =
-            emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
+            emath::align::center_size_in_rect(self.title_galley.size(), title_inner_rect)
+                .left_top();
         let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
         ui.painter().galley(
             text_pos,
@@ -1205,19 +1241,22 @@ impl TitleBar {
         );
 
         if let Some(content_response) = &content_response {
-            // paint separator between title and content:
-            let y = content_response.rect.top();
-            // let y = lerp(self.rect.bottom()..=content_response.rect.top(), 0.5);
-            let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
-            // Workaround: To prevent border infringement,
-            // the 0.1 value should ideally be calculated using TessellationOptions::feathering_size_in_pixels
-            // or we could support selectively disabling feathering on line caps
-            let x_range = outer_rect.x_range().shrink(0.1);
-            ui.painter().hline(x_range, y, stroke);
+            // Paint separator between title and content:
+            let content_rect = content_response.rect;
+            if false {
+                ui.ctx()
+                    .debug_painter()
+                    .debug_rect(content_rect, Color32::RED, "content_rect");
+            }
+            let y = title_inner_rect.bottom() + window_frame.stroke.width / 2.0;
+
+            // To verify the sanity of this, use a very wide window stroke
+            ui.painter()
+                .hline(title_inner_rect.x_range(), y, window_frame.stroke);
         }
 
         // Don't cover the close- and collapse buttons:
-        let double_click_rect = self.rect.shrink2(vec2(32.0, 0.0));
+        let double_click_rect = title_inner_rect.shrink2(vec2(32.0, 0.0));
 
         if ui
             .interact(double_click_rect, self.id, Sense::click())
