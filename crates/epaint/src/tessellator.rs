@@ -1693,8 +1693,16 @@ impl Tessellator {
             // Since the stroke extends outside of the rectangle,
             // we can round the rectangle sides to the physical pixel edges,
             // and the filled rect will appear crisp, as will the inside of the stroke.
-            let Stroke { .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-            rect = rect.round_to_pixels(self.pixels_per_point);
+            let Stroke { width, .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
+            if width <= self.feathering {
+                // If the stroke is thin, make sure its center is in the center of the pixel:
+                rect = rect
+                    .expand(width / 2.0)
+                    .round_to_pixel_center(self.pixels_per_point)
+                    .shrink(width / 2.0);
+            } else {
+                rect = rect.round_to_pixels(self.pixels_per_point);
+            }
         }
 
         // It is common to (sometimes accidentally) create an infinitely sized rectangle.
