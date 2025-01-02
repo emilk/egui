@@ -56,7 +56,9 @@ pub enum Shape {
     /// A general triangle mesh.
     ///
     /// Can be used to display images.
-    Mesh(Mesh),
+    ///
+    /// Wrapped in an [`Arc`] to minimize the size of [`Shape`].
+    Mesh(Arc<Mesh>),
 
     /// A quadratic [Bézier Curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
     QuadraticBezier(QuadraticBezierShape),
@@ -66,6 +68,18 @@ pub enum Shape {
 
     /// Backend-specific painting.
     Callback(PaintCallback),
+}
+
+#[test]
+fn shape_size() {
+    assert_eq!(
+        std::mem::size_of::<Shape>(), 64,
+        "Shape changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
+    );
+    assert!(
+        std::mem::size_of::<Shape>() <= 64,
+        "Shape is getting way too big!"
+    );
 }
 
 #[test]
@@ -84,6 +98,13 @@ impl From<Vec<Self>> for Shape {
 impl From<Mesh> for Shape {
     #[inline(always)]
     fn from(mesh: Mesh) -> Self {
+        Self::Mesh(mesh.into())
+    }
+}
+
+impl From<Arc<Mesh>> for Shape {
+    #[inline(always)]
+    fn from(mesh: Arc<Mesh>) -> Self {
         Self::Mesh(mesh)
     }
 }
@@ -314,7 +335,8 @@ impl Shape {
     }
 
     #[inline]
-    pub fn mesh(mesh: Mesh) -> Self {
+    pub fn mesh(mesh: impl Into<Arc<Mesh>>) -> Self {
+        let mesh = mesh.into();
         debug_assert!(mesh.is_valid());
         Self::Mesh(mesh)
     }
@@ -369,7 +391,7 @@ impl Shape {
         if let Self::Mesh(mesh) = self {
             mesh.texture_id
         } else if let Self::Rect(rect_shape) = self {
-            rect_shape.fill_texture_id
+            rect_shape.fill_texture_id()
         } else {
             crate::TextureId::default()
         }
@@ -446,7 +468,7 @@ impl Shape {
                 galley.rect = transform.scaling * galley.rect;
             }
             Self::Mesh(mesh) => {
-                mesh.transform(transform);
+                Arc::make_mut(mesh).transform(transform);
             }
             Self::QuadraticBezier(bezier_shape) => {
                 bezier_shape.points[0] = transform * bezier_shape.points[0];

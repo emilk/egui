@@ -23,6 +23,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
+mod brush;
 pub mod color;
 pub mod image;
 mod margin;
@@ -44,6 +45,7 @@ pub mod util;
 mod viewport;
 
 pub use self::{
+    brush::Brush,
     color::ColorMode,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
