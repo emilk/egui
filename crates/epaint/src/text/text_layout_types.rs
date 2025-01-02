@@ -500,14 +500,14 @@ pub struct Galley {
     /// Contains the original string and style sections.
     pub job: Arc<LayoutJob>,
 
-    /// Rows of text, from top to bottom.
+    /// Rows of text, from top to bottom, and their offsets.
     ///
     /// The number of characters in all rows sum up to `job.text.chars().count()`
     /// unless [`Self::elided`] is `true`.
     ///
     /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
-    pub rows: Vec<Row>,
+    pub rows: Vec<PlacedRow>,
 
     /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
@@ -541,6 +541,32 @@ pub struct Galley {
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct PlacedRow {
+    /// The underlying row unpositioned [`Row`].
+    pub row: Arc<Row>,
+
+    /// The position of this [`Row`] relative to the galley.
+    pub pos: Pos2,
+}
+
+impl PlacedRow {
+    /// Logical bounding rectangle on font heights etc.
+    /// Use this when drawing a selection or similar!
+    pub fn rect(&self) -> Rect {
+        Rect::from_min_size(self.pos, self.row.size)
+    }
+}
+
+impl std::ops::Deref for PlacedRow {
+    type Target = Row;
+
+    fn deref(&self) -> &Self::Target {
+        &self.row
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
     /// This is included in case there are no glyphs
     pub section_index_at_start: u32,
@@ -548,10 +574,9 @@ pub struct Row {
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
 
-    /// Logical bounding rectangle based on font heights etc.
-    /// Use this when drawing a selection or similar!
+    /// Logical size based on font heights etc.
     /// Includes leading and trailing whitespace.
-    pub rect: Rect,
+    pub size: Vec2,
 
     /// The mesh, ready to be rendered.
     pub visuals: RowVisuals,
@@ -675,22 +700,7 @@ impl Row {
         self.glyphs.len() + (self.ends_with_newline as usize)
     }
 
-    #[inline]
-    pub fn min_y(&self) -> f32 {
-        self.rect.top()
-    }
-
-    #[inline]
-    pub fn max_y(&self) -> f32 {
-        self.rect.bottom()
-    }
-
-    #[inline]
-    pub fn height(&self) -> f32 {
-        self.rect.height()
-    }
-
-    /// Closest char at the desired x coordinate.
+    /// Closest char at the desired x coordinate in row-relative coordinates.
     /// Returns something in the range `[0, char_count_excluding_newline()]`.
     pub fn char_at(&self, desired_x: f32) -> usize {
         for (i, glyph) in self.glyphs.iter().enumerate() {
@@ -705,8 +715,25 @@ impl Row {
         if let Some(glyph) = self.glyphs.get(column) {
             glyph.pos.x
         } else {
-            self.rect.right()
+            self.size.x
         }
+    }
+
+    #[inline]
+    pub fn height(&self) -> f32 {
+        self.size.y
+    }
+}
+
+impl PlacedRow {
+    #[inline]
+    pub fn min_y(&self) -> f32 {
+        self.rect().top()
+    }
+
+    #[inline]
+    pub fn max_y(&self) -> f32 {
+        self.rect().bottom()
     }
 }
 
@@ -757,7 +784,7 @@ impl Galley {
     /// Zero-width rect past the last character.
     fn end_pos(&self) -> Rect {
         if let Some(row) = self.rows.last() {
-            let x = row.rect.right();
+            let x = row.rect().right();
             Rect::from_min_max(pos2(x, row.min_y()), pos2(x, row.max_y()))
         } else {
             // Empty galley
@@ -841,11 +868,15 @@ impl Galley {
         let mut pcursor_it = PCursor::default();
 
         for (row_nr, row) in self.rows.iter().enumerate() {
-            let is_pos_within_row = row.min_y() <= pos.y && pos.y <= row.max_y();
-            let y_dist = (row.min_y() - pos.y).abs().min((row.max_y() - pos.y).abs());
+            let min_y = row.min_y();
+            let max_y = row.max_y();
+
+            let is_pos_within_row = min_y <= pos.y && pos.y <= max_y;
+            let y_dist = (min_y - pos.y).abs().min((max_y - pos.y).abs());
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
-                let column = row.char_at(pos.x);
+                // char_at is `Row` not `PlacedRow` relative which means we have to subtract the pos.
+                let column = row.char_at(pos.x - row.pos.x);
                 let prefer_next_row = column < row.char_count_excluding_newline();
                 cursor = Cursor {
                     ccursor: CCursor {
@@ -1134,11 +1165,12 @@ impl Galley {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].rect.right() {
+                let row = &self.rows[new_row];
+                let column = if x > row.rect().right() {
                     // beyond the end of this row - keep same column
                     cursor.rcursor.column
                 } else {
-                    self.rows[new_row].char_at(x)
+                    row.char_at(x)
                 };
                 RCursor {
                     row: new_row,
@@ -1165,11 +1197,12 @@ impl Galley {
             } else {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
-                let column = if x > self.rows[new_row].rect.right() {
+                let row = &self.rows[new_row];
+                let column = if x > row.rect().right() {
                     // beyond the end of the next row - keep same column
                     cursor.rcursor.column
                 } else {
-                    self.rows[new_row].char_at(x)
+                    row.char_at(x)
                 };
                 RCursor {
                     row: new_row,
