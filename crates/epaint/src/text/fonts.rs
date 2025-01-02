@@ -8,7 +8,7 @@ use crate::{
     },
     TextureAtlas,
 };
-use emath::{NumExt as _, OrderedFloat};
+use emath::{GuiRounding, NumExt as _, OrderedFloat};
 
 #[cfg(feature = "default_fonts")]
 use epaint_default_fonts::{EMOJI_ICON, HACK_REGULAR, NOTO_EMOJI_REGULAR, UBUNTU_LIGHT};
@@ -868,57 +868,9 @@ impl GalleyCache {
             current = end;
         }
 
-        let mut merged_galley = Galley {
-            job: Arc::new(job),
-            rows: Vec::new(),
-            elided: false,
-            rect: emath::Rect::ZERO,
-            mesh_bounds: emath::Rect::ZERO,
-            num_vertices: 0,
-            num_indices: 0,
-            pixels_per_point: fonts.pixels_per_point,
-        };
+        let pixels_per_point = fonts.pixels_per_point;
 
-        for (i, galley) in galleys.iter().enumerate() {
-            let current_offset = emath::vec2(0.0, merged_galley.rect.height());
-
-            let mut rows = galley.rows.iter();
-            // As documented in `Row::ends_with_newline`, a '\n' will always create a
-            // new `Row` immediately below the current one. Here it doesn't make sense
-            // for us to append this new row so we just ignore it.
-            if i != galleys.len() - 1 && !galley.elided {
-                let popped = rows.next_back();
-                debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0);
-            }
-
-            merged_galley.rows.extend(rows.map(|placed_row| {
-                let mut new_pos = placed_row.pos + current_offset;
-                new_pos.y = round_to_pixel(new_pos.y);
-                merged_galley.mesh_bounds = merged_galley
-                    .mesh_bounds
-                    .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
-                merged_galley.rect = merged_galley
-                    .rect
-                    .union(emath::Rect::from_min_size(new_pos, placed_row.size));
-
-                super::PlacedRow {
-                    row: placed_row.row.clone(),
-                    pos: new_pos,
-                }
-            }));
-
-            merged_galley.num_vertices += galley.num_vertices;
-            merged_galley.num_indices += galley.num_indices;
-            // Note that if `galley.elided` is true this will be the last `Galley` in
-            // the vector and the loop will end.
-            merged_galley.elided |= galley.elided;
-        }
-
-        if merged_galley.job.round_output_to_gui {
-            super::round_output_to_gui(&mut merged_galley.rect, &merged_galley.job);
-        }
-
-        merged_galley
+        concat_galleys(job, &galleys, pixels_per_point)
     }
 
     fn layout_component_line(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
@@ -954,6 +906,60 @@ impl GalleyCache {
         });
         self.generation = self.generation.wrapping_add(1);
     }
+}
+
+fn concat_galleys(job: LayoutJob, galleys: &[Arc<Galley>], pixels_per_point: f32) -> Galley {
+    let mut merged_galley = Galley {
+        job: Arc::new(job),
+        rows: Vec::new(),
+        elided: false,
+        rect: emath::Rect::ZERO,
+        mesh_bounds: emath::Rect::ZERO,
+        num_vertices: 0,
+        num_indices: 0,
+        pixels_per_point,
+    };
+
+    for (i, galley) in galleys.iter().enumerate() {
+        let current_offset = emath::vec2(0.0, merged_galley.rect.height());
+
+        let mut rows = galley.rows.iter();
+        // As documented in `Row::ends_with_newline`, a '\n' will always create a
+        // new `Row` immediately below the current one. Here it doesn't make sense
+        // for us to append this new row so we just ignore it.
+        let is_last_row = i + 1 == galleys.len();
+        if !is_last_row && !galley.elided {
+            let popped = rows.next_back();
+            debug_assert_eq!(popped.unwrap().row.glyphs.len(), 0);
+        }
+
+        merged_galley.rows.extend(rows.map(|placed_row| {
+            let mut new_pos = placed_row.pos + current_offset;
+            new_pos.y = new_pos.y.round_to_pixels(pixels_per_point);
+            merged_galley.mesh_bounds = merged_galley
+                .mesh_bounds
+                .union(placed_row.visuals.mesh_bounds.translate(new_pos.to_vec2()));
+            merged_galley.rect = merged_galley
+                .rect
+                .union(emath::Rect::from_min_size(new_pos, placed_row.size));
+
+            super::PlacedRow {
+                row: placed_row.row.clone(),
+                pos: new_pos,
+            }
+        }));
+
+        merged_galley.num_vertices += galley.num_vertices;
+        merged_galley.num_indices += galley.num_indices;
+        // Note that if `galley.elided` is true this will be the last `Galley` in
+        // the vector and the loop will end.
+        merged_galley.elided |= galley.elided;
+    }
+
+    if merged_galley.job.round_output_to_gui {
+        super::round_output_to_gui(&mut merged_galley.rect, &merged_galley.job);
+    }
+    merged_galley
 }
 
 // ----------------------------------------------------------------------------
