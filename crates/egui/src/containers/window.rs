@@ -486,7 +486,7 @@ impl<'open> Window<'open> {
         // Calculate roughly how much larger the window size is compared to the inner rect
         let (title_bar_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
-            let spacing = window_margin.top + window_margin.bottom;
+            let spacing = window_margin.sum().y;
             let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
             let half_height = (height / 2.0).round() as _;
             window_frame.rounding.ne = window_frame.rounding.ne.clamp(0, half_height);
