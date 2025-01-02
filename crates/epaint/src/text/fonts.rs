@@ -795,10 +795,6 @@ impl GalleyCache {
     }
 
     fn layout_multiline(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Galley {
-        let pixels_per_point = fonts.pixels_per_point;
-        let round_to_pixel =
-            move |point: f32| (point * pixels_per_point).round() / pixels_per_point;
-
         let mut current_section = 0;
         let mut current = 0;
         let mut left_max_rows = job.wrap.max_rows;
@@ -868,9 +864,7 @@ impl GalleyCache {
             current = end;
         }
 
-        let pixels_per_point = fonts.pixels_per_point;
-
-        concat_galleys(job, &galleys, pixels_per_point)
+        concat_galleys(job, &galleys, fonts.pixels_per_point)
     }
 
     fn layout_component_line(&mut self, fonts: &mut FontsImpl, job: LayoutJob) -> Arc<Galley> {
