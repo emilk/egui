@@ -361,13 +361,13 @@ impl Shape {
 /// ## Inspection and transforms
 impl Shape {
     #[inline(always)]
-    pub fn texture_id(&self) -> super::TextureId {
+    pub fn texture_id(&self) -> crate::TextureId {
         if let Self::Mesh(mesh) = self {
             mesh.texture_id
         } else if let Self::Rect(rect_shape) = self {
             rect_shape.fill_texture_id
         } else {
-            super::TextureId::default()
+            crate::TextureId::default()
         }
     }
 

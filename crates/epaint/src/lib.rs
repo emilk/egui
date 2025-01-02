@@ -32,8 +32,8 @@ pub mod mutex;
 mod rounding;
 mod roundingf;
 mod shadow;
-mod shape;
 pub mod shape_transform;
+mod shapes;
 pub mod stats;
 mod stroke;
 pub mod tessellator;
@@ -52,7 +52,7 @@ pub use self::{
     rounding::Rounding,
     roundingf::Roundingf,
     shadow::Shadow,
-    shape::{
+    shapes::{
         CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Shape,
         TextShape,
     },
