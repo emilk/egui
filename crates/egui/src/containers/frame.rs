@@ -59,17 +59,40 @@ use epaint::{Color32, Margin, Marginf, Rect, Rounding, Shadow, Shape, Stroke};
 #[must_use = "You should call .show()"]
 pub struct Frame {
     /// Margin within the painted frame.
+    ///
+    /// Known as `padding` in CSS.
+    #[doc(alias = "padding")]
     pub inner_margin: Margin,
 
     /// Margin outside the painted frame.
+    ///
+    /// Similar to what is called `margin` in CSS.
+    /// However, egui does NOT do "Margin Collapse" like in CSS,
+    /// i.e. when placing two frames next to each other,
+    /// the distance between their borders is the SUM
+    /// of their other margins.
+    /// In CSS the distance would be the MAX of their outer margins.
+    /// Supporting margin collapse is difficult, and would
+    /// requires complicating the already complicated egui layout code.
+    ///
+    /// Consider using [`egui::Spacing::item_spacing`]
+    /// for adding space between widgets.
     pub outer_margin: Margin,
 
+    /// The rounding of the corners of the frame.
     pub rounding: Rounding,
 
+    /// Optional drop-shadow behind the frame.
     pub shadow: Shadow,
 
+    /// The background fill color of the frame, within the [`Self::stroke`].
+    ///
+    /// Known as `background` in CSS.
+    #[doc(alias = "background")]
     pub fill: Color32,
 
+    /// The width and color of the outline around the frame.
+    #[doc(alias = "border")]
     pub stroke: Stroke,
 }
 
