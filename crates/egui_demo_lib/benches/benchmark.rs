@@ -125,14 +125,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             });
         });
 
-        c.bench_function("text_layout_cached_with_modify", |b| {
-            const MAX_REMOVED_BYTES: usize = 5000;
+        c.bench_function("text_layout_cached_many_lines_modified", |b| {
+            const NUM_LINES: usize = 2_000;
 
             let mut string = String::new();
-            // 2000 lines * 200 bytes * ~3 characters = 1.2MB
-            string.reserve(2000 * 200 * 3 + 2000);
-            for _ in 0..2000 {
-                for i in 0..200u8 {
+            for _ in 0..NUM_LINES {
+                for i in 0..30_u8 {
                     write!(string, "{i:02X} ").unwrap();
                 }
                 string.push('\n');
@@ -141,15 +139,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut rng = rand::thread_rng();
             b.iter(|| {
                 fonts.begin_pass(pixels_per_point, max_texture_side);
-                let mut temp_string = String::with_capacity(string.len());
-                let modified_start = rng.gen_range(0..string.len());
-                let max_end = (modified_start + MAX_REMOVED_BYTES).min(string.len());
-                let modified_end = rng.gen_range(modified_start..max_end);
 
-                temp_string.push_str(&string[..modified_start]);
-                temp_string.push_str(&string[modified_end..]);
+                // Delete a random character, simulating a user making an edit in a long file:
+                let mut new_string = string.clone();
+                let idx = rng.gen_range(0..string.len());
+                new_string.remove(idx);
 
-                fonts.layout(temp_string, font_id.clone(), text_color, wrap_width);
+                fonts.layout(new_string, font_id.clone(), text_color, wrap_width);
             });
         });
 
