@@ -76,7 +76,7 @@ pub struct Frame {
 #[test]
 fn frame_size() {
     assert_eq!(
-        std::mem::size_of::<Frame>(), 44,
+        std::mem::size_of::<Frame>(), 32,
         "Frame changed size! If it shrank - good! Update this test. If it grew - bad! Try to find a way to avoid it."
     );
     assert!(
