@@ -1694,7 +1694,7 @@ impl Tessellator {
             // we can round the rectangle sides to the physical pixel edges,
             // and the filled rect will appear crisp, as will the inside of the stroke.
             let Stroke { width, .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-            if width <= self.feathering {
+            if width <= self.feathering && !stroke.is_empty() {
                 // If the stroke is thin, make sure its center is in the center of the pixel:
                 rect = rect
                     .expand(width / 2.0)
