@@ -405,7 +405,7 @@ mod tests {
                 options.threshold = 2.1;
             }
 
-            let result = harness.try_wgpu_snapshot_options(&format!("demos/{name}"), &options);
+            let result = harness.try_snapshot_options(&format!("demos/{name}"), &options);
             if let Err(err) = result {
                 errors.push(err.to_string());
             }

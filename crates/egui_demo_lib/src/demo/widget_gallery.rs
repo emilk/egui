@@ -307,6 +307,6 @@ mod tests {
 
         harness.fit_contents();
 
-        harness.wgpu_snapshot("widget_gallery");
+        harness.snapshot("widget_gallery");
     }
 }

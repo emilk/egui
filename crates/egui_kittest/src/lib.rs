@@ -12,18 +12,21 @@ mod snapshot;
 pub use snapshot::*;
 use std::fmt::{Debug, Formatter};
 mod app_kind;
+mod renderer;
 #[cfg(feature = "wgpu")]
 mod texture_to_image;
 #[cfg(feature = "wgpu")]
 pub mod wgpu;
 
 pub use kittest;
-use std::mem;
 
 use crate::app_kind::AppKind;
 use crate::event::EventState;
+
 pub use builder::*;
-use egui::{Pos2, Rect, TexturesDelta, Vec2, ViewportId};
+pub use renderer::*;
+
+use egui::{Modifiers, Pos2, Rect, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 
 /// The test Harness. This contains everything needed to run the test.
@@ -37,11 +40,11 @@ pub struct Harness<'a, State = ()> {
     input: egui::RawInput,
     kittest: kittest::State,
     output: egui::FullOutput,
-    texture_deltas: Vec<TexturesDelta>,
     app: AppKind<'a, State>,
     event_state: EventState,
     response: Option<egui::Response>,
     state: State,
+    renderer: Box<dyn TestRenderer>,
 }
 
 impl<'a, State> Debug for Harness<'a, State> {
@@ -52,11 +55,12 @@ impl<'a, State> Debug for Harness<'a, State> {
 
 impl<'a, State> Harness<'a, State> {
     pub(crate) fn from_builder(
-        builder: &HarnessBuilder<State>,
+        builder: HarnessBuilder<State>,
         mut app: AppKind<'a, State>,
         mut state: State,
+        ctx: Option<egui::Context>,
     ) -> Self {
-        let ctx = egui::Context::default();
+        let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
         let mut input = egui::RawInput {
             screen_rect: Some(builder.screen_rect),
@@ -73,6 +77,9 @@ impl<'a, State> Harness<'a, State> {
             response = app.run(ctx, &mut state, false);
         });
 
+        let mut renderer = builder.renderer;
+        renderer.handle_delta(&output.textures_delta);
+
         let mut harness = Self {
             app,
             ctx,
@@ -84,11 +91,11 @@ impl<'a, State> Harness<'a, State> {
                     .take()
                     .expect("AccessKit was disabled"),
             ),
-            texture_deltas: vec![mem::take(&mut output.textures_delta)],
             output,
             response,
             event_state: EventState::default(),
             state,
+            renderer,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
         harness.run();
@@ -153,6 +160,15 @@ impl<'a, State> Harness<'a, State> {
         Self::builder().build_ui_state(app, state)
     }
 
+    /// Create a new [Harness] from the given eframe creation closure.
+    #[cfg(feature = "eframe")]
+    pub fn new_eframe(builder: impl FnOnce(&mut eframe::CreationContext<'a>) -> State) -> Self
+    where
+        State: eframe::App,
+    {
+        Self::builder().build_eframe(builder)
+    }
+
     /// Set the size of the window.
     /// Note: If you only want to set the size once at the beginning,
     /// prefer using [`HarnessBuilder::with_size`].
@@ -194,8 +210,7 @@ impl<'a, State> Harness<'a, State> {
                 .take()
                 .expect("AccessKit was disabled"),
         );
-        self.texture_deltas
-            .push(mem::take(&mut output.textures_delta));
+        self.renderer.handle_delta(&output.textures_delta);
         self.output = output;
     }
 
@@ -253,20 +268,34 @@ impl<'a, State> Harness<'a, State> {
     /// Press a key.
     /// This will create a key down event and a key up event.
     pub fn press_key(&mut self, key: egui::Key) {
+        self.press_key_modifiers(Modifiers::default(), key);
+    }
+
+    /// Press a key with modifiers.
+    /// This will create a key down event and a key up event.
+    pub fn press_key_modifiers(&mut self, modifiers: Modifiers, key: egui::Key) {
         self.input.events.push(egui::Event::Key {
             key,
             pressed: true,
-            modifiers: Default::default(),
+            modifiers,
             repeat: false,
             physical_key: None,
         });
         self.input.events.push(egui::Event::Key {
             key,
             pressed: false,
-            modifiers: Default::default(),
+            modifiers,
             repeat: false,
             physical_key: None,
         });
+    }
+
+    /// Render the last output to an image.
+    ///
+    /// # Errors
+    /// Returns an error if the rendering fails.
+    pub fn render(&mut self) -> Result<image::RgbaImage, String> {
+        self.renderer.render(&self.ctx, &self.output)
     }
 }
 

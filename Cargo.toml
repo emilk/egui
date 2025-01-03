@@ -266,11 +266,10 @@ use_self = "warn"
 useless_transmute = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "warn"
-wildcard_imports = "warn"
 zero_sized_map_values = "warn"
 
 
-# TODO(emilk): enable more of these lints:
+# TODO(emilk): maybe enable more of these lints?
 iter_over_hash_type = "allow"
 missing_assert_message = "allow"
 should_panic_without_expect = "allow"
@@ -284,3 +283,4 @@ let_underscore_untyped = "allow"
 manual_range_contains = "allow"       # this one is just worse imho
 self_named_module_files = "allow"     # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
 significant_drop_tightening = "allow" # Too many false positives
+wildcard_imports = "allow"            # `use crate::*` is useful to avoid merge conflicts when adding/removing imports

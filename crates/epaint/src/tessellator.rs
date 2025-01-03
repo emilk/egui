@@ -525,7 +525,7 @@ impl Path {
 
 pub mod path {
     //! Helpers for constructing paths
-    use crate::shape::Rounding;
+    use crate::Rounding;
     use emath::{pos2, Pos2, Rect};
 
     /// overwrites existing points
@@ -547,6 +547,8 @@ pub mod path {
             // We need to avoid duplicated vertices, because that leads to visual artifacts later.
             // Duplicated vertices can happen when one side is all rounding, with no straight edge between.
             let eps = f32::EPSILON * rect.size().max_elem();
+
+            let r = crate::Roundingf::from(r);
 
             add_circle_quadrant(path, pos2(max.x - r.se, max.y - r.se), r.se, 0.0); // south east
 
@@ -628,7 +630,7 @@ pub mod path {
         let half_width = rect.width() * 0.5;
         let half_height = rect.height() * 0.5;
         let max_cr = half_width.min(half_height);
-        rounding.at_most(max_cr).at_least(0.0)
+        rounding.at_most(max_cr.floor() as _).at_least(0)
     }
 }
 
@@ -1289,29 +1291,6 @@ impl Tessellator {
         self.clip_rect = clip_rect;
     }
 
-    #[inline(always)]
-    pub fn round_to_pixel(&self, point: f32) -> f32 {
-        (point * self.pixels_per_point).round() / self.pixels_per_point
-    }
-
-    #[inline(always)]
-    pub fn round_to_pixel_center(&self, point: f32) -> f32 {
-        ((point * self.pixels_per_point - 0.5).round() + 0.5) / self.pixels_per_point
-    }
-
-    #[inline(always)]
-    pub fn round_pos_to_pixel(&self, pos: Pos2) -> Pos2 {
-        pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
-    }
-
-    #[inline(always)]
-    pub fn round_pos_to_pixel_center(&self, pos: Pos2) -> Pos2 {
-        pos2(
-            self.round_to_pixel_center(pos.x),
-            self.round_to_pixel_center(pos.y),
-        )
-    }
-
     /// Tessellate a clipped shape into a list of primitives.
     pub fn tessellate_clipped_shape(
         &mut self,
@@ -1404,7 +1383,7 @@ impl Tessellator {
                     return;
                 }
 
-                out.append(mesh);
+                out.append_ref(&mesh);
             }
             Shape::LineSegment { points, stroke } => {
                 self.tessellate_line_segment(points, stroke, out);
@@ -1691,14 +1670,14 @@ impl Tessellator {
     /// * `rect`: the rectangle to tessellate.
     /// * `out`: triangles are appended to this.
     pub fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
+        let brush = rect.brush.as_ref();
         let RectShape {
             mut rect,
             mut rounding,
             fill,
             stroke,
             mut blur_width,
-            fill_texture_id,
-            uv,
+            ..
         } = *rect;
 
         if self.options.coarse_tessellation_culling
@@ -1714,8 +1693,16 @@ impl Tessellator {
             // Since the stroke extends outside of the rectangle,
             // we can round the rectangle sides to the physical pixel edges,
             // and the filled rect will appear crisp, as will the inside of the stroke.
-            let Stroke { .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-            rect = rect.round_to_pixels(self.pixels_per_point);
+            let Stroke { width, .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
+            if width <= self.feathering && !stroke.is_empty() {
+                // If the stroke is thin, make sure its center is in the center of the pixel:
+                rect = rect
+                    .expand(width / 2.0)
+                    .round_to_pixel_center(self.pixels_per_point)
+                    .shrink(width / 2.0);
+            } else {
+                rect = rect.round_to_pixels(self.pixels_per_point);
+            }
         }
 
         // It is common to (sometimes accidentally) create an infinitely sized rectangle.
@@ -1725,7 +1712,7 @@ impl Tessellator {
 
         let old_feathering = self.feathering;
 
-        if old_feathering < blur_width {
+        if self.feathering < blur_width {
             // We accomplish the blur by using a larger-than-normal feathering.
             // Feathering is usually used to make the edges of a shape softer for anti-aliasing.
 
@@ -1741,7 +1728,7 @@ impl Tessellator {
                 .at_most(rect.size().min_elem() - eps)
                 .at_least(0.0);
 
-            rounding += Rounding::same(0.5 * blur_width);
+            rounding += Rounding::from(0.5 * blur_width);
 
             self.feathering = self.feathering.max(blur_width);
         }
@@ -1773,7 +1760,11 @@ impl Tessellator {
             path.add_line_loop(&self.scratchpad_points);
             let path_stroke = PathStroke::from(stroke).outside();
 
-            if uv.is_positive() {
+            if let Some(brush) = brush {
+                let crate::Brush {
+                    fill_texture_id,
+                    uv,
+                } = **brush;
                 // Textured
                 let uv_from_pos = |p: Pos2| {
                     pos2(
@@ -1830,10 +1821,7 @@ impl Tessellator {
         // The contents of the galley are already snapped to pixel coordinates,
         // but we need to make sure the galley ends up on the start of a physical pixel:
         let galley_pos = if self.options.round_text_to_pixels {
-            pos2(
-                self.round_to_pixel(galley_pos.x),
-                self.round_to_pixel(galley_pos.y),
-            )
+            galley_pos.round_to_pixels(self.pixels_per_point)
         } else {
             *galley_pos
         };
@@ -1913,13 +1901,11 @@ impl Tessellator {
             );
 
             if *underline != Stroke::NONE {
-                self.scratchpad_path.clear();
-                self.scratchpad_path.add_line_segment([
-                    self.round_pos_to_pixel_center(row_rect.left_bottom()),
-                    self.round_pos_to_pixel_center(row_rect.right_bottom()),
-                ]);
-                self.scratchpad_path
-                    .stroke_open(0.0, &PathStroke::from(*underline), out);
+                self.tessellate_line_segment(
+                    [row_rect.left_bottom(), row_rect.right_bottom()],
+                    *underline,
+                    out,
+                );
             }
         }
     }
@@ -2173,7 +2159,7 @@ impl Tessellator {
 
         profiling::scope!("distribute results", tessellated.len().to_string());
         for (index, mesh) in tessellated {
-            shapes[index].shape = Shape::Mesh(mesh);
+            shapes[index].shape = Shape::Mesh(mesh.into());
         }
     }
 

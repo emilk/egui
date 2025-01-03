@@ -126,7 +126,7 @@ impl<'t> TextEdit<'t> {
             layouter: None,
             password: false,
             frame: true,
-            margin: Margin::symmetric(4.0, 2.0),
+            margin: Margin::symmetric(4, 2),
             multiline: true,
             interactive: true,
             desired_width: None,

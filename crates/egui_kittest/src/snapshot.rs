@@ -93,10 +93,16 @@ pub enum SnapshotError {
         /// The error that occurred
         err: ImageError,
     },
+
+    /// Error rendering the image
+    RenderError {
+        /// The error that occurred
+        err: String,
+    },
 }
 
 const HOW_TO_UPDATE_SCREENSHOTS: &str =
-    "Run `UPDATE_SNAPSHOTS=1 cargo test` to update the snapshots.";
+    "Run `UPDATE_SNAPSHOTS=1 cargo test --all-features` to update the snapshots.";
 
 impl Display for SnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -106,24 +112,28 @@ impl Display for SnapshotError {
                 diff,
                 diff_path,
             } => {
+                let diff_path = std::path::absolute(diff_path).unwrap_or(diff_path.clone());
                 write!(
                     f,
                     "'{name}' Image did not match snapshot. Diff: {diff}, {diff_path:?}. {HOW_TO_UPDATE_SCREENSHOTS}"
                 )
             }
-            Self::OpenSnapshot { path, err } => match err {
-                ImageError::IoError(io) => match io.kind() {
-                    ErrorKind::NotFound => {
-                        write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
-                    }
+            Self::OpenSnapshot { path, err } => {
+                let path = std::path::absolute(path).unwrap_or(path.clone());
+                match err {
+                    ImageError::IoError(io) => match io.kind() {
+                        ErrorKind::NotFound => {
+                            write!(f, "Missing snapshot: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                        }
+                        err => {
+                            write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                        }
+                    },
                     err => {
-                        write!(f, "Error reading snapshot: {err:?}\nAt: {path:?}. {HOW_TO_UPDATE_SCREENSHOTS}")
+                        write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/master/CONTRIBUTING.md#making-a-pr")
                     }
-                },
-                err => {
-                    write!(f, "Error decoding snapshot: {err:?}\nAt: {path:?}. Make sure git-lfs is setup correctly. Read the instructions here: https://github.com/emilk/egui/blob/master/CONTRIBUTING.md#making-a-pr")
                 }
-            },
+            }
             Self::SizeMismatch {
                 name,
                 expected,
@@ -135,7 +145,11 @@ impl Display for SnapshotError {
                 )
             }
             Self::WriteSnapshot { path, err } => {
+                let path = std::path::absolute(path).unwrap_or(path.clone());
                 write!(f, "Error writing snapshot: {err:?}\nAt: {path:?}")
+            }
+            Self::RenderError { err } => {
+                write!(f, "Error rendering image: {err:?}")
             }
         }
     }
@@ -310,7 +324,7 @@ pub fn image_snapshot(current: &image::RgbaImage, name: &str) {
 
 #[cfg(feature = "wgpu")]
 impl<State> Harness<'_, State> {
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
     /// If you want to change the default options for your whole project, you could create an
@@ -318,7 +332,7 @@ impl<State> Harness<'_, State> {
     /// new `my_image_snapshot` function on the Harness that calls this function with the desired options.
     /// You could additionally use the
     /// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
-    /// lint to disable use of the [`Harness::wgpu_snapshot`] to prevent accidentally using the wrong defaults.
+    /// lint to disable use of the [`Harness::snapshot`] to prevent accidentally using the wrong defaults.
     ///
     /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
     /// The snapshot will be saved under `{output_path}/{name}.png`.
@@ -326,31 +340,35 @@ impl<State> Harness<'_, State> {
     /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Errors
-    /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
-    /// reading or writing the snapshot.
-    pub fn try_wgpu_snapshot_options(
-        &self,
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
+    /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
+    pub fn try_snapshot_options(
+        &mut self,
         name: &str,
         options: &SnapshotOptions,
     ) -> Result<(), SnapshotError> {
-        let image = crate::wgpu::TestRenderer::new().render(self);
+        let image = self
+            .render()
+            .map_err(|err| SnapshotError::RenderError { err })?;
         try_image_snapshot_options(&image, name, options)
     }
 
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Errors
-    /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
-    /// reading or writing the snapshot.
-    pub fn try_wgpu_snapshot(&self, name: &str) -> Result<(), SnapshotError> {
-        let image = crate::wgpu::TestRenderer::new().render(self);
+    /// Returns a [`SnapshotError`] if the image does not match the snapshot, if there was an
+    /// error reading or writing the snapshot, if the rendering fails or if no default renderer is available.
+    pub fn try_snapshot(&mut self, name: &str) -> Result<(), SnapshotError> {
+        let image = self
+            .render()
+            .map_err(|err| SnapshotError::RenderError { err })?;
         try_image_snapshot(&image, name)
     }
 
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot
     /// with custom options.
     ///
     /// If you want to change the default options for your whole project, you could create an
@@ -358,7 +376,7 @@ impl<State> Harness<'_, State> {
     /// new `my_image_snapshot` function on the Harness that calls this function with the desired options.
     /// You could additionally use the
     /// [disallowed_methods](https://rust-lang.github.io/rust-clippy/master/#disallowed_methods)
-    /// lint to disable use of the [`Harness::wgpu_snapshot`] to prevent accidentally using the wrong defaults.
+    /// lint to disable use of the [`Harness::snapshot`] to prevent accidentally using the wrong defaults.
     ///
     /// The snapshot files will be saved under [`SnapshotOptions::output_path`].
     /// The snapshot will be saved under `{output_path}/{name}.png`.
@@ -366,11 +384,11 @@ impl<State> Harness<'_, State> {
     /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
     ///
     /// # Panics
-    /// Panics if the image does not match the snapshot or if there was an error reading or writing the
-    /// snapshot.
+    /// Panics if the image does not match the snapshot, if there was an error reading or writing the
+    /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn wgpu_snapshot_options(&self, name: &str, options: &SnapshotOptions) {
-        match self.try_wgpu_snapshot_options(name, options) {
+    pub fn snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+        match self.try_snapshot_options(name, options) {
             Ok(_) => {}
             Err(err) => {
                 panic!("{}", err);
@@ -378,21 +396,63 @@ impl<State> Harness<'_, State> {
         }
     }
 
-    /// Render a image using a default [`crate::wgpu::TestRenderer`] and compare it to the snapshot.
+    /// Render a image using the setup [`crate::TestRenderer`] and compare it to the snapshot.
     /// The snapshot will be saved under `tests/snapshots/{name}.png`.
     /// The new image from the last test run will be saved under `tests/snapshots/{name}.new.png`.
     /// If new image didn't match the snapshot, a diff image will be saved under `tests/snapshots/{name}.diff.png`.
     ///
     /// # Panics
-    /// Panics if the image does not match the snapshot or if there was an error reading or writing the
-    /// snapshot.
+    /// Panics if the image does not match the snapshot, if there was an error reading or writing the
+    /// snapshot, if the rendering fails or if no default renderer is available.
     #[track_caller]
-    pub fn wgpu_snapshot(&self, name: &str) {
-        match self.try_wgpu_snapshot(name) {
+    pub fn snapshot(&mut self, name: &str) {
+        match self.try_snapshot(name) {
             Ok(_) => {}
             Err(err) => {
                 panic!("{}", err);
             }
         }
+    }
+}
+
+// Deprecated wgpu_snapshot functions
+// TODO(lucasmerlin): Remove in 0.32
+#[allow(clippy::missing_errors_doc)]
+#[cfg(feature = "wgpu")]
+impl<State> Harness<'_, State> {
+    #[deprecated(
+        since = "0.31.0",
+        note = "Use `try_snapshot_options` instead. This function will be removed in 0.32"
+    )]
+    pub fn try_wgpu_snapshot_options(
+        &mut self,
+        name: &str,
+        options: &SnapshotOptions,
+    ) -> Result<(), SnapshotError> {
+        self.try_snapshot_options(name, options)
+    }
+
+    #[deprecated(
+        since = "0.31.0",
+        note = "Use `try_snapshot` instead. This function will be removed in 0.32"
+    )]
+    pub fn try_wgpu_snapshot(&mut self, name: &str) -> Result<(), SnapshotError> {
+        self.try_snapshot(name)
+    }
+
+    #[deprecated(
+        since = "0.31.0",
+        note = "Use `snapshot_options` instead. This function will be removed in 0.32"
+    )]
+    pub fn wgpu_snapshot_options(&mut self, name: &str, options: &SnapshotOptions) {
+        self.snapshot_options(name, options);
+    }
+
+    #[deprecated(
+        since = "0.31.0",
+        note = "Use `snapshot` instead. This function will be removed in 0.32"
+    )]
+    pub fn wgpu_snapshot(&mut self, name: &str) {
+        self.snapshot(name);
     }
 }

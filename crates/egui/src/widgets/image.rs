@@ -9,7 +9,7 @@ use epaint::{
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TextureLoadResult, TexturePoll},
     pos2, Color32, Context, Id, Mesh, Painter, Rect, Response, Rounding, Sense, Shape, Spinner,
-    Stroke, TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    TextStyle, TextureOptions, Ui, Vec2, Widget, WidgetInfo, WidgetType,
 };
 
 /// A widget which displays an image.
@@ -822,15 +822,10 @@ pub fn paint_texture_at(
             painter.add(Shape::mesh(mesh));
         }
         None => {
-            painter.add(RectShape {
-                rect,
-                rounding: options.rounding,
-                fill: options.tint,
-                stroke: Stroke::NONE,
-                blur_width: 0.0,
-                fill_texture_id: texture.id,
-                uv: options.uv,
-            });
+            painter.add(
+                RectShape::filled(rect, options.rounding, options.tint)
+                    .with_texture(texture.id, options.uv),
+            );
         }
     }
 }

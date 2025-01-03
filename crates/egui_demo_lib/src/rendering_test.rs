@@ -703,7 +703,7 @@ mod tests {
 
             harness.fit_contents();
 
-            let result = harness.try_wgpu_snapshot(&format!("rendering_test/dpi_{dpi:.2}"));
+            let result = harness.try_snapshot(&format!("rendering_test/dpi_{dpi:.2}"));
             if let Err(err) = result {
                 errors.push(err);
             }

@@ -109,6 +109,28 @@ impl HasDisplayHandle for CreationContext<'_> {
     }
 }
 
+impl CreationContext<'_> {
+    /// Create a new empty [CreationContext] for testing [App]s in kittest.
+    #[doc(hidden)]
+    pub fn _new_kittest(egui_ctx: egui::Context) -> Self {
+        Self {
+            egui_ctx,
+            integration_info: IntegrationInfo::mock(),
+            storage: None,
+            #[cfg(feature = "glow")]
+            gl: None,
+            #[cfg(feature = "glow")]
+            get_proc_address: None,
+            #[cfg(feature = "wgpu")]
+            wgpu_render_state: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            raw_window_handle: Err(HandleError::NotSupported),
+            #[cfg(not(target_arch = "wasm32"))]
+            raw_display_handle: Err(HandleError::NotSupported),
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
@@ -617,7 +639,8 @@ pub struct Frame {
 
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
-    pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
+    #[doc(hidden)]
+    pub wgpu_render_state: Option<egui_wgpu::RenderState>,
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
@@ -651,6 +674,25 @@ impl HasDisplayHandle for Frame {
 }
 
 impl Frame {
+    /// Create a new empty [Frame] for testing [App]s in kittest.
+    #[doc(hidden)]
+    pub fn _new_kittest() -> Self {
+        Self {
+            #[cfg(feature = "glow")]
+            gl: None,
+            #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+            glow_register_native_texture: None,
+            info: IntegrationInfo::mock(),
+            #[cfg(not(target_arch = "wasm32"))]
+            raw_display_handle: Err(HandleError::NotSupported),
+            #[cfg(not(target_arch = "wasm32"))]
+            raw_window_handle: Err(HandleError::NotSupported),
+            storage: None,
+            #[cfg(feature = "wgpu")]
+            wgpu_render_state: None,
+        }
+    }
+
     /// True if you are in a web environment.
     ///
     /// Equivalent to `cfg!(target_arch = "wasm32")`
@@ -792,6 +834,29 @@ pub struct IntegrationInfo {
     ///
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
+}
+
+impl IntegrationInfo {
+    fn mock() -> Self {
+        Self {
+            #[cfg(target_arch = "wasm32")]
+            web_info: WebInfo {
+                user_agent: "kittest".to_owned(),
+                location: Location {
+                    url: "http://localhost".to_owned(),
+                    protocol: "http:".to_owned(),
+                    host: "localhost".to_owned(),
+                    hostname: "localhost".to_owned(),
+                    port: "80".to_owned(),
+                    hash: String::new(),
+                    query: String::new(),
+                    query_map: Default::default(),
+                    origin: "http://localhost".to_owned(),
+                },
+            },
+            cpu_usage: None,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

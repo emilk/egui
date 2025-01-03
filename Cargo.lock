@@ -1319,6 +1319,7 @@ dependencies = [
  "egui",
  "egui_demo_lib",
  "egui_extras",
+ "egui_kittest",
  "ehttp",
  "env_logger",
  "image",
@@ -1396,6 +1397,7 @@ version = "0.30.0"
 dependencies = [
  "dify",
  "document-features",
+ "eframe",
  "egui",
  "egui-wgpu",
  "image",

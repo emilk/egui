@@ -23,15 +23,18 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
-mod bezier;
+mod brush;
 pub mod color;
 pub mod image;
 mod margin;
+mod marginf;
 mod mesh;
 pub mod mutex;
+mod rounding;
+mod roundingf;
 mod shadow;
-mod shape;
 pub mod shape_transform;
+mod shapes;
 pub mod stats;
 mod stroke;
 pub mod tessellator;
@@ -40,17 +43,21 @@ mod texture_atlas;
 mod texture_handle;
 pub mod textures;
 pub mod util;
+mod viewport;
 
 pub use self::{
-    bezier::{CubicBezierShape, QuadraticBezierShape},
+    brush::Brush,
     color::ColorMode,
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     margin::Margin,
+    marginf::Marginf,
     mesh::{Mesh, Mesh16, Vertex},
+    rounding::Rounding,
+    roundingf::Roundingf,
     shadow::Shadow,
-    shape::{
-        CircleShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape,
-        Rounding, Shape, TextShape,
+    shapes::{
+        CircleShape, CubicBezierShape, EllipseShape, PaintCallback, PaintCallbackInfo, PathShape,
+        QuadraticBezierShape, RectShape, Shape, TextShape,
     },
     stats::PaintStats,
     stroke::{PathStroke, Stroke, StrokeKind},
@@ -59,6 +66,7 @@ pub use self::{
     texture_atlas::TextureAtlas,
     texture_handle::TextureHandle,
     textures::TextureManager,
+    viewport::ViewportInPixels,
 };
 
 #[allow(deprecated)]

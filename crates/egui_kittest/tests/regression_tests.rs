@@ -41,5 +41,5 @@ fn image_failed() {
     harness.fit_contents();
 
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    harness.wgpu_snapshot("image_snapshots");
+    harness.snapshot("image_snapshots");
 }

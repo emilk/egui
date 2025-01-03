@@ -20,15 +20,19 @@ include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [features]
 # Adds a wgpu-based test renderer.
-wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image"]
+wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "eframe?/wgpu"]
 
 # Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "image/png"]
+
+# Allows testing eframe::App
+eframe = ["dep:eframe", "eframe/accesskit"]
 
 
 [dependencies]
 kittest.workspace = true
 egui = { workspace = true, features = ["accesskit"] }
+eframe = { workspace = true, optional = true }
 
 # wgpu dependencies
 egui-wgpu = { workspace = true, optional = true }
