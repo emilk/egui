@@ -1055,11 +1055,16 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
 
     let rounding = Roundingf::from(ui.visuals().window_rounding);
 
-    // Put the rect in the center of the stroke:
+    // Put the rect in the center of the fixed window stroke:
     let rect = rect.shrink(interaction.window_frame.stroke.width / 2.0);
 
-    // TODO(emilk): the correct thing would be to round to pixel center only when the stroke width is an odd number of pixels.
-    let rect = rect.round_to_pixel_center(ui.pixels_per_point());
+    // Make sure the inner part of the stroke is at a pixel boundary:
+    let stroke = visuals.bg_stroke;
+    let half_stroke = stroke.width / 2.0;
+    let rect = rect
+        .shrink(half_stroke)
+        .round_to_pixels(ui.pixels_per_point())
+        .expand(half_stroke);
 
     let Rect { min, max } = rect;
 
@@ -1118,7 +1123,7 @@ fn paint_frame_interaction(ui: &Ui, rect: Rect, interaction: ResizeInteraction) 
         points.push(pos2(max.x, max.y - rounding.se));
     }
 
-    ui.painter().add(Shape::line(points, visuals.bg_stroke));
+    ui.painter().add(Shape::line(points, stroke));
 }
 
 // ----------------------------------------------------------------------------
