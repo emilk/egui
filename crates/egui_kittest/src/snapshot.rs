@@ -2,7 +2,7 @@ use crate::Harness;
 use image::ImageError;
 use std::fmt::Display;
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[non_exhaustive]
 pub struct SnapshotOptions {
@@ -159,22 +159,6 @@ fn should_update_snapshots() -> bool {
     std::env::var("UPDATE_SNAPSHOTS").is_ok()
 }
 
-fn maybe_update_snapshot(
-    snapshot_path: &Path,
-    current: &image::RgbaImage,
-) -> Result<(), SnapshotError> {
-    if should_update_snapshots() {
-        current
-            .save(snapshot_path)
-            .map_err(|err| SnapshotError::WriteSnapshot {
-                err,
-                path: snapshot_path.into(),
-            })?;
-        println!("Updated snapshot: {snapshot_path:?}");
-    }
-    Ok(())
-}
-
 /// Image snapshot test with custom options.
 ///
 /// If you want to change the default options for your whole project, it's recommended to create a
@@ -188,11 +172,14 @@ fn maybe_update_snapshot(
 /// The new image from the most recent test run will be saved under `{output_path}/{name}.new.png`.
 /// If new image didn't match the snapshot, a diff image will be saved under `{output_path}/{name}.diff.png`.
 ///
+/// If the env-var `UPDATE_SNAPSHOTS` is set, then the old image will backed up under `{output_path}/{name}.old.png`.
+/// and then new image will be written to `{output_path}/{name}.png`
+///
 /// # Errors
 /// Returns a [`SnapshotError`] if the image does not match the snapshot or if there was an error
 /// reading or writing the snapshot.
 pub fn try_image_snapshot_options(
-    current: &image::RgbaImage,
+    new: &image::RgbaImage,
     name: &str,
     options: &SnapshotOptions,
 ) -> Result<(), SnapshotError> {
@@ -201,45 +188,72 @@ pub fn try_image_snapshot_options(
         output_path,
     } = options;
 
-    let path = output_path.join(format!("{name}.png"));
-    std::fs::create_dir_all(path.parent().expect("Could not get snapshot folder")).ok();
+    std::fs::create_dir_all(output_path).ok();
 
+    // The one that is checked in to git
+    let snapshot_path = output_path.join(format!("{name}.png"));
+
+    // These should be in .gitignore:
     let diff_path = output_path.join(format!("{name}.diff.png"));
-    let current_path = output_path.join(format!("{name}.new.png"));
+    let old_backup_path = output_path.join(format!("{name}.old.png"));
+    let new_path = output_path.join(format!("{name}.new.png"));
 
-    current
-        .save(&current_path)
+    // Delete old temporary files if they exist:
+    std::fs::remove_file(&diff_path).ok();
+    std::fs::remove_file(&old_backup_path).ok();
+    std::fs::remove_file(&new_path).ok();
+
+    let maybe_update_snapshot = || {
+        if should_update_snapshots() {
+            // Keep the old version so the user can compare it:
+            std::fs::rename(&snapshot_path, &old_backup_path).ok();
+
+            // Write the new file to the checked in path:
+            new.save(&snapshot_path)
+                .map_err(|err| SnapshotError::WriteSnapshot {
+                    err,
+                    path: snapshot_path.clone(),
+                })?;
+
+            // No need for an explicit `.new` file:
+            std::fs::remove_file(&new_path).ok();
+
+            println!("Updated snapshot: {snapshot_path:?}");
+        }
+        Ok(())
+    };
+
+    // Always write a `.new` file so the user can compare:
+    new.save(&new_path)
         .map_err(|err| SnapshotError::WriteSnapshot {
             err,
-            path: current_path,
+            path: new_path.clone(),
         })?;
 
-    let previous = match image::open(&path) {
+    let previous = match image::open(&snapshot_path) {
         Ok(image) => image.to_rgba8(),
         Err(err) => {
-            maybe_update_snapshot(&path, current)?;
-            return Err(SnapshotError::OpenSnapshot { path, err });
+            // No previous snapshot - probablye a new test.
+            maybe_update_snapshot()?;
+            return Err(SnapshotError::OpenSnapshot {
+                path: snapshot_path.clone(),
+                err,
+            });
         }
     };
 
-    if previous.dimensions() != current.dimensions() {
-        maybe_update_snapshot(&path, current)?;
+    if previous.dimensions() != new.dimensions() {
+        maybe_update_snapshot()?;
         return Err(SnapshotError::SizeMismatch {
             name: name.to_owned(),
             expected: previous.dimensions(),
-            actual: current.dimensions(),
+            actual: new.dimensions(),
         });
     }
 
-    let result = dify::diff::get_results(
-        previous,
-        current.clone(),
-        *threshold,
-        true,
-        None,
-        &None,
-        &None,
-    );
+    // Compare existing image to the new one:
+    let result =
+        dify::diff::get_results(previous, new.clone(), *threshold, true, None, &None, &None);
 
     if let Some((diff, result_image)) = result {
         result_image
@@ -248,15 +262,13 @@ pub fn try_image_snapshot_options(
                 path: diff_path.clone(),
                 err,
             })?;
-        maybe_update_snapshot(&path, current)?;
+        maybe_update_snapshot()?;
         Err(SnapshotError::Diff {
             name: name.to_owned(),
             diff,
             diff_path,
         })
     } else {
-        // Delete old diff if it exists
-        std::fs::remove_file(diff_path).ok();
         Ok(())
     }
 }
