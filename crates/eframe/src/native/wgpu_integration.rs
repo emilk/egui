@@ -183,7 +183,7 @@ impl<'app> WgpuWinitApp<'app> {
     ) -> crate::Result<&mut WgpuWinitRunning<'app>> {
         profiling::function_scope!();
         #[allow(unsafe_code, unused_mut, unused_unsafe)]
-        let mut painter = egui_wgpu::winit::Painter::new(
+        let mut painter = pollster::block_on(egui_wgpu::winit::Painter::new(
             egui_ctx.clone(),
             self.native_options.wgpu_options.clone(),
             self.native_options.multisampling.max(1) as _,
@@ -193,7 +193,7 @@ impl<'app> WgpuWinitApp<'app> {
             ),
             self.native_options.viewport.transparent.unwrap_or(false),
             self.native_options.dithering,
-        );
+        ));
 
         let window = Arc::new(window);
 

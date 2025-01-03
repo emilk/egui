@@ -20,7 +20,13 @@ include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [features]
 # Adds a wgpu-based test renderer.
-wgpu = ["dep:egui-wgpu", "dep:pollster", "dep:image", "eframe?/wgpu"]
+wgpu = [
+    "dep:egui-wgpu",
+    "dep:pollster",
+    "dep:image",
+    "dep:wgpu",
+    "eframe?/wgpu",
+]
 
 # Adds a dify-based image snapshot utility.
 snapshot = ["dep:dify", "dep:image", "image/png"]
@@ -38,6 +44,8 @@ eframe = { workspace = true, optional = true }
 egui-wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 image = { workspace = true, optional = true }
+# Enable DX12 because it always comes with a software rasterizer.
+wgpu = { workspace = true, features = ["metal", "dx12"], optional = true }
 
 # snapshot dependencies
 dify = { workspace = true, optional = true }
@@ -48,7 +56,6 @@ document-features = { workspace = true, optional = true }
 [dev-dependencies]
 egui = { workspace = true, features = ["default_fonts"] }
 image = { workspace = true, features = ["png"] }
-wgpu = { workspace = true, features = ["metal"] }
 
 [lints]
 workspace = true

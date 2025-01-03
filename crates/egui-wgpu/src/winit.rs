@@ -51,7 +51,7 @@ impl Painter {
     /// [`set_window()`](Self::set_window) once you have
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
-    pub fn new(
+    pub async fn new(
         context: Context,
         configuration: WgpuConfiguration,
         msaa_samples: u32,
@@ -59,17 +59,8 @@ impl Painter {
         support_transparent_backbuffer: bool,
         dithering: bool,
     ) -> Self {
-        let instance = match &configuration.wgpu_setup {
-            crate::WgpuSetup::CreateNew {
-                supported_backends, ..
-            } => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
-                backends: *supported_backends,
-                ..Default::default()
-            })),
-            crate::WgpuSetup::Existing { instance, .. } => instance.clone(),
-        };
-
         let (capture_tx, capture_rx) = capture_channel();
+        let instance = configuration.wgpu_setup.new_instance().await;
 
         Self {
             context,
