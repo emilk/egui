@@ -4,6 +4,7 @@ use crate::{
     emath, epaint, pos2, remap, remap_clamp, vec2, Context, Id, InnerResponse, NumExt, Rect,
     Response, Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType,
 };
+use emath::GuiRounding as _;
 use epaint::Shape;
 
 #[derive(Clone, Copy, Debug)]
@@ -214,7 +215,7 @@ impl CollapsingState {
                     10.0
                 } else {
                     let full_height = self.state.open_height.unwrap_or_default();
-                    remap_clamp(openness, 0.0..=1.0, 0.0..=full_height)
+                    remap_clamp(openness, 0.0..=1.0, 0.0..=full_height).round_ui()
                 };
 
                 let mut clip_rect = child_ui.clip_rect();
