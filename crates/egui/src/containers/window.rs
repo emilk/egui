@@ -553,7 +553,7 @@ impl<'open> Window<'open> {
 
                 let title_bar = if with_title_bar {
                     let title_bar = TitleBar::new(
-                        &mut frame.content_ui,
+                        &frame.content_ui,
                         title,
                         show_close_button,
                         collapsible,
@@ -1138,7 +1138,7 @@ struct TitleBar {
 
 impl TitleBar {
     fn new(
-        ui: &mut Ui,
+        ui: &Ui,
         title: WidgetText,
         show_close_button: bool,
         collapsible: bool,
