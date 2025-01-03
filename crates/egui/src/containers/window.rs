@@ -563,7 +563,7 @@ impl<'open> Window<'open> {
                         // Allocate space for the separator between title and content:
                         let title_bar_and_separator_rect = title_bar
                             .rect
-                            .with_max_y(title_bar.rect.max.y + window_frame.stroke.width); // TODO
+                            .with_max_y(title_bar.rect.max.y + window_frame.stroke.width);
                         frame
                             .content_ui
                             .advance_cursor_after_rect(title_bar_and_separator_rect);
