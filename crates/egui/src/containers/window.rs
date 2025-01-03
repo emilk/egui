@@ -448,8 +448,6 @@ impl<'open> Window<'open> {
         let header_color =
             frame.map_or_else(|| ctx.style().visuals.widgets.open.weak_bg_fill, |f| f.fill);
         let mut window_frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
-        // Keep the original inner margin for later use
-        let window_margin = window_frame.inner_margin;
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
@@ -479,15 +477,22 @@ impl<'open> Window<'open> {
 
         area.with_widget_info(|| WidgetInfo::labeled(WidgetType::Window, true, title.text()));
 
-        // Calculate roughly how much larger the window size is compared to the inner rect
-        let (title_bar_height, title_content_spacing) = if with_title_bar {
+        // Calculate roughly how much larger the full window inner size is compared to the content rect
+        let (title_bar_inner_height, title_content_spacing) = if with_title_bar {
             let style = ctx.style();
-            let spacing = window_margin.sum().y;
-            let height = ctx.fonts(|f| title.font_height(f, &style)) + spacing;
-            let half_height = (height / 2.0).round() as _;
+            let title_bar_inner_height = ctx
+                .fonts(|fonts| title.font_height(fonts, &style))
+                .at_least(style.spacing.interact_size.y);
+            let half_height = (title_bar_inner_height / 2.0).round() as _;
             window_frame.rounding.ne = window_frame.rounding.ne.clamp(0, half_height);
             window_frame.rounding.nw = window_frame.rounding.nw.clamp(0, half_height);
-            (height, spacing)
+
+            let title_content_spacing = if is_collapsed {
+                0.0
+            } else {
+                window_frame.stroke.width
+            };
+            (title_bar_inner_height, title_content_spacing)
         } else {
             (0.0, 0.0)
         };
@@ -496,7 +501,8 @@ impl<'open> Window<'open> {
             // Prevent window from becoming larger than the constrain rect.
             let constrain_rect = area.constrain_rect();
             let max_width = constrain_rect.width();
-            let max_height = constrain_rect.height() - title_bar_height;
+            let max_height =
+                constrain_rect.height() - title_bar_inner_height - title_content_spacing;
             resize.max_size.x = resize.max_size.x.min(max_width);
             resize.max_size.y = resize.max_size.y.min(max_height);
         }
@@ -513,18 +519,19 @@ impl<'open> Window<'open> {
             )
         });
 
-        let margins = window_frame.total_margin().sum()
-            + vec2(0.0, title_bar_height)
-            + Vec2::Y * window_frame.stroke.width; // separator line
+        {
+            let margins = window_frame.total_margin().sum()
+                + vec2(0.0, title_bar_inner_height + title_content_spacing);
 
-        resize_response(
-            resize_interaction,
-            ctx,
-            margins,
-            area_layer_id,
-            &mut area,
-            resize_id,
-        );
+            resize_response(
+                resize_interaction,
+                ctx,
+                margins,
+                area_layer_id,
+                &mut area,
+                resize_id,
+            );
+        }
 
         let mut area_content_ui = area.content_ui(ctx);
         if is_open {
@@ -545,25 +552,25 @@ impl<'open> Window<'open> {
 
                 // Backup item spacing before the title bar
                 let item_spacing = frame.content_ui.spacing().item_spacing;
-                // Use title bar spacing as the item spacing before the content
-                frame.content_ui.spacing_mut().item_spacing.y = title_content_spacing;
+
+                frame.content_ui.spacing_mut().item_spacing.y = 0.0;
 
                 let title_bar = if with_title_bar {
                     let title_bar = TitleBar::new(
                         &mut frame.content_ui,
                         title,
                         show_close_button,
-                        &mut collapsing,
                         collapsible,
                         window_frame,
+                        title_bar_inner_height,
                     );
-                    resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+                    resize.min_size.x = resize.min_size.x.at_least(title_bar.inner_rect.width()); // Prevent making window smaller than title bar width
 
-                    if collapsing.is_open() {
+                    if 0.0 < title_content_spacing {
                         // Allocate space for the separator between title and content:
                         let title_bar_and_separator_rect = title_bar
-                            .rect
-                            .with_max_y(title_bar.rect.max.y + window_frame.stroke.width);
+                            .inner_rect
+                            .with_max_y(title_bar.inner_rect.max.y + title_content_spacing);
                         frame
                             .content_ui
                             .advance_cursor_after_rect(title_bar_and_separator_rect);
@@ -604,11 +611,11 @@ impl<'open> Window<'open> {
                 // END FRAME --------------------------------
 
                 if let Some(mut title_bar) = title_bar {
-                    title_bar.rect = outer_rect.shrink(window_frame.stroke.width);
-                    title_bar.rect.max.y = title_bar.rect.min.y + title_bar_height;
-                    title_bar.rect = title_bar
-                        .rect
-                        .round_to_pixels(area_content_ui.pixels_per_point());
+                    title_bar.inner_rect = outer_rect.shrink(window_frame.stroke.width);
+                    title_bar.inner_rect.max.y =
+                        title_bar.inner_rect.min.y + title_bar_inner_height;
+                    title_bar.inner_rect =
+                        title_bar.inner_rect.round_to_pixels(ctx.pixels_per_point());
 
                     if on_top && area_content_ui.visuals().window_highlight_topmost {
                         let mut round = window_frame.rounding;
@@ -620,13 +627,13 @@ impl<'open> Window<'open> {
 
                         area_content_ui.painter().set(
                             *where_to_put_header_background,
-                            RectShape::filled(title_bar.rect, round, header_color),
+                            RectShape::filled(title_bar.inner_rect, round, header_color),
                         );
                     };
 
                     if false {
                         ctx.debug_painter().debug_rect(
-                            title_bar.rect,
+                            title_bar.inner_rect,
                             Color32::LIGHT_BLUE,
                             "title_bar.rect",
                         );
@@ -1132,8 +1139,8 @@ struct TitleBar {
     /// Size of the title bar in an expanded state. This size become known only
     /// after expanding window and painting its content.
     ///
-    /// Does not include the line between the title bar and the window contents.
-    rect: Rect,
+    /// Does not include the stroke, nor the separator line between the title bar and the window contents.
+    inner_rect: Rect,
 }
 
 impl TitleBar {
@@ -1141,25 +1148,24 @@ impl TitleBar {
         ui: &mut Ui,
         title: WidgetText,
         show_close_button: bool,
-        collapsing: &mut CollapsingState,
         collapsible: bool,
         window_frame: Frame,
+        inner_height: f32,
     ) -> Self {
+        if false {
+            ui.ctx()
+                .debug_painter()
+                .debug_rect(ui.min_rect(), Color32::WHITE, "outer_min_rect");
+        }
+
+        // TODO: remove this horizontal layout
         let inner_response = ui.horizontal(|ui| {
-            let inner_height = ui
-                .fonts(|fonts| title.font_height(fonts, ui.style()))
-                .max(ui.spacing().interact_size.y);
             ui.set_min_height(inner_height);
 
             let item_spacing = ui.spacing().item_spacing;
-            let button_size = Vec2::splat(ui.spacing().icon_width);
+            let button_size = Vec2::splat(ui.spacing().icon_width.at_most(inner_height));
 
-            let pad = ((inner_height - button_size.y) / 2.0).round_ui(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
-
-            if collapsible {
-                ui.add_space(pad);
-                collapsing.show_default_button_with_size(ui, button_size);
-            }
+            let left_pad = ((inner_height - button_size.y) / 2.0).round_ui(); // calculated so that the icon is on the diagonal (if window padding is symmetrical)
 
             let title_galley = title.into_galley(
                 ui,
@@ -1169,10 +1175,10 @@ impl TitleBar {
             );
 
             let minimum_width = if collapsible || show_close_button {
-                // If at least one button is shown we make room for both buttons (since title is centered):
-                2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
+                // If at least one button is shown we make room for both buttons (since title should be centered):
+                2.0 * (left_pad + button_size.x + item_spacing.x) + title_galley.size().x
             } else {
-                pad + title_galley.size().x + pad
+                left_pad + title_galley.size().x + left_pad
             };
             let min_rect =
                 Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, inner_height));
@@ -1188,14 +1194,17 @@ impl TitleBar {
                 window_frame,
                 id,
                 title_galley,
-                rect: Rect::NAN, // Will be filled in below
+                inner_rect: Rect::NAN, // Will be filled in below
             }
         });
 
         let title_bar = inner_response.inner;
         let rect = inner_response.response.rect;
 
-        Self { rect, ..title_bar }
+        Self {
+            inner_rect: rect,
+            ..title_bar
+        }
     }
 
     /// Finishes painting of the title bar when the window content size already known.
@@ -1221,7 +1230,27 @@ impl TitleBar {
         collapsible: bool,
     ) {
         let window_frame = self.window_frame;
-        let title_inner_rect = self.rect;
+        let title_inner_rect = self.inner_rect;
+
+        if false {
+            ui.ctx()
+                .debug_painter()
+                .debug_rect(self.inner_rect, Color32::RED, "TitleBar");
+        }
+
+        if collapsible {
+            // Show collapse-button:
+            let button_center = Align2::LEFT_CENTER
+                .align_size_within_rect(Vec2::splat(self.inner_rect.height()), self.inner_rect)
+                .center();
+            let button_size = Vec2::splat(ui.spacing().icon_width);
+            let button_rect = Rect::from_center_size(button_center, button_size);
+            let button_rect = button_rect.round_to_pixels(ui.pixels_per_point());
+
+            ui.allocate_new_ui(UiBuilder::new().max_rect(button_rect), |ui| {
+                collapsing.show_default_button_with_size(ui, button_size);
+            });
+        }
 
         if let Some(open) = open {
             // Add close button now that we know our full width:
@@ -1273,16 +1302,12 @@ impl TitleBar {
     /// The button is square and its size is determined by the
     /// [`crate::style::Spacing::icon_width`] setting.
     fn close_button_ui(&self, ui: &mut Ui) -> Response {
+        let button_center = Align2::RIGHT_CENTER
+            .align_size_within_rect(Vec2::splat(self.inner_rect.height()), self.inner_rect)
+            .center();
         let button_size = Vec2::splat(ui.spacing().icon_width);
-        let pad = (self.rect.height() - button_size.y) / 2.0; // calculated so that the icon is on the diagonal (if window padding is symmetrical)
-        let button_rect = Rect::from_min_size(
-            pos2(
-                self.rect.right() - pad - button_size.x,
-                self.rect.center().y - 0.5 * button_size.y,
-            ),
-            button_size,
-        );
-
+        let button_rect = Rect::from_center_size(button_center, button_size);
+        let button_rect = button_rect.round_to_pixels(ui.pixels_per_point());
         close_button(ui, button_rect)
     }
 }
