@@ -115,7 +115,7 @@ pub struct Frame {
     #[doc(alias = "border")]
     pub stroke: Stroke,
 
-    /// The rounding of the corners of [`Self::stroke`].
+    /// The rounding of the corners of [`Self::stroke`] and [`Self::fill`].
     pub rounding: Rounding,
 
     /// Margin outside the painted frame.
@@ -257,12 +257,16 @@ impl Frame {
         self
     }
 
+    /// The width and color of the outline around the frame.
+    ///
+    /// The width of the stroke is part of the total margin/padding of the frame.
     #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
 
+    /// The rounding of the corners of [`Self::stroke`] and [`Self::fill`].
     #[inline]
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
         self.rounding = rounding.into();
