@@ -183,12 +183,12 @@ mod tests {
 
         harness.get_by_role(Role::ComboBox).click();
 
-        harness.run();
+        harness.try_run().ok();
         assert!(harness.ctx.memory(|mem| mem.any_popup_open()));
         assert!(harness.state().user_modal_open);
 
         harness.press_key(Key::Escape);
-        harness.run();
+        harness.try_run().ok();
         assert!(!harness.ctx.memory(|mem| mem.any_popup_open()));
         assert!(harness.state().user_modal_open);
     }
@@ -238,17 +238,11 @@ mod tests {
         results.push(harness.try_snapshot("modals_1"));
 
         harness.get_by_label("Save").click();
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
+        harness.run_steps(3);
         results.push(harness.try_snapshot("modals_2"));
 
         harness.get_by_label("Yes Please").click();
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
+        harness.run_steps(3);
         results.push(harness.try_snapshot("modals_3"));
 
         for result in results {
@@ -272,14 +266,11 @@ mod tests {
             initial_state,
         );
 
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
+        harness.run_steps(3);
 
         harness.get_by_label("Yes Please").simulate_click();
 
-        harness.run();
+        harness.run_steps(2);
 
         // This snapshots should show the progress bar modal on top of the save modal.
         harness.snapshot("modals_backdrop_should_prevent_focusing_lower_area");

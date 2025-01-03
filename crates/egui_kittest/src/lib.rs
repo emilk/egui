@@ -10,7 +10,10 @@ mod snapshot;
 
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
+use std::time::Duration;
+
 mod app_kind;
 mod renderer;
 #[cfg(feature = "wgpu")]
@@ -26,8 +29,26 @@ use crate::event::EventState;
 pub use builder::*;
 pub use renderer::*;
 
-use egui::{Modifiers, Pos2, Rect, Vec2, ViewportId};
+use egui::mutex::Mutex;
+use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
 use kittest::{Node, Queryable};
+
+pub struct ExceededMaxStepsError {
+    pub max_steps: u64,
+    pub repaint_causes: Vec<RepaintCause>,
+}
+
+impl Display for ExceededMaxStepsError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Harness::run exceeded max_steps ({}). If your expect your ui to keep repainting \
+            (e.g. when showing a spinner) call Harness::step or Harness::run_steps instead.\
+            \nRepaint causes: {:#?}",
+            self.max_steps, self.repaint_causes,
+        )
+    }
+}
 
 /// The test Harness. This contains everything needed to run the test.
 /// Create a new Harness using [`Harness::new`] or [`Harness::builder`].
@@ -45,6 +66,8 @@ pub struct Harness<'a, State = ()> {
     response: Option<egui::Response>,
     state: State,
     renderer: Box<dyn TestRenderer>,
+    max_steps: u64,
+    step_dt: f32,
 }
 
 impl<'a, State> Debug for Harness<'a, State> {
@@ -60,14 +83,24 @@ impl<'a, State> Harness<'a, State> {
         mut state: State,
         ctx: Option<egui::Context>,
     ) -> Self {
+        let HarnessBuilder {
+            screen_rect,
+            pixels_per_point,
+            max_steps,
+            step_dt,
+            state: _,
+            mut renderer,
+        } = builder;
         let ctx = ctx.unwrap_or_default();
         ctx.enable_accesskit();
+        // Disable cursor blinking so it doesn't interfere with snapshots
+        ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
         let mut input = egui::RawInput {
-            screen_rect: Some(builder.screen_rect),
+            screen_rect: Some(screen_rect),
             ..Default::default()
         };
         let viewport = input.viewports.get_mut(&ViewportId::ROOT).unwrap();
-        viewport.native_pixels_per_point = Some(builder.pixels_per_point);
+        viewport.native_pixels_per_point = Some(pixels_per_point);
 
         let mut response = None;
 
@@ -77,7 +110,6 @@ impl<'a, State> Harness<'a, State> {
             response = app.run(ctx, &mut state, false);
         });
 
-        let mut renderer = builder.renderer;
         renderer.handle_delta(&output.textures_delta);
 
         let mut harness = Self {
@@ -96,9 +128,11 @@ impl<'a, State> Harness<'a, State> {
             event_state: EventState::default(),
             state,
             renderer,
+            max_steps,
+            step_dt,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
-        harness.run();
+        harness.try_run().ok();
         harness
     }
 
@@ -188,7 +222,8 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Run a frame.
-    /// This will call the app closure with the current context and update the Harness.
+    /// This will call the app closure with the queued events and current context and
+    /// update the Harness.
     pub fn step(&mut self) {
         self._step(false);
     }
@@ -199,6 +234,8 @@ impl<'a, State> Harness<'a, State> {
                 self.input.events.push(event);
             }
         }
+
+        self.input.predicted_dt = self.step_dt;
 
         let mut output = self.ctx.run(self.input.take(), |ctx| {
             self.response = self.app.run(ctx, &mut self.state, sizing_pass);
@@ -215,22 +252,81 @@ impl<'a, State> Harness<'a, State> {
     }
 
     /// Resize the test harness to fit the contents. This only works when creating the Harness via
-    /// [`Harness::new_ui`] or [`HarnessBuilder::build_ui`].
+    /// [`Harness::new_ui`] / [`Harness::new_ui_state`] or
+    /// [`HarnessBuilder::build_ui`] / [`HarnessBuilder::build_ui_state`].
     pub fn fit_contents(&mut self) {
         self._step(true);
         if let Some(response) = &self.response {
             self.set_size(response.rect.size());
         }
-        self.run();
+        self.try_run().ok();
     }
 
-    /// Run a few frames.
-    /// This will soon be changed to run the app until it is "stable", meaning
+    /// Run until
     /// - all animations are done
     /// - no more repaints are requested
-    pub fn run(&mut self) {
-        const STEPS: usize = 2;
-        for _ in 0..STEPS {
+    ///
+    /// Returns the number of frames that were run.
+    ///
+    /// # Panics
+    /// Panics if the number of steps exceeds the maximum number of steps set
+    /// in [`HarnessBuilder::with_max_steps`].
+    ///
+    /// See also:
+    /// - [`Harness::try_run`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    #[track_caller]
+    pub fn run(&mut self) -> u64 {
+        match self.try_run() {
+            Ok(steps) => steps,
+            Err(err) => {
+                panic!("{err}");
+            }
+        }
+    }
+
+    /// Run until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached
+    ///
+    /// Returns the number of steps that were run.
+    ///
+    /// # Errors
+    /// Returns an error if the maximum number of steps is exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
+        let repaint = Arc::new(Mutex::new(true));
+        let repaint_clone = repaint.clone();
+        self.ctx.set_request_repaint_callback(move |info| {
+            // We only care about immediate repaints
+            if info.delay == Duration::ZERO {
+                *repaint_clone.lock() = true;
+            }
+        });
+        let mut steps = 0;
+        while std::mem::replace(&mut *repaint.lock(), false) {
+            steps += 1;
+            self.step();
+            if steps > self.max_steps {
+                return Err(ExceededMaxStepsError {
+                    max_steps: self.max_steps,
+                    repaint_causes: self.ctx.repaint_causes(),
+                });
+            }
+        }
+        Ok(steps)
+    }
+
+    /// Run a number of steps.
+    /// Equivalent to calling [`Harness::step`] x times.
+    pub fn run_steps(&mut self, steps: usize) {
+        for _ in 0..steps {
             self.step();
         }
     }
