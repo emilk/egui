@@ -352,3 +352,43 @@ pub fn percent_decode(s: &str) -> String {
         .decode_utf8_lossy()
         .to_string()
 }
+
+/// Load the data from a dropped file.
+pub async fn get_data(
+    dropped_file: &mut egui::DroppedFile,
+) -> Result<std::sync::Arc<[u8]>, String> {
+    use wasm_bindgen_futures::JsFuture;
+
+    dropped_file.need_drop_url = false.into();
+    let url = dropped_file.stream_url.clone().ok_or("No stream URL")?;
+
+    let window = web_sys::window().ok_or("No Window object")?;
+    let fetch = window.fetch_with_str(&url);
+
+    let response_value = JsFuture::from(fetch).await.map_err(|err| {
+        log::error!("Failed to fetch: {err:?}");
+        format!("Failed to fetch: {err:?}")
+    })?;
+
+    let response: web_sys::Response = response_value.dyn_into().map_err(|err| {
+        log::error!("Failed to cast response to web_sys::Response {err:?}");
+        format!("Failed to cast response to web_sys::Response {err:?}")
+    })?;
+
+    let array_buffer_promise = response.array_buffer().map_err(|err| {
+        log::error!("Failed to get array buffer: {err:?}",);
+        format!("Failed to get array buffer: {err:?}",)
+    })?;
+
+    let array_buffer = JsFuture::from(array_buffer_promise).await.map_err(|err| {
+        log::error!("Failed to convert to array buffer: {err:?}");
+        format!("Failed to convert to array buffer: {err:?}")
+    })?;
+
+    let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
+    log::debug!("Loaded {} bytes", bytes.len());
+
+    dropped_file.need_drop_url = true.into();
+
+    Ok(std::sync::Arc::from(bytes.into_boxed_slice()))
+}
