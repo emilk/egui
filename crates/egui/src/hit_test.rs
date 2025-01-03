@@ -2,7 +2,7 @@ use ahash::HashMap;
 
 use emath::TSTransform;
 
-use crate::{ahash, emath, LayerId, Pos2, Rect, WidgetRect, WidgetRects};
+use crate::{ahash, emath, Id, LayerId, Pos2, Rect, WidgetRect, WidgetRects};
 
 /// Result of a hit-test against [`WidgetRects`].
 ///
@@ -132,6 +132,23 @@ pub fn hit_test(
             w.sense.drag = false;
         }
     }
+
+    // Find widgets which are hidden behind another widget and discard them.
+    // This is the case when a widget fully contains another widget and is on a different layer.
+    // It prevents "hovering through" widgets when there is a clickable widget behind.
+
+    let mut hidden: ahash::HashSet<Id> = Default::default();
+    for (i, current) in close.iter().enumerate().rev() {
+        for next in &close[i + 1..] {
+            if next.interact_rect.contains_rect(current.interact_rect)
+                && current.layer_id != next.layer_id
+            {
+                hidden.insert(current.id);
+            }
+        }
+    }
+
+    close.retain(|c| !hidden.contains(&c.id));
 
     let mut hits = hit_test_on_close(&close, pos);
 
