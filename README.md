@@ -150,6 +150,7 @@ Light Theme:
 * [`ahash`](https://crates.io/crates/ahash)
 * [`nohash-hasher`](https://crates.io/crates/nohash-hasher)
 * [`parking_lot`](https://crates.io/crates/parking_lot)
+* [`bitflags`](https://crates.io/crates/bitflags)
 
 Heavier dependencies are kept out of `egui`, even as opt-in.
 No code that isn't fully Wasm-friendly is part of `egui`.

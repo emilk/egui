@@ -192,14 +192,14 @@ pub(crate) fn interact(
         // Check if we started dragging something new:
         if let Some(widget) = interaction.potential_drag_id.and_then(|id| widgets.get(id)) {
             if widget.enabled {
-                let is_dragged = if widget.sense.click && widget.sense.drag {
+                let is_dragged = if widget.sense.senses_click() && widget.sense.senses_drag() {
                     // This widget is sensitive to both clicks and drags.
                     // When the mouse first is pressed, it could be either,
                     // so we postpone the decision until we know.
                     input.pointer.is_decidedly_dragging()
                 } else {
                     // This widget is just sensitive to drags, so we can mark it as dragged right away:
-                    widget.sense.drag
+                    widget.sense.senses_drag()
                 };
 
                 if is_dragged {
@@ -271,7 +271,7 @@ pub(crate) fn interact(
         let mut hovered: IdSet = hits.click.iter().chain(&hits.drag).map(|w| w.id).collect();
 
         for w in &hits.contains_pointer {
-            let is_interactive = w.sense.click || w.sense.drag;
+            let is_interactive = w.sense.senses_click() || w.sense.senses_drag();
             if is_interactive {
                 // The only interactive widgets we mark as hovered are the ones
                 // in `hits.click` and `hits.drag`!

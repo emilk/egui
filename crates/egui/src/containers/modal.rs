@@ -86,11 +86,7 @@ impl Modal {
             response,
         } = area.show(ctx, |ui| {
             let bg_rect = ui.ctx().screen_rect();
-            let bg_sense = Sense {
-                click: true,
-                drag: true,
-                focusable: false,
-            };
+            let bg_sense = Sense::CLICK | Sense::DRAG;
             let mut backdrop = ui.new_child(UiBuilder::new().sense(bg_sense).max_rect(bg_rect));
             backdrop.set_min_size(bg_rect.size());
             ui.painter().rect_filled(bg_rect, 0.0, backdrop_color);
@@ -101,14 +97,9 @@ impl Modal {
             // We need the extra scope with the sense since frame can't have a sense and since we
             // need to prevent the clicks from passing through to the backdrop.
             let inner = ui
-                .scope_builder(
-                    UiBuilder::new().sense(Sense {
-                        click: true,
-                        drag: true,
-                        focusable: false,
-                    }),
-                    |ui| frame.show(ui, content).inner,
-                )
+                .scope_builder(UiBuilder::new().sense(Sense::CLICK | Sense::DRAG), |ui| {
+                    frame.show(ui, content).inner
+                })
                 .inner;
 
             (inner, backdrop_response)

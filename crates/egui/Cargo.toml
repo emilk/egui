@@ -84,6 +84,7 @@ emath = { workspace = true, default-features = false }
 epaint = { workspace = true, default-features = false }
 
 ahash.workspace = true
+bitflags.workspace = true
 nohash-hasher.workspace = true
 profiling.workspace = true
 
