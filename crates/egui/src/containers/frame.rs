@@ -10,7 +10,7 @@ use epaint::{Color32, Margin, Marginf, Rect, Rounding, Shadow, Shape, Stroke};
 ///
 /// ## Definitions
 /// The total (outer) size of a frame is
-/// `content_size + inner_margin + stroke.width + outer_margin`.
+/// `content_size + inner_margin + 2 * stroke.width + outer_margin`.
 ///
 /// Everything within the stroke is filled with the fill color (if any).
 ///
