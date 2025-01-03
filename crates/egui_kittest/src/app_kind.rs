@@ -56,7 +56,7 @@ impl<'a, State> AppKind<'a, State> {
         sizing_pass: bool,
     ) -> egui::Response {
         egui::CentralPanel::default()
-            .frame(Frame::none())
+            .frame(Frame::NONE)
             .show(ctx, |ui| {
                 let mut builder = egui::UiBuilder::new();
                 if sizing_pass {

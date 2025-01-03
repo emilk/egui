@@ -1771,12 +1771,14 @@ impl Ui {
     /// Add extra space before the next widget.
     ///
     /// The direction is dependent on the layout.
-    /// This will be in addition to the [`crate::style::Spacing::item_spacing`].
+    ///
+    /// This will be in addition to the [`crate::style::Spacing::item_spacing`]
+    /// that is always added, but `item_spacing` won't be added _again_ by `add_space`.
     ///
     /// [`Self::min_rect`] will expand to contain the space.
     #[inline]
     pub fn add_space(&mut self, amount: f32) {
-        self.placer.advance_cursor(amount);
+        self.placer.advance_cursor(amount.round_ui());
     }
 
     /// Show some text.
