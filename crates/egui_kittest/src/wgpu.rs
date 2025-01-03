@@ -1,7 +1,6 @@
 use std::iter::once;
 use std::sync::Arc;
 
-use eframe::epaint::TextureId;
 use egui::TexturesDelta;
 use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
 use image::RgbaImage;
@@ -102,7 +101,7 @@ impl WgpuTestRenderer {
             render_state
                 .renderer
                 .read()
-                .texture(&TextureId::Managed(0))
+                .texture(&egui::epaint::TextureId::Managed(0))
                 .is_none(),
             "The RenderState passed in has been used before, pass in a fresh RenderState instead."
         );
