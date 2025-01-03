@@ -366,6 +366,7 @@ impl WgpuSetup {
 
                 log::debug!("Creating wgpu instance with backends {:?}", backends);
 
+                #[allow(clippy::arc_with_non_send_sync)]
                 Arc::new(
                     wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
                         backends: create_new.instance_descriptor.backends,
