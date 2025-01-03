@@ -129,7 +129,7 @@ pub struct Frame {
     /// Supporting margin collapse is difficult, and would
     /// requires complicating the already complicated egui layout code.
     ///
-    /// Consider using [`egui::Spacing::item_spacing`]
+    /// Consider using [`crate::Spacing::item_spacing`]
     /// for adding space between widgets.
     pub outer_margin: Margin,
 
@@ -284,7 +284,7 @@ impl Frame {
     /// Supporting margin collapse is difficult, and would
     /// requires complicating the already complicated egui layout code.
     ///
-    /// Consider using [`egui::Spacing::item_spacing`]
+    /// Consider using [`crate::Spacing::item_spacing`]
     /// for adding space between widgets.
     #[inline]
     pub fn outer_margin(mut self, outer_margin: impl Into<Margin>) -> Self {
