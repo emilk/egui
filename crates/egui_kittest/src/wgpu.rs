@@ -10,61 +10,48 @@ use crate::texture_to_image::texture_to_image;
 
 /// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
-    egui_wgpu::WgpuSetup::CreateNew(egui_wgpu::WgpuSetupCreateNew {
-        // WebGPU not supported yet since we rely on blocking screenshots.
-        supported_backends: wgpu::util::backend_bits_from_env().unwrap_or(
-            wgpu::Backends::all().intersection(wgpu::Backends::BROWSER_WEBGPU.complement()),
-        ),
+    let mut setup = egui_wgpu::WgpuSetupCreateNew::default();
 
-        native_adapter_selector: Some(Arc::new(|adapters, _surface| {
-            let mut adapters = adapters.iter().collect::<Vec<_>>();
+    // WebGPU not supported yet since we rely on blocking screenshots.
+    setup
+        .instance_descriptor
+        .backends
+        .remove(wgpu::Backends::BROWSER_WEBGPU);
 
-            // Adapters are already sorted by preferred backend by wgpu, but let's be explicit.
-            adapters.sort_by_key(|a| match a.get_info().backend {
-                wgpu::Backend::Metal => 0,
-                wgpu::Backend::Vulkan => 1,
-                wgpu::Backend::Dx12 => 2,
-                wgpu::Backend::Gl => 4,
-                wgpu::Backend::BrowserWebGpu => 6,
-                wgpu::Backend::Empty => 7,
-            });
+    // Prefer software rasterizers.
+    setup.native_adapter_selector = Some(Arc::new(|adapters, _surface| {
+        let mut adapters = adapters.iter().collect::<Vec<_>>();
 
-            // Prefer CPU adapters, otherwise if we can't, prefer discrete GPU over integrated GPU.
-            adapters.sort_by_key(|a| match a.get_info().device_type {
-                wgpu::DeviceType::Cpu => 0, // CPU is the best for our purposes!
-                wgpu::DeviceType::DiscreteGpu => 1,
-                wgpu::DeviceType::Other
-                | wgpu::DeviceType::IntegratedGpu
-                | wgpu::DeviceType::VirtualGpu => 2,
-            });
+        // Adapters are already sorted by preferred backend by wgpu, but let's be explicit.
+        adapters.sort_by_key(|a| match a.get_info().backend {
+            wgpu::Backend::Metal => 0,
+            wgpu::Backend::Vulkan => 1,
+            wgpu::Backend::Dx12 => 2,
+            wgpu::Backend::Gl => 4,
+            wgpu::Backend::BrowserWebGpu => 6,
+            wgpu::Backend::Empty => 7,
+        });
 
-            adapters
-                .first()
-                .map(|a| (*a).clone())
-                .ok_or("No adapter found".to_owned())
-        })),
+        // Prefer CPU adapters, otherwise if we can't, prefer discrete GPU over integrated GPU.
+        adapters.sort_by_key(|a| match a.get_info().device_type {
+            wgpu::DeviceType::Cpu => 0, // CPU is the best for our purposes!
+            wgpu::DeviceType::DiscreteGpu => 1,
+            wgpu::DeviceType::Other
+            | wgpu::DeviceType::IntegratedGpu
+            | wgpu::DeviceType::VirtualGpu => 2,
+        });
 
-        device_descriptor: std::sync::Arc::new(|_| wgpu::DeviceDescriptor {
-            label: Some("egui-kittest"),
-            ..Default::default()
-        }),
+        adapters
+            .first()
+            .map(|a| (*a).clone())
+            .ok_or("No adapter found".to_owned())
+    }));
 
-        ..Default::default()
-    })
+    egui_wgpu::WgpuSetup::CreateNew(setup)
 }
 
 pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
-    let instance = match &setup {
-        WgpuSetup::Existing { instance, .. } => instance.clone(),
-        WgpuSetup::CreateNew(egui_wgpu::WgpuSetupCreateNew {
-            supported_backends, ..
-        }) => Arc::new(wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: *supported_backends,
-            flags: wgpu::InstanceFlags::default(),
-            dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
-            gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
-        })),
-    };
+    let instance = pollster::block_on(setup.new_instance());
 
     pollster::block_on(egui_wgpu::RenderState::create(
         &egui_wgpu::WgpuConfiguration {
