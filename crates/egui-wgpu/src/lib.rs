@@ -303,7 +303,7 @@ pub enum WgpuSetup {
     /// supported backends, power preferences, and device description.
     ///
     /// By default can also be configured with the environment variables:
-    /// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
+    /// * `WGPU_BACKEND`: `vulkan`, `dx12`, `metal`, `opengl`, `webgpu`
     /// * `WGPU_POWER_PREF`: `low`, `high` or `none`
     /// * `WGPU_TRACE`: Path to a file to output a wgpu trace file.
     CreateNew(WgpuSetupCreateNew),
