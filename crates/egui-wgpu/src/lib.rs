@@ -67,7 +67,7 @@ pub struct RenderState {
     ///
     /// This is not available on web.
     /// On web, we always select WebGPU is available, then fall back to WebGL if not.
-    // TODO(wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24
+    // TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24
     #[cfg(not(target_arch = "wasm32"))]
     pub available_adapters: Arc<[Arc<wgpu::Adapter>]>,
 
@@ -179,7 +179,7 @@ impl RenderState {
 
             instance
                 .enumerate_adapters(backends)
-                // TODO(wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24.
+                // TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24.
                 .into_iter()
                 .map(Arc::new)
                 .collect::<Vec<_>>()
@@ -312,7 +312,7 @@ pub enum WgpuSetup {
 
     /// Run on an existing wgpu setup.
     Existing {
-        // TODO(wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24.
+        // TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24.
         instance: Arc<Instance>,
         adapter: Arc<Adapter>,
         device: Arc<Device>,
@@ -388,7 +388,7 @@ impl WgpuSetup {
 ///
 /// This can be used for fully custom adapter selection.
 /// If available, `wgpu::Surface` is passed to allow checking for surface compatibility.
-// TODO(wgpu#6665): Remove layer of `Arc` here.
+// TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here.
 pub type NativeAdapterSelectorMethod = Arc<
     dyn Fn(&[Arc<wgpu::Adapter>], Option<&wgpu::Surface<'_>>) -> Result<Arc<wgpu::Adapter>, String>
         + Send
