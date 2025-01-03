@@ -44,7 +44,11 @@ pub struct FractalClockApp {
 impl eframe::App for FractalClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
-            .frame(egui::Frame::dark_canvas(&ctx.style()))
+            .frame(
+                egui::Frame::dark_canvas(&ctx.style())
+                    .stroke(egui::Stroke::NONE)
+                    .rounding(0),
+            )
             .show(ctx, |ui| {
                 self.fractal_clock
                     .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
