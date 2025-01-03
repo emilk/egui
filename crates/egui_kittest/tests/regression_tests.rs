@@ -78,11 +78,15 @@ fn test_combobox() {
     results.push(harness.try_snapshot("combobox_opened"));
 
     let item_2 = harness.get_by_role_and_label(Role::Button, "Item 2");
-    item_2.click();
+    // Node::click doesn't close the popup, so we use simulate_click
+    item_2.simulate_click();
 
     harness.run();
 
     assert_eq!(harness.state(), &1);
+
+    // Popup should be closed now
+    assert!(harness.query_by_label("Item 2").is_none());
 
     for result in results {
         if let Err(err) = result {
