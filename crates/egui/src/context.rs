@@ -1443,6 +1443,7 @@ impl Context {
     /// HTTPS or localhost). If this method is used outside of a secure context, it will log an
     /// error and do nothing. See <https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts>.
     pub fn copy_text(&self, text: String) {
+        self.output_mut(|o| o.copied_text = text.clone());
         self.send_cmd(crate::OutputCommand::CopyText(text));
     }
 
