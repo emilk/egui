@@ -59,6 +59,7 @@ criterion.workspace = true
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 wgpu = { workspace = true, features = ["metal"] }
 egui = { workspace = true, features = ["default_fonts"] }
+rand = "0.8"
 
 [[bench]]
 name = "benchmark"
