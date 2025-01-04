@@ -44,7 +44,11 @@ pub struct FractalClockApp {
 impl eframe::App for FractalClockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
-            .frame(egui::Frame::dark_canvas(&ctx.style()))
+            .frame(
+                egui::Frame::dark_canvas(&ctx.style())
+                    .stroke(egui::Stroke::NONE)
+                    .rounding(0),
+            )
             .show(ctx, |ui| {
                 self.fractal_clock
                     .ui(ui, self.mock_time.or(Some(crate::seconds_since_midnight())));
@@ -293,7 +297,7 @@ impl eframe::App for WrapApp {
 
         let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("wrap_app_top_bar")
-            .frame(egui::Frame::none().inner_margin(4.0))
+            .frame(egui::Frame::new().inner_margin(4))
             .show(ctx, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     ui.visuals_mut().button_frame = false;
