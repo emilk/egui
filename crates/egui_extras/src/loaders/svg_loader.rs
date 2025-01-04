@@ -1,4 +1,4 @@
-use std::{mem::size_of, path::Path, sync::Arc};
+use std::{borrow::Cow, mem::size_of, path::Path, sync::Arc};
 
 use ahash::HashMap;
 
@@ -12,7 +12,7 @@ type Entry = Result<Arc<ColorImage>, String>;
 
 #[derive(Default)]
 pub struct SvgLoader {
-    cache: Mutex<HashMap<(String, SizeHint), Entry>>,
+    cache: Mutex<HashMap<(Cow<'static, str>, SizeHint), Entry>>,
 }
 
 impl SvgLoader {
@@ -37,23 +37,21 @@ impl ImageLoader for SvgLoader {
             return Err(LoadError::NotSupported);
         }
 
-        let uri = uri.to_owned();
-
         let mut cache = self.cache.lock();
         // We can't avoid the `uri` clone here without unsafe code.
-        if let Some(entry) = cache.get(&(uri.clone(), size_hint)).cloned() {
+        if let Some(entry) = cache.get(&(Cow::Borrowed(uri), size_hint)).cloned() {
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
                 Err(err) => Err(LoadError::Loading(err)),
             }
         } else {
-            match ctx.try_load_bytes(&uri) {
+            match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     log::trace!("started loading {uri:?}");
                     let result = crate::image::load_svg_bytes_with_size(&bytes, Some(size_hint))
                         .map(Arc::new);
                     log::trace!("finished loading {uri:?}");
-                    cache.insert((uri, size_hint), result.clone());
+                    cache.insert((Cow::Owned(uri.to_owned()), size_hint), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
                         Err(err) => Err(LoadError::Loading(err)),
