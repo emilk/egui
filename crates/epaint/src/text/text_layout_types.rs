@@ -630,7 +630,7 @@ pub struct Glyph {
     /// The character this glyph represents.
     pub chr: char,
 
-    /// Baseline position, relative to the galley.
+    /// Baseline position, relative to the row.
     /// Logical position: pos.y is the same for all chars of the same [`TextFormat`].
     pub pos: Pos2,
 
