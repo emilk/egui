@@ -387,7 +387,7 @@ impl Widget for Button<'_> {
         }
 
         if let Some(cursor) = ui.visuals().interact_cursor {
-            if response.hovered {
+            if response.hovered() {
                 ui.ctx().set_cursor_icon(cursor);
             }
         }

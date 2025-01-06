@@ -660,7 +660,9 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        response.changed = get(&mut get_set_value) != old_value;
+        if get(&mut get_set_value) != old_value {
+            response.mark_changed();
+        }
 
         response.widget_info(|| WidgetInfo::drag_value(ui.is_enabled(), value));
 

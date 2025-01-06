@@ -7,7 +7,7 @@ use crate::{
     epaint,
     os::OperatingSystem,
     output::OutputEvent,
-    text_selection,
+    response, text_selection,
     text_selection::{
         text_cursor_state::cursor_rect, visuals::paint_text_selection, CCursorRange, CursorRange,
     },
@@ -565,8 +565,8 @@ impl<'t> TextEdit<'t> {
         let mut response = ui.interact(outer_rect, id, sense);
         response.intrinsic_size = Some(Vec2::new(desired_width, desired_outer_size.y));
 
-        response.fake_primary_click = false; // Don't sent `OutputEvent::Clicked` when a user presses the space bar
-
+        // Don't sent `OutputEvent::Clicked` when a user presses the space bar
+        response.flags -= response::Flags::FAKE_PRIMARY_CLICKED;
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
@@ -740,14 +740,14 @@ impl<'t> TextEdit<'t> {
                     let primary_cursor_rect =
                         cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
-                    if response.changed || selection_changed {
+                    if response.changed() || selection_changed {
                         // Scroll to keep primary cursor in view:
                         ui.scroll_to_rect(primary_cursor_rect + margin, None);
                     }
 
                     if text.is_mutable() && interactive {
                         let now = ui.ctx().input(|i| i.time);
-                        if response.changed || selection_changed {
+                        if response.changed() || selection_changed {
                             state.last_interaction_time = now;
                         }
 
@@ -794,7 +794,7 @@ impl<'t> TextEdit<'t> {
 
         state.clone().store(ui.ctx(), id);
 
-        if response.changed {
+        if response.changed() {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     ui.is_enabled(),
