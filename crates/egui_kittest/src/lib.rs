@@ -132,7 +132,7 @@ impl<'a, State> Harness<'a, State> {
             step_dt,
         };
         // Run the harness until it is stable, ensuring that all Areas are shown and animations are done
-        harness.try_run().ok();
+        harness.run_ok();
         harness
     }
 
@@ -259,7 +259,7 @@ impl<'a, State> Harness<'a, State> {
         if let Some(response) = &self.response {
             self.set_size(response.rect.size());
         }
-        self.try_run().ok();
+        self.run_ok();
     }
 
     /// Run until
@@ -274,6 +274,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// See also:
     /// - [`Harness::try_run`].
+    /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     #[track_caller]
@@ -289,7 +290,7 @@ impl<'a, State> Harness<'a, State> {
     /// Run until
     /// - all animations are done
     /// - no more repaints are requested
-    /// - the maximum number of steps is reached
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
     ///
     /// Returns the number of steps that were run.
     ///
@@ -298,6 +299,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// See also:
     /// - [`Harness::run`].
+    /// - [`Harness::run_ok`].
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
@@ -321,6 +323,22 @@ impl<'a, State> Harness<'a, State> {
             }
         }
         Ok(steps)
+    }
+
+    /// Run until
+    /// - all animations are done
+    /// - no more repaints are requested
+    /// - the maximum number of steps is reached (See [`HarnessBuilder::with_max_steps`])
+    ///
+    /// Returns the number of steps that were run, or None if the maximum number of steps was exceeded.
+    ///
+    /// See also:
+    /// - [`Harness::run`].
+    /// - [`Harness::try_run`].
+    /// - [`Harness::step`].
+    /// - [`Harness::run_steps`].
+    pub fn run_ok(&mut self) -> Option<u64> {
+        self.try_run().ok()
     }
 
     /// Run a number of steps.
