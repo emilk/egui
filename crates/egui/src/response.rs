@@ -547,7 +547,18 @@ impl Response {
     /// ```
     #[doc(alias = "tooltip")]
     pub fn on_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.enabled && self.should_show_hover_ui() {
+        self.on_hover_ui_interactive(true, add_contents)
+    }
+
+    /// Show this UI if the widget was hovered.
+    ///
+    /// Argument `interactive` controls whether mouse can interact with interactive tooltip.
+    pub fn on_hover_ui_interactive(
+        self,
+        interactive: bool,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Self {
+        if self.enabled && self.should_show_hover_ui(interactive) {
             self.show_tooltip_ui(add_contents);
         }
         self
@@ -555,7 +566,18 @@ impl Response {
 
     /// Show this UI when hovering if the widget is disabled.
     pub fn on_disabled_hover_ui(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if !self.enabled && self.should_show_hover_ui() {
+        self.on_disabled_hover_ui_interactive(true, add_contents)
+    }
+
+    /// Show this UI when hovering if the widget is disabled.
+    ///
+    /// Argument `interactive` controls whether mouse can interact with interactive tooltip.
+    pub fn on_disabled_hover_ui_interactive(
+        self,
+        interactive: bool,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Self {
+        if !self.enabled && self.should_show_hover_ui(interactive) {
             crate::containers::show_tooltip_for(
                 &self.ctx,
                 self.layer_id,
@@ -569,7 +591,18 @@ impl Response {
 
     /// Like `on_hover_ui`, but show the ui next to cursor.
     pub fn on_hover_ui_at_pointer(self, add_contents: impl FnOnce(&mut Ui)) -> Self {
-        if self.enabled && self.should_show_hover_ui() {
+        self.on_hover_ui_at_pointer_interactive(true, add_contents)
+    }
+
+    /// Like `on_hover_ui`, but show the ui next to cursor.
+    ///
+    /// Argument `interactive` controls whether mouse can interact with interactive tooltip.
+    pub fn on_hover_ui_at_pointer_interactive(
+        self,
+        interactive: bool,
+        add_contents: impl FnOnce(&mut Ui),
+    ) -> Self {
+        if self.enabled && self.should_show_hover_ui(interactive) {
             crate::containers::show_tooltip_at_pointer(
                 &self.ctx,
                 self.layer_id,
@@ -607,7 +640,7 @@ impl Response {
         crate::popup::was_tooltip_open_last_frame(&self.ctx, self.id)
     }
 
-    fn should_show_hover_ui(&self) -> bool {
+    fn should_show_hover_ui(&self, allow_interactive: bool) -> bool {
         if self.ctx.memory(|mem| mem.everything_is_visible()) {
             return true;
         }
@@ -659,12 +692,13 @@ impl Response {
             let tooltip_id = crate::next_tooltip_id(&self.ctx, self.id);
             let tooltip_layer_id = LayerId::new(Order::Tooltip, tooltip_id);
 
-            let tooltip_has_interactive_widget = self.ctx.viewport(|vp| {
-                vp.prev_pass
-                    .widgets
-                    .get_layer(tooltip_layer_id)
-                    .any(|w| w.enabled && w.sense.interactive())
-            });
+            let tooltip_has_interactive_widget = allow_interactive
+                && self.ctx.viewport(|vp| {
+                    vp.prev_pass
+                        .widgets
+                        .get_layer(tooltip_layer_id)
+                        .any(|w| w.enabled && w.sense.interactive())
+                });
 
             if tooltip_has_interactive_widget {
                 // We keep the tooltip open if hovered,
