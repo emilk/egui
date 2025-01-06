@@ -244,7 +244,8 @@ pub fn load_image_bytes_for_size(
     image_bytes: &[u8],
     hint: SizeHint,
 ) -> Result<egui::ColorImage, String> {
-    crate::profile_function!();
+    profiling::function_scope!();
+
     let image = image::load_from_memory(image_bytes).map_err(|err| err.to_string())?;
     let src_size = [image.width() as _, image.height() as _];
     let dst_size = calculate_size_for_hint(src_size, hint);
