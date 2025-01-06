@@ -11,7 +11,6 @@ mod snapshot;
 #[cfg(feature = "snapshot")]
 pub use snapshot::*;
 use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
 use std::time::Duration;
 
 mod app_kind;
@@ -29,7 +28,6 @@ use crate::event::EventState;
 pub use builder::*;
 pub use renderer::*;
 
-use egui::mutex::Mutex;
 use egui::{Modifiers, Pos2, Rect, RepaintCause, Vec2, ViewportId};
 use kittest::{Node, Queryable};
 
@@ -303,18 +301,14 @@ impl<'a, State> Harness<'a, State> {
     /// - [`Harness::step`].
     /// - [`Harness::run_steps`].
     pub fn try_run(&mut self) -> Result<u64, ExceededMaxStepsError> {
-        let repaint = Arc::new(Mutex::new(true));
-        let repaint_clone = repaint.clone();
-        self.ctx.set_request_repaint_callback(move |info| {
-            // We only care about immediate repaints
-            if info.delay == Duration::ZERO {
-                *repaint_clone.lock() = true;
-            }
-        });
         let mut steps = 0;
-        while std::mem::replace(&mut *repaint.lock(), false) {
+        loop {
             steps += 1;
             self.step();
+            // We only care about immediate repaints
+            if self.root_viewport_output().repaint_delay != Duration::ZERO {
+                break;
+            }
             if steps > self.max_steps {
                 return Err(ExceededMaxStepsError {
                     max_steps: self.max_steps,
@@ -410,6 +404,14 @@ impl<'a, State> Harness<'a, State> {
     /// Returns an error if the rendering fails.
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
         self.renderer.render(&self.ctx, &self.output)
+    }
+
+    /// Get the root viewport output
+    fn root_viewport_output(&self) -> &egui::ViewportOutput {
+        self.output
+            .viewport_output
+            .get(&ViewportId::ROOT)
+            .expect("Missing root viewport")
     }
 }
 
