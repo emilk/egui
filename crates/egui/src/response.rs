@@ -69,9 +69,11 @@ pub struct Response {
     pub intrinsic_size: Option<Vec2>,
 
     #[doc(hidden)]
-    pub(crate) flags: Flags,
+    pub flags: Flags,
 }
 
+/// A bit set for various boolean properties of `Response`.
+#[doc(hidden)]
 #[derive(Copy, Clone, Debug)]
 pub struct Flags(u16);
 
@@ -225,10 +227,7 @@ impl Response {
             let pointer = &i.pointer;
 
             if pointer.any_click() {
-                if self
-                    .flags
-                    .intersects(Flags::CONTAINS_POINTER | Flags::HOVERED)
-                {
+                if self.contains_pointer() || self.hovered() {
                     false
                 } else if let Some(pos) = pointer.interact_pos() {
                     !self.interact_rect.contains(pos)

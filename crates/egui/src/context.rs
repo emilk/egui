@@ -1219,6 +1219,8 @@ impl Context {
 
     /// Do all interaction for an existing widget, without (re-)registering it.
     pub(crate) fn get_response(&self, widget_rect: WidgetRect) -> Response {
+        use response::Flags;
+
         let WidgetRect {
             id,
             layer_id,
@@ -1238,19 +1240,19 @@ impl Context {
             rect,
             interact_rect,
             sense,
-            flags: response::Flags::empty(),
+            flags: Flags::empty(),
             interact_pointer_pos: None,
             intrinsic_size: None,
         };
 
-        res.flags.set(response::Flags::ENABLED, enabled);
-        res.flags.set(response::Flags::HIGHLIGHTED, highlighted);
+        res.flags.set(Flags::ENABLED, enabled);
+        res.flags.set(Flags::HIGHLIGHTED, highlighted);
 
         self.write(|ctx| {
             let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
 
             res.flags.set(
-                response::Flags::CONTAINS_POINTER,
+                Flags::CONTAINS_POINTER,
                 viewport.interact_widgets.contains_pointer.contains(&id),
             );
 
@@ -1263,7 +1265,7 @@ impl Context {
                 && (input.key_pressed(Key::Space) || input.key_pressed(Key::Enter))
             {
                 // Space/enter works like a primary click for e.g. selected buttons
-                res.flags.set(response::Flags::FAKE_PRIMARY_CLICKED, true);
+                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
             #[cfg(feature = "accesskit")]
@@ -1271,37 +1273,37 @@ impl Context {
                 && sense.senses_click()
                 && input.has_accesskit_action_request(id, accesskit::Action::Click)
             {
-                res.flags.set(response::Flags::FAKE_PRIMARY_CLICKED, true);
+                res.flags.set(Flags::FAKE_PRIMARY_CLICKED, true);
             }
 
             if enabled && sense.senses_click() && Some(id) == viewport.interact_widgets.long_touched
             {
-                res.flags.set(response::Flags::LONG_TOUCHED, true);
+                res.flags.set(Flags::LONG_TOUCHED, true);
             }
 
             let interaction = memory.interaction();
 
             res.flags.set(
-                response::Flags::IS_POINTER_BUTTON_DOWN_ON,
+                Flags::IS_POINTER_BUTTON_DOWN_ON,
                 interaction.potential_click_id == Some(id)
                     || interaction.potential_drag_id == Some(id),
             );
 
             if res.enabled() {
                 res.flags.set(
-                    response::Flags::HOVERED,
+                    Flags::HOVERED,
                     viewport.interact_widgets.hovered.contains(&id),
                 );
                 res.flags.set(
-                    response::Flags::DRAGGED,
+                    Flags::DRAGGED,
                     Some(id) == viewport.interact_widgets.dragged,
                 );
                 res.flags.set(
-                    response::Flags::DRAG_STARTED,
+                    Flags::DRAG_STARTED,
                     Some(id) == viewport.interact_widgets.drag_started,
                 );
                 res.flags.set(
-                    response::Flags::DRAG_STOPPED,
+                    Flags::DRAG_STOPPED,
                     Some(id) == viewport.interact_widgets.drag_stopped,
                 );
             }
@@ -1317,12 +1319,11 @@ impl Context {
                     }
                     PointerEvent::Released { click, .. } => {
                         if enabled && sense.senses_click() && clicked && click.is_some() {
-                            res.flags.set(response::Flags::CLICKED, true);
+                            res.flags.set(Flags::CLICKED, true);
                         }
 
-                        res.flags
-                            .set(response::Flags::IS_POINTER_BUTTON_DOWN_ON, false);
-                        res.flags.set(response::Flags::DRAGGED, false);
+                        res.flags.set(Flags::IS_POINTER_BUTTON_DOWN_ON, false);
+                        res.flags.set(Flags::DRAGGED, false);
                     }
                 }
             }
@@ -1345,7 +1346,7 @@ impl Context {
 
             if input.pointer.any_down() && !is_interacted_with {
                 // We don't hover widgets while interacting with *other* widgets:
-                res.flags.set(response::Flags::HOVERED, false);
+                res.flags.set(Flags::HOVERED, false);
             }
 
             let pointer_pressed_elsewhere = any_press && !res.hovered();

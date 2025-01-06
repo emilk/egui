@@ -566,9 +566,7 @@ impl<'t> TextEdit<'t> {
         response.intrinsic_size = Some(Vec2::new(desired_width, desired_outer_size.y));
 
         // Don't sent `OutputEvent::Clicked` when a user presses the space bar
-        response
-            .flags
-            .set(response::Flags::FAKE_PRIMARY_CLICKED, false);
+        response.flags -= response::Flags::FAKE_PRIMARY_CLICKED;
         let text_clip_rect = rect;
         let painter = ui.painter_at(text_clip_rect.expand(1.0)); // expand to avoid clipping cursor
 
