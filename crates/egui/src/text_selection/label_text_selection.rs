@@ -484,7 +484,7 @@ impl LabelSelectionState {
     ) -> Vec<RowVertexIndices> {
         let widget_id = response.id;
 
-        if response.hovered {
+        if response.hovered() {
             ui.ctx().set_cursor_icon(CursorIcon::Text);
         }
 

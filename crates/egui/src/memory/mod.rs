@@ -1175,17 +1175,19 @@ impl Areas {
     ///
     /// May return [`std::cmp::Ordering::Equal`] if the layers are not in the order list.
     pub(crate) fn compare_order(&self, a: LayerId, b: LayerId) -> std::cmp::Ordering {
-        if let (Some(a), Some(b)) = (self.order_map.get(&a), self.order_map.get(&b)) {
-            a.cmp(b)
-        } else {
-            a.order.cmp(&b.order)
+        // Sort by layer `order` first and use `order_map` to resolve disputes.
+        // If `order_map` only contains one layer ID, then the other one will be
+        // lower because `None < Some(x)`.
+        match a.order.cmp(&b.order) {
+            std::cmp::Ordering::Equal => self.order_map.get(&a).cmp(&self.order_map.get(&b)),
+            cmp => cmp,
         }
     }
 
     pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::AreaState) {
         self.visible_areas_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
-        if !self.order.iter().any(|x| *x == layer_id) {
+        if !self.order.contains(&layer_id) {
             self.order.push(layer_id);
         }
     }
@@ -1350,4 +1352,48 @@ impl Areas {
 fn memory_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Memory>();
+}
+
+#[test]
+fn order_map_total_ordering() {
+    let mut layers = [
+        LayerId::new(Order::Tooltip, Id::new("a")),
+        LayerId::new(Order::Background, Id::new("b")),
+        LayerId::new(Order::Background, Id::new("c")),
+        LayerId::new(Order::Tooltip, Id::new("d")),
+        LayerId::new(Order::Background, Id::new("e")),
+        LayerId::new(Order::Background, Id::new("f")),
+        LayerId::new(Order::Tooltip, Id::new("g")),
+    ];
+    let mut areas = Areas::default();
+
+    // skip some of the layers
+    for &layer in &layers[3..] {
+        areas.set_state(layer, crate::AreaState::default());
+    }
+    areas.end_pass(); // sort layers
+
+    // Sort layers
+    layers.sort_by(|&a, &b| areas.compare_order(a, b));
+
+    // Assert that `areas.compare_order()` forms a total ordering
+    let mut equivalence_classes = vec![0];
+    let mut i = 0;
+    for l in layers.windows(2) {
+        assert!(l[0].order <= l[1].order, "does not follow LayerId.order");
+        if areas.compare_order(l[0], l[1]) != std::cmp::Ordering::Equal {
+            i += 1;
+        }
+        equivalence_classes.push(i);
+    }
+    assert_eq!(layers.len(), equivalence_classes.len());
+    for (&l1, c1) in std::iter::zip(&layers, &equivalence_classes) {
+        for (&l2, c2) in std::iter::zip(&layers, &equivalence_classes) {
+            assert_eq!(
+                c1.cmp(c2),
+                areas.compare_order(l1, l2),
+                "not a total ordering",
+            );
+        }
+    }
 }

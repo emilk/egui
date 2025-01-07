@@ -780,10 +780,10 @@ impl<'a> Slider<'a> {
                 // The trailing rect has to be drawn differently depending on the orientation.
                 match self.orientation {
                     SliderOrientation::Horizontal => {
-                        trailing_rail_rect.max.x = center.x + rounding.nw;
+                        trailing_rail_rect.max.x = center.x + rounding.nw as f32;
                     }
                     SliderOrientation::Vertical => {
-                        trailing_rail_rect.min.y = center.y - rounding.se;
+                        trailing_rail_rect.min.y = center.y - rounding.se as f32;
                     }
                 };
 
@@ -946,7 +946,9 @@ impl<'a> Slider<'a> {
         self.slider_ui(ui, &response);
 
         let value = self.get_value();
-        response.changed = value != old_value;
+        if value != old_value {
+            response.mark_changed();
+        }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
         #[cfg(feature = "accesskit")]

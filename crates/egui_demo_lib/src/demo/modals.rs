@@ -183,12 +183,13 @@ mod tests {
 
         harness.get_by_role(Role::ComboBox).click();
 
-        harness.run();
+        // Harness::run would fail because we keep requesting repaints to simulate progress.
+        harness.run_ok();
         assert!(harness.ctx.memory(|mem| mem.any_popup_open()));
         assert!(harness.state().user_modal_open);
 
         harness.press_key(Key::Escape);
-        harness.run();
+        harness.run_ok();
         assert!(!harness.ctx.memory(|mem| mem.any_popup_open()));
         assert!(harness.state().user_modal_open);
     }
@@ -235,21 +236,15 @@ mod tests {
         let mut results = Vec::new();
 
         harness.run();
-        results.push(harness.try_wgpu_snapshot("modals_1"));
+        results.push(harness.try_snapshot("modals_1"));
 
         harness.get_by_label("Save").click();
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
-        results.push(harness.try_wgpu_snapshot("modals_2"));
+        harness.run_ok();
+        results.push(harness.try_snapshot("modals_2"));
 
         harness.get_by_label("Yes Please").click();
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
-        results.push(harness.try_wgpu_snapshot("modals_3"));
+        harness.run_ok();
+        results.push(harness.try_snapshot("modals_3"));
 
         for result in results {
             result.unwrap();
@@ -272,16 +267,13 @@ mod tests {
             initial_state,
         );
 
-        // TODO(lucasmerlin): Remove these extra runs once run checks for repaint requests
-        harness.run();
-        harness.run();
-        harness.run();
+        harness.run_ok();
 
         harness.get_by_label("Yes Please").simulate_click();
 
-        harness.run();
+        harness.run_ok();
 
         // This snapshots should show the progress bar modal on top of the save modal.
-        harness.wgpu_snapshot("modals_backdrop_should_prevent_focusing_lower_area");
+        harness.snapshot("modals_backdrop_should_prevent_focusing_lower_area");
     }
 }

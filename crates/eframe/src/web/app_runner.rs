@@ -292,12 +292,15 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
+        #![allow(deprecated)]
+
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
             super::screen_reader::speak(&platform_output.events_description());
         }
 
         let egui::PlatformOutput {
+            commands,
             cursor_icon,
             open_url,
             copied_text,
@@ -310,7 +313,22 @@ impl AppRunner {
             request_discard_reasons: _, // handled by `Context::run`
         } = platform_output;
 
+        for command in commands {
+            match command {
+                egui::OutputCommand::CopyText(text) => {
+                    super::set_clipboard_text(&text);
+                }
+                egui::OutputCommand::CopyImage(image) => {
+                    super::set_clipboard_image(&image);
+                }
+                egui::OutputCommand::OpenUrl(open_url) => {
+                    super::open_url(&open_url.url, open_url.new_tab);
+                }
+            }
+        }
+
         super::set_cursor_icon(cursor_icon);
+
         if let Some(open) = open_url {
             super::open_url(&open.url, open.new_tab);
         }

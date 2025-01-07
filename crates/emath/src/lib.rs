@@ -27,6 +27,7 @@ use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
 pub mod align;
 pub mod easing;
+mod gui_rounding;
 mod history;
 mod numeric;
 mod ordered_float;
@@ -42,6 +43,7 @@ mod vec2b;
 
 pub use self::{
     align::{Align, Align2},
+    gui_rounding::{GuiRounding, GUI_ROUNDING},
     history::History,
     numeric::*,
     ordered_float::*,

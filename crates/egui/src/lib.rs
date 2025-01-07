@@ -482,7 +482,8 @@ pub use self::{
     data::{
         input::*,
         output::{
-            self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
+            self, CursorIcon, FullOutput, OpenUrl, OutputCommand, PlatformOutput,
+            UserAttentionType, WidgetInfo,
         },
         Key, UserData,
     },
@@ -664,6 +665,8 @@ pub enum WidgetType {
     ColorButton,
 
     ImageButton,
+
+    Image,
 
     CollapsingHeader,
 

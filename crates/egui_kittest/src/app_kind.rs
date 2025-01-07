@@ -5,36 +5,21 @@ type AppKindUiState<'a, State> = Box<dyn FnMut(&mut egui::Ui, &mut State) + 'a>;
 type AppKindContext<'a> = Box<dyn FnMut(&egui::Context) + 'a>;
 type AppKindUi<'a> = Box<dyn FnMut(&mut egui::Ui) + 'a>;
 
+/// In order to access the [`eframe::App`] trait from the generic `State`, we store a function pointer
+/// here that will return the dyn trait from the struct. In the builder we have the correct where
+/// clause to be able to create this.
+/// Later we can use it anywhere to get the [`eframe::App`] from the `State`.
+#[cfg(feature = "eframe")]
+type AppKindEframe<'a, State> = (fn(&mut State) -> &mut dyn eframe::App, eframe::Frame);
+
 pub(crate) enum AppKind<'a, State> {
     Context(AppKindContext<'a>),
     Ui(AppKindUi<'a>),
     ContextState(AppKindContextState<'a, State>),
     UiState(AppKindUiState<'a, State>),
+    #[cfg(feature = "eframe")]
+    Eframe(AppKindEframe<'a, State>),
 }
-
-// TODO(lucasmerlin): These aren't working unfortunately :(
-// I think they should work though: https://geo-ant.github.io/blog/2021/rust-traits-and-variadic-functions/
-// pub trait IntoAppKind<'a, UiKind> {
-//     fn into_harness_kind(self) -> AppKind<'a>;
-// }
-//
-// impl<'a, F> IntoAppKind<'a, &egui::Context> for F
-// where
-//     F: FnMut(&egui::Context) + 'a,
-// {
-//     fn into_harness_kind(self) -> AppKind<'a> {
-//         AppKind::Context(Box::new(self))
-//     }
-// }
-//
-// impl<'a, F> IntoAppKind<'a, &mut egui::Ui> for F
-// where
-//     F: FnMut(&mut egui::Ui) + 'a,
-// {
-//     fn into_harness_kind(self) -> AppKind<'a> {
-//         AppKind::Ui(Box::new(self))
-//     }
-// }
 
 impl<'a, State> AppKind<'a, State> {
     pub fn run(
@@ -54,6 +39,12 @@ impl<'a, State> AppKind<'a, State> {
                 f(ctx, state);
                 None
             }
+            #[cfg(feature = "eframe")]
+            AppKind::Eframe((get_app, frame)) => {
+                let app = get_app(state);
+                app.update(ctx, frame);
+                None
+            }
             kind_ui => Some(kind_ui.run_ui(ctx, state, sizing_pass)),
         }
     }
@@ -65,7 +56,7 @@ impl<'a, State> AppKind<'a, State> {
         sizing_pass: bool,
     ) -> egui::Response {
         egui::CentralPanel::default()
-            .frame(Frame::none())
+            .frame(Frame::NONE)
             .show(ctx, |ui| {
                 let mut builder = egui::UiBuilder::new();
                 if sizing_pass {
@@ -78,7 +69,9 @@ impl<'a, State> AppKind<'a, State> {
                         .show(ui, |ui| match self {
                             AppKind::Ui(f) => f(ui),
                             AppKind::UiState(f) => f(ui, state),
-                            _ => unreachable!(),
+                            _ => unreachable!(
+                                "run_ui should only be called with AppKind::Ui or AppKind UiState"
+                            ),
                         });
                 })
                 .response

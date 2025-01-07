@@ -1,8 +1,8 @@
 use super::{Demo, View};
 
 use egui::{
-    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Frame, Resize, RichText,
-    Sense, Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
+    vec2, Align, Checkbox, CollapsingHeader, Color32, Context, FontId, Resize, RichText, Sense,
+    Slider, Stroke, TextFormat, TextStyle, Ui, Vec2, Window,
 };
 
 /// Showcase some ui code
@@ -512,54 +512,52 @@ fn ui_stack_demo(ui: &mut Ui) {
         );
     });
     let stack = ui.stack().clone();
-    Frame {
-        inner_margin: ui.spacing().menu_margin,
-        stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-        ..Default::default()
-    }
-    .show(ui, |ui| {
-        egui_extras::TableBuilder::new(ui)
-            .column(egui_extras::Column::auto())
-            .column(egui_extras::Column::auto())
-            .header(18.0, |mut header| {
-                header.col(|ui| {
-                    ui.strong("id");
-                });
-                header.col(|ui| {
-                    ui.strong("kind");
-                });
-            })
-            .body(|mut body| {
-                for node in stack.iter() {
-                    body.row(18.0, |mut row| {
-                        row.col(|ui| {
-                            let response = ui.label(format!("{:?}", node.id));
+    egui::Frame::new()
+        .inner_margin(ui.spacing().menu_margin)
+        .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
+        .show(ui, |ui| {
+            egui_extras::TableBuilder::new(ui)
+                .column(egui_extras::Column::auto())
+                .column(egui_extras::Column::auto())
+                .header(18.0, |mut header| {
+                    header.col(|ui| {
+                        ui.strong("id");
+                    });
+                    header.col(|ui| {
+                        ui.strong("kind");
+                    });
+                })
+                .body(|mut body| {
+                    for node in stack.iter() {
+                        body.row(18.0, |mut row| {
+                            row.col(|ui| {
+                                let response = ui.label(format!("{:?}", node.id));
 
-                            if response.hovered() {
-                                ui.ctx().debug_painter().debug_rect(
-                                    node.max_rect,
-                                    Color32::GREEN,
-                                    "max_rect",
-                                );
-                                ui.ctx().debug_painter().circle_filled(
-                                    node.min_rect.min,
-                                    2.0,
-                                    Color32::RED,
-                                );
-                            }
-                        });
+                                if response.hovered() {
+                                    ui.ctx().debug_painter().debug_rect(
+                                        node.max_rect,
+                                        Color32::GREEN,
+                                        "max_rect",
+                                    );
+                                    ui.ctx().debug_painter().circle_filled(
+                                        node.min_rect.min,
+                                        2.0,
+                                        Color32::RED,
+                                    );
+                                }
+                            });
 
-                        row.col(|ui| {
-                            ui.label(if let Some(kind) = node.kind() {
-                                format!("{kind:?}")
-                            } else {
-                                "-".to_owned()
+                            row.col(|ui| {
+                                ui.label(if let Some(kind) = node.kind() {
+                                    format!("{kind:?}")
+                                } else {
+                                    "-".to_owned()
+                                });
                             });
                         });
-                    });
-                }
-            });
-    });
+                    }
+                });
+        });
 
     ui.small("Hover on UI's ids to display their origin and max rect.");
 }

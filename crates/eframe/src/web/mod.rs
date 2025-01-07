@@ -192,6 +192,95 @@ fn set_clipboard_text(s: &str) {
     }
 }
 
+/// Set the clipboard image.
+fn set_clipboard_image(image: &egui::ColorImage) {
+    if let Some(window) = web_sys::window() {
+        if !window.is_secure_context() {
+            log::error!(
+                "Clipboard is not available because we are not in a secure context. \
+                See https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts"
+            );
+            return;
+        }
+
+        let png_bytes = to_image(image).and_then(|image| to_png_bytes(&image));
+        let png_bytes = match png_bytes {
+            Ok(png_bytes) => png_bytes,
+            Err(err) => {
+                log::error!("Failed to encode image to png: {err}");
+                return;
+            }
+        };
+
+        let mime = "image/png";
+
+        let item = match create_clipboard_item(mime, &png_bytes) {
+            Ok(item) => item,
+            Err(err) => {
+                log::error!("Failed to copy image: {}", string_from_js_value(&err));
+                return;
+            }
+        };
+        let items = js_sys::Array::of1(&item);
+        let promise = window.navigator().clipboard().write(&items);
+        let future = wasm_bindgen_futures::JsFuture::from(promise);
+        let future = async move {
+            if let Err(err) = future.await {
+                log::error!(
+                    "Copy/cut image action failed: {}",
+                    string_from_js_value(&err)
+                );
+            }
+        };
+        wasm_bindgen_futures::spawn_local(future);
+    }
+}
+
+fn to_image(image: &egui::ColorImage) -> Result<image::RgbaImage, String> {
+    profiling::function_scope!();
+    image::RgbaImage::from_raw(
+        image.width() as _,
+        image.height() as _,
+        bytemuck::cast_slice(&image.pixels).to_vec(),
+    )
+    .ok_or_else(|| "Invalid IconData".to_owned())
+}
+
+fn to_png_bytes(image: &image::RgbaImage) -> Result<Vec<u8>, String> {
+    profiling::function_scope!();
+    let mut png_bytes: Vec<u8> = Vec::new();
+    image
+        .write_to(
+            &mut std::io::Cursor::new(&mut png_bytes),
+            image::ImageFormat::Png,
+        )
+        .map_err(|err| err.to_string())?;
+    Ok(png_bytes)
+}
+
+fn create_clipboard_item(mime: &str, bytes: &[u8]) -> Result<web_sys::ClipboardItem, JsValue> {
+    let array = js_sys::Uint8Array::from(bytes);
+    let blob_parts = js_sys::Array::new();
+    blob_parts.push(&array);
+
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type(mime);
+
+    let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&blob_parts, &options)?;
+
+    let items = js_sys::Object::new();
+
+    // SAFETY: I hope so
+    #[allow(unsafe_code, unused_unsafe)] // Weird false positive
+    unsafe {
+        js_sys::Reflect::set(&items, &JsValue::from_str(mime), &blob)?
+    };
+
+    let clipboard_item = web_sys::ClipboardItem::new_with_record_from_str_to_blob_promise(&items)?;
+
+    Ok(clipboard_item)
+}
+
 fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
     match cursor {
         egui::CursorIcon::Alias => "alias",
