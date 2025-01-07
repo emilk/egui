@@ -272,14 +272,11 @@ fn describe_adapters(adapters: &[Arc<wgpu::Adapter>]) -> String {
     } else if adapters.len() == 1 {
         adapter_info_summary(&adapters[0].get_info())
     } else {
-        let mut list_string = String::new();
-        for adapter in adapters {
-            if !list_string.is_empty() {
-                list_string += ", ";
-            }
-            list_string += &format!("{{{}}}", adapter_info_summary(&adapter.get_info()));
-        }
-        list_string
+        adapters
+            .iter()
+            .map(|a| format!("{{{}}}", adapter_info_summary(&a.get_info())))
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 
@@ -646,12 +643,27 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
         summary += &format!(", driver_info: {driver_info:?}");
     }
     if *vendor != 0 {
-        // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/767ac03245ee937d3dc552edc13fe7ab0a860eec/wgpu-hal/src/auxil/mod.rs#L7
-        summary += &format!(", vendor: 0x{vendor:04X}");
+        summary += &format!(", vendor: {} (0x{vendor:04X})", parse_vendor_id(*vendor));
     }
     if *device != 0 {
         summary += &format!(", device: 0x{device:02X}");
     }
 
     summary
+}
+
+/// Tries to parse the adapter's vendor ID to a human-readable string.
+pub fn parse_vendor_id(vendor_id: u32) -> &'static str {
+    match vendor_id {
+        wgpu::hal::auxil::db::amd::VENDOR => "AMD",
+        wgpu::hal::auxil::db::apple::VENDOR => "Apple",
+        wgpu::hal::auxil::db::arm::VENDOR => "ARM",
+        wgpu::hal::auxil::db::broadcom::VENDOR => "Broadcom",
+        wgpu::hal::auxil::db::imgtec::VENDOR => "Imagination Technologies",
+        wgpu::hal::auxil::db::intel::VENDOR => "Intel",
+        wgpu::hal::auxil::db::mesa::VENDOR => "Mesa",
+        wgpu::hal::auxil::db::nvidia::VENDOR => "NVIDIA",
+        wgpu::hal::auxil::db::qualcomm::VENDOR => "Qualcomm",
+        _ => "Unknown",
+    }
 }
