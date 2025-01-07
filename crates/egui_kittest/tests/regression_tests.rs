@@ -1,4 +1,5 @@
-use egui::{Button, Image, Vec2, Widget};
+use egui::accesskit::Role;
+use egui::{Button, ComboBox, Image, Vec2, Widget};
 use egui_kittest::{kittest::Queryable, Harness};
 
 #[test]
@@ -42,4 +43,54 @@ fn image_failed() {
 
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
     harness.snapshot("image_snapshots");
+}
+
+#[test]
+fn test_combobox() {
+    let items = ["Item 1", "Item 2", "Item 3"];
+    let mut harness = Harness::builder()
+        .with_size(Vec2::new(300.0, 200.0))
+        .build_ui_state(
+            |ui, selected| {
+                ComboBox::new("combobox", "Select Something").show_index(
+                    ui,
+                    selected,
+                    items.len(),
+                    |idx| *items.get(idx).expect("Invalid index"),
+                );
+            },
+            0,
+        );
+
+    harness.run();
+
+    let mut results = vec![];
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    results.push(harness.try_snapshot("combobox_closed"));
+
+    let combobox = harness.get_by_role_and_label(Role::ComboBox, "Select Something");
+    combobox.click();
+
+    harness.run();
+
+    #[cfg(all(feature = "wgpu", feature = "snapshot"))]
+    results.push(harness.try_snapshot("combobox_opened"));
+
+    let item_2 = harness.get_by_role_and_label(Role::Button, "Item 2");
+    // Node::click doesn't close the popup, so we use simulate_click
+    item_2.simulate_click();
+
+    harness.run();
+
+    assert_eq!(harness.state(), &1);
+
+    // Popup should be closed now
+    assert!(harness.query_by_label("Item 2").is_none());
+
+    for result in results {
+        if let Err(err) = result {
+            panic!("{}", err);
+        }
+    }
 }
