@@ -775,7 +775,7 @@ impl Context {
         writer(&mut self.0.write())
     }
 
-    /// Run the ui code for one 1.
+    /// Run the ui code for one frame.
     ///
     /// At most [`Options::max_passes`] calls will be issued to `run_ui`,
     /// and only on the rare occasion that [`Context::request_discard`] is called.

@@ -49,7 +49,7 @@ fn test_demo_app() {
             // Load a local image where we know it exists and loads quickly
             #[cfg(feature = "image_viewer")]
             Anchor::ImageViewer => {
-                harness.run();
+                harness.step();
 
                 harness
                     .get_by_role_and_label(Role::TextInput, "URI:")
@@ -65,7 +65,8 @@ fn test_demo_app() {
             _ => {}
         }
 
-        harness.run();
+        // Can't use Harness::run because fractal clock keeps requesting repaints
+        harness.run_steps(2);
 
         if let Err(e) = harness.try_snapshot(&anchor.to_string()) {
             results.push(e);

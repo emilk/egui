@@ -397,7 +397,7 @@ mod tests {
             harness.set_size(Vec2::new(size.width as f32, size.height as f32));
 
             // Run the app for some more frames...
-            harness.run();
+            harness.run_ok();
 
             let mut options = SnapshotOptions::default();
             // The Bézier Curve demo needs a threshold of 2.1 to pass on linux

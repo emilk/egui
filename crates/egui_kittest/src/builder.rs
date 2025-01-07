@@ -8,6 +8,8 @@ use std::marker::PhantomData;
 pub struct HarnessBuilder<State = ()> {
     pub(crate) screen_rect: Rect,
     pub(crate) pixels_per_point: f32,
+    pub(crate) max_steps: u64,
+    pub(crate) step_dt: f32,
     pub(crate) state: PhantomData<State>,
     pub(crate) renderer: Box<dyn TestRenderer>,
 }
@@ -19,6 +21,8 @@ impl<State> Default for HarnessBuilder<State> {
             pixels_per_point: 1.0,
             state: PhantomData,
             renderer: Box::new(LazyRenderer::default()),
+            max_steps: 4,
+            step_dt: 1.0 / 4.0,
         }
     }
 }
@@ -37,6 +41,26 @@ impl<State> HarnessBuilder<State> {
     #[inline]
     pub fn with_pixels_per_point(mut self, pixels_per_point: f32) -> Self {
         self.pixels_per_point = pixels_per_point;
+        self
+    }
+
+    /// Set the maximum number of steps to run when calling [`Harness::run`].
+    ///
+    /// Default is 4.
+    /// With the default `step_dt`, this means 1 second of simulation.
+    #[inline]
+    pub fn with_max_steps(mut self, max_steps: u64) -> Self {
+        self.max_steps = max_steps;
+        self
+    }
+
+    /// Set the time delta for a single [`Harness::step`].
+    ///
+    /// Default is 1.0 / 4.0 (4fps).
+    /// The default is low so we don't waste cpu waiting for animations.
+    #[inline]
+    pub fn with_step_dt(mut self, step_dt: f32) -> Self {
+        self.step_dt = step_dt;
         self
     }
 
