@@ -424,7 +424,14 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
         summary += &format!(", driver_info: {driver_info:?}");
     }
     if *vendor != 0 {
-        summary += &format!(", vendor: {} (0x{vendor:04X})", parse_vendor_id(*vendor));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            summary += &format!(", vendor: {} (0x{vendor:04X})", parse_vendor_id(*vendor));
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            summary += &format!(", vendor: 0x{vendor:04X}");
+        }
     }
     if *device != 0 {
         summary += &format!(", device: 0x{device:02X}");
@@ -434,6 +441,7 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
 }
 
 /// Tries to parse the adapter's vendor ID to a human-readable string.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn parse_vendor_id(vendor_id: u32) -> &'static str {
     match vendor_id {
         wgpu::hal::auxil::db::amd::VENDOR => "AMD",
