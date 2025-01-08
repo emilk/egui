@@ -4,7 +4,7 @@ use super::web_painter::WebPainter;
 use crate::WebOptions;
 use egui::{Event, UserData, ViewportId};
 use egui_wgpu::capture::{capture_channel, CaptureReceiver, CaptureSender, CaptureState};
-use egui_wgpu::{RenderState, SurfaceErrorAction, WgpuSetup};
+use egui_wgpu::{RenderState, SurfaceErrorAction};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -63,49 +63,7 @@ impl WebPainterWgpu {
     ) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        let instance = match &options.wgpu_options.wgpu_setup {
-            WgpuSetup::CreateNew {
-                supported_backends: backends,
-                power_preference,
-                ..
-            } => {
-                let mut backends = *backends;
-
-                // Don't try WebGPU if we're not in a secure context.
-                if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
-                    let is_secure_context =
-                        web_sys::window().map_or(false, |w| w.is_secure_context());
-                    if !is_secure_context {
-                        log::info!(
-                            "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
-                        );
-
-                        // Don't try WebGPU since we established now that it will fail.
-                        backends.remove(wgpu::Backends::BROWSER_WEBGPU);
-
-                        if backends.is_empty() {
-                            return Err("No available supported graphics backends.".to_owned());
-                        }
-                    }
-                }
-
-                log::debug!("Creating wgpu instance with backends {:?}", backends);
-
-                let instance =
-                    wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
-                        backends,
-                        ..Default::default()
-                    })
-                    .await;
-
-                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
-                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-                #[allow(clippy::arc_with_non_send_sync)]
-                Arc::new(instance)
-            }
-            WgpuSetup::Existing { instance, .. } => instance.clone(),
-        };
-
+        let instance = options.wgpu_options.wgpu_setup.new_instance().await;
         let surface = instance
             .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;

@@ -1,27 +1,56 @@
-use crate::texture_to_image::texture_to_image;
-use eframe::epaint::TextureId;
-use egui::TexturesDelta;
-use egui_wgpu::wgpu::{Backends, StoreOp, TextureFormat};
-use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
-use image::RgbaImage;
 use std::iter::once;
 use std::sync::Arc;
-use wgpu::Maintain;
 
-// TODO(#5506): Replace this with the setup from https://github.com/emilk/egui/pull/5506
+use egui::TexturesDelta;
+use egui_wgpu::{wgpu, RenderState, ScreenDescriptor, WgpuSetup};
+use image::RgbaImage;
+
+use crate::texture_to_image::texture_to_image;
+
+/// Default wgpu setup used for the wgpu renderer.
 pub fn default_wgpu_setup() -> egui_wgpu::WgpuSetup {
-    egui_wgpu::WgpuSetup::CreateNew {
-        supported_backends: Backends::all(),
-        device_descriptor: Arc::new(|_| wgpu::DeviceDescriptor::default()),
-        power_preference: wgpu::PowerPreference::default(),
-    }
+    let mut setup = egui_wgpu::WgpuSetupCreateNew::default();
+
+    // WebGPU not supported yet since we rely on blocking screenshots.
+    setup
+        .instance_descriptor
+        .backends
+        .remove(wgpu::Backends::BROWSER_WEBGPU);
+
+    // Prefer software rasterizers.
+    setup.native_adapter_selector = Some(Arc::new(|adapters, _surface| {
+        let mut adapters = adapters.iter().collect::<Vec<_>>();
+
+        // Adapters are already sorted by preferred backend by wgpu, but let's be explicit.
+        adapters.sort_by_key(|a| match a.get_info().backend {
+            wgpu::Backend::Metal => 0,
+            wgpu::Backend::Vulkan => 1,
+            wgpu::Backend::Dx12 => 2,
+            wgpu::Backend::Gl => 4,
+            wgpu::Backend::BrowserWebGpu => 6,
+            wgpu::Backend::Empty => 7,
+        });
+
+        // Prefer CPU adapters, otherwise if we can't, prefer discrete GPU over integrated GPU.
+        adapters.sort_by_key(|a| match a.get_info().device_type {
+            wgpu::DeviceType::Cpu => 0, // CPU is the best for our purposes!
+            wgpu::DeviceType::DiscreteGpu => 1,
+            wgpu::DeviceType::Other
+            | wgpu::DeviceType::IntegratedGpu
+            | wgpu::DeviceType::VirtualGpu => 2,
+        });
+
+        adapters
+            .first()
+            .map(|a| (*a).clone())
+            .ok_or("No adapter found".to_owned())
+    }));
+
+    egui_wgpu::WgpuSetup::CreateNew(setup)
 }
 
 pub fn create_render_state(setup: WgpuSetup) -> egui_wgpu::RenderState {
-    let instance = match &setup {
-        WgpuSetup::Existing { instance, .. } => instance.clone(),
-        WgpuSetup::CreateNew { .. } => Default::default(),
-    };
+    let instance = pollster::block_on(setup.new_instance());
 
     pollster::block_on(egui_wgpu::RenderState::create(
         &egui_wgpu::WgpuConfiguration {
@@ -72,7 +101,7 @@ impl WgpuTestRenderer {
             render_state
                 .renderer
                 .read()
-                .texture(&TextureId::Managed(0))
+                .texture(&egui::epaint::TextureId::Managed(0))
                 .is_none(),
             "The RenderState passed in has been used before, pass in a fresh RenderState instead."
         );
@@ -143,7 +172,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: TextureFormat::Rgba8Unorm,
+                format: self.render_state.target_format,
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
                 view_formats: &[],
             });
@@ -159,12 +188,10 @@ impl crate::TestRenderer for WgpuTestRenderer {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                            store: StoreOp::Store,
+                            store: wgpu::StoreOp::Store,
                         },
                     })],
-                    depth_stencil_attachment: None,
-                    occlusion_query_set: None,
-                    timestamp_writes: None,
+                    ..Default::default()
                 })
                 .forget_lifetime();
 
@@ -175,7 +202,7 @@ impl crate::TestRenderer for WgpuTestRenderer {
             .queue
             .submit(user_buffers.into_iter().chain(once(encoder.finish())));
 
-        self.render_state.device.poll(Maintain::Wait);
+        self.render_state.device.poll(wgpu::Maintain::Wait);
 
         Ok(texture_to_image(
             &self.render_state.device,
