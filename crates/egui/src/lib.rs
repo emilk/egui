@@ -427,7 +427,7 @@ pub mod os;
 mod painter;
 mod pass_state;
 pub(crate) mod placer;
-mod response;
+pub mod response;
 mod sense;
 pub mod style;
 pub mod text_selection;
