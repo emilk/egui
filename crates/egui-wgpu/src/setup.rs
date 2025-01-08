@@ -19,13 +19,7 @@ pub enum WgpuSetup {
     CreateNew(WgpuSetupCreateNew),
 
     /// Run on an existing wgpu setup.
-    Existing {
-        // TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24.
-        instance: Arc<wgpu::Instance>,
-        adapter: Arc<wgpu::Adapter>,
-        device: Arc<wgpu::Device>,
-        queue: Arc<wgpu::Queue>,
-    },
+    Existing(WgpuSetupExisting),
 }
 
 impl Default for WgpuSetup {
@@ -41,9 +35,7 @@ impl std::fmt::Debug for WgpuSetup {
                 .debug_tuple("WgpuSetup::CreateNew")
                 .field(create_new)
                 .finish(),
-            Self::Existing { .. } => f
-                .debug_struct("WgpuSetup::Existing")
-                .finish_non_exhaustive(),
+            Self::Existing { .. } => f.debug_tuple("WgpuSetup::Existing").finish(),
         }
     }
 }
@@ -88,8 +80,20 @@ impl WgpuSetup {
                     .await,
                 )
             }
-            Self::Existing { instance, .. } => instance.clone(),
+            Self::Existing(existing) => existing.instance.clone(),
         }
+    }
+}
+
+impl From<WgpuSetupCreateNew> for WgpuSetup {
+    fn from(create_new: WgpuSetupCreateNew) -> Self {
+        Self::CreateNew(create_new)
+    }
+}
+
+impl From<WgpuSetupExisting> for WgpuSetup {
+    fn from(existing: WgpuSetupExisting) -> Self {
+        Self::Existing(existing)
     }
 }
 
@@ -219,4 +223,15 @@ impl Default for WgpuSetupCreateNew {
                 .map(std::path::PathBuf::from),
         }
     }
+}
+
+/// Configuration for using an existing wgpu setup.
+///
+/// Used for [`WgpuSetup::Existing`].
+#[derive(Clone)]
+pub struct WgpuSetupExisting {
+    pub instance: Arc<wgpu::Instance>,
+    pub adapter: Arc<wgpu::Adapter>,
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
 }

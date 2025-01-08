@@ -26,7 +26,7 @@ mod renderer;
 mod setup;
 
 pub use renderer::*;
-pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew};
+pub use setup::{NativeAdapterSelectorMethod, WgpuSetup, WgpuSetupCreateNew, WgpuSetupExisting};
 
 /// Helpers for capturing screenshots of the UI.
 pub mod capture;
@@ -227,12 +227,12 @@ impl RenderState {
                 #[allow(clippy::arc_with_non_send_sync)]
                 (adapter, Arc::new(device), Arc::new(queue))
             }
-            WgpuSetup::Existing {
+            WgpuSetup::Existing(WgpuSetupExisting {
                 instance: _,
                 adapter,
                 device,
                 queue,
-            } => (adapter, device, queue),
+            }) => (adapter, device, queue),
         };
 
         let surface_formats = {
