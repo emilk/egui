@@ -371,7 +371,7 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
         if let Some(running) = self.running.as_mut() {
             profiling::function_scope!();
 
-            // This is because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it, which was causing panics when `.window().expect()` was used.
+            // This is used because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it, which was causing panics when `.window().expect()` was used.
             let window_opt = running.glutin.borrow().window_opt(ViewportId::ROOT);
 
             running.integration.save(
