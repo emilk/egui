@@ -373,6 +373,11 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
 
             // This is used because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it, which was causing panics when `.window().expect()` was used.
             let window_opt = running.glutin.borrow().window_opt(ViewportId::ROOT);
+            if window_opt.is_some() {
+                log::debug!("Saving application state with a window");
+            } else {
+                log::debug!("Saving application state without a window");
+            }
 
             running.integration.save(
                 running.app.as_mut(),
