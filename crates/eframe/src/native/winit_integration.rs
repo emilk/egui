@@ -122,7 +122,7 @@ pub enum EventResult {
     RepaintAt(WindowId, Instant),
 
     /// Causes a save of the client state when the persistence feature is enabled.
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Not used outside of Android
     Save,
 
     Exit,
