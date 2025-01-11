@@ -355,6 +355,13 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
         )
     }
 
+    fn save(&mut self) {
+        log::debug!("WinitApp::save called");
+        if let Some(running) = self.running.as_mut() {
+            running.save(true);
+        }
+    }
+
     fn save_and_destroy(&mut self) {
         if let Some(mut running) = self.running.take() {
             running.save_and_destroy();
@@ -414,7 +421,12 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
 
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
         #[cfg(target_os = "android")]
-        self.drop_window()?;
+        {
+            log::debug!("Android application suspended - asking to save state");
+            self.drop_window()?;
+            Ok(EventResult::Save)
+        }
+        #[cfg(not(target_os = "android"))]
         Ok(EventResult::Wait)
     }
 
@@ -488,13 +500,23 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
 }
 
 impl<'app> WgpuWinitRunning<'app> {
+    /// Saves the application state. Set `force_save_without_window` to `true` if the state should be saved even if no window is associated to the application (this happens on Android when the `suspended` event is received).
+    fn save(&mut self, force_save_without_window: bool) {
+        let shared = self.shared.borrow();
+        // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.
+        if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
+            log::debug!("Saving application state with a window");
+            self.integration.save(self.app.as_mut(), window.as_deref());
+        } else if force_save_without_window {
+            log::debug!("Saving application state without a window");
+            self.integration.save(self.app.as_mut(), None);
+        }
+    }
+
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
-        let mut shared = self.shared.borrow_mut();
-        if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
-            self.integration.save(self.app.as_mut(), window.as_deref());
-        }
+        self.save(false);        
 
         #[cfg(feature = "glow")]
         self.app.on_exit(None);
@@ -502,6 +524,7 @@ impl<'app> WgpuWinitRunning<'app> {
         #[cfg(not(feature = "glow"))]
         self.app.on_exit();
 
+        let mut shared = self.shared.borrow_mut();
         shared.painter.destroy();
     }
 
@@ -799,6 +822,18 @@ impl<'app> WgpuWinitRunning<'app> {
                         integration.egui_ctx.request_repaint_of(viewport_id);
                         integration.egui_ctx.request_repaint_of(viewport.ids.parent);
                     }
+                }
+            }
+
+            winit::event::WindowEvent::Destroyed => {
+                log::debug!(
+                    "Received WindowEvent::Destroyed for viewport {:?}",
+                    viewport_id
+                );
+                if viewport_id == Some(ViewportId::ROOT) {
+                    return EventResult::Exit;
+                } else {
+                    return EventResult::Wait;
                 }
             }
 
