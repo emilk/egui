@@ -379,10 +379,9 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
                 log::debug!("Saving application state without a window");
             }
 
-            running.integration.save(
-                running.app.as_mut(),
-                window_opt.as_deref(),
-            );
+            running
+                .integration
+                .save(running.app.as_mut(), window_opt.as_deref());
         }
     }
 
@@ -1241,13 +1240,12 @@ impl GlutinWindowContext {
     }
 
     fn window_opt(&self, viewport_id: ViewportId) -> Option<Arc<Window>> {
-        self.viewport(viewport_id)
-            .window
-            .clone()
+        self.viewport(viewport_id).window.clone()
     }
 
     fn window(&self, viewport_id: ViewportId) -> Arc<Window> {
-        self.window_opt(viewport_id).expect("winit window doesn't exist")
+        self.window_opt(viewport_id)
+            .expect("winit window doesn't exist")
     }
 
     fn resize(&mut self, viewport_id: ViewportId, physical_size: winit::dpi::PhysicalSize<u32>) {

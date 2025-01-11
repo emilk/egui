@@ -516,7 +516,7 @@ impl<'app> WgpuWinitRunning<'app> {
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
-        self.save(false);        
+        self.save(false);
 
         #[cfg(feature = "glow")]
         self.app.on_exit(None);
