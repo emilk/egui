@@ -122,6 +122,7 @@ pub enum EventResult {
     RepaintAt(WindowId, Instant),
 
     /// Causes a save of the client state when the persistence feature is enabled.
+    #[allow(dead_code)]
     Save,
 
     Exit,
