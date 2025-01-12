@@ -89,6 +89,7 @@ impl<T: WinitApp> WinitAppWrapper<T> {
         event_result: Result<EventResult>,
     ) {
         let mut exit = false;
+        let mut save = false;
 
         log::trace!("event_result: {event_result:?}");
 
@@ -126,6 +127,10 @@ impl<T: WinitApp> WinitAppWrapper<T> {
                     );
                     Ok(event_result)
                 }
+                EventResult::Save => {
+                    save = true;
+                    Ok(event_result)
+                }
                 EventResult::Exit => {
                     exit = true;
                     Ok(event_result)
@@ -138,6 +143,11 @@ impl<T: WinitApp> WinitAppWrapper<T> {
             exit = true;
             self.return_result = Err(err);
         };
+
+        if save {
+            log::debug!("Received an EventResult::Save - saving app state");
+            self.winit_app.save();
+        }
 
         if exit {
             if self.run_and_return {

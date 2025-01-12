@@ -366,6 +366,25 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
             .and_then(|r| r.glutin.borrow().window_from_viewport.get(&id).copied())
     }
 
+    fn save(&mut self) {
+        log::debug!("WinitApp::save called");
+        if let Some(running) = self.running.as_mut() {
+            profiling::function_scope!();
+
+            // This is used because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it, which was causing panics when `.window().expect()` was used.
+            let window_opt = running.glutin.borrow().window_opt(ViewportId::ROOT);
+            if window_opt.is_some() {
+                log::debug!("Saving application state with a window");
+            } else {
+                log::debug!("Saving application state without a window");
+            }
+
+            running
+                .integration
+                .save(running.app.as_mut(), window_opt.as_deref());
+        }
+    }
+
     fn save_and_destroy(&mut self) {
         if let Some(mut running) = self.running.take() {
             profiling::function_scope!();
@@ -413,6 +432,12 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
         if let Some(running) = &mut self.running {
             running.glutin.borrow_mut().on_suspend()?;
         }
+        #[cfg(target_os = "android")]
+        {
+            log::debug!("Android application suspended - asking to save state");
+            Ok(EventResult::Save)
+        }
+        #[cfg(not(target_os = "android"))]
         Ok(EventResult::Wait)
     }
 
@@ -1214,10 +1239,12 @@ impl GlutinWindowContext {
             .expect("viewport doesn't exist")
     }
 
+    fn window_opt(&self, viewport_id: ViewportId) -> Option<Arc<Window>> {
+        self.viewport(viewport_id).window.clone()
+    }
+
     fn window(&self, viewport_id: ViewportId) -> Arc<Window> {
-        self.viewport(viewport_id)
-            .window
-            .clone()
+        self.window_opt(viewport_id)
             .expect("winit window doesn't exist")
     }
 
