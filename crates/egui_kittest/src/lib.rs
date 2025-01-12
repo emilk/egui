@@ -68,7 +68,7 @@ pub struct Harness<'a, State = ()> {
     step_dt: f32,
 }
 
-impl<'a, State> Debug for Harness<'a, State> {
+impl<State> Debug for Harness<'_, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.kittest.fmt(f)
     }
@@ -461,7 +461,7 @@ impl<'a> Harness<'a> {
     }
 }
 
-impl<'t, 'n, 'h, State> Queryable<'t, 'n> for Harness<'h, State>
+impl<'t, 'n, State> Queryable<'t, 'n> for Harness<'_, State>
 where
     'n: 't,
 {

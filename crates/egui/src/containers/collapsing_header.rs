@@ -283,7 +283,7 @@ pub struct HeaderResponse<'ui, HeaderRet> {
     header_response: InnerResponse<HeaderRet>,
 }
 
-impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
+impl<HeaderRet> HeaderResponse<'_, HeaderRet> {
     pub fn is_open(&self) -> bool {
         self.state.is_open()
     }

@@ -285,4 +285,4 @@ impl<'a> Iterator for UiStackIterator<'a> {
     }
 }
 
-impl<'a> FusedIterator for UiStackIterator<'a> {}
+impl FusedIterator for UiStackIterator<'_> {}

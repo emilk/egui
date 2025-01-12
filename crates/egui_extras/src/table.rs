@@ -698,7 +698,7 @@ pub struct Table<'a> {
     sense: egui::Sense,
 }
 
-impl<'a> Table<'a> {
+impl Table<'_> {
     /// Access the contained [`egui::Ui`].
     ///
     /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
@@ -1237,7 +1237,7 @@ impl<'a> TableBody<'a> {
     }
 }
 
-impl<'a> Drop for TableBody<'a> {
+impl Drop for TableBody<'_> {
     fn drop(&mut self) {
         self.layout.allocate_rect();
     }
@@ -1264,7 +1264,7 @@ pub struct TableRow<'a, 'b> {
     response: &'b mut Option<Response>,
 }
 
-impl<'a, 'b> TableRow<'a, 'b> {
+impl TableRow<'_, '_> {
     /// Add the contents of a column on this row (i.e. a cell).
     ///
     /// Returns the used space (`min_rect`) plus the [`Response`] of the whole cell.
@@ -1355,7 +1355,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Drop for TableRow<'a, 'b> {
+impl Drop for TableRow<'_, '_> {
     #[inline]
     fn drop(&mut self) {
         self.layout.end_line();

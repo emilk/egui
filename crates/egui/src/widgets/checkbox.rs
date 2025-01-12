@@ -47,7 +47,7 @@ impl<'a> Checkbox<'a> {
     }
 }
 
-impl<'a> Widget for Checkbox<'a> {
+impl Widget for Checkbox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Checkbox {
             checked,

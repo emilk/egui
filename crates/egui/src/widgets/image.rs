@@ -372,7 +372,7 @@ impl<'a> Image<'a> {
     }
 }
 
-impl<'a> Widget for Image<'a> {
+impl Widget for Image<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let tlr = self.load_for_size(ui.ctx(), ui.available_size());
         let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
@@ -568,7 +568,7 @@ pub enum ImageSource<'a> {
     },
 }
 
-impl<'a> std::fmt::Debug for ImageSource<'a> {
+impl std::fmt::Debug for ImageSource<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ImageSource::Bytes { uri, .. } | ImageSource::Uri(uri) => uri.as_ref().fmt(f),
@@ -577,7 +577,7 @@ impl<'a> std::fmt::Debug for ImageSource<'a> {
     }
 }
 
-impl<'a> ImageSource<'a> {
+impl ImageSource<'_> {
     /// Size of the texture, if known.
     #[inline]
     pub fn texture_size(&self) -> Option<Vec2> {

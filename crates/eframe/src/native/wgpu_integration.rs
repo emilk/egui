@@ -323,7 +323,7 @@ impl<'app> WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WinitApp for WgpuWinitApp<'app> {
+impl WinitApp for WgpuWinitApp<'_> {
     fn egui_ctx(&self) -> Option<&egui::Context> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
@@ -487,7 +487,7 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WgpuWinitRunning<'app> {
+impl WgpuWinitRunning<'_> {
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
