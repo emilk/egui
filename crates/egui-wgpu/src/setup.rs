@@ -55,7 +55,7 @@ impl WgpuSetup {
                 #[cfg(target_arch = "wasm32")]
                 if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
                     let is_secure_context =
-                        wgpu::web_sys::window().map_or(false, |w| w.is_secure_context());
+                        wgpu::web_sys::window().is_some_and(|w| w.is_secure_context());
                     if !is_secure_context {
                         log::info!(
                             "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."

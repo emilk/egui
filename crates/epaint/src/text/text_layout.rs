@@ -993,22 +993,22 @@ impl RowBreakCandidates {
             punctuation,
             any,
         } = self;
-        if space.map_or(false, |s| s < index) {
+        if space.is_some_and(|s| s < index) {
             *space = None;
         }
-        if cjk.map_or(false, |s| s < index) {
+        if cjk.is_some_and(|s| s < index) {
             *cjk = None;
         }
-        if pre_cjk.map_or(false, |s| s < index) {
+        if pre_cjk.is_some_and(|s| s < index) {
             *pre_cjk = None;
         }
-        if dash.map_or(false, |s| s < index) {
+        if dash.is_some_and(|s| s < index) {
             *dash = None;
         }
-        if punctuation.map_or(false, |s| s < index) {
+        if punctuation.is_some_and(|s| s < index) {
             *punctuation = None;
         }
-        if any.map_or(false, |s| s < index) {
+        if any.is_some_and(|s| s < index) {
             *any = None;
         }
     }
