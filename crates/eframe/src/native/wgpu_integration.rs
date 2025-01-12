@@ -825,18 +825,6 @@ impl<'app> WgpuWinitRunning<'app> {
                 }
             }
 
-            winit::event::WindowEvent::Destroyed => {
-                log::debug!(
-                    "Received WindowEvent::Destroyed for viewport {:?}",
-                    viewport_id
-                );
-                if viewport_id == Some(ViewportId::ROOT) {
-                    return EventResult::Exit;
-                } else {
-                    return EventResult::Wait;
-                }
-            }
-
             _ => {}
         };
 
