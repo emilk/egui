@@ -499,7 +499,8 @@ impl<'app> WgpuWinitRunning<'app> {
     fn save(&mut self) {
         let shared = self.shared.borrow();
         // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.
-        let window = if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
+        let window = if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT)
+        {
             window.as_deref()
         } else {
             None
