@@ -358,7 +358,7 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
     fn save(&mut self) {
         log::debug!("WinitApp::save called");
         if let Some(running) = self.running.as_mut() {
-            running.save(true);
+            running.save();
         }
     }
 
@@ -421,13 +421,8 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
 
     fn suspended(&mut self, _: &ActiveEventLoop) -> crate::Result<EventResult> {
         #[cfg(target_os = "android")]
-        {
-            log::debug!("Android application suspended - asking to save state");
-            self.drop_window()?;
-            Ok(EventResult::Save)
-        }
-        #[cfg(not(target_os = "android"))]
-        Ok(EventResult::Wait)
+        self.drop_window()?;
+        Ok(EventResult::Save)
     }
 
     fn device_event(
@@ -501,22 +496,21 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
 
 impl<'app> WgpuWinitRunning<'app> {
     /// Saves the application state. Set `force_save_without_window` to `true` if the state should be saved even if no window is associated to the application (this happens on Android when the `suspended` event is received).
-    fn save(&mut self, force_save_without_window: bool) {
+    fn save(&mut self) {
         let shared = self.shared.borrow();
         // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.
-        if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
-            log::debug!("Saving application state with a window");
-            self.integration.save(self.app.as_mut(), window.as_deref());
-        } else if force_save_without_window {
-            log::debug!("Saving application state without a window");
-            self.integration.save(self.app.as_mut(), None);
-        }
+        let window = if let Some(Viewport { window, .. }) = shared.viewports.get(&ViewportId::ROOT) {
+            window.as_deref()
+        } else {
+            None
+        };
+        self.integration.save(self.app.as_mut(), window);
     }
 
     fn save_and_destroy(&mut self) {
         profiling::function_scope!();
 
-        self.save(false);
+        self.save();
 
         #[cfg(feature = "glow")]
         self.app.on_exit(None);
