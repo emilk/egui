@@ -344,7 +344,7 @@ impl<'app> GlowWinitApp<'app> {
     }
 }
 
-impl<'app> WinitApp for GlowWinitApp<'app> {
+impl WinitApp for GlowWinitApp<'_> {
     fn egui_ctx(&self) -> Option<&egui::Context> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
@@ -479,7 +479,7 @@ impl<'app> WinitApp for GlowWinitApp<'app> {
     }
 }
 
-impl<'app> GlowWinitRunning<'app> {
+impl GlowWinitRunning<'_> {
     fn run_ui_and_paint(
         &mut self,
         event_loop: &ActiveEventLoop,

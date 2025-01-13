@@ -211,14 +211,14 @@ impl ContextImpl {
     fn requested_immediate_repaint_prev_pass(&self, viewport_id: &ViewportId) -> bool {
         self.viewports
             .get(viewport_id)
-            .map_or(false, |v| v.repaint.requested_immediate_repaint_prev_pass())
+            .is_some_and(|v| v.repaint.requested_immediate_repaint_prev_pass())
     }
 
     #[must_use]
     fn has_requested_repaint(&self, viewport_id: &ViewportId) -> bool {
-        self.viewports.get(viewport_id).map_or(false, |v| {
-            0 < v.repaint.outstanding || v.repaint.repaint_delay < Duration::MAX
-        })
+        self.viewports
+            .get(viewport_id)
+            .is_some_and(|v| 0 < v.repaint.outstanding || v.repaint.repaint_delay < Duration::MAX)
     }
 }
 
@@ -1214,7 +1214,7 @@ impl Context {
     #[deprecated = "Use Response.contains_pointer or Context::read_response instead"]
     pub fn widget_contains_pointer(&self, id: Id) -> bool {
         self.read_response(id)
-            .map_or(false, |response| response.contains_pointer())
+            .is_some_and(|response| response.contains_pointer())
     }
 
     /// Do all interaction for an existing widget, without (re-)registering it.
@@ -2632,7 +2632,7 @@ impl Context {
     pub fn is_context_menu_open(&self) -> bool {
         self.data(|d| {
             d.get_temp::<crate::menu::BarState>(menu::CONTEXT_MENU_ID_STR.into())
-                .map_or(false, |state| state.has_root())
+                .is_some_and(|state| state.has_root())
         })
     }
 }

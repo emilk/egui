@@ -244,7 +244,7 @@ impl Widget for Label {
         // Interactive = the uses asked to sense interaction.
         // We DON'T want to have the color respond just because the text is selectable;
         // the cursor is enough to communicate that.
-        let interactive = self.sense.map_or(false, |sense| sense != Sense::hover());
+        let interactive = self.sense.is_some_and(|sense| sense != Sense::hover());
 
         let selectable = self.selectable;
 

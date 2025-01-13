@@ -986,7 +986,7 @@ impl ModifierNames<'static> {
     };
 }
 
-impl<'a> ModifierNames<'a> {
+impl ModifierNames<'_> {
     pub fn format(&self, modifiers: &Modifiers, is_mac: bool) -> String {
         let mut s = String::new();
 

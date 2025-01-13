@@ -88,11 +88,11 @@ pub struct TextEdit<'t> {
     background_color: Option<Color32>,
 }
 
-impl<'t> WidgetWithState for TextEdit<'t> {
+impl WidgetWithState for TextEdit<'_> {
     type State = TextEditState;
 }
 
-impl<'t> TextEdit<'t> {
+impl TextEdit<'_> {
     pub fn load_state(ctx: &Context, id: Id) -> Option<TextEditState> {
         TextEditState::load(ctx, id)
     }
@@ -394,13 +394,13 @@ impl<'t> TextEdit<'t> {
 
 // ----------------------------------------------------------------------------
 
-impl<'t> Widget for TextEdit<'t> {
+impl Widget for TextEdit<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         self.show(ui).response
     }
 }
 
-impl<'t> TextEdit<'t> {
+impl TextEdit<'_> {
     /// Show the [`TextEdit`], returning a rich [`TextEditOutput`].
     ///
     /// ```

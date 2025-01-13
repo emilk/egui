@@ -21,7 +21,7 @@ pub(crate) enum AppKind<'a, State> {
     Eframe(AppKindEframe<'a, State>),
 }
 
-impl<'a, State> AppKind<'a, State> {
+impl<State> AppKind<'_, State> {
     pub fn run(
         &mut self,
         ctx: &egui::Context,

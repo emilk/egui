@@ -426,7 +426,7 @@ impl<'a> DragValue<'a> {
     }
 }
 
-impl<'a> Widget for DragValue<'a> {
+impl Widget for DragValue<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
             mut get_set_value,

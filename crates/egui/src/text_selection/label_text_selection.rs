@@ -263,7 +263,7 @@ impl LabelSelectionState {
             let new_text_starts_with_space_or_punctuation = new_text
                 .chars()
                 .next()
-                .map_or(false, |c| c.is_whitespace() || c.is_ascii_punctuation());
+                .is_some_and(|c| c.is_whitespace() || c.is_ascii_punctuation());
 
             if existing_ends_with_space == Some(false) && !new_text_starts_with_space_or_punctuation
             {

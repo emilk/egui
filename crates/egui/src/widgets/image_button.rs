@@ -71,7 +71,7 @@ impl<'a> ImageButton<'a> {
     }
 }
 
-impl<'a> Widget for ImageButton<'a> {
+impl Widget for ImageButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let padding = if self.frame {
             // so we can see that it is a button:
