@@ -18,6 +18,7 @@ pub struct ProgressBar {
     desired_height: Option<f32>,
     text: Option<ProgressBarText>,
     fill: Option<Color32>,
+    track_fill: Option<Color32>,
     animate: bool,
     rounding: Option<Rounding>,
 }
@@ -31,6 +32,7 @@ impl ProgressBar {
             desired_height: None,
             text: None,
             fill: None,
+            track_fill: None,
             animate: false,
             rounding: None,
         }
@@ -54,6 +56,13 @@ impl ProgressBar {
     #[inline]
     pub fn fill(mut self, color: Color32) -> Self {
         self.fill = Some(color);
+        self
+    }
+
+    /// The fill color of the track.
+    #[inline]
+    pub fn track_fill(mut self, color: Color32) -> Self {
+        self.track_fill = Some(color);
         self
     }
 
@@ -104,6 +113,7 @@ impl Widget for ProgressBar {
             desired_height,
             text,
             fill,
+            track_fill,
             animate,
             rounding,
         } = self;
@@ -151,6 +161,15 @@ impl Widget for ProgressBar {
             } else {
                 bright
             };
+
+            if let Some(color) = track_fill {
+                ui.painter().rect(
+                    outer_rect,
+                    rounding,
+                    Color32::from(Rgba::from(color) * color_factor as f32),
+                    Stroke::NONE,
+                );
+            }
 
             ui.painter().rect(
                 inner_rect,
