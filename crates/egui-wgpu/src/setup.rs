@@ -68,16 +68,8 @@ impl WgpuSetup {
 
                 #[allow(clippy::arc_with_non_send_sync)]
                 Arc::new(
-                    wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
-                        backends: create_new.instance_descriptor.backends,
-                        flags: create_new.instance_descriptor.flags,
-                        dx12_shader_compiler: create_new
-                            .instance_descriptor
-                            .dx12_shader_compiler
-                            .clone(),
-                        gles_minor_version: create_new.instance_descriptor.gles_minor_version,
-                    })
-                    .await,
+                    wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
+                        .await,
                 )
             }
             Self::Existing(existing) => existing.instance.clone(),
@@ -151,13 +143,7 @@ pub struct WgpuSetupCreateNew {
 impl Clone for WgpuSetupCreateNew {
     fn clone(&self) -> Self {
         Self {
-            // TODO(gfx-rs/wgpu/#6849): use .clone()
-            instance_descriptor: wgpu::InstanceDescriptor {
-                backends: self.instance_descriptor.backends,
-                flags: self.instance_descriptor.flags,
-                dx12_shader_compiler: self.instance_descriptor.dx12_shader_compiler.clone(),
-                gles_minor_version: self.instance_descriptor.gles_minor_version,
-            },
+            instance_descriptor: self.instance_descriptor.clone(),
             power_preference: self.power_preference,
             native_adapter_selector: self.native_adapter_selector.clone(),
             device_descriptor: self.device_descriptor.clone(),
@@ -186,14 +172,13 @@ impl Default for WgpuSetupCreateNew {
             instance_descriptor: wgpu::InstanceDescriptor {
                 // Add GL backend, primarily because WebGPU is not stable enough yet.
                 // (note however, that the GL backend needs to be opted-in via the wgpu feature flag "webgl")
-                backends: wgpu::util::backend_bits_from_env()
+                backends: wgpu::Backends::from_env()
                     .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
                 flags: wgpu::InstanceFlags::from_build_config().with_env(),
-                dx12_shader_compiler: wgpu::Dx12Compiler::default(),
-                gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
+                backend_options: wgpu::BackendOptions::from_env_or_default(),
             },
 
-            power_preference: wgpu::util::power_preference_from_env()
+            power_preference: wgpu::PowerPreference::from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
 
             native_adapter_selector: None,
