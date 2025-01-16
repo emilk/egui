@@ -45,7 +45,7 @@ impl WgpuSetup {
     ///
     /// Does *not* store the wgpu instance, so calling this repeatedly may
     /// create a new instance every time!
-    pub async fn new_instance(&self) -> Arc<wgpu::Instance> {
+    pub async fn new_instance(&self) -> wgpu::Instance {
         match self {
             Self::CreateNew(create_new) => {
                 #[allow(unused_mut)]
@@ -65,12 +65,8 @@ impl WgpuSetup {
                 }
 
                 log::debug!("Creating wgpu instance with backends {:?}", backends);
-
-                #[allow(clippy::arc_with_non_send_sync)]
-                Arc::new(
-                    wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
-                        .await,
-                )
+                wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
+                    .await
             }
             Self::Existing(existing) => existing.instance.clone(),
         }
@@ -93,9 +89,8 @@ impl From<WgpuSetupExisting> for WgpuSetup {
 ///
 /// This can be used for fully custom adapter selection.
 /// If available, `wgpu::Surface` is passed to allow checking for surface compatibility.
-// TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here.
 pub type NativeAdapterSelectorMethod = Arc<
-    dyn Fn(&[Arc<wgpu::Adapter>], Option<&wgpu::Surface<'_>>) -> Result<Arc<wgpu::Adapter>, String>
+    dyn Fn(&[wgpu::Adapter], Option<&wgpu::Surface<'_>>) -> Result<wgpu::Adapter, String>
         + Send
         + Sync,
 >;
@@ -215,8 +210,8 @@ impl Default for WgpuSetupCreateNew {
 /// Used for [`WgpuSetup::Existing`].
 #[derive(Clone)]
 pub struct WgpuSetupExisting {
-    pub instance: Arc<wgpu::Instance>,
-    pub adapter: Arc<wgpu::Adapter>,
-    pub device: Arc<wgpu::Device>,
-    pub queue: Arc<wgpu::Queue>,
+    pub instance: wgpu::Instance,
+    pub adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
 }

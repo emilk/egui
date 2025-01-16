@@ -402,6 +402,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
         self.renderer.render(&self.ctx, &self.output)
     }
