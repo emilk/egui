@@ -772,9 +772,9 @@ impl State {
                         let contents = contents.replace("\r\n", "\n");
                         if !contents.is_empty() {
                             self.egui_input.events.push(egui::Event::Paste(contents));
+                            return;
                         }
                     }
-                    return;
                 }
             }
 
