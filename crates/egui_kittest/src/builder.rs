@@ -74,7 +74,7 @@ impl<State> HarnessBuilder<State> {
 
     /// Enable wgpu rendering with a default setup suitable for testing.
     ///
-    /// This sets up a [`WgpuTestRenderer`] with the default setup.
+    /// This sets up a [`crate::wgpu::WgpuTestRenderer`] with the default setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu(self) -> Self {
         self.renderer(crate::wgpu::WgpuTestRenderer::default())
