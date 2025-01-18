@@ -16,6 +16,7 @@ pub enum Key {
     Tab,
     Backspace,
     Enter,
+    NumpadEnter,
     Space,
 
     Insert,
@@ -195,6 +196,7 @@ impl Key {
         Self::Tab,
         Self::Backspace,
         Self::Enter,
+        Self::NumpadEnter,
         Self::Insert,
         Self::Delete,
         Self::Home,
@@ -317,6 +319,7 @@ impl Key {
             "Tab" => Self::Tab,
             "Backspace" => Self::Backspace,
             "Enter" | "Return" => Self::Enter,
+            "NumpadEnter" => Self::NumpadEnter,
 
             "Help" | "Insert" => Self::Insert,
             "Delete" => Self::Delete,
@@ -466,6 +469,7 @@ impl Key {
             Self::Tab => "Tab",
             Self::Backspace => "Backspace",
             Self::Enter => "Enter",
+            Self::NumpadEnter => "NumpadEnter",
 
             Self::Insert => "Insert",
             Self::Delete => "Delete",
