@@ -1200,13 +1200,13 @@ pub struct EventFilter {
     /// If `true`, pressing horizontal arrows will act on the
     /// widget, and NOT move focus away from the focused widget.
     ///
-    /// Default: `false`
+    /// Defaults to `false`, but is always `true` in the `TextEdit`.
     pub horizontal_arrows: bool,
 
     /// If `true`, pressing vertical arrows will act on the
     /// widget, and NOT move focus away from the focused widget.
     ///
-    /// Default: `false`
+    /// Defaults to `false`, but is always `true` in the `TextEdit`.
     pub vertical_arrows: bool,
 
     /// If `true`, pressing escape will act on the widget,
@@ -1214,6 +1214,21 @@ pub struct EventFilter {
     ///
     /// Default: `false`
     pub escape: bool,
+
+    /// If `true`, a copy action (like Ctrl+C) will be handled by the widget.
+    ///
+    /// Default: `true`
+    pub copy: bool,
+
+    /// If `true`, a cut action (like Ctrl+X) will be handled by the widget.
+    ///
+    /// Default: `true`
+    pub cut: bool,
+
+    /// If `true`, a paste action (like Ctrl+V) will be handled by the widget.
+    ///
+    /// Default: `true`
+    pub paste: bool,
 }
 
 #[allow(clippy::derivable_impls)] // let's be explicit
@@ -1224,22 +1239,27 @@ impl Default for EventFilter {
             horizontal_arrows: false,
             vertical_arrows: false,
             escape: false,
+            copy: true,
+            cut: true,
+            paste: true,
         }
     }
 }
 
 impl EventFilter {
     pub fn matches(&self, event: &Event) -> bool {
-        if let Event::Key { key, .. } = event {
-            match key {
+        match event {
+            Event::Key { key, .. } => match key {
                 crate::Key::Tab => self.tab,
                 crate::Key::ArrowUp | crate::Key::ArrowDown => self.vertical_arrows,
                 crate::Key::ArrowRight | crate::Key::ArrowLeft => self.horizontal_arrows,
                 crate::Key::Escape => self.escape,
                 _ => true,
-            }
-        } else {
-            true
+            },
+            Event::Copy => self.copy,
+            Event::Cut => self.cut,
+            Event::Paste(_) => self.paste,
+            _ => true,
         }
     }
 }
