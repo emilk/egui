@@ -1,5 +1,4 @@
-use egui::{Context, FullOutput, TexturesDelta};
-use image::RgbaImage;
+use egui::TexturesDelta;
 
 pub trait TestRenderer {
     /// We use this to pass the glow / wgpu render state to [`eframe::Frame`].
@@ -13,7 +12,12 @@ pub trait TestRenderer {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
-    fn render(&mut self, ctx: &Context, output: &FullOutput) -> Result<RgbaImage, String>;
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    fn render(
+        &mut self,
+        ctx: &egui::Context,
+        output: &egui::FullOutput,
+    ) -> Result<image::RgbaImage, String>;
 }
 
 /// A lazy renderer that initializes the renderer on the first render call.
@@ -58,7 +62,12 @@ impl TestRenderer for LazyRenderer {
         }
     }
 
-    fn render(&mut self, ctx: &Context, output: &FullOutput) -> Result<RgbaImage, String> {
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
+    fn render(
+        &mut self,
+        ctx: &egui::Context,
+        output: &egui::FullOutput,
+    ) -> Result<image::RgbaImage, String> {
         match self {
             Self::Uninitialized {
                 texture_ops,
