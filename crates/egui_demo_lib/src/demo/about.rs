@@ -104,7 +104,7 @@ fn links(ui: &mut egui::Ui) {
         "https://github.com/emilk/egui",
     );
     ui.hyperlink_to(
-        format!("@ernerfeldt.bsky.social"),
+        "@ernerfeldt.bsky.social",
         "https://bsky.app/profile/ernerfeldt.bsky.social",
     );
     ui.hyperlink_to("📓 egui documentation", "https://docs.rs/egui/");
