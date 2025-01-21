@@ -237,10 +237,10 @@ impl DemoWindows {
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    use egui::special_emojis::{GITHUB, TWITTER};
+                    use egui::special_emojis::GITHUB;
                     ui.hyperlink_to(
-                        egui::RichText::new(TWITTER).size(font_size),
-                        "https://twitter.com/ernerfeldt",
+                        egui::RichText::new("🦋").size(font_size),
+                        "https://bsky.app/profile/ernerfeldt.bsky.social",
                     );
                     ui.hyperlink_to(
                         egui::RichText::new(GITHUB).size(font_size),
@@ -264,14 +264,14 @@ impl DemoWindows {
 
                 ui.separator();
 
-                use egui::special_emojis::{GITHUB, TWITTER};
+                use egui::special_emojis::GITHUB;
                 ui.hyperlink_to(
                     format!("{GITHUB} egui on GitHub"),
                     "https://github.com/emilk/egui",
                 );
                 ui.hyperlink_to(
-                    format!("{TWITTER} @ernerfeldt"),
-                    "https://twitter.com/ernerfeldt",
+                    "@ernerfeldt.bsky.social",
+                    "https://bsky.app/profile/ernerfeldt.bsky.social",
                 );
 
                 ui.separator();

@@ -625,9 +625,6 @@ pub mod special_emojis {
     /// The Github logo.
     pub const GITHUB: char = '';
 
-    /// The Twitter bird.
-    pub const TWITTER: char = '';
-
     /// The word `git`.
     pub const GIT: char = '';
 
