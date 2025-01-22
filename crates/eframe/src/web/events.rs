@@ -771,34 +771,22 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
-                            log::debug!("Loading {:?} ({} bytes)…", name, file.size());
-
-                            let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
-
+                            log::debug!("File {:?} dropped", name);
                             let runner_ref = runner_ref.clone();
+                            // we use a future to access the runner_ref lock
                             let future = async move {
-                                match future.await {
-                                    Ok(array_buffer) => {
-                                        let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        log::debug!("Loaded {:?} ({} bytes).", name, bytes.len());
-
-                                        if let Some(mut runner_lock) = runner_ref.try_lock() {
-                                            runner_lock.input.raw.dropped_files.push(
-                                                egui::DroppedFile {
-                                                    name,
-                                                    mime,
-                                                    last_modified: Some(last_modified),
-                                                    bytes: Some(bytes.into()),
-                                                    ..Default::default()
-                                                },
-                                            );
-                                            runner_lock.needs_repaint.repaint_asap();
-                                        }
-                                    }
-                                    Err(err) => {
-                                        log::error!("Failed to read file: {:?}", err);
-                                    }
-                                }
+                                if let Some(mut runner_lock) = runner_ref.try_lock() {
+                                    let stream_url =
+                                        web_sys::Url::create_object_url_with_blob(&file).ok();
+                                    runner_lock.input.raw.dropped_files.push(egui::DroppedFile {
+                                        name: name.clone(),
+                                        mime,
+                                        last_modified: Some(last_modified),
+                                        stream_url,
+                                        ..Default::default()
+                                    });
+                                    runner_lock.needs_repaint.repaint_asap();
+                                };
                             };
                             wasm_bindgen_futures::spawn_local(future);
                         }

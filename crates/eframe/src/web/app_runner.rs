@@ -248,10 +248,26 @@ impl AppRunner {
                 }
             }
         }
-
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
         self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
+        self.drop_files();
+    }
+
+    fn drop_files(&mut self) {
+        /// dropped_files always empty
+        log::debug!("Dropped files: {:?}", self.input.raw.dropped_files.len());
+        if !self.input.raw.dropped_files.is_empty() {
+            for mut dropped_file in self.input.raw.dropped_files.drain(..) {
+                if let Some(stream_url) = dropped_file.stream_url {
+                    log::debug!("Revoking url {:?}", stream_url);
+                    if *dropped_file.need_drop_url {
+                        let _ = web_sys::Url::revoke_object_url(&stream_url);
+                        dropped_file.need_drop_url = false.into();
+                    }
+                }
+            }
+        }
     }
 
     /// Paint the results of the last call to [`Self::logic`].
