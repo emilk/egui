@@ -9,8 +9,8 @@ use crate::{emath::TSTransform, LayerId, Rect, Response, Sense, Ui, UiBuilder, V
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
 ///
-/// The resulting visual scene bounds can be larger, ue to letterboxing.
-fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransform {
+/// The resulting visual scene bounds can be larger, due to letterboxing.
+pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransform {
     let available_size_in_ui = rect_in_ui.size();
 
     // Compute the scale factor to fit the bounding rectangle into the available screen size.
@@ -55,7 +55,7 @@ impl Scene {
     /// Provides a zoom-pan area for a given view.
     ///
     /// Will fill the entire `max_rect` of the `parent_ui`.
-    fn show_scene(
+    pub fn show_scene(
         &self,
         parent_ui: &mut Ui,
         to_global: &mut TSTransform,
@@ -111,7 +111,7 @@ impl Scene {
     }
 
     /// Helper function to handle pan and zoom interactions on a response.
-    fn register_pan_and_zoom(&self, ui: &Ui, resp: &Response, ui_from_scene: &mut TSTransform) {
+    pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &Response, ui_from_scene: &mut TSTransform) {
         if resp.dragged() {
             ui_from_scene.translation += ui_from_scene.scaling * resp.drag_delta();
         }
