@@ -137,7 +137,7 @@ pub fn hit_test(
     // This is the case when a widget fully contains another widget and is on a different layer.
     // It prevents "hovering through" widgets when there is a clickable widget behind.
 
-    let mut hidden: ahash::HashSet<Id> = Default::default();
+    let mut hidden = IdSet::default();
     for (i, current) in close.iter().enumerate().rev() {
         for next in &close[i + 1..] {
             if next.interact_rect.contains_rect(current.interact_rect)
