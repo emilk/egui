@@ -229,13 +229,13 @@ impl UiStack {
     /// Is this [`crate::Ui`] a panel?
     #[inline]
     pub fn is_panel_ui(&self) -> bool {
-        self.kind().map_or(false, |kind| kind.is_panel())
+        self.kind().is_some_and(|kind| kind.is_panel())
     }
 
     /// Is this [`crate::Ui`] an [`crate::Area`]?
     #[inline]
     pub fn is_area_ui(&self) -> bool {
-        self.kind().map_or(false, |kind| kind.is_area())
+        self.kind().is_some_and(|kind| kind.is_area())
     }
 
     /// Is this a root [`crate::Ui`], i.e. created with [`crate::Ui::new()`]?
@@ -285,4 +285,4 @@ impl<'a> Iterator for UiStackIterator<'a> {
     }
 }
 
-impl<'a> FusedIterator for UiStackIterator<'a> {}
+impl FusedIterator for UiStackIterator<'_> {}

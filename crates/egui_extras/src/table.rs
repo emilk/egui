@@ -698,7 +698,7 @@ pub struct Table<'a> {
     sense: egui::Sense,
 }
 
-impl<'a> Table<'a> {
+impl Table<'_> {
     /// Access the contained [`egui::Ui`].
     ///
     /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
@@ -1228,7 +1228,7 @@ impl<'a> TableBody<'a> {
     // Capture the hover information for the just created row. This is used in the next render
     // to ensure that the entire row is highlighted.
     fn capture_hover_state(&self, response: &Option<Response>, row_index: usize) {
-        let is_row_hovered = response.as_ref().map_or(false, |r| r.hovered());
+        let is_row_hovered = response.as_ref().is_some_and(|r| r.hovered());
         if is_row_hovered {
             self.layout
                 .ui
@@ -1237,7 +1237,7 @@ impl<'a> TableBody<'a> {
     }
 }
 
-impl<'a> Drop for TableBody<'a> {
+impl Drop for TableBody<'_> {
     fn drop(&mut self) {
         self.layout.allocate_rect();
     }
@@ -1264,7 +1264,7 @@ pub struct TableRow<'a, 'b> {
     response: &'b mut Option<Response>,
 }
 
-impl<'a, 'b> TableRow<'a, 'b> {
+impl TableRow<'_, '_> {
     /// Add the contents of a column on this row (i.e. a cell).
     ///
     /// Returns the used space (`min_rect`) plus the [`Response`] of the whole cell.
@@ -1272,11 +1272,11 @@ impl<'a, 'b> TableRow<'a, 'b> {
     pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
         let col_index = self.col_index;
 
-        let clip = self.columns.get(col_index).map_or(false, |c| c.clip);
+        let clip = self.columns.get(col_index).is_some_and(|c| c.clip);
         let auto_size_this_frame = self
             .columns
             .get(col_index)
-            .map_or(false, |c| c.auto_size_this_frame);
+            .is_some_and(|c| c.auto_size_this_frame);
 
         let width = if let Some(width) = self.widths.get(col_index) {
             self.col_index += 1;
@@ -1355,7 +1355,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Drop for TableRow<'a, 'b> {
+impl Drop for TableRow<'_, '_> {
     #[inline]
     fn drop(&mut self) {
         self.layout.end_line();

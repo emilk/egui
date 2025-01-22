@@ -936,13 +936,16 @@ pub enum ResizeDirection {
 
 /// An output [viewport](crate::viewport)-command from egui to the backend, e.g. to change the window title or size.
 ///
-///  You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
+/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
 ///
 /// See [`crate::viewport`] for how to build new viewports (native windows).
 ///
 /// All coordinates are in logical points.
 ///
-/// This is essentially a way to diff [`ViewportBuilder`].
+/// [`ViewportCommand`] is essentially a way to diff [`ViewportBuilder`]s.
+///
+/// Only commands specific to a viewport are part of [`ViewportCommand`].
+/// Other commands should be put in [`crate::OutputCommand`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {

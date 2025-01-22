@@ -10,7 +10,7 @@ license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
 categories = ["gui", "graphics"]
-keywords = ["glium", "egui", "gui", "gamedev"]
+keywords = ["glow", "egui", "gui", "gamedev"]
 include = [
     "../LICENSE-APACHE",
     "../LICENSE-MIT",
@@ -57,7 +57,6 @@ serde = { workspace = true, optional = true }
 [dev-dependencies]
 criterion.workspace = true
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
-wgpu = { workspace = true, features = ["metal"] }
 egui = { workspace = true, features = ["default_fonts"] }
 
 [[bench]]

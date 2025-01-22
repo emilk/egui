@@ -45,13 +45,11 @@ impl eframe::App for MyApp {
 fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
     use egui::{CentralPanel, UiBuilder};
 
-    let panel_frame = egui::Frame {
-        fill: ctx.style().visuals.window_fill(),
-        rounding: 10.0.into(),
-        stroke: ctx.style().visuals.widgets.noninteractive.fg_stroke,
-        outer_margin: 0.5.into(), // so the stroke is within the bounds
-        ..Default::default()
-    };
+    let panel_frame = egui::Frame::new()
+        .fill(ctx.style().visuals.window_fill())
+        .rounding(10)
+        .stroke(ctx.style().visuals.widgets.noninteractive.fg_stroke)
+        .outer_margin(1); // so the stroke is within the bounds
 
     CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
         let app_rect = ui.max_rect();

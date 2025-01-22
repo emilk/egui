@@ -62,27 +62,23 @@ impl eframe::App for MyApp {
 
                 // nested frames test
                 ui.add_space(20.0);
-                egui::Frame {
-                    stroke: ui.visuals().noninteractive().bg_stroke,
-                    inner_margin: egui::Margin::same(4.0),
-                    outer_margin: egui::Margin::same(4.0),
-                    ..Default::default()
-                }
-                .show(ui, |ui| {
-                    full_span_widget(ui, false);
-                    stack_ui(ui);
-
-                    egui::Frame {
-                        stroke: ui.visuals().noninteractive().bg_stroke,
-                        inner_margin: egui::Margin::same(8.0),
-                        outer_margin: egui::Margin::same(6.0),
-                        ..Default::default()
-                    }
+                egui::Frame::new()
+                    .stroke(ui.visuals().noninteractive().bg_stroke)
+                    .inner_margin(4)
+                    .outer_margin(4)
                     .show(ui, |ui| {
                         full_span_widget(ui, false);
                         stack_ui(ui);
+
+                        egui::Frame::new()
+                            .stroke(ui.visuals().noninteractive().bg_stroke)
+                            .inner_margin(8)
+                            .outer_margin(6)
+                            .show(ui, |ui| {
+                                full_span_widget(ui, false);
+                                stack_ui(ui);
+                            });
                     });
-                });
             });
         });
 
@@ -126,18 +122,16 @@ impl eframe::App for MyApp {
                 // Ui nesting test
                 ui.add_space(20.0);
                 ui.label("UI nesting test:");
-                egui::Frame {
-                    stroke: ui.visuals().noninteractive().bg_stroke,
-                    inner_margin: egui::Margin::same(4.0),
-                    ..Default::default()
-                }
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.vertical(|ui| {
-                            ui.scope(stack_ui);
+                egui::Frame::new()
+                    .stroke(ui.visuals().noninteractive().bg_stroke)
+                    .inner_margin(4)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.vertical(|ui| {
+                                ui.scope(stack_ui);
+                            });
                         });
                     });
-                });
 
                 // table test
                 let mut cell_stack = None;
@@ -265,106 +259,104 @@ fn stack_ui(ui: &mut egui::Ui) {
 }
 
 fn stack_ui_impl(ui: &mut egui::Ui, stack: &egui::UiStack) {
-    egui::Frame {
-        stroke: ui.style().noninteractive().fg_stroke,
-        inner_margin: egui::Margin::same(4.0),
-        ..Default::default()
-    }
-    .show(ui, |ui| {
-        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+    egui::Frame::new()
+        .stroke(ui.style().noninteractive().fg_stroke)
+        .inner_margin(4)
+        .show(ui, |ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
-        egui_extras::TableBuilder::new(ui)
-            .column(Column::auto())
-            .column(Column::auto())
-            .column(Column::auto())
-            .column(Column::auto())
-            .column(Column::auto())
-            .column(Column::auto())
-            .header(20.0, |mut header| {
-                header.col(|ui| {
-                    ui.strong("id");
-                });
-                header.col(|ui| {
-                    ui.strong("kind");
-                });
-                header.col(|ui| {
-                    ui.strong("stroke");
-                });
-                header.col(|ui| {
-                    ui.strong("inner");
-                });
-                header.col(|ui| {
-                    ui.strong("outer");
-                });
-                header.col(|ui| {
-                    ui.strong("direction");
-                });
-            })
-            .body(|mut body| {
-                for node in stack.iter() {
-                    body.row(20.0, |mut row| {
-                        row.col(|ui| {
-                            if ui.label(format!("{:?}", node.id)).hovered() {
-                                ui.ctx().debug_painter().debug_rect(
-                                    node.max_rect,
-                                    egui::Color32::GREEN,
-                                    "max",
-                                );
-                                ui.ctx().debug_painter().circle_filled(
-                                    node.min_rect.min,
-                                    2.0,
-                                    egui::Color32::RED,
-                                );
-                            }
-                        });
-                        row.col(|ui| {
-                            let s = if let Some(kind) = node.kind() {
-                                format!("{kind:?}")
-                            } else {
-                                "-".to_owned()
-                            };
-
-                            ui.label(s);
-                        });
-                        row.col(|ui| {
-                            let frame = node.frame();
-                            if frame.stroke == egui::Stroke::NONE {
-                                ui.label("-");
-                            } else {
-                                let mut layout_job = egui::text::LayoutJob::default();
-                                layout_job.append(
-                                    "⬛ ",
-                                    0.0,
-                                    egui::TextFormat::simple(
-                                        egui::TextStyle::Body.resolve(ui.style()),
-                                        frame.stroke.color,
-                                    ),
-                                );
-                                layout_job.append(
-                                    format!("{}px", frame.stroke.width).as_str(),
-                                    0.0,
-                                    egui::TextFormat::simple(
-                                        egui::TextStyle::Body.resolve(ui.style()),
-                                        ui.style().visuals.text_color(),
-                                    ),
-                                );
-                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-                                ui.label(layout_job);
-                            }
-                        });
-                        row.col(|ui| {
-                            ui.label(print_margin(&node.frame().inner_margin));
-                        });
-                        row.col(|ui| {
-                            ui.label(print_margin(&node.frame().outer_margin));
-                        });
-                        row.col(|ui| {
-                            ui.label(format!("{:?}", node.layout_direction));
-                        });
+            egui_extras::TableBuilder::new(ui)
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.strong("id");
                     });
-                }
-            });
-    });
+                    header.col(|ui| {
+                        ui.strong("kind");
+                    });
+                    header.col(|ui| {
+                        ui.strong("stroke");
+                    });
+                    header.col(|ui| {
+                        ui.strong("inner");
+                    });
+                    header.col(|ui| {
+                        ui.strong("outer");
+                    });
+                    header.col(|ui| {
+                        ui.strong("direction");
+                    });
+                })
+                .body(|mut body| {
+                    for node in stack.iter() {
+                        body.row(20.0, |mut row| {
+                            row.col(|ui| {
+                                if ui.label(format!("{:?}", node.id)).hovered() {
+                                    ui.ctx().debug_painter().debug_rect(
+                                        node.max_rect,
+                                        egui::Color32::GREEN,
+                                        "max",
+                                    );
+                                    ui.ctx().debug_painter().circle_filled(
+                                        node.min_rect.min,
+                                        2.0,
+                                        egui::Color32::RED,
+                                    );
+                                }
+                            });
+                            row.col(|ui| {
+                                let s = if let Some(kind) = node.kind() {
+                                    format!("{kind:?}")
+                                } else {
+                                    "-".to_owned()
+                                };
+
+                                ui.label(s);
+                            });
+                            row.col(|ui| {
+                                let frame = node.frame();
+                                if frame.stroke == egui::Stroke::NONE {
+                                    ui.label("-");
+                                } else {
+                                    let mut layout_job = egui::text::LayoutJob::default();
+                                    layout_job.append(
+                                        "⬛ ",
+                                        0.0,
+                                        egui::TextFormat::simple(
+                                            egui::TextStyle::Body.resolve(ui.style()),
+                                            frame.stroke.color,
+                                        ),
+                                    );
+                                    layout_job.append(
+                                        format!("{}px", frame.stroke.width).as_str(),
+                                        0.0,
+                                        egui::TextFormat::simple(
+                                            egui::TextStyle::Body.resolve(ui.style()),
+                                            ui.style().visuals.text_color(),
+                                        ),
+                                    );
+                                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+                                    ui.label(layout_job);
+                                }
+                            });
+                            row.col(|ui| {
+                                ui.label(print_margin(&node.frame().inner_margin));
+                            });
+                            row.col(|ui| {
+                                ui.label(print_margin(&node.frame().outer_margin));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:?}", node.layout_direction));
+                            });
+                        });
+                    }
+                });
+        });
 }
 
 fn print_margin(margin: &egui::Margin) -> String {

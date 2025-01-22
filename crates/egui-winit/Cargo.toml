@@ -36,11 +36,11 @@ android-game-activity = ["winit/android-game-activity"]
 android-native-activity = ["winit/android-native-activity"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
-bytemuck = ["egui/bytemuck"]
+bytemuck = ["egui/bytemuck", "dep:bytemuck"]
 
 ## Enable cut/copy/paste to OS clipboard.
 ## If disabled a clipboard will be simulated so you can still copy/paste within the egui app.
-clipboard = ["arboard", "smithay-clipboard"]
+clipboard = ["arboard", "bytemuck", "smithay-clipboard"]
 
 ## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["webbrowser"]
@@ -69,6 +69,8 @@ winit = { workspace = true, default-features = false }
 # feature accesskit
 accesskit_winit = { version = "0.23", optional = true }
 
+bytemuck = { workspace = true, optional = true }
+
 ## Enable this when generating docs.
 document-features = { workspace = true, optional = true }
 
@@ -84,4 +86,6 @@ smithay-clipboard = { version = "0.7.2", optional = true }
 wayland-cursor = { version = "0.31.1", default-features = false, optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-arboard = { version = "3.3", optional = true, default-features = false }
+arboard = { version = "3.3", optional = true, default-features = false, features = [
+    "image-data",
+] }

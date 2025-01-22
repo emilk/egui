@@ -426,7 +426,7 @@ impl<'a> DragValue<'a> {
     }
 }
 
-impl<'a> Widget for DragValue<'a> {
+impl Widget for DragValue<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Self {
             mut get_set_value,
@@ -660,7 +660,9 @@ impl<'a> Widget for DragValue<'a> {
             response
         };
 
-        response.changed = get(&mut get_set_value) != old_value;
+        if get(&mut get_set_value) != old_value {
+            response.mark_changed();
+        }
 
         response.widget_info(|| WidgetInfo::drag_value(ui.is_enabled(), value));
 

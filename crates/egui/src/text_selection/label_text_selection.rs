@@ -263,7 +263,7 @@ impl LabelSelectionState {
             let new_text_starts_with_space_or_punctuation = new_text
                 .chars()
                 .next()
-                .map_or(false, |c| c.is_whitespace() || c.is_ascii_punctuation());
+                .is_some_and(|c| c.is_whitespace() || c.is_ascii_punctuation());
 
             if existing_ends_with_space == Some(false) && !new_text_starts_with_space_or_punctuation
             {
@@ -484,7 +484,7 @@ impl LabelSelectionState {
     ) -> Vec<RowVertexIndices> {
         let widget_id = response.id;
 
-        if response.hovered {
+        if response.hovered() {
             ui.ctx().set_cursor_icon(CursorIcon::Text);
         }
 

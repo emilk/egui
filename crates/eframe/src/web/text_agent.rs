@@ -20,9 +20,10 @@ impl TextAgent {
         // create an `<input>` element
         let input = document
             .create_element("input")?
-            .dyn_into::<web_sys::HtmlInputElement>()?;
+            .dyn_into::<web_sys::HtmlElement>()?;
+        input.set_autofocus(true)?;
+        let input = input.dyn_into::<web_sys::HtmlInputElement>()?;
         input.set_type("text");
-        input.set_autofocus(true);
         input.set_attribute("autocapitalize", "off")?;
 
         // append it to `<body>` and hide it outside of the viewport

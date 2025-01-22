@@ -1,3 +1,4 @@
+mod clipboard_test;
 mod cursor_test;
 mod grid_test;
 mod id_test;
@@ -7,6 +8,7 @@ mod layout_test;
 mod manual_layout_test;
 mod window_resize_test;
 
+pub use clipboard_test::ClipboardTest;
 pub use cursor_test::CursorTest;
 pub use grid_test::GridTest;
 pub use id_test::IdTest;

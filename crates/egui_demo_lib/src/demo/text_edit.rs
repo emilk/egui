@@ -58,9 +58,7 @@ impl crate::View for TextEditDemo {
             }
         });
 
-        let anything_selected = output
-            .cursor_range
-            .map_or(false, |cursor| !cursor.is_empty());
+        let anything_selected = output.cursor_range.is_some_and(|cursor| !cursor.is_empty());
 
         ui.add_enabled(
             anything_selected,

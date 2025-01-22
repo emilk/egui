@@ -14,6 +14,7 @@ pub struct ImageViewer {
     fit: ImageFit,
     maintain_aspect_ratio: bool,
     max_size: Vec2,
+    alt_text: String,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -44,6 +45,7 @@ impl Default for ImageViewer {
             fit: ImageFit::Fraction(Vec2::splat(1.0)),
             maintain_aspect_ratio: true,
             max_size: Vec2::splat(2048.0),
+            alt_text: "My Image".to_owned(),
         }
     }
 }
@@ -52,8 +54,9 @@ impl eframe::App for ImageViewer {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui::TopBottomPanel::new(TopBottomSide::Top, "url bar").show(ctx, |ui| {
             ui.horizontal_centered(|ui| {
-                ui.label("URI:");
-                ui.text_edit_singleline(&mut self.uri_edit_text);
+                let label = ui.label("URI:");
+                ui.text_edit_singleline(&mut self.uri_edit_text)
+                    .labelled_by(label.id);
                 if ui.small_button("✔").clicked() {
                     ctx.forget_image(&self.current_uri);
                     self.uri_edit_text = self.uri_edit_text.trim().to_owned();
@@ -185,6 +188,11 @@ impl eframe::App for ImageViewer {
             ui.label("Aspect ratio is maintained by scaling both sides as necessary");
             ui.checkbox(&mut self.maintain_aspect_ratio, "Maintain aspect ratio");
 
+            // alt text
+            ui.add_space(5.0);
+            ui.label("Alt text");
+            ui.text_edit_singleline(&mut self.alt_text);
+
             // forget all images
             if ui.button("Forget all images").clicked() {
                 ui.ctx().forget_all_images();
@@ -211,6 +219,9 @@ impl eframe::App for ImageViewer {
                 }
                 image = image.maintain_aspect_ratio(self.maintain_aspect_ratio);
                 image = image.max_size(self.max_size);
+                if !self.alt_text.is_empty() {
+                    image = image.alt_text(&self.alt_text);
+                }
 
                 ui.add_sized(ui.available_size(), image);
             });
