@@ -31,13 +31,13 @@ fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransform {
 
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
-pub struct ZoomPanArea {
+pub struct Scene {
     min_scaling: Option<f32>,
     max_scaling: f32,
     fit_rect: Option<Rect>,
 }
 
-impl Default for ZoomPanArea {
+impl Default for Scene {
     fn default() -> Self {
         Self {
             min_scaling: None,
@@ -47,7 +47,7 @@ impl Default for ZoomPanArea {
     }
 }
 
-impl ZoomPanArea {
+impl Scene {
     pub fn new() -> Self {
         Default::default()
     }
@@ -55,22 +55,22 @@ impl ZoomPanArea {
     /// Provides a zoom-pan area for a given view.
     ///
     /// Will fill the entire `max_rect` of the `parent_ui`.
-    fn show_zoom_pan_area(
+    fn show_scene(
         &self,
         parent_ui: &mut Ui,
         to_global: &mut TSTransform,
         draw_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         // Create a new egui paint layer, where we can draw our contents:
-        let zoom_pan_layer_id = LayerId::new(
+        let scene_layer_id = LayerId::new(
             parent_ui.layer_id().order,
-            parent_ui.id().with("zoom_pan_area"),
+            parent_ui.id().with("scene_area"),
         );
 
         // Put the layer directly on-top of the main layer of the ui:
         parent_ui
             .ctx()
-            .set_sublayer(parent_ui.layer_id(), zoom_pan_layer_id);
+            .set_sublayer(parent_ui.layer_id(), scene_layer_id);
 
         let global_view_bounds = parent_ui.max_rect();
 
@@ -82,7 +82,7 @@ impl ZoomPanArea {
 
         let mut local_ui = parent_ui.new_child(
             UiBuilder::new()
-                .layer_id(zoom_pan_layer_id)
+                .layer_id(scene_layer_id)
                 .max_rect(to_global.inverse() * global_view_bounds)
                 .sense(Sense::click_and_drag()),
         );
@@ -105,7 +105,7 @@ impl ZoomPanArea {
         // Tell egui to apply the transform on the layer:
         local_ui
             .ctx()
-            .set_transform_layer(zoom_pan_layer_id, *to_global);
+            .set_transform_layer(scene_layer_id, *to_global);
 
         pan_response
     }
@@ -159,6 +159,6 @@ impl ZoomPanArea {
         to_global: &mut TSTransform,
         add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
-        self.show_zoom_pan_area(ui, to_global, add_contents)
+        self.show_scene(ui, to_global, add_contents)
     }
 }
