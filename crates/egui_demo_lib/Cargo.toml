@@ -10,7 +10,7 @@ license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
 categories = ["gui", "graphics"]
-keywords = ["glium", "egui", "gui", "gamedev"]
+keywords = ["glow", "egui", "gui", "gamedev"]
 include = [
     "../LICENSE-APACHE",
     "../LICENSE-MIT",
