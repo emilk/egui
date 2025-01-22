@@ -4,7 +4,7 @@ use super::{
     push_touches, text_from_keyboard_event, theme_from_dark_mode, translate_key, AppRunner,
     Closure, JsCast, JsValue, WebRunner,
 };
-use web_sys::EventTarget;
+use web_sys::{Document, EventTarget, ShadowRoot};
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagation`
 // than what is probably needed.
@@ -510,10 +510,17 @@ fn install_pointerup(runner_ref: &WebRunner, target: &EventTarget) -> Result<(),
 /// Returns true if the cursor is above the canvas, or if we're dragging something.
 /// Pass in the position in browser viewport coordinates (usually event.clientX/Y).
 fn is_interested_in_pointer_event(runner: &AppRunner, pos: egui::Pos2) -> bool {
-    let document = web_sys::window().unwrap().document().unwrap();
-    let is_hovering_canvas = document
-        .element_from_point(pos.x, pos.y)
-        .is_some_and(|element| element.eq(runner.canvas()));
+    let root_node = runner.canvas().get_root_node();
+
+    let element_at_point = if let Some(document) = root_node.dyn_ref::<Document>() {
+        document.element_from_point(pos.x, pos.y)
+    } else if let Some(shadow) = root_node.dyn_ref::<ShadowRoot>() {
+        shadow.element_from_point(pos.x, pos.y)
+    } else {
+        None
+    };
+
+    let is_hovering_canvas = element_at_point.is_some_and(|element| element.eq(runner.canvas()));
     let is_pointer_down = runner
         .egui_ctx()
         .input(|i| i.pointer.any_down() || i.any_touches());

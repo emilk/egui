@@ -58,7 +58,7 @@ impl WebRunner {
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let text_agent = TextAgent::attach(self)?;
+        let text_agent = TextAgent::attach(self, canvas.get_root_node())?;
 
         let runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
 
