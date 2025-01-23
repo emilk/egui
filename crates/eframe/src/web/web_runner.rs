@@ -172,20 +172,45 @@ impl WebRunner {
         event_name: &'static str,
         mut closure: impl FnMut(E, &mut AppRunner) + 'static,
     ) -> Result<(), wasm_bindgen::JsValue> {
-        let runner_ref = self.clone();
+        let options = web_sys::AddEventListenerOptions::default();
+        self.add_event_listener_ex(
+            target,
+            event_name,
+            &options,
+            move |event, app_runner, _web_runner| closure(event, app_runner),
+        )
+    }
+
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way.
+    ///
+    /// All events added with this method will automatically be unsubscribed on panic,
+    /// or when [`Self::destroy`] is called.
+    pub fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &web_sys::EventTarget,
+        event_name: &'static str,
+        options: &web_sys::AddEventListenerOptions,
+        mut closure: impl FnMut(E, &mut AppRunner, &WebRunner) + 'static,
+    ) -> Result<(), wasm_bindgen::JsValue> {
+        let web_runner = self.clone();
 
         // Create a JS closure based on the FnMut provided
         let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
             // Only call the wrapped closure if the egui code has not panicked
-            if let Some(mut runner_lock) = runner_ref.try_lock() {
+            if let Some(mut runner_lock) = web_runner.try_lock() {
                 // Cast the event to the expected event type
                 let event = event.unchecked_into::<E>();
-                closure(event, &mut runner_lock);
+                closure(event, &mut runner_lock, &web_runner);
             }
         }) as Box<dyn FnMut(web_sys::Event)>);
 
         // Add the event listener to the target
-        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        target.add_event_listener_with_callback_and_add_event_listener_options(
+            event_name,
+            closure.as_ref().unchecked_ref(),
+            options,
+        )?;
 
         let handle = TargetEvent {
             target: target.clone(),
@@ -214,13 +239,13 @@ impl WebRunner {
 
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
-            let runner_ref = self.clone();
+            let web_runner = self.clone();
             move || {
                 // We can paint now, so clear the animation frame.
                 // This drops the `closure` and allows another
                 // animation frame to be scheduled
-                let _ = runner_ref.frame.take();
-                events::paint_and_schedule(&runner_ref)
+                let _ = web_runner.frame.take();
+                events::paint_and_schedule(&web_runner)
             }
         });
 
