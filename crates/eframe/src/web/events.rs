@@ -1,10 +1,13 @@
+use ron::options;
+use web_sys::EventTarget;
+
 use super::{
     button_from_mouse_event, location_hash, modifiers_from_kb_event, modifiers_from_mouse_event,
-    modifiers_from_wheel_event, pos_from_mouse_event, prefers_color_scheme_dark, primary_touch_pos,
-    push_touches, text_from_keyboard_event, theme_from_dark_mode, translate_key, AppRunner,
-    Closure, JsCast, JsValue, WebRunner, DEBUG_RESIZE,
+    modifiers_from_wheel_event, native_pixels_per_point, pos_from_mouse_event,
+    prefers_color_scheme_dark, primary_touch_pos, push_touches, text_from_keyboard_event,
+    theme_from_dark_mode, translate_key, AppRunner, Closure, JsCast, JsValue, WebRunner,
+    DEBUG_RESIZE,
 };
-use web_sys::EventTarget;
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagation`
 // than what is probably needed.
@@ -357,29 +360,18 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     Ok(())
 }
 
-fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
+fn install_window_events(web_runner: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
     // Save-on-close
-    runner_ref.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
+    web_runner.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
         runner.save();
     })?;
 
-    runner_ref.add_event_listener(window, "resize", move |_: web_sys::Event, runner| {
-        // NOTE: we also use the `ResizeObserver`, but it doesn't always trigger when
-        // the Device Pixel Ratio (DPR) changes, so we need to subscribe to the "resize" event as well.
-        if DEBUG_RESIZE {
-            log::debug!(
-                "Resize event, canvas size: {}x{}, DPR: {}",
-                runner.canvas().width(),
-                runner.canvas().height(),
-                web_sys::window().unwrap().device_pixel_ratio()
-            );
-        }
-        // TODO: trigger resize_observer.observe
-        // runner.needs_repaint.repaint_asap();
-    })?;
+    // We want to handle the case of dragging the browser from one monitor to another,
+    // which can cause the DPR to change without any resize event (e.g. Safari).
+    install_dpr_change_event(web_runner);
 
-    for event_name in &["load", "pagehide", "pageshow"] {
-        runner_ref.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
+    for event_name in &["load", "pagehide", "pageshow", "resize"] {
+        web_runner.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
             if DEBUG_RESIZE {
                 log::debug!("{event_name:?}");
             }
@@ -387,13 +379,46 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
         })?;
     }
 
-    runner_ref.add_event_listener(window, "hashchange", |_: web_sys::Event, runner| {
+    web_runner.add_event_listener(window, "hashchange", |_: web_sys::Event, runner| {
         // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
         runner.frame.info.web_info.location.hash = location_hash();
         runner.needs_repaint.repaint_asap(); // tell the user about the new hash
     })?;
 
     Ok(())
+}
+
+fn install_dpr_change_event(web_runner: &WebRunner) -> Result<(), JsValue> {
+    let original_dpr = native_pixels_per_point();
+
+    let window = web_sys::window().unwrap();
+    let media_query_list = window
+        .match_media(&format!("(resolution: {original_dpr}dppx)"))
+        .unwrap()
+        .unwrap();
+
+    let closure = move |_: web_sys::Event, app_runner: &mut AppRunner, web_runner: &WebRunner| {
+        let new_dpr = native_pixels_per_point();
+        log::debug!("Device Pixel Ratio changed from {original_dpr} to {new_dpr}");
+
+        if true {
+            // Explicitly resize canvas to match the new DPR.
+            // This is a bit ugly, but I haven't found a better way to do it.
+            let canvas = app_runner.canvas();
+            canvas.set_width((canvas.width() as f32 * new_dpr / original_dpr).round() as _);
+            canvas.set_height((canvas.height() as f32 * new_dpr / original_dpr).round() as _);
+            log::debug!("Resized canvas to {}x{}", canvas.width(), canvas.height());
+        }
+
+        // It may be tempting to call `resize_observer.observe(&canvas)` here,
+        // but unfortunately this has no effect.
+
+        install_dpr_change_event(web_runner);
+    };
+
+    let mut options = web_sys::AddEventListenerOptions::default();
+    options.set_once(true);
+    web_runner.add_event_listener_ex(&media_query_list, "change", &options, closure)
 }
 
 fn install_color_scheme_change_event(
@@ -853,7 +878,7 @@ impl ResizeObserverContext {
             let runner_ref = runner_ref.clone();
             move |entries: js_sys::Array| {
                 if DEBUG_RESIZE {
-                    log::info!("ResizeObserverContext callback");
+                    // log::info!("ResizeObserverContext callback");
                 }
                 // Only call the wrapped closure if the egui code has not panicked
                 if let Some(mut runner_lock) = runner_ref.try_lock() {
@@ -895,6 +920,9 @@ impl ResizeObserverContext {
     }
 
     pub fn observe(&self, canvas: &web_sys::HtmlCanvasElement) {
+        if DEBUG_RESIZE {
+            log::info!("Calling observe on canvas…");
+        }
         let options = web_sys::ResizeObserverOptions::new();
         options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
         self.observer.observe_with_options(canvas, &options);
@@ -919,7 +947,7 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
         dpr = 1.0; // no need to apply
 
         if DEBUG_RESIZE {
-            log::info!("devicePixelContentBoxSize {width}x{height}");
+            // log::info!("devicePixelContentBoxSize {width}x{height}");
         }
     } else if JsValue::from_str("contentBoxSize").js_in(entry.as_ref()) {
         let content_box_size = entry.content_box_size();
