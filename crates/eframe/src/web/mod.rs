@@ -155,7 +155,10 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
 }
 
 fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
-    let pixels_per_point = ctx.pixels_per_point();
+    // ctx.pixels_per_point can be outdated
+
+    let pixels_per_point = ctx.zoom_factor() * native_pixels_per_point();
+
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
