@@ -52,7 +52,7 @@ use input::{
 // ----------------------------------------------------------------------------
 
 /// Debug browser resizing?
-const DEBUG_RESIZE: bool = true; // TODO: revert
+const DEBUG_RESIZE: bool = false;
 
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
@@ -361,7 +361,5 @@ pub fn percent_decode(s: &str) -> String {
 
 /// Are we running inside the Safari browser?
 pub fn is_safari_browser() -> bool {
-    web_sys::window()
-        .map(|window| window.has_own_property(&JsValue::from("safari")))
-        .unwrap_or(false)
+    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
 }

@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use crate::{epi, web::DEBUG_RESIZE, App};
+use crate::{epi, App};
 
 use super::{
     events::{self, ResizeObserverContext},
@@ -191,7 +191,7 @@ impl WebRunner {
         target: &web_sys::EventTarget,
         event_name: &'static str,
         options: &web_sys::AddEventListenerOptions,
-        mut closure: impl FnMut(E, &mut AppRunner, &WebRunner) + 'static,
+        mut closure: impl FnMut(E, &mut AppRunner, &Self) + 'static,
     ) -> Result<(), wasm_bindgen::JsValue> {
         let web_runner = self.clone();
 

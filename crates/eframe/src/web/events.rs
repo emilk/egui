@@ -1,5 +1,6 @@
-use ron::options;
 use web_sys::EventTarget;
+
+use crate::web::string_from_js_value;
 
 use super::{
     button_from_mouse_event, location_hash, modifiers_from_kb_event, modifiers_from_mouse_event,
@@ -368,7 +369,7 @@ fn install_window_events(web_runner: &WebRunner, window: &EventTarget) -> Result
 
     // We want to handle the case of dragging the browser from one monitor to another,
     // which can cause the DPR to change without any resize event (e.g. Safari).
-    install_dpr_change_event(web_runner);
+    install_dpr_change_event(web_runner)?;
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
         web_runner.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
@@ -413,10 +414,15 @@ fn install_dpr_change_event(web_runner: &WebRunner) -> Result<(), JsValue> {
         // It may be tempting to call `resize_observer.observe(&canvas)` here,
         // but unfortunately this has no effect.
 
-        install_dpr_change_event(web_runner);
+        if let Err(err) = install_dpr_change_event(web_runner) {
+            log::error!(
+                "Failed to install DPR change event: {}",
+                string_from_js_value(&err)
+            );
+        }
     };
 
-    let mut options = web_sys::AddEventListenerOptions::default();
+    let options = web_sys::AddEventListenerOptions::default();
     options.set_once(true);
     web_runner.add_event_listener_ex(&media_query_list, "change", &options, closure)
 }
