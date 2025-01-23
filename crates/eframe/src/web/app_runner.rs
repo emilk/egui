@@ -59,7 +59,7 @@ impl AppRunner {
 
         egui_ctx.options_mut(|o| {
             // On web by default egui follows the zoom factor of the browser,
-            // and lets the browser handle the zoom shortscuts.
+            // and lets the browser handle the zoom shortcuts.
             // A user can still zoom egui separately by calling [`egui::Context::set_zoom_factor`].
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
@@ -218,11 +218,13 @@ impl AppRunner {
 
         if super::DEBUG_RESIZE {
             log::info!(
-                "egui running at canvas size: {}x{} points, DPR: {}, zoom_factor: {}",
-                canvas_size.x,
-                canvas_size.y,
+                "egui running at canvas size: {}x{}, DPR: {}, zoom_factor: {}. egui size: {}x{} points",
+                self.canvas().width(),
+                self.canvas().height(),
                 super::native_pixels_per_point(),
                 self.egui_ctx.zoom_factor(),
+                canvas_size.x,
+                canvas_size.y,
             );
         }
 
