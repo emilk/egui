@@ -393,10 +393,14 @@ fn install_dpr_change_event(web_runner: &WebRunner) -> Result<(), JsValue> {
     let original_dpr = native_pixels_per_point();
 
     let window = web_sys::window().unwrap();
-    let media_query_list = window
-        .match_media(&format!("(resolution: {original_dpr}dppx)"))
-        .unwrap()
-        .unwrap();
+    let Some(media_query_list) =
+        window.match_media(&format!("(resolution: {original_dpr}dppx)"))?
+    else {
+        log::error!(
+            "Failed to create MediaQueryList: eframe won't be able to detect changes in DPR"
+        );
+        return Ok(());
+    };
 
     let closure = move |_: web_sys::Event, app_runner: &mut AppRunner, web_runner: &WebRunner| {
         let new_dpr = native_pixels_per_point();
