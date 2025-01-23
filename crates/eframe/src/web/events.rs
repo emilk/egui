@@ -829,59 +829,76 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
     Ok(())
 }
 
-/// Install a `ResizeObserver` to observe changes to the size of the canvas.
-///
-/// This is the only way to ensure a canvas size change without an associated window `resize` event
-/// actually results in a resize of the canvas.
+/// A `ResizeObserver` is used to observe changes to the size of the canvas.
 ///
 /// The resize observer is called the by the browser at `observe` time, instead of just on the first actual resize.
 /// We use that to trigger the first `request_animation_frame` _after_ updating the size of the canvas to the correct dimensions,
 /// to avoid [#4622](https://github.com/emilk/egui/issues/4622).
-pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    let closure = Closure::wrap(Box::new({
-        let runner_ref = runner_ref.clone();
-        move |entries: js_sys::Array| {
-            // Only call the wrapped closure if the egui code has not panicked
-            if let Some(mut runner_lock) = runner_ref.try_lock() {
-                let canvas = runner_lock.canvas();
-                let (width, height) = match get_display_size(&entries) {
-                    Ok(v) => v,
-                    Err(err) => {
-                        log::error!("{}", super::string_from_js_value(&err));
-                        return;
-                    }
-                };
+pub struct ResizeObserverContext {
+    observer: web_sys::ResizeObserver,
+
+    // Kept so it is not dropped until we are done with it.
+    _closure: Closure<dyn FnMut(js_sys::Array)>,
+}
+
+impl Drop for ResizeObserverContext {
+    fn drop(&mut self) {
+        self.observer.disconnect();
+    }
+}
+
+impl ResizeObserverContext {
+    pub fn new(runner_ref: &WebRunner) -> Result<Self, JsValue> {
+        let closure = Closure::wrap(Box::new({
+            let runner_ref = runner_ref.clone();
+            move |entries: js_sys::Array| {
                 if DEBUG_RESIZE {
-                    log::info!(
-                        "ResizeObserver: new canvas size: {width}x{height}, DPR: {}",
-                        web_sys::window().unwrap().device_pixel_ratio()
-                    );
+                    log::info!("ResizeObserverContext callback");
                 }
-                canvas.set_width(width);
-                canvas.set_height(height);
+                // Only call the wrapped closure if the egui code has not panicked
+                if let Some(mut runner_lock) = runner_ref.try_lock() {
+                    let canvas = runner_lock.canvas();
+                    let (width, height) = match get_display_size(&entries) {
+                        Ok(v) => v,
+                        Err(err) => {
+                            log::error!("{}", super::string_from_js_value(&err));
+                            return;
+                        }
+                    };
+                    if DEBUG_RESIZE {
+                        log::info!(
+                            "ResizeObserver: new canvas size: {width}x{height}, DPR: {}",
+                            web_sys::window().unwrap().device_pixel_ratio()
+                        );
+                    }
+                    canvas.set_width(width);
+                    canvas.set_height(height);
 
-                // force an immediate repaint
-                runner_lock.needs_repaint.repaint_asap();
-                paint_if_needed(&mut runner_lock);
-                drop(runner_lock);
-                // we rely on the resize observer to trigger the first `request_animation_frame`:
-                if let Err(err) = runner_ref.request_animation_frame() {
-                    log::error!("{}", super::string_from_js_value(&err));
-                };
+                    // force an immediate repaint
+                    runner_lock.needs_repaint.repaint_asap();
+                    paint_if_needed(&mut runner_lock);
+                    drop(runner_lock);
+                    // we rely on the resize observer to trigger the first `request_animation_frame`:
+                    if let Err(err) = runner_ref.request_animation_frame() {
+                        log::error!("{}", super::string_from_js_value(&err));
+                    };
+                }
             }
-        }
-    }) as Box<dyn FnMut(js_sys::Array)>);
+        }) as Box<dyn FnMut(js_sys::Array)>);
 
-    let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
-    let options = web_sys::ResizeObserverOptions::new();
-    options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
-    if let Some(runner_lock) = runner_ref.try_lock() {
-        observer.observe_with_options(runner_lock.canvas(), &options);
-        drop(runner_lock);
-        runner_ref.set_resize_observer(observer, closure);
+        let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
+
+        Ok(Self {
+            observer,
+            _closure: closure,
+        })
     }
 
-    Ok(())
+    pub fn observe(&self, canvas: &web_sys::HtmlCanvasElement) {
+        let options = web_sys::ResizeObserverOptions::new();
+        options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
+        self.observer.observe_with_options(canvas, &options);
+    }
 }
 
 // Code ported to Rust from:

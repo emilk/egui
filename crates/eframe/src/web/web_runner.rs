@@ -2,9 +2,13 @@ use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use crate::{epi, App};
+use crate::{epi, web::DEBUG_RESIZE, App};
 
-use super::{events, text_agent::TextAgent, AppRunner, PanicHandler};
+use super::{
+    events::{self, ResizeObserverContext},
+    text_agent::TextAgent,
+    AppRunner, PanicHandler,
+};
 
 /// This is how `eframe` runs your web application
 ///
@@ -18,7 +22,7 @@ pub struct WebRunner {
 
     /// If we ever panic during running, this `RefCell` is poisoned.
     /// So before we use it, we need to check [`Self::panic_handler`].
-    runner: Rc<RefCell<Option<AppRunner>>>,
+    app_runner: Rc<RefCell<Option<AppRunner>>>,
 
     /// In case of a panic, unsubscribe these.
     /// They have to be in a separate `Rc` so that we don't need to pass them to
@@ -39,7 +43,7 @@ impl WebRunner {
 
         Self {
             panic_handler,
-            runner: Rc::new(RefCell::new(None)),
+            app_runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
             frame: Default::default(),
             resize_observer: Default::default(),
@@ -58,27 +62,32 @@ impl WebRunner {
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let text_agent = TextAgent::attach(self)?;
-
-        let runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
-
         {
             // Make sure the canvas can be given focus.
             // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
-            runner.canvas().set_tab_index(0);
+            canvas.set_tab_index(0);
 
             // Don't outline the canvas when it has focus:
-            runner.canvas().style().set_property("outline", "none")?;
+            canvas.style().set_property("outline", "none")?;
         }
 
-        self.runner.replace(Some(runner));
+        let text_agent = TextAgent::attach(self)?;
 
         {
-            events::install_event_handlers(self)?;
+            let resize_observer = events::ResizeObserverContext::new(self)?;
 
-            // The resize observer handles calling `request_animation_frame` to start the render loop.
-            events::install_resize_observer(self)?;
+            // This will (eventually) result in a `request_animation_frame` to start the render loop.
+            resize_observer.observe(&canvas);
+
+            self.resize_observer.replace(Some(resize_observer));
         }
+
+        {
+            let app_runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
+            self.app_runner.replace(Some(app_runner));
+        }
+
+        events::install_event_handlers(self)?;
 
         Ok(())
     }
@@ -109,10 +118,7 @@ impl WebRunner {
             }
         }
 
-        if let Some(context) = self.resize_observer.take() {
-            context.resize_observer.disconnect();
-            drop(context.closure);
-        }
+        self.resize_observer.replace(None);
     }
 
     /// Shut down eframe and clean up resources.
@@ -124,7 +130,7 @@ impl WebRunner {
             window.cancel_animation_frame(frame.id).ok();
         }
 
-        if let Some(runner) = self.runner.replace(None) {
+        if let Some(runner) = self.app_runner.replace(None) {
             runner.destroy();
         }
     }
@@ -138,7 +144,7 @@ impl WebRunner {
             self.unsubscribe_from_all_events();
             None
         } else {
-            let lock = self.runner.try_borrow_mut().ok()?;
+            let lock = self.app_runner.try_borrow_mut().ok()?;
             std::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
                 .ok()
         }
@@ -226,19 +232,6 @@ impl WebRunner {
 
         Ok(())
     }
-
-    pub(crate) fn set_resize_observer(
-        &self,
-        resize_observer: web_sys::ResizeObserver,
-        closure: Closure<dyn FnMut(js_sys::Array)>,
-    ) {
-        self.resize_observer
-            .borrow_mut()
-            .replace(ResizeObserverContext {
-                resize_observer,
-                closure,
-            });
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -251,11 +244,6 @@ struct AnimationFrameRequest {
     /// The callback given to `request_animation_frame`, stored here both to prevent it
     /// from being canceled, and from having to `.forget()` it.
     _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
-}
-
-struct ResizeObserverContext {
-    resize_observer: web_sys::ResizeObserver,
-    closure: Closure<dyn FnMut(js_sys::Array)>,
 }
 
 struct TargetEvent {
