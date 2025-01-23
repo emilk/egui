@@ -216,6 +216,16 @@ impl AppRunner {
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
 
+        if super::DEBUG_RESIZE {
+            log::info!(
+                "egui running at canvas size: {}x{} points, DPR: {}, zoom_factor: {}",
+                canvas_size.x,
+                canvas_size.y,
+                super::native_pixels_per_point(),
+                self.egui_ctx.zoom_factor(),
+            );
+        }
+
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {

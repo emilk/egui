@@ -51,6 +51,9 @@ use input::{
 
 // ----------------------------------------------------------------------------
 
+/// Debug browser resizing?
+const DEBUG_RESIZE: bool = false;
+
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
 }

@@ -2,7 +2,7 @@ use super::{
     button_from_mouse_event, location_hash, modifiers_from_kb_event, modifiers_from_mouse_event,
     modifiers_from_wheel_event, pos_from_mouse_event, prefers_color_scheme_dark, primary_touch_pos,
     push_touches, text_from_keyboard_event, theme_from_dark_mode, translate_key, AppRunner,
-    Closure, JsCast, JsValue, WebRunner,
+    Closure, JsCast, JsValue, WebRunner, DEBUG_RESIZE,
 };
 use web_sys::EventTarget;
 
@@ -363,10 +363,26 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
         runner.save();
     })?;
 
-    // NOTE: resize is handled by `ResizeObserver` below
+    runner_ref.add_event_listener(window, "resize", move |_: web_sys::Event, runner| {
+        // NOTE: we also use the `ResizeObserver`, but it doesn't always trigger when
+        // the Device Pixel Ratio (DPR) changes, so we need to subscribe to the "resize" event as well.
+        if DEBUG_RESIZE {
+            log::debug!(
+                "Resize event, canvas size: {}x{}, DPR: {}",
+                runner.canvas().width(),
+                runner.canvas().height(),
+                web_sys::window().unwrap().device_pixel_ratio()
+            );
+        }
+        // TODO: trigger resize_observer.observe
+        // runner.needs_repaint.repaint_asap();
+    })?;
+
     for event_name in &["load", "pagehide", "pageshow"] {
         runner_ref.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
-            // log::debug!("{event_name:?}");
+            if DEBUG_RESIZE {
+                log::debug!("{event_name:?}");
+            }
             runner.needs_repaint.repaint_asap();
         })?;
     }
@@ -835,6 +851,12 @@ pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsVa
                         return;
                     }
                 };
+                if DEBUG_RESIZE {
+                    log::info!(
+                        "ResizeObserver: new canvas size: {width}x{height}, DPR: {}",
+                        web_sys::window().unwrap().device_pixel_ratio()
+                    );
+                }
                 canvas.set_width(width);
                 canvas.set_height(height);
 
@@ -878,6 +900,10 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
         width = size.inline_size();
         height = size.block_size();
         dpr = 1.0; // no need to apply
+
+        if DEBUG_RESIZE {
+            log::info!("devicePixelContentBoxSize {width}x{height}");
+        }
     } else if JsValue::from_str("contentBoxSize").js_in(entry.as_ref()) {
         let content_box_size = entry.content_box_size();
         let idx0 = content_box_size.at(0);
@@ -891,6 +917,9 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
             let size: web_sys::ResizeObserverSize = size.dyn_into()?;
             width = size.inline_size();
             height = size.block_size();
+        }
+        if DEBUG_RESIZE {
+            log::info!("contentBoxSize {width}x{height}");
         }
     } else {
         // legacy
