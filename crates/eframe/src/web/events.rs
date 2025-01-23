@@ -361,18 +361,20 @@ fn install_copy_cut_paste(runner_ref: &WebRunner, target: &EventTarget) -> Resul
     Ok(())
 }
 
-fn install_window_events(web_runner: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
+fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result<(), JsValue> {
     // Save-on-close
-    web_runner.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
+    runner_ref.add_event_listener(window, "onbeforeunload", |_: web_sys::Event, runner| {
         runner.save();
     })?;
 
     // We want to handle the case of dragging the browser from one monitor to another,
     // which can cause the DPR to change without any resize event (e.g. Safari).
-    install_dpr_change_event(web_runner)?;
+    install_dpr_change_event(runner_ref)?;
 
-    for event_name in &["load", "pagehide", "pageshow", "resize"] {
-        web_runner.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
+    // No need to subscribe to "resize": we already subscribe to the canvas
+    // size using a ResizeObserver, and we also subscribe to DPR changes of the monitor.
+    for event_name in &["load", "pagehide", "pageshow"] {
+        runner_ref.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
             if DEBUG_RESIZE {
                 log::debug!("{event_name:?}");
             }
@@ -380,7 +382,7 @@ fn install_window_events(web_runner: &WebRunner, window: &EventTarget) -> Result
         })?;
     }
 
-    web_runner.add_event_listener(window, "hashchange", |_: web_sys::Event, runner| {
+    runner_ref.add_event_listener(window, "hashchange", |_: web_sys::Event, runner| {
         // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
         runner.frame.info.web_info.location.hash = location_hash();
         runner.needs_repaint.repaint_asap(); // tell the user about the new hash
