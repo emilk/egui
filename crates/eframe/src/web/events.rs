@@ -890,7 +890,7 @@ impl ResizeObserverContext {
             let runner_ref = runner_ref.clone();
             move |entries: js_sys::Array| {
                 if DEBUG_RESIZE {
-                    // log::info!("ResizeObserverContext callback");
+                    log::info!("ResizeObserverContext callback");
                 }
                 // Only call the wrapped closure if the egui code has not panicked
                 if let Some(mut runner_lock) = runner_ref.try_lock() {
@@ -919,6 +919,8 @@ impl ResizeObserverContext {
                     if let Err(err) = runner_ref.request_animation_frame() {
                         log::error!("{}", super::string_from_js_value(&err));
                     };
+                } else {
+                    log::warn!("ResizeObserverContext callback: failed to lock runner");
                 }
             }
         }) as Box<dyn FnMut(js_sys::Array)>);
