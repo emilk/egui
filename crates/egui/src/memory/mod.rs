@@ -581,10 +581,12 @@ impl Focus {
                 } = event
                 {
                     if let Some(cardinality) = match key {
-                        crate::Key::ArrowUp => Some(FocusDirection::Up),
-                        crate::Key::ArrowRight => Some(FocusDirection::Right),
-                        crate::Key::ArrowDown => Some(FocusDirection::Down),
-                        crate::Key::ArrowLeft => Some(FocusDirection::Left),
+                        crate::Key::ArrowUp if modifiers.is_none() => Some(FocusDirection::Up),
+                        crate::Key::ArrowRight if modifiers.is_none() => {
+                            Some(FocusDirection::Right)
+                        }
+                        crate::Key::ArrowDown if modifiers.is_none() => Some(FocusDirection::Down),
+                        crate::Key::ArrowLeft if modifiers.is_none() => Some(FocusDirection::Left),
 
                         crate::Key::Tab => {
                             if modifiers.shift {
