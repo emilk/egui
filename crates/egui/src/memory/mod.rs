@@ -572,7 +572,7 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
 
         for event in &new_input.events {
-            if !event_filter.matches(event) {
+            if !event_filter.matches_focus(event) {
                 if let crate::Event::Key {
                     key,
                     pressed: true,
