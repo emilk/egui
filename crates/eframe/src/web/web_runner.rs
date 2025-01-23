@@ -71,23 +71,26 @@ impl WebRunner {
             canvas.style().set_property("outline", "none")?;
         }
 
-        let text_agent = TextAgent::attach(self)?;
+        {
+            // First set up the app runner:
+            let text_agent = TextAgent::attach(self)?;
+            let app_runner =
+                AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
+            self.app_runner.replace(Some(app_runner));
+        }
 
         {
             let resize_observer = events::ResizeObserverContext::new(self)?;
 
-            // This will (eventually) result in a `request_animation_frame` to start the render loop.
+            // Properly size the canvas. Will also call `self.request_animation_frame()` (eventually)
             resize_observer.observe(&canvas);
 
             self.resize_observer.replace(Some(resize_observer));
         }
 
-        {
-            let app_runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
-            self.app_runner.replace(Some(app_runner));
-        }
-
         events::install_event_handlers(self)?;
+
+        log::info!("event handlers installed.");
 
         Ok(())
     }
