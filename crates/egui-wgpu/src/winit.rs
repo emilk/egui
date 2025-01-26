@@ -27,7 +27,7 @@ pub struct Painter {
     depth_format: Option<wgpu::TextureFormat>,
     screen_capture_state: Option<CaptureState>,
 
-    instance: Arc<wgpu::Instance>,
+    instance: wgpu::Instance,
     render_state: Option<RenderState>,
 
     // Per viewport/window:

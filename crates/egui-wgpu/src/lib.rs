@@ -63,21 +63,20 @@ pub enum WgpuError {
 #[derive(Clone)]
 pub struct RenderState {
     /// Wgpu adapter used for rendering.
-    pub adapter: Arc<wgpu::Adapter>,
+    pub adapter: wgpu::Adapter,
 
     /// All the available adapters.
     ///
     /// This is not available on web.
     /// On web, we always select WebGPU is available, then fall back to WebGL if not.
-    // TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24
     #[cfg(not(target_arch = "wasm32"))]
-    pub available_adapters: Arc<[Arc<wgpu::Adapter>]>,
+    pub available_adapters: Vec<wgpu::Adapter>,
 
     /// Wgpu device used for rendering, created from the adapter.
-    pub device: Arc<wgpu::Device>,
+    pub device: wgpu::Device,
 
     /// Wgpu queue used for rendering, created from the adapter.
-    pub queue: Arc<wgpu::Queue>,
+    pub queue: wgpu::Queue,
 
     /// The target texture format used for presenting to the window.
     pub target_format: wgpu::TextureFormat,
@@ -90,8 +89,8 @@ async fn request_adapter(
     instance: &wgpu::Instance,
     power_preference: wgpu::PowerPreference,
     compatible_surface: Option<&wgpu::Surface<'_>>,
-    _available_adapters: &[Arc<wgpu::Adapter>],
-) -> Result<Arc<wgpu::Adapter>, WgpuError> {
+    _available_adapters: &[wgpu::Adapter],
+) -> Result<wgpu::Adapter, WgpuError> {
     profiling::function_scope!();
 
     let adapter = instance
@@ -149,10 +148,7 @@ async fn request_adapter(
         );
     }
 
-    // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
-    // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-    #[allow(clippy::arc_with_non_send_sync)]
-    Ok(Arc::new(adapter))
+    Ok(adapter)
 }
 
 impl RenderState {
@@ -179,12 +175,7 @@ impl RenderState {
                 wgpu::Backends::all()
             };
 
-            instance
-                .enumerate_adapters(backends)
-                // TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here once we update to wgpu 24.
-                .into_iter()
-                .map(Arc::new)
-                .collect::<Vec<_>>()
+            instance.enumerate_adapters(backends)
         };
 
         let (adapter, device, queue) = match config.wgpu_setup.clone() {
@@ -222,10 +213,7 @@ impl RenderState {
                         .await?
                 };
 
-                // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
-                // It doesn't make sense to switch to Rc for that special usecase, so simply disable the lint.
-                #[allow(clippy::arc_with_non_send_sync)]
-                (adapter, Arc::new(device), Arc::new(queue))
+                (adapter, device, queue)
             }
             WgpuSetup::Existing(WgpuSetupExisting {
                 instance: _,
@@ -258,7 +246,7 @@ impl RenderState {
         Ok(Self {
             adapter,
             #[cfg(not(target_arch = "wasm32"))]
-            available_adapters: available_adapters.into(),
+            available_adapters,
             device,
             queue,
             target_format,
@@ -268,7 +256,7 @@ impl RenderState {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn describe_adapters(adapters: &[Arc<wgpu::Adapter>]) -> String {
+fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     if adapters.is_empty() {
         "(none)".to_owned()
     } else if adapters.len() == 1 {

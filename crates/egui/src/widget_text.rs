@@ -22,7 +22,7 @@ use crate::{
 /// RichText::new("colored").color(Color32::RED);
 /// RichText::new("Large and underlined").size(20.0).underline();
 /// ```
-#[derive(Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct RichText {
     text: String,
     size: Option<f32>,

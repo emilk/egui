@@ -200,7 +200,6 @@ fn special_char_name(chr: char) -> Option<&'static str> {
         '\u{E600}' => Some("web-dribbble"),
         '\u{E601}' => Some("web-stackoverflow"),
         '\u{E602}' => Some("web-vimeo"),
-        '\u{E603}' => Some("web-twitter"),
         '\u{E604}' => Some("web-facebook"),
         '\u{E605}' => Some("web-googleplus"),
         '\u{E606}' => Some("web-pinterest"),

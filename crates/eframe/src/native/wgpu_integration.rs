@@ -323,7 +323,7 @@ impl<'app> WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WinitApp for WgpuWinitApp<'app> {
+impl WinitApp for WgpuWinitApp<'_> {
     fn egui_ctx(&self) -> Option<&egui::Context> {
         self.running.as_ref().map(|r| &r.integration.egui_ctx)
     }
@@ -494,8 +494,8 @@ impl<'app> WinitApp for WgpuWinitApp<'app> {
     }
 }
 
-impl<'app> WgpuWinitRunning<'app> {
-    /// Saves the application state. Set `force_save_without_window` to `true` if the state should be saved even if no window is associated to the application (this happens on Android when the `suspended` event is received).
+impl WgpuWinitRunning<'_> {
+    /// Saves the application state
     fn save(&mut self) {
         let shared = self.shared.borrow();
         // This is done because of the "save on suspend" logic on Android. Once the application is suspended, there is no window associated to it.

@@ -618,7 +618,7 @@ impl Response {
         let any_open_popups = self.ctx.prev_pass_state(|fs| {
             fs.layers
                 .get(&self.layer_id)
-                .map_or(false, |layer| !layer.open_popups.is_empty())
+                .is_some_and(|layer| !layer.open_popups.is_empty())
         });
         if any_open_popups {
             // Hide tooltips if the user opens a popup (menu, combo-box, etc) in the same layer.

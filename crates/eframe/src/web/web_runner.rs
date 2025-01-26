@@ -4,7 +4,11 @@ use wasm_bindgen::prelude::*;
 
 use crate::{epi, App};
 
-use super::{events, text_agent::TextAgent, AppRunner, PanicHandler};
+use super::{
+    events::{self, ResizeObserverContext},
+    text_agent::TextAgent,
+    AppRunner, PanicHandler,
+};
 
 /// This is how `eframe` runs your web application
 ///
@@ -18,7 +22,7 @@ pub struct WebRunner {
 
     /// If we ever panic during running, this `RefCell` is poisoned.
     /// So before we use it, we need to check [`Self::panic_handler`].
-    runner: Rc<RefCell<Option<AppRunner>>>,
+    app_runner: Rc<RefCell<Option<AppRunner>>>,
 
     /// In case of a panic, unsubscribe these.
     /// They have to be in a separate `Rc` so that we don't need to pass them to
@@ -39,7 +43,7 @@ impl WebRunner {
 
         Self {
             panic_handler,
-            runner: Rc::new(RefCell::new(None)),
+            app_runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
             frame: Default::default(),
             resize_observer: Default::default(),
@@ -58,27 +62,35 @@ impl WebRunner {
     ) -> Result<(), JsValue> {
         self.destroy();
 
-        let text_agent = TextAgent::attach(self)?;
-
-        let runner = AppRunner::new(canvas, web_options, app_creator, text_agent).await?;
-
         {
             // Make sure the canvas can be given focus.
             // https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex
-            runner.canvas().set_tab_index(0);
+            canvas.set_tab_index(0);
 
             // Don't outline the canvas when it has focus:
-            runner.canvas().style().set_property("outline", "none")?;
+            canvas.style().set_property("outline", "none")?;
         }
-
-        self.runner.replace(Some(runner));
 
         {
-            events::install_event_handlers(self)?;
-
-            // The resize observer handles calling `request_animation_frame` to start the render loop.
-            events::install_resize_observer(self)?;
+            // First set up the app runner:
+            let text_agent = TextAgent::attach(self)?;
+            let app_runner =
+                AppRunner::new(canvas.clone(), web_options, app_creator, text_agent).await?;
+            self.app_runner.replace(Some(app_runner));
         }
+
+        {
+            let resize_observer = events::ResizeObserverContext::new(self)?;
+
+            // Properly size the canvas. Will also call `self.request_animation_frame()` (eventually)
+            resize_observer.observe(&canvas);
+
+            self.resize_observer.replace(Some(resize_observer));
+        }
+
+        events::install_event_handlers(self)?;
+
+        log::info!("event handlers installed.");
 
         Ok(())
     }
@@ -109,10 +121,7 @@ impl WebRunner {
             }
         }
 
-        if let Some(context) = self.resize_observer.take() {
-            context.resize_observer.disconnect();
-            drop(context.closure);
-        }
+        self.resize_observer.replace(None);
     }
 
     /// Shut down eframe and clean up resources.
@@ -124,7 +133,7 @@ impl WebRunner {
             window.cancel_animation_frame(frame.id).ok();
         }
 
-        if let Some(runner) = self.runner.replace(None) {
+        if let Some(runner) = self.app_runner.replace(None) {
             runner.destroy();
         }
     }
@@ -138,7 +147,7 @@ impl WebRunner {
             self.unsubscribe_from_all_events();
             None
         } else {
-            let lock = self.runner.try_borrow_mut().ok()?;
+            let lock = self.app_runner.try_borrow_mut().ok()?;
             std::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
                 .ok()
         }
@@ -166,20 +175,45 @@ impl WebRunner {
         event_name: &'static str,
         mut closure: impl FnMut(E, &mut AppRunner) + 'static,
     ) -> Result<(), wasm_bindgen::JsValue> {
-        let runner_ref = self.clone();
+        let options = web_sys::AddEventListenerOptions::default();
+        self.add_event_listener_ex(
+            target,
+            event_name,
+            &options,
+            move |event, app_runner, _web_runner| closure(event, app_runner),
+        )
+    }
+
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way.
+    ///
+    /// All events added with this method will automatically be unsubscribed on panic,
+    /// or when [`Self::destroy`] is called.
+    pub fn add_event_listener_ex<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &web_sys::EventTarget,
+        event_name: &'static str,
+        options: &web_sys::AddEventListenerOptions,
+        mut closure: impl FnMut(E, &mut AppRunner, &Self) + 'static,
+    ) -> Result<(), wasm_bindgen::JsValue> {
+        let web_runner = self.clone();
 
         // Create a JS closure based on the FnMut provided
         let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
             // Only call the wrapped closure if the egui code has not panicked
-            if let Some(mut runner_lock) = runner_ref.try_lock() {
+            if let Some(mut runner_lock) = web_runner.try_lock() {
                 // Cast the event to the expected event type
                 let event = event.unchecked_into::<E>();
-                closure(event, &mut runner_lock);
+                closure(event, &mut runner_lock, &web_runner);
             }
         }) as Box<dyn FnMut(web_sys::Event)>);
 
         // Add the event listener to the target
-        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+        target.add_event_listener_with_callback_and_add_event_listener_options(
+            event_name,
+            closure.as_ref().unchecked_ref(),
+            options,
+        )?;
 
         let handle = TargetEvent {
             target: target.clone(),
@@ -208,13 +242,13 @@ impl WebRunner {
 
         let window = web_sys::window().unwrap();
         let closure = Closure::once({
-            let runner_ref = self.clone();
+            let web_runner = self.clone();
             move || {
                 // We can paint now, so clear the animation frame.
                 // This drops the `closure` and allows another
                 // animation frame to be scheduled
-                let _ = runner_ref.frame.take();
-                events::paint_and_schedule(&runner_ref)
+                let _ = web_runner.frame.take();
+                events::paint_and_schedule(&web_runner)
             }
         });
 
@@ -225,19 +259,6 @@ impl WebRunner {
         });
 
         Ok(())
-    }
-
-    pub(crate) fn set_resize_observer(
-        &self,
-        resize_observer: web_sys::ResizeObserver,
-        closure: Closure<dyn FnMut(js_sys::Array)>,
-    ) {
-        self.resize_observer
-            .borrow_mut()
-            .replace(ResizeObserverContext {
-                resize_observer,
-                closure,
-            });
     }
 }
 
@@ -251,11 +272,6 @@ struct AnimationFrameRequest {
     /// The callback given to `request_animation_frame`, stored here both to prevent it
     /// from being canceled, and from having to `.forget()` it.
     _closure: Closure<dyn FnMut() -> Result<(), JsValue>>,
-}
-
-struct ResizeObserverContext {
-    resize_observer: web_sys::ResizeObserver,
-    closure: Closure<dyn FnMut(js_sys::Array)>,
 }
 
 struct TargetEvent {

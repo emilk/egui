@@ -23,7 +23,7 @@ members = [
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.80"
+rust-version = "1.81"
 version = "0.30.0"
 
 
@@ -100,7 +100,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"
 web-time = "1.1.0" # Timekeeping for native and web
-wgpu = { version = "23.0.0", default-features = false }
+wgpu = { version = "24.0.0", default-features = false }
 windows-sys = "0.59"
 winit = { version = "0.30.7", default-features = false }
 
@@ -114,6 +114,7 @@ rust_2018_idioms = { level = "warn", priority = -1 }
 rust_2021_prelude_collisions = "warn"
 semicolon_in_expressions_from_macros = "warn"
 trivial_numeric_casts = "warn"
+unexpected_cfgs = "warn"
 unsafe_op_in_unsafe_fn = "warn"                         # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
 unused_extern_crates = "warn"
 unused_import_braces = "warn"
@@ -203,7 +204,6 @@ match_same_arms = "warn"
 match_wild_err_arm = "warn"
 match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
-mismatched_target_os = "warn"
 mismatching_type_param_order = "warn"
 missing_enforced_import_renames = "warn"
 missing_errors_doc = "warn"

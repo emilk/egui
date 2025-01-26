@@ -878,20 +878,6 @@ pub trait Storage {
     fn flush(&mut self);
 }
 
-/// Stores nothing.
-#[derive(Clone, Default)]
-pub(crate) struct DummyStorage {}
-
-impl Storage for DummyStorage {
-    fn get_string(&self, _key: &str) -> Option<String> {
-        None
-    }
-
-    fn set_string(&mut self, _key: &str, _value: String) {}
-
-    fn flush(&mut self) {}
-}
-
 /// Get and deserialize the [RON](https://github.com/ron-rs/ron) stored at the given key.
 #[cfg(feature = "ron")]
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {

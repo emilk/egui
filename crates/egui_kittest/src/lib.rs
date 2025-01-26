@@ -68,7 +68,7 @@ pub struct Harness<'a, State = ()> {
     step_dt: f32,
 }
 
-impl<'a, State> Debug for Harness<'a, State> {
+impl<State> Debug for Harness<'_, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.kittest.fmt(f)
     }
@@ -402,6 +402,7 @@ impl<'a, State> Harness<'a, State> {
     ///
     /// # Errors
     /// Returns an error if the rendering fails.
+    #[cfg(any(feature = "wgpu", feature = "snapshot"))]
     pub fn render(&mut self) -> Result<image::RgbaImage, String> {
         self.renderer.render(&self.ctx, &self.output)
     }
@@ -461,7 +462,7 @@ impl<'a> Harness<'a> {
     }
 }
 
-impl<'t, 'n, 'h, State> Queryable<'t, 'n> for Harness<'h, State>
+impl<'t, 'n, State> Queryable<'t, 'n> for Harness<'_, State>
 where
     'n: 't,
 {

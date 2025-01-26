@@ -1,5 +1,4 @@
 use crate::app_kind::AppKind;
-use crate::wgpu::WgpuTestRenderer;
 use crate::{Harness, LazyRenderer, TestRenderer};
 use egui::{Pos2, Rect, Vec2};
 use std::marker::PhantomData;
@@ -75,16 +74,16 @@ impl<State> HarnessBuilder<State> {
 
     /// Enable wgpu rendering with a default setup suitable for testing.
     ///
-    /// This sets up a [`WgpuTestRenderer`] with the default setup.
+    /// This sets up a [`crate::wgpu::WgpuTestRenderer`] with the default setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu(self) -> Self {
-        self.renderer(WgpuTestRenderer::default())
+        self.renderer(crate::wgpu::WgpuTestRenderer::default())
     }
 
     /// Enable wgpu rendering with the given setup.
     #[cfg(feature = "wgpu")]
     pub fn wgpu_setup(self, setup: egui_wgpu::WgpuSetup) -> Self {
-        self.renderer(WgpuTestRenderer::from_setup(setup))
+        self.renderer(crate::wgpu::WgpuTestRenderer::from_setup(setup))
     }
 
     /// Create a new Harness with the given app closure and a state.

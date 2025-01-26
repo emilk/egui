@@ -228,7 +228,7 @@ impl TextBuffer for String {
     }
 }
 
-impl<'a> TextBuffer for Cow<'a, str> {
+impl TextBuffer for Cow<'_, str> {
     fn is_mutable(&self) -> bool {
         true
     }
@@ -259,7 +259,7 @@ impl<'a> TextBuffer for Cow<'a, str> {
 }
 
 /// Immutable view of a `&str`!
-impl<'a> TextBuffer for &'a str {
+impl TextBuffer for &str {
     fn is_mutable(&self) -> bool {
         false
     }

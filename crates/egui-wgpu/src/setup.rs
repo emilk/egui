@@ -45,7 +45,7 @@ impl WgpuSetup {
     ///
     /// Does *not* store the wgpu instance, so calling this repeatedly may
     /// create a new instance every time!
-    pub async fn new_instance(&self) -> Arc<wgpu::Instance> {
+    pub async fn new_instance(&self) -> wgpu::Instance {
         match self {
             Self::CreateNew(create_new) => {
                 #[allow(unused_mut)]
@@ -55,7 +55,7 @@ impl WgpuSetup {
                 #[cfg(target_arch = "wasm32")]
                 if backends.contains(wgpu::Backends::BROWSER_WEBGPU) {
                     let is_secure_context =
-                        wgpu::web_sys::window().map_or(false, |w| w.is_secure_context());
+                        wgpu::web_sys::window().is_some_and(|w| w.is_secure_context());
                     if !is_secure_context {
                         log::info!(
                             "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost."
@@ -65,20 +65,8 @@ impl WgpuSetup {
                 }
 
                 log::debug!("Creating wgpu instance with backends {:?}", backends);
-
-                #[allow(clippy::arc_with_non_send_sync)]
-                Arc::new(
-                    wgpu::util::new_instance_with_webgpu_detection(wgpu::InstanceDescriptor {
-                        backends: create_new.instance_descriptor.backends,
-                        flags: create_new.instance_descriptor.flags,
-                        dx12_shader_compiler: create_new
-                            .instance_descriptor
-                            .dx12_shader_compiler
-                            .clone(),
-                        gles_minor_version: create_new.instance_descriptor.gles_minor_version,
-                    })
-                    .await,
-                )
+                wgpu::util::new_instance_with_webgpu_detection(&create_new.instance_descriptor)
+                    .await
             }
             Self::Existing(existing) => existing.instance.clone(),
         }
@@ -101,9 +89,8 @@ impl From<WgpuSetupExisting> for WgpuSetup {
 ///
 /// This can be used for fully custom adapter selection.
 /// If available, `wgpu::Surface` is passed to allow checking for surface compatibility.
-// TODO(gfx-rs/wgpu#6665): Remove layer of `Arc` here.
 pub type NativeAdapterSelectorMethod = Arc<
-    dyn Fn(&[Arc<wgpu::Adapter>], Option<&wgpu::Surface<'_>>) -> Result<Arc<wgpu::Adapter>, String>
+    dyn Fn(&[wgpu::Adapter], Option<&wgpu::Surface<'_>>) -> Result<wgpu::Adapter, String>
         + Send
         + Sync,
 >;
@@ -151,13 +138,7 @@ pub struct WgpuSetupCreateNew {
 impl Clone for WgpuSetupCreateNew {
     fn clone(&self) -> Self {
         Self {
-            // TODO(gfx-rs/wgpu/#6849): use .clone()
-            instance_descriptor: wgpu::InstanceDescriptor {
-                backends: self.instance_descriptor.backends,
-                flags: self.instance_descriptor.flags,
-                dx12_shader_compiler: self.instance_descriptor.dx12_shader_compiler.clone(),
-                gles_minor_version: self.instance_descriptor.gles_minor_version,
-            },
+            instance_descriptor: self.instance_descriptor.clone(),
             power_preference: self.power_preference,
             native_adapter_selector: self.native_adapter_selector.clone(),
             device_descriptor: self.device_descriptor.clone(),
@@ -186,14 +167,13 @@ impl Default for WgpuSetupCreateNew {
             instance_descriptor: wgpu::InstanceDescriptor {
                 // Add GL backend, primarily because WebGPU is not stable enough yet.
                 // (note however, that the GL backend needs to be opted-in via the wgpu feature flag "webgl")
-                backends: wgpu::util::backend_bits_from_env()
+                backends: wgpu::Backends::from_env()
                     .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
                 flags: wgpu::InstanceFlags::from_build_config().with_env(),
-                dx12_shader_compiler: wgpu::Dx12Compiler::default(),
-                gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
+                backend_options: wgpu::BackendOptions::from_env_or_default(),
             },
 
-            power_preference: wgpu::util::power_preference_from_env()
+            power_preference: wgpu::PowerPreference::from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
 
             native_adapter_selector: None,
@@ -230,8 +210,8 @@ impl Default for WgpuSetupCreateNew {
 /// Used for [`WgpuSetup::Existing`].
 #[derive(Clone)]
 pub struct WgpuSetupExisting {
-    pub instance: Arc<wgpu::Instance>,
-    pub adapter: Arc<wgpu::Adapter>,
-    pub device: Arc<wgpu::Device>,
-    pub queue: Arc<wgpu::Queue>,
+    pub instance: wgpu::Instance,
+    pub adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
 }

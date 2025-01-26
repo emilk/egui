@@ -415,7 +415,7 @@ impl<'open> Window<'open> {
     }
 }
 
-impl<'open> Window<'open> {
+impl Window<'_> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]

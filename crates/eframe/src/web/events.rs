@@ -1,10 +1,14 @@
+use web_sys::EventTarget;
+
+use crate::web::string_from_js_value;
+
 use super::{
     button_from_mouse_event, location_hash, modifiers_from_kb_event, modifiers_from_mouse_event,
-    modifiers_from_wheel_event, pos_from_mouse_event, prefers_color_scheme_dark, primary_touch_pos,
-    push_touches, text_from_keyboard_event, theme_from_dark_mode, translate_key, AppRunner,
-    Closure, JsCast, JsValue, WebRunner,
+    modifiers_from_wheel_event, native_pixels_per_point, pos_from_mouse_event,
+    prefers_color_scheme_dark, primary_touch_pos, push_touches, text_from_keyboard_event,
+    theme_from_dark_mode, translate_key, AppRunner, Closure, JsCast, JsValue, WebRunner,
+    DEBUG_RESIZE,
 };
-use web_sys::EventTarget;
 
 // TODO(emilk): there are more calls to `prevent_default` and `stop_propagation`
 // than what is probably needed.
@@ -363,10 +367,17 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
         runner.save();
     })?;
 
-    // NOTE: resize is handled by `ResizeObserver` below
+    // We want to handle the case of dragging the browser from one monitor to another,
+    // which can cause the DPR to change without any resize event (e.g. Safari).
+    install_dpr_change_event(runner_ref)?;
+
+    // No need to subscribe to "resize": we already subscribe to the canvas
+    // size using a ResizeObserver, and we also subscribe to DPR changes of the monitor.
     for event_name in &["load", "pagehide", "pageshow"] {
         runner_ref.add_event_listener(window, event_name, move |_: web_sys::Event, runner| {
-            // log::debug!("{event_name:?}");
+            if DEBUG_RESIZE {
+                log::debug!("{event_name:?}");
+            }
             runner.needs_repaint.repaint_asap();
         })?;
     }
@@ -378,6 +389,48 @@ fn install_window_events(runner_ref: &WebRunner, window: &EventTarget) -> Result
     })?;
 
     Ok(())
+}
+
+fn install_dpr_change_event(web_runner: &WebRunner) -> Result<(), JsValue> {
+    let original_dpr = native_pixels_per_point();
+
+    let window = web_sys::window().unwrap();
+    let Some(media_query_list) =
+        window.match_media(&format!("(resolution: {original_dpr}dppx)"))?
+    else {
+        log::error!(
+            "Failed to create MediaQueryList: eframe won't be able to detect changes in DPR"
+        );
+        return Ok(());
+    };
+
+    let closure = move |_: web_sys::Event, app_runner: &mut AppRunner, web_runner: &WebRunner| {
+        let new_dpr = native_pixels_per_point();
+        log::debug!("Device Pixel Ratio changed from {original_dpr} to {new_dpr}");
+
+        if true {
+            // Explicitly resize canvas to match the new DPR.
+            // This is a bit ugly, but I haven't found a better way to do it.
+            let canvas = app_runner.canvas();
+            canvas.set_width((canvas.width() as f32 * new_dpr / original_dpr).round() as _);
+            canvas.set_height((canvas.height() as f32 * new_dpr / original_dpr).round() as _);
+            log::debug!("Resized canvas to {}x{}", canvas.width(), canvas.height());
+        }
+
+        // It may be tempting to call `resize_observer.observe(&canvas)` here,
+        // but unfortunately this has no effect.
+
+        if let Err(err) = install_dpr_change_event(web_runner) {
+            log::error!(
+                "Failed to install DPR change event: {}",
+                string_from_js_value(&err)
+            );
+        }
+    };
+
+    let options = web_sys::AddEventListenerOptions::default();
+    options.set_once(true);
+    web_runner.add_event_listener_ex(&media_query_list, "change", &options, closure)
 }
 
 fn install_color_scheme_change_event(
@@ -813,53 +866,81 @@ fn install_drag_and_drop(runner_ref: &WebRunner, target: &EventTarget) -> Result
     Ok(())
 }
 
-/// Install a `ResizeObserver` to observe changes to the size of the canvas.
-///
-/// This is the only way to ensure a canvas size change without an associated window `resize` event
-/// actually results in a resize of the canvas.
+/// A `ResizeObserver` is used to observe changes to the size of the canvas.
 ///
 /// The resize observer is called the by the browser at `observe` time, instead of just on the first actual resize.
 /// We use that to trigger the first `request_animation_frame` _after_ updating the size of the canvas to the correct dimensions,
 /// to avoid [#4622](https://github.com/emilk/egui/issues/4622).
-pub(crate) fn install_resize_observer(runner_ref: &WebRunner) -> Result<(), JsValue> {
-    let closure = Closure::wrap(Box::new({
-        let runner_ref = runner_ref.clone();
-        move |entries: js_sys::Array| {
-            // Only call the wrapped closure if the egui code has not panicked
-            if let Some(mut runner_lock) = runner_ref.try_lock() {
-                let canvas = runner_lock.canvas();
-                let (width, height) = match get_display_size(&entries) {
-                    Ok(v) => v,
-                    Err(err) => {
-                        log::error!("{}", super::string_from_js_value(&err));
-                        return;
+pub struct ResizeObserverContext {
+    observer: web_sys::ResizeObserver,
+
+    // Kept so it is not dropped until we are done with it.
+    _closure: Closure<dyn FnMut(js_sys::Array)>,
+}
+
+impl Drop for ResizeObserverContext {
+    fn drop(&mut self) {
+        self.observer.disconnect();
+    }
+}
+
+impl ResizeObserverContext {
+    pub fn new(runner_ref: &WebRunner) -> Result<Self, JsValue> {
+        let closure = Closure::wrap(Box::new({
+            let runner_ref = runner_ref.clone();
+            move |entries: js_sys::Array| {
+                if DEBUG_RESIZE {
+                    log::info!("ResizeObserverContext callback");
+                }
+                // Only call the wrapped closure if the egui code has not panicked
+                if let Some(mut runner_lock) = runner_ref.try_lock() {
+                    let canvas = runner_lock.canvas();
+                    let (width, height) = match get_display_size(&entries) {
+                        Ok(v) => v,
+                        Err(err) => {
+                            log::error!("{}", super::string_from_js_value(&err));
+                            return;
+                        }
+                    };
+                    if DEBUG_RESIZE {
+                        log::info!(
+                            "ResizeObserver: new canvas size: {width}x{height}, DPR: {}",
+                            web_sys::window().unwrap().device_pixel_ratio()
+                        );
                     }
-                };
-                canvas.set_width(width);
-                canvas.set_height(height);
+                    canvas.set_width(width);
+                    canvas.set_height(height);
 
-                // force an immediate repaint
-                runner_lock.needs_repaint.repaint_asap();
-                paint_if_needed(&mut runner_lock);
-                drop(runner_lock);
-                // we rely on the resize observer to trigger the first `request_animation_frame`:
-                if let Err(err) = runner_ref.request_animation_frame() {
-                    log::error!("{}", super::string_from_js_value(&err));
-                };
+                    // force an immediate repaint
+                    runner_lock.needs_repaint.repaint_asap();
+                    paint_if_needed(&mut runner_lock);
+                    drop(runner_lock);
+                    // we rely on the resize observer to trigger the first `request_animation_frame`:
+                    if let Err(err) = runner_ref.request_animation_frame() {
+                        log::error!("{}", super::string_from_js_value(&err));
+                    };
+                } else {
+                    log::warn!("ResizeObserverContext callback: failed to lock runner");
+                }
             }
-        }
-    }) as Box<dyn FnMut(js_sys::Array)>);
+        }) as Box<dyn FnMut(js_sys::Array)>);
 
-    let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
-    let options = web_sys::ResizeObserverOptions::new();
-    options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
-    if let Some(runner_lock) = runner_ref.try_lock() {
-        observer.observe_with_options(runner_lock.canvas(), &options);
-        drop(runner_lock);
-        runner_ref.set_resize_observer(observer, closure);
+        let observer = web_sys::ResizeObserver::new(closure.as_ref().unchecked_ref())?;
+
+        Ok(Self {
+            observer,
+            _closure: closure,
+        })
     }
 
-    Ok(())
+    pub fn observe(&self, canvas: &web_sys::HtmlCanvasElement) {
+        if DEBUG_RESIZE {
+            log::info!("Calling observe on canvas…");
+        }
+        let options = web_sys::ResizeObserverOptions::new();
+        options.set_box(web_sys::ResizeObserverBoxOptions::ContentBox);
+        self.observer.observe_with_options(canvas, &options);
+    }
 }
 
 // Code ported to Rust from:
@@ -878,6 +959,10 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
         width = size.inline_size();
         height = size.block_size();
         dpr = 1.0; // no need to apply
+
+        if DEBUG_RESIZE {
+            // log::info!("devicePixelContentBoxSize {width}x{height}");
+        }
     } else if JsValue::from_str("contentBoxSize").js_in(entry.as_ref()) {
         let content_box_size = entry.content_box_size();
         let idx0 = content_box_size.at(0);
@@ -891,6 +976,9 @@ fn get_display_size(resize_observer_entries: &js_sys::Array) -> Result<(u32, u32
             let size: web_sys::ResizeObserverSize = size.dyn_into()?;
             width = size.inline_size();
             height = size.block_size();
+        }
+        if DEBUG_RESIZE {
+            log::info!("contentBoxSize {width}x{height}");
         }
     } else {
         // legacy
