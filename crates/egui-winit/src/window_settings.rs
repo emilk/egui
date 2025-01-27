@@ -13,6 +13,8 @@ pub struct WindowSettings {
 
     fullscreen: bool,
 
+    maximized: bool,
+
     /// Inner size of window in logical pixels
     inner_size_points: Option<egui::Vec2>,
 }
@@ -38,6 +40,7 @@ impl WindowSettings {
             outer_position_pixels,
 
             fullscreen: window.fullscreen().is_some(),
+            maximized: window.is_maximized(),
 
             inner_size_points: Some(egui::vec2(
                 inner_size_points.width,
@@ -80,7 +83,8 @@ impl WindowSettings {
         if let Some(inner_size_points) = self.inner_size_points {
             viewport_builder = viewport_builder
                 .with_inner_size(inner_size_points)
-                .with_fullscreen(self.fullscreen);
+                .with_fullscreen(self.fullscreen)
+                .with_maximized(self.maximized);
         }
 
         viewport_builder

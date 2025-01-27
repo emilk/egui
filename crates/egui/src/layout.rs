@@ -1,3 +1,5 @@
+use emath::GuiRounding as _;
+
 use crate::{
     emath::{pos2, vec2, Align2, NumExt, Pos2, Rect, Vec2},
     Align,
@@ -394,7 +396,7 @@ impl Layout {
     pub fn align_size_within_rect(&self, size: Vec2, outer: Rect) -> Rect {
         debug_assert!(size.x >= 0.0 && size.y >= 0.0);
         debug_assert!(!outer.is_negative());
-        self.align2().align_size_within_rect(size, outer)
+        self.align2().align_size_within_rect(size, outer).round_ui()
     }
 
     fn initial_cursor(&self, max_rect: Rect) -> Rect {
@@ -634,7 +636,7 @@ impl Layout {
         debug_assert!(!frame_rect.any_nan());
         debug_assert!(!frame_rect.is_negative());
 
-        frame_rect
+        frame_rect.round_ui()
     }
 
     /// Apply justify (fill width/height) and/or alignment after calling `next_space`.

@@ -8,6 +8,8 @@ Changes since the last release can be found at <https://github.com/emilk/egui/co
 
 
 ## 0.30.0 - 2024-12-16 - Android support
+NOTE: you now need to enable the `wayland` or `x11` features to get Linux support, including getting it to work on most CI systems.
+
 ### ⭐ Added
 * Support `ViewportCommand::Screenshot` on web [#5438](https://github.com/emilk/egui/pull/5438) by [@lucasmerlin](https://github.com/lucasmerlin)
 

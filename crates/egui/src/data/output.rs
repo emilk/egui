@@ -79,6 +79,24 @@ pub struct IMEOutput {
     pub cursor_rect: crate::Rect,
 }
 
+/// Commands that the egui integration should execute at the end of a frame.
+///
+/// Commands that are specific to a viewport should be put in [`crate::ViewportCommand`] instead.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum OutputCommand {
+    /// Put this text to the system clipboard.
+    ///
+    /// This is often a response to [`crate::Event::Copy`] or [`crate::Event::Cut`].
+    CopyText(String),
+
+    /// Put this image to the system clipboard.
+    CopyImage(crate::ColorImage),
+
+    /// Open this url in a browser.
+    OpenUrl(OpenUrl),
+}
+
 /// The non-rendering part of what egui emits each frame.
 ///
 /// You can access (and modify) this with [`crate::Context::output`].
@@ -87,10 +105,14 @@ pub struct IMEOutput {
 #[derive(Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PlatformOutput {
+    /// Commands that the egui integration should execute at the end of a frame.
+    pub commands: Vec<OutputCommand>,
+
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
 
     /// If set, open this url.
+    #[deprecated = "Use `Context::open_url` instead"]
     pub open_url: Option<OpenUrl>,
 
     /// If set, put this text in the system clipboard. Ignore if empty.
@@ -104,6 +126,7 @@ pub struct PlatformOutput {
     /// }
     /// # });
     /// ```
+    #[deprecated = "Use `Context::copy_text` instead"]
     pub copied_text: String,
 
     /// Events that may be useful to e.g. a screen reader.
@@ -162,7 +185,10 @@ impl PlatformOutput {
 
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
+        #![allow(deprecated)]
+
         let Self {
+            mut commands,
             cursor_icon,
             open_url,
             copied_text,
@@ -175,6 +201,7 @@ impl PlatformOutput {
             mut request_discard_reasons,
         } = newer;
 
+        self.commands.append(&mut commands);
         self.cursor_icon = cursor_icon;
         if open_url.is_some() {
             self.open_url = open_url;
@@ -213,7 +240,7 @@ impl PlatformOutput {
 /// What URL to open, and how.
 ///
 /// Use with [`crate::Context::open_url`].
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
     pub url: String,
@@ -673,6 +700,7 @@ impl WidgetInfo {
             WidgetType::DragValue => "drag value",
             WidgetType::ColorButton => "color button",
             WidgetType::ImageButton => "image button",
+            WidgetType::Image => "image",
             WidgetType::CollapsingHeader => "collapsing header",
             WidgetType::ProgressIndicator => "progress indicator",
             WidgetType::Window => "window",

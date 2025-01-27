@@ -148,6 +148,7 @@ Light Theme:
 
 * [`ab_glyph`](https://crates.io/crates/ab_glyph)
 * [`ahash`](https://crates.io/crates/ahash)
+* [`bitflags`](https://crates.io/crates/bitflags)
 * [`nohash-hasher`](https://crates.io/crates/nohash-hasher)
 * [`parking_lot`](https://crates.io/crates/parking_lot)
 

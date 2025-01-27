@@ -141,7 +141,7 @@ impl DragAndDrop {
     pub fn has_any_payload(ctx: &Context) -> bool {
         ctx.data(|data| {
             let state = data.get_temp::<Self>(Id::NULL);
-            state.map_or(false, |state| state.payload.is_some())
+            state.is_some_and(|state| state.payload.is_some())
         })
     }
 }
