@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use emath::Rect;
 use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
@@ -719,6 +720,19 @@ impl TextEdit<'_> {
                 if let Some(cursor_range) = state.cursor.range(&galley) {
                     // Add text selection rectangles to the galley:
                     paint_text_selection(&mut galley, ui.visuals(), &cursor_range, None);
+                }
+            }
+
+            if !clip_text {
+                // Allocate additional space if edits were made this frame that changed the size. This is important so that,
+                // if there's a ScrollArea, it can properly scroll to the cursor.
+                // Condition `!clip_text` is important to avoid breaking layout for `TextEdit::singleline` (PR #5640)
+                let extra_size = galley.size() - rect.size();
+                if extra_size.x > 0.0 || extra_size.y > 0.0 {
+                    ui.allocate_rect(
+                        Rect::from_min_size(outer_rect.max, extra_size),
+                        Sense::hover(),
+                    );
                 }
             }
 
