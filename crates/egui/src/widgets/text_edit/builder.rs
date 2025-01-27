@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use emath::Rect;
 use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
