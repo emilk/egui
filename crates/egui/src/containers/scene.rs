@@ -5,7 +5,9 @@
 //! * `view`-space: The space where the pan-and-zoom area is drawn.
 //! * `scene`-space: The space where the actual content is drawn.
 
-use crate::{emath::TSTransform, LayerId, Rect, Response, Sense, Ui, UiBuilder, Vec2};
+use core::f32;
+
+use crate::{emath::TSTransform, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2};
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
 ///
@@ -32,16 +34,14 @@ pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransfor
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct Scene {
-    min_scaling: Option<f32>,
-    max_scaling: f32,
+    scaling_range: Rangef,
     fit_rect: Option<Rect>,
 }
 
 impl Default for Scene {
     fn default() -> Self {
         Self {
-            min_scaling: None,
-            max_scaling: 1.0,
+            scaling_range: Rangef::new(1.0, f32::INFINITY),
             fit_rect: None,
         }
     }
@@ -136,12 +136,7 @@ impl Scene {
                         * TSTransform::from_translation(-pointer_in_scene.to_vec2());
 
                     // We clamp the resulting scaling to avoid zooming in/out too far.
-                    if let Some(min_scaling) = self.min_scaling {
-                        ui_from_scene.scaling =
-                            ui_from_scene.scaling.clamp(min_scaling, self.max_scaling);
-                    } else {
-                        ui_from_scene.scaling = ui_from_scene.scaling.min(self.max_scaling);
-                    }
+                    ui_from_scene.scaling = self.scaling_range.clamp(ui_from_scene.scaling);
                 }
 
                 // Pan:
