@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use emath::{vec2, Vec2};
+use emath::{vec2, GuiRounding, Vec2};
 
 use crate::{
     mutex::{Mutex, RwLock},
@@ -96,22 +96,18 @@ impl FontImpl {
 
         use ab_glyph::{Font, ScaleFont};
         let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
-        let ascent = scaled.ascent() / pixels_per_point;
-        let descent = scaled.descent() / pixels_per_point;
-        let line_gap = scaled.line_gap() / pixels_per_point;
+        let ascent = (scaled.ascent() / pixels_per_point).round_ui();
+        let descent = (scaled.descent() / pixels_per_point).round_ui();
+        let line_gap = (scaled.line_gap() / pixels_per_point).round_ui();
 
         // Tweak the scale as the user desired
         let scale_in_pixels = scale_in_pixels * tweak.scale;
+        let scale_in_points = scale_in_pixels / pixels_per_point;
 
-        let baseline_offset = {
-            let scale_in_points = scale_in_pixels / pixels_per_point;
-            scale_in_points * tweak.baseline_offset_factor
-        };
+        let baseline_offset = (scale_in_points * tweak.baseline_offset_factor).round_ui();
 
-        let y_offset_points = {
-            let scale_in_points = scale_in_pixels / pixels_per_point;
-            scale_in_points * tweak.y_offset_factor
-        } + tweak.y_offset;
+        let y_offset_points =
+            ((scale_in_points * tweak.y_offset_factor) + tweak.y_offset).round_ui();
 
         // Center scaled glyphs properly:
         let height = ascent + descent;
@@ -247,6 +243,8 @@ impl FontImpl {
     }
 
     /// Height of one row of text in points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline(always)]
     pub fn row_height(&self) -> f32 {
         self.height_in_points
@@ -418,7 +416,9 @@ impl Font {
         (point * self.pixels_per_point).round() / self.pixels_per_point
     }
 
-    /// Height of one row of text. In points
+    /// Height of one row of text. In points.
+    ///
+    /// Returns a value rounded to [`emath::GUI_ROUNDING`].
     #[inline(always)]
     pub fn row_height(&self) -> f32 {
         self.row_height

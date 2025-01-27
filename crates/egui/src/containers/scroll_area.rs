@@ -1184,7 +1184,7 @@ impl Prepared {
                         && ui.input(|i| {
                             i.pointer
                                 .latest_pos()
-                                .map_or(false, |p| handle_rect.contains(p))
+                                .is_some_and(|p| handle_rect.contains(p))
                         });
                     let visuals = ui.visuals();
                     if response.is_pointer_button_down_on() {

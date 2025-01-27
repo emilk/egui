@@ -4,27 +4,33 @@ use emath::{vec2, Rect, Vec2};
 /// often used to express padding or spacing.
 ///
 /// Can be added and subtracted to/from [`Rect`]s.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+///
+/// Negative margins are possible, but may produce weird behavior.
+/// Use with care.
+///
+/// All values are stored as [`i8`] to keep the size of [`Margin`] small.
+/// If you want floats, use [`crate::Marginf`] instead.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Margin {
-    pub left: f32,
-    pub right: f32,
-    pub top: f32,
-    pub bottom: f32,
+    pub left: i8,
+    pub right: i8,
+    pub top: i8,
+    pub bottom: i8,
 }
 
 impl Margin {
     pub const ZERO: Self = Self {
-        left: 0.0,
-        right: 0.0,
-        top: 0.0,
-        bottom: 0.0,
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
     };
 
     /// The same margin on every side.
     #[doc(alias = "symmetric")]
     #[inline]
-    pub const fn same(margin: f32) -> Self {
+    pub const fn same(margin: i8) -> Self {
         Self {
             left: margin,
             right: margin,
@@ -35,7 +41,7 @@ impl Margin {
 
     /// Margins with the same size on opposing sides
     #[inline]
-    pub const fn symmetric(x: f32, y: f32) -> Self {
+    pub const fn symmetric(x: i8, y: i8) -> Self {
         Self {
             left: x,
             right: x,
@@ -44,53 +50,84 @@ impl Margin {
         }
     }
 
+    /// Left margin, as `f32`
+    #[inline]
+    pub const fn leftf(self) -> f32 {
+        self.left as _
+    }
+
+    /// Right margin, as `f32`
+    #[inline]
+    pub const fn rightf(self) -> f32 {
+        self.right as _
+    }
+
+    /// Top margin, as `f32`
+    #[inline]
+    pub const fn topf(self) -> f32 {
+        self.top as _
+    }
+
+    /// Bottom margin, as `f32`
+    #[inline]
+    pub const fn bottomf(self) -> f32 {
+        self.bottom as _
+    }
+
     /// Total margins on both sides
     #[inline]
-    pub fn sum(&self) -> Vec2 {
-        vec2(self.left + self.right, self.top + self.bottom)
+    pub fn sum(self) -> Vec2 {
+        vec2(self.leftf() + self.rightf(), self.topf() + self.bottomf())
     }
 
     #[inline]
-    pub const fn left_top(&self) -> Vec2 {
-        vec2(self.left, self.top)
+    pub const fn left_top(self) -> Vec2 {
+        vec2(self.leftf(), self.topf())
     }
 
     #[inline]
-    pub const fn right_bottom(&self) -> Vec2 {
-        vec2(self.right, self.bottom)
+    pub const fn right_bottom(self) -> Vec2 {
+        vec2(self.rightf(), self.bottomf())
     }
 
     /// Are the margin on every side the same?
     #[doc(alias = "symmetric")]
     #[inline]
-    pub fn is_same(&self) -> bool {
+    pub const fn is_same(self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
     }
 
     #[deprecated = "Use `rect + margin` instead"]
     #[inline]
-    pub fn expand_rect(&self, rect: Rect) -> Rect {
+    pub fn expand_rect(self, rect: Rect) -> Rect {
         Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
     }
 
     #[deprecated = "Use `rect - margin` instead"]
     #[inline]
-    pub fn shrink_rect(&self, rect: Rect) -> Rect {
+    pub fn shrink_rect(self, rect: Rect) -> Rect {
         Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
+    }
+}
+
+impl From<i8> for Margin {
+    #[inline]
+    fn from(v: i8) -> Self {
+        Self::same(v)
     }
 }
 
 impl From<f32> for Margin {
     #[inline]
     fn from(v: f32) -> Self {
-        Self::same(v)
+        Self::same(v.round() as _)
     }
 }
 
 impl From<Vec2> for Margin {
     #[inline]
     fn from(v: Vec2) -> Self {
-        Self::symmetric(v.x, v.y)
+        Self::symmetric(v.x.round() as _, v.y.round() as _)
     }
 }
 
@@ -101,37 +138,34 @@ impl std::ops::Add for Margin {
     #[inline]
     fn add(self, other: Self) -> Self {
         Self {
-            left: self.left + other.left,
-            right: self.right + other.right,
-            top: self.top + other.top,
-            bottom: self.bottom + other.bottom,
+            left: self.left.saturating_add(other.left),
+            right: self.right.saturating_add(other.right),
+            top: self.top.saturating_add(other.top),
+            bottom: self.bottom.saturating_add(other.bottom),
         }
     }
 }
 
-/// `Margin + f32`
-impl std::ops::Add<f32> for Margin {
+/// `Margin + i8`
+impl std::ops::Add<i8> for Margin {
     type Output = Self;
 
     #[inline]
-    fn add(self, v: f32) -> Self {
+    fn add(self, v: i8) -> Self {
         Self {
-            left: self.left + v,
-            right: self.right + v,
-            top: self.top + v,
-            bottom: self.bottom + v,
+            left: self.left.saturating_add(v),
+            right: self.right.saturating_add(v),
+            top: self.top.saturating_add(v),
+            bottom: self.bottom.saturating_add(v),
         }
     }
 }
 
-/// `Margind += f32`
-impl std::ops::AddAssign<f32> for Margin {
+/// `Margin += i8`
+impl std::ops::AddAssign<i8> for Margin {
     #[inline]
-    fn add_assign(&mut self, v: f32) {
-        self.left += v;
-        self.right += v;
-        self.top += v;
-        self.bottom += v;
+    fn add_assign(&mut self, v: i8) {
+        *self = *self + v;
     }
 }
 
@@ -142,10 +176,10 @@ impl std::ops::Mul<f32> for Margin {
     #[inline]
     fn mul(self, v: f32) -> Self {
         Self {
-            left: self.left * v,
-            right: self.right * v,
-            top: self.top * v,
-            bottom: self.bottom * v,
+            left: (self.leftf() * v).round() as _,
+            right: (self.rightf() * v).round() as _,
+            top: (self.topf() * v).round() as _,
+            bottom: (self.bottomf() * v).round() as _,
         }
     }
 }
@@ -154,10 +188,7 @@ impl std::ops::Mul<f32> for Margin {
 impl std::ops::MulAssign<f32> for Margin {
     #[inline]
     fn mul_assign(&mut self, v: f32) {
-        self.left *= v;
-        self.right *= v;
-        self.top *= v;
-        self.bottom *= v;
+        *self = *self * v;
     }
 }
 
@@ -167,12 +198,8 @@ impl std::ops::Div<f32> for Margin {
 
     #[inline]
     fn div(self, v: f32) -> Self {
-        Self {
-            left: self.left / v,
-            right: self.right / v,
-            top: self.top / v,
-            bottom: self.bottom / v,
-        }
+        #![allow(clippy::suspicious_arithmetic_impl)]
+        self * v.recip()
     }
 }
 
@@ -180,10 +207,7 @@ impl std::ops::Div<f32> for Margin {
 impl std::ops::DivAssign<f32> for Margin {
     #[inline]
     fn div_assign(&mut self, v: f32) {
-        self.left /= v;
-        self.right /= v;
-        self.top /= v;
-        self.bottom /= v;
+        *self = *self / v;
     }
 }
 
@@ -194,37 +218,34 @@ impl std::ops::Sub for Margin {
     #[inline]
     fn sub(self, other: Self) -> Self {
         Self {
-            left: self.left - other.left,
-            right: self.right - other.right,
-            top: self.top - other.top,
-            bottom: self.bottom - other.bottom,
+            left: self.left.saturating_sub(other.left),
+            right: self.right.saturating_sub(other.right),
+            top: self.top.saturating_sub(other.top),
+            bottom: self.bottom.saturating_sub(other.bottom),
         }
     }
 }
 
-/// `Margin - f32`
-impl std::ops::Sub<f32> for Margin {
+/// `Margin - i8`
+impl std::ops::Sub<i8> for Margin {
     type Output = Self;
 
     #[inline]
-    fn sub(self, v: f32) -> Self {
+    fn sub(self, v: i8) -> Self {
         Self {
-            left: self.left - v,
-            right: self.right - v,
-            top: self.top - v,
-            bottom: self.bottom - v,
+            left: self.left.saturating_sub(v),
+            right: self.right.saturating_sub(v),
+            top: self.top.saturating_sub(v),
+            bottom: self.bottom.saturating_sub(v),
         }
     }
 }
 
-/// `Margin -= f32`
-impl std::ops::SubAssign<f32> for Margin {
+/// `Margin -= i8`
+impl std::ops::SubAssign<i8> for Margin {
     #[inline]
-    fn sub_assign(&mut self, v: f32) {
-        self.left -= v;
-        self.right -= v;
-        self.top -= v;
-        self.bottom -= v;
+    fn sub_assign(&mut self, v: i8) {
+        *self = *self - v;
     }
 }
 

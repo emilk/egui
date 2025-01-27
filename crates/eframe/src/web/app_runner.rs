@@ -59,7 +59,7 @@ impl AppRunner {
 
         egui_ctx.options_mut(|o| {
             // On web by default egui follows the zoom factor of the browser,
-            // and lets the browser handle the zoom shortscuts.
+            // and lets the browser handle the zoom shortcuts.
             // A user can still zoom egui separately by calling [`egui::Context::set_zoom_factor`].
             o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
@@ -216,6 +216,18 @@ impl AppRunner {
         let canvas_size = super::canvas_size_in_points(self.canvas(), self.egui_ctx());
         let mut raw_input = self.input.new_frame(canvas_size);
 
+        if super::DEBUG_RESIZE {
+            log::info!(
+                "egui running at canvas size: {}x{}, DPR: {}, zoom_factor: {}. egui size: {}x{} points",
+                self.canvas().width(),
+                self.canvas().height(),
+                super::native_pixels_per_point(),
+                self.egui_ctx.zoom_factor(),
+                canvas_size.x,
+                canvas_size.y,
+            );
+        }
+
         self.app.raw_input_hook(&self.egui_ctx, &mut raw_input);
 
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -292,12 +304,15 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&self, platform_output: egui::PlatformOutput) {
+        #![allow(deprecated)]
+
         #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
             super::screen_reader::speak(&platform_output.events_description());
         }
 
         let egui::PlatformOutput {
+            commands,
             cursor_icon,
             open_url,
             copied_text,
@@ -310,7 +325,22 @@ impl AppRunner {
             request_discard_reasons: _, // handled by `Context::run`
         } = platform_output;
 
+        for command in commands {
+            match command {
+                egui::OutputCommand::CopyText(text) => {
+                    super::set_clipboard_text(&text);
+                }
+                egui::OutputCommand::CopyImage(image) => {
+                    super::set_clipboard_image(&image);
+                }
+                egui::OutputCommand::OpenUrl(open_url) => {
+                    super::open_url(&open_url.url, open_url.new_tab);
+                }
+            }
+        }
+
         super::set_cursor_icon(cursor_icon);
+
         if let Some(open) = open_url {
             super::open_url(&open.url, open.new_tab);
         }

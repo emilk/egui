@@ -29,13 +29,13 @@ fn main() {
 
     // You can even render the ui and do image snapshot tests
     #[cfg(all(feature = "wgpu", feature = "snapshot"))]
-    harness.wgpu_snapshot("readme_example");
+    harness.snapshot("readme_example");
 }
 ```
 
 ## Snapshot testing
 There is a snapshot testing feature. To create snapshot tests, enable the `snapshot` and `wgpu` features.
-Once enabled, you can call `Harness::wgpu_snapshot` to render the ui and save the image to the `tests/snapshots` directory.
+Once enabled, you can call `Harness::snapshot` to render the ui and save the image to the `tests/snapshots` directory.
 
 To update the snapshots, run your tests with `UPDATE_SNAPSHOTS=true`, so e.g. `UPDATE_SNAPSHOTS=true cargo test`.
 Running with `UPDATE_SNAPSHOTS=true` will still cause the tests to fail, but on the next run, the tests should pass.

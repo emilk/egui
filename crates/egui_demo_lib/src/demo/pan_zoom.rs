@@ -127,8 +127,8 @@ impl crate::View for PanZoom {
                 .show(ui.ctx(), |ui| {
                     ui.set_clip_rect(transform.inverse() * rect);
                     egui::Frame::default()
-                        .rounding(egui::Rounding::same(4.0))
-                        .inner_margin(egui::Margin::same(8.0))
+                        .rounding(egui::Rounding::same(4))
+                        .inner_margin(egui::Margin::same(8))
                         .stroke(ui.ctx().style().visuals.window_stroke)
                         .fill(ui.style().visuals.panel_fill)
                         .show(ui, |ui| {

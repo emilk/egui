@@ -579,14 +579,14 @@ impl Renderer {
         let queue_write_data_to_texture = |texture, origin| {
             profiling::scope!("write_texture");
             queue.write_texture(
-                wgpu::ImageCopyTexture {
+                wgpu::TexelCopyTextureInfo {
                     texture,
                     mip_level: 0,
                     origin,
                     aspect: wgpu::TextureAspect::All,
                 },
                 data_bytes,
-                wgpu::ImageDataLayout {
+                wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * width),
                     rows_per_image: Some(height),

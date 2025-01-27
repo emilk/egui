@@ -5,6 +5,6 @@
 # to the user in the error, instead of "error: invalid channel name '[toolchain]'".
 
 [toolchain]
-channel = "1.80.0"
+channel = "1.81.0"
 components = ["rustfmt", "clippy"]
 targets = ["wasm32-unknown-unknown"]

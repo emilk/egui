@@ -643,7 +643,7 @@ impl<'a> Slider<'a> {
     }
 }
 
-impl<'a> Slider<'a> {
+impl Slider<'_> {
     /// Just the slider, no text
     fn allocate_slider_space(&self, ui: &mut Ui, thickness: f32) -> Response {
         let desired_size = match self.orientation {
@@ -780,10 +780,10 @@ impl<'a> Slider<'a> {
                 // The trailing rect has to be drawn differently depending on the orientation.
                 match self.orientation {
                     SliderOrientation::Horizontal => {
-                        trailing_rail_rect.max.x = center.x + rounding.nw;
+                        trailing_rail_rect.max.x = center.x + rounding.nw as f32;
                     }
                     SliderOrientation::Vertical => {
-                        trailing_rail_rect.min.y = center.y - rounding.se;
+                        trailing_rail_rect.min.y = center.y - rounding.se as f32;
                     }
                 };
 
@@ -946,7 +946,9 @@ impl<'a> Slider<'a> {
         self.slider_ui(ui, &response);
 
         let value = self.get_value();
-        response.changed = value != old_value;
+        if value != old_value {
+            response.mark_changed();
+        }
         response.widget_info(|| WidgetInfo::slider(ui.is_enabled(), value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
@@ -1013,7 +1015,7 @@ impl<'a> Slider<'a> {
     }
 }
 
-impl<'a> Widget for Slider<'a> {
+impl Widget for Slider<'_> {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let inner_response = match self.orientation {
             SliderOrientation::Horizontal => ui.horizontal(|ui| self.add_contents(ui)),

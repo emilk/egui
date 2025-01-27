@@ -679,7 +679,7 @@ impl MenuState {
             || self
                 .sub_menu
                 .as_ref()
-                .map_or(false, |(_, sub)| sub.read().area_contains(pos))
+                .is_some_and(|(_, sub)| sub.read().area_contains(pos))
     }
 
     fn next_entry_index(&mut self) -> usize {

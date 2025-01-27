@@ -649,7 +649,11 @@ impl Rect {
     ///
     /// A ray that starts inside the rect will return `true`.
     pub fn intersects_ray(&self, o: Pos2, d: Vec2) -> bool {
-        debug_assert!(d.is_normalized(), "expected normalized direction");
+        debug_assert!(
+            d.is_normalized(),
+            "expected normalized direction, but `d` has length {}",
+            d.length()
+        );
 
         let mut tmin = -f32::INFINITY;
         let mut tmax = f32::INFINITY;
@@ -677,7 +681,11 @@ impl Rect {
     ///
     /// `d` is the direction of the ray and assumed to be normalized.
     pub fn intersects_ray_from_center(&self, d: Vec2) -> Pos2 {
-        debug_assert!(d.is_normalized(), "expected normalized direction");
+        debug_assert!(
+            d.is_normalized(),
+            "expected normalized direction, but `d` has length {}",
+            d.length()
+        );
 
         let mut tmin = f32::NEG_INFINITY;
         let mut tmax = f32::INFINITY;

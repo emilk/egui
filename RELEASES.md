@@ -52,7 +52,7 @@ We don't update the MSRV in a patch release, unless we really, really need to.
 ## Preparation
 * [ ] run `scripts/generate_example_screenshots.sh` if needed
 * [ ] write a short release note that fits in a tweet
-* [ ] record gif for `CHANGELOG.md` release note (and later twitter post)
+* [ ] record gif for `CHANGELOG.md` release note (and later bluesky post)
 * [ ] update changelogs using `scripts/generate_changelog.py --version 0.x.0 --write`
 * [ ] bump version numbers in workspace `Cargo.toml`
 
@@ -87,7 +87,7 @@ I usually do this all on the `master` branch, but doing it in a release branch i
 ```
 
 ## Announcements
-* [ ] [twitter](https://x.com/ernerfeldt/status/1772665412225823105)
+* [ ] [Bluesky](https://bsky.app/profile/ernerfeldt.bsky.social)
 * [ ] egui discord
 * [ ] [r/rust](https://www.reddit.com/r/rust/comments/1bocr5s/announcing_egui_027_with_improved_menus_and/)
 * [ ] [r/programming](https://www.reddit.com/r/programming/comments/1bocsf6/announcing_egui_027_an_easytouse_crossplatform/)

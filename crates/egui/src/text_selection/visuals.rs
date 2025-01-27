@@ -96,19 +96,8 @@ pub fn paint_text_selection(
 pub fn paint_cursor_end(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
     let stroke = visuals.text_cursor.stroke;
 
-    // Ensure the cursor is aligned to the pixel grid for whole number widths.
-    // See https://github.com/emilk/egui/issues/5164
-    let (top, bottom) = if (stroke.width as usize) % 2 == 0 {
-        (
-            painter.round_pos_to_pixels(cursor_rect.center_top()),
-            painter.round_pos_to_pixels(cursor_rect.center_bottom()),
-        )
-    } else {
-        (
-            painter.round_pos_to_pixel_center(cursor_rect.center_top()),
-            painter.round_pos_to_pixel_center(cursor_rect.center_bottom()),
-        )
-    };
+    let top = cursor_rect.center_top();
+    let bottom = cursor_rect.center_bottom();
 
     painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
