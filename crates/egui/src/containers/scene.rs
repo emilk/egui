@@ -34,14 +34,14 @@ pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransfor
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct Scene {
-    scaling_range: Rangef,
+    zoom_range: Rangef,
     fit_rect: Option<Rect>,
 }
 
 impl Default for Scene {
     fn default() -> Self {
         Self {
-            scaling_range: Rangef::new(1.0, f32::INFINITY),
+            zoom_range: Rangef::new(f32::EPSILON, 1.0),
             fit_rect: None,
         }
     }
@@ -52,13 +52,13 @@ impl Scene {
         Default::default()
     }
 
-    /// Provides a zoom-pan area for a given view.
+    /// `to_parent` contains the transformation from the scene coordinates to that of the parent ui.
     ///
-    /// Will fill the entire `max_rect` of the `parent_ui`.
-    pub fn show_scene(
+    /// `to_parent` will be mutated by any panning/zooming done by the user.
+    pub fn show(
         &self,
         parent_ui: &mut Ui,
-        to_global: &mut TSTransform,
+        to_parent: &mut TSTransform,
         draw_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         // Create a new egui paint layer, where we can draw our contents:
@@ -72,12 +72,18 @@ impl Scene {
             .ctx()
             .set_sublayer(parent_ui.layer_id(), scene_layer_id);
 
-        let global_view_bounds = parent_ui.max_rect();
+        // let size = parent_ui.available_size_before_wrap(); // TODO: let user control via builder
+        let size = Vec2::splat(440.0);
+        let (global_view_bounds, _outer_response) =
+            parent_ui.allocate_exact_size(size, Sense::hover());
+
+        let global_from_parent = TSTransform::from_translation(global_view_bounds.min.to_vec2());
+        let mut to_global = global_from_parent * *to_parent;
 
         // Optionally change the transformation so that a scene rect is
         // contained in the view, potentially with letter boxing.
         if let Some(rect_in_scene) = self.fit_rect {
-            *to_global = fit_to_rect_in_scene(global_view_bounds, rect_in_scene);
+            // *to_parent = fit_to_rect_in_scene(global_view_bounds, rect_in_scene);
         }
 
         let mut local_ui = parent_ui.new_child(
@@ -94,7 +100,8 @@ impl Scene {
         let pan_response = local_ui.response();
 
         // Update the `to_global` transform based on use interaction:
-        self.register_pan_and_zoom(&local_ui, &pan_response, to_global);
+        self.register_pan_and_zoom(&local_ui, &pan_response, &mut to_global);
+        *to_parent = global_from_parent.inverse() * to_global;
 
         // Update the clip-rect with the new transform, to avoid frame-delays
         local_ui.set_clip_rect(to_global.inverse() * global_view_bounds);
@@ -105,20 +112,20 @@ impl Scene {
         // Tell egui to apply the transform on the layer:
         local_ui
             .ctx()
-            .set_transform_layer(scene_layer_id, *to_global);
+            .set_transform_layer(scene_layer_id, to_global);
 
         pan_response
     }
 
     /// Helper function to handle pan and zoom interactions on a response.
-    pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &Response, ui_from_scene: &mut TSTransform) {
+    pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &Response, to_global: &mut TSTransform) {
         if resp.dragged() {
-            ui_from_scene.translation += ui_from_scene.scaling * resp.drag_delta();
+            to_global.translation += to_global.scaling * resp.drag_delta();
         }
 
         if let Some(mouse_pos) = ui.input(|i| i.pointer.latest_pos()) {
             if resp.contains_pointer() {
-                let pointer_in_scene = ui_from_scene.inverse() * mouse_pos;
+                let pointer_in_scene = to_global.inverse() * mouse_pos;
                 let zoom_delta = ui.ctx().input(|i| i.zoom_delta());
                 let pan_delta = ui.ctx().input(|i| i.smooth_scroll_delta);
 
@@ -128,32 +135,22 @@ impl Scene {
                     return;
                 }
 
-                // Zoom in on pointer, but only if we are not zoomed out too far.
-                if zoom_delta < 1.0 || ui_from_scene.scaling < 1.0 {
-                    *ui_from_scene = *ui_from_scene
+                // Zoom in on pointer, but only if we are not zoomed in or out too far.
+                if zoom_delta > 1.0 && to_global.scaling < self.zoom_range.max
+                    || zoom_delta < 1.0 && self.zoom_range.min < to_global.scaling
+                {
+                    *to_global = *to_global
                         * TSTransform::from_translation(pointer_in_scene.to_vec2())
                         * TSTransform::from_scaling(zoom_delta)
                         * TSTransform::from_translation(-pointer_in_scene.to_vec2());
 
                     // We clamp the resulting scaling to avoid zooming in/out too far.
-                    ui_from_scene.scaling = self.scaling_range.clamp(ui_from_scene.scaling);
+                    to_global.scaling = self.zoom_range.clamp(to_global.scaling);
                 }
 
                 // Pan:
-                *ui_from_scene = TSTransform::from_translation(pan_delta) * *ui_from_scene;
+                *to_global = TSTransform::from_translation(pan_delta) * *to_global;
             }
         }
-    }
-
-    /// Show the [`ZoomPanArea`], and add the contents to the viewport.
-    ///
-    /// Mutates the `to_global` transformation to contain the new state, after potential panning and zooming.
-    pub fn show(
-        self,
-        ui: &mut Ui,
-        to_global: &mut TSTransform,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Response {
-        self.show_scene(ui, to_global, add_contents)
     }
 }
