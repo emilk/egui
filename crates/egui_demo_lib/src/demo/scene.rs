@@ -30,7 +30,7 @@ impl crate::Demo for SceneDemo {
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         use crate::View as _;
-        let window = egui::Window::new("Pan Zoom")
+        let window = egui::Window::new("Scene")
             .default_width(300.0)
             .default_height(300.0)
             .vscroll(false)
