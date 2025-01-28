@@ -70,6 +70,8 @@ pub trait WinitApp {
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 
+    fn save(&mut self);
+
     fn save_and_destroy(&mut self);
 
     fn run_ui_and_paint(
@@ -118,6 +120,9 @@ pub enum EventResult {
     RepaintNext(WindowId),
 
     RepaintAt(WindowId, Instant),
+
+    /// Causes a save of the client state when the persistence feature is enabled.
+    Save,
 
     Exit,
 }

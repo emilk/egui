@@ -51,6 +51,9 @@ use input::{
 
 // ----------------------------------------------------------------------------
 
+/// Debug browser resizing?
+const DEBUG_RESIZE: bool = false;
+
 pub(crate) fn string_from_js_value(value: &JsValue) -> String {
     value.as_string().unwrap_or_else(|| format!("{value:#?}"))
 }
@@ -152,7 +155,10 @@ fn canvas_content_rect(canvas: &web_sys::HtmlCanvasElement) -> egui::Rect {
 }
 
 fn canvas_size_in_points(canvas: &web_sys::HtmlCanvasElement, ctx: &egui::Context) -> egui::Vec2 {
-    let pixels_per_point = ctx.pixels_per_point();
+    // ctx.pixels_per_point can be outdated
+
+    let pixels_per_point = ctx.zoom_factor() * native_pixels_per_point();
+
     egui::vec2(
         canvas.width() as f32 / pixels_per_point,
         canvas.height() as f32 / pixels_per_point,
@@ -351,4 +357,9 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
+}
+
+/// Are we running inside the Safari browser?
+pub fn is_safari_browser() -> bool {
+    web_sys::window().is_some_and(|window| window.has_own_property(&JsValue::from("safari")))
 }
