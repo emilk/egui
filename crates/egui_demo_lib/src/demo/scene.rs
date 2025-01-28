@@ -53,7 +53,7 @@ impl crate::View for SceneDemo {
         egui::Frame::group(ui.style())
             .inner_margin(0.0)
             .show(ui, |ui| {
-                let scene = Scene::new();
+                let scene = Scene::new().max_inner_size([500.0, 1000.0]);
 
                 let mut reset_view = false;
                 let response = scene.show(ui, &mut self.parent_from_child, |ui| {

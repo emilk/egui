@@ -39,6 +39,7 @@ pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransfor
 #[must_use = "You should call .show()"]
 pub struct Scene {
     zoom_range: Rangef,
+    max_inner_size: Vec2,
     fit_rect: Option<Rect>,
 }
 
@@ -46,6 +47,7 @@ impl Default for Scene {
     fn default() -> Self {
         Self {
             zoom_range: Rangef::new(f32::EPSILON, 1.0),
+            max_inner_size: Vec2::splat(1000.0),
             fit_rect: None,
         }
     }
@@ -54,6 +56,12 @@ impl Default for Scene {
 impl Scene {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Set the maximum size of the inner [`Ui`] that will be created.
+    pub fn max_inner_size(mut self, max_inner_size: impl Into<Vec2>) -> Self {
+        self.max_inner_size = max_inner_size.into();
+        self
     }
 
     /// `to_parent` contains the transformation from the scene coordinates to that of the parent ui.
@@ -93,26 +101,21 @@ impl Scene {
         let mut local_ui = parent_ui.new_child(
             UiBuilder::new()
                 .layer_id(scene_layer_id)
-                .max_rect(to_global.inverse() * global_view_bounds)
+                .max_rect(Rect::from_min_size(Pos2::ZERO, self.max_inner_size))
                 .sense(Sense::click_and_drag()),
         );
-        // Set proper clip-rect so we can interact with the background:
-        local_ui.set_clip_rect(local_ui.max_rect());
-
-        // We want to set up the `inner_rect` and cursor so that a user can just `ui.add` stuff
-        // to the scene.
-        local_ui.force_set_min_rect(Rect::from_min_size(Pos2::ZERO, Vec2::splat(1_000.0)));
-        local_ui.set_cursor(Rect::from_min_size(Pos2::ZERO, Vec2::splat(1_000.0)));
 
         let mut pan_response = local_ui.response();
 
         // Update the `to_global` transform based on use interaction:
         self.register_pan_and_zoom(&local_ui, &mut pan_response, &mut to_global);
+
         if pan_response.changed() {
+            // Only update if changed, to avoid numeric drift
             *to_parent = global_from_parent.inverse() * to_global;
         }
 
-        // Update the clip-rect with the new transform, to avoid frame-delays
+        // Set a correct global clip rect:
         local_ui.set_clip_rect(to_global.inverse() * global_view_bounds);
 
         // Add the actual contents to the area:
