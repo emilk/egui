@@ -7,11 +7,9 @@
 
 use core::f32;
 
-use emath::{GuiRounding, Pos2};
+use emath::{GuiRounding, NumExt as _, Pos2};
 
-use crate::{
-    emath::TSTransform, load, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2,
-};
+use crate::{emath::TSTransform, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2};
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
 ///
@@ -24,7 +22,8 @@ pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransfor
     let scale_y = available_size_in_ui.y / rect_in_scene.height();
 
     // Use the smaller of the two scales to ensure the whole rectangle fits on the screen.
-    let scale = scale_x.min(scale_y).min(1.0);
+    const MAX_SCALE: f32 = 1.0;
+    let scale = f32::min(scale_x, scale_y).at_most(MAX_SCALE);
 
     // Compute the translation to center the bounding rect in the screen.
     let center_screen = rect_in_ui.center();
@@ -40,7 +39,6 @@ pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransfor
 pub struct Scene {
     zoom_range: Rangef,
     max_inner_size: Vec2,
-    fit_rect: Option<Rect>,
 }
 
 impl Default for Scene {
@@ -48,7 +46,6 @@ impl Default for Scene {
         Self {
             zoom_range: Rangef::new(f32::EPSILON, 1.0),
             max_inner_size: Vec2::splat(1000.0),
-            fit_rect: None,
         }
     }
 }
@@ -84,19 +81,12 @@ impl Scene {
             .ctx()
             .set_sublayer(parent_ui.layer_id(), scene_layer_id);
 
-        // let size = parent_ui.available_size_before_wrap(); // TODO: let user control via builder
-        let size = Vec2::splat(440.0);
+        let desired_outer_size = parent_ui.available_size_before_wrap();
         let (global_view_bounds, _outer_response) =
-            parent_ui.allocate_exact_size(size, Sense::hover());
+            parent_ui.allocate_exact_size(desired_outer_size, Sense::hover());
 
         let global_from_parent = TSTransform::from_translation(global_view_bounds.min.to_vec2());
         let mut to_global = global_from_parent * *to_parent;
-
-        // Optionally change the transformation so that a scene rect is
-        // contained in the view, potentially with letter boxing.
-        if let Some(rect_in_scene) = self.fit_rect {
-            // *to_parent = fit_to_rect_in_scene(global_view_bounds, rect_in_scene);
-        }
 
         let mut local_ui = parent_ui.new_child(
             UiBuilder::new()
