@@ -3505,7 +3505,6 @@ impl Context {
 
     /// The loaders of bytes, images, and textures.
     pub fn loaders(&self) -> Arc<Loaders> {
-        profiling::function_scope!();
         self.read(|this| this.loaders.clone())
     }
 }
