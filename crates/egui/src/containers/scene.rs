@@ -1,10 +1,3 @@
-//! A small, self-container pan-and-zoom area for [`egui`].
-//!
-//! Throughout this module, we use the following conventions or naming the different spaces:
-//! * `ui`-space: The _global_ `egui` space.
-//! * `view`-space: The space where the pan-and-zoom area is drawn.
-//! * `scene`-space: The space where the actual content is drawn.
-
 use core::f32;
 
 use emath::{GuiRounding, NumExt as _, Pos2};
@@ -16,7 +9,7 @@ use crate::{
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
 ///
 /// The resulting visual scene bounds can be larger, due to letterboxing.
-pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransform {
+fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransform {
     let available_size_in_ui = rect_in_ui.size();
 
     // Compute the scale factor to fit the bounding rectangle into the available screen size.
@@ -36,6 +29,12 @@ pub fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransfor
         * TSTransform::from_scaling(scale)
 }
 
+/// A container that allows you to zoom and pan.
+///
+/// This is similar to [`crate::ScrollArea`] but:
+/// * Supports zooming
+/// * Has no scroll bars
+/// * Has no limits on the scrolling
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct Scene {
@@ -53,11 +52,13 @@ impl Default for Scene {
 }
 
 impl Scene {
+    #[inline]
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Set the maximum size of the inner [`Ui`] that will be created.
+    #[inline]
     pub fn max_inner_size(mut self, max_inner_size: impl Into<Vec2>) -> Self {
         self.max_inner_size = max_inner_size.into();
         self
@@ -80,7 +81,8 @@ impl Scene {
         let ret = self.show_global_transform(parent_ui, outer_rect, &mut to_global, add_contents);
 
         if ret.response.changed() {
-            // Only update if changed, to avoid numeric drift
+            // Only update if changed, both to avoid numeric drift,
+            // and to avoid expanding the scene rect unnecessarily.
             *scene_rect = to_global.inverse() * outer_rect;
         }
 

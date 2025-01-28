@@ -1,6 +1,4 @@
-use egui::emath::TSTransform;
-use egui::scene::{fit_to_rect_in_scene, Scene};
-use egui::{Pos2, Rect, Vec2};
+use egui::{Pos2, Rect, Scene, Vec2};
 
 use super::widget_gallery;
 
@@ -38,8 +36,8 @@ impl crate::Demo for SceneDemo {
 impl crate::View for SceneDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label(
-            "Pan, zoom in, and zoom out with scrolling (see the plot demo for more instructions). \
-                   Double click on the background to reset.",
+            "You can pan by scrolling, and zoom using cmd-scroll. \
+            Double click on the background to reset view.",
         );
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());

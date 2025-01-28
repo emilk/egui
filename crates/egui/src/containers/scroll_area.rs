@@ -161,6 +161,9 @@ impl ScrollBarVisibility {
 /// ```
 ///
 /// You can scroll to an element using [`crate::Response::scroll_to_me`], [`Ui::scroll_to_cursor`] and [`Ui::scroll_to_rect`].
+///
+/// ## See also
+/// If you want to allow zooming, use [`crate::Scene`].
 #[derive(Clone, Debug)]
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
