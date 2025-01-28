@@ -6,15 +6,15 @@ use super::widget_gallery;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SceneDemo {
-    parent_from_child: TSTransform,
     widget_gallery: widget_gallery::WidgetGallery,
+    scene_rect: Rect,
 }
 
 impl Default for SceneDemo {
     fn default() -> Self {
         Self {
-            parent_from_child: TSTransform::from_scaling(0.5),
             widget_gallery: Default::default(),
+            scene_rect: Rect::ZERO,
         }
     }
 }
@@ -46,9 +46,11 @@ impl crate::View for SceneDemo {
         });
         ui.separator();
 
-        ui.monospace(format!("{:#?}", &mut self.parent_from_child));
+        ui.monospace(format!("{:#?}", &mut self.scene_rect));
 
         ui.separator();
+
+        let is_first_frame = self.scene_rect == Rect::ZERO;
 
         egui::Frame::group(ui.style())
             .inner_margin(0.0)
@@ -58,7 +60,7 @@ impl crate::View for SceneDemo {
                 let mut reset_view = false;
                 let mut inner_rect = Rect::NAN;
                 let response = scene
-                    .show(ui, &mut self.parent_from_child, |ui| {
+                    .show(ui, &mut self.scene_rect, |ui| {
                         reset_view = ui.button("Reset view").clicked();
 
                         ui.add_space(16.0);
@@ -74,12 +76,11 @@ impl crate::View for SceneDemo {
                     })
                     .response;
 
-                if reset_view || response.double_clicked() {
-                    // TODO: auto-call this on first frame?
-                    self.parent_from_child = fit_to_rect_in_scene(
-                        Rect::from_min_size(Pos2::ZERO, ui.min_size()),
-                        inner_rect,
-                    );
+                if is_first_frame || reset_view || response.double_clicked() {
+                    self.scene_rect = inner_rect;
+                }
+                if is_first_frame {
+                    ui.ctx().request_discard("invalid scene rect first frame");
                 }
             });
     }

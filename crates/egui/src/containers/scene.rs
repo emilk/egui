@@ -69,7 +69,59 @@ impl Scene {
     pub fn show<R>(
         &self,
         parent_ui: &mut Ui,
-        to_parent: &mut TSTransform,
+        scene_rect: &mut Rect,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let (outer_rect, _outer_response) =
+            parent_ui.allocate_exact_size(parent_ui.available_size_before_wrap(), Sense::hover());
+
+        let mut to_global = fit_to_rect_in_scene(outer_rect, *scene_rect);
+
+        let ret = self.show_global_transform(parent_ui, outer_rect, &mut to_global, add_contents);
+
+        if ret.response.changed() {
+            // Only update if changed, to avoid numeric drift
+            *scene_rect = to_global.inverse() * outer_rect;
+        }
+
+        ret
+    }
+
+    /// `to_parent` contains the transformation from the scene coordinates to that of the parent ui.
+    ///
+    /// `to_parent` will be mutated by any panning/zooming done by the user.
+    pub fn show_local_transform<R>(
+        &self,
+        parent_ui: &mut Ui,
+        to_normalized_parent: &mut TSTransform,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        let (outer_rect, _outer_response) =
+            parent_ui.allocate_exact_size(parent_ui.available_size_before_wrap(), Sense::hover());
+
+        // let global_from_normalized = fit_to_rect_in_scene(
+        //     Rect::from_min_size(Pos2::ZERO, Vec2::splat(1.0)),
+        //     outer_rect,
+        // );
+        let global_from_normalized = TSTransform::from_translation(outer_rect.min.to_vec2());
+
+        let mut to_global = global_from_normalized * *to_normalized_parent;
+
+        let ret = self.show_global_transform(parent_ui, outer_rect, &mut to_global, add_contents);
+
+        if ret.response.changed() {
+            // Only update if changed, to avoid numeric drift
+            *to_normalized_parent = global_from_normalized.inverse() * to_global;
+        }
+
+        ret
+    }
+
+    pub fn show_global_transform<R>(
+        &self,
+        parent_ui: &mut Ui,
+        outer_rect: Rect,
+        to_global: &mut TSTransform,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<R> {
         // Create a new egui paint layer, where we can draw our contents:
@@ -83,13 +135,6 @@ impl Scene {
             .ctx()
             .set_sublayer(parent_ui.layer_id(), scene_layer_id);
 
-        let desired_outer_size = parent_ui.available_size_before_wrap();
-        let (global_view_bounds, _outer_response) =
-            parent_ui.allocate_exact_size(desired_outer_size, Sense::hover());
-
-        let global_from_parent = TSTransform::from_translation(global_view_bounds.min.to_vec2());
-        let mut to_global = global_from_parent * *to_parent;
-
         let mut local_ui = parent_ui.new_child(
             UiBuilder::new()
                 .layer_id(scene_layer_id)
@@ -100,26 +145,21 @@ impl Scene {
         let mut pan_response = local_ui.response();
 
         // Update the `to_global` transform based on use interaction:
-        self.register_pan_and_zoom(&local_ui, &mut pan_response, &mut to_global);
-
-        if pan_response.changed() {
-            // Only update if changed, to avoid numeric drift
-            *to_parent = global_from_parent.inverse() * to_global;
-        }
+        self.register_pan_and_zoom(&local_ui, &mut pan_response, to_global);
 
         // Set a correct global clip rect:
-        local_ui.set_clip_rect(to_global.inverse() * global_view_bounds);
+        local_ui.set_clip_rect(to_global.inverse() * outer_rect);
 
         // Add the actual contents to the area:
         let ret = add_contents(&mut local_ui);
 
         // This ensures we catch clicks/drags/pans anywhere on the background.
-        local_ui.force_set_min_rect((to_global.inverse() * global_view_bounds).round_ui());
+        local_ui.force_set_min_rect((to_global.inverse() * outer_rect).round_ui());
 
         // Tell egui to apply the transform on the layer:
         local_ui
             .ctx()
-            .set_transform_layer(scene_layer_id, to_global);
+            .set_transform_layer(scene_layer_id, *to_global);
 
         InnerResponse {
             response: pan_response,
