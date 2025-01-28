@@ -57,20 +57,22 @@ impl crate::View for SceneDemo {
 
                 let mut reset_view = false;
                 let mut inner_rect = Rect::NAN;
-                let response = scene.show(ui, &mut self.parent_from_child, |ui| {
-                    reset_view = ui.button("Reset view").clicked();
+                let response = scene
+                    .show(ui, &mut self.parent_from_child, |ui| {
+                        reset_view = ui.button("Reset view").clicked();
 
-                    ui.add_space(16.0);
+                        ui.add_space(16.0);
 
-                    self.widget_gallery.ui(ui);
+                        self.widget_gallery.ui(ui);
 
-                    ui.put(
-                        Rect::from_min_size(Pos2::new(0.0, -64.0), Vec2::new(200.0, 16.0)),
-                        egui::Label::new("You can put a widget anywhere").selectable(false),
-                    );
+                        ui.put(
+                            Rect::from_min_size(Pos2::new(0.0, -64.0), Vec2::new(200.0, 16.0)),
+                            egui::Label::new("You can put a widget anywhere").selectable(false),
+                        );
 
-                    inner_rect = ui.min_rect();
-                });
+                        inner_rect = ui.min_rect();
+                    })
+                    .response;
 
                 if reset_view || response.double_clicked() {
                     // TODO: auto-call this on first frame?

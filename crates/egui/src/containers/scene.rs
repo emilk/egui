@@ -9,7 +9,9 @@ use core::f32;
 
 use emath::{GuiRounding, NumExt as _, Pos2};
 
-use crate::{emath::TSTransform, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2};
+use crate::{
+    emath::TSTransform, InnerResponse, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2,
+};
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
 ///
@@ -64,12 +66,12 @@ impl Scene {
     /// `to_parent` contains the transformation from the scene coordinates to that of the parent ui.
     ///
     /// `to_parent` will be mutated by any panning/zooming done by the user.
-    pub fn show(
+    pub fn show<R>(
         &self,
         parent_ui: &mut Ui,
         to_parent: &mut TSTransform,
-        add_contents: impl FnOnce(&mut Ui),
-    ) -> Response {
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
         // Create a new egui paint layer, where we can draw our contents:
         let scene_layer_id = LayerId::new(
             parent_ui.layer_id().order,
@@ -109,7 +111,7 @@ impl Scene {
         local_ui.set_clip_rect(to_global.inverse() * global_view_bounds);
 
         // Add the actual contents to the area:
-        add_contents(&mut local_ui);
+        let ret = add_contents(&mut local_ui);
 
         // This ensures we catch clicks/drags/pans anywhere on the background.
         local_ui.force_set_min_rect((to_global.inverse() * global_view_bounds).round_ui());
@@ -119,7 +121,10 @@ impl Scene {
             .ctx()
             .set_transform_layer(scene_layer_id, to_global);
 
-        pan_response
+        InnerResponse {
+            response: pan_response,
+            inner: ret,
+        }
     }
 
     /// Helper function to handle pan and zoom interactions on a response.
