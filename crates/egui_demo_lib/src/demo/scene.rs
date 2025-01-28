@@ -51,7 +51,9 @@ impl crate::View for SceneDemo {
         egui::Frame::group(ui.style())
             .inner_margin(0.0)
             .show(ui, |ui| {
-                let scene = Scene::new().max_inner_size([350.0, 1000.0]);
+                let scene = Scene::new()
+                    .max_inner_size([350.0, 1000.0])
+                    .zoom_range(0.1..=2.0);
 
                 let mut reset_view = false;
                 let mut inner_rect = Rect::NAN;

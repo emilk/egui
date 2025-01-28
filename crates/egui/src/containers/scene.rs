@@ -1,6 +1,6 @@
 use core::f32;
 
-use emath::{GuiRounding, NumExt as _, Pos2};
+use emath::{GuiRounding, Pos2};
 
 use crate::{
     emath::TSTransform, InnerResponse, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2,
@@ -9,23 +9,28 @@ use crate::{
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
 ///
 /// The resulting visual scene bounds can be larger, due to letterboxing.
-fn fit_to_rect_in_scene(rect_in_ui: Rect, rect_in_scene: Rect) -> TSTransform {
-    let available_size_in_ui = rect_in_ui.size();
+///
+/// Returns the transformation from `scene` to `global` coordinates.
+fn fit_to_rect_in_scene(
+    rect_in_global: Rect,
+    rect_in_scene: Rect,
+    zoom_range: Rangef,
+) -> TSTransform {
+    // Compute the scale factor to fit the bounding rectangle into the available screen size:
+    let scale = rect_in_global.size() / rect_in_scene.size();
 
-    // Compute the scale factor to fit the bounding rectangle into the available screen size.
-    let scale_x = available_size_in_ui.x / rect_in_scene.width();
-    let scale_y = available_size_in_ui.y / rect_in_scene.height();
+    // Use the smaller of the two scales to ensure the whole rectangle fits on the screen:
+    let scale = scale.min_elem();
 
-    // Use the smaller of the two scales to ensure the whole rectangle fits on the screen.
-    const MAX_SCALE: f32 = 1.0;
-    let scale = f32::min(scale_x, scale_y).at_most(MAX_SCALE);
+    // Clamp scale to what is allowed
+    let scale = zoom_range.clamp(scale);
 
-    // Compute the translation to center the bounding rect in the screen.
-    let center_screen = rect_in_ui.center();
+    // Compute the translation to center the bounding rect in the screen:
+    let center_in_global = rect_in_global.center().to_vec2();
     let center_scene = rect_in_scene.center().to_vec2();
 
     // Set the transformation to scale and then translate to center.
-    TSTransform::from_translation(center_screen.to_vec2() - center_scene * scale)
+    TSTransform::from_translation(center_in_global - scale * center_scene)
         * TSTransform::from_scaling(scale)
 }
 
@@ -57,6 +62,19 @@ impl Scene {
         Default::default()
     }
 
+    /// Set the allowed zoom range.
+    ///
+    /// The default zoom range is `0.0..=1.0`,
+    /// which mean you zan make things arbitrarily small, but you cannot zoom in past a `1:1` ratio.
+    ///
+    /// If you want to allow zooming in, you can set the zoom range to `0.0..=f32::INFINITY`.
+    /// Note that text rendering becomes blurry when you zoom in: <https://github.com/emilk/egui/issues/4813>.
+    #[inline]
+    pub fn zoom_range(mut self, zoom_range: impl Into<Rangef>) -> Self {
+        self.zoom_range = zoom_range.into();
+        self
+    }
+
     /// Set the maximum size of the inner [`Ui`] that will be created.
     #[inline]
     pub fn max_inner_size(mut self, max_inner_size: impl Into<Vec2>) -> Self {
@@ -80,7 +98,7 @@ impl Scene {
         let (outer_rect, _outer_response) =
             parent_ui.allocate_exact_size(parent_ui.available_size_before_wrap(), Sense::hover());
 
-        let mut to_global = fit_to_rect_in_scene(outer_rect, *scene_rect);
+        let mut to_global = fit_to_rect_in_scene(outer_rect, *scene_rect, self.zoom_range);
 
         let scene_rect_was_good =
             to_global.is_valid() && scene_rect.is_finite() && scene_rect.size() != Vec2::ZERO;
@@ -176,16 +194,19 @@ impl Scene {
                     return;
                 }
 
-                // Zoom in on pointer, but only if we are not zoomed in or out too far.
-                if zoom_delta > 1.0 && to_global.scaling < self.zoom_range.max
-                    || zoom_delta < 1.0 && self.zoom_range.min < to_global.scaling
-                {
+                if zoom_delta != 1.0 {
+                    // Zoom in on pointer, but only if we are not zoomed in or out too far.
+                    let zoom_delta = zoom_delta.clamp(
+                        self.zoom_range.min / to_global.scaling,
+                        self.zoom_range.max / to_global.scaling,
+                    );
+
                     *to_global = *to_global
                         * TSTransform::from_translation(pointer_in_scene.to_vec2())
                         * TSTransform::from_scaling(zoom_delta)
                         * TSTransform::from_translation(-pointer_in_scene.to_vec2());
 
-                    // We clamp the resulting scaling to avoid zooming in/out too far.
+                    // Clamp to exact zoom range.
                     to_global.scaling = self.zoom_range.clamp(to_global.scaling);
                 }
 
