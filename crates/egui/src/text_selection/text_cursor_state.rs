@@ -5,7 +5,7 @@ use epaint::text::{
     Galley,
 };
 
-use crate::{epaint, NumExt, Pos2, Rect, Response, Ui};
+use crate::{epaint, NumExt, Rect, Response, Ui};
 
 use super::{CCursorRange, CursorRange};
 
@@ -335,14 +335,14 @@ pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
     &s[start_byte..end_byte]
 }
 
-/// The thin rectangle of one end of the selection, e.g. the primary cursor.
-pub fn cursor_rect(galley_pos: Pos2, galley: &Galley, cursor: &Cursor, row_height: f32) -> Rect {
-    let mut cursor_pos = galley
-        .pos_from_cursor(cursor)
-        .translate(galley_pos.to_vec2());
-    cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height);
+/// The thin rectangle of one end of the selection, e.g. the primary cursor, in local galley coordinates.
+pub fn cursor_rect(galley: &Galley, cursor: &Cursor, row_height: f32) -> Rect {
+    let mut cursor_pos = galley.pos_from_cursor(cursor);
+
     // Handle completely empty galleys
-    cursor_pos = cursor_pos.expand(1.5);
-    // slightly above/below row
+    cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height);
+
+    cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
+
     cursor_pos
 }
