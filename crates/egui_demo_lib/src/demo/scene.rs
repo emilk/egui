@@ -4,11 +4,19 @@ use egui::{Pos2, Rect, Sense, UiBuilder, Vec2};
 
 use super::widget_gallery;
 
-#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SceneDemo {
     parent_from_child: TSTransform,
     widget_gallery: widget_gallery::WidgetGallery,
+}
+
+impl Default for SceneDemo {
+    fn default() -> Self {
+        Self {
+            parent_from_child: TSTransform::from_scaling(0.5),
+            widget_gallery: Default::default(),
+        }
+    }
 }
 
 impl crate::Demo for SceneDemo {
@@ -42,17 +50,30 @@ impl crate::View for SceneDemo {
 
         ui.separator();
 
-        let scene = Scene::new();
-        let response = scene.show(ui, &mut self.parent_from_child, |ui| {
-            // self.widget_gallery.ui(ui);
-            ui.put(
-                Rect::from_min_size(Pos2::ZERO, Vec2::splat(64.0)),
-                egui::Button::new("Button"),
-            );
-        });
+        egui::Frame::group(ui.style())
+            .inner_margin(0.0)
+            .show(ui, |ui| {
+                let scene = Scene::new();
 
-        if response.double_clicked() {
-            self.parent_from_child = TSTransform::IDENTITY;
-        }
+                let mut reset_view = false;
+                let response = scene.show(ui, &mut self.parent_from_child, |ui| {
+                    self.widget_gallery.ui(ui);
+
+                    // ui.put(
+                    //     Rect::from_min_size(Pos2::ZERO, Vec2::splat(64.0)),
+                    //     egui::Button::new("Button"),
+                    // );
+                    // ui.put(
+                    //     Rect::from_min_size(Pos2::ZERO + 72.0 * Vec2::DOWN, Vec2::new(500.0, 64.0)),
+                    //     egui::Label::new(format!("Inner ui min_rect: {:?}", ui.min_rect())),
+                    // );
+
+                    reset_view = ui.button("Reset view").clicked();
+                });
+
+                if reset_view || response.double_clicked() {
+                    self.parent_from_child = TSTransform::from_scaling(0.5);
+                }
+            });
     }
 }

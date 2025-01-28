@@ -7,7 +7,11 @@
 
 use core::f32;
 
-use crate::{emath::TSTransform, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2};
+use emath::{GuiRounding, Pos2};
+
+use crate::{
+    emath::TSTransform, load, LayerId, Rangef, Rect, Response, Sense, Ui, UiBuilder, Vec2,
+};
 
 /// Creates a transformation that fits a given scene rectangle into the available screen size.
 ///
@@ -92,7 +96,10 @@ impl Scene {
                 .max_rect(to_global.inverse() * global_view_bounds)
                 .sense(Sense::click_and_drag()),
         );
-        local_ui.set_min_size(local_ui.max_rect().size()); // Allocate all available space
+        // We want to set up the `inner_rect` and cursor so that a user can just `ui.add` stuff
+        // to the scene.
+        local_ui.force_set_min_rect(Rect::from_min_size(Pos2::ZERO, Vec2::splat(1_000.0)));
+        local_ui.set_cursor(Rect::from_min_size(Pos2::ZERO, Vec2::splat(1_000.0)));
 
         // Set proper clip-rect so we can interact with the background:
         local_ui.set_clip_rect(local_ui.max_rect());
@@ -108,6 +115,9 @@ impl Scene {
 
         // Add the actual contents to the area:
         draw_contents(&mut local_ui);
+
+        // This ensures we catch clicks/drags/pans anywhere on the background.
+        local_ui.force_set_min_rect((to_global.inverse() * global_view_bounds).round_ui());
 
         // Tell egui to apply the transform on the layer:
         local_ui
