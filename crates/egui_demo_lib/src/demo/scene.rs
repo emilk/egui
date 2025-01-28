@@ -12,7 +12,7 @@ impl Default for SceneDemo {
     fn default() -> Self {
         Self {
             widget_gallery: Default::default(),
-            scene_rect: Rect::ZERO,
+            scene_rect: Rect::ZERO, // `egui::Scene` will initialize this to something valid
         }
     }
 }
@@ -44,11 +44,9 @@ impl crate::View for SceneDemo {
         });
         ui.separator();
 
-        ui.monospace(format!("{:#?}", &mut self.scene_rect));
+        ui.label(format!("Scene rect: {:#?}", &mut self.scene_rect));
 
         ui.separator();
-
-        let is_first_frame = self.scene_rect == Rect::ZERO;
 
         egui::Frame::group(ui.style())
             .inner_margin(0.0)
@@ -74,11 +72,8 @@ impl crate::View for SceneDemo {
                     })
                     .response;
 
-                if is_first_frame || reset_view || response.double_clicked() {
+                if reset_view || response.double_clicked() {
                     self.scene_rect = inner_rect;
-                }
-                if is_first_frame {
-                    ui.ctx().request_discard("invalid scene rect first frame");
                 }
             });
     }

@@ -64,9 +64,13 @@ impl Scene {
         self
     }
 
-    /// `to_parent` contains the transformation from the scene coordinates to that of the parent ui.
+    /// `scene_rect` contains the view bounds of the inner [`Ui`].
     ///
-    /// `to_parent` will be mutated by any panning/zooming done by the user.
+    /// `scene_rect` will be mutated by any panning/zooming done by the user.
+    /// If `scene_rect` is somehow invalid (e.g. `Rect::ZERO`),
+    /// then it will be reset to the inner rect of the inner ui.
+    ///
+    /// You need to store the `scene_rect` in your state between frames.
     pub fn show<R>(
         &self,
         parent_ui: &mut Ui,
@@ -78,7 +82,16 @@ impl Scene {
 
         let mut to_global = fit_to_rect_in_scene(outer_rect, *scene_rect);
 
-        let ret = self.show_global_transform(parent_ui, outer_rect, &mut to_global, add_contents);
+        let scene_rect_was_good =
+            to_global.is_valid() && scene_rect.is_finite() && scene_rect.size() != Vec2::ZERO;
+
+        let mut inner_rect = *scene_rect;
+
+        let ret = self.show_global_transform(parent_ui, outer_rect, &mut to_global, |ui| {
+            let r = add_contents(ui);
+            inner_rect = ui.min_rect();
+            r
+        });
 
         if ret.response.changed() {
             // Only update if changed, both to avoid numeric drift,
@@ -86,40 +99,15 @@ impl Scene {
             *scene_rect = to_global.inverse() * outer_rect;
         }
 
-        ret
-    }
-
-    /// `to_parent` contains the transformation from the scene coordinates to that of the parent ui.
-    ///
-    /// `to_parent` will be mutated by any panning/zooming done by the user.
-    pub fn show_local_transform<R>(
-        &self,
-        parent_ui: &mut Ui,
-        to_normalized_parent: &mut TSTransform,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        let (outer_rect, _outer_response) =
-            parent_ui.allocate_exact_size(parent_ui.available_size_before_wrap(), Sense::hover());
-
-        // let global_from_normalized = fit_to_rect_in_scene(
-        //     Rect::from_min_size(Pos2::ZERO, Vec2::splat(1.0)),
-        //     outer_rect,
-        // );
-        let global_from_normalized = TSTransform::from_translation(outer_rect.min.to_vec2());
-
-        let mut to_global = global_from_normalized * *to_normalized_parent;
-
-        let ret = self.show_global_transform(parent_ui, outer_rect, &mut to_global, add_contents);
-
-        if ret.response.changed() {
-            // Only update if changed, to avoid numeric drift
-            *to_normalized_parent = global_from_normalized.inverse() * to_global;
+        if !scene_rect_was_good {
+            // Auto-reset if the trsnsformation goes bad somehow (or started bad).
+            *scene_rect = inner_rect;
         }
 
         ret
     }
 
-    pub fn show_global_transform<R>(
+    fn show_global_transform<R>(
         &self,
         parent_ui: &mut Ui,
         outer_rect: Rect,
