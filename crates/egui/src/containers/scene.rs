@@ -63,7 +63,7 @@ impl Scene {
         &self,
         parent_ui: &mut Ui,
         to_parent: &mut TSTransform,
-        draw_contents: impl FnOnce(&mut Ui),
+        add_contents: impl FnOnce(&mut Ui),
     ) -> Response {
         // Create a new egui paint layer, where we can draw our contents:
         let scene_layer_id = LayerId::new(
@@ -96,25 +96,27 @@ impl Scene {
                 .max_rect(to_global.inverse() * global_view_bounds)
                 .sense(Sense::click_and_drag()),
         );
+        // Set proper clip-rect so we can interact with the background:
+        local_ui.set_clip_rect(local_ui.max_rect());
+
         // We want to set up the `inner_rect` and cursor so that a user can just `ui.add` stuff
         // to the scene.
         local_ui.force_set_min_rect(Rect::from_min_size(Pos2::ZERO, Vec2::splat(1_000.0)));
         local_ui.set_cursor(Rect::from_min_size(Pos2::ZERO, Vec2::splat(1_000.0)));
 
-        // Set proper clip-rect so we can interact with the background:
-        local_ui.set_clip_rect(local_ui.max_rect());
-
-        let pan_response = local_ui.response();
+        let mut pan_response = local_ui.response();
 
         // Update the `to_global` transform based on use interaction:
-        self.register_pan_and_zoom(&local_ui, &pan_response, &mut to_global);
-        *to_parent = global_from_parent.inverse() * to_global;
+        self.register_pan_and_zoom(&local_ui, &mut pan_response, &mut to_global);
+        if pan_response.changed() {
+            *to_parent = global_from_parent.inverse() * to_global;
+        }
 
         // Update the clip-rect with the new transform, to avoid frame-delays
         local_ui.set_clip_rect(to_global.inverse() * global_view_bounds);
 
         // Add the actual contents to the area:
-        draw_contents(&mut local_ui);
+        add_contents(&mut local_ui);
 
         // This ensures we catch clicks/drags/pans anywhere on the background.
         local_ui.force_set_min_rect((to_global.inverse() * global_view_bounds).round_ui());
@@ -128,9 +130,10 @@ impl Scene {
     }
 
     /// Helper function to handle pan and zoom interactions on a response.
-    pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &Response, to_global: &mut TSTransform) {
+    pub fn register_pan_and_zoom(&self, ui: &Ui, resp: &mut Response, to_global: &mut TSTransform) {
         if resp.dragged() {
             to_global.translation += to_global.scaling * resp.drag_delta();
+            resp.mark_changed();
         }
 
         if let Some(mouse_pos) = ui.input(|i| i.pointer.latest_pos()) {
@@ -160,6 +163,7 @@ impl Scene {
 
                 // Pan:
                 *to_global = TSTransform::from_translation(pan_delta) * *to_global;
+                resp.mark_changed();
             }
         }
     }
