@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use emath::Rect;
+use emath::{Rect, TSTransform};
 use epaint::text::{cursor::CCursor, Galley, LayoutJob};
 
 use crate::{
@@ -587,8 +587,8 @@ impl TextEdit<'_> {
                     && ui.input(|i| i.pointer.is_moving())
                 {
                     // text cursor preview:
-                    let cursor_rect =
-                        cursor_rect(rect.min, &galley, &cursor_at_pointer, row_height);
+                    let cursor_rect = TSTransform::from_translation(rect.min.to_vec2())
+                        * cursor_rect(&galley, &cursor_at_pointer, row_height);
                     text_selection::visuals::paint_cursor_end(&painter, ui.visuals(), cursor_rect);
                 }
 
@@ -738,7 +738,8 @@ impl TextEdit<'_> {
             if has_focus {
                 if let Some(cursor_range) = state.cursor.range(&galley) {
                     let primary_cursor_rect =
-                        cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
+                        cursor_rect(&galley, &cursor_range.primary, row_height)
+                            .translate(galley_pos.to_vec2());
 
                     if response.changed() || selection_changed {
                         // Scroll to keep primary cursor in view:
@@ -837,7 +838,7 @@ impl TextEdit<'_> {
                 id,
                 cursor_range,
                 role,
-                galley_pos,
+                TSTransform::from_translation(galley_pos.to_vec2()),
                 &galley,
             );
         }
