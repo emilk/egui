@@ -17,7 +17,7 @@ pub struct RectShape {
     /// The thickness and color of the outline.
     ///
     /// Whether or not the stroke is inside or outside the edge of [`Self::rect`],
-    /// is controlled by [`self::stroke_kind`].
+    /// is controlled by [`Self::stroke_kind`].
     pub stroke: Stroke,
 
     /// Is the stroke on the inside, outside, or centered on the rectangle?
