@@ -22,6 +22,9 @@ pub struct RectShape {
     /// This means the [`Self::visual_bounding_rect`] is `rect.size() + 2.0 * stroke.width`.
     pub stroke: Stroke,
 
+    /// Is the stroke on the inside, outside, or centered on the rectangle?
+    pub stroke_kind: StrokeKind,
+
     /// Snap the rectangle to pixels?
     ///
     /// Rounding produces sharper rectangles.
@@ -72,6 +75,7 @@ impl RectShape {
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
+            stroke_kind: StrokeKind::Outside,
             round_to_pixels: None,
             blur_width: 0.0,
             brush: Default::default(),
@@ -92,6 +96,13 @@ impl RectShape {
     pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
         let fill = Color32::TRANSPARENT;
         Self::new(rect, rounding, fill, stroke)
+    }
+
+    /// Set if the stroke is on the inside, outside, or centered on the rectangle.
+    #[inline]
+    pub fn with_stroke_kind(mut self, stroke_kind: StrokeKind) -> Self {
+        self.stroke_kind = stroke_kind;
+        self
     }
 
     /// Snap the rectangle to pixels?
