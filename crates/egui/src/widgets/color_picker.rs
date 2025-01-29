@@ -97,7 +97,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         };
         let rect = rect.expand(visuals.expansion);
 
-        let stroke_width = 2.0;
+        let stroke_width = 1.0;
         show_color_at(ui.painter(), color, rect.shrink(stroke_width));
 
         let rounding = visuals.rounding.at_most(2); // Can't do more rounding because the background grid doesn't do any rounding
