@@ -217,45 +217,6 @@ impl SidePanel {
         Self::new(Side::Right, id)
     }
 
-    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    pub fn new(side: Side, id: impl Into<Id>) -> Self {
-        Self {
-            side,
-            id: id.into(),
-            frame: None,
-            resizable: true,
-            show_separator_line: true,
-            default_width: 200.0,
-            width_range: Rangef::new(96.0, f32::INFINITY),
-        }
-    }
-
-    /// Can panel be resized by dragging the edge of it?
-    ///
-    /// Default is `true`.
-    ///
-    /// If you want your panel to be resizable you also need a widget in it that
-    /// takes up more space as you resize it, such as:
-    /// * Wrapping text ([`Ui::horizontal_wrapped`]).
-    /// * A [`crate::ScrollArea`].
-    /// * A [`crate::Separator`].
-    /// * A [`crate::TextEdit`].
-    /// * …
-    #[inline]
-    pub fn resizable(mut self, resizable: bool) -> Self {
-        self.resizable = resizable;
-        self
-    }
-
-    /// Show a separator line, even when not interacting with it?
-    ///
-    /// Default: `true`.
-    #[inline]
-    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
-        self.show_separator_line = show_separator_line;
-        self
-    }
-
     /// The initial wrapping width of the [`SidePanel`], including margins.
     #[inline]
     pub fn default_width(mut self, default_width: f32) -> Self {
@@ -297,25 +258,63 @@ impl SidePanel {
         self.width_range = Rangef::point(width);
         self
     }
+}
 
-    /// Change the background color, margins, etc.
+impl PanelOptions for SidePanel {
+    type SideType = Side;
+
+    fn new(side: Side, id: impl Into<Id>) -> Self {
+        Self {
+            side,
+            id: id.into(),
+            frame: None,
+            resizable: true,
+            show_separator_line: true,
+            default_width: 200.0,
+            width_range: Rangef::new(96.0, f32::INFINITY),
+        }
+    }
+
     #[inline]
-    pub fn frame(mut self, frame: Frame) -> Self {
+    fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    #[inline]
+    fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
+        self
+    }
+
+    #[inline]
+    fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
+    }
+
+    fn default_size(self, default_size: f32) -> Self {
+        self.default_width(default_size)
+    }
+
+    fn min_size(self, min_size: f32) -> Self {
+        self.min_width(min_size)
+    }
+
+    fn max_size(self, max_size: f32) -> Self {
+        self.max_width(max_size)
+    }
+
+    fn size_range(self, size_range: impl Into<Rangef>) -> Self {
+        self.width_range(size_range)
+    }
+
+    fn exact_size(self, size: f32) -> Self {
+        self.exact_width(size)
     }
 }
 
 impl SidePanel {
-    /// Show the panel inside a [`Ui`].
-    pub fn show_inside<R>(
-        self,
-        ui: &mut Ui,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.show_inside_dyn(ui, Box::new(add_contents))
-    }
-
     /// Show the panel inside a [`Ui`].
     fn show_inside_dyn<'c, R>(
         self,
@@ -457,15 +456,6 @@ impl SidePanel {
     }
 
     /// Show the panel at the top level.
-    pub fn show<R>(
-        self,
-        ctx: &Context,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> InnerResponse<R> {
-        self.show_dyn(ctx, Box::new(add_contents))
-    }
-
-    /// Show the panel at the top level.
     fn show_dyn<'c, R>(
         self,
         ctx: &Context,
@@ -495,10 +485,22 @@ impl SidePanel {
         }
         inner_response
     }
+}
 
-    /// Show the panel if `is_expanded` is `true`,
-    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
-    pub fn show_animated<R>(
+impl PanelShow for SidePanel {
+    fn show_inside<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R> {
+        self.show_inside_dyn(ui, Box::new(add_contents))
+    }
+
+    fn show<R>(self, ctx: &Context, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+        self.show_dyn(ctx, Box::new(add_contents))
+    }
+
+    fn show_animated<R>(
         self,
         ctx: &Context,
         is_expanded: bool,
@@ -529,9 +531,7 @@ impl SidePanel {
         }
     }
 
-    /// Show the panel if `is_expanded` is `true`,
-    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
-    pub fn show_animated_inside<R>(
+    fn show_animated_inside<R>(
         self,
         ui: &mut Ui,
         is_expanded: bool,
@@ -562,8 +562,7 @@ impl SidePanel {
         }
     }
 
-    /// Show either a collapsed or a expanded panel, with a nice animation between.
-    pub fn show_animated_between<R>(
+    fn show_animated_between<R>(
         ctx: &Context,
         is_expanded: bool,
         collapsed_panel: Self,
@@ -594,8 +593,7 @@ impl SidePanel {
         }
     }
 
-    /// Show either a collapsed or a expanded panel, with a nice animation between.
-    pub fn show_animated_between_inside<R>(
+    fn show_animated_between_inside<R>(
         ui: &mut Ui,
         is_expanded: bool,
         collapsed_panel: Self,
