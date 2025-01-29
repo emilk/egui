@@ -7,7 +7,7 @@ use crate::{
 };
 use epaint::{
     ecolor::{Color32, Hsva, HsvaGamma, Rgba},
-    pos2, vec2, Mesh, Rect, Shape, Stroke, Vec2,
+    pos2, vec2, Mesh, Rect, Shape, Stroke, StrokeKind, Vec2,
 };
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
@@ -97,11 +97,16 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
         };
         let rect = rect.expand(visuals.expansion);
 
-        show_color_at(ui.painter(), color, rect);
+        let stroke_width = 1.0;
+        show_color_at(ui.painter(), color, rect.shrink(stroke_width));
 
         let rounding = visuals.rounding.at_most(2); // Can't do more rounding because the background grid doesn't do any rounding
-        ui.painter()
-            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
+        ui.painter().rect_stroke(
+            rect,
+            rounding,
+            (stroke_width, visuals.bg_fill), // Using fill for stroke is intentional, because default style has no border
+            StrokeKind::Inside,
+        );
     }
 
     response
@@ -139,7 +144,8 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
             ui.painter().add(Shape::mesh(mesh));
         }
 
-        ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
+        ui.painter()
+            .rect_stroke(rect, 0.0, visuals.bg_stroke, StrokeKind::Inside); // outline
 
         {
             // Show where the slider is at:
@@ -208,7 +214,8 @@ fn color_slider_2d(
         }
         ui.painter().add(Shape::mesh(mesh)); // fill
 
-        ui.painter().rect_stroke(rect, 0.0, visuals.bg_stroke); // outline
+        ui.painter()
+            .rect_stroke(rect, 0.0, visuals.bg_stroke, StrokeKind::Inside); // outline
 
         // Show where the slider is at:
         let x = lerp(rect.left()..=rect.right(), *x_value);

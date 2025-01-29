@@ -815,8 +815,13 @@ impl Slider<'_> {
                     };
                     let v = v + Vec2::splat(visuals.expansion);
                     let rect = Rect::from_center_size(center, 2.0 * v);
-                    ui.painter()
-                        .rect(rect, visuals.rounding, visuals.bg_fill, visuals.fg_stroke);
+                    ui.painter().rect(
+                        rect,
+                        visuals.rounding,
+                        visuals.bg_fill,
+                        visuals.fg_stroke,
+                        epaint::StrokeKind::Inside,
+                    );
                 }
             }
         }

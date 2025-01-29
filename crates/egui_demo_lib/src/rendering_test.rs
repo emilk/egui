@@ -452,7 +452,12 @@ fn pixel_test_strokes(ui: &mut Ui) {
                 Pos2::new(cursor_pixel.x, cursor_pixel.y),
                 Vec2::splat(size as f32),
             );
-            painter.rect_stroke(rect_points / pixels_per_point, 0.0, stroke);
+            painter.rect_stroke(
+                rect_points / pixels_per_point,
+                0.0,
+                stroke,
+                egui::StrokeKind::Outside,
+            );
             cursor_pixel.x += (1 + size) as f32 + thickness_pixels * 2.0;
         }
     }

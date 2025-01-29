@@ -465,7 +465,7 @@ pub use epaint::{
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TextureWrapMode, TexturesDelta},
     ClippedPrimitive, ColorImage, FontImage, ImageData, Margin, Mesh, PaintCallback,
-    PaintCallbackInfo, Rounding, Shadow, Shape, Stroke, TextureHandle, TextureId,
+    PaintCallbackInfo, Rounding, Shadow, Shape, Stroke, StrokeKind, TextureHandle, TextureId,
 };
 
 pub mod text {

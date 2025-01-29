@@ -7,7 +7,7 @@ use emath::{pos2, Align2, Pos2, Rangef, Rect, TSTransform, Vec2};
 use crate::{
     stroke::PathStroke,
     text::{FontId, Fonts, Galley},
-    Color32, Mesh, Rounding, Stroke, TextureId,
+    Color32, Mesh, Rounding, Stroke, StrokeKind, TextureId,
 };
 
 use super::{
@@ -275,6 +275,7 @@ impl Shape {
         Self::Ellipse(EllipseShape::stroke(center, radius, stroke))
     }
 
+    /// See also [`Self::rect_stroke`].
     #[inline]
     pub fn rect_filled(
         rect: Rect,
@@ -284,14 +285,15 @@ impl Shape {
         Self::Rect(RectShape::filled(rect, rounding, fill_color))
     }
 
-    /// The stroke extends _outside_ the [`Rect`].
+    /// See also [`Self::rect_filled`].
     #[inline]
     pub fn rect_stroke(
         rect: Rect,
         rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> Self {
-        Self::Rect(RectShape::stroke(rect, rounding, stroke))
+        Self::Rect(RectShape::stroke(rect, rounding, stroke, stroke_kind))
     }
 
     #[allow(clippy::needless_pass_by_value)]

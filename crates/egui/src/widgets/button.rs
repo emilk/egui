@@ -319,6 +319,7 @@ impl Widget for Button<'_> {
                 frame_rounding,
                 frame_fill,
                 frame_stroke,
+                epaint::StrokeKind::Inside,
             );
 
             let mut cursor_x = rect.min.x + button_padding.x;

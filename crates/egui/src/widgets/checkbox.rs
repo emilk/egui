@@ -107,6 +107,7 @@ impl Widget for Checkbox<'_> {
                 visuals.rounding,
                 visuals.bg_fill,
                 visuals.bg_stroke,
+                epaint::StrokeKind::Inside,
             ));
 
             if indeterminate {

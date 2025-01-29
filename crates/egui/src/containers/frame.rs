@@ -423,10 +423,13 @@ impl Frame {
         let fill_rect = self.fill_rect(content_rect);
         let widget_rect = self.widget_rect(content_rect);
 
-        let frame_shape = Shape::Rect(
-            epaint::RectShape::new(fill_rect, rounding, fill, stroke)
-                .with_stroke_kind(epaint::StrokeKind::Outside),
-        );
+        let frame_shape = Shape::Rect(epaint::RectShape::new(
+            fill_rect,
+            rounding,
+            fill,
+            stroke,
+            epaint::StrokeKind::Outside,
+        ));
 
         if shadow == Default::default() {
             frame_shape

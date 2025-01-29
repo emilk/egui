@@ -390,6 +390,7 @@ impl BoxPainting {
                     self.rounding,
                     ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
+                    egui::StrokeKind::Inside,
                 );
             }
         });

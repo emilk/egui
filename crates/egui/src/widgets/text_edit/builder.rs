@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use emath::{Rect, TSTransform};
-use epaint::text::{cursor::CCursor, Galley, LayoutJob};
+use epaint::{
+    text::{cursor::CCursor, Galley, LayoutJob},
+    StrokeKind,
+};
 
 use crate::{
     epaint,
@@ -442,6 +445,7 @@ impl TextEdit<'_> {
                         visuals.rounding,
                         background_color,
                         ui.visuals().selection.stroke,
+                        StrokeKind::Inside,
                     )
                 } else {
                     epaint::RectShape::new(
@@ -449,6 +453,7 @@ impl TextEdit<'_> {
                         visuals.rounding,
                         background_color,
                         visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                        StrokeKind::Inside,
                     )
                 }
             } else {
@@ -457,6 +462,7 @@ impl TextEdit<'_> {
                     frame_rect,
                     visuals.rounding,
                     visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    StrokeKind::Inside,
                 )
             };
 

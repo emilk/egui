@@ -1400,7 +1400,7 @@ impl Tessellator {
                 if self.options.debug_paint_text_rects {
                     let rect = text_shape.galley.rect.translate(text_shape.pos.to_vec2());
                     self.tessellate_rect(
-                        &RectShape::stroke(rect.expand(0.5), 2.0, (0.5, Color32::GREEN)),
+                        &RectShape::stroke(rect, 2.0, (0.5, Color32::GREEN), StrokeKind::Outside),
                         out,
                     );
                 }
@@ -2189,7 +2189,12 @@ impl Tessellator {
             .flat_map(|clipped_primitive| {
                 let mut clip_rect_mesh = Mesh::default();
                 self.tessellate_shape(
-                    Shape::rect_stroke(clipped_primitive.clip_rect, 0.0, stroke),
+                    Shape::rect_stroke(
+                        clipped_primitive.clip_rect,
+                        0.0,
+                        stroke,
+                        StrokeKind::Outside,
+                    ),
                     &mut clip_rect_mesh,
                 );
 

@@ -1186,7 +1186,7 @@ impl Ui {
     /// # egui::__run_test_ui(|ui| {
     /// let response = ui.allocate_response(egui::vec2(100.0, 200.0), egui::Sense::click());
     /// if response.clicked() { /* … */ }
-    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE));
+    /// ui.painter().rect_stroke(response.rect, 0.0, (1.0, egui::Color32::WHITE), egui::StrokeKind::Inside);
     /// # });
     /// ```
     pub fn allocate_response(&mut self, desired_size: Vec2, sense: Sense) -> Response {
@@ -1253,8 +1253,12 @@ impl Ui {
             let debug_expand_height = self.style().debug.show_expand_height;
 
             if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
-                self.painter
-                    .rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                self.painter.rect_stroke(
+                    rect,
+                    0.0,
+                    (1.0, Color32::LIGHT_BLUE),
+                    crate::StrokeKind::Inside,
+                );
 
                 let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                 let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);

@@ -75,6 +75,7 @@ impl FrameHistory {
             style.rounding,
             ui.visuals().extreme_bg_color,
             ui.style().noninteractive().bg_stroke,
+            egui::StrokeKind::Inside,
         )));
 
         let rect = rect.shrink(4.0);
