@@ -356,6 +356,7 @@ impl Resize {
                 rect,
                 3.0,
                 ui.visuals().widgets.noninteractive.bg_stroke,
+                epaint::StrokeKind::Inside,
             ));
         }
 

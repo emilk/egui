@@ -137,8 +137,12 @@ impl Widget for ImageButton<'_> {
             );
 
             // Draw frame outline:
-            ui.painter()
-                .rect_stroke(rect.expand2(expansion), rounding, stroke);
+            ui.painter().rect_stroke(
+                rect.expand2(expansion),
+                rounding,
+                stroke,
+                epaint::StrokeKind::Inside,
+            );
         }
 
         widgets::image::texture_load_result_response(&self.image.source(ui.ctx()), &tlr, response)

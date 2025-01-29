@@ -3,7 +3,7 @@ use std::sync::Arc;
 use emath::GuiRounding as _;
 use epaint::{
     text::{Fonts, Galley, LayoutJob},
-    CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke,
+    CircleShape, ClippedShape, PathStroke, RectShape, Rounding, Shape, Stroke, StrokeKind,
 };
 
 use crate::{
@@ -301,6 +301,7 @@ impl Painter {
             0.0,
             color.additive().linear_multiply(0.015),
             (1.0, color),
+            StrokeKind::Outside,
         );
         self.text(
             rect.min,
@@ -407,15 +408,22 @@ impl Painter {
         })
     }
 
-    /// The stroke extends _outside_ the [`Rect`].
+    /// See also [`Self::rect_filled`] and [`Self::rect_stroke`].
     pub fn rect(
         &self,
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> ShapeIdx {
-        self.add(RectShape::new(rect, rounding, fill_color, stroke))
+        self.add(RectShape::new(
+            rect,
+            rounding,
+            fill_color,
+            stroke,
+            stroke_kind,
+        ))
     }
 
     pub fn rect_filled(
@@ -433,8 +441,9 @@ impl Painter {
         rect: Rect,
         rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> ShapeIdx {
-        self.add(RectShape::stroke(rect, rounding, stroke))
+        self.add(RectShape::stroke(rect, rounding, stroke, stroke_kind))
     }
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.

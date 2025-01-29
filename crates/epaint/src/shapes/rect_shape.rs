@@ -16,10 +16,8 @@ pub struct RectShape {
 
     /// The thickness and color of the outline.
     ///
-    /// The stroke extends _outside_ the edge of [`Self::rect`],
-    /// i.e. using [`crate::StrokeKind::Outside`].
-    ///
-    /// This means the [`Self::visual_bounding_rect`] is `rect.size() + 2.0 * stroke.width`.
+    /// Whether or not the stroke is inside or outside the edge of [`Self::rect`],
+    /// is controlled by [`self::stroke_kind`].
     pub stroke: Stroke,
 
     /// Is the stroke on the inside, outside, or centered on the rectangle?
@@ -62,20 +60,21 @@ fn rect_shape_size() {
 }
 
 impl RectShape {
-    /// The stroke extends _outside_ the [`Rect`].
+    /// See also [`Self::filled`] and [`Self::stroke`].
     #[inline]
     pub fn new(
         rect: Rect,
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
     ) -> Self {
         Self {
             rect,
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
-            stroke_kind: StrokeKind::Outside,
+            stroke_kind,
             round_to_pixels: None,
             blur_width: 0.0,
             brush: Default::default(),
@@ -88,14 +87,24 @@ impl RectShape {
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) -> Self {
-        Self::new(rect, rounding, fill_color, Stroke::NONE)
+        Self::new(
+            rect,
+            rounding,
+            fill_color,
+            Stroke::NONE,
+            StrokeKind::Outside, // doesn't matter
+        )
     }
 
-    /// The stroke extends _outside_ the [`Rect`].
     #[inline]
-    pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
+    pub fn stroke(
+        rect: Rect,
+        rounding: impl Into<Rounding>,
+        stroke: impl Into<Stroke>,
+        stroke_kind: StrokeKind,
+    ) -> Self {
         let fill = Color32::TRANSPARENT;
-        Self::new(rect, rounding, fill, stroke)
+        Self::new(rect, rounding, fill, stroke, stroke_kind)
     }
 
     /// Set if the stroke is on the inside, outside, or centered on the rectangle.
@@ -146,8 +155,12 @@ impl RectShape {
         if self.fill == Color32::TRANSPARENT && self.stroke.is_empty() {
             Rect::NOTHING
         } else {
-            let Stroke { width, .. } = self.stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-            self.rect.expand(width + self.blur_width / 2.0)
+            let expand = match self.stroke_kind {
+                StrokeKind::Inside => 0.0,
+                StrokeKind::Middle => self.stroke.width / 2.0,
+                StrokeKind::Outside => self.stroke.width,
+            };
+            self.rect.expand(expand + self.blur_width / 2.0)
         }
     }
 

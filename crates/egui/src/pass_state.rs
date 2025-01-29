@@ -1,4 +1,5 @@
 use ahash::HashMap;
+use epaint::StrokeKind;
 
 use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
 
@@ -121,7 +122,13 @@ impl DebugRect {
                 Color32::LIGHT_BLUE
             };
             let rect_bg_color = Color32::BLUE.gamma_multiply(0.5);
-            painter.rect(rect, 0.0, rect_bg_color, (1.0, rect_fg_color));
+            painter.rect(
+                rect,
+                0.0,
+                rect_bg_color,
+                (1.0, rect_fg_color),
+                StrokeKind::Outside,
+            );
         }
 
         if !callstack.is_empty() {
@@ -157,7 +164,13 @@ impl DebugRect {
                 text_bg_color
             };
             let text_rect = Rect::from_min_size(text_pos, galley.size());
-            painter.rect(text_rect, 0.0, text_bg_color, (1.0, text_rect_stroke_color));
+            painter.rect(
+                text_rect,
+                0.0,
+                text_bg_color,
+                (1.0, text_rect_stroke_color),
+                StrokeKind::Middle,
+            );
             painter.galley(text_pos, galley, text_color);
 
             if is_clicking {

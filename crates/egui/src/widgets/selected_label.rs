@@ -74,6 +74,7 @@ impl Widget for SelectableLabel {
                     visuals.rounding,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
+                    epaint::StrokeKind::Inside,
                 );
             }
 

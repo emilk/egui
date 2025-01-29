@@ -137,7 +137,7 @@ impl Widget for ProgressBar {
             let corner_radius = outer_rect.height() / 2.0;
             let rounding = rounding.unwrap_or_else(|| corner_radius.into());
             ui.painter()
-                .rect(outer_rect, rounding, visuals.extreme_bg_color, Stroke::NONE);
+                .rect_filled(outer_rect, rounding, visuals.extreme_bg_color);
             let min_width =
                 2.0 * f32::max(rounding.sw as _, rounding.nw as _).at_most(corner_radius);
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
@@ -152,13 +152,12 @@ impl Widget for ProgressBar {
                 bright
             };
 
-            ui.painter().rect(
+            ui.painter().rect_filled(
                 inner_rect,
                 rounding,
                 Color32::from(
                     Rgba::from(fill.unwrap_or(visuals.selection.bg_fill)) * color_factor as f32,
                 ),
-                Stroke::NONE,
             );
 
             if animate && !is_custom_rounding {
