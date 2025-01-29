@@ -48,6 +48,103 @@ impl PanelState {
 
 // ----------------------------------------------------------------------------
 
+pub trait SideT {
+    fn opposite(self) -> Self;
+}
+
+pub trait PanelOptions {
+    type SideType: SideT;
+
+    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
+    fn new(side: Self::SideType, id: impl Into<Id>) -> Self;
+
+    /// Can panel be resized by dragging the edge of it?
+    ///
+    /// Default is `true`.
+    ///
+    /// If you want your panel to be resizable you also need a widget in it that
+    /// takes up more space as you resize it, such as:
+    /// * Wrapping text ([`Ui::horizontal_wrapped`]).
+    /// * A [`crate::ScrollArea`].
+    /// * A [`crate::Separator`].
+    /// * A [`crate::TextEdit`].
+    /// * …
+    fn resizable(mut self, resizable: bool) -> Self;
+
+    /// Show a separator line, even when not interacting with it?
+    ///
+    /// Default: `true`.
+    fn show_separator_line(mut self, show_separator_line: bool) -> Self;
+
+    /// Change the background color, margins, etc.
+    fn frame(mut self, frame: Frame) -> Self;
+
+    /// The initial wrapping size (width or height) of the panel including margins.
+    fn default_size(mut self, default_size: f32) -> Self;
+
+    /// Minimum size (width or height) of the panel, including margins.
+    fn min_size(mut self, min_size: f32) -> Self;
+
+    /// Maximum size (width or height) of the panel, including margins.
+    fn max_size(mut self, max_size: f32) -> Self;
+
+    /// The allowable size (width or height) range for the panel, including margins.
+    fn size_range(mut self, size_range: impl Into<Rangef>) -> Self;
+
+    /// Enforce this exact size (width or height), including margins.
+    fn exact_size(mut self, size: f32) -> Self;
+}
+
+pub trait PanelShow {
+    /// Show the panel inside a [`Ui`].
+    fn show_inside<R>(
+        self,
+        ui: &mut Ui,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<R>;
+
+    /// Show the panel at the top level.
+    fn show<R>(self, ctx: &Context, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R>;
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    fn show_animated<R>(
+        self,
+        ctx: &Context,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>>;
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    fn show_animated_inside<R>(
+        self,
+        ui: &mut Ui,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>>;
+
+    /// Show either a collapsed or an expanded panel, with a nice animation between.
+    fn show_animated_between<R>(
+        ctx: &Context,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> Option<InnerResponse<R>>;
+
+    /// Show either a collapsed or an expanded panel, with a nice animation between.
+    fn show_animated_between_inside<R>(
+        ui: &mut Ui,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> InnerResponse<R>;
+}
+
+// ----------------------------------------------------------------------------
+
 /// [`Left`](Side::Left) or [`Right`](Side::Right)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
