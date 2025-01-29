@@ -112,7 +112,7 @@ pub struct PlatformOutput {
     pub cursor_icon: CursorIcon,
 
     /// If set, open this url.
-    #[deprecated = "Use `Context::open_url` instead"]
+    #[deprecated = "Use `Context::open_url` or `PlatformOutput::commands` instead"]
     pub open_url: Option<OpenUrl>,
 
     /// If set, put this text in the system clipboard. Ignore if empty.
@@ -126,7 +126,7 @@ pub struct PlatformOutput {
     /// }
     /// # });
     /// ```
-    #[deprecated = "Use `Context::copy_text` instead"]
+    #[deprecated = "Use `Context::copy_text` or `PlatformOutput::commands` instead"]
     pub copied_text: String,
 
     /// Events that may be useful to e.g. a screen reader.
