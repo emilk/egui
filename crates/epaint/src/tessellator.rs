@@ -1676,9 +1676,12 @@ impl Tessellator {
             mut rounding,
             fill,
             stroke,
+            round_to_pixels,
             mut blur_width,
             ..
         } = *rect_shape;
+
+        let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
 
         if self.options.coarse_tessellation_culling
             && !rect.expand(stroke.width).intersects(self.clip_rect)
@@ -1689,7 +1692,7 @@ impl Tessellator {
             return;
         }
 
-        if self.options.round_rects_to_pixels {
+        if round_to_pixels {
             // Since the stroke extends outside of the rectangle,
             // we can round the rectangle sides to the physical pixel edges,
             // and the filled rect will appear crisp, as will the inside of the stroke.

@@ -63,6 +63,7 @@ pub fn adjust_colors(
             rounding: _,
             fill,
             stroke,
+            round_to_pixels: _,
             blur_width: _,
             brush: _,
         }) => {
