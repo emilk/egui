@@ -1,5 +1,4 @@
 use ahash::HashMap;
-use epaint::StrokeKind;
 
 use crate::{id::IdSet, style, Align, Id, IdMap, LayerId, Rangef, Rect, Vec2, WidgetRects};
 
@@ -127,7 +126,7 @@ impl DebugRect {
                 0.0,
                 rect_bg_color,
                 (1.0, rect_fg_color),
-                StrokeKind::Outside,
+                crate::StrokeKind::Outside,
             );
         }
 
@@ -169,7 +168,7 @@ impl DebugRect {
                 0.0,
                 text_bg_color,
                 (1.0, text_rect_stroke_color),
-                StrokeKind::Middle,
+                crate::StrokeKind::Middle,
             );
             painter.galley(text_pos, galley, text_color);
 

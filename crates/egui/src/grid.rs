@@ -1,5 +1,4 @@
 use emath::GuiRounding as _;
-use epaint::StrokeKind;
 
 use crate::{
     vec2, Align2, Color32, Context, Id, InnerResponse, NumExt, Painter, Rect, Region, Style, Ui,
@@ -209,7 +208,12 @@ impl GridLayout {
 
                 if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
                     let painter = self.ctx.debug_painter();
-                    painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE), StrokeKind::Inside);
+                    painter.rect_stroke(
+                        rect,
+                        0.0,
+                        (1.0, Color32::LIGHT_BLUE),
+                        crate::StrokeKind::Inside,
+                    );
 
                     let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                     let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);

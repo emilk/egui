@@ -4,7 +4,7 @@
 use std::{any::Any, hash::Hash, sync::Arc};
 
 use emath::GuiRounding as _;
-use epaint::{mutex::RwLock, StrokeKind};
+use epaint::mutex::RwLock;
 
 use crate::{
     containers::{CollapsingHeader, CollapsingResponse, Frame},
@@ -1253,8 +1253,12 @@ impl Ui {
             let debug_expand_height = self.style().debug.show_expand_height;
 
             if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
-                self.painter
-                    .rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE), StrokeKind::Inside);
+                self.painter.rect_stroke(
+                    rect,
+                    0.0,
+                    (1.0, Color32::LIGHT_BLUE),
+                    crate::StrokeKind::Inside,
+                );
 
                 let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
                 let paint_line_seg = |a, b| self.painter().line_segment([a, b], stroke);
