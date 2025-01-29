@@ -1669,8 +1669,8 @@ impl Tessellator {
     ///
     /// * `rect`: the rectangle to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
-        let brush = rect.brush.as_ref();
+    pub fn tessellate_rect(&mut self, rect_shape: &RectShape, out: &mut Mesh) {
+        let brush = rect_shape.brush.as_ref();
         let RectShape {
             mut rect,
             mut rounding,
@@ -1678,7 +1678,7 @@ impl Tessellator {
             stroke,
             mut blur_width,
             ..
-        } = *rect;
+        } = *rect_shape;
 
         if self.options.coarse_tessellation_culling
             && !rect.expand(stroke.width).intersects(self.clip_rect)
