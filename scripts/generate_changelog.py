@@ -337,7 +337,9 @@ def main() -> None:
         if crate in crate_sections:
             prs = crate_sections[crate]
             print_section(crate, changelog_from_prs(prs, crate))
+    print()
     print_section("Unsorted PRs", "\n".join([f"* {item}" for item in unsorted_prs]))
+    print()
     print_section(
         "Unsorted commits", "\n".join([f"* {item}" for item in unsorted_commits])
     )
