@@ -56,17 +56,17 @@ impl std::hash::Hash for Stroke {
 }
 
 /// Describes how the stroke of a shape should be painted.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum StrokeKind {
-    /// The stroke should be painted entirely outside of the shape
-    Outside,
-
     /// The stroke should be painted entirely inside of the shape
     Inside,
 
     /// The stroke should be painted right on the edge of the shape, half inside and half outside.
     Middle,
+
+    /// The stroke should be painted entirely outside of the shape
+    Outside,
 }
 
 impl Default for StrokeKind {

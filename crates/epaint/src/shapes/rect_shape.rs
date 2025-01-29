@@ -22,6 +22,18 @@ pub struct RectShape {
     /// This means the [`Self::visual_bounding_rect`] is `rect.size() + 2.0 * stroke.width`.
     pub stroke: Stroke,
 
+    /// Is the stroke on the inside, outside, or centered on the rectangle?
+    pub stroke_kind: StrokeKind,
+
+    /// Snap the rectangle to pixels?
+    ///
+    /// Rounding produces sharper rectangles.
+    /// It is the outside of the fill (=inside of the stroke)
+    /// that will be rounded to the physical pixel grid.
+    ///
+    /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
+    pub round_to_pixels: Option<bool>,
+
     /// If larger than zero, the edges of the rectangle
     /// (for both fill and stroke) will be blurred.
     ///
@@ -63,6 +75,8 @@ impl RectShape {
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
+            stroke_kind: StrokeKind::Outside,
+            round_to_pixels: None,
             blur_width: 0.0,
             brush: Default::default(),
         }
@@ -82,6 +96,26 @@ impl RectShape {
     pub fn stroke(rect: Rect, rounding: impl Into<Rounding>, stroke: impl Into<Stroke>) -> Self {
         let fill = Color32::TRANSPARENT;
         Self::new(rect, rounding, fill, stroke)
+    }
+
+    /// Set if the stroke is on the inside, outside, or centered on the rectangle.
+    #[inline]
+    pub fn with_stroke_kind(mut self, stroke_kind: StrokeKind) -> Self {
+        self.stroke_kind = stroke_kind;
+        self
+    }
+
+    /// Snap the rectangle to pixels?
+    ///
+    /// Rounding produces sharper rectangles.
+    /// It is the outside of the fill (=inside of the stroke)
+    /// that will be rounded to the physical pixel grid.
+    ///
+    /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
+    #[inline]
+    pub fn with_round_to_pixels(mut self, round_to_pixels: bool) -> Self {
+        self.round_to_pixels = Some(round_to_pixels);
+        self
     }
 
     /// If larger than zero, the edges of the rectangle

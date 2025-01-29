@@ -5,13 +5,13 @@
 
 #![allow(clippy::identity_op)]
 
-use crate::texture_atlas::PreparedDisc;
-use crate::{
-    color, emath, stroke, CircleShape, ClippedPrimitive, ClippedShape, Color32, CubicBezierShape,
-    EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape, RectShape, Rounding, Shape,
-    Stroke, TextShape, TextureId, Vertex, WHITE_UV,
-};
 use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
+
+use crate::{
+    color, emath, stroke, texture_atlas::PreparedDisc, CircleShape, ClippedPrimitive, ClippedShape,
+    Color32, CubicBezierShape, EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape,
+    RectShape, Rounding, Shape, Stroke, StrokeKind, TextShape, TextureId, Vertex, WHITE_UV,
+};
 
 use self::color::ColorMode;
 use self::stroke::PathStroke;
@@ -686,6 +686,8 @@ pub struct TessellationOptions {
     ///
     /// This makes the rectangle strokes more crisp,
     /// and makes filled rectangles tile perfectly (without feathering).
+    ///
+    /// You can override this with [`crate::RectShape::round_to_pixels`].
     pub round_rects_to_pixels: bool,
 
     /// Output the clip rectangles to be painted.
@@ -1669,27 +1671,41 @@ impl Tessellator {
     ///
     /// * `rect`: the rectangle to tessellate.
     /// * `out`: triangles are appended to this.
-    pub fn tessellate_rect(&mut self, rect: &RectShape, out: &mut Mesh) {
-        let brush = rect.brush.as_ref();
+    pub fn tessellate_rect(&mut self, rect_shape: &RectShape, out: &mut Mesh) {
+        let brush = rect_shape.brush.as_ref();
         let RectShape {
             mut rect,
             mut rounding,
             fill,
             stroke,
+            stroke_kind,
+            round_to_pixels,
             mut blur_width,
-            ..
-        } = *rect;
+            brush: _, // brush is extracted on its own, because it is not Copy
+        } = *rect_shape;
+
+        let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
+
+        // Modify `rect` so that it represents the filled region, with the stroke on the outside:
+        match stroke_kind {
+            StrokeKind::Inside => {
+                rect = rect.shrink(stroke.width);
+            }
+            StrokeKind::Middle => {
+                rect = rect.shrink(stroke.width / 2.0);
+            }
+            StrokeKind::Outside => {
+                // Already good
+            }
+        }
 
         if self.options.coarse_tessellation_culling
             && !rect.expand(stroke.width).intersects(self.clip_rect)
         {
             return;
         }
-        if rect.is_negative() {
-            return;
-        }
 
-        if self.options.round_rects_to_pixels {
+        if round_to_pixels {
             // Since the stroke extends outside of the rectangle,
             // we can round the rectangle sides to the physical pixel edges,
             // and the filled rect will appear crisp, as will the inside of the stroke.
@@ -1736,7 +1752,7 @@ impl Tessellator {
         if rect.width() < 0.5 * self.feathering {
             // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
-            if fill != Color32::TRANSPARENT {
+            if 0.0 < rect.width() && fill != Color32::TRANSPARENT {
                 self.tessellate_line_segment(line, Stroke::new(rect.width(), fill), out);
             }
             if !stroke.is_empty() {
@@ -1746,7 +1762,7 @@ impl Tessellator {
         } else if rect.height() < 0.5 * self.feathering {
             // Very thin - approximate by a horizontal line-segment:
             let line = [rect.left_center(), rect.right_center()];
-            if fill != Color32::TRANSPARENT {
+            if 0.0 < rect.height() && fill != Color32::TRANSPARENT {
                 self.tessellate_line_segment(line, Stroke::new(rect.height(), fill), out);
             }
             if !stroke.is_empty() {
