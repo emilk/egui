@@ -1688,9 +1688,6 @@ impl Tessellator {
         {
             return;
         }
-        if rect.is_negative() {
-            return;
-        }
 
         if round_to_pixels {
             // Since the stroke extends outside of the rectangle,
@@ -1739,7 +1736,7 @@ impl Tessellator {
         if rect.width() < 0.5 * self.feathering {
             // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
-            if fill != Color32::TRANSPARENT {
+            if 0.0 < rect.width() && fill != Color32::TRANSPARENT {
                 self.tessellate_line_segment(line, Stroke::new(rect.width(), fill), out);
             }
             if !stroke.is_empty() {
@@ -1749,7 +1746,7 @@ impl Tessellator {
         } else if rect.height() < 0.5 * self.feathering {
             // Very thin - approximate by a horizontal line-segment:
             let line = [rect.left_center(), rect.right_center()];
-            if fill != Color32::TRANSPARENT {
+            if 0.0 < rect.height() && fill != Color32::TRANSPARENT {
                 self.tessellate_line_segment(line, Stroke::new(rect.height(), fill), out);
             }
             if !stroke.is_empty() {
