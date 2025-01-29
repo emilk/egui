@@ -160,7 +160,10 @@ impl Display for SnapshotError {
 /// This is so that you can set `UPDATE_SNAPSHOTS=true` and update _all_ tests,
 /// without `cargo test` failing on the first failing crate.
 fn should_update_snapshots() -> bool {
-    std::env::var("UPDATE_SNAPSHOTS").is_ok()
+    match std::env::var("UPDATE_SNAPSHOTS") {
+        Ok(value) => !matches!(value.as_str(), "false" | "0" | "no" | "off"),
+        Err(_) => false,
+    }
 }
 
 /// Image snapshot test with custom options.
