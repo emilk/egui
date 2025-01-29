@@ -152,14 +152,16 @@ pub enum Side {
     Right,
 }
 
-impl Side {
+impl SideT for Side {
     fn opposite(self) -> Self {
         match self {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
         }
     }
+}
 
+impl Side {
     fn set_rect_width(self, rect: &mut Rect, width: f32) {
         match self {
             Self::Left => rect.max.x = rect.min.x + width,
@@ -634,14 +636,16 @@ pub enum TopBottomSide {
     Bottom,
 }
 
-impl TopBottomSide {
+impl SideT for TopBottomSide {
     fn opposite(self) -> Self {
         match self {
             Self::Top => Self::Bottom,
             Self::Bottom => Self::Top,
         }
     }
+}
 
+impl TopBottomSide {
     fn set_rect_height(self, rect: &mut Rect, height: f32) {
         match self {
             Self::Top => rect.max.y = rect.min.y + height,
