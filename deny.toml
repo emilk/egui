@@ -35,7 +35,7 @@ ignore = [
 ]
 
 [bans]
-multiple-versions = "deny"
+multiple-versions = "deny" # Use `cargo tree --duplicates` to easily find duplicates
 wildcards = "deny"
 deny = [
   { name = "cmake", reason = "It has hurt me too much" },
