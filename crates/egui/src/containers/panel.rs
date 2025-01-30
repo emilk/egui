@@ -179,6 +179,100 @@ impl Side {
     }
 }
 
+// ----------------------------------------------------------------------------
+
+/// Intermediate structure to abstract some portion of [`Panel::show_inside`](Panel::show_inside).
+struct PanelSizer<'a> {
+    panel: &'a Panel,
+    frame: Frame,
+    available_rect: Rect,
+    size: f32,
+    panel_rect: Rect,
+}
+
+impl PanelSizer {
+    fn new(panel: &Panel, ui: &mut Ui) -> Self {
+        let frame = panel
+            .frame
+            .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
+        let available_rect = ui.available_rect_before_wrap();
+        let mut size = PanelSizer::get_size_from_state_or_default(panel, ui, frame);
+        let mut panel_rect = PanelSizer::get_panel_rect(panel, available_rect, &mut size);
+
+        Self {
+            panel,
+            frame,
+            available_rect,
+            size,
+            panel_rect,
+        }
+    }
+
+    fn get_size_from_state_or_default(panel: &Panel, ui: &mut Ui, frame: Frame) -> f32 {
+        if let Some(state) = PanelState::load(ui.ctx(), panel.id) {
+            match panel.side {
+                Side::Vertical(_) => state.rect.width(),
+                Side::Horizontal(_) => state.rect.height(),
+            }
+        } else {
+            match panel.side {
+                Side::Vertical(_) => panel.default_size.unwrap_or_else(|| {
+                    ui.style().spacing.interact_size.x + frame.inner_margin.sum().x
+                }),
+                Side::Horizontal(_) => panel.default_size.unwrap_or_else(|| {
+                    ui.style().spacing.interact_size.y + frame.inner_margin.sum().y
+                }),
+            }
+        }
+    }
+
+    fn get_panel_rect(panel: &Panel, available_rect: Rect, mut size: &mut f32) -> Rect {
+        let side = panel.side;
+        let size_range = panel.size_range;
+
+        let mut panel_rect = available_rect;
+
+        match side {
+            Side::Vertical(_) => {
+                size = &mut clamp_to_range(*size, size_range).at_most(available_rect.width());
+            }
+            Side::Horizontal(_) => {
+                size = &mut clamp_to_range(*size, size_range).at_most(available_rect.height());
+            }
+        }
+        side.set_rect_size(&mut panel_rect, *size);
+        panel_rect
+    }
+
+    fn prepare_resizing_response(&mut self, is_resizing: bool, pointer: Option<Pos2>) {
+        let side = self.panel.side;
+        let size_range = self.panel.size_range;
+
+        let prepare_resizing_response_vertical = |pointer: Pos2| {
+            self.size = (pointer.x - side.side_axe(self.panel_rect)).abs();
+            self.size = clamp_to_range(self.size, size_range).at_most(self.available_rect.width());
+        };
+
+        let prepare_resizing_response_horizontal = |pointer: Pos2| {
+            self.size = (pointer.y - side.side_axe(self.panel_rect)).abs();
+            self.size = clamp_to_range(self.size, size_range).at_most(self.available_rect.height());
+        };
+
+        if is_resizing && pointer.is_some() {
+            let pointer = pointer.unwrap();
+
+            match side {
+                Side::Vertical(_) => prepare_resizing_response_vertical(pointer),
+                Side::Horizontal(_) => prepare_resizing_response_horizontal(pointer),
+            }
+
+            side.set_rect_size(&mut self.panel_rect, self.size);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A panel that covers the entire left or right side of a [`Ui`] or screen.
 ///
 /// The order in which you add panels matter!
