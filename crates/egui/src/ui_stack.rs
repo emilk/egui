@@ -18,10 +18,10 @@ pub enum UiKind {
     /// A right [`crate::Panel`].
     RightPanel,
 
-    /// A top [`crate::TopBottomPanel`].
+    /// A top [`crate::Panel`].
     TopPanel,
 
-    /// A bottom [`crate::TopBottomPanel`].
+    /// A bottom [`crate::Panel`].
     BottomPanel,
 
     /// A modal [`crate::Modal`].

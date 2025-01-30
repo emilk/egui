@@ -45,7 +45,7 @@
 //!
 //! ### Getting a [`Ui`]
 //!
-//! Use one of [`Panel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`] to
+//! Use one of [`Panel`], [`CentralPanel`], [`Window`] or [`Area`] to
 //! get access to an [`Ui`] where you can put widgets. For example:
 //!
 //! ```
@@ -324,7 +324,7 @@
 //! when you release the panel/window shrinks again.
 //! This is an artifact of immediate mode, and here are some alternatives on how to avoid it:
 //!
-//! 1. Turn off resizing with [`Window::resizable`], [`Panel::resizable`], [`TopBottomPanel::resizable`].
+//! 1. Turn off resizing with [`Window::resizable`], [`Panel::resizable`].
 //! 2. Wrap your panel contents in a [`ScrollArea`], or use [`Window::vscroll`] and [`Window::hscroll`].
 //! 3. Use a justified layout:
 //!

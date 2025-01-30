@@ -296,7 +296,7 @@ impl eframe::App for WrapApp {
         }
 
         let mut cmd = Command::Nothing;
-        egui::TopBottomPanel::top("wrap_app_top_bar")
+        egui::Panel::top("wrap_app_top_bar")
             .frame(egui::Frame::new().inner_margin(4))
             .show(ctx, |ui| {
                 ui.horizontal_wrapped(|ui| {

@@ -170,7 +170,7 @@ impl eframe::App for MyApp {
             });
         });
 
-        egui::TopBottomPanel::bottom("bottom_panel")
+        egui::Panel::bottom("bottom_panel")
             .resizable(true)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical()

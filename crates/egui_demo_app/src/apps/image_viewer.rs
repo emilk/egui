@@ -53,7 +53,7 @@ impl Default for ImageViewer {
 
 impl eframe::App for ImageViewer {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        egui::TopBottomPanel::new(Side::Horizontal(HorizontalSide::Top), "url bar").show(
+        egui::Panel::new(Side::Horizontal(HorizontalSide::Top), "url bar").show(
             ctx,
             |ui| {
                 ui.horizontal_centered(|ui| {

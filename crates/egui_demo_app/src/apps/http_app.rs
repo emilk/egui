@@ -61,7 +61,7 @@ impl Default for HttpApp {
 
 impl eframe::App for HttpApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
+        egui::Panel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {
                 ui.add(egui_demo_lib::egui_github_link_file!())

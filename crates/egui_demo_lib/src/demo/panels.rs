@@ -22,9 +22,9 @@ impl crate::View for Panels {
     fn ui(&mut self, ui: &mut egui::Ui) {
         // Note that the order we add the panels is very important!
 
-        egui::TopBottomPanel::top("top_panel")
+        egui::Panel::top("top_panel")
             .resizable(true)
-            .min_height(32.0)
+            .min_size(32.0)
             .show_inside(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
@@ -60,9 +60,9 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::TopBottomPanel::bottom("bottom_panel")
+        egui::Panel::bottom("bottom_panel")
             .resizable(false)
-            .min_height(0.0)
+            .min_size(0.0)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Bottom Panel");
