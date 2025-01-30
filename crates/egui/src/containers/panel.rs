@@ -187,7 +187,8 @@ impl Side {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # egui::__run_test_ctx(|ctx| {
+/// # use egui::panel::PanelShow as _;
+/// egui::__run_test_ctx(|ctx| {
 /// egui::SidePanel::left("my_left_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
@@ -669,7 +670,8 @@ impl TopBottomSide {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # egui::__run_test_ctx(|ctx| {
+/// # use egui::panel::PanelShow as _;
+/// egui::__run_test_ctx(|ctx| {
 /// egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
@@ -1155,6 +1157,7 @@ impl PanelShow for TopBottomPanel {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
+/// use egui::panel::PanelShow as _;
 /// egui::__run_test_ctx(|ctx| {
 /// egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
 ///    ui.label("Hello World! From `TopBottomPanel`, that must be before `CentralPanel`!");

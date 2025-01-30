@@ -1,5 +1,6 @@
 use egui::Image;
 use poll_promise::Promise;
+use egui::panel::PanelShow as _;
 
 struct Resource {
     /// HTTP response

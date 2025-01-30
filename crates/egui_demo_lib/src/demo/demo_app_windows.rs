@@ -1,7 +1,8 @@
 use std::collections::BTreeSet;
 
 use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
-
+use egui::panel::PanelOptions as _;
+use egui::panel::PanelShow as _;
 use super::About;
 use crate::is_mobile;
 use crate::Demo;

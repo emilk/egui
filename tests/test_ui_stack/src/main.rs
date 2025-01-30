@@ -3,6 +3,8 @@
 
 use eframe::egui;
 use eframe::egui::{Rangef, Shape, UiKind};
+use eframe::egui::panel::PanelOptions as _;
+use eframe::egui::panel::PanelShow as _;
 use egui_extras::Column;
 
 fn main() -> eframe::Result {
