@@ -70,37 +70,37 @@ pub trait PanelOptions {
     /// * A [`crate::TextEdit`].
     /// * …
     #[inline]
-    fn resizable(mut self, resizable: bool) -> Self;
+    fn resizable(self, resizable: bool) -> Self;
 
     /// Show a separator line, even when not interacting with it?
     ///
     /// Default: `true`.
     #[inline]
-    fn show_separator_line(mut self, show_separator_line: bool) -> Self;
+    fn show_separator_line(self, show_separator_line: bool) -> Self;
 
     /// Change the background color, margins, etc.
     #[inline]
-    fn frame(mut self, frame: Frame) -> Self;
+    fn frame(self, frame: Frame) -> Self;
 
     /// The initial wrapping size (width or height) of the panel including margins.
     #[inline]
-    fn default_size(mut self, default_size: f32) -> Self;
+    fn default_size(self, default_size: f32) -> Self;
 
     /// Minimum size (width or height) of the panel, including margins.
     #[inline]
-    fn min_size(mut self, min_size: f32) -> Self;
+    fn min_size(self, min_size: f32) -> Self;
 
     /// Maximum size (width or height) of the panel, including margins.
     #[inline]
-    fn max_size(mut self, max_size: f32) -> Self;
+    fn max_size(self, max_size: f32) -> Self;
 
     /// The allowable size (width or height) range for the panel, including margins.
     #[inline]
-    fn size_range(mut self, size_range: impl Into<Rangef>) -> Self;
+    fn size_range(self, size_range: impl Into<Rangef>) -> Self;
 
     /// Enforce this exact size (width or height), including margins.
     #[inline]
-    fn exact_size(mut self, size: f32) -> Self;
+    fn exact_size(self, size: f32) -> Self;
 }
 
 pub trait PanelShow {
