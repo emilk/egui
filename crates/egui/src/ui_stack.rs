@@ -12,10 +12,10 @@ pub enum UiKind {
     /// A [`crate::CentralPanel`].
     CentralPanel,
 
-    /// A left [`crate::SidePanel`].
+    /// A left [`crate::Panel`].
     LeftPanel,
 
-    /// A right [`crate::SidePanel`].
+    /// A right [`crate::Panel`].
     RightPanel,
 
     /// A top [`crate::TopBottomPanel`].

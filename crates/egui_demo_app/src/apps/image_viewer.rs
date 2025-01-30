@@ -77,7 +77,7 @@ impl eframe::App for ImageViewer {
             },
         );
 
-        egui::SidePanel::new(Side::Vertical(VerticalSide::Left), "controls").show(ctx, |ui| {
+        egui::Panel::new(Side::Vertical(VerticalSide::Left), "controls").show(ctx, |ui| {
             // uv
             ui.label("UV");
             ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));

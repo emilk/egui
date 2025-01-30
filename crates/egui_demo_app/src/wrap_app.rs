@@ -342,7 +342,7 @@ impl WrapApp {
 
         let mut cmd = Command::Nothing;
 
-        egui::SidePanel::left("backend_panel")
+        egui::Panel::left("backend_panel")
             .resizable(false)
             .show_animated(ctx, is_open, |ui| {
                 ui.add_space(4.0);

@@ -34,10 +34,10 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::SidePanel::left("left_panel")
+        egui::Panel::left("left_panel")
             .resizable(true)
-            .default_width(150.0)
-            .width_range(80.0..=200.0)
+            .default_size(150.0)
+            .size_range(80.0..=200.0)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Left Panel");
@@ -47,10 +47,10 @@ impl crate::View for Panels {
                 });
             });
 
-        egui::SidePanel::right("right_panel")
+        egui::Panel::right("right_panel")
             .resizable(true)
-            .default_width(150.0)
-            .width_range(80.0..=200.0)
+            .default_size(150.0)
+            .size_range(80.0..=200.0)
             .show_inside(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading("Right Panel");

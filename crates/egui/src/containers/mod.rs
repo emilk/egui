@@ -1,4 +1,4 @@
-//! Containers are pieces of the UI which wraps other pieces of UI. Examples: [`Window`], [`ScrollArea`], [`Resize`], [`SidePanel`], etc.
+//! Containers are pieces of the UI which wraps other pieces of UI. Examples: [`Window`], [`ScrollArea`], [`Resize`], [`OldSidePanel`], etc.
 //!
 //! For instance, a [`Frame`] adds a frame and background to some contained UI.
 
@@ -21,7 +21,7 @@ pub use {
     combo_box::*,
     frame::Frame,
     modal::{Modal, ModalResponse},
-    panel::{CentralPanel, SidePanel, TopBottomPanel},
+    panel::{CentralPanel, Panel, TopBottomPanel},
     popup::*,
     resize::Resize,
     scene::Scene,
