@@ -17,7 +17,6 @@
 
 use emath::{GuiRounding as _, Pos2};
 
-use crate::panel::TopBottomSide;
 use crate::{
     lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
     Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
@@ -547,15 +546,11 @@ impl Panel {
         ui: &mut Ui,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let Self {
-            side,
-            id,
-            frame,
-            resizable,
-            show_separator_line,
-            default_size,
-            size_range,
-        } = self;
+        let side = self.side;
+        let id = self.id;
+        let resizable = self.resizable;
+        let show_separator_line = self.show_separator_line;
+        let size_range = self.size_range;
 
         // Define the sizing of the panel.
         let mut panel_sizer = PanelSizer::new(&self, ui);
