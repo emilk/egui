@@ -1,6 +1,7 @@
 use egui::emath::Rot2;
+use egui::panel::HorizontalSide;
 use egui::panel::Side;
-use egui::panel::TopBottomSide;
+use egui::panel::VerticalSide;
 use egui::ImageFit;
 use egui::Slider;
 use egui::Vec2;
@@ -52,28 +53,31 @@ impl Default for ImageViewer {
 
 impl eframe::App for ImageViewer {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        egui::TopBottomPanel::new(TopBottomSide::Top, "url bar").show(ctx, |ui| {
-            ui.horizontal_centered(|ui| {
-                let label = ui.label("URI:");
-                ui.text_edit_singleline(&mut self.uri_edit_text)
-                    .labelled_by(label.id);
-                if ui.small_button("✔").clicked() {
-                    ctx.forget_image(&self.current_uri);
-                    self.uri_edit_text = self.uri_edit_text.trim().to_owned();
-                    self.current_uri = self.uri_edit_text.clone();
-                };
-
-                #[cfg(not(target_arch = "wasm32"))]
-                if ui.button("file…").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        self.uri_edit_text = format!("file://{}", path.display());
+        egui::TopBottomPanel::new(Side::Horizontal(HorizontalSide::Top), "url bar").show(
+            ctx,
+            |ui| {
+                ui.horizontal_centered(|ui| {
+                    let label = ui.label("URI:");
+                    ui.text_edit_singleline(&mut self.uri_edit_text)
+                        .labelled_by(label.id);
+                    if ui.small_button("✔").clicked() {
+                        ctx.forget_image(&self.current_uri);
+                        self.uri_edit_text = self.uri_edit_text.trim().to_owned();
                         self.current_uri = self.uri_edit_text.clone();
-                    }
-                }
-            });
-        });
+                    };
 
-        egui::SidePanel::new(Side::Left, "controls").show(ctx, |ui| {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if ui.button("file…").clicked() {
+                        if let Some(path) = rfd::FileDialog::new().pick_file() {
+                            self.uri_edit_text = format!("file://{}", path.display());
+                            self.current_uri = self.uri_edit_text.clone();
+                        }
+                    }
+                });
+            },
+        );
+
+        egui::SidePanel::new(Side::Vertical(VerticalSide::Left), "controls").show(ctx, |ui| {
             // uv
             ui.label("UV");
             ui.add(Slider::new(&mut self.image_options.uv.min.x, 0.0..=1.0).text("min x"));

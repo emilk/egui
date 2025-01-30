@@ -50,39 +50,131 @@ impl PanelState {
 
 // ----------------------------------------------------------------------------
 
-/// [`Left`](Side::Left) or [`Right`](Side::Right)
+/// [`Left`](VerticalSide::Left) or [`Right`](VerticalSide::Right)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Side {
+pub enum VerticalSide {
     Left,
     Right,
+}
+
+/// [`Top`](HorizontalSide::Top) or [`Bottom`](HorizontalSide::Bottom)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HorizontalSide {
+    Top,
+    Bottom,
+}
+
+/// [`Horizontal`](Side::Horizontal) or [`Vertical`](Side::Vertical)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Side {
+    Vertical(VerticalSide),
+    Horizontal(HorizontalSide),
 }
 
 impl Side {
     fn opposite(self) -> Self {
         match self {
-            Self::Left => Self::Right,
-            Self::Right => Self::Left,
+            Side::Vertical(side) => opposite_vertical(side),
+            Side::Horizontal(side) => opposite_horizontal(side),
+        }
+
+        fn opposite_vertical(
+            side: VerticalSide,
+        ) -> Side {
+            match side {
+                VerticalSide::Left => {
+                    Side::Vertical(
+                        VerticalSide::Right,
+                    )
+                }
+                VerticalSide::Right => {
+                    Side::Vertical(
+                        VerticalSide::Left,
+                    )
+                }
+            }
+        }
+
+        fn opposite_horizontal(
+            side: HorizontalSide,
+        ) -> Side {
+            match side {
+                HorizontalSide::Top => {
+                    Side::Horizontal(
+                        HorizontalSide::Bottom,
+                    )
+                }
+                HorizontalSide::Bottom => {
+                    Side::Horizontal(
+                        HorizontalSide::Top,
+                    )
+                }
+            }
         }
     }
 
-    fn set_rect_width(self, rect: &mut Rect, width: f32) {
+    fn set_rect_size(self, rect: &mut Rect, size: f32) {
+        let set_rect_size_vertical = |side: VerticalSide| match side {
+            VerticalSide::Left => rect.max.x = rect.min.x + size,
+            VerticalSide::Right => rect.min.x = rect.max.x - size,
+        };
+
+        let set_rect_size_horizontal =
+            |side: HorizontalSide| match side {
+                HorizontalSide::Top => rect.max.y = rect.min.y + size,
+                HorizontalSide::Bottom => {
+                    rect.min.y = rect.max.y - size
+                }
+            };
+
         match self {
-            Self::Left => rect.max.x = rect.min.x + width,
-            Self::Right => rect.min.x = rect.max.x - width,
+            Side::Vertical(side) => set_rect_size_vertical(side),
+            Side::Horizontal(side) => set_rect_size_horizontal(side),
         }
     }
 
-    fn side_x(self, rect: Rect) -> f32 {
+    fn side_axe(self, rect: Rect) -> f32 {
         match self {
-            Self::Left => rect.left(),
-            Self::Right => rect.right(),
+            Side::Vertical(side) => side_axe_vertical(side, rect),
+            Side::Horizontal(side) => side_axe_horizontal(side, rect),
+        }
+
+        fn side_axe_vertical(side: VerticalSide, rect: Rect) -> f32 {
+            match side {
+                VerticalSide::Left => rect.left(),
+                VerticalSide::Right => rect.right(),
+            }
+        }
+
+        fn side_axe_horizontal(
+            side: HorizontalSide,
+            rect: Rect,
+        ) -> f32 {
+            match side {
+                HorizontalSide::Top => rect.top(),
+                HorizontalSide::Bottom => rect.bottom(),
+            }
         }
     }
 
     fn sign(self) -> f32 {
         match self {
-            Self::Left => -1.0,
-            Self::Right => 1.0,
+            Side::Vertical(side) => sign_vertical(side),
+            Side::Horizontal(side) => sign_horizontal(side),
+        }
+
+        fn sign_vertical(side: VerticalSide) -> f32 {
+            match side {
+                VerticalSide::Left => -1.0,
+                VerticalSide::Right => 1.0,
+            }
+        }
+
+        fn sign_horizontal(side: HorizontalSide) -> f32 {
+            match side {
+                HorizontalSide::Top => -1.0,
+                HorizontalSide::Bottom => 1.0,
+            }
         }
     }
 }
@@ -107,7 +199,7 @@ impl Side {
 /// See also [`TopBottomPanel`].
 #[must_use = "You should call .show()"]
 pub struct SidePanel {
-    side: Side,
+    side: OldSide,
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
@@ -119,16 +211,16 @@ pub struct SidePanel {
 impl SidePanel {
     /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
     pub fn left(id: impl Into<Id>) -> Self {
-        Self::new(Side::Left, id)
+        Self::new(OldSide::Left, id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
     pub fn right(id: impl Into<Id>) -> Self {
-        Self::new(Side::Right, id)
+        Self::new(OldSide::Right, id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    pub fn new(side: Side, id: impl Into<Id>) -> Self {
+    pub fn new(side: OldSide, id: impl Into<Id>) -> Self {
         Self {
             side,
             id: id.into(),
@@ -279,8 +371,8 @@ impl SidePanel {
             UiBuilder::new()
                 .id_salt(id)
                 .ui_stack_info(UiStackInfo::new(match side {
-                    Side::Left => UiKind::LeftPanel,
-                    Side::Right => UiKind::RightPanel,
+                    OldSide::Left => UiKind::LeftPanel,
+                    OldSide::Right => UiKind::RightPanel,
                 }))
                 .max_rect(panel_rect)
                 .layout(Layout::top_down(Align::Min)),
@@ -300,10 +392,10 @@ impl SidePanel {
         {
             let mut cursor = ui.cursor();
             match side {
-                Side::Left => {
+                OldSide::Left => {
                     cursor.min.x = rect.max.x;
                 }
-                Side::Right => {
+                OldSide::Right => {
                     cursor.max.x = rect.min.x;
                 }
             }
@@ -326,15 +418,15 @@ impl SidePanel {
         if resize_hover || is_resizing {
             let cursor_icon = if width <= width_range.min {
                 match self.side {
-                    Side::Left => CursorIcon::ResizeEast,
-                    Side::Right => CursorIcon::ResizeWest,
+                    OldSide::Left => CursorIcon::ResizeEast,
+                    OldSide::Right => CursorIcon::ResizeWest,
                 }
             } else if width < width_range.max {
                 CursorIcon::ResizeHorizontal
             } else {
                 match self.side {
-                    Side::Left => CursorIcon::ResizeWest,
-                    Side::Right => CursorIcon::ResizeEast,
+                    OldSide::Left => CursorIcon::ResizeWest,
+                    OldSide::Right => CursorIcon::ResizeEast,
                 }
             };
             ui.ctx().set_cursor_icon(cursor_icon);
@@ -394,10 +486,10 @@ impl SidePanel {
         let rect = inner_response.response.rect;
 
         match side {
-            Side::Left => ctx.pass_state_mut(|state| {
+            OldSide::Left => ctx.pass_state_mut(|state| {
                 state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
             }),
-            Side::Right => ctx.pass_state_mut(|state| {
+            OldSide::Right => ctx.pass_state_mut(|state| {
                 state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
             }),
         }
@@ -537,43 +629,6 @@ impl SidePanel {
 
 // ----------------------------------------------------------------------------
 
-/// [`Top`](TopBottomSide::Top) or [`Bottom`](TopBottomSide::Bottom)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TopBottomSide {
-    Top,
-    Bottom,
-}
-
-impl TopBottomSide {
-    fn opposite(self) -> Self {
-        match self {
-            Self::Top => Self::Bottom,
-            Self::Bottom => Self::Top,
-        }
-    }
-
-    fn set_rect_height(self, rect: &mut Rect, height: f32) {
-        match self {
-            Self::Top => rect.max.y = rect.min.y + height,
-            Self::Bottom => rect.min.y = rect.max.y - height,
-        }
-    }
-
-    fn side_y(self, rect: Rect) -> f32 {
-        match self {
-            Self::Top => rect.top(),
-            Self::Bottom => rect.bottom(),
-        }
-    }
-
-    fn sign(self) -> f32 {
-        match self {
-            Self::Top => -1.0,
-            Self::Bottom => 1.0,
-        }
-    }
-}
-
 /// A panel that covers the entire top or bottom of a [`Ui`] or screen.
 ///
 /// The order in which you add panels matter!
@@ -594,7 +649,7 @@ impl TopBottomSide {
 /// See also [`SidePanel`].
 #[must_use = "You should call .show()"]
 pub struct TopBottomPanel {
-    side: TopBottomSide,
+    side: OldTopBottomSide,
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
@@ -606,16 +661,16 @@ pub struct TopBottomPanel {
 impl TopBottomPanel {
     /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
     pub fn top(id: impl Into<Id>) -> Self {
-        Self::new(TopBottomSide::Top, id)
+        Self::new(OldTopBottomSide::Top, id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
     pub fn bottom(id: impl Into<Id>) -> Self {
-        Self::new(TopBottomSide::Bottom, id)
+        Self::new(OldTopBottomSide::Bottom, id)
     }
 
     /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    pub fn new(side: TopBottomSide, id: impl Into<Id>) -> Self {
+    pub fn new(side: OldTopBottomSide, id: impl Into<Id>) -> Self {
         Self {
             side,
             id: id.into(),
@@ -776,8 +831,8 @@ impl TopBottomPanel {
             UiBuilder::new()
                 .id_salt(id)
                 .ui_stack_info(UiStackInfo::new(match side {
-                    TopBottomSide::Top => UiKind::TopPanel,
-                    TopBottomSide::Bottom => UiKind::BottomPanel,
+                    OldTopBottomSide::Top => UiKind::TopPanel,
+                    OldTopBottomSide::Bottom => UiKind::BottomPanel,
                 }))
                 .max_rect(panel_rect)
                 .layout(Layout::top_down(Align::Min)),
@@ -796,10 +851,10 @@ impl TopBottomPanel {
         {
             let mut cursor = ui.cursor();
             match side {
-                TopBottomSide::Top => {
+                OldTopBottomSide::Top => {
                     cursor.min.y = rect.max.y;
                 }
-                TopBottomSide::Bottom => {
+                OldTopBottomSide::Bottom => {
                     cursor.max.y = rect.min.y;
                 }
             }
@@ -823,15 +878,15 @@ impl TopBottomPanel {
         if resize_hover || is_resizing {
             let cursor_icon = if height <= height_range.min {
                 match self.side {
-                    TopBottomSide::Top => CursorIcon::ResizeSouth,
-                    TopBottomSide::Bottom => CursorIcon::ResizeNorth,
+                    OldTopBottomSide::Top => CursorIcon::ResizeSouth,
+                    OldTopBottomSide::Bottom => CursorIcon::ResizeNorth,
                 }
             } else if height < height_range.max {
                 CursorIcon::ResizeVertical
             } else {
                 match self.side {
-                    TopBottomSide::Top => CursorIcon::ResizeNorth,
-                    TopBottomSide::Bottom => CursorIcon::ResizeSouth,
+                    OldTopBottomSide::Top => CursorIcon::ResizeNorth,
+                    OldTopBottomSide::Bottom => CursorIcon::ResizeSouth,
                 }
             };
             ui.ctx().set_cursor_icon(cursor_icon);
@@ -892,12 +947,12 @@ impl TopBottomPanel {
         let rect = inner_response.response.rect;
 
         match side {
-            TopBottomSide::Top => {
+            OldTopBottomSide::Top => {
                 ctx.pass_state_mut(|state| {
                     state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
                 });
             }
-            TopBottomSide::Bottom => {
+            OldTopBottomSide::Bottom => {
                 ctx.pass_state_mut(|state| {
                     state.allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
                 });
