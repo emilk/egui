@@ -69,21 +69,22 @@ pub enum StrokeKind {
     Outside,
 }
 
-impl Default for StrokeKind {
-    fn default() -> Self {
-        Self::Middle
-    }
-}
-
 /// Describes the width and color of paths. The color can either be solid or provided by a callback. For more information, see [`ColorMode`]
 ///
 /// The default stroke is the same as [`Stroke::NONE`].
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PathStroke {
     pub width: f32,
     pub color: ColorMode,
     pub kind: StrokeKind,
+}
+
+impl Default for PathStroke {
+    #[inline]
+    fn default() -> Self {
+        Self::NONE
+    }
 }
 
 impl PathStroke {
@@ -99,7 +100,7 @@ impl PathStroke {
         Self {
             width: width.into(),
             color: ColorMode::Solid(color.into()),
-            kind: StrokeKind::default(),
+            kind: StrokeKind::Middle,
         }
     }
 
@@ -114,7 +115,7 @@ impl PathStroke {
         Self {
             width: width.into(),
             color: ColorMode::UV(Arc::new(callback)),
-            kind: StrokeKind::default(),
+            kind: StrokeKind::Middle,
         }
     }
 
@@ -168,7 +169,7 @@ impl From<Stroke> for PathStroke {
             Self {
                 width: value.width,
                 color: ColorMode::Solid(value.color),
-                kind: StrokeKind::default(),
+                kind: StrokeKind::Middle,
             }
         }
     }
