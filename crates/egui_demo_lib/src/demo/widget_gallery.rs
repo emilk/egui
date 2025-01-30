@@ -47,6 +47,7 @@ impl Default for WidgetGallery {
 }
 
 impl WidgetGallery {
+    #[inline]
     pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
         #[cfg(feature = "chrono")]
         {
