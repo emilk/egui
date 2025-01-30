@@ -14,7 +14,6 @@ mod scene;
 pub mod scroll_area;
 mod sides;
 pub(crate) mod window;
-mod any_panel;
 
 pub use {
     area::{Area, AreaState},
