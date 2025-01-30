@@ -20,7 +20,7 @@ use emath::{GuiRounding as _, Pos2};
 use crate::panel::TopBottomSide;
 use crate::{
     lerp, vec2, Align, Context, CursorIcon, Frame, Id, InnerResponse, LayerId, Layout, NumExt,
-    Rangef, Rect, Response, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
+    Rangef, Rect, Sense, Stroke, Ui, UiBuilder, UiKind, UiStackInfo, Vec2,
 };
 
 fn animate_expansion(ctx: &Context, id: Id, is_expanded: bool) -> f32 {
@@ -262,7 +262,7 @@ impl PanelSizer {
 ///
 /// ```
 /// # egui::__run_test_ctx(|ctx| {
-/// egui::SidePanel::left("my_left_panel").show(ctx, |ui| {
+/// egui::Panel::left("my_left_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
 /// });
 /// # });
@@ -569,7 +569,8 @@ impl Panel {
             self.prepare_resizable_panel(&mut panel_sizer, ui);
         }
 
-        // TODO(shark98): Does it have to be here or could be in `PanelBuilder::new()`?
+        // NOTE(shark98): This must be **after** the resizable preparation, as the size
+        // may change and round_ui() uses the size.
         panel_sizer.panel_rect = panel_sizer.panel_rect.round_ui();
 
         let get_ui_kind = || match side {
@@ -730,12 +731,10 @@ impl Panel {
         if resize_response.is_some() {
             let resize_response = resize_response.unwrap();
 
-            // TODO(sharky98): Verify if it is needed to initialize as false.
-            let mut is_resizing = false;
-            is_resizing = resize_response.dragged();
-
+            // NOTE(sharky98): The original code was initializing to
+            // false first, but it doesn't seem necessary.
+            let is_resizing = resize_response.dragged();
             let pointer = resize_response.interact_pointer_pos();
-
             panel_sizer.prepare_resizing_response(is_resizing, pointer);
         }
     }
