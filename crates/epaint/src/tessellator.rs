@@ -1805,22 +1805,25 @@ impl Tessellator {
             path.add_line_loop(&self.scratchpad_points);
             let path_stroke = PathStroke::from(stroke).outside();
 
-            if let Some(brush) = brush {
-                let crate::Brush {
-                    fill_texture_id,
-                    uv,
-                } = **brush;
-                // Textured
-                let uv_from_pos = |p: Pos2| {
-                    pos2(
-                        remap(p.x, rect.x_range(), uv.x_range()),
-                        remap(p.y, rect.y_range(), uv.y_range()),
-                    )
-                };
-                path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
-            } else {
-                // Untextured
-                path.fill(self.feathering, fill, &path_stroke, out);
+            if rect.is_positive() {
+                // Fill
+                if let Some(brush) = brush {
+                    // Textured
+                    let crate::Brush {
+                        fill_texture_id,
+                        uv,
+                    } = **brush;
+                    let uv_from_pos = |p: Pos2| {
+                        pos2(
+                            remap(p.x, rect.x_range(), uv.x_range()),
+                            remap(p.y, rect.y_range(), uv.y_range()),
+                        )
+                    };
+                    path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
+                } else {
+                    // Untextured
+                    path.fill(self.feathering, fill, &path_stroke, out);
+                }
             }
 
             path.stroke_closed(self.feathering, &path_stroke, out);
