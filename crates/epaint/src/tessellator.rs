@@ -1681,7 +1681,7 @@ impl Tessellator {
             mut rect,
             mut rounding,
             fill,
-            stroke,
+            mut stroke,
             stroke_kind,
             round_to_pixels,
             mut blur_width,
@@ -1737,6 +1737,9 @@ impl Tessellator {
         // Important: do this AFTER rounding to pixels
         match stroke_kind {
             StrokeKind::Inside => {
+                // Shrink the stroke so it fits inside the rect:
+                stroke.width = stroke.width.at_most(rect.size().min_elem() / 2.0);
+
                 rect = rect.shrink(stroke.width);
             }
             StrokeKind::Middle => {
