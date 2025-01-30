@@ -21,13 +21,13 @@ pub struct RectShape {
     pub stroke: Stroke,
 
     /// Is the stroke on the inside, outside, or centered on the rectangle?
+    ///
+    /// If you want to perfectly tile rectangles, use [`StrokeKind::Inside`].
     pub stroke_kind: StrokeKind,
 
     /// Snap the rectangle to pixels?
     ///
     /// Rounding produces sharper rectangles.
-    /// It is the outside of the fill (=inside of the stroke)
-    /// that will be rounded to the physical pixel grid.
     ///
     /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
     pub round_to_pixels: Option<bool>,
@@ -117,8 +117,6 @@ impl RectShape {
     /// Snap the rectangle to pixels?
     ///
     /// Rounding produces sharper rectangles.
-    /// It is the outside of the fill (=inside of the stroke)
-    /// that will be rounded to the physical pixel grid.
     ///
     /// If `None`, [`crate::TessellationOptions::round_rects_to_pixels`] will be used.
     #[inline]
