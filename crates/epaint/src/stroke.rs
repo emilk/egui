@@ -63,7 +63,7 @@ pub enum StrokeKind {
     Inside,
 
     /// The stroke should be painted right on the edge of the shape, half inside and half outside.
-    Middle, // TODO(emilk): rename to "Center" to match figma?
+    Middle,
 
     /// The stroke should be painted entirely outside of the shape
     Outside,
