@@ -1780,6 +1780,7 @@ impl Tessellator {
 
         if rect.width() < 0.5 * self.feathering {
             // Very thin - approximate by a vertical line-segment:
+            // There is room for improvement here, but it is not critical.
             let line = [rect.center_top(), rect.center_bottom()];
             if 0.0 < rect.width() && fill != Color32::TRANSPARENT {
                 self.tessellate_line_segment(line, Stroke::new(rect.width(), fill), out);
@@ -1790,6 +1791,7 @@ impl Tessellator {
             }
         } else if rect.height() < 0.5 * self.feathering {
             // Very thin - approximate by a horizontal line-segment:
+            // There is room for improvement here, but it is not critical.
             let line = [rect.left_center(), rect.right_center()];
             if 0.0 < rect.height() && fill != Color32::TRANSPARENT {
                 self.tessellate_line_segment(line, Stroke::new(rect.height(), fill), out);
