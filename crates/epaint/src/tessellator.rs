@@ -8,13 +8,11 @@
 use emath::{pos2, remap, vec2, GuiRounding as _, NumExt, Pos2, Rect, Rot2, Vec2};
 
 use crate::{
-    color, emath, stroke, texture_atlas::PreparedDisc, CircleShape, ClippedPrimitive, ClippedShape,
-    Color32, CubicBezierShape, EllipseShape, Mesh, PathShape, Primitive, QuadraticBezierShape,
-    RectShape, Rounding, Shape, Stroke, StrokeKind, TextShape, TextureId, Vertex, WHITE_UV,
+    color::ColorMode, emath, stroke::PathStroke, texture_atlas::PreparedDisc, CircleShape,
+    ClippedPrimitive, ClippedShape, Color32, CubicBezierShape, EllipseShape, Mesh, PathShape,
+    Primitive, QuadraticBezierShape, RectShape, Rounding, Shape, Stroke, StrokeKind, TextShape,
+    TextureId, Vertex, WHITE_UV,
 };
-
-use self::color::ColorMode;
-use self::stroke::PathStroke;
 
 // ----------------------------------------------------------------------------
 
@@ -920,12 +918,12 @@ fn fill_closed_path_with_uv(
 #[inline(always)]
 fn translate_stroke_point(p: &mut PathPoint, stroke: &PathStroke) {
     match stroke.kind {
-        stroke::StrokeKind::Middle => { /* Nothing to do */ }
-        stroke::StrokeKind::Outside => {
-            p.pos += p.normal * stroke.width * 0.5;
-        }
-        stroke::StrokeKind::Inside => {
+        StrokeKind::Inside => {
             p.pos -= p.normal * stroke.width * 0.5;
+        }
+        StrokeKind::Middle => { /* Nothing to do */ }
+        StrokeKind::Outside => {
+            p.pos += p.normal * stroke.width * 0.5;
         }
     }
 }
@@ -947,7 +945,7 @@ fn stroke_path(
     let idx = out.vertices.len() as u32;
 
     // Translate the points along their normals if the stroke is outside or inside
-    if stroke.kind != stroke::StrokeKind::Middle {
+    if stroke.kind != StrokeKind::Middle {
         path.iter_mut()
             .for_each(|p| translate_stroke_point(p, stroke));
     }
@@ -1672,6 +1670,12 @@ impl Tessellator {
     /// * `rect`: the rectangle to tessellate.
     /// * `out`: triangles are appended to this.
     pub fn tessellate_rect(&mut self, rect_shape: &RectShape, out: &mut Mesh) {
+        if self.options.coarse_tessellation_culling
+            && !rect_shape.visual_bounding_rect().intersects(self.clip_rect)
+        {
+            return;
+        }
+
         let brush = rect_shape.brush.as_ref();
         let RectShape {
             mut rect,
@@ -1686,7 +1690,51 @@ impl Tessellator {
 
         let round_to_pixels = round_to_pixels.unwrap_or(self.options.round_rects_to_pixels);
 
-        // Modify `rect` so that it represents the filled region, with the stroke on the outside:
+        // Important: round to pixels BEFORE applying stroke_kind
+        if round_to_pixels {
+            // The rounding is aware of the stroke kind.
+            // It is designed to be clever in trying to divine the intentions of the user.
+            match stroke_kind {
+                StrokeKind::Inside => {
+                    // The stroke is inside the rect, so the rect defines the _outside_ of the stroke.
+                    // We round the outside of the stroke on a pixel boundary.
+                    // This will make the outside of the stroke crisp.
+                    //
+                    // Will make each stroke asymmetric if not an even multiple of physical pixels,
+                    // but the left stroke will always be the mirror image of the right stroke,
+                    // and the top stroke will always be the mirror image of the bottom stroke.
+                    //
+                    // This is so that a user can tile rectangles with `StrokeKind::Inside`,
+                    // and get no pixel overlap between them.
+                    rect = rect.round_to_pixels(self.pixels_per_point);
+                }
+                StrokeKind::Middle => {
+                    // On this path we optimize for crisp and symmetric strokes.
+                    // We put odd-width strokes in the center of pixels.
+                    // To understand why, see `fn round_line_segment`.
+                    if stroke.width <= self.feathering
+                        || is_nearest_integer_odd(self.pixels_per_point * stroke.width)
+                    {
+                        rect = rect.round_to_pixel_center(self.pixels_per_point);
+                    } else {
+                        rect = rect.round_to_pixels(self.pixels_per_point);
+                    }
+                }
+                StrokeKind::Outside => {
+                    // Put the inside of the stroke on a pixel boundary.
+                    // Makes the inside of the stroke and the filled rect crisp,
+                    // but the outside of the stroke may become feathered (blurry).
+                    //
+                    // Will make each stroke asymmetric if not an even multiple of physical pixels,
+                    // but the left stroke will always be the mirror image of the right stroke,
+                    // and the top stroke will always be the mirror image of the bottom stroke.
+                    rect = rect.round_to_pixels(self.pixels_per_point);
+                }
+            }
+        }
+
+        // Modify `rect` so that it represents the filled region, with the stroke on the outside.
+        // Important: do this AFTER rounding to pixels
         match stroke_kind {
             StrokeKind::Inside => {
                 rect = rect.shrink(stroke.width);
@@ -1696,28 +1744,6 @@ impl Tessellator {
             }
             StrokeKind::Outside => {
                 // Already good
-            }
-        }
-
-        if self.options.coarse_tessellation_culling
-            && !rect.expand(stroke.width).intersects(self.clip_rect)
-        {
-            return;
-        }
-
-        if round_to_pixels {
-            // Since the stroke extends outside of the rectangle,
-            // we can round the rectangle sides to the physical pixel edges,
-            // and the filled rect will appear crisp, as will the inside of the stroke.
-            let Stroke { width, .. } = stroke; // Make sure we remember to update this if we change `stroke` to `PathStroke`
-            if width <= self.feathering && !stroke.is_empty() {
-                // If the stroke is thin, make sure its center is in the center of the pixel:
-                rect = rect
-                    .expand(width / 2.0)
-                    .round_to_pixel_center(self.pixels_per_point)
-                    .shrink(width / 2.0);
-            } else {
-                rect = rect.round_to_pixels(self.pixels_per_point);
             }
         }
 
