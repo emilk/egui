@@ -73,59 +73,36 @@ pub enum Side {
 
 impl Side {
     fn opposite(self) -> Self {
+        let opposite_vertical = |side: VerticalSide| -> Side {
+            match side {
+                VerticalSide::Left => Side::Vertical(VerticalSide::Right),
+                VerticalSide::Right => Side::Vertical(VerticalSide::Left),
+            }
+        };
+
+        let opposite_horizontal = |side: HorizontalSide| -> Side {
+            match side {
+                HorizontalSide::Top => Side::Horizontal(HorizontalSide::Bottom),
+                HorizontalSide::Bottom => Side::Horizontal(HorizontalSide::Top),
+            }
+        };
+
         match self {
             Side::Vertical(side) => opposite_vertical(side),
             Side::Horizontal(side) => opposite_horizontal(side),
         }
-
-        fn opposite_vertical(
-            side: VerticalSide,
-        ) -> Side {
-            match side {
-                VerticalSide::Left => {
-                    Side::Vertical(
-                        VerticalSide::Right,
-                    )
-                }
-                VerticalSide::Right => {
-                    Side::Vertical(
-                        VerticalSide::Left,
-                    )
-                }
-            }
-        }
-
-        fn opposite_horizontal(
-            side: HorizontalSide,
-        ) -> Side {
-            match side {
-                HorizontalSide::Top => {
-                    Side::Horizontal(
-                        HorizontalSide::Bottom,
-                    )
-                }
-                HorizontalSide::Bottom => {
-                    Side::Horizontal(
-                        HorizontalSide::Top,
-                    )
-                }
-            }
-        }
     }
 
     fn set_rect_size(self, rect: &mut Rect, size: f32) {
-        let set_rect_size_vertical = |side: VerticalSide| match side {
+        let mut set_rect_size_vertical = |side: VerticalSide| match side {
             VerticalSide::Left => rect.max.x = rect.min.x + size,
             VerticalSide::Right => rect.min.x = rect.max.x - size,
         };
 
-        let set_rect_size_horizontal =
-            |side: HorizontalSide| match side {
-                HorizontalSide::Top => rect.max.y = rect.min.y + size,
-                HorizontalSide::Bottom => {
-                    rect.min.y = rect.max.y - size
-                }
-            };
+        let mut set_rect_size_horizontal = |side: HorizontalSide| match side {
+            HorizontalSide::Top => rect.max.y = rect.min.y + size,
+            HorizontalSide::Bottom => rect.min.y = rect.max.y - size,
+        };
 
         match self {
             Side::Vertical(side) => set_rect_size_vertical(side),
@@ -134,47 +111,44 @@ impl Side {
     }
 
     fn side_axe(self, rect: Rect) -> f32 {
-        match self {
-            Side::Vertical(side) => side_axe_vertical(side, rect),
-            Side::Horizontal(side) => side_axe_horizontal(side, rect),
-        }
-
-        fn side_axe_vertical(side: VerticalSide, rect: Rect) -> f32 {
+        let side_axe_vertical = |side: VerticalSide, rect: Rect| -> f32 {
             match side {
                 VerticalSide::Left => rect.left(),
                 VerticalSide::Right => rect.right(),
             }
-        }
+        };
 
-        fn side_axe_horizontal(
-            side: HorizontalSide,
-            rect: Rect,
-        ) -> f32 {
+        let side_axe_horizontal = |side: HorizontalSide, rect: Rect| -> f32 {
             match side {
                 HorizontalSide::Top => rect.top(),
                 HorizontalSide::Bottom => rect.bottom(),
             }
+        };
+
+        match self {
+            Side::Vertical(side) => side_axe_vertical(side, rect),
+            Side::Horizontal(side) => side_axe_horizontal(side, rect),
         }
     }
 
     fn sign(self) -> f32 {
-        match self {
-            Side::Vertical(side) => sign_vertical(side),
-            Side::Horizontal(side) => sign_horizontal(side),
-        }
-
-        fn sign_vertical(side: VerticalSide) -> f32 {
+        let sign_vertical = |side: VerticalSide| -> f32 {
             match side {
                 VerticalSide::Left => -1.0,
                 VerticalSide::Right => 1.0,
             }
-        }
+        };
 
-        fn sign_horizontal(side: HorizontalSide) -> f32 {
+        let sign_horizontal = |side: HorizontalSide| -> f32 {
             match side {
                 HorizontalSide::Top => -1.0,
                 HorizontalSide::Bottom => 1.0,
             }
+        };
+
+        match self {
+            Side::Vertical(side) => sign_vertical(side),
+            Side::Horizontal(side) => sign_horizontal(side),
         }
     }
 }
@@ -190,14 +164,14 @@ struct PanelSizer<'a> {
     panel_rect: Rect,
 }
 
-impl PanelSizer {
-    fn new(panel: &Panel, ui: &mut Ui) -> Self {
+impl<'a> PanelSizer<'a> {
+    fn new(panel: &'a Panel, ui: &mut Ui) -> Self {
         let frame = panel
             .frame
             .unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let available_rect = ui.available_rect_before_wrap();
-        let mut size = PanelSizer::get_size_from_state_or_default(panel, ui, frame);
-        let mut panel_rect = PanelSizer::get_panel_rect(panel, available_rect, &mut size);
+        let size = PanelSizer::get_size_from_state_or_default(panel, ui, frame);
+        let panel_rect = PanelSizer::get_panel_rect(panel, available_rect, size);
 
         Self {
             panel,
@@ -226,7 +200,7 @@ impl PanelSizer {
         }
     }
 
-    fn get_panel_rect(panel: &Panel, available_rect: Rect, mut size: &mut f32) -> Rect {
+    fn get_panel_rect(panel: &Panel, available_rect: Rect, mut size: f32) -> Rect {
         let side = panel.side;
         let size_range = panel.size_range;
 
@@ -234,13 +208,13 @@ impl PanelSizer {
 
         match side {
             Side::Vertical(_) => {
-                size = &mut clamp_to_range(*size, size_range).at_most(available_rect.width());
+                size = clamp_to_range(size, size_range).at_most(available_rect.width());
             }
             Side::Horizontal(_) => {
-                size = &mut clamp_to_range(*size, size_range).at_most(available_rect.height());
+                size = clamp_to_range(size, size_range).at_most(available_rect.height());
             }
         }
-        side.set_rect_size(&mut panel_rect, *size);
+        side.set_rect_size(&mut panel_rect, size);
         panel_rect
     }
 
@@ -248,22 +222,20 @@ impl PanelSizer {
         let side = self.panel.side;
         let size_range = self.panel.size_range;
 
-        let prepare_resizing_response_vertical = |pointer: Pos2| {
-            self.size = (pointer.x - side.side_axe(self.panel_rect)).abs();
-            self.size = clamp_to_range(self.size, size_range).at_most(self.available_rect.width());
-        };
-
-        let prepare_resizing_response_horizontal = |pointer: Pos2| {
-            self.size = (pointer.y - side.side_axe(self.panel_rect)).abs();
-            self.size = clamp_to_range(self.size, size_range).at_most(self.available_rect.height());
-        };
-
         if is_resizing && pointer.is_some() {
             let pointer = pointer.unwrap();
 
             match side {
-                Side::Vertical(_) => prepare_resizing_response_vertical(pointer),
-                Side::Horizontal(_) => prepare_resizing_response_horizontal(pointer),
+                Side::Vertical(_) => {
+                    self.size = (pointer.x - side.side_axe(self.panel_rect)).abs();
+                    self.size =
+                        clamp_to_range(self.size, size_range).at_most(self.available_rect.width());
+                }
+                Side::Horizontal(_) => {
+                    self.size = (pointer.y - side.side_axe(self.panel_rect)).abs();
+                    self.size =
+                        clamp_to_range(self.size, size_range).at_most(self.available_rect.height());
+                }
             }
 
             side.set_rect_size(&mut self.panel_rect, self.size);
@@ -469,9 +441,9 @@ impl Panel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = animate_expansion(ctx(), self.id.with("animation"), is_expanded);
+        let how_expanded = animate_expansion(ctx, self.id.with("animation"), is_expanded);
 
-        let animated_panel = self.get_animated_panel(ctx(), is_expanded);
+        let animated_panel = self.get_animated_panel(ctx, is_expanded);
 
         if animated_panel.is_none() {
             None
@@ -522,7 +494,7 @@ impl Panel {
 
         // Get either the fake or the real panel to animate
         let animated_between_panel =
-            Self::get_animated_between_panel(ctx(), is_expanded, collapsed_panel, expanded_panel);
+            Self::get_animated_between_panel(ctx, is_expanded, collapsed_panel, expanded_panel);
 
         if 0.0 == how_expanded {
             Some(animated_between_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -745,7 +717,7 @@ impl Panel {
         inner_response
     }
 
-    fn prepare_resizable_panel(&self, panel_sizer: &mut PanelSizer, ui: &mut Ui) {
+    fn prepare_resizable_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &mut Ui) {
         let resize_id = self.id.with("__resize");
         let resize_response = ui.ctx().read_response(resize_id);
 
@@ -760,37 +732,36 @@ impl Panel {
         }
     }
 
-    fn resize_panel(&self, panel_sizer: &mut PanelSizer, ui: &mut Ui) -> (bool, bool) {
-        let (resize_x, resize_y, amnt): (impl Into<Rangef>, impl Into<Rangef>, Vec2) =
-            match self.side {
-                Side::Vertical(_) => {
-                    let resize_x = self.side.opposite().side_axe(panel_sizer.panel_rect);
-                    let resize_y = panel_sizer.panel_rect.y_range();
-                    (
-                        resize_x..=resize_x,
-                        resize_y,
-                        vec2(ui.style().interaction.resize_grab_radius_side, 0.0),
-                    )
-                }
-                Side::Horizontal(_) => {
-                    let resize_x = panel_sizer.panel_rect.x_range();
-                    let resize_y = self.side.opposite().side_axe(panel_sizer.panel_rect);
-                    (
-                        resize_x,
-                        resize_y..=resize_y,
-                        vec2(0.0, ui.style().interaction.resize_grab_radius_side),
-                    )
-                }
-            };
+    fn resize_panel(&self, panel_sizer: &mut PanelSizer<'_>, ui: &mut Ui) -> (bool, bool) {
+        let (resize_x, resize_y, amount): (Rangef, Rangef, Vec2) = match self.side {
+            Side::Vertical(_) => {
+                let resize_x = self.side.opposite().side_axe(panel_sizer.panel_rect);
+                let resize_y = panel_sizer.panel_rect.y_range();
+                (
+                    Rangef::from(resize_x..=resize_x),
+                    resize_y,
+                    vec2(ui.style().interaction.resize_grab_radius_side, 0.0),
+                )
+            }
+            Side::Horizontal(_) => {
+                let resize_x = panel_sizer.panel_rect.x_range();
+                let resize_y = self.side.opposite().side_axe(panel_sizer.panel_rect);
+                (
+                    resize_x,
+                    Rangef::from(resize_y..=resize_y),
+                    vec2(0.0, ui.style().interaction.resize_grab_radius_side),
+                )
+            }
+        };
 
         let resize_id = self.id.with("__resize");
-        let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amnt);
+        let resize_rect = Rect::from_x_y_ranges(resize_x, resize_y).expand2(amount);
         let resize_response = ui.interact(resize_rect, resize_id, Sense::drag());
 
         (resize_response.hovered(), resize_response.dragged())
     }
 
-    fn get_cursor_icon(&self, panel_sizer: &PanelSizer) -> CursorIcon {
+    fn get_cursor_icon(&self, panel_sizer: &PanelSizer<'_>) -> CursorIcon {
         if panel_sizer.size <= self.size_range.min {
             match self.side {
                 Side::Vertical(v_side) => match v_side {
@@ -838,8 +809,8 @@ impl Panel {
                     id: self.id.with("animating_panel"),
                     ..self
                 }
-                    .resizable(false)
-                    .exact_size(fake_size),
+                .resizable(false)
+                .exact_size(fake_size),
             )
         } else {
             // Show the real panel:
@@ -868,8 +839,8 @@ impl Panel {
                 id: expanded_panel.id.with("animating_panel"),
                 ..expanded_panel
             }
-                .resizable(false)
-                .exact_size(fake_size)
+            .resizable(false)
+            .exact_size(fake_size)
         } else {
             expanded_panel
         }
