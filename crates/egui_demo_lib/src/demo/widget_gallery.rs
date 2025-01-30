@@ -22,6 +22,8 @@ pub struct WidgetGallery {
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
     date: Option<chrono::NaiveDate>,
+
+    with_date_button: bool,
 }
 
 impl Default for WidgetGallery {
@@ -38,7 +40,20 @@ impl Default for WidgetGallery {
             animate_progress_bar: false,
             #[cfg(feature = "chrono")]
             date: None,
+            #[cfg(feature = "chrono")]
+            with_date_button: true,
         }
+    }
+}
+
+impl WidgetGallery {
+    #[inline]
+    pub fn with_date_button(mut self, _with_date_button: bool) -> Self {
+        #[cfg(feature = "chrono")]
+        {
+            self.with_date_button = _with_date_button;
+        }
+        self
     }
 }
 
@@ -124,6 +139,8 @@ impl WidgetGallery {
             animate_progress_bar,
             #[cfg(feature = "chrono")]
             date,
+            #[cfg(feature = "chrono")]
+            with_date_button,
         } = self;
 
         ui.add(doc_link_label("Label", "label"));
@@ -226,7 +243,7 @@ impl WidgetGallery {
         ui.end_row();
 
         #[cfg(feature = "chrono")]
-        {
+        if *with_date_button {
             let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
             ui.add(doc_link_label_with_crate(
                 "egui_extras",

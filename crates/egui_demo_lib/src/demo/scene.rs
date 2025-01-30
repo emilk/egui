@@ -11,7 +11,7 @@ pub struct SceneDemo {
 impl Default for SceneDemo {
     fn default() -> Self {
         Self {
-            widget_gallery: Default::default(),
+            widget_gallery: widget_gallery::WidgetGallery::default().with_date_button(false), // disable date button so that we don't fail the snapshot test
             scene_rect: Rect::ZERO, // `egui::Scene` will initialize this to something valid
         }
     }
