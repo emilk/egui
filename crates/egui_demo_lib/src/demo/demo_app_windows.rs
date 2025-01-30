@@ -4,8 +4,7 @@ use super::About;
 use crate::is_mobile;
 use crate::Demo;
 use crate::View;
-use egui::panel::PanelOptions as _;
-use egui::panel::PanelShow as _;
+use egui::panel::Panel as _;
 use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
 
 // ----------------------------------------------------------------------------

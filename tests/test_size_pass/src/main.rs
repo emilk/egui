@@ -2,7 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's a test
 
 use eframe::egui;
-use eframe::egui::panel::PanelShow as _;
+use eframe::egui::panel::Panel as _;
 
 fn main() -> eframe::Result {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.

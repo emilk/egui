@@ -1,4 +1,4 @@
-use egui::panel::PanelShow as _;
+use egui::panel::Panel as _;
 use egui::{
     text::CCursorRange, Key, KeyboardShortcut, Modifiers, ScrollArea, TextBuffer, TextEdit, Ui,
 };

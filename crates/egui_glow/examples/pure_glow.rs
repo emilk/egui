@@ -8,7 +8,7 @@
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
-use egui::panel::PanelShow as _;
+use egui::panel::Panel as _;
 use egui_winit::winit;
 use winit::raw_window_handle::HasWindowHandle;
 

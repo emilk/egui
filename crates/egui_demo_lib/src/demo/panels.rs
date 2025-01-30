@@ -1,5 +1,4 @@
-use egui::panel::PanelOptions as _;
-use egui::panel::PanelShow as _;
+use egui::panel::Panel as _;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

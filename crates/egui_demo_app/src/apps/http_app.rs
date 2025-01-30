@@ -1,4 +1,4 @@
-use egui::panel::PanelShow as _;
+use egui::panel::Panel as _;
 use egui::Image;
 use poll_promise::Promise;
 

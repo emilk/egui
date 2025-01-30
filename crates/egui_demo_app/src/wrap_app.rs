@@ -5,8 +5,7 @@ use eframe::glow;
 
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
-use egui::panel::PanelOptions as _;
-use egui::panel::PanelShow as _;
+use egui::panel::Panel as _;
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

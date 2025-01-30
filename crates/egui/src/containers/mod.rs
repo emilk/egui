@@ -20,7 +20,7 @@ pub use {
     combo_box::*,
     frame::Frame,
     modal::{Modal, ModalResponse},
-    panel::{CentralPanel, PanelOptions, PanelShow, SidePanel, TopBottomPanel},
+    panel::{CentralPanel, Panel, SidePanel, TopBottomPanel},
     popup::*,
     resize::Resize,
     scroll_area::ScrollArea,

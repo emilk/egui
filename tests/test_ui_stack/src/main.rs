@@ -2,8 +2,7 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
-use eframe::egui::panel::PanelOptions as _;
-use eframe::egui::panel::PanelShow as _;
+use eframe::egui::panel::Panel as _;
 use eframe::egui::{Rangef, Shape, UiKind};
 use egui_extras::Column;
 

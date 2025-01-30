@@ -1,6 +1,6 @@
 use egui::emath::Rot2;
-use egui::panel::PanelOptions as _;
-use egui::panel::PanelShow as _;
+use egui::panel::Panel as _;
+use egui::panel::Panel as _;
 use egui::panel::Side;
 use egui::panel::TopBottomSide;
 use egui::ImageFit;

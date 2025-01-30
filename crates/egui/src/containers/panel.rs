@@ -52,11 +52,9 @@ pub trait SideT {
     fn opposite(self) -> Self;
 }
 
-pub trait PanelOptions {
-    type SideType: SideT;
-
+pub trait Panel {
     /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    fn new(side: Self::SideType, id: impl Into<Id>) -> Self;
+    fn new(side: impl SideT, id: impl Into<Id>) -> Self;
 
     /// Can panel be resized by dragging the edge of it?
     ///
@@ -93,9 +91,7 @@ pub trait PanelOptions {
 
     /// Enforce this exact size (width or height), including margins.
     fn exact_size(self, size: f32) -> Self;
-}
 
-pub trait PanelShow {
     /// Show the panel inside a [`Ui`].
     fn show_inside<R>(
         self,
@@ -187,7 +183,7 @@ impl Side {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # use egui::panel::PanelShow as _;
+/// # use egui::panel::Panel as _;
 /// egui::__run_test_ctx(|ctx| {
 /// egui::SidePanel::left("my_left_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
@@ -258,60 +254,6 @@ impl SidePanel {
         self.default_width = width;
         self.width_range = Rangef::point(width);
         self
-    }
-}
-
-impl PanelOptions for SidePanel {
-    type SideType = Side;
-
-    fn new(side: Side, id: impl Into<Id>) -> Self {
-        Self {
-            side,
-            id: id.into(),
-            frame: None,
-            resizable: true,
-            show_separator_line: true,
-            default_width: 200.0,
-            width_range: Rangef::new(96.0, f32::INFINITY),
-        }
-    }
-
-    #[inline]
-    fn resizable(mut self, resizable: bool) -> Self {
-        self.resizable = resizable;
-        self
-    }
-
-    #[inline]
-    fn show_separator_line(mut self, show_separator_line: bool) -> Self {
-        self.show_separator_line = show_separator_line;
-        self
-    }
-
-    #[inline]
-    fn frame(mut self, frame: Frame) -> Self {
-        self.frame = Some(frame);
-        self
-    }
-
-    fn default_size(self, default_size: f32) -> Self {
-        self.default_width(default_size)
-    }
-
-    fn min_size(self, min_size: f32) -> Self {
-        self.min_width(min_size)
-    }
-
-    fn max_size(self, max_size: f32) -> Self {
-        self.max_width(max_size)
-    }
-
-    fn size_range(self, size_range: impl Into<Rangef>) -> Self {
-        self.width_range(size_range)
-    }
-
-    fn exact_size(self, size: f32) -> Self {
-        self.exact_width(size)
     }
 }
 
@@ -488,7 +430,57 @@ impl SidePanel {
     }
 }
 
-impl PanelShow for SidePanel {
+impl Panel for SidePanel {
+    fn new(side: impl SideT, id: impl Into<Id>) -> Self {
+        Self {
+            side,
+            id: id.into(),
+            frame: None,
+            resizable: true,
+            show_separator_line: true,
+            default_width: 200.0,
+            width_range: Rangef::new(96.0, f32::INFINITY),
+        }
+    }
+
+    #[inline]
+    fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    #[inline]
+    fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
+        self
+    }
+
+    #[inline]
+    fn frame(mut self, frame: Frame) -> Self {
+        self.frame = Some(frame);
+        self
+    }
+
+    fn default_size(self, default_size: f32) -> Self {
+        self.default_width(default_size)
+    }
+
+    fn min_size(self, min_size: f32) -> Self {
+        self.min_width(min_size)
+    }
+
+    fn max_size(self, max_size: f32) -> Self {
+        self.max_width(max_size)
+    }
+
+    fn size_range(self, size_range: impl Into<Rangef>) -> Self {
+        self.width_range(size_range)
+    }
+
+    fn exact_size(self, size: f32) -> Self {
+        self.exact_width(size)
+    }
+
     fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -670,7 +662,7 @@ impl TopBottomSide {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// # use egui::panel::PanelShow as _;
+/// # use egui::panel::Panel as _;
 /// egui::__run_test_ctx(|ctx| {
 /// egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
 ///    ui.label("Hello World!");
@@ -744,61 +736,6 @@ impl TopBottomPanel {
         self.default_height = Some(height);
         self.height_range = Rangef::point(height);
         self
-    }
-}
-
-impl PanelOptions for TopBottomPanel {
-    type SideType = TopBottomSide;
-
-    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
-    fn new(side: TopBottomSide, id: impl Into<Id>) -> Self {
-        Self {
-            side,
-            id: id.into(),
-            frame: None,
-            resizable: false,
-            show_separator_line: true,
-            default_height: None,
-            height_range: Rangef::new(20.0, f32::INFINITY),
-        }
-    }
-
-    #[inline]
-    fn resizable(mut self, resizable: bool) -> Self {
-        self.resizable = resizable;
-        self
-    }
-
-    #[inline]
-    fn show_separator_line(mut self, show_separator_line: bool) -> Self {
-        self.show_separator_line = show_separator_line;
-        self
-    }
-
-    #[inline]
-    fn frame(mut self, frame: Frame) -> Self {
-        self.frame = Some(frame);
-        self
-    }
-
-    fn default_size(self, default_size: f32) -> Self {
-        self.default_height(default_size)
-    }
-
-    fn min_size(self, min_size: f32) -> Self {
-        self.min_height(min_size)
-    }
-
-    fn max_size(self, max_size: f32) -> Self {
-        self.max_height(max_size)
-    }
-
-    fn size_range(self, size_range: impl Into<Rangef>) -> Self {
-        self.height_range(size_range)
-    }
-
-    fn exact_size(self, size: f32) -> Self {
-        self.exact_height(size)
     }
 }
 
@@ -988,7 +925,59 @@ impl TopBottomPanel {
     }
 }
 
-impl PanelShow for TopBottomPanel {
+impl Panel for TopBottomPanel {
+
+    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
+    fn new(side: impl SideT, id: impl Into<Id>) -> Self {
+        Self {
+            side,
+            id: id.into(),
+            frame: None,
+            resizable: false,
+            show_separator_line: true,
+            default_height: None,
+            height_range: Rangef::new(20.0, f32::INFINITY),
+        }
+    }
+
+    #[inline]
+    fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    #[inline]
+    fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
+        self
+    }
+
+    #[inline]
+    fn frame(mut self, frame: Frame) -> Self {
+        self.frame = Some(frame);
+        self
+    }
+
+    fn default_size(self, default_size: f32) -> Self {
+        self.default_height(default_size)
+    }
+
+    fn min_size(self, min_size: f32) -> Self {
+        self.min_height(min_size)
+    }
+
+    fn max_size(self, max_size: f32) -> Self {
+        self.max_height(max_size)
+    }
+
+    fn size_range(self, size_range: impl Into<Rangef>) -> Self {
+        self.height_range(size_range)
+    }
+
+    fn exact_size(self, size: f32) -> Self {
+        self.exact_height(size)
+    }
+
     fn show_inside<R>(
         self,
         ui: &mut Ui,
@@ -1157,7 +1146,7 @@ impl PanelShow for TopBottomPanel {
 /// See the [module level docs](crate::containers::panel) for more details.
 ///
 /// ```
-/// use egui::panel::PanelShow as _;
+/// use egui::panel::Panel as _;
 /// egui::__run_test_ctx(|ctx| {
 /// egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
 ///    ui.label("Hello World! From `TopBottomPanel`, that must be before `CentralPanel`!");
