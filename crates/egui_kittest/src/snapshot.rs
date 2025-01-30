@@ -155,8 +155,15 @@ impl Display for SnapshotError {
     }
 }
 
+/// If this is set, we update the snapshots (if different),
+/// and _succeed_ the test.
+/// This is so that you can set `UPDATE_SNAPSHOTS=true` and update _all_ tests,
+/// without `cargo test` failing on the first failing crate.
 fn should_update_snapshots() -> bool {
-    std::env::var("UPDATE_SNAPSHOTS").is_ok()
+    match std::env::var("UPDATE_SNAPSHOTS") {
+        Ok(value) => !matches!(value.as_str(), "false" | "0" | "no" | "off"),
+        Err(_) => false,
+    }
 }
 
 /// Image snapshot test with custom options.
@@ -203,23 +210,22 @@ pub fn try_image_snapshot_options(
     std::fs::remove_file(&old_backup_path).ok();
     std::fs::remove_file(&new_path).ok();
 
-    let maybe_update_snapshot = || {
-        if should_update_snapshots() {
-            // Keep the old version so the user can compare it:
-            std::fs::rename(&snapshot_path, &old_backup_path).ok();
+    let update_snapshot = || {
+        // Keep the old version so the user can compare it:
+        std::fs::rename(&snapshot_path, &old_backup_path).ok();
 
-            // Write the new file to the checked in path:
-            new.save(&snapshot_path)
-                .map_err(|err| SnapshotError::WriteSnapshot {
-                    err,
-                    path: snapshot_path.clone(),
-                })?;
+        // Write the new file to the checked in path:
+        new.save(&snapshot_path)
+            .map_err(|err| SnapshotError::WriteSnapshot {
+                err,
+                path: snapshot_path.clone(),
+            })?;
 
-            // No need for an explicit `.new` file:
-            std::fs::remove_file(&new_path).ok();
+        // No need for an explicit `.new` file:
+        std::fs::remove_file(&new_path).ok();
 
-            println!("Updated snapshot: {snapshot_path:?}");
-        }
+        println!("Updated snapshot: {snapshot_path:?}");
+
         Ok(())
     };
 
@@ -234,21 +240,27 @@ pub fn try_image_snapshot_options(
         Ok(image) => image.to_rgba8(),
         Err(err) => {
             // No previous snapshot - probablye a new test.
-            maybe_update_snapshot()?;
-            return Err(SnapshotError::OpenSnapshot {
-                path: snapshot_path.clone(),
-                err,
-            });
+            if should_update_snapshots() {
+                return update_snapshot();
+            } else {
+                return Err(SnapshotError::OpenSnapshot {
+                    path: snapshot_path.clone(),
+                    err,
+                });
+            }
         }
     };
 
     if previous.dimensions() != new.dimensions() {
-        maybe_update_snapshot()?;
-        return Err(SnapshotError::SizeMismatch {
-            name: name.to_owned(),
-            expected: previous.dimensions(),
-            actual: new.dimensions(),
-        });
+        if should_update_snapshots() {
+            return update_snapshot();
+        } else {
+            return Err(SnapshotError::SizeMismatch {
+                name: name.to_owned(),
+                expected: previous.dimensions(),
+                actual: new.dimensions(),
+            });
+        }
     }
 
     // Compare existing image to the new one:
@@ -262,12 +274,15 @@ pub fn try_image_snapshot_options(
                 path: diff_path.clone(),
                 err,
             })?;
-        maybe_update_snapshot()?;
-        Err(SnapshotError::Diff {
-            name: name.to_owned(),
-            diff,
-            diff_path,
-        })
+        if should_update_snapshots() {
+            update_snapshot()
+        } else {
+            Err(SnapshotError::Diff {
+                name: name.to_owned(),
+                diff,
+                diff_path,
+            })
+        }
     } else {
         Ok(())
     }
